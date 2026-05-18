@@ -301,29 +301,51 @@ pub(super) fn transform_constructor_private_reads(
     content: &str,
     fields: &[ClassStateField],
 ) -> String {
-    // AST-based fast path: collect all eligible qualified names once,
-    // apply the `.v` suffix in a single pass. Falls back to the text
-    // loop on parse failure.
+    // AST-based fast path: split eligibility by rune type since the
+    // output shape differs.
+    //   - $state / $state.raw / $state.frozen → append `.v`
+    //     (private_v_suffix_ast)
+    //   - $derived / $derived.by → wrap with `$.get(...)`
+    //     (private_read_wrap_ast, shared with PR #206)
     {
-        let mut qualified_names = Vec::new();
+        let mut state_qualified: Vec<String> = Vec::new();
+        let mut derived_qualified: Vec<String> = Vec::new();
         for field in fields {
             if !field.is_private {
                 continue;
             }
-            // Same eligibility as the text loop: $state, $state.raw,
-            // $state.frozen, $derived, $derived.by.
-            let r = field.rune_type.as_str();
-            if matches!(
-                r,
-                "$state" | "$state.raw" | "$state.frozen" | "$derived" | "$derived.by"
-            ) {
-                qualified_names.push(format!("this.#{}", field.private_backing_name));
+            let qualified = format!("this.#{}", field.private_backing_name);
+            match field.rune_type.as_str() {
+                "$state" | "$state.raw" | "$state.frozen" => state_qualified.push(qualified),
+                "$derived" | "$derived.by" => derived_qualified.push(qualified),
+                _ => {}
             }
         }
-        if let Some(rewritten) =
-            super::private_v_suffix_ast::transform_private_v_suffix_ast(content, &qualified_names)
+
+        let mut current = content.to_string();
+        let mut any_changed = false;
+
+        if !state_qualified.is_empty()
+            && let Some(out) = super::private_v_suffix_ast::transform_private_v_suffix_ast(
+                &current,
+                &state_qualified,
+            )
         {
-            return rewritten;
+            current = out;
+            any_changed = true;
+        }
+
+        for qualified in &derived_qualified {
+            if let Some(out) =
+                super::private_read_wrap_ast::transform_private_read_wrap_ast(&current, qualified)
+            {
+                current = out;
+                any_changed = true;
+            }
+        }
+
+        if any_changed {
+            return current;
         }
     }
 

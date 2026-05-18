@@ -142,7 +142,7 @@ impl<'a> PrivateVSuffixCollector<'a> {
         }
         matches!(
             m.property.name.as_str(),
-            "get" | "set" | "state" | "update" | "update_pre"
+            "get" | "set" | "state" | "derived" | "update" | "update_pre"
         )
     }
 
