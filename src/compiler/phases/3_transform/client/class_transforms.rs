@@ -301,6 +301,54 @@ pub(super) fn transform_constructor_private_reads(
     content: &str,
     fields: &[ClassStateField],
 ) -> String {
+    // AST-based fast path: split eligibility by rune type since the
+    // output shape differs.
+    //   - $state / $state.raw / $state.frozen → append `.v`
+    //     (private_v_suffix_ast)
+    //   - $derived / $derived.by → wrap with `$.get(...)`
+    //     (private_read_wrap_ast, shared with PR #206)
+    {
+        let mut state_qualified: Vec<String> = Vec::new();
+        let mut derived_qualified: Vec<String> = Vec::new();
+        for field in fields {
+            if !field.is_private {
+                continue;
+            }
+            let qualified = format!("this.#{}", field.private_backing_name);
+            match field.rune_type.as_str() {
+                "$state" | "$state.raw" | "$state.frozen" => state_qualified.push(qualified),
+                "$derived" | "$derived.by" => derived_qualified.push(qualified),
+                _ => {}
+            }
+        }
+
+        let mut current = content.to_string();
+        let mut any_changed = false;
+
+        if !state_qualified.is_empty()
+            && let Some(out) = super::private_v_suffix_ast::transform_private_v_suffix_ast(
+                &current,
+                &state_qualified,
+            )
+        {
+            current = out;
+            any_changed = true;
+        }
+
+        for qualified in &derived_qualified {
+            if let Some(out) =
+                super::private_read_wrap_ast::transform_private_read_wrap_ast(&current, qualified)
+            {
+                current = out;
+                any_changed = true;
+            }
+        }
+
+        if any_changed {
+            return current;
+        }
+    }
+
     let mut result = content.to_string();
 
     for field in fields {
