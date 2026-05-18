@@ -1173,6 +1173,31 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
 
     let mut result = content.to_string();
 
+    // AST-based pre-pass: assignments + updates for ALL private-field
+    // prefixes, with $state proxy-detection.
+    {
+        let mut state_qualified: Vec<String> = Vec::new();
+        let mut other_qualified: Vec<String> = Vec::new();
+        for field in fields {
+            let prefixes = find_private_field_prefixes(&result, &field.private_backing_name);
+            for prefix in &prefixes {
+                let qualified = format!("{}.#{}", prefix, field.private_backing_name);
+                if field.rune_type == "$state" {
+                    state_qualified.push(qualified);
+                } else {
+                    other_qualified.push(qualified);
+                }
+            }
+        }
+        if let Some(rewritten) = super::private_class_assign_ast::transform_private_class_assign_ast(
+            &result,
+            &state_qualified,
+            &other_qualified,
+        ) {
+            result = rewritten;
+        }
+    }
+
     // For each private field, find all prefixes and apply transforms
     for field in fields {
         let prefixes = find_private_field_prefixes(&result, &field.private_backing_name);
