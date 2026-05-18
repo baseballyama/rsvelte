@@ -36,7 +36,6 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::Parser;
-use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_span::Span;
 
