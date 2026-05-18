@@ -15,6 +15,7 @@ mod expression_utils;
 mod formatting;
 mod props_transforms;
 mod reactive_transforms;
+mod reactive_update_ast;
 mod rune_transforms;
 mod state;
 mod state_call_ast;
