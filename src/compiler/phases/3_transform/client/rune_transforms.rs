@@ -275,8 +275,20 @@ pub(super) fn transform_client_runes_with_skip_and_state(
     // In dev mode, wrap $.state() and $.derived() declarations with $.tag() for debugging
     // This allows $inspect.trace() to show variable names in the output.
     // Pattern: `let name = $.state(...)` -> `let name = $.tag($.state(...), 'name')`
-    // Also handles $.derived(), $.state($.proxy(...))
+    // Also handles $.derived(), $.state($.proxy(...)).
+    //
+    // The declarator shape (`let/const/var X = $.X(...)`) goes through the
+    // AST helper (`tag_declarator_ast`); class fields, `this.field` shapes,
+    // and the assignment form are still picked up by the text scanner that
+    // follows. Both passes emit byte-identical output, so the text
+    // version's "already wrapped" guard skips the AST's emissions cleanly.
+    // Idempotent chain.
     if dev {
+        if let Some(rewritten) =
+            super::tag_declarator_ast::wrap_state_derived_with_tag_declarators_ast(&result, false)
+        {
+            result = rewritten;
+        }
         result = wrap_state_derived_with_tag(&result);
     }
 
