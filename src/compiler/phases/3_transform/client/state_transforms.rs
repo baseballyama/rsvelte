@@ -2384,14 +2384,37 @@ pub(super) fn transform_prop_assignments(
         return line.to_string();
     }
 
-    // AST-based pre-pass for `name = expr` and `name <op>= expr`.
-    // Member mutations (`name.prop = ...`) stay on the text path
-    // below — different shape, depends on bindable classification.
-    // Idempotent vs the text loops below: once a span has been
-    // rewritten to `name(...)`, the literal `name =` / `name +=`
-    // bytes are gone and the text loop guards skip it.
-    let pre_passed = super::prop_assign_ast::transform_prop_assign_ast(line, prop_vars);
-    let mut result = pre_passed.unwrap_or_else(|| line.to_string());
+    // AST-based pre-passes:
+    // 1. `name = expr` / `name <op>= expr` (bare LHS)
+    // 2. `name.foo = expr` / `name().foo = expr` (bindable prop
+    //    member mutations) → `name(name().foo = expr, true)`.
+    //
+    // Both replace fragility-class text loops below; idempotent
+    // vs them via different mechanisms:
+    //
+    // - Pass 1 (assign): once `name = expr` is rewritten to
+    //   `name(expr)`, the literal `name =` bytes are gone and
+    //   the text loop's `let/const/var` guard plus identifier
+    //   boundary checks skip the would-be match.
+    // - Pass 2 (member mutate): the AST helper detects the
+    //   `name(<assignment>, true)` wrap shape and skips the
+    //   inner assignment on subsequent passes; the text loop's
+    //   `before.ends_with("name(name().")` guard catches it as a
+    //   backup.
+    let after_assigns = super::prop_assign_ast::transform_prop_assign_ast(line, prop_vars);
+    let stage1: &str = after_assigns.as_deref().unwrap_or(line);
+    let after_member = super::prop_member_mutate_ast::transform_prop_member_mutate_ast(
+        stage1,
+        prop_vars,
+        non_bindable_prop_vars,
+    );
+    // When the AST member-mutation helper has rewritten, skip the
+    // text member-mutation branch below. The text loop's
+    // already-wrapped guard (`before.ends_with("prop(prop().")`) is
+    // designed for in-loop idempotency, not cross-pass; it would
+    // re-wrap our AST-produced `prop(prop().foo = x, true)`.
+    let ast_member_mutated = after_member.is_some();
+    let mut result = after_member.unwrap_or_else(|| stage1.to_string());
 
     for var in prop_vars {
         // Note: x++ / x-- / ++x / --x are handled by transform_prop_update_expressions
@@ -2506,7 +2529,7 @@ pub(super) fn transform_prop_assignments(
         // could be a legacy component which needs coarse-grained reactivity.
         // Reference: In the official compiler, prop's mutate transform returns the value as-is,
         // while bindable_prop's mutate transform wraps with prop(mutation, true).
-        if !non_bindable_prop_vars.contains(var) {
+        if !ast_member_mutated && !non_bindable_prop_vars.contains(var) {
             for dot_suffix in &["().", "."] {
                 let member_pattern = format!("{}{}", var, dot_suffix);
                 let mut member_search_start = 0;
