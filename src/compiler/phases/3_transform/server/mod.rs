@@ -7,6 +7,7 @@
 pub mod bridge;
 pub mod build;
 pub mod helpers;
+mod template_rune_ast;
 pub mod transform_legacy;
 pub mod transform_script;
 pub mod transform_store;
@@ -1012,23 +1013,23 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn transform_rune_in_template_expr(expr: &str) -> String {
         use crate::compiler::phases::phase3_transform::server::transform_script::remove_effect_blocks;
 
-        let result_bytes = expr.as_bytes();
+        // AST-based pass: handles `$state.snapshot(x)` → `$.snapshot(x)`,
+        // `$state.eager(x)` → `x` (whole-call unwrap), `$effect.tracking()` →
+        // `false`, `$effect.pending()` → `0` in one parse. Replaces the
+        // text-based byte scanners (`String::replace` + a custom
+        // brace/quote tracker) that could be tripped by the same byte
+        // patterns inside string literals. The AST visitor descends only
+        // into expression positions. Returns `None` on parse failure, in
+        // which case we leave the source untouched — the legacy text
+        // helpers below covered cases that were already malformed
+        // anyway.
         let mut result = expr.to_string();
-        // $state.eager(x) -> x (unwrap the rune call)
-        if memmem::find(result_bytes, b"$state.eager(").is_some() {
-            result = transform_rune_call_simple(&result, "$state.eager(");
-        }
-        // $state.snapshot(x) -> $.snapshot(x)
-        if memmem::find(result.as_bytes(), b"$state.snapshot(").is_some() {
-            result = result.replace("$state.snapshot(", "$.snapshot(");
-        }
-        // $effect.tracking() -> false
-        if memmem::find(result.as_bytes(), b"$effect.tracking()").is_some() {
-            result = result.replace("$effect.tracking()", "false");
-        }
-        // $effect.pending() -> 0 (number, matching official compiler)
-        if memmem::find(result.as_bytes(), b"$effect.pending()").is_some() {
-            result = result.replace("$effect.pending()", "0");
+        if let Some(rewritten) =
+            crate::compiler::phases::phase3_transform::server::template_rune_ast::transform_template_rune_ast(
+                &result,
+            )
+        {
+            result = rewritten;
         }
         // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
         // These are client-side only and should be stripped in SSR template expressions too
