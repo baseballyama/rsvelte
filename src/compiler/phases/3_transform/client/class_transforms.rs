@@ -1296,6 +1296,19 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
 
             // Now handle reads: property access, optional chaining, standalone reads
 
+            // AST-based pre-pass for member-chain reads (`q.foo`, `q[i]`,
+            // `q?.foo`). Idempotent vs the text replaces below: after
+            // wrap, the `q.` bytes are `$.get(q).` so the text-replace
+            // patterns find nothing new.
+            if let Some(rewritten) =
+                super::private_member_read_wrap_ast::transform_private_member_read_wrap_ast(
+                    &result,
+                    std::slice::from_ref(&qualified),
+                )
+            {
+                result = rewritten;
+            }
+
             // Replace property access patterns: prefix.#name. -> $.get(prefix.#name).
             let property_access_pattern = format!("{}.", qualified);
             let getter_wrapped = format!("$.get({}).", qualified);
