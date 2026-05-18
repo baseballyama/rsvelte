@@ -602,7 +602,18 @@ pub(super) fn transform_store_member_mutations(
     store_sub: &str,
     store_name: &str,
 ) -> String {
-    let mut result = line.to_string();
+    // AST-based pre-pass for `$store.prop = expr` / `$store[0]++` etc.
+    // Replaces the fragile text-chain walker below; idempotent
+    // because once a mutation is wrapped in `$.store_mutate(...)`
+    // the LHS root is `$.untrack($store)` (a CallExpression), not a
+    // bare `$store` identifier, so the AST helper bails on the next
+    // pass. The text loop's `$.store_mutate(<name>,` early-return
+    // guard then short-circuits.
+    let after_ast = super::store_member_mutate_ast::transform_store_member_mutate_ast(
+        line,
+        std::slice::from_ref(&store_sub.to_string()),
+    );
+    let mut result = after_ast.unwrap_or_else(|| line.to_string());
 
     // Skip if already transformed (contains $.store_mutate for this store)
     if result.contains(&format!("$.store_mutate({},", store_name)) {
