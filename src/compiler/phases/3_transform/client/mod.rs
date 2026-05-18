@@ -17,6 +17,7 @@ mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
 mod private_class_assign_ast;
 mod private_field_assign_ast;
+mod private_member_read_wrap_ast;
 mod private_read_wrap_ast;
 mod private_v_suffix_ast;
 mod prop_assign_ast;
