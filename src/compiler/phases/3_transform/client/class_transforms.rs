@@ -1259,6 +1259,16 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
 /// - `this.#count,` (in argument lists)
 /// - arrow function bodies: `() => this.#count + 1`
 pub(super) fn wrap_standalone_private_reads(content: &str, qualified: &str) -> String {
+    // AST-based fast path: walks PrivateFieldExpression nodes and
+    // skips assignment LHS / update target / member-chain object /
+    // $.get-family arg positions automatically. Falls back to the
+    // text loop on parse failure.
+    if let Some(out) =
+        super::private_read_wrap_ast::transform_private_read_wrap_ast(content, qualified)
+    {
+        return out;
+    }
+
     let mut result = content.to_string();
 
     // Find all occurrences of the qualified name that aren't already wrapped
