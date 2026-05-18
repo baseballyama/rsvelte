@@ -2238,6 +2238,17 @@ pub(super) fn wrap_store_unsub_for_state_sets(
         return line.to_string();
     }
 
+    // AST-based fast path: walks `CallExpression`s directly, no
+    // manual paren-matching needed. Falls back to the text loop
+    // below on parse failure.
+    if let Some(out) = super::store_unsub_wrap_ast::transform_store_unsub_wrap_ast(
+        line,
+        state_vars,
+        store_sub_vars,
+    ) {
+        return out;
+    }
+
     let mut result = line.to_string();
 
     for state_var in state_vars {

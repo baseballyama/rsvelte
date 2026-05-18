@@ -32,6 +32,7 @@ mod state_transforms;
 mod store_assign_ast;
 mod store_member_mutate_ast;
 mod store_transforms;
+mod store_unsub_wrap_ast;
 mod store_update_ast;
 mod strict_equals_ast;
 mod strip_rune_generics_ast;
