@@ -301,6 +301,32 @@ pub(super) fn transform_constructor_private_reads(
     content: &str,
     fields: &[ClassStateField],
 ) -> String {
+    // AST-based fast path: collect all eligible qualified names once,
+    // apply the `.v` suffix in a single pass. Falls back to the text
+    // loop on parse failure.
+    {
+        let mut qualified_names = Vec::new();
+        for field in fields {
+            if !field.is_private {
+                continue;
+            }
+            // Same eligibility as the text loop: $state, $state.raw,
+            // $state.frozen, $derived, $derived.by.
+            let r = field.rune_type.as_str();
+            if matches!(
+                r,
+                "$state" | "$state.raw" | "$state.frozen" | "$derived" | "$derived.by"
+            ) {
+                qualified_names.push(format!("this.#{}", field.private_backing_name));
+            }
+        }
+        if let Some(rewritten) =
+            super::private_v_suffix_ast::transform_private_v_suffix_ast(content, &qualified_names)
+        {
+            return rewritten;
+        }
+    }
+
     let mut result = content.to_string();
 
     for field in fields {
