@@ -30,22 +30,33 @@ pub(super) fn transform_store_assignments_client(
         return line.to_string();
     }
 
-    // AST-based pass for the four UpdateExpression shapes
-    // (`++$x` / `--$x` / `$x++` / `$x--`) — same output as the text
-    // loop below, but driven by the parser so string / template /
-    // regex contents can't be (incorrectly) rewritten. The text
-    // loop runs afterwards as fallback: once the AST helper has
-    // rewritten an update site the literal `++$x` / `$x++` byte
-    // pattern is no longer present, so the text loop's
-    // `result.contains(&pattern)` guard skips it. Idempotent chain.
-    let mut result = super::store_update_ast::transform_store_update_ast(
+    // AST-based pre-passes — both target store-subscription names
+    // but cover disjoint syntactic forms:
+    //
+    // 1. UpdateExpressions (`++$x` / `--$x` / `$x++` / `$x--`)
+    // 2. AssignmentExpressions (`$x = expr` / `$x <op>= expr`)
+    //
+    // Both replace the same fragility class as the text loops below
+    // (string / template / regex contents wrongly rewritten) and are
+    // idempotent vs them: once a span has been rewritten the literal
+    // byte pattern (`++$x`, `$x +=`) is gone and the text loop's
+    // `result.contains(...)` / `result.find(...)` guard skips it.
+    let after_updates = super::store_update_ast::transform_store_update_ast(
         line,
         store_sub_vars,
         prop_vars,
         state_vars,
         non_reactive_state_vars,
-    )
-    .unwrap_or_else(|| line.to_string());
+    );
+    let stage1: &str = after_updates.as_deref().unwrap_or(line);
+    let after_assigns = super::store_assign_ast::transform_store_assign_ast(
+        stage1,
+        store_sub_vars,
+        prop_vars,
+        state_vars,
+        non_reactive_state_vars,
+    );
+    let mut result = after_assigns.unwrap_or_else(|| stage1.to_string());
 
     for store_sub in store_sub_vars {
         // store_sub is like "$count", store_name is "count"
