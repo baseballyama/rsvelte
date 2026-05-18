@@ -1965,6 +1965,24 @@ pub(super) fn transform_member_mutations(
         return line.to_string();
     }
 
+    // AST-based pre-pass for `obj.prop = rhs` (legacy state member
+    // mutations). When the AST helper has rewritten, skip the text
+    // loop below — the AST is a complete replacement, and its
+    // idempotency mechanism uses `visit_call_expression` wrap
+    // detection (the text loop's `before.ends_with` guard is
+    // designed for in-loop idempotency only and would re-wrap our
+    // AST-produced wraps).
+    let ast_result =
+        super::legacy_state_member_mutate_ast::transform_legacy_state_member_mutate_ast(
+            line,
+            state_vars,
+            non_reactive_state_vars,
+            raw_state_vars,
+        );
+    if let Some(rewritten) = ast_result {
+        return rewritten;
+    }
+
     // Quick pre-check: if none of the reactive state variable names appear as identifiers
     // in the line, skip expensive transforms.
     // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
