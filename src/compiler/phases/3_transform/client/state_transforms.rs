@@ -2408,6 +2408,12 @@ pub(super) fn transform_prop_assignments(
         prop_vars,
         non_bindable_prop_vars,
     );
+    // When the AST member-mutation helper has rewritten, skip the
+    // text member-mutation branch below. The text loop's
+    // already-wrapped guard (`before.ends_with("prop(prop().")`) is
+    // designed for in-loop idempotency, not cross-pass; it would
+    // re-wrap our AST-produced `prop(prop().foo = x, true)`.
+    let ast_member_mutated = after_member.is_some();
     let mut result = after_member.unwrap_or_else(|| stage1.to_string());
 
     for var in prop_vars {
@@ -2523,7 +2529,7 @@ pub(super) fn transform_prop_assignments(
         // could be a legacy component which needs coarse-grained reactivity.
         // Reference: In the official compiler, prop's mutate transform returns the value as-is,
         // while bindable_prop's mutate transform wraps with prop(mutation, true).
-        if !non_bindable_prop_vars.contains(var) {
+        if !ast_member_mutated && !non_bindable_prop_vars.contains(var) {
             for dot_suffix in &["().", "."] {
                 let member_pattern = format!("{}{}", var, dot_suffix);
                 let mut member_search_start = 0;

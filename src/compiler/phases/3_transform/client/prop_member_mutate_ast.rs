@@ -441,6 +441,16 @@ mod tests {
     }
 
     #[test]
+    fn parenthesized_assignment_in_call_arg() {
+        // mutation-correct-return-value fixture: `console.log((a.b = true));`
+        // The inner assignment is wrapped in parens. Verify output
+        // matches the text version exactly.
+        let src = "console.log((a.b = true));";
+        let out = transform_prop_member_mutate_ast(src, &ssv(&["a"]), &[]).unwrap();
+        assert_eq!(out, "console.log((a(a().b = true, true)));");
+    }
+
+    #[test]
     fn fast_path_all_props_non_bindable() {
         // If every prop_var is in non_bindable_prop_vars, the
         // fast-path probe bails before parsing.
