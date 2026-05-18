@@ -997,7 +997,14 @@ pub(super) fn transform_prop_update_expressions(expr: &str, prop_vars: &[String]
         return expr.to_string();
     }
 
-    let mut result = expr.to_string();
+    // AST-based pre-pass for `x++` / `x--` / `++x` / `--x` on
+    // prop vars. Idempotent vs the text loop below: once a span
+    // has been rewritten to `$.update_prop(...)`, the literal
+    // `x++` / `++x` bytes are gone and the text loop's
+    // `replace_with_word_boundary` finds nothing.
+    let pre_passed =
+        super::reactive_update_ast::transform_reactive_update_ast(expr, prop_vars, &[], &[]);
+    let mut result = pre_passed.unwrap_or_else(|| expr.to_string());
     for var in prop_vars {
         // Transform postfix x++ to $.update_prop(x)
         let post_inc = format!("{}++", var);
@@ -1047,7 +1054,18 @@ pub(super) fn transform_state_update_expressions(
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> String {
-    let mut result = expr.to_string();
+    // AST-based pre-pass for `x++` / `x--` / `++x` / `--x` on
+    // reactive state vars (excludes non_reactive_vars). Idempotent
+    // vs the text loop below: once a span has been rewritten to
+    // `$.update(...)`, the literal `x++` / `++x` bytes are gone
+    // and `replace_with_word_boundary` finds nothing.
+    let pre_passed = super::reactive_update_ast::transform_reactive_update_ast(
+        expr,
+        &[],
+        state_vars,
+        non_reactive_vars,
+    );
+    let mut result = pre_passed.unwrap_or_else(|| expr.to_string());
     for var in state_vars {
         if non_reactive_vars.contains(var) {
             continue;
