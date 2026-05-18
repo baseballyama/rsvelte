@@ -1131,7 +1131,17 @@ pub(super) fn transform_state_set_in_reactive(
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> String {
-    let mut result = expr.to_string();
+    // AST-based pre-pass for `x = expr` on reactive state vars.
+    // Idempotent vs the text loop below: once a span has been
+    // rewritten to `$.set(...)`, the literal `x = ` bytes are
+    // wrapped in `$.set(...)` and the text loop's
+    // `before.ends_with("$.set(")` guard skips re-wrapping.
+    let pre_passed = super::state_set_reactive_ast::transform_state_set_reactive_ast(
+        expr,
+        state_vars,
+        non_reactive_vars,
+    );
+    let mut result = pre_passed.unwrap_or_else(|| expr.to_string());
     for var in state_vars {
         if non_reactive_vars.contains(var) {
             continue;
