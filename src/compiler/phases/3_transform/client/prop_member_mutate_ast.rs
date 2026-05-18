@@ -59,7 +59,6 @@ use oxc_ast_visit::walk;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 use oxc_span::Span;
-use oxc_syntax::operator::AssignmentOperator;
 
 thread_local! {
     static MODULE_PROP_MEMBER_MUTATE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -221,26 +220,6 @@ impl<'a> PropMemberMutateCollector<'a> {
         Self::walk_object_chain_to_root(object)
     }
 
-    fn operator_str(op: AssignmentOperator) -> &'static str {
-        match op {
-            AssignmentOperator::Assign => "=",
-            AssignmentOperator::Addition => "+=",
-            AssignmentOperator::Subtraction => "-=",
-            AssignmentOperator::Multiplication => "*=",
-            AssignmentOperator::Division => "/=",
-            AssignmentOperator::Remainder => "%=",
-            AssignmentOperator::Exponential => "**=",
-            AssignmentOperator::BitwiseAnd => "&=",
-            AssignmentOperator::BitwiseOR => "|=",
-            AssignmentOperator::BitwiseXOR => "^=",
-            AssignmentOperator::ShiftLeft => "<<=",
-            AssignmentOperator::ShiftRight => ">>=",
-            AssignmentOperator::ShiftRightZeroFill => ">>>=",
-            AssignmentOperator::LogicalAnd => "&&=",
-            AssignmentOperator::LogicalOr => "||=",
-            AssignmentOperator::LogicalNullish => "??=",
-        }
-    }
 }
 
 impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
