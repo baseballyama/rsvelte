@@ -1520,14 +1520,28 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
         }
     }
 
-    // Transform $effect.pre -> $.user_pre_effect
-    if memmem::find(result.as_bytes(), b"$effect.pre(").is_some() {
-        result = result.replace("$effect.pre(", "$.user_pre_effect(");
-    }
-
-    // Transform $effect -> $.user_effect
-    if memmem::find(result.as_bytes(), b"$effect(").is_some() {
-        result = result.replace("$effect(", "$.user_effect(");
+    // Transform `$effect.pre(...)` / `$effect(...)` (and the other
+    // members of the `$effect` family — `.root`, `.tracking`,
+    // `.pending`). Bare `String::replace` was the predecessor; it
+    // rewrites byte patterns regardless of lexical context, so
+    // string literals containing `$effect(` would be mangled. The
+    // AST helper (shared with the module-script path) only touches
+    // expression positions. Fall back to the legacy text scanner
+    // for the rare case where this constructor-line fragment fails
+    // to parse standalone (e.g. an incomplete partial statement
+    // produced by an earlier text pass).
+    if memmem::find(result.as_bytes(), b"$effect").is_some() {
+        result = super::effect_rune_ast::apply_effect_rune_transforms_ast(&result, false)
+            .unwrap_or_else(|| {
+                let mut r = result.clone();
+                if memmem::find(r.as_bytes(), b"$effect.pre(").is_some() {
+                    r = r.replace("$effect.pre(", "$.user_pre_effect(");
+                }
+                if memmem::find(r.as_bytes(), b"$effect(").is_some() {
+                    r = r.replace("$effect(", "$.user_effect(");
+                }
+                r
+            });
     }
 
     // Check for private field assignment: this.#name = value
