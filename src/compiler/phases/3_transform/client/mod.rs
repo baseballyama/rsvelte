@@ -27,6 +27,7 @@ mod reactive_transforms;
 mod reactive_update_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
+mod scope_analysis;
 mod state;
 mod state_call_ast;
 mod state_member_mutate_ast;
