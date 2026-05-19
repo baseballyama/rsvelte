@@ -44,6 +44,7 @@ oxc_span = "0.107"
 oxc_diagnostics = "0.107"
 oxc_codegen = "0.107"
 oxc_syntax = "0.107"
+oxc_semantic = "0.107"
 
 # Error handling
 thiserror = "2.0"
