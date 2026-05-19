@@ -1531,6 +1531,22 @@ pub(super) fn transform_class_methods_non_this(
                 result = result.replacen(&pre_dec, &format!("$.update_pre({}, -1)", qualified), 1);
             }
 
+            // AST-based pre-pass for member-chain reads (`q.foo`, `q[i]`,
+            // `q?.foo`). Mirrors the pre-pass already used in
+            // `transform_class_methods` (with-this) — see PR #210. The
+            // helper rewrites just the `q` span so the surrounding member
+            // chain is preserved; idempotent vs the text replaces below
+            // because after wrap the bytes between `q` and the next `.`
+            // are `)`, not `.`/`?.`.
+            if let Some(rewritten) =
+                super::private_member_read_wrap_ast::transform_private_member_read_wrap_ast(
+                    &result,
+                    std::slice::from_ref(&qualified),
+                )
+            {
+                result = rewritten;
+            }
+
             // Handle reads
             let property_access_pattern = format!("{}.", qualified);
             let getter_wrapped = format!("$.get({}).", qualified);
