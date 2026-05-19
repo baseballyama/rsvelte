@@ -2855,19 +2855,24 @@ pub(crate) fn transform_module_script_runes(
     // In dev mode, wrap $.state(), $.derived(), and $.proxy() declarations with $.tag()/$.tag_proxy()
     // This tags signals with their variable names for better debugging with $inspect.trace().
     //
-    // The simple `let/const/var X = $.state(...)` declarator shape goes through
-    // the AST helper (`tag_declarator_ast`); class fields, `this.field`
-    // assignments, and a couple of other non-declarator shapes are still
-    // handled by the text version (which is idempotent w.r.t. already-tagged
-    // calls and so safe to chain afterwards). Output byte-shape is identical
-    // — both emit `$.tag(call, 'name')` / `$.tag_proxy(call, 'name')` with
-    // single-quoted names and a `, ` separator — so the text version's
-    // already-tagged guard (`before.ends_with("$.tag(") || ".. $.tag_proxy("`)
-    // skips the AST's emissions cleanly.
+    // Three passes, chained idempotently (the text version's
+    // already-tagged guard skips both AST emissions cleanly):
+    // 1. `tag_declarator_ast` — `let/const/var X = $.state(...)` declarators
+    // 2. `tag_class_field_ast` — class `#field = ...` declarations and
+    //    `this.field` / `this.#field` assignments (with originally-public
+    //    label heuristic via paired setter detection)
+    // 3. `wrap_state_derived_with_tag` text fallback for any remaining
+    //    non-declarator shapes (no-op in practice after the two AST
+    //    passes for valid inputs).
     if dev {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
         if let Some(rewritten) =
             tag_declarator_ast::wrap_state_derived_with_tag_declarators_ast(&result, is_ts)
+        {
+            result = rewritten;
+        }
+        if let Some(rewritten) =
+            tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast(&result)
         {
             result = rewritten;
         }
