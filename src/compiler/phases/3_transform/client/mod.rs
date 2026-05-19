@@ -41,6 +41,7 @@ mod store_unsub_wrap_ast;
 mod store_update_ast;
 mod strict_equals_ast;
 mod strip_rune_generics_ast;
+mod tag_class_field_ast;
 mod tag_declarator_ast;
 pub mod transform_client;
 pub mod transform_template;

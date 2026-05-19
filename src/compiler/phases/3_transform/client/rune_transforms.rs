@@ -289,6 +289,11 @@ pub(super) fn transform_client_runes_with_skip_and_state(
         {
             result = rewritten;
         }
+        if let Some(rewritten) =
+            super::tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast(&result)
+        {
+            result = rewritten;
+        }
         result = wrap_state_derived_with_tag(&result);
     }
 
