@@ -881,6 +881,17 @@ pub(super) fn wrap_state_vars_in_expr(
     non_reactive_vars: &[String],
     proxy_vars: &[String],
 ) -> String {
+    // AST-based fast path: uses `oxc_semantic` (#215) for precise
+    // shadow detection and gets all the natural-AST guards
+    // (property keys, member properties, getter/setter names,
+    // function params) for free. Returns `None` on parse error,
+    // ambiguous bare-object-literal input, or "nothing to wrap";
+    // we then fall back to the text scanner.
+    if let Some(rewritten) =
+        super::state_reads_ast::transform_state_reads_ast(expr, state_vars, non_reactive_vars)
+    {
+        return rewritten;
+    }
     transform_state_in_expr(expr, state_vars, non_reactive_vars, proxy_vars)
 }
 
