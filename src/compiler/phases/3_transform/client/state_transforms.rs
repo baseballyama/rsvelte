@@ -1632,6 +1632,15 @@ pub(super) fn transform_state_assignments(
     {
         result = rewritten;
     }
+    // AST-based pre-pass for UPDATE expression (`x++` / `++x` /
+    // `x--` / `--x`). Same shadow detection. After wrap the
+    // `var++` byte pattern disappears, so the text branches at
+    // ~line 1840 no-op.
+    if let Some(rewritten) =
+        super::state_update_assigns_ast::transform_state_update_assigns_ast(&result, state_vars)
+    {
+        result = rewritten;
+    }
 
     // Pre-normalize multi-line assignments of state vars. Two issues need handling:
     //   1. The head of the assignment may be broken across lines, e.g.:
