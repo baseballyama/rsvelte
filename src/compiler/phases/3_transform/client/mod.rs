@@ -26,6 +26,7 @@ mod prop_source_reads_ast;
 mod props_transforms;
 mod reactive_transforms;
 mod reactive_update_ast;
+mod read_only_props_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
 mod scope_analysis;
@@ -4188,9 +4189,13 @@ fn transform_instance_script_for_visitors(
         };
 
         // Transform read-only props to $$props.propName (only in non-runes mode here;
-        // in runes mode, deferred to AST-based transform after main loop)
+        // in runes mode, deferred to AST-based transform after main loop).
+        // The AST helper (`read_only_props_ast`) uses `oxc_semantic` for
+        // precise shadow detection; on `None` (parse error / no match /
+        // bare-`{` ambiguity) we fall back to the legacy text scanner.
         let transformed = if !analysis.runes && !read_only_props.is_empty() {
-            transform_read_only_props(&transformed, read_only_props)
+            read_only_props_ast::transform_read_only_props_ast(&transformed, read_only_props)
+                .unwrap_or_else(|| transform_read_only_props(&transformed, read_only_props))
         } else {
             transformed
         };
