@@ -27,8 +27,15 @@
 //! at the LHS PrivateField span — same convention as
 //! `private_read_wrap_ast`.
 //!
-//! Update expressions (`q++`, `--q`), member reads (`q.foo`),
-//! and standalone reads remain on the text path / other helpers.
+//! Update expressions on private-field arguments
+//! (`q++`, `++q`, `q--`, `--q`) are also rewritten to
+//! `$.update(q)` / `$.update(q, -1)` / `$.update_pre(q)` /
+//! `$.update_pre(q, -1)` — same shape as
+//! `private_class_assign_ast` (the with-`this` variant), minus
+//! the `$state` proxy-flag (which doesn't apply to updates).
+//!
+//! Member reads (`q.foo`) and standalone reads remain on the
+//! text path / other helpers.
 //!
 //! Logical compound (`??=`, `&&=`, `||=`) intentionally NOT
 //! supported — the text version's `compound_ops` allowlist
@@ -52,7 +59,7 @@ use oxc_ast_visit::walk;
 use oxc_parser::{ParseOptions, Parser};
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
-use oxc_syntax::operator::AssignmentOperator;
+use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
 
 thread_local! {
     static MODULE_PRIVATE_FIELD_ASSIGN_ALLOC: RefCell<Allocator> =
@@ -193,6 +200,35 @@ impl<'a, 'ast> Visit<'ast> for PrivateFieldAssignCollector<'a> {
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }
+
+    fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
+        walk::walk_update_expression(self, expr);
+
+        let SimpleAssignmentTarget::PrivateFieldExpression(pf) = &expr.argument else {
+            return;
+        };
+        let pf_text = &self.source[pf.span.start as usize..pf.span.end as usize];
+        let qualified = match self.qualified_names.iter().find(|q| q.as_str() == pf_text) {
+            Some(q) => q.as_str(),
+            None => return,
+        };
+
+        // Mapping (no $state proxy-flag — UpdateExpressions don't
+        // take a third arg in either text or with-`this` AST):
+        //   q++  → $.update(q)
+        //   q--  → $.update(q, -1)
+        //   ++q  → $.update_pre(q)
+        //   --q  → $.update_pre(q, -1)
+        let rewrite = match (expr.operator, expr.prefix) {
+            (UpdateOperator::Increment, false) => format!("$.update({})", qualified),
+            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", qualified),
+            (UpdateOperator::Increment, true) => format!("$.update_pre({})", qualified),
+            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", qualified),
+        };
+
+        self.replacements
+            .push((expr.span.start, expr.span.end, rewrite));
+    }
 }
 
 #[cfg(test)]
@@ -284,9 +320,53 @@ mod tests {
     }
 
     #[test]
-    fn leaves_update_expression_alone() {
+    fn update_post_increment() {
+        let out =
+            transform_private_field_assign_ast("instance.#count++;", &ssv(&["instance.#count"]))
+                .unwrap();
+        assert_eq!(out, "$.update(instance.#count);");
+    }
+
+    #[test]
+    fn update_post_decrement() {
+        let out =
+            transform_private_field_assign_ast("instance.#count--;", &ssv(&["instance.#count"]))
+                .unwrap();
+        assert_eq!(out, "$.update(instance.#count, -1);");
+    }
+
+    #[test]
+    fn update_pre_increment() {
+        let out =
+            transform_private_field_assign_ast("++instance.#count;", &ssv(&["instance.#count"]))
+                .unwrap();
+        assert_eq!(out, "$.update_pre(instance.#count);");
+    }
+
+    #[test]
+    fn update_pre_decrement() {
+        let out =
+            transform_private_field_assign_ast("--instance.#count;", &ssv(&["instance.#count"]))
+                .unwrap();
+        assert_eq!(out, "$.update_pre(instance.#count, -1);");
+    }
+
+    #[test]
+    fn update_leaves_unqualified_alone() {
+        // PrivateField text doesn't match a qualified name.
         assert!(
-            transform_private_field_assign_ast("this.#count++;", &ssv(&["this.#count"])).is_none()
+            transform_private_field_assign_ast("other.#count++;", &ssv(&["instance.#count"]))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn update_leaves_non_private_alone() {
+        // `count++` where argument is a bare Identifier, not a
+        // PrivateField — visitor's SimpleAssignmentTarget guard
+        // returns early.
+        assert!(
+            transform_private_field_assign_ast("count++;", &ssv(&["instance.#count"])).is_none()
         );
     }
 
