@@ -22,6 +22,7 @@ mod private_read_wrap_ast;
 mod private_v_suffix_ast;
 mod prop_assign_ast;
 mod prop_member_mutate_ast;
+mod prop_source_reads_ast;
 mod props_transforms;
 mod reactive_transforms;
 mod reactive_update_ast;
@@ -4063,14 +4064,24 @@ fn transform_instance_script_for_visitors(
         // This handles props used as function calls: `callback(args)` → `callback()(args)`.
         // Must come BEFORE transform_prop_assignments so that `callback = value` (assignment)
         // doesn't get incorrectly double-wrapped as `callback()(value)`.
-        // The is_assignment_target check in wrap_prop_source_reads correctly skips assignments.
+        // The AST helper (`prop_source_reads_ast`, PR after #216) uses
+        // `oxc_semantic` for precise shadow detection (function params,
+        // nested locals); it returns `None` on parse error or "nothing
+        // to wrap", in which case the legacy text scanner takes over.
         // In runes mode, deferred to AST-based transform after main loop.
         let transformed = if !prop_assignment_transform_vars.is_empty() && !analysis.runes {
-            wrap_prop_source_reads(
+            prop_source_reads_ast::wrap_prop_source_reads_ast(
                 &transformed,
                 prop_assignment_transform_vars,
                 &non_bindable_prop_vars,
             )
+            .unwrap_or_else(|| {
+                wrap_prop_source_reads(
+                    &transformed,
+                    prop_assignment_transform_vars,
+                    &non_bindable_prop_vars,
+                )
+            })
         } else {
             transformed
         };
