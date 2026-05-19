@@ -1609,11 +1609,11 @@ pub(super) fn transform_state_assignments(
     // AST-based pre-pass for SIMPLE assignment (`x = expr`).
     // Uses `oxc_semantic` shadow detection (function params,
     // for-loop vars, nested lets) and gets multi-line / ternary /
-    // template-expression RHS bounds naturally. Compound (`+=`,
-    // `||=`, etc.) and update (`++`) cases stay on the text path
-    // below — they remain idempotent after this pre-pass because
-    // their byte-pattern probes (`var +=`, `var++`) don't match
-    // a `$.set(var, …)` shape.
+    // template-expression RHS bounds naturally. Update (`++`) and
+    // any cases NOT handled by the compound pass below stay on the
+    // text path — they remain idempotent because their byte
+    // pattern probes (`var++`, `var +=`) don't match a
+    // `$.set(var, …)` / `$.update(var)` shape.
     if let Some(rewritten) = super::state_simple_assigns_ast::transform_state_simple_assigns_ast(
         &result,
         state_vars,
@@ -1621,6 +1621,15 @@ pub(super) fn transform_state_assignments(
         is_runes,
         non_proxy_vars,
     ) {
+        result = rewritten;
+    }
+    // AST-based pre-pass for COMPOUND assignment (`x += expr` /
+    // `x ||= expr` family). Same shadow / span benefits as the
+    // simple-assign pass. RHS gets `needs_compound_assignment_parens`
+    // treatment identical to the text predecessor.
+    if let Some(rewritten) =
+        super::state_compound_assigns_ast::transform_state_compound_assigns_ast(&result, state_vars)
+    {
         result = rewritten;
     }
 
