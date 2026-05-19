@@ -1606,6 +1606,24 @@ pub(super) fn transform_state_assignments(
 
     let mut result = line.to_string();
 
+    // AST-based pre-pass for SIMPLE assignment (`x = expr`).
+    // Uses `oxc_semantic` shadow detection (function params,
+    // for-loop vars, nested lets) and gets multi-line / ternary /
+    // template-expression RHS bounds naturally. Compound (`+=`,
+    // `||=`, etc.) and update (`++`) cases stay on the text path
+    // below — they remain idempotent after this pre-pass because
+    // their byte-pattern probes (`var +=`, `var++`) don't match
+    // a `$.set(var, …)` shape.
+    if let Some(rewritten) = super::state_simple_assigns_ast::transform_state_simple_assigns_ast(
+        &result,
+        state_vars,
+        raw_state_vars,
+        is_runes,
+        non_proxy_vars,
+    ) {
+        result = rewritten;
+    }
+
     // Pre-normalize multi-line assignments of state vars. Two issues need handling:
     //   1. The head of the assignment may be broken across lines, e.g.:
     //        msg =

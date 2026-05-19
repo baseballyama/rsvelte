@@ -34,6 +34,7 @@ mod state_call_ast;
 mod state_member_mutate_ast;
 mod state_raw_frozen_ast;
 mod state_set_reactive_ast;
+mod state_simple_assigns_ast;
 mod state_snapshot_ast;
 mod state_transforms;
 mod store_assign_ast;
