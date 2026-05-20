@@ -1,0 +1,81 @@
+name: Refresh benchmark
+
+# Manually-triggered counterpart to `deploy-docs.yml`. The site benchmark
+# JSON (`docs/static/benchmark-results.json`) is committed and used as-is
+# by every deploy — re-running the JS-vs-Rust benchmark on every push
+# added ~30 minutes to each Pages publish. Instead, trigger this workflow
+# from the GitHub Actions UI when you want to refresh the numbers; it
+# opens a PR with the new file so a human can sanity-check the result
+# before it lands on main.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Share with `deploy-docs` — same release profile, same feature
+          # set on the binaries we exercise (benchmark_runner / lib).
+          shared-key: bench
+
+      - name: Build Svelte compiler
+        # `run-benchmark.mjs` imports the upstream `svelte/compiler` for
+        # its JS baseline; that package's workspace deps (acorn,
+        # magic-string, …) need installing before its build runs.
+        run: |
+          cd submodules/svelte
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Build language-tools svelte2tsx
+        # The benchmark's `svelte2tsx` JS baseline imports
+        # submodules/language-tools/packages/svelte2tsx/index.mjs, which
+        # is a rollup build output rather than a checked-in artifact.
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile
+          cd packages/svelte2tsx
+          pnpm build
+
+      - name: Run JS vs Rust benchmark
+        run: node scripts/run-benchmark.mjs > docs/static/benchmark-results.json
+        timeout-minutes: 30
+
+      - name: Open PR with refreshed JSON
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore(docs): refresh /benchmark numbers'
+          title: 'chore(docs): refresh /benchmark numbers'
+          body: |
+            Automated refresh of `docs/static/benchmark-results.json` from
+            the `Refresh benchmark` workflow (`workflow_dispatch`).
+            Triggered by @${{ github.actor }} from `${{ github.sha }}`.
+
+            Review the diff and merge when the new numbers look sane.
+          branch: ci/refresh-benchmark
+          delete-branch: true
+          add-paths: docs/static/benchmark-results.json
