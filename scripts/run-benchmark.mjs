@@ -3,19 +3,67 @@
  * Benchmark script that measures JS vs Rust compiler performance.
  * Collects all Svelte test files and compiles them with both compilers.
  *
- * Supports three tasks: compile-client, compile-server, parse
+ * Supports four tasks: compile-client, compile-server, parse, svelte2tsx.
+ *
+ * Designed to run identically on local machines and in CI. The two JS
+ * baselines (`svelte/compiler` and `svelte2tsx`) live in submodules and
+ * publish their consumable entrypoints as rollup build outputs, not
+ * checked-in artefacts — so we bootstrap them on demand below, then
+ * dynamic-import once they exist. Already-built outputs are skipped,
+ * so a warm checkout pays nothing.
  */
 
-import pkg from '../submodules/svelte/packages/svelte/compiler/index.js';
-const { compile, parse } = pkg;
-import { svelte2tsx as upstreamSvelte2tsx } from '../submodules/language-tools/packages/svelte2tsx/index.mjs';
 import { execSync, spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SVELTE_TESTS = join(__dirname, '../submodules/svelte/packages/svelte/tests');
+const REPO_ROOT = join(__dirname, '..');
+const SVELTE_TESTS = join(REPO_ROOT, 'submodules/svelte/packages/svelte/tests');
+
+/**
+ * Ensure the JS baselines the benchmark consumes are built. Both are
+ * generated outputs (svelte/compiler is rollup-bundled, svelte2tsx is
+ * rollup-bundled too) — a fresh `git submodule update` alone leaves the
+ * upstream sources but not these files. Skips work when the outputs
+ * already exist so warm checkouts (CI cache hits or repeat local runs)
+ * cost nothing.
+ */
+function ensureBenchDeps() {
+	const deps = [
+		{
+			name: 'svelte/compiler',
+			marker: 'submodules/svelte/packages/svelte/compiler/index.js',
+			cwd: 'submodules/svelte',
+			build: 'pnpm install --frozen-lockfile && pnpm build',
+		},
+		{
+			name: 'svelte2tsx',
+			marker: 'submodules/language-tools/packages/svelte2tsx/index.mjs',
+			cwd: 'submodules/language-tools',
+			build: 'pnpm install --frozen-lockfile && (cd packages/svelte2tsx && pnpm build)',
+		},
+	];
+	for (const dep of deps) {
+		if (existsSync(join(REPO_ROOT, dep.marker))) continue;
+		console.error(`[run-benchmark] ${dep.name}: ${dep.marker} missing — building (one-time setup)…`);
+		execSync(dep.build, { cwd: join(REPO_ROOT, dep.cwd), stdio: 'inherit' });
+	}
+}
+
+ensureBenchDeps();
+
+// Now safe to import. We use dynamic imports so the prereq check above
+// runs first — static imports get hoisted and would crash before we
+// could print a helpful message / build the missing output.
+const svelteCompilerMod = await import(
+	'../submodules/svelte/packages/svelte/compiler/index.js'
+);
+const { compile, parse } = svelteCompilerMod.default ?? svelteCompilerMod;
+const { svelte2tsx: upstreamSvelte2tsx } = await import(
+	'../submodules/language-tools/packages/svelte2tsx/index.mjs'
+);
 
 // Test directories containing Svelte files
 const TEST_CATEGORIES = [
