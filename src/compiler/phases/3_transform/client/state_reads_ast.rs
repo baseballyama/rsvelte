@@ -66,9 +66,10 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::{ParseOptions, Parser};
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
+use oxc_syntax::symbol::SymbolId;
 use rustc_hash::FxHashSet;
 
-use super::scope_analysis::is_locally_shadowed;
+use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
 
 thread_local! {
     static STATE_READS_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -125,10 +126,14 @@ pub fn transform_state_reads_ast(
         let program: &Program = allocator.alloc(parser_ret.program);
         let semantic_ret = SemanticBuilder::new().build(program);
         let semantic = &semantic_ret.semantic;
+        let effective_names: Vec<String> = effective.iter().map(|s| s.to_string()).collect();
+        let state_var_symbols = find_state_var_symbols(semantic, &effective_names);
 
         let mut collector = StateReadsCollector {
             semantic,
             effective: &effective,
+            effective_names: &effective_names,
+            state_var_symbols,
             replacements: Vec::new(),
             skip_spans: FxHashSet::default(),
         };
@@ -154,6 +159,8 @@ pub fn transform_state_reads_ast(
 struct StateReadsCollector<'a, 'sem> {
     semantic: &'sem Semantic<'sem>,
     effective: &'a [&'a str],
+    effective_names: &'a [String],
+    state_var_symbols: FxHashSet<SymbolId>,
     replacements: Vec<(u32, u32, String)>,
     /// Spans of identifier references claimed by a parent-context
     /// handler (assignment LHS, update target, first arg of $.set
@@ -181,7 +188,12 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
         if !self.is_effective(name) {
             return;
         }
-        if is_locally_shadowed(self.semantic, ident) {
+        if !is_state_var_reference_or_unresolved(
+            self.semantic,
+            ident,
+            &self.state_var_symbols,
+            self.effective_names,
+        ) {
             return;
         }
         self.replacements
@@ -241,11 +253,17 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
         // `{ $.get(count) }` would be invalid JS, so we replace
         // the whole ObjectProperty span and skip the inner
         // identifier from re-wrapping.
-        if prop.shorthand
+        let shorthand_eligible = prop.shorthand
+            && matches!(&prop.key, PropertyKey::StaticIdentifier(k) if self.is_effective(&k.name));
+        if shorthand_eligible
             && let PropertyKey::StaticIdentifier(key) = &prop.key
-            && self.is_effective(&key.name)
             && let Expression::Identifier(value_ident) = &prop.value
-            && !is_locally_shadowed(self.semantic, value_ident)
+            && is_state_var_reference_or_unresolved(
+                self.semantic,
+                value_ident,
+                &self.state_var_symbols,
+                self.effective_names,
+            )
         {
             let name = key.name.as_str();
             self.replacements.push((
@@ -319,31 +337,43 @@ mod tests {
     #[test]
     fn skips_function_param_shadow() {
         assert!(
-            transform_state_reads_ast("function f(count) { return count; }", &ssv(&["count"]), &[])
-                .is_none()
+            transform_state_reads_ast(
+                "let count; function f(count) { return count; }",
+                &ssv(&["count"]),
+                &[]
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn skips_arrow_param_shadow() {
         assert!(
-            transform_state_reads_ast("const f = (count) => count;", &ssv(&["count"]), &[])
-                .is_none()
+            transform_state_reads_ast(
+                "let count; const f = (count) => count;",
+                &ssv(&["count"]),
+                &[]
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn skips_for_loop_var_shadow() {
         assert!(
-            transform_state_reads_ast("for (let count of items) { count; }", &ssv(&["count"]), &[])
-                .is_none()
+            transform_state_reads_ast(
+                "let count; for (let count of items) { count; }",
+                &ssv(&["count"]),
+                &[]
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn skips_nested_let_shadow() {
         let out = transform_state_reads_ast(
-            "count; { let count = 0; count; } count;",
+            "let count; count; { let count = 0; count; } count;",
             &ssv(&["count"]),
             &[],
         )
@@ -497,8 +527,11 @@ mod tests {
 
     #[test]
     fn complex_smoke() {
-        // Multiple state-var cases in one snippet.
+        // Multiple state-var cases in one snippet. Need an outer
+        // `let count` so symbol-identity matching has an outermost
+        // binding.
         let src = r#"
+            let count;
             let r = count + 1;
             function inner(count) { return count + 1; }
             $.set(count, 5);
