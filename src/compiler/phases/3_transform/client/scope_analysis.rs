@@ -29,6 +29,8 @@ use oxc_ast::ast::{IdentifierReference, Program};
 use oxc_parser::{ParseOptions, Parser};
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
+use oxc_syntax::symbol::SymbolId;
+use rustc_hash::FxHashSet;
 
 /// Run `f` with a fully-built `Semantic` over `source`. Returns
 /// `None` if the source fails to parse; semantic errors do *not*
@@ -91,6 +93,154 @@ pub fn is_locally_shadowed(semantic: &Semantic, ident: &IdentifierReference) -> 
     let symbol_scope = semantic.scoping().symbol_scope_id(symbol_id);
     let root_scope = semantic.scoping().root_scope_id();
     symbol_scope != root_scope
+}
+
+/// For each name in `names`, find the SymbolId of the OUTERMOST
+/// declaration. Returns the set of all such "canonical" symbol ids.
+///
+/// This is the precise answer to "which symbol is the state var?"
+/// — when multiple bindings share a name (e.g., outer `let count`
+/// plus a nested `function f(count)` parameter), the outermost
+/// declaration is the state var, and the others are shadows.
+///
+/// A reference is to the state var iff its resolved
+/// `Reference.symbol_id()` is in this set. See
+/// [`is_state_var_reference`].
+#[allow(dead_code)]
+pub fn find_state_var_symbols(semantic: &Semantic, names: &[String]) -> FxHashSet<SymbolId> {
+    if names.is_empty() {
+        return FxHashSet::default();
+    }
+    let scoping = semantic.scoping();
+    let root_scope = scoping.root_scope_id();
+    let mut out = FxHashSet::default();
+    for symbol_id in scoping.symbol_ids() {
+        let name = scoping.symbol_name(symbol_id);
+        if !names.iter().any(|n| n == name) {
+            continue;
+        }
+        let scope = scoping.symbol_scope_id(symbol_id);
+        // Rule 1: root-scope bindings (top-level `let`/`const`/
+        // `var`/`function`/`class`/import). Legacy bare `let foo;`
+        // declarations are caught here.
+        if scope == root_scope {
+            out.insert(symbol_id);
+            continue;
+        }
+        // Rule 2: state-var-shaped initializer. Catches function-
+        // local rune declarations like
+        // `function createCounter() { let count = $state(0); ... }`.
+        let decl_id = scoping.symbol_declaration(symbol_id);
+        if declaration_has_state_var_init(semantic, decl_id) {
+            out.insert(symbol_id);
+        }
+    }
+    out
+}
+
+/// Returns `true` if the declaration node identified by `decl_id`
+/// (a `BindingIdentifier` inside a `VariableDeclarator`) is
+/// initialized with a call to one of the state-creating runtime/
+/// runes functions: `$state`/`$derived`/`$state.*`/`$derived.*`/
+/// `$.state`/`$.derived`/`$.mutable_source`/`$.proxy`/
+/// `$.source`/`$.snapshot`.
+fn declaration_has_state_var_init(semantic: &Semantic, decl_id: oxc_syntax::node::NodeId) -> bool {
+    use oxc_ast::AstKind;
+    let nodes = semantic.nodes();
+    let mut cur = decl_id;
+    // BindingIdentifier -> (BindingPattern) -> VariableDeclarator
+    // is at most 2 hops; bound the walk conservatively.
+    for _ in 0..4 {
+        if let AstKind::VariableDeclarator(decl) = nodes.parent_kind(cur) {
+            let Some(init) = &decl.init else {
+                return false;
+            };
+            return is_state_var_init_expression(init);
+        }
+        let parent = nodes.parent_id(cur);
+        if parent == cur {
+            return false;
+        }
+        cur = parent;
+    }
+    false
+}
+
+fn is_state_var_init_expression(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::Expression;
+    let Expression::CallExpression(call) = expr else {
+        return false;
+    };
+    match &call.callee {
+        // Raw rune forms: `$state(...)` / `$derived(...)`.
+        Expression::Identifier(id) => matches!(id.name.as_str(), "$state" | "$derived"),
+        // `$.state(...)` / `$.mutable_source(...)` / etc. and
+        // `$state.raw(...)` / `$derived.by(...)` etc.
+        Expression::StaticMemberExpression(member) => {
+            let Expression::Identifier(obj) = &member.object else {
+                return false;
+            };
+            if obj.name == "$" {
+                return matches!(
+                    member.property.name.as_str(),
+                    "state" | "derived" | "mutable_source" | "proxy" | "source" | "snapshot"
+                );
+            }
+            matches!(obj.name.as_str(), "$state" | "$derived")
+        }
+        _ => false,
+    }
+}
+
+/// Returns true if `ident` resolves to one of the symbols in
+/// `state_var_symbols`. Use [`find_state_var_symbols`] to build the
+/// set.
+#[allow(dead_code)]
+pub fn is_state_var_reference(
+    semantic: &Semantic,
+    ident: &IdentifierReference,
+    state_var_symbols: &FxHashSet<SymbolId>,
+) -> bool {
+    let Some(reference_id) = ident.reference_id.get() else {
+        return false;
+    };
+    let reference = semantic.scoping().get_reference(reference_id);
+    let Some(symbol_id) = reference.symbol_id() else {
+        return false;
+    };
+    state_var_symbols.contains(&symbol_id)
+}
+
+/// Returns true if the identifier reference should be treated as
+/// referring to a state var with the given name. Combines two
+/// signals:
+///
+/// 1. **Symbol-identity match** (precise): if the reference
+///    resolves to a symbol in `state_var_symbols`, it's the state
+///    var.
+/// 2. **Unresolved name fallback** (line-by-line transformers):
+///    when the helper runs on a script fragment, the state var's
+///    declaration may live on a different line, so the reference
+///    here is *unresolved*. If the name is in `names` and the
+///    reference is unresolved, treat it as the state var.
+///
+/// Shadowing case: the reference resolves to a non-state-var
+/// symbol (e.g. function parameter) → returns `false`.
+#[allow(dead_code)]
+pub fn is_state_var_reference_or_unresolved(
+    semantic: &Semantic,
+    ident: &IdentifierReference,
+    state_var_symbols: &FxHashSet<SymbolId>,
+    names: &[String],
+) -> bool {
+    let Some(reference_id) = ident.reference_id.get() else {
+        return false;
+    };
+    let reference = semantic.scoping().get_reference(reference_id);
+    match reference.symbol_id() {
+        Some(symbol_id) => state_var_symbols.contains(&symbol_id),
+        None => names.iter().any(|n| n.as_str() == ident.name.as_str()),
+    }
 }
 
 #[cfg(test)]

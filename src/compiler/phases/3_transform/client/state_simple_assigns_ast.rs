@@ -56,15 +56,31 @@ use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType};
 use oxc_syntax::operator::AssignmentOperator;
 
+use rustc_hash::FxHashSet;
+
 use super::expression_utils::expression_needs_proxy_with_scope;
-use super::scope_analysis::is_locally_shadowed;
+use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
+use oxc_syntax::symbol::SymbolId;
 
 thread_local! {
     static STATE_SIMPLE_ASSIGN_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
 
+const MAX_FIXED_POINT_ITERS: usize = 16;
+
 /// AST-based rewrite of `name = expr` for state vars. See module
 /// docs for the precise contract.
+///
+/// Uses fixed-point iteration so nested AssignmentExpressions
+/// (e.g. `outer = (inner = 1)`) are all wrapped: pass 1 wraps the
+/// innermost; pass 2 picks up the now-outermost; and so on.
+///
+/// Shadow detection uses [`find_state_var_symbols`] +
+/// [`is_state_var_reference`]: a reference is "to the state var"
+/// iff it resolves to the outermost-scope SymbolId for its name.
+/// This correctly handles function-local state vars (the binding
+/// itself, not a shadow) and rejects function-param / for-loop /
+/// nested-let shadows.
 pub fn transform_state_simple_assigns_ast(
     source: &str,
     state_vars: &[String],
@@ -81,9 +97,35 @@ pub fn transform_state_simple_assigns_ast(
     {
         return None;
     }
-    // Cheapest probe — bail if there's no `=` token at all.
     memchr::memchr(b'=', source.as_bytes())?;
 
+    let mut current = source.to_string();
+    let mut any_changed = false;
+    for _ in 0..MAX_FIXED_POINT_ITERS {
+        match single_pass(
+            &current,
+            state_vars,
+            raw_state_vars,
+            is_runes,
+            non_proxy_vars,
+        ) {
+            Some(next) => {
+                current = next;
+                any_changed = true;
+            }
+            None => break,
+        }
+    }
+    if any_changed { Some(current) } else { None }
+}
+
+fn single_pass(
+    source: &str,
+    state_vars: &[String],
+    raw_state_vars: &[String],
+    is_runes: bool,
+    non_proxy_vars: &[String],
+) -> Option<String> {
     STATE_SIMPLE_ASSIGN_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
@@ -100,6 +142,8 @@ pub fn transform_state_simple_assigns_ast(
         let semantic_ret = SemanticBuilder::new().build(program);
         let semantic = &semantic_ret.semantic;
 
+        let state_var_symbols = find_state_var_symbols(semantic, state_vars);
+
         let mut collector = StateSimpleAssignCollector {
             source,
             semantic,
@@ -107,6 +151,7 @@ pub fn transform_state_simple_assigns_ast(
             raw_state_vars,
             is_runes,
             non_proxy_vars,
+            state_var_symbols,
             replacements: Vec::new(),
         };
         collector.visit_program(program);
@@ -117,9 +162,6 @@ pub fn transform_state_simple_assigns_ast(
             return None;
         }
 
-        // Innermost-only: defer outer span when its range strictly
-        // contains an inner replacement. Right-to-left splice then
-        // preserves offsets.
         let spans: Vec<(u32, u32)> = replacements.iter().map(|r| (r.0, r.1)).collect();
         replacements.retain(|(s, e, _)| {
             !spans
@@ -149,6 +191,11 @@ struct StateSimpleAssignCollector<'a, 'sem> {
     raw_state_vars: &'a [String],
     is_runes: bool,
     non_proxy_vars: &'a [String],
+    /// Symbols whose name matches a state_var AND whose declaration
+    /// is the OUTERMOST one for that name. References resolving to
+    /// these symbols are to "the state var"; references resolving to
+    /// other symbols of the same name are shadows.
+    state_var_symbols: FxHashSet<SymbolId>,
     replacements: Vec<(u32, u32, String)>,
 }
 
@@ -171,23 +218,24 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateSimpleAssignCollector<'a, 'sem> {
         if !self.state_vars.iter().any(|s| s.as_str() == name) {
             return;
         }
-        // The text version's `is_in_function_param_or_shadowed` /
-        // `is_shadowed_by_for_loop_var` are unified into
-        // `is_locally_shadowed`: any binding declared in a scope
-        // strictly inside the program root counts as a shadow.
-        // We need an IdentifierReference to query the semantic
-        // info — `AssignmentTargetIdentifier` wraps one indirectly,
-        // but oxc exposes the wrapped reference via the same
-        // `reference_id` slot. We can construct a synthetic check
-        // using the symbol resolution directly: look up the
-        // reference for this AssignmentTarget. Easiest path is to
-        // peek at the `id.reference_id` Cell that SemanticBuilder
-        // populates for IdentifierReference / AssignmentTarget
-        // both — but the AssignmentTargetIdentifier struct *is* an
-        // IdentifierReference in oxc's AST. So we just borrow
-        // `id` as an IdentifierReference.
+        // Symbol-identity check: when at least one declaration for
+        // this name exists in the source, match by the outermost
+        // SymbolId. Function-param / for-loop / nested-let shadows
+        // resolve to a *different* SymbolId, so they're skipped.
+        //
+        // When no declaration is found (only happens in unit tests
+        // or trivially short fragments), fall back to the broader
+        // shadow check.
+        // The AssignmentTargetIdentifier struct *is* an
+        // IdentifierReference in oxc's AST, so we borrow `id` as
+        // one.
         let ident_ref: &IdentifierReference = id;
-        if is_locally_shadowed(self.semantic, ident_ref) {
+        if !is_state_var_reference_or_unresolved(
+            self.semantic,
+            ident_ref,
+            &self.state_var_symbols,
+            self.state_vars,
+        ) {
             return;
         }
 
@@ -340,57 +388,49 @@ mod tests {
     #[test]
     fn skips_function_param_shadow() {
         // Inner `x = 1` is shadowed by the function param.
-        assert!(
-            transform_state_simple_assigns_ast(
-                "function f(x) { x = 1; }",
-                &ssv(&["x"]),
-                &[],
-                false,
-                &[]
-            )
-            .is_none()
+        // (Need an outer `let x` so the symbol-identity check has
+        // an outermost binding to compare against.)
+        let out = transform_state_simple_assigns_ast(
+            "let x; function f(x) { x = 1; }",
+            &ssv(&["x"]),
+            &[],
+            false,
+            &[],
         );
+        // Outer assignment to x? None. Inner is shadowed → no wrap.
+        assert!(out.is_none(), "got {:?}", out);
     }
 
     #[test]
     fn skips_arrow_param_shadow() {
-        assert!(
-            transform_state_simple_assigns_ast(
-                "const f = (x) => { x = 1; };",
-                &ssv(&["x"]),
-                &[],
-                false,
-                &[]
-            )
-            .is_none()
+        let out = transform_state_simple_assigns_ast(
+            "let x; const f = (x) => { x = 1; };",
+            &ssv(&["x"]),
+            &[],
+            false,
+            &[],
         );
+        assert!(out.is_none(), "got {:?}", out);
     }
 
     #[test]
     fn skips_for_loop_var_shadow() {
-        // `for (let x of items) { x = …; }` — inner `x` is
-        // shadowed by the for-loop binding.
-        assert!(
-            transform_state_simple_assigns_ast(
-                "for (let x of items) { x = 5; }",
-                &ssv(&["x"]),
-                &[],
-                false,
-                &[]
-            )
-            .is_none()
+        let out = transform_state_simple_assigns_ast(
+            "let x; for (let x of items) { x = 5; }",
+            &ssv(&["x"]),
+            &[],
+            false,
+            &[],
         );
-        // for-in too.
-        assert!(
-            transform_state_simple_assigns_ast(
-                "for (let x in obj) { x = 5; }",
-                &ssv(&["x"]),
-                &[],
-                false,
-                &[]
-            )
-            .is_none()
+        assert!(out.is_none(), "got {:?}", out);
+        let out2 = transform_state_simple_assigns_ast(
+            "let x; for (let x in obj) { x = 5; }",
+            &ssv(&["x"]),
+            &[],
+            false,
+            &[],
         );
+        assert!(out2.is_none(), "got {:?}", out2);
     }
 
     #[test]
@@ -529,10 +569,12 @@ mod tests {
         assert_eq!(out, r#"$.set(x, "hello");"#);
     }
 
-    /// Smoke: complex realistic body.
+    /// Smoke: complex realistic body. Need an outer `let count`
+    /// so the symbol-identity check sees a real outermost binding.
     #[test]
     fn smoke_complex_body() {
         let src = r#"
+            let count;
             count = 1;
             function inner(count) { count = 99; }
             for (let count of items) { count = 0; }

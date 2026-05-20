@@ -50,7 +50,10 @@ use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use oxc_syntax::operator::UpdateOperator;
 
-use super::scope_analysis::is_locally_shadowed;
+use oxc_syntax::symbol::SymbolId;
+use rustc_hash::FxHashSet;
+
+use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
 
 thread_local! {
     static STATE_UPDATE_ASSIGN_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -90,10 +93,12 @@ pub fn transform_state_update_assigns_ast(source: &str, state_vars: &[String]) -
         let program: &Program = allocator.alloc(parser_ret.program);
         let semantic_ret = SemanticBuilder::new().build(program);
         let semantic = &semantic_ret.semantic;
+        let state_var_symbols = find_state_var_symbols(semantic, state_vars);
 
         let mut collector = StateUpdateCollector {
             semantic,
             state_vars,
+            state_var_symbols,
             replacements: Vec::new(),
         };
         collector.visit_program(program);
@@ -129,6 +134,7 @@ pub fn transform_state_update_assigns_ast(source: &str, state_vars: &[String]) -
 struct StateUpdateCollector<'a, 'sem> {
     semantic: &'sem Semantic<'sem>,
     state_vars: &'a [String],
+    state_var_symbols: FxHashSet<SymbolId>,
     replacements: Vec<(u32, u32, String)>,
 }
 
@@ -146,7 +152,12 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateUpdateCollector<'a, 'sem> {
             return;
         }
         let ident_ref: &IdentifierReference = id;
-        if is_locally_shadowed(self.semantic, ident_ref) {
+        if !is_state_var_reference_or_unresolved(
+            self.semantic,
+            ident_ref,
+            &self.state_var_symbols,
+            self.state_vars,
+        ) {
             return;
         }
 
@@ -213,14 +224,15 @@ mod tests {
     #[test]
     fn skips_function_param_shadow() {
         assert!(
-            transform_state_update_assigns_ast("function f(x) { x++; }", &ssv(&["x"])).is_none()
+            transform_state_update_assigns_ast("let x; function f(x) { x++; }", &ssv(&["x"]))
+                .is_none()
         );
     }
 
     #[test]
     fn skips_arrow_param_shadow() {
         assert!(
-            transform_state_update_assigns_ast("const f = (x) => { x++; };", &ssv(&["x"]))
+            transform_state_update_assigns_ast("let x; const f = (x) => { x++; };", &ssv(&["x"]))
                 .is_none()
         );
     }
@@ -228,15 +240,21 @@ mod tests {
     #[test]
     fn skips_for_loop_var_shadow() {
         assert!(
-            transform_state_update_assigns_ast("for (let x of items) { x++; }", &ssv(&["x"]))
-                .is_none()
+            transform_state_update_assigns_ast(
+                "let x; for (let x of items) { x++; }",
+                &ssv(&["x"])
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn skips_nested_let_shadow() {
-        let out = transform_state_update_assigns_ast("x++; { let x = 0; x++; } x--;", &ssv(&["x"]))
-            .unwrap();
+        let out = transform_state_update_assigns_ast(
+            "let x; x++; { let x = 0; x++; } x--;",
+            &ssv(&["x"]),
+        )
+        .unwrap();
         assert!(out.contains("$.update(x);"));
         assert!(out.contains("$.update(x, -1);"));
         assert!(out.contains("{ let x = 0; x++; }"));
@@ -303,7 +321,7 @@ mod tests {
     /// Mixed: top-level wraps, inner shadow preserved, other vars unchanged.
     #[test]
     fn smoke_mixed_pattern() {
-        let src = "x++; function inner(x) { x++; } y++;";
+        let src = "let x; x++; function inner(x) { x++; } y++;";
         let out = transform_state_update_assigns_ast(src, &ssv(&["x"])).unwrap();
         assert!(out.contains("$.update(x);"));
         assert!(out.contains("function inner(x) { x++; }"));

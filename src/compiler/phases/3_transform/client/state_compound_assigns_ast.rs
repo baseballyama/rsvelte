@@ -59,16 +59,24 @@ use oxc_parser::{ParseOptions, Parser};
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType};
 use oxc_syntax::operator::AssignmentOperator;
+use oxc_syntax::symbol::SymbolId;
+use rustc_hash::FxHashSet;
 
 use super::expression_utils::needs_compound_assignment_parens;
-use super::scope_analysis::is_locally_shadowed;
+use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
 
 thread_local! {
     static STATE_COMPOUND_ASSIGN_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
 
+const MAX_FIXED_POINT_ITERS: usize = 16;
+
 /// AST-based rewrite of `name <op>= expr` for state vars. See
 /// module docs for the precise contract.
+///
+/// Uses fixed-point iteration and symbol-identity-based shadow
+/// detection — see `state_simple_assigns_ast` for the same
+/// architecture.
 pub fn transform_state_compound_assigns_ast(source: &str, state_vars: &[String]) -> Option<String> {
     if state_vars.is_empty() {
         return None;
@@ -79,9 +87,23 @@ pub fn transform_state_compound_assigns_ast(source: &str, state_vars: &[String])
     {
         return None;
     }
-    // Cheapest probe — at least one `=` token must appear.
     memchr::memchr(b'=', source.as_bytes())?;
 
+    let mut current = source.to_string();
+    let mut any_changed = false;
+    for _ in 0..MAX_FIXED_POINT_ITERS {
+        match single_pass(&current, state_vars) {
+            Some(next) => {
+                current = next;
+                any_changed = true;
+            }
+            None => break,
+        }
+    }
+    if any_changed { Some(current) } else { None }
+}
+
+fn single_pass(source: &str, state_vars: &[String]) -> Option<String> {
     STATE_COMPOUND_ASSIGN_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
@@ -97,11 +119,13 @@ pub fn transform_state_compound_assigns_ast(source: &str, state_vars: &[String])
         let program: &Program = allocator.alloc(parser_ret.program);
         let semantic_ret = SemanticBuilder::new().build(program);
         let semantic = &semantic_ret.semantic;
+        let state_var_symbols = find_state_var_symbols(semantic, state_vars);
 
         let mut collector = StateCompoundAssignCollector {
             source,
             semantic,
             state_vars,
+            state_var_symbols,
             replacements: Vec::new(),
         };
         collector.visit_program(program);
@@ -138,6 +162,7 @@ struct StateCompoundAssignCollector<'a, 'sem> {
     source: &'a str,
     semantic: &'sem Semantic<'sem>,
     state_vars: &'a [String],
+    state_var_symbols: FxHashSet<SymbolId>,
     replacements: Vec<(u32, u32, String)>,
 }
 
@@ -171,7 +196,12 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateCompoundAssignCollector<'a, 'sem> {
             return;
         }
         let ident_ref: &IdentifierReference = id;
-        if is_locally_shadowed(self.semantic, ident_ref) {
+        if !is_state_var_reference_or_unresolved(
+            self.semantic,
+            ident_ref,
+            &self.state_var_symbols,
+            self.state_vars,
+        ) {
             return;
         }
 
@@ -273,8 +303,10 @@ mod tests {
 
     #[test]
     fn skips_function_param_shadow() {
+        // Need outer `let x` so the symbol-identity check sees a
+        // real outermost binding.
         assert!(
-            transform_state_compound_assigns_ast("function f(x) { x += 1; }", &ssv(&["x"]))
+            transform_state_compound_assigns_ast("let x; function f(x) { x += 1; }", &ssv(&["x"]))
                 .is_none()
         );
     }
@@ -282,23 +314,29 @@ mod tests {
     #[test]
     fn skips_arrow_param_shadow() {
         assert!(
-            transform_state_compound_assigns_ast("const f = (x) => { x += 1; };", &ssv(&["x"]))
-                .is_none()
+            transform_state_compound_assigns_ast(
+                "let x; const f = (x) => { x += 1; };",
+                &ssv(&["x"])
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn skips_for_loop_var_shadow() {
         assert!(
-            transform_state_compound_assigns_ast("for (let x of items) { x += 1; }", &ssv(&["x"]))
-                .is_none()
+            transform_state_compound_assigns_ast(
+                "let x; for (let x of items) { x += 1; }",
+                &ssv(&["x"])
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn skips_nested_let_shadow() {
         let out = transform_state_compound_assigns_ast(
-            "x += 1; { let x = 0; x += 2; } x += 3;",
+            "let x; x += 1; { let x = 0; x += 2; } x += 3;",
             &ssv(&["x"]),
         )
         .unwrap();
