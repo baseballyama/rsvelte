@@ -147,9 +147,20 @@ pub fn find_state_var_symbols(semantic: &Semantic, names: &[String]) -> FxHashSe
 fn declaration_has_state_var_init(semantic: &Semantic, decl_id: oxc_syntax::node::NodeId) -> bool {
     use oxc_ast::AstKind;
     let nodes = semantic.nodes();
+    // `Scoping::symbol_declaration` returns the `VariableDeclarator`
+    // NodeId directly for variable bindings (verified via debug
+    // traces). Check that kind first, then walk a few parents as
+    // a safety net in case other binding shapes report a deeper
+    // descendant (e.g. a BindingIdentifier inside a
+    // BindingPattern).
+    let kind = nodes.get_node(decl_id).kind();
+    if let AstKind::VariableDeclarator(decl) = kind {
+        let Some(init) = &decl.init else {
+            return false;
+        };
+        return is_state_var_init_expression(init);
+    }
     let mut cur = decl_id;
-    // BindingIdentifier -> (BindingPattern) -> VariableDeclarator
-    // is at most 2 hops; bound the walk conservatively.
     for _ in 0..4 {
         if let AstKind::VariableDeclarator(decl) = nodes.parent_kind(cur) {
             let Some(init) = &decl.init else {

@@ -2764,33 +2764,32 @@ pub(crate) fn transform_module_script_runes(
             .map(|(name, _, _)| name.clone())
             .collect();
 
-        // Process line by line for assignment transforms
-        let lines: Vec<&str> = result.lines().collect();
-        let mut transformed_lines: Vec<String> = Vec::with_capacity(lines.len());
-        for line in &lines {
-            let trimmed = line.trim();
-            // Skip declaration lines - they've already been transformed
-            let is_declaration = reactive_module_state_vars.iter().any(|var| {
-                trimmed.contains(&format!("let {} = ", var))
-                    || trimmed.contains(&format!("const {} = ", var))
-                    || trimmed.contains(&format!("var {} = ", var))
-            });
-            if is_declaration {
-                transformed_lines.push(line.to_string());
-            } else {
-                let transformed = transform_state_assignments(
-                    line,
-                    &reactive_module_state_vars,
-                    &module_non_reactive_vars,
-                    &module_proxy_vars,
-                    &derived_vars, // derived vars are treated like raw_state for proxy skipping
-                    analysis.runes,
-                    &[],
-                );
-                transformed_lines.push(transformed);
-            }
-        }
-        result = transformed_lines.join("\n");
+        // Whole-script AST pass for assignment transforms. The
+        // three helpers (simple / compound / update) visit
+        // AssignmentExpression / UpdateExpression nodes throughout
+        // the parsed program — VariableDeclarators are naturally
+        // skipped, so we don't need a per-line declaration
+        // heuristic. The symbol-identity match (PR #226) correctly
+        // distinguishes the module-local state var from same-name
+        // shadows.
+        result = state_simple_assigns_ast::transform_state_simple_assigns_ast(
+            &result,
+            &reactive_module_state_vars,
+            &derived_vars, // raw_state treatment for proxy skip
+            analysis.runes,
+            &[],
+        )
+        .unwrap_or(result);
+        result = state_compound_assigns_ast::transform_state_compound_assigns_ast(
+            &result,
+            &reactive_module_state_vars,
+        )
+        .unwrap_or(result);
+        result = state_update_assigns_ast::transform_state_update_assigns_ast(
+            &result,
+            &reactive_module_state_vars,
+        )
+        .unwrap_or(result);
 
         // Wrap state variable reads in $.get() (only for reactive vars, not non-reactive)
         result = wrap_state_vars_in_expr(
