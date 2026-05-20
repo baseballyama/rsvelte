@@ -73,15 +73,35 @@ pub fn transform_read_only_props_ast(
     {
         return None;
     }
-    // Same ambiguity bail as `state_reads_ast` — a bare `{ … }` at
-    // the start of input parses as BlockStatement.
-    if source.trim_start().starts_with('{') {
-        return None;
-    }
+    // Bare-object-literal handling (same narrowed paren-wrap trick
+    // as `state_reads_ast` / `prop_source_reads_ast`): when input
+    // is a single object-literal expression (`{ a: 1, b: 2 }`),
+    // it parses as a BlockStatement statement-position. We wrap
+    // with `(...)` only when it really IS an expression — starts
+    // with `{`, ends with `}`, and contains no top-level `;`.
+    let trimmed = source.trim();
+    let needs_paren_wrap = trimmed.starts_with('{')
+        && trimmed.ends_with('}')
+        && !contains_top_level_semicolon(trimmed);
+    let leading_ws = source.len() - source.trim_start().len();
+    let parse_source: std::borrow::Cow<str> = if needs_paren_wrap {
+        let trimmed_start = &source[leading_ws..];
+        let trailing_ws = trimmed_start.len() - trimmed_start.trim_end().len();
+        let core = &trimmed_start[..trimmed_start.len() - trailing_ws];
+        std::borrow::Cow::Owned(format!(
+            "{}({}){}",
+            &source[..leading_ws],
+            core,
+            &source[source.len() - trailing_ws..]
+        ))
+    } else {
+        std::borrow::Cow::Borrowed(source)
+    };
+    let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
 
     READ_ONLY_PROPS_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
+        let parser_ret = Parser::new(&allocator, &parse_source, SourceType::mjs())
             .with_options(ParseOptions {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
@@ -112,12 +132,46 @@ pub fn transform_read_only_props_ast(
         replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
         let mut out = source.to_string();
         for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
+            let s = (*start as i32 - span_offset) as usize;
+            let e = (*end as i32 - span_offset) as usize;
+            out.replace_range(s..e, rewrite);
         }
 
         *cell.borrow_mut() = allocator;
         Some(out)
     })
+}
+
+/// See `state_reads_ast::contains_top_level_semicolon`. Duplicated
+/// here to keep this module self-contained.
+fn contains_top_level_semicolon(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let mut depth: i32 = 0;
+    let mut in_string: Option<u8> = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = in_string {
+            if c == b'\\' && i + 1 < bytes.len() {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' | b'`' => in_string = Some(c),
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b';' if depth <= 1 => return true,
+            _ => {}
+        }
+        i += 1;
+    }
+    false
 }
 
 struct ReadOnlyPropsCollector<'a, 'sem> {
@@ -386,15 +440,14 @@ mod tests {
     }
 
     #[test]
-    fn bare_object_literal_input_bails() {
-        // BlockStatement ambiguity — bail to text scanner.
-        assert!(
-            transform_read_only_props_ast(
-                "{ checked, count }",
-                &pp(&[("count", "count"), ("checked", "checked")])
-            )
-            .is_none()
-        );
+    fn bare_object_literal_input_handled_via_paren_wrap() {
+        // Paren-wrap forces expression context; shorthand expands.
+        let out = transform_read_only_props_ast(
+            "{ checked, count }",
+            &pp(&[("count", "count"), ("checked", "checked")]),
+        )
+        .unwrap();
+        assert_eq!(out, "{ checked: $$props.checked, count: $$props.count }");
     }
 
     #[test]
