@@ -121,12 +121,22 @@ function decodeEnvelope(buf) {
 function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
 	const obj = {};
 	let codeCache = null;
+	// `code` and `map` need setters as well as getters — upstream
+	// `svelte/compiler` returns them as plain writable strings, and
+	// vite-plugin-svelte mutates `compiled.js.code` to wire the CSS
+	// import (see compile.js:131, `compiled.js.code += ...`). Without
+	// a setter the assignment throws `Cannot set property code of
+	// #<Object> which has only a getter` under the strict-mode rolldown
+	// runtime and the docs build fails.
 	Object.defineProperty(obj, 'code', {
 		enumerable: true,
 		configurable: true,
 		get() {
 			if (codeCache === null) codeCache = slice(codeOff, codeLen);
 			return codeCache;
+		},
+		set(value) {
+			codeCache = value;
 		},
 	});
 	const hasMap = mapOff !== 0;
@@ -143,6 +153,9 @@ function makeCodeMapObject(buf, slice, codeOff, codeLen, mapOff, mapLen) {
 				mapCache = JSON.parse(slice(mapOff, mapLen));
 			}
 			return mapCache;
+		},
+		set(value) {
+			mapCache = value;
 		},
 	});
 	// `mapBytes` returns a zero-copy view into the envelope (Node Buffer
