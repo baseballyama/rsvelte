@@ -3788,16 +3788,30 @@ fn transform_instance_script_for_visitors(
             );
             // Also apply state assignment transformations to the reactive statement body
             // This handles cases like: `$: selected ? component = Sub : component = banana`
-            // where state variables are assigned inside conditional expressions
-            let transformed = transform_state_assignments(
+            // where state variables are assigned inside conditional expressions.
+            //
+            // Whole-statement AST passes (simple / compound / update).
+            // The text version is no longer needed at this site —
+            // statements parse cleanly and `find_state_var_symbols`
+            // (PR #226) correctly handles shadow semantics.
+            let mut transformed = state_simple_assigns_ast::transform_state_simple_assigns_ast(
                 &transformed,
                 state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
                 raw_state_vars,
                 analysis.runes,
                 &non_proxy_vars,
-            );
+            )
+            .unwrap_or(transformed);
+            transformed = state_compound_assigns_ast::transform_state_compound_assigns_ast(
+                &transformed,
+                state_vars,
+            )
+            .unwrap_or(transformed);
+            transformed = state_update_assigns_ast::transform_state_update_assigns_ast(
+                &transformed,
+                state_vars,
+            )
+            .unwrap_or(transformed);
             // Collect reactive statements to append at end (matching official compiler behavior
             // which appends all reactive statements after the rest of instance body code)
             let mut reactive_code = transformed;
@@ -3851,15 +3865,25 @@ fn transform_instance_script_for_visitors(
             let transformed = if analysis.runes {
                 transformed // AST transform handles state var wrapping
             } else {
-                let transformed = transform_state_assignments(
+                // Whole-statement AST passes for assignments.
+                let mut transformed = state_simple_assigns_ast::transform_state_simple_assigns_ast(
                     &transformed,
                     state_vars,
-                    non_reactive_state_vars,
-                    proxy_vars,
                     raw_state_vars,
                     analysis.runes,
                     &non_proxy_vars,
-                );
+                )
+                .unwrap_or(transformed);
+                transformed = state_compound_assigns_ast::transform_state_compound_assigns_ast(
+                    &transformed,
+                    state_vars,
+                )
+                .unwrap_or(transformed);
+                transformed = state_update_assigns_ast::transform_state_update_assigns_ast(
+                    &transformed,
+                    state_vars,
+                )
+                .unwrap_or(transformed);
                 wrap_state_vars_in_expr(
                     &transformed,
                     state_vars,
@@ -4027,15 +4051,25 @@ fn transform_instance_script_for_visitors(
         let transformed = if analysis.runes {
             transformed
         } else {
-            let transformed = transform_state_assignments(
+            // Whole-statement AST passes for assignments.
+            let mut transformed = state_simple_assigns_ast::transform_state_simple_assigns_ast(
                 &transformed,
                 state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
                 raw_state_vars,
                 analysis.runes,
                 &non_proxy_vars,
-            );
+            )
+            .unwrap_or(transformed);
+            transformed = state_compound_assigns_ast::transform_state_compound_assigns_ast(
+                &transformed,
+                state_vars,
+            )
+            .unwrap_or(transformed);
+            transformed = state_update_assigns_ast::transform_state_update_assigns_ast(
+                &transformed,
+                state_vars,
+            )
+            .unwrap_or(transformed);
             wrap_store_unsub_for_state_sets(&transformed, state_vars, store_sub_vars)
         };
 
