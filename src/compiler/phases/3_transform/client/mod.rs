@@ -4213,12 +4213,9 @@ fn transform_instance_script_for_visitors(
 
         // Transform read-only props to $$props.propName (only in non-runes mode here;
         // in runes mode, deferred to AST-based transform after main loop).
-        // The AST helper (`read_only_props_ast`) uses `oxc_semantic` for
-        // precise shadow detection; on `None` (parse error / no match /
-        // bare-`{` ambiguity) we fall back to the legacy text scanner.
         let transformed = if !analysis.runes && !read_only_props.is_empty() {
             read_only_props_ast::transform_read_only_props_ast(&transformed, read_only_props)
-                .unwrap_or_else(|| transform_read_only_props(&transformed, read_only_props))
+                .unwrap_or(transformed)
         } else {
             transformed
         };
@@ -5666,7 +5663,8 @@ fn test_transform_read_only_props_block_comment_before_key() {
     // Similar to wrap_prop_source_reads: block comment before property key should be skipped
     let read_only_props = vec![("value".to_string(), "value".to_string())];
     let input = r#"{ key: 1, /* comment */ value: 2 }"#;
-    let result = transform_read_only_props(input, &read_only_props);
+    let result = read_only_props_ast::transform_read_only_props_ast(input, &read_only_props)
+        .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value: 2"),
         "value as property key after block comment should NOT be transformed: {}",
@@ -5684,7 +5682,8 @@ fn test_transform_read_only_props_getter_setter() {
     // getter/setter names should not be transformed
     let read_only_props = vec![("value".to_string(), "value".to_string())];
     let input = "{ get value() { return 1; } }";
-    let result = transform_read_only_props(input, &read_only_props);
+    let result = read_only_props_ast::transform_read_only_props_ast(input, &read_only_props)
+        .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("get value()"),
         "getter name should not be transformed: {}",
@@ -5697,7 +5696,8 @@ fn test_transform_read_only_props_in_expression() {
     // When used as an expression, should be transformed to $$props.propName
     let read_only_props = vec![("value".to_string(), "value".to_string())];
     let input = "let x = value + 1;";
-    let result = transform_read_only_props(input, &read_only_props);
+    let result = read_only_props_ast::transform_read_only_props_ast(input, &read_only_props)
+        .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("$$props.value"),
         "value in expression should be transformed to $$props.value: {}",

@@ -1186,6 +1186,7 @@ pub(super) fn extract_member_expression_base(lhs: &str) -> Option<&str> {
 
 /// Find the nearest unmatched opening delimiter (`{`, `(`, or `[`) scanning backward from `pos`.
 /// This helps distinguish object literal context (`{`) from function call (`(`) or array (`[`).
+#[allow(dead_code)]
 pub(super) fn find_nearest_unmatched_open_delimiter(code: &str, pos: usize) -> Option<char> {
     let bytes = code.as_bytes();
     let mut depth_paren: i32 = 0;
@@ -1226,6 +1227,7 @@ pub(super) fn find_nearest_unmatched_open_delimiter(code: &str, pos: usize) -> O
     None
 }
 
+#[allow(dead_code)]
 pub(super) fn is_in_variable_declaration_list(before_comma: &str) -> bool {
     // Simple heuristic: scan backwards past identifiers, assignments, and values
     // to find if there's a let/const/var keyword at the top level (not inside parens/brackets).
@@ -1277,6 +1279,7 @@ pub(super) fn is_in_variable_declaration_list(before_comma: &str) -> bool {
 
 /// Check if a position is inside a function parameter list, or inside a function body
 /// where a parameter with the given `name` shadows the identifier.
+#[allow(dead_code)]
 pub(super) fn is_in_function_param_or_shadowed(code: &str, pos: usize, name: Option<&str>) -> bool {
     let bytes = code.as_bytes();
 
@@ -1435,6 +1438,7 @@ pub(super) fn is_in_function_param_or_shadowed(code: &str, pos: usize, name: Opt
 /// Check if a position is inside a destructuring pattern.
 /// Destructuring patterns appear on the LEFT side of an assignment,
 /// not the right side (which would be an object literal).
+#[allow(dead_code)]
 pub(super) fn is_in_destructuring_pattern(code: &str, pos: usize) -> bool {
     let before = &code[..pos];
 

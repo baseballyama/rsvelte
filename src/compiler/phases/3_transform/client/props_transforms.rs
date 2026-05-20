@@ -7,10 +7,8 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 use super::{
-    extract_destructured_prop_names, find_matching_paren, find_nearest_unmatched_open_delimiter,
-    get_or_compile_regex, is_in_destructuring_pattern, is_in_function_param_or_shadowed,
-    is_in_variable_declaration_list, is_inside_string_literal, is_shadowed_by_function_param,
-    is_shorthand_object_property,
+    extract_destructured_prop_names, find_matching_paren, get_or_compile_regex,
+    is_inside_string_literal, is_shadowed_by_function_param, is_shorthand_object_property,
 };
 
 /// Transform prop reads in an expression to prop() calls.
@@ -1843,7 +1841,11 @@ pub(super) fn transform_props_destructuring(
             let default_value = {
                 let mut dv = default_value.to_string();
                 if !read_only_props.is_empty() {
-                    dv = transform_read_only_props(&dv, read_only_props);
+                    dv = super::read_only_props_ast::transform_read_only_props_ast(
+                        &dv,
+                        read_only_props,
+                    )
+                    .unwrap_or(dv);
                 }
                 if !prop_source_vars.is_empty() {
                     dv = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
@@ -2768,193 +2770,4 @@ pub(super) fn split_top_level_args(s: &str) -> Vec<String> {
     }
 
     parts
-}
-
-pub(super) fn transform_read_only_props(
-    line: &str,
-    read_only_props: &[(String, String)],
-) -> String {
-    let mut result = line.to_string();
-
-    for (local_name, prop_name) in read_only_props {
-        // Create a regex pattern that matches the prop name as a complete identifier
-        // Rust regex doesn't support lookbehind, so we match with word boundaries
-        // and handle the prefix check manually
-        let pattern = format!(r"\b{}\b", regex::escape(local_name));
-        let re = match get_or_compile_regex(&pattern) {
-            Some(r) => r,
-            None => continue,
-        };
-
-        let mut new_result = String::new();
-        let mut last_end = 0;
-
-        for mat in re.find_iter(&result.clone()) {
-            // Check if preceded by . (property access) or $ (dollar identifier)
-            if mat.start() > 0 {
-                let prev_byte = result.as_bytes().get(mat.start() - 1).copied();
-                if prev_byte == Some(b'.') || prev_byte == Some(b'$') {
-                    new_result.push_str(&result[last_end..mat.end()]);
-                    last_end = mat.end();
-                    continue;
-                }
-            }
-
-            // Check if the match is inside a string literal (skip if so)
-            // This prevents transforming 'prop' -> '$$props.prop' inside strings like $.prop($$props, 'prop', ...)
-            if is_inside_string_literal(&result, mat.start()) {
-                new_result.push_str(&result[last_end..mat.end()]);
-                last_end = mat.end();
-                continue;
-            }
-
-            // Check if this is a getter/setter property name (skip if so)
-            // e.g., `get initialViewId()` - the name is a property definition, not a reference
-            {
-                let before_trimmed = result[..mat.start()].trim_end();
-                if before_trimmed.ends_with("get") || before_trimmed.ends_with("set") {
-                    let keyword_len = 3; // "get" or "set"
-                    let before_keyword =
-                        before_trimmed[..before_trimmed.len() - keyword_len].trim_end();
-                    let prev = before_keyword.chars().last();
-                    // `get`/`set` is a getter/setter keyword if preceded by `{`, `,`, or start of context
-                    if matches!(prev, None | Some('{') | Some(',') | Some('(') | Some(';')) {
-                        new_result.push_str(&result[last_end..mat.end()]);
-                        last_end = mat.end();
-                        continue;
-                    }
-                }
-            }
-
-            // Check if this is a declaration (skip if so)
-            let before = &result[..mat.start()];
-            let trimmed_before = before.trim_end();
-
-            // Skip if this is part of a let/const/var declaration or destructuring pattern.
-            // Note: We check for `{` only when it follows a declaration keyword (e.g., `let {`).
-            // A bare `{` could be a function body (e.g., `() => { prop(...)`) which should
-            // NOT be skipped.
-            let is_destructuring_brace = trimmed_before.ends_with('{') && {
-                let before_brace = trimmed_before[..trimmed_before.len() - 1].trim_end();
-                before_brace.ends_with("let")
-                    || before_brace.ends_with("const")
-                    || before_brace.ends_with("var")
-                    || before_brace.ends_with(',')
-                    || before_brace.ends_with(':')
-                    || before_brace.strip_suffix('(').is_some_and(|stripped| {
-                        // Only treat as destructuring if this is a function definition
-                        // parameter, NOT a function call argument.
-                        // e.g., `function({` is destructuring, `resolve({` is NOT
-                        let before_paren = stripped.trim_end();
-                        !before_paren
-                            .chars()
-                            .last()
-                            .map(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.')
-                            .unwrap_or(false)
-                    })
-            };
-            // Check if comma is in a variable declaration context (e.g., `let a, b`)
-            // but NOT in a function call argument (e.g., `foo(a, b)`)
-            let is_declaration_comma = trimmed_before.ends_with(',') && {
-                // Walk back past any previous declarators to find if there's a let/const/var
-                // This handles: `let a, b` where trimmed_before for `b` is `let a,`
-                let before_comma = trimmed_before[..trimmed_before.len() - 1].trim_end();
-                // Find the start of this statement by looking for the declaration keyword
-                // We need to check if this comma is part of a `let/const/var` multi-declarator
-                // or a destructuring pattern, not a function call argument
-                is_in_variable_declaration_list(before_comma)
-            };
-            if trimmed_before.ends_with("let")
-                || trimmed_before.ends_with("const")
-                || trimmed_before.ends_with("var")
-                || is_declaration_comma
-                || is_destructuring_brace
-            {
-                new_result.push_str(&result[last_end..mat.end()]);
-                last_end = mat.end();
-                continue;
-            }
-
-            // Check if this is a destructuring pattern
-            // Look for patterns like `{ prop }` or `{ prop, ... }`
-            if is_in_destructuring_pattern(&result, mat.start()) {
-                new_result.push_str(&result[last_end..mat.end()]);
-                last_end = mat.end();
-                continue;
-            }
-
-            // Check if this is a function parameter or inside a function body where
-            // a parameter shadows this prop name (e.g., `function render(state) { return state }`)
-            if is_in_function_param_or_shadowed(&result, mat.start(), Some(local_name)) {
-                new_result.push_str(&result[last_end..mat.end()]);
-                last_end = mat.end();
-                continue;
-            }
-
-            // Check if this identifier is a non-shorthand object property key
-            // e.g., `{ children: queryChildren }` - `children` is just a key, don't replace
-            // Also handles cases where comments appear between `,` and the key
-            {
-                let after_trimmed = result[mat.end()..].trim_start();
-                let next_after = after_trimmed.chars().next();
-                if next_after == Some(':') && after_trimmed.chars().nth(1) != Some(':') {
-                    // Use delimiter tracking to check if we're inside an object literal
-                    if find_nearest_unmatched_open_delimiter(&result, mat.start()) == Some('{') {
-                        new_result.push_str(&result[last_end..mat.end()]);
-                        last_end = mat.end();
-                        continue;
-                    }
-                }
-            }
-
-            // Check if this is a shorthand property in an object literal
-            // e.g., `{ environment }` should become `{ environment: $$props.environment }`
-            // not `{ $$props.environment }` (which would be invalid)
-            // Must be inside `{ }` (object literal), NOT `( )` (function call) or `[ ]` (array)
-            let is_shorthand = {
-                let before = result[..mat.start()].trim_end();
-                let after = result[mat.end()..].trim_start();
-                let prev_char = before.chars().last();
-                let next_char = after.chars().next();
-                // Check that `{` is not preceded by `$` (template literal `${...}`)
-                let is_template_literal = prev_char == Some('{') && {
-                    let before_trimmed = before.trim_end();
-                    before_trimmed.len() >= 2
-                        && before_trimmed.as_bytes()[before_trimmed.len() - 2] == b'$'
-                };
-                matches!(prev_char, Some('{') | Some(','))
-                    && matches!(next_char, Some('}') | Some(','))
-                    && !is_template_literal
-                    && find_nearest_unmatched_open_delimiter(&result, mat.start()) == Some('{')
-            };
-
-            // Replace with $$props.propName or $$props['propName']
-            new_result.push_str(&result[last_end..mat.start()]);
-            let use_bracket = !is_valid_js_identifier(prop_name);
-            if is_shorthand {
-                new_result.push_str(local_name);
-                if use_bracket {
-                    new_result.push_str(": $$props['");
-                    new_result.push_str(prop_name);
-                    new_result.push_str("']");
-                } else {
-                    new_result.push_str(": $$props.");
-                    new_result.push_str(prop_name);
-                }
-            } else if use_bracket {
-                new_result.push_str("$$props['");
-                new_result.push_str(prop_name);
-                new_result.push_str("']");
-            } else {
-                new_result.push_str("$$props.");
-                new_result.push_str(prop_name);
-            }
-            last_end = mat.end();
-        }
-
-        new_result.push_str(&result[last_end..]);
-        result = new_result;
-    }
-
-    result
 }
