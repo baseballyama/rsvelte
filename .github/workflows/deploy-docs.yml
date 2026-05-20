@@ -76,15 +76,17 @@ jobs:
       - name: Update docs test-results.json
         run: node scripts/update-docs.mjs
 
-      - name: Install language-tools dependencies
-        # `scripts/run-benchmark.mjs` imports svelte2tsx from the
-        # language-tools submodule for its JS baseline; the package's
-        # runtime deps (typescript, dedent-js, scule, …) live in its
-        # own node_modules and aren't installed by the svelte submodule
-        # bootstrap above.
+      - name: Build language-tools svelte2tsx
+        # `scripts/run-benchmark.mjs` imports
+        # submodules/language-tools/packages/svelte2tsx/index.mjs as the
+        # JS baseline. That file is a rollup build artefact, not checked
+        # into upstream — so we install workspace deps and run the
+        # package's build before invoking the benchmark.
         run: |
           cd submodules/language-tools
           pnpm install --frozen-lockfile
+          cd packages/svelte2tsx
+          pnpm build
 
       - name: Run JS vs Rust benchmark
         # Refreshes docs/static/benchmark-results.json so the /benchmark
