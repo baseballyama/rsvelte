@@ -1,9 +1,6 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
 use memchr::memmem;
-use rustc_hash::FxHashSet;
-
-use super::VAR_STATE_VARS;
 
 /// Find the end of an expression (until ; or newline at depth 0).
 pub(super) fn find_expression_end(s: &str) -> usize {
@@ -583,24 +580,19 @@ pub(super) fn is_expression_incomplete(
 }
 
 /// Wrap state variable references with $.get() in an expression.
+///
+/// AST-based via `oxc_semantic` (#215) for precise shadow detection
+/// (function params, for-loop vars, nested lets). Returns the input
+/// unchanged when nothing matches (no state-var reference in `expr`)
+/// or when parsing fails — those are no-op cases, not regressions.
 pub(super) fn wrap_state_vars_in_expr(
     expr: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
-    proxy_vars: &[String],
+    _proxy_vars: &[String],
 ) -> String {
-    // AST-based fast path: uses `oxc_semantic` (#215) for precise
-    // shadow detection and gets all the natural-AST guards
-    // (property keys, member properties, getter/setter names,
-    // function params) for free. Returns `None` on parse error,
-    // ambiguous bare-object-literal input, or "nothing to wrap";
-    // we then fall back to the text scanner.
-    if let Some(rewritten) =
-        super::state_reads_ast::transform_state_reads_ast(expr, state_vars, non_reactive_vars)
-    {
-        return rewritten;
-    }
-    transform_state_in_expr(expr, state_vars, non_reactive_vars, proxy_vars)
+    super::state_reads_ast::transform_state_reads_ast(expr, state_vars, non_reactive_vars)
+        .unwrap_or_else(|| expr.to_string())
 }
 
 /// Check if a variable at position `var_end_idx` is in a function parameter position.
@@ -609,6 +601,7 @@ pub(super) fn wrap_state_vars_in_expr(
 /// - `function name(param)` - function declaration
 /// - `(param) =>` - arrow function
 /// - `(param1, param2)` - multiple parameters
+#[allow(dead_code)]
 pub(super) fn is_in_function_param_position(
     chars: &[char],
     var_start_idx: usize,
@@ -1015,6 +1008,7 @@ pub(super) fn is_shadowed_by_for_loop_var(
 ///     return { foo };                    // this `foo` should NOT be $.get(foo)
 /// })();
 /// ```
+#[allow(dead_code)]
 pub(super) fn is_shadowed_by_local_var_decl(
     chars: &[char],
     var_start: usize,
@@ -1764,6 +1758,7 @@ pub(super) fn is_shadowed_by_function_param(
 /// Check if chars at position `end` are preceded by the given pattern string.
 /// Compares chars[end - pattern.len() .. end] against the ASCII pattern.
 #[inline]
+#[allow(dead_code)]
 pub(super) fn chars_match(chars: &[char], end: usize, pattern: &str) -> bool {
     let pat_bytes = pattern.as_bytes();
     let pat_len = pat_bytes.len();
@@ -1781,386 +1776,9 @@ pub(super) fn chars_match(chars: &[char], end: usize, pattern: &str) -> bool {
 
 /// Check if a character can start a JavaScript identifier (not a digit).
 #[inline]
+#[allow(dead_code)]
 pub(super) fn is_identifier_start_char(c: char) -> bool {
     c.is_alphabetic() || c == '_' || c == '$'
-}
-
-/// Transform state variable references to $.get() calls.
-/// All state variables (including those initialized with objects/arrays) need $.get() wrapping
-/// when reading their values, including when accessing properties.
-///
-/// Optimized: single-pass multi-variable matching with FxHashSet lookup and
-/// zero-allocation prefix checks via chars_match.
-pub(super) fn transform_state_in_expr(
-    expr: &str,
-    state_vars: &[String],
-    non_reactive_vars: &[String],
-    _proxy_vars: &[String],
-) -> String {
-    // Filter out non-reactive state vars - they don't need $.get() wrapping
-    let effective_state_vars: Vec<&String> = state_vars
-        .iter()
-        .filter(|v| !non_reactive_vars.contains(v))
-        .collect();
-
-    if effective_state_vars.is_empty() {
-        return expr.to_string();
-    }
-
-    // Quick pre-check: if none of the state var names appear as identifiers in the text,
-    // skip the expensive char-by-char scan entirely.
-    // Uses O(text_len) identifier extraction instead of O(N*text_len) substring search.
-    {
-        let var_check_set: FxHashSet<&str> =
-            effective_state_vars.iter().map(|v| v.as_str()).collect();
-        if !super::utils::text_contains_any_identifier(expr, &var_check_set) {
-            return expr.to_string();
-        }
-    }
-
-    // Build a HashSet for O(1) variable lookup
-    let var_set: FxHashSet<&str> = effective_state_vars.iter().map(|v| v.as_str()).collect();
-
-    // Build char vector and a parallel byte-offset vector so we can extract
-    // identifiers as &str slices from `expr` without allocating a String.
-    let chars: Vec<char> = expr.chars().collect();
-    let is_ascii = expr.is_ascii();
-    // For ASCII strings, char index == byte index, so no separate offset table needed.
-    let byte_offsets: Vec<usize> = if is_ascii {
-        Vec::new() // unused for ASCII
-    } else {
-        let mut offsets = Vec::with_capacity(chars.len() + 1);
-        for (byte_idx, _) in expr.char_indices() {
-            offsets.push(byte_idx);
-        }
-        offsets.push(expr.len());
-        offsets
-    };
-
-    let mut new_result = String::with_capacity(expr.len() + expr.len() / 4);
-    let mut i = 0;
-
-    // Track whether we're inside a string literal
-    let mut in_string: Option<char> = None; // None or Some('\'') or Some('"') or Some('`')
-    // Stack for template literal nesting: tracks brace depth inside `${...}` interpolations.
-    let mut template_literal_depth_stack: Vec<i32> = Vec::new();
-    // Track whether we're inside a comment
-    let mut in_line_comment = false;
-    let mut in_block_comment = false;
-
-    while i < chars.len() {
-        let c = chars[i];
-
-        // Handle line comment end (newline)
-        if in_line_comment {
-            new_result.push(c);
-            if c == '\n' {
-                in_line_comment = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        // Handle block comment end (*/)
-        if in_block_comment {
-            new_result.push(c);
-            if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
-                new_result.push('/');
-                i += 2;
-                in_block_comment = false;
-                continue;
-            }
-            i += 1;
-            continue;
-        }
-
-        // Handle template literal interpolation brace tracking
-        if !template_literal_depth_stack.is_empty() && in_string.is_none() {
-            if c == '{' {
-                if let Some(depth) = template_literal_depth_stack.last_mut() {
-                    *depth += 1;
-                }
-            } else if c == '}' {
-                let should_pop = if let Some(depth) = template_literal_depth_stack.last_mut() {
-                    *depth -= 1;
-                    *depth < 0
-                } else {
-                    false
-                };
-                if should_pop {
-                    template_literal_depth_stack.pop();
-                    // Re-enter template literal string mode
-                    in_string = Some('`');
-                    new_result.push(c);
-                    i += 1;
-                    continue;
-                }
-            }
-        }
-
-        // Handle string literal boundaries
-        if in_string.is_none() {
-            // Check for comment start (only outside strings)
-            if c == '/' && i + 1 < chars.len() {
-                if chars[i + 1] == '/' {
-                    // Line comment
-                    in_line_comment = true;
-                    new_result.push(c);
-                    i += 1;
-                    continue;
-                } else if chars[i + 1] == '*' {
-                    // Block comment (including JSDoc)
-                    in_block_comment = true;
-                    new_result.push(c);
-                    i += 1;
-                    continue;
-                }
-            }
-
-            if c == '\'' || c == '"' || c == '`' {
-                in_string = Some(c);
-                new_result.push(c);
-                i += 1;
-                continue;
-            }
-        } else if in_string == Some('`') && c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
-            // Template literal interpolation: `...${expr}...`
-            // Temporarily exit string mode to process the expression
-            in_string = None;
-            template_literal_depth_stack.push(0);
-            new_result.push(c);
-            new_result.push('{');
-            i += 2;
-            continue;
-        } else if Some(c) == in_string {
-            // Check for escape sequence
-            let escaped = if i > 0 && chars[i - 1] == '\\' {
-                // Count consecutive backslashes
-                let mut backslash_count = 0;
-                let mut j = i - 1;
-                while j > 0 && chars[j] == '\\' {
-                    backslash_count += 1;
-                    if j == 0 {
-                        break;
-                    }
-                    j -= 1;
-                }
-                // If odd number of backslashes, the quote is escaped
-                backslash_count % 2 == 1
-            } else {
-                false
-            };
-
-            if !escaped {
-                in_string = None;
-            }
-            new_result.push(c);
-            i += 1;
-            continue;
-        }
-
-        // Skip replacements inside string literals (but NOT template literal interpolations)
-        if in_string.is_some() {
-            new_result.push(c);
-            i += 1;
-            continue;
-        }
-
-        // At potential identifier start position
-        if is_identifier_start_char(c) {
-            // Extract full identifier
-            let id_start = i;
-            while i < chars.len() && is_identifier_char(chars[i]) {
-                i += 1;
-            }
-            let id_end = i;
-            let _var_len = id_end - id_start;
-
-            // Check word boundary before (digits are handled by is_identifier_start_char)
-            let before_ok = id_start == 0 || !is_identifier_char(chars[id_start - 1]);
-
-            // Extract identifier as a zero-copy &str slice (no String allocation).
-            // For ASCII strings, char index == byte index so we index directly.
-            let identifier: &str = if is_ascii {
-                &expr[id_start..id_end]
-            } else {
-                &expr[byte_offsets[id_start]..byte_offsets[id_end]]
-            };
-
-            if before_ok && var_set.contains(identifier) {
-                // Apply all the same context checks, using id_start as position
-                let pos = id_start;
-                let var_len = id_end - id_start;
-
-                // Check if preceded by dot, but NOT if it's a spread operator (...)
-                let preceded_by_dot =
-                    pos > 0 && chars[pos - 1] == '.' && !chars_match(&chars, pos, "...");
-                // Check if preceded by `#` (private field access like this.#y)
-                let preceded_by_hash = pos > 0 && chars[pos - 1] == '#';
-                let already_wrapped =
-                    chars_match(&chars, pos, "$.safe_get(") || chars_match(&chars, pos, "$.get(");
-                let in_set_first_arg = chars_match(&chars, pos, "$.set(");
-                let in_update_arg = chars_match(&chars, pos, "$.update(");
-                let in_update_pre_arg = chars_match(&chars, pos, "$.update_pre(");
-                let in_mutate_first_arg = chars_match(&chars, pos, "$.mutate(");
-
-                // Check if this variable is in a function parameter position
-                let in_param_position = is_in_function_param_position(&chars, pos, pos + var_len);
-
-                // Check if this variable is on the left side of an assignment
-                let is_assignment_target = is_on_left_side_of_assignment(&chars, pos, var_len);
-
-                // Check if this is a getter/setter method name
-                let is_getter_setter_name = {
-                    let after_idx = pos + var_len;
-                    let mut k = after_idx;
-                    while k < chars.len() && chars[k].is_whitespace() {
-                        k += 1;
-                    }
-                    let has_paren_after = k < chars.len() && chars[k] == '(';
-                    let has_get_before = chars_match(&chars, pos, "get ");
-                    let has_set_before = chars_match(&chars, pos, "set ");
-                    has_paren_after && (has_get_before || has_set_before)
-                };
-
-                // Check if this is an object property key
-                let is_property_key = {
-                    let after_idx = pos + var_len;
-                    let mut k = after_idx;
-                    while k < chars.len() && chars[k].is_whitespace() {
-                        k += 1;
-                    }
-                    let has_colon_after = k < chars.len() && chars[k] == ':';
-                    if has_colon_after {
-                        let mut is_ternary = false;
-                        let mut depth_paren = 0i32;
-                        let mut depth_brace = 0i32;
-                        let mut depth_bracket = 0i32;
-                        let mut scan = pos;
-                        while scan > 0 {
-                            scan -= 1;
-                            let sc = chars[scan];
-                            match sc {
-                                ')' => depth_paren += 1,
-                                '(' => {
-                                    depth_paren -= 1;
-                                    if depth_paren < 0 {
-                                        break;
-                                    }
-                                }
-                                '}' => depth_brace += 1,
-                                '{' => {
-                                    depth_brace -= 1;
-                                    if depth_brace < 0 {
-                                        break;
-                                    }
-                                }
-                                ']' => depth_bracket += 1,
-                                '[' => {
-                                    depth_bracket -= 1;
-                                    if depth_bracket < 0 {
-                                        break;
-                                    }
-                                }
-                                '?' if depth_paren == 0
-                                    && depth_brace == 0
-                                    && depth_bracket == 0 =>
-                                {
-                                    if scan + 1 < chars.len() && chars[scan + 1] == '.' {
-                                        continue;
-                                    }
-                                    is_ternary = true;
-                                    break;
-                                }
-                                ';' | ','
-                                    if depth_paren == 0
-                                        && depth_brace == 0
-                                        && depth_bracket == 0 =>
-                                {
-                                    break;
-                                }
-                                _ => {}
-                            }
-                        }
-                        !is_ternary
-                    } else {
-                        false
-                    }
-                };
-
-                // Check if this is a shorthand property in an object literal
-                let is_shorthand_property = is_shorthand_object_property(&chars, pos, var_len);
-
-                // Check if this variable is shadowed
-                let is_shadowed = is_shadowed_by_function_param(&chars, pos, identifier)
-                    || is_shadowed_by_for_loop_var(&chars, pos, identifier)
-                    || is_shadowed_by_local_var_decl(&chars, pos, identifier);
-
-                // Check if this variable is the target of an update expression
-                let is_update_target = {
-                    let after_idx = pos + var_len;
-                    let has_postfix_update = after_idx + 1 < chars.len()
-                        && ((chars[after_idx] == '+' && chars[after_idx + 1] == '+')
-                            || (chars[after_idx] == '-' && chars[after_idx + 1] == '-'));
-                    let has_prefix_update = pos >= 2
-                        && ((chars[pos - 2] == '+' && chars[pos - 1] == '+')
-                            || (chars[pos - 2] == '-' && chars[pos - 1] == '-'));
-                    has_postfix_update || has_prefix_update
-                };
-
-                // Check if this is a method shorthand name in an object literal
-                let is_method_shorthand_name = is_object_method_shorthand(&chars, pos, var_len);
-
-                if !already_wrapped
-                    && !preceded_by_dot
-                    && !preceded_by_hash
-                    && !in_set_first_arg
-                    && !in_update_arg
-                    && !in_update_pre_arg
-                    && !in_mutate_first_arg
-                    && !in_param_position
-                    && !is_assignment_target
-                    && !is_getter_setter_name
-                    && !is_property_key
-                    && !is_shadowed
-                    && !is_update_target
-                    && !is_method_shorthand_name
-                {
-                    // Check if this is a var-declared state variable that needs $.safe_get()
-                    let use_safe_get = VAR_STATE_VARS
-                        .with(|v| v.borrow().iter().any(|s| s.as_str() == identifier));
-                    let getter = if use_safe_get { "$.safe_get" } else { "$.get" };
-                    if is_shorthand_property {
-                        // Expand shorthand property: { foo } -> { foo: $.get(foo) }
-                        new_result.push_str(identifier);
-                        new_result.push_str(": ");
-                        new_result.push_str(getter);
-                        new_result.push('(');
-                        new_result.push_str(identifier);
-                        new_result.push(')');
-                    } else {
-                        new_result.push_str(getter);
-                        new_result.push('(');
-                        new_result.push_str(identifier);
-                        new_result.push(')');
-                    }
-                    continue;
-                }
-
-                // Not a state var match or excluded by checks - emit as-is
-                new_result.push_str(identifier);
-            } else {
-                // Not a state variable - emit the identifier as-is
-                new_result.push_str(identifier);
-            }
-            continue;
-        }
-
-        new_result.push(c);
-        i += 1;
-    }
-
-    new_result
 }
 
 /// Check if a variable at the given position is a shorthand property in an object literal.
@@ -2340,6 +1958,7 @@ pub(super) fn is_shorthand_object_property(
 ///
 /// A method shorthand has the identifier followed by `(` (with optional whitespace)
 /// AND is preceded by `{` or `,` (with optional whitespace), indicating an object literal context.
+#[allow(dead_code)]
 pub(super) fn is_object_method_shorthand(chars: &[char], var_start: usize, var_len: usize) -> bool {
     let var_end = var_start + var_len;
 
@@ -2424,6 +2043,7 @@ pub(super) fn is_object_method_shorthand(chars: &[char], var_start: usize, var_l
 ///
 /// Starting from `open_pos` (the opening `{` or `[`), we scan forward to find the
 /// matching closing bracket, then check if `=` follows (not `==` or `===`).
+#[allow(dead_code)]
 pub(super) fn is_destructuring_assignment_at(
     chars: &[char],
     open_pos: usize,
@@ -2506,6 +2126,7 @@ pub(super) fn is_destructuring_assignment_at(
 ///
 /// The variable should NOT be wrapped with $.get() if it's an assignment target
 /// or a declaration.
+#[allow(dead_code)]
 pub(super) fn is_on_left_side_of_assignment(
     chars: &[char],
     var_start: usize,

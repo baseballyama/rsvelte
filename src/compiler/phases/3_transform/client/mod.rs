@@ -4925,8 +4925,9 @@ fn find_enclosing_function_body(script: &str, pos: usize) -> Option<(usize, usiz
 fn apply_local_state_transforms(func_body: &str, var_name: &str, is_state: bool) -> String {
     let mut result = func_body.to_string();
 
-    // Apply $.get() wrapping for reads using the existing transform function
-    result = transform_state_in_expr(&result, &[var_name.to_string()], &[], &[]);
+    // Apply $.get() wrapping for reads (AST-based via state_reads_ast)
+    result = state_reads_ast::transform_state_reads_ast(&result, &[var_name.to_string()], &[])
+        .unwrap_or(result);
 
     // Apply $.update() for `var++`, `var--`, `++var`, `--var` patterns
     // These must be applied BEFORE $.set() transforms since `x++` should become `$.update(x)`
