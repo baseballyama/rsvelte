@@ -97,9 +97,34 @@ pub fn wrap_prop_source_reads_ast(
         return None;
     }
 
+    // Detect bare-object-literal input (default-value expressions
+    // like `{ a: 1, b: 2 }`). As a statement these parse as a
+    // BlockStatement, so shorthand properties would be invisible
+    // to the AST. Wrap with `(...)` to force expression context
+    // and adjust span offsets when applying replacements.
+    let needs_paren_wrap = source.trim_start().starts_with('{');
+    let leading_ws = source.len() - source.trim_start().len();
+    let parse_source: std::borrow::Cow<str> = if needs_paren_wrap {
+        // Insert `(` after the leading whitespace and append `)`
+        // before any trailing whitespace, so the parser sees a
+        // parenthesized expression statement.
+        let trimmed_start = &source[leading_ws..];
+        let trailing_ws = trimmed_start.len() - trimmed_start.trim_end().len();
+        let core = &trimmed_start[..trimmed_start.len() - trailing_ws];
+        std::borrow::Cow::Owned(format!(
+            "{}({}){}",
+            &source[..leading_ws],
+            core,
+            &source[source.len() - trailing_ws..]
+        ))
+    } else {
+        std::borrow::Cow::Borrowed(source)
+    };
+    let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
+
     PROP_READ_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
+        let parser_ret = Parser::new(&allocator, &parse_source, SourceType::mjs())
             .with_options(ParseOptions {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
@@ -109,8 +134,6 @@ pub fn wrap_prop_source_reads_ast(
             *cell.borrow_mut() = allocator;
             return None;
         }
-        // Allocate the program into the arena so the semantic
-        // info can borrow it alongside our visit.
         let program: &Program = allocator.alloc(parser_ret.program);
         let semantic_ret = SemanticBuilder::new().build(program);
         let semantic = &semantic_ret.semantic;
@@ -129,13 +152,16 @@ pub fn wrap_prop_source_reads_ast(
             return None;
         }
 
-        // Sort by span start descending; apply right-to-left so
-        // earlier offsets stay valid.
+        // Sort by span start descending; apply right-to-left to
+        // the ORIGINAL source (adjusting for the synthetic `(`
+        // prefix when in paren-wrap mode).
         let mut replacements = collector.replacements;
         replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
         let mut out = source.to_string();
         for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
+            let s = (*start as i32 - span_offset) as usize;
+            let e = (*end as i32 - span_offset) as usize;
+            out.replace_range(s..e, rewrite);
         }
 
         *cell.borrow_mut() = allocator;
