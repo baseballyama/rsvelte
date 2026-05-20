@@ -76,26 +76,13 @@ jobs:
       - name: Update docs test-results.json
         run: node scripts/update-docs.mjs
 
-      - name: Build language-tools svelte2tsx
-        # `scripts/run-benchmark.mjs` imports
-        # submodules/language-tools/packages/svelte2tsx/index.mjs as the
-        # JS baseline. That file is a rollup build artefact, not checked
-        # into upstream — so we install workspace deps and run the
-        # package's build before invoking the benchmark.
-        run: |
-          cd submodules/language-tools
-          pnpm install --frozen-lockfile
-          cd packages/svelte2tsx
-          pnpm build
-
-      - name: Run JS vs Rust benchmark
-        # Refreshes docs/static/benchmark-results.json so the /benchmark
-        # page on the deployed site reflects current main rather than
-        # whatever was last hand-committed. Mirrors the compatibility-
-        # report flow: regenerated on every deploy, bundled into
-        # docs/build by the subsequent docs build step.
-        run: node scripts/run-benchmark.mjs > docs/static/benchmark-results.json
-        timeout-minutes: 30
+      # NOTE: docs/static/benchmark-results.json is *not* regenerated on
+      # every deploy — running the JS-vs-Rust benchmark added ~30 minutes
+      # to each Pages publish for numbers that don't move per push.
+      # The committed JSON is the source of truth; refresh it via the
+      # manually-triggered `Refresh benchmark` workflow
+      # (.github/workflows/refresh-benchmark.yml), which opens a PR with
+      # the new file.
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
