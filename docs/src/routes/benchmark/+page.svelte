@@ -7,7 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type TaskId = 'full' | 'parse' | 'svelte2tsx';
+	type TaskId = 'full' | 'parse' | 'svelte2tsx' | 'svelte-check';
 
 	// `animationTime` is the elapsed wall-clock ms since the run started.
 	// Each bar across every task shows `min(animationTime, this.durationMs)`,
@@ -45,6 +45,7 @@
 		label: string;
 		sub: string;
 		data: BenchmarkTaskResults;
+		filesCount?: number;
 	};
 
 	const tasks: TaskPanel[] = $derived.by(() => {
@@ -60,6 +61,15 @@
 				label: 'svelte2tsx',
 				sub: '.svelte / .tsx generation',
 				data: r.svelte2tsx
+			});
+		}
+		if (r.svelteCheck) {
+			list.push({
+				id: 'svelte-check',
+				label: 'svelte-check',
+				sub: `CLI · ${r.svelteCheck.filesCount.toLocaleString('en-US')}-file workspace`,
+				data: r.svelteCheck,
+				filesCount: r.svelteCheck.filesCount
 			});
 		}
 		return list;
