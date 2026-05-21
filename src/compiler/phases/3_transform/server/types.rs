@@ -519,18 +519,6 @@ pub(crate) enum ComponentPropItem {
     Spread(String),
 }
 
-/// Push a prop string into a `Vec<ComponentPropItem>`, grouping consecutive
-/// props together in a single `Props` variant (mirrors the official compiler's
-/// `push_prop` helper).
-#[allow(dead_code)]
-pub(crate) fn push_component_prop(items: &mut Vec<ComponentPropItem>, prop: String) {
-    if let Some(ComponentPropItem::Props(props)) = items.last_mut() {
-        props.push(prop);
-    } else {
-        items.push(ComponentPropItem::Props(vec![prop]));
-    }
-}
-
 /// Check whether a `Vec<ComponentPropItem>` contains any spreads.
 pub(crate) fn has_spreads(items: &[ComponentPropItem]) -> bool {
     items

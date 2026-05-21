@@ -1976,114 +1976,6 @@ pub fn build_expression(
     b::sequence(sequence_exprs)
 }
 
-/// Collect state getter calls from an expression.
-///
-/// This walks the expression tree and collects any `$.get(x)` calls,
-/// which represent reads of reactive state variables.
-#[allow(dead_code)]
-fn collect_state_getters(
-    expr: &JsExpr,
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-    getters: &mut Vec<JsExpr>,
-) {
-    match expr {
-        JsExpr::Call(call) => {
-            // Check if this is a $.get() call
-            if let JsExpr::Member(member) = arena.get_expr(call.callee)
-                && let JsExpr::Identifier(obj) = arena.get_expr(member.object)
-                && obj == "$"
-                && let JsMemberProperty::Identifier(prop) = &member.property
-                && prop == "get"
-            {
-                // Found a $.get() call - add it as a dependency
-                getters.push(JsExpr::Call(call.clone()));
-                return;
-            }
-            // Recurse into call arguments
-            for arg in &call.arguments {
-                collect_state_getters(arg, arena, getters);
-            }
-            // Recurse into callee
-            collect_state_getters(arena.get_expr(call.callee), arena, getters);
-        }
-        JsExpr::Member(member) => {
-            collect_state_getters(arena.get_expr(member.object), arena, getters);
-            if let JsMemberProperty::Expression(prop) = &member.property {
-                collect_state_getters(arena.get_expr(*prop), arena, getters);
-            }
-        }
-        JsExpr::Binary(binary) => {
-            collect_state_getters(arena.get_expr(binary.left), arena, getters);
-            collect_state_getters(arena.get_expr(binary.right), arena, getters);
-        }
-        JsExpr::Logical(logical) => {
-            collect_state_getters(arena.get_expr(logical.left), arena, getters);
-            collect_state_getters(arena.get_expr(logical.right), arena, getters);
-        }
-        JsExpr::Conditional(cond) => {
-            collect_state_getters(arena.get_expr(cond.test), arena, getters);
-            collect_state_getters(arena.get_expr(cond.consequent), arena, getters);
-            collect_state_getters(arena.get_expr(cond.alternate), arena, getters);
-        }
-        JsExpr::Array(arr) => {
-            for e in arr.elements.iter().flatten() {
-                collect_state_getters(e, arena, getters);
-            }
-        }
-        JsExpr::Object(obj) => {
-            for prop in &obj.properties {
-                match prop {
-                    JsObjectMember::Property(p) => {
-                        collect_state_getters(arena.get_expr(p.value), arena, getters);
-                    }
-                    JsObjectMember::SpreadElement(s) => {
-                        collect_state_getters(arena.get_expr(*s), arena, getters);
-                    }
-                }
-            }
-        }
-        JsExpr::Assignment(assign) => {
-            collect_state_getters(arena.get_expr(assign.left), arena, getters);
-            collect_state_getters(arena.get_expr(assign.right), arena, getters);
-        }
-        JsExpr::Unary(unary) => {
-            collect_state_getters(arena.get_expr(unary.argument), arena, getters);
-        }
-        JsExpr::Update(update) => {
-            collect_state_getters(arena.get_expr(update.argument), arena, getters);
-        }
-        JsExpr::Sequence(seq) => {
-            for expr in &seq.expressions {
-                collect_state_getters(expr, arena, getters);
-            }
-        }
-        JsExpr::TemplateLiteral(template) => {
-            for expr in &template.expressions {
-                collect_state_getters(expr, arena, getters);
-            }
-        }
-        JsExpr::Arrow(_) | JsExpr::Function(_) => {
-            // Don't collect from function bodies - they're lazily evaluated
-        }
-        // Terminal nodes or nodes that don't contain expressions
-        JsExpr::Identifier(_)
-        | JsExpr::Literal(_)
-        | JsExpr::This
-        | JsExpr::Raw(_)
-        | JsExpr::Spread(_)
-        | JsExpr::New(_)
-        | JsExpr::Class(_)
-        | JsExpr::Yield(_)
-        | JsExpr::Await(_)
-        | JsExpr::TaggedTemplate(_)
-        | JsExpr::Chain(_)
-        | JsExpr::Void(_) => {}
-        JsExpr::Spanned(inner, _, _) => {
-            collect_state_getters(arena.get_expr(*inner), arena, getters);
-        }
-    }
-}
-
 /// Collect reactive references from metadata.references for legacy mode reactivity.
 ///
 /// This uses the binding indices from phase 2 analysis (metadata.references) to determine
@@ -3258,20 +3150,6 @@ fn build_member_path(member: &JsMemberExpression, context: &ComponentContext) ->
     // Reverse the path since we built it from leaf to root
     path.reverse();
     path
-}
-
-/// Check if a node has an ignore annotation comment.
-///
-/// TODO: This needs to check for comments like `// @ts-ignore ownership_invalid_mutation`
-/// For now, always returns false.
-#[allow(dead_code)]
-fn is_ignored<T>(_node: &T, _check: &str) -> bool {
-    // TODO: Implement comment annotation checking
-    // This would require:
-    // 1. Access to comments attached to the node
-    // 2. Parsing the comment text for @ts-ignore or similar
-    // 3. Checking if the specific check is mentioned
-    false
 }
 
 /// Result of building a template chunk.
