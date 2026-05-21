@@ -997,7 +997,6 @@ fn is_global_block(node: &Value) -> bool {
 
 /// Check if a rule starts with :global (with or without arguments)
 /// This includes both `:global { ... }` and `:global(.x) { ... }`
-#[allow(dead_code)]
 fn is_global_selector_rule(node: &Value) -> bool {
     if let Some(prelude) = node.get("prelude")
         && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
@@ -2578,7 +2577,6 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
 }
 
 /// Get the type selector name from a relative selector
-#[allow(dead_code)]
 fn get_type_selector_name(rel_selector: &Value) -> Option<String> {
     rel_selector
         .get("selectors")
@@ -2830,7 +2828,6 @@ fn decode_css_escape(name: &str) -> String {
 /// Check if a selector with :has() is unused by checking if the :has() argument
 /// can match within the subject element's subtree.
 /// For example, `x:has(> z)` is unused if no `x` element has a direct child `z`.
-#[allow(dead_code)]
 fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     if ctx.dom_structure.elements.is_empty() {
         return false;
@@ -3058,7 +3055,6 @@ fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> boo
 
 /// Check if a :has() argument is unused relative to the subject elements.
 /// Returns true if the argument cannot match within any subject element's context.
-#[allow(dead_code)]
 fn is_has_argument_unused(
     has_complex: &Value,
     subject_elements: &[usize],
@@ -3189,7 +3185,6 @@ fn is_has_argument_unused(
 }
 
 /// Check if a multi-part :has() argument (like > h > i) is unused
-#[allow(dead_code)]
 fn is_multi_part_has_unused(
     rel_selectors: &[Value],
     subject_elements: &[usize],
@@ -3265,7 +3260,6 @@ fn is_multi_part_has_unused(
     false
 }
 
-#[allow(dead_code)]
 /// Check if an element has a matching descendant
 fn has_matching_descendant(parent_idx: usize, info: &SelectorInfo, ctx: &CssContext) -> bool {
     let parent = &ctx.dom_structure.elements[parent_idx];
@@ -3292,7 +3286,6 @@ fn has_matching_descendant(parent_idx: usize, info: &SelectorInfo, ctx: &CssCont
     false
 }
 
-#[allow(dead_code)]
 /// Collect all matching descendants
 fn collect_matching_descendants(
     parent_idx: usize,
@@ -3312,7 +3305,6 @@ fn collect_matching_descendants(
 }
 
 /// Extract SelectorInfo from a set of simple selectors (not the relative selector)
-#[allow(dead_code)]
 fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
     let mut info = SelectorInfo {
         tag_name: None,

@@ -2706,7 +2706,6 @@ fn convert_ts_type_name_adjusted(
 }
 
 /// Convert oxc TSType to a serde_json::Value.
-#[allow(dead_code)]
 fn convert_ts_type(ts_type: &oxc_ast::ast::TSType, offset: usize, line_offsets: &[usize]) -> Value {
     use oxc_ast::ast::TSType;
 
@@ -8596,7 +8595,6 @@ fn convert_assignment_target_property_for_program(
 }
 
 /// Convert a SimpleAssignmentTarget to JsNode (no -1 offset adjustment).
-#[allow(dead_code)]
 fn convert_simple_assignment_target_for_program(
     arena: &ParseArena,
     target: &oxc_ast::ast::SimpleAssignmentTarget,

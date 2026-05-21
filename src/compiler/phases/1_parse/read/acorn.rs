@@ -18,20 +18,24 @@ use oxc_span::{GetSpan, SourceType};
 use serde_json::{Map, Value as JsonValue};
 
 /// Parse result containing the AST and any comments
+#[allow(dead_code)]
 pub struct ParseResult {
     pub ast: JsonValue,
     pub comments: Vec<Comment>,
 }
 
 /// Comment with location information
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Comment {
     pub kind: CommentKind,
+    #[allow(dead_code)]
     pub value: String,
     pub start: usize,
     pub end: usize,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentKind {
     Line,
@@ -59,6 +63,7 @@ impl CommentKind {
 ///
 /// # Returns
 /// A JSON representation of the Program AST with comments attached
+#[allow(dead_code)]
 pub fn parse(source: &str, typescript: bool, _is_script: bool) -> Result<ParseResult, String> {
     let source_type = if typescript {
         SourceType::default()
@@ -97,6 +102,7 @@ pub fn parse(source: &str, typescript: bool, _is_script: bool) -> Result<ParseRe
 ///
 /// # Returns
 /// A JSON representation of the expression with comments
+#[allow(dead_code)]
 pub fn parse_expression_at(
     source: &str,
     typescript: bool,
@@ -151,6 +157,7 @@ pub fn parse_expression_at(
 }
 
 /// Extract comments from OXC parser result
+#[allow(dead_code)]
 fn extract_comments(source: &str, result: &ParserReturn) -> Vec<Comment> {
     let mut comments = Vec::new();
 
@@ -177,6 +184,7 @@ fn extract_comments(source: &str, result: &ParserReturn) -> Vec<Comment> {
 }
 
 /// Extract the value from a comment, removing delimiters
+#[allow(dead_code)]
 fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
     match kind {
         oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
@@ -188,6 +196,7 @@ fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
 }
 
 /// Convert OXC Program to JSON representation
+#[allow(dead_code)]
 fn program_to_json(program: &Program, source: &str) -> JsonValue {
     let mut obj = Map::new();
     obj.insert("type".to_string(), JsonValue::String("Program".to_string()));
@@ -219,6 +228,7 @@ fn program_to_json(program: &Program, source: &str) -> JsonValue {
 }
 
 /// Convert OXC Statement to JSON
+#[allow(dead_code)]
 fn statement_to_json(stmt: &Statement, source: &str) -> JsonValue {
     // Basic conversion - would need full implementation for all statement types
     let mut obj = Map::new();
@@ -282,6 +292,7 @@ fn statement_to_json(stmt: &Statement, source: &str) -> JsonValue {
 }
 
 /// Convert OXC Expression to JSON
+#[allow(dead_code)]
 fn expression_to_json(expr: &oxc_ast::ast::Expression, source: &str) -> JsonValue {
     let mut obj = Map::new();
     let span = expr.span();
@@ -422,6 +433,7 @@ fn expression_to_json(expr: &oxc_ast::ast::Expression, source: &str) -> JsonValu
 }
 
 /// Recursively adjust positions in AST JSON
+#[allow(dead_code)]
 fn adjust_positions_recursive(obj: &mut Map<String, JsonValue>, offset: usize) {
     if let Some(JsonValue::Number(start)) = obj.get("start")
         && let Some(start_num) = start.as_u64()

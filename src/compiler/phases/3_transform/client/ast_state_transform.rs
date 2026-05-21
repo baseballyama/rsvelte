@@ -3487,7 +3487,6 @@ pub(super) struct AstTransformConfig<'a> {
     pub exported_names: &'a [String],
 }
 
-#[allow(dead_code)]
 pub(super) fn transform_state_vars_ast(
     script: &str,
     config: &AstTransformConfig,

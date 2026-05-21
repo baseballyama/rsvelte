@@ -94,7 +94,6 @@ pub fn is_void_element(name: &str) -> bool {
 /// # Returns
 ///
 /// Returns the formatted JavaScript code as a string.
-#[allow(dead_code)]
 pub fn estree_to_string(node: &serde_json::Value) -> String {
     let mut generator = EstreeGenerator::new();
     generator.generate_node(node);
@@ -102,7 +101,6 @@ pub fn estree_to_string(node: &serde_json::Value) -> String {
 }
 
 /// ESTree to JavaScript code generator.
-#[allow(dead_code)]
 struct EstreeGenerator {
     output: String,
 }

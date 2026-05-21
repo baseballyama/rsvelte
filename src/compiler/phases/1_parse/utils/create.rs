@@ -23,8 +23,8 @@ use crate::ast::template::{Fragment, FragmentMetadata, FragmentType};
 /// let fragment = create_fragment(false);
 /// assert_eq!(fragment.nodes.len(), 0);
 /// ```
-#[inline]
 #[allow(dead_code)]
+#[inline]
 pub fn create_fragment(transparent: bool) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,
@@ -40,8 +40,8 @@ pub fn create_fragment(transparent: bool) -> Fragment {
 // with existing Rust code, but they don't correspond to the JS implementation.
 
 /// Create an empty Fragment (backward compatibility).
-#[inline]
 #[allow(dead_code)]
+#[inline]
 pub fn create_empty_fragment() -> Fragment {
     create_fragment(false)
 }

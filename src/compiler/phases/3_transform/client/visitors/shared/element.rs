@@ -682,7 +682,6 @@ pub fn build_style_directives_object_with_memoizer(
 }
 
 /// Check if an AttributeValue contains an await expression.
-#[allow(dead_code)]
 fn attr_has_await_expr(attr_value: &AttributeValue) -> bool {
     match attr_value {
         AttributeValue::True(_) => false,

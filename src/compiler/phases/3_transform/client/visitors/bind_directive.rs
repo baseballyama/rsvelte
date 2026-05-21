@@ -2239,9 +2239,9 @@ pub fn build_each_block_getter_setter(
 
 /// Information about how a binding expression references an each block item.
 #[derive(Debug)]
-#[allow(dead_code)]
 enum EachBindingExprInfo {
     /// Direct reference to the each item (bind:value={item})
+    #[allow(dead_code)]
     DirectItem { item_name: String },
     /// Property access on the each item (bind:value={item.prop})
     ItemProperty {

@@ -16,16 +16,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU64;
 use std::time::Instant;
-
-// Global counters (only works single-threaded)
-#[allow(dead_code)]
-static OXC_EXPR_CALLS: AtomicU64 = AtomicU64::new(0);
-#[allow(dead_code)]
-static OXC_PROGRAM_CALLS: AtomicU64 = AtomicU64::new(0);
-#[allow(dead_code)]
-static FAST_PATH_HITS: AtomicU64 = AtomicU64::new(0);
 
 fn main() {
     let files = collect_files();

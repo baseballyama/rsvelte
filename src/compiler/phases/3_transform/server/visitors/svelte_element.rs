@@ -279,7 +279,6 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Build $.attributes() call for svelte:element with spread.
-    #[allow(dead_code)]
     fn build_svelte_element_spread_attributes(
         &mut self,
         elem: &SvelteDynamicElement,

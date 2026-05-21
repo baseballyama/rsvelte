@@ -24,7 +24,6 @@ const INDENT_STRING: &str = "\t";
 /// - Measuring output length
 pub struct Context<'a> {
     /// The allocator for string allocations
-    #[allow(dead_code)]
     allocator: &'a Allocator,
     /// The output buffer
     buffer: String,
@@ -42,7 +41,6 @@ pub struct Context<'a> {
     needs_margin: bool,
     /// Source map mappings (line, column) -> (original_line, original_column)
     /// TODO: Implement proper source map support
-    #[allow(dead_code)]
     mappings: Vec<(usize, usize, usize, usize)>,
 }
 
@@ -255,7 +253,6 @@ impl<'a> Context<'a> {
     ///
     /// * `line` - The line number in the original source (1-indexed)
     /// * `column` - The column number in the original source (0-indexed)
-    #[allow(dead_code)]
     pub fn location(&mut self, line: usize, column: usize) {
         let current_line = self.buffer.lines().count();
         let current_column = self.buffer.lines().last().map(|l| l.len()).unwrap_or(0);

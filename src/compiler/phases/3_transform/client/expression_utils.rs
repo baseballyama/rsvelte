@@ -1052,8 +1052,8 @@ pub(super) fn is_shadowed_by_function_param(
 
 /// Check if chars at position `end` are preceded by the given pattern string.
 /// Compares chars[end - pattern.len() .. end] against the ASCII pattern.
-#[inline]
 #[allow(dead_code)]
+#[inline]
 pub(super) fn chars_match(chars: &[char], end: usize, pattern: &str) -> bool {
     let pat_bytes = pattern.as_bytes();
     let pat_len = pat_bytes.len();
