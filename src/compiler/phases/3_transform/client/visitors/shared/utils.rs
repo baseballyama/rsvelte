@@ -1584,15 +1584,6 @@ fn transform_computed_indices_only(
     }
 }
 
-/// Apply transforms to a statement recursively.
-///
-/// This handles statements that contain expressions, applying transforms
-/// to all expressions within.
-#[allow(dead_code)]
-fn apply_transforms_to_statement(stmt: &JsStatement, context: &ComponentContext) -> JsStatement {
-    apply_transforms_to_statement_with_shadowed(stmt, context, &LocalScope::new())
-}
-
 /// Apply transforms to a statement recursively with local scope tracking.
 fn apply_transforms_to_statement_with_shadowed(
     stmt: &JsStatement,
@@ -3267,20 +3258,6 @@ fn build_member_path(member: &JsMemberExpression, context: &ComponentContext) ->
     // Reverse the path since we built it from leaf to root
     path.reverse();
     path
-}
-
-/// Get source location (line, column) from a position.
-///
-/// TODO: This needs access to the source code to calculate line/column.
-/// For now, returns None as a placeholder.
-#[allow(dead_code)]
-fn get_source_location(_pos: u32) -> Option<(usize, usize)> {
-    // TODO: Implement proper source location lookup
-    // This would require:
-    // 1. Access to the original source code
-    // 2. A line/column mapping (similar to source maps)
-    // 3. Converting u32 position to (line, column)
-    None
 }
 
 /// Check if a node has an ignore annotation comment.

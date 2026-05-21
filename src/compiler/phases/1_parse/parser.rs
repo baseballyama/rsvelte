@@ -342,17 +342,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Get source location for a range.
-    #[allow(dead_code)]
-    pub fn get_location_range(&self, start: usize, end: usize) -> SourceLocation {
-        let start_loc = self.get_location(start);
-        let end_loc = self.get_location(end);
-        SourceLocation {
-            start: start_loc.start,
-            end: end_loc.start,
-        }
-    }
-
     /// Create name_loc with character field for Svelte compatibility.
     #[inline]
     pub fn create_name_loc(&self, start: usize, end: usize) -> SourceLocation {

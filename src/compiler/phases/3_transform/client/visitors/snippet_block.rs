@@ -47,7 +47,6 @@
 use crate::ast::js::Expression;
 use crate::ast::template::{Fragment, SnippetBlock};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
-use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -1154,12 +1153,6 @@ fn infer_namespace_from_children(nodes: &[crate::ast::template::TemplateNode]) -
     }
 
     found_namespace.unwrap_or("html").to_string()
-}
-
-/// Helper to convert an AST expression to a JS expression.
-#[allow(dead_code)]
-fn convert_expr(expr: &Expression, context: &mut ComponentContext) -> JsExpr {
-    convert_expression(expr, context)
 }
 
 #[cfg(test)]

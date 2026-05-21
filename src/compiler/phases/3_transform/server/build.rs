@@ -1340,25 +1340,6 @@ impl<'a> ServerCodeGenerator<'a> {
         (JsProgram { body }, arena)
     }
 
-    #[allow(dead_code)]
-    /// Hoist ConstDeclaration parts to the front of a parts slice.
-    /// This mirrors the official Svelte compiler's behavior where @const declarations
-    /// are pushed to state.init (before template) in the EachBlock visitor.
-    #[allow(dead_code)]
-    fn hoist_const_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
-        let mut consts: Vec<OutputPart> = Vec::new();
-        let mut rest: Vec<OutputPart> = Vec::new();
-        for part in parts {
-            if matches!(part, OutputPart::ConstDeclaration(_)) {
-                consts.push(part.clone());
-            } else {
-                rest.push(part.clone());
-            }
-        }
-        consts.extend(rest);
-        consts
-    }
-
     /// Hoist ConstDeclaration parts to the front AND strip whitespace-only Html parts
     /// that appear interspersed among ConstDeclarations. This is needed for if-block bodies
     /// where the official compiler removes whitespace text nodes between @const declarations.
@@ -2524,27 +2505,6 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         segments
-    }
-
-    /// Hoist SnippetFunction declarations to the front of a parts vector.
-    /// This mirrors the official Svelte compiler's behavior where snippet functions
-    /// are placed in state.init (before template rendering) via the Fragment visitor.
-    #[allow(dead_code)]
-    fn hoist_snippet_functions(parts: Vec<OutputPart>) -> Vec<OutputPart> {
-        let mut snippets: Vec<OutputPart> = Vec::new();
-        let mut rest: Vec<OutputPart> = Vec::new();
-        for part in parts {
-            if matches!(part, OutputPart::SnippetFunction { .. }) {
-                snippets.push(part);
-            } else {
-                rest.push(part);
-            }
-        }
-        if snippets.is_empty() {
-            return rest;
-        }
-        snippets.extend(rest);
-        snippets
     }
 
     /// Hoist both ConstDeclaration and SnippetFunction parts to the front of a

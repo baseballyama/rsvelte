@@ -117,19 +117,6 @@ impl<'a> Context<'a> {
         self.buffer.push_str(text);
     }
 
-    /// Write a formatted string to the output buffer.
-    ///
-    /// This is a convenience method for writing formatted text.
-    ///
-    /// # Arguments
-    ///
-    /// * `args` - The format arguments
-    #[allow(dead_code)]
-    pub fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) {
-        let s = args.to_string();
-        self.write(&s);
-    }
-
     /// Add a newline to the output.
     ///
     /// Uses deferred processing like esrap: the actual newline is written

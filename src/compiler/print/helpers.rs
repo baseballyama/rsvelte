@@ -731,44 +731,6 @@ impl EstreeGenerator {
     }
 }
 
-/// Format JavaScript/TypeScript expression using oxc_codegen.
-///
-/// This function converts an oxc AST expression into a string representation.
-///
-/// # Arguments
-///
-/// * `_expr` - The oxc expression to format
-///
-/// # Returns
-///
-/// Returns the formatted expression as a string.
-#[allow(dead_code)]
-pub fn format_expression(_expr: &oxc_ast::ast::Expression) -> String {
-    // TODO: This is a simplified implementation
-    // We need to properly integrate oxc_codegen
-    // For now, return a placeholder
-    "/* expression */".to_string()
-}
-
-/// Format JavaScript/TypeScript statement using oxc_codegen.
-///
-/// This function converts an oxc AST statement into a string representation.
-///
-/// # Arguments
-///
-/// * `_stmt` - The oxc statement to format
-///
-/// # Returns
-///
-/// Returns the formatted statement as a string.
-#[allow(dead_code)]
-pub fn format_statement(_stmt: &oxc_ast::ast::Statement) -> String {
-    // TODO: This is a simplified implementation
-    // We need to properly integrate oxc_codegen
-    // For now, return a placeholder
-    "/* statement */".to_string()
-}
-
 /// Escape a string for use in HTML attributes.
 ///
 /// This escapes quotes and special characters for safe attribute values.

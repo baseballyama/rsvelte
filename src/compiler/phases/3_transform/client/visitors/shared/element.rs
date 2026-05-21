@@ -311,23 +311,6 @@ fn extract_expression_from_tag_with_context(
     convert_expression(&expr_tag.expression, context)
 }
 
-/// Extract the JavaScript expression from an ExpressionTag (simple version without context).
-///
-/// This is a fallback for cases where we don't have mutable access to context.
-/// It only handles simple expressions like identifiers.
-#[allow(dead_code)]
-fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
-    // For simple cases, we can convert directly
-    if let Some(name) = expr_tag.expression.identifier_name() {
-        return b::id(name);
-    }
-    // Fallback: try to get any "name" field
-    if let Some(name) = expr_tag.expression.name() {
-        return b::id(name);
-    }
-    b::id("expr")
-}
-
 /// Extract metadata from an ExpressionTag.
 ///
 /// Compute Phase-3 metadata flags by walking the expression's JSON.
@@ -1589,42 +1572,6 @@ fn is_event_attribute_node(attr: &crate::ast::template::AttributeNode) -> bool {
 /// Check if an expression is a function expression (arrow or function).
 fn is_function_expression(expr: &JsExpr) -> bool {
     matches!(expr, JsExpr::Arrow(_) | JsExpr::Function(_))
-}
-
-/// Extract a JavaScript expression from a directive's expression.
-#[allow(dead_code)]
-fn extract_expression_from_directive(expression: &crate::ast::js::Expression) -> JsExpr {
-    use crate::ast::typed_expr::{JsNode, LiteralValue};
-    match expression.node_type() {
-        Some("Literal") => {
-            let node = expression.as_node();
-            match &*node {
-                JsNode::Literal { value, .. } => match value {
-                    LiteralValue::Bool(b) => b::boolean(*b),
-                    LiteralValue::Number(n) => b::number(*n),
-                    LiteralValue::String(s) => b::string(s.as_str()),
-                    LiteralValue::Null => b::null(),
-                    LiteralValue::Regex(_) => b::boolean(true),
-                },
-                _ => b::boolean(true),
-            }
-        }
-        Some("Identifier") => {
-            if let Some(name) = expression.name() {
-                b::id(name)
-            } else {
-                b::boolean(true)
-            }
-        }
-        _ => {
-            // Fallback: try name field
-            if let Some(name) = expression.name() {
-                b::id(name)
-            } else {
-                b::boolean(true)
-            }
-        }
-    }
 }
 
 #[cfg(test)]
