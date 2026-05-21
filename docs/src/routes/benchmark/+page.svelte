@@ -172,6 +172,15 @@
 					<dt>Corpus</dt>
 					<dd>{r.testFilesCount.toLocaleString('en-US')} .svelte files</dd>
 				</div>
+				{#if r.runner}
+					<div>
+						<dt>Machine</dt>
+						<dd>
+							{r.runner.cpus}-core {r.runner.arch}
+							<span class="hero-meta-aside">· {r.runner.label}</span>
+						</dd>
+					</div>
+				{/if}
 				<div>
 					<dt>Recorded</dt>
 					<dd>{formatDate(r.generatedAt)}</dd>
@@ -367,6 +376,11 @@
 	.hero-meta code {
 		font-size: 0.92em;
 		color: var(--rust);
+	}
+
+	.hero-meta-aside {
+		color: var(--ink-faint);
+		font-size: 0.82em;
 	}
 
 	/* STATS */
