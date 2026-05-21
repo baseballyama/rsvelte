@@ -119,6 +119,7 @@ pub fn read_pattern(
 ///
 /// # Returns
 /// A tuple of (Option<TypeAnnotation>, end position)
+#[allow(dead_code)]
 fn read_type_annotation(
     source: &str,
     start: usize,
@@ -178,26 +179,29 @@ fn read_type_annotation(
 
 /// Simple type annotation placeholder.
 /// Full TypeScript type parsing would require more complex implementation.
-#[derive(Debug, Clone)]
 #[allow(dead_code)]
+#[derive(Debug, Clone)]
 struct TypeAnnotation {
     start: usize,
     end: usize,
 }
 
 /// Check if a byte is a whitespace character.
+#[allow(dead_code)]
 #[inline]
 fn is_whitespace(b: u8) -> bool {
     matches!(b, b' ' | b'\t' | b'\n' | b'\r')
 }
 
 /// Check if a byte is valid in an identifier.
+#[allow(dead_code)]
 #[inline]
 fn is_identifier_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
 /// Create a simple identifier expression.
+#[allow(dead_code)]
 fn create_simple_identifier(
     name: &str,
     start: usize,

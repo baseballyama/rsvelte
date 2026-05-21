@@ -106,7 +106,6 @@ pub fn is_locally_shadowed(semantic: &Semantic, ident: &IdentifierReference) -> 
 /// A reference is to the state var iff its resolved
 /// `Reference.symbol_id()` is in this set. See
 /// [`is_state_var_reference`].
-#[allow(dead_code)]
 pub fn find_state_var_symbols(semantic: &Semantic, names: &[String]) -> FxHashSet<SymbolId> {
     if names.is_empty() {
         return FxHashSet::default();
@@ -218,7 +217,6 @@ fn is_state_var_init_expression(expr: &oxc_ast::ast::Expression) -> bool {
 ///
 /// Shadowing case: the reference resolves to a non-state-var
 /// symbol (e.g. function parameter) → returns `false`.
-#[allow(dead_code)]
 pub fn is_state_var_reference_or_unresolved(
     semantic: &Semantic,
     ident: &IdentifierReference,

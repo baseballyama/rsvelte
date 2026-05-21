@@ -283,13 +283,9 @@ fn sequence_possible_values(
 
 /// Info about a template element for CSS matching.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ElementInfo {
     pub tag_name: String,
     pub has_spread: bool,
-    pub classes: Vec<String>,
-    pub ids: Vec<String>,
-    pub has_dynamic_class: bool,
     /// Whether this is a dynamic element (<svelte:element>), which matches any type selector
     pub is_dynamic: bool,
     /// All attributes on the element (name, value pairs)
@@ -318,10 +314,7 @@ impl ElementInfo {
     ) -> Self {
         use template::Attribute;
 
-        let mut classes = Vec::new();
-        let mut ids = Vec::new();
         let mut has_spread = false;
-        let mut has_dynamic_class = false;
         let mut attr_pairs: Vec<(String, AttrValue)> = Vec::new();
         let mut bind_names = Vec::new();
         let mut has_style_directive = false;
@@ -348,41 +341,18 @@ impl ElementInfo {
                             }
                             if is_all_text && !static_parts.is_empty() {
                                 let full_value = static_parts.join("");
-                                attr_pairs.push((
-                                    attr_name.clone(),
-                                    AttrValue::Static(full_value.clone()),
-                                ));
-                                if attr_name == "class" {
-                                    for class in full_value.split_whitespace() {
-                                        classes.push(class.to_string());
-                                    }
-                                } else if attr_name == "id" {
-                                    ids.push(full_value);
-                                }
+                                attr_pairs.push((attr_name.clone(), AttrValue::Static(full_value)));
                             } else if attr_name == "class" {
-                                has_dynamic_class = true;
                                 // Try to compute possible values across all chunks, so
                                 // selectors like `.foo` can be pruned when `foo` isn't
                                 // a candidate token. Mirrors the official compiler's
                                 // `attribute_matches` logic in css-prune.js.
                                 if let Some(possible) = sequence_possible_values(parts, true) {
-                                    for value in &possible {
-                                        for class in value.split_whitespace() {
-                                            classes.push(class.to_string());
-                                        }
-                                    }
                                     attr_pairs.push((
                                         attr_name.clone(),
                                         AttrValue::PossibleValues(possible),
                                     ));
                                 } else {
-                                    for part in parts {
-                                        if let template::AttributeValuePart::Text(text) = part {
-                                            for class in text.data.split_whitespace() {
-                                                classes.push(class.to_string());
-                                            }
-                                        }
-                                    }
                                     attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                                 }
                             } else {
@@ -391,16 +361,9 @@ impl ElementInfo {
                         }
                         template::AttributeValue::Expression(expr_tag) => {
                             if attr_name == "class" {
-                                has_dynamic_class = true;
                                 if let Some(possible) =
                                     get_possible_class_values(&expr_tag.expression)
                                 {
-                                    // Extract class tokens from each possible value.
-                                    for value in &possible {
-                                        for class in value.split_whitespace() {
-                                            classes.push(class.to_string());
-                                        }
-                                    }
                                     attr_pairs.push((
                                         attr_name.clone(),
                                         AttrValue::PossibleValues(possible),
@@ -415,7 +378,6 @@ impl ElementInfo {
                     }
                 }
                 Attribute::ClassDirective(cd) => {
-                    classes.push(cd.name.to_string());
                     class_directive_names.push(cd.name.to_string());
                 }
                 Attribute::SpreadAttribute(_) => {
@@ -434,9 +396,6 @@ impl ElementInfo {
         Self {
             tag_name: tag_name.to_string(),
             has_spread,
-            classes,
-            ids,
-            has_dynamic_class,
             is_dynamic,
             attributes: attr_pairs,
             bind_names,

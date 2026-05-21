@@ -79,7 +79,6 @@ const RESERVED_WORDS: &[&str] = &[
 ///
 /// Corresponds to `is_reserved()` in `svelte/packages/svelte/src/utils.js`.
 /// Uses first-byte dispatch and match for O(1) lookup instead of linear scan.
-#[allow(dead_code)]
 pub fn is_reserved(word: &str) -> bool {
     matches!(
         word,
