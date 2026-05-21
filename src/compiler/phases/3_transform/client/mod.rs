@@ -34,6 +34,7 @@ mod state;
 mod state_assigns_combined_ast;
 mod state_call_ast;
 mod state_member_mutate_ast;
+mod state_pipeline_ast;
 mod state_raw_frozen_ast;
 mod state_reads_ast;
 mod state_set_reactive_ast;
@@ -2775,22 +2776,19 @@ pub(crate) fn transform_module_script_runes(
         // (previously: three separate helpers, each doing its own
         // parse + SemanticBuilder, multiplied by up to 16 fixed-
         // point iterations apiece).
-        result = state_assigns_combined_ast::transform_state_assigns_ast(
+        // Combined pipeline: state-var ASSIGNMENT wraps + state-var
+        // READ wraps in a single parse + SemanticBuilder. Replaces
+        // the previous sequential `state_assigns_combined_ast` +
+        // `wrap_state_vars_in_expr` which each did their own parse.
+        result = state_pipeline_ast::transform_state_pipeline_ast(
             &result,
             &reactive_module_state_vars,
             &derived_vars,
             analysis.runes,
             &[],
+            &module_non_reactive_vars,
         )
         .unwrap_or(result);
-
-        // Wrap state variable reads in $.get() (only for reactive vars, not non-reactive)
-        result = wrap_state_vars_in_expr(
-            &result,
-            &reactive_module_state_vars,
-            &module_non_reactive_vars,
-            &module_proxy_vars,
-        );
     }
 
     // Transform $effect.root(), $effect.pre(), $effect.tracking(), $effect()
@@ -3845,21 +3843,17 @@ fn transform_instance_script_for_visitors(
             let transformed = if analysis.runes {
                 transformed // AST transform handles state var wrapping
             } else {
-                // Unified AST pass — see Site 1 comment for rationale.
-                let transformed = state_assigns_combined_ast::transform_state_assigns_ast(
+                // Combined pipeline: assigns + reads in one parse.
+                let _ = proxy_vars;
+                state_pipeline_ast::transform_state_pipeline_ast(
                     &transformed,
                     state_vars,
                     raw_state_vars,
                     analysis.runes,
                     &non_proxy_vars,
-                )
-                .unwrap_or(transformed);
-                wrap_state_vars_in_expr(
-                    &transformed,
-                    state_vars,
                     non_reactive_state_vars,
-                    proxy_vars,
                 )
+                .unwrap_or(transformed)
             };
             // Apply store subscription transformations to the default value expression
             // (e.g. `export let value = $page.params` becomes `$.prop(..., () => $page().params)`).
