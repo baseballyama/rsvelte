@@ -16,7 +16,7 @@
 
 import { execSync, spawn, spawnSync } from 'child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
+import { arch as nodeArch, cpus, platform as nodePlatform, tmpdir } from 'os';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -300,6 +300,25 @@ function getCommitSha() {
 }
 
 /**
+ * Capture hardware / OS info for the machine running this benchmark.
+ * Surfaced into the JSON output so the /benchmark page can credit the
+ * runner — multi-threaded numbers only mean something in the context
+ * of how many cores were available. In CI the workflow sets
+ * `BENCHMARK_RUNNER_LABEL` to the GitHub-hosted runner label
+ * (e.g. `ubuntu-22.04-arm-16-cores`); locally it's just "local".
+ */
+function getRunnerInfo() {
+	const cpuList = cpus();
+	return {
+		label: process.env.BENCHMARK_RUNNER_LABEL || 'local',
+		os: nodePlatform(),
+		arch: nodeArch(),
+		cpus: cpuList.length,
+		cpuModel: cpuList[0]?.model?.trim() ?? 'unknown',
+	};
+}
+
+/**
  * Calculate statistics from timing results
  */
 function calculateStats(times, filesCount) {
@@ -520,6 +539,7 @@ async function main() {
 	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
+		runner: getRunnerInfo(),
 		testFilesCount: files.length,
 		...asTaskResults(compileClient),
 		parse: asTaskResults(parse),
