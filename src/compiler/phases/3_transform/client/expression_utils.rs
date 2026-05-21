@@ -2,46 +2,6 @@
 
 use memchr::memmem;
 
-/// Find the end of an expression (until ; or newline at depth 0).
-pub(super) fn find_expression_end(s: &str) -> usize {
-    let mut depth = 0;
-    let chars: Vec<char> = s.chars().collect();
-    let mut in_string = false;
-    let mut string_char = ' ';
-
-    for (i, &c) in chars.iter().enumerate() {
-        // Handle string literals
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            continue;
-        }
-
-        match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => {
-                if depth > 0 {
-                    depth -= 1;
-                } else {
-                    return i;
-                }
-            }
-            ';' | '\n' if depth == 0 => return i,
-            _ => {}
-        }
-    }
-
-    s.len()
-}
-
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
 /// Strip TypeScript generic type parameters from rune calls.
 /// Converts `$state<SomeType>(...)` → `$state(...)` and `$derived<T>(...)` → `$derived(...)`.
