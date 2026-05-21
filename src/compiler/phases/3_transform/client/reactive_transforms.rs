@@ -1,16 +1,13 @@
 //! Reactive statement handling and state mutation transformations.
 
-use rustc_hash::FxHashSet;
-
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 use super::{
     body_references_identifier, extract_destructure_targets, extract_member_expression_base,
     find_assignment_position, get_or_compile_regex, is_identifier_char, is_only_assignment_target,
-    is_simple_identifier, lhs_starts_with_keyword, replace_with_word_boundary,
-    transform_destructure_assignments_with_props, transform_prop_assignments,
-    transform_prop_reads_in_expr, transform_store_reads_client, transform_store_sub_calls,
-    wrap_state_vars_in_expr,
+    is_simple_identifier, lhs_starts_with_keyword, transform_destructure_assignments_with_props,
+    transform_prop_assignments, transform_prop_reads_in_expr, transform_store_reads_client,
+    transform_store_sub_calls, wrap_state_vars_in_expr,
 };
 
 /// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
@@ -990,112 +987,26 @@ pub(super) fn transform_prop_update_expressions(expr: &str, prop_vars: &[String]
     if prop_vars.is_empty() {
         return expr.to_string();
     }
-
-    // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
-    let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
-    if !super::utils::text_contains_any_identifier(expr, &var_set) {
-        return expr.to_string();
-    }
-
-    // AST-based pre-pass for `x++` / `x--` / `++x` / `--x` on
-    // prop vars. Idempotent vs the text loop below: once a span
-    // has been rewritten to `$.update_prop(...)`, the literal
-    // `x++` / `++x` bytes are gone and the text loop's
-    // `replace_with_word_boundary` finds nothing.
-    let pre_passed =
-        super::reactive_update_ast::transform_reactive_update_ast(expr, prop_vars, &[], &[]);
-    let mut result = pre_passed.unwrap_or_else(|| expr.to_string());
-    for var in prop_vars {
-        // Transform postfix x++ to $.update_prop(x)
-        let post_inc = format!("{}++", var);
-        result = replace_with_word_boundary(
-            &result,
-            &post_inc,
-            &format!("$.update_prop({})", var),
-            false,
-        );
-        // Transform postfix x-- to $.update_prop(x, -1)
-        let post_dec = format!("{}--", var);
-        result = replace_with_word_boundary(
-            &result,
-            &post_dec,
-            &format!("$.update_prop({}, -1)", var),
-            false,
-        );
-        // Transform prefix ++x to $.update_pre_prop(x)
-        let pre_inc = format!("++{}", var);
-        result = replace_with_word_boundary(
-            &result,
-            &pre_inc,
-            &format!("$.update_pre_prop({})", var),
-            true,
-        );
-        // Transform prefix --x to $.update_pre_prop(x, -1)
-        let pre_dec = format!("--{}", var);
-        result = replace_with_word_boundary(
-            &result,
-            &pre_dec,
-            &format!("$.update_pre_prop({}, -1)", var),
-            true,
-        );
-    }
-    result
+    super::reactive_update_ast::transform_reactive_update_ast(expr, prop_vars, &[], &[])
+        .unwrap_or_else(|| expr.to_string())
 }
 
 /// Transform update expressions (++ / --) for state variables.
 ///
 /// Converts `x++` to `$.update(x)`, `++x` to `$.update_pre(x)`,
 /// `x--` to `$.update(x, -1)`, and `--x` to `$.update_pre(x, -1)`.
-///
-/// Note: This is similar to the logic in `transform_state_assignments` but
-/// specifically for use in reactive statement bodies before other transformations.
 pub(super) fn transform_state_update_expressions(
     expr: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> String {
-    // AST-based pre-pass for `x++` / `x--` / `++x` / `--x` on
-    // reactive state vars (excludes non_reactive_vars). Idempotent
-    // vs the text loop below: once a span has been rewritten to
-    // `$.update(...)`, the literal `x++` / `++x` bytes are gone
-    // and `replace_with_word_boundary` finds nothing.
-    let pre_passed = super::reactive_update_ast::transform_reactive_update_ast(
+    super::reactive_update_ast::transform_reactive_update_ast(
         expr,
         &[],
         state_vars,
         non_reactive_vars,
-    );
-    let mut result = pre_passed.unwrap_or_else(|| expr.to_string());
-    for var in state_vars {
-        if non_reactive_vars.contains(var) {
-            continue;
-        }
-        // Transform postfix x++ to $.update(x)
-        let post_inc = format!("{}++", var);
-        result =
-            replace_with_word_boundary(&result, &post_inc, &format!("$.update({})", var), false);
-        // Transform postfix x-- to $.update(x, -1)
-        let post_dec = format!("{}--", var);
-        result = replace_with_word_boundary(
-            &result,
-            &post_dec,
-            &format!("$.update({}, -1)", var),
-            false,
-        );
-        // Transform prefix ++x to $.update_pre(x)
-        let pre_inc = format!("++{}", var);
-        result =
-            replace_with_word_boundary(&result, &pre_inc, &format!("$.update_pre({})", var), true);
-        // Transform prefix --x to $.update_pre(x, -1)
-        let pre_dec = format!("--{}", var);
-        result = replace_with_word_boundary(
-            &result,
-            &pre_dec,
-            &format!("$.update_pre({}, -1)", var),
-            true,
-        );
-    }
-    result
+    )
+    .unwrap_or_else(|| expr.to_string())
 }
 
 /// Extract variable names declared locally within a reactive statement body.
