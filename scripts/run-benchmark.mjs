@@ -3,17 +3,20 @@
  * Benchmark script that measures JS vs Rust compiler performance.
  * Collects all Svelte test files and compiles them with both compilers.
  *
- * Supports four tasks: compile-client, compile-server, parse, svelte2tsx.
+ * Supports five tasks: compile-client, compile-server, parse, svelte2tsx,
+ * svelte-check.
  *
- * Designed to run identically on local machines and in CI. The two JS
- * baselines (`svelte/compiler` and `svelte2tsx`) live in submodules and
- * publish their consumable entrypoints as rollup build outputs, not
- * checked-in artefacts — so we bootstrap them on demand below, then
- * dynamic-import once they exist. Already-built outputs are skipped,
- * so a warm checkout pays nothing.
+ * Designed to run identically on local machines and in CI. The JS
+ * baselines (`svelte/compiler`, `svelte2tsx`, `svelte-check`) live in
+ * submodules and publish their consumable entrypoints as rollup build
+ * outputs, not checked-in artefacts — so we bootstrap them on demand
+ * below, then dynamic-import once they exist. Already-built outputs are
+ * skipped, so a warm checkout pays nothing.
  */
 
-import { execSync, spawn } from 'child_process';
+import { execSync, spawn, spawnSync } from 'child_process';
+import { mkdirSync, mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -44,11 +47,24 @@ function ensureBenchDeps() {
 			cwd: 'submodules/language-tools',
 			build: 'pnpm install --frozen-lockfile && (cd packages/svelte2tsx && pnpm build)',
 		},
+		{
+			name: 'svelte-check',
+			// The CLI entrypoint is `bin/svelte-check`, which requires the
+			// rollup-bundled dist; build it if missing. svelte-check's own
+			// `pnpm build` script also builds svelte2tsx + language-server
+			// transitively, but the cheaper path here is just `rollup -c`
+			// (svelte2tsx is already covered above).
+			marker: 'submodules/language-tools/packages/svelte-check/dist/src/index.js',
+			cwd: 'submodules/language-tools/packages/svelte-check',
+			build: 'pnpm exec rollup -c',
+		},
 	];
 	for (const dep of deps) {
 		if (existsSync(join(REPO_ROOT, dep.marker))) continue;
 		console.error(`[run-benchmark] ${dep.name}: ${dep.marker} missing — building (one-time setup)…`);
-		execSync(dep.build, { cwd: join(REPO_ROOT, dep.cwd), stdio: 'inherit' });
+		// Route the build's stdout to our stderr so it never lands in
+		// the benchmark JSON the parent pipes to a file.
+		execSync(dep.build, { cwd: join(REPO_ROOT, dep.cwd), stdio: ['ignore', 2, 'inherit'] });
 	}
 }
 
@@ -331,6 +347,132 @@ function asTaskResults(taskResult) {
 	return { javascript, rustSingleThread, rustMultiThread, speedup };
 }
 
+// ── svelte-check task ──────────────────────────────────────────────────────
+//
+// Unlike the other tasks, svelte-check is a project-wise CLI, not a per-file
+// API. We materialise a synthetic workspace of N `.svelte` files (no tsconfig
+// so both implementations skip TypeScript checking — a fair like-for-like)
+// and time each CLI's wall-clock cost end-to-end. Multi-threaded numbers come
+// from rsvelte's default rayon fan-out; single-threaded numbers come from
+// forcing `RAYON_NUM_THREADS=1` so the two figures parallel the per-file
+// tasks above.
+
+const SVELTE_CHECK_FILES = 500;
+const RSVELTE_SVELTE_CHECK_BIN = join(REPO_ROOT, 'target/release/svelte_check');
+const JS_SVELTE_CHECK_BIN = join(
+	REPO_ROOT,
+	'submodules/language-tools/packages/svelte-check/bin/svelte-check',
+);
+
+function buildSyntheticSvelte(seed) {
+	return `<script>
+\tlet count = ${seed};
+\tfunction increment() { count++; }
+</script>
+
+<button onclick={increment}>Click {count}</button>
+{#if count > 0}
+\t<p>Positive: {count}</p>
+{:else}
+\t<p>Zero or negative</p>
+{/if}
+`;
+}
+
+function makeSvelteCheckFixture(n) {
+	const dir = mkdtempSync(join(tmpdir(), 'rsvelte-bench-svc-'));
+	for (let i = 0; i < n; i++) {
+		const sub = `pkg${(i / 50) | 0}`;
+		const subdir = join(dir, 'src', sub);
+		mkdirSync(subdir, { recursive: true });
+		writeFileSync(join(subdir, `Comp${i}.svelte`), buildSyntheticSvelte(i));
+	}
+	return dir;
+}
+
+function ensureRsvelteSvelteCheckBuilt() {
+	if (existsSync(RSVELTE_SVELTE_CHECK_BIN)) return;
+	console.error('  Building rsvelte svelte_check (one-time)...');
+	// Stdout from this script becomes the benchmark JSON file — anything
+	// cargo prints to its own stdout would corrupt it. Redirect both
+	// streams to our stderr so logs still surface in the terminal but
+	// never leak into the JSON.
+	const r = spawnSync('cargo', ['build', '--release', '--bin', 'svelte_check'], {
+		cwd: REPO_ROOT,
+		stdio: ['ignore', 2, 'inherit'],
+	});
+	if (r.status !== 0) throw new Error('cargo build --bin svelte_check failed');
+}
+
+function timeSvelteCheckRun(label, bin, args, env) {
+	const samples = [];
+	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
+		spawnSync(bin, args, { stdio: 'ignore', env: { ...process.env, ...env } });
+	}
+	for (let i = 0; i < BENCHMARK_ITERATIONS; i++) {
+		const t0 = process.hrtime.bigint();
+		spawnSync(bin, args, { stdio: 'ignore', env: { ...process.env, ...env } });
+		const t1 = process.hrtime.bigint();
+		samples.push(Number(t1 - t0) / 1e6);
+	}
+	const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+	console.error(
+		`    ${label.padEnd(28)} ${avg.toFixed(2)}ms (${((SVELTE_CHECK_FILES / avg) * 1000).toFixed(0)} files/sec)`,
+	);
+	return avg;
+}
+
+async function runSvelteCheckTask() {
+	console.error('\n=== svelte-check ===');
+	console.error(`  Synthetic workspace: ${SVELTE_CHECK_FILES} files`);
+	ensureRsvelteSvelteCheckBuilt();
+	const fixture = makeSvelteCheckFixture(SVELTE_CHECK_FILES);
+	try {
+		const rsArgs = ['--workspace', fixture, '--output', 'machine'];
+		const jsArgs = [JS_SVELTE_CHECK_BIN, '--workspace', fixture, '--output', 'machine'];
+
+		console.error('  Benchmarking JavaScript (svelte-check)...');
+		const jsMs = timeSvelteCheckRun('JS svelte-check', 'node', jsArgs);
+
+		console.error('  Benchmarking Rust (single-threaded)...');
+		const rsSingleMs = timeSvelteCheckRun(
+			'rsvelte (RAYON=1)',
+			RSVELTE_SVELTE_CHECK_BIN,
+			rsArgs,
+			{ RAYON_NUM_THREADS: '1' },
+		);
+
+		console.error('  Benchmarking Rust (multi-threaded)...');
+		const rsMultiMs = timeSvelteCheckRun(
+			'rsvelte (default)',
+			RSVELTE_SVELTE_CHECK_BIN,
+			rsArgs,
+			{},
+		);
+
+		const toStats = (ms) => ({
+			durationMs: ms,
+			throughputFilesPerSec: (SVELTE_CHECK_FILES / ms) * 1000,
+		});
+
+		const result = {
+			javascript: toStats(jsMs),
+			rustSingleThread: toStats(rsSingleMs),
+			rustMultiThread: toStats(rsMultiMs),
+			speedup: {
+				singleThreadVsJs: jsMs / rsSingleMs,
+				multiThreadVsJs: jsMs / rsMultiMs,
+			},
+		};
+		console.error(
+			`  Speedup: single=${result.speedup.singleThreadVsJs.toFixed(1)}x, multi=${result.speedup.multiThreadVsJs.toFixed(1)}x`,
+		);
+		return result;
+	} finally {
+		rmSync(fixture, { recursive: true, force: true });
+	}
+}
+
 async function main() {
 	console.error('Collecting Svelte test files...');
 	const files = collectTestFiles();
@@ -342,10 +484,12 @@ async function main() {
 	const compileClient = await runBenchmarkTask(files, 'compile-client');
 	const parse = await runBenchmarkTask(files, 'parse');
 	const svelte2tsx = await runBenchmarkTask(files, 'svelte2tsx');
+	const svelteCheck = await runSvelteCheckTask();
 
 	// Output combined JSON. Compile-client lives at the top level for
-	// backward compatibility with the existing benchmark page; parse and
-	// svelte2tsx are nested siblings so the page can render extra sections.
+	// backward compatibility with the existing benchmark page; parse,
+	// svelte2tsx and svelte-check are nested siblings so the page can
+	// render each as its own section.
 	const output = {
 		generatedAt: new Date().toISOString(),
 		commitSha: getCommitSha(),
@@ -353,6 +497,7 @@ async function main() {
 		...asTaskResults(compileClient),
 		parse: asTaskResults(parse),
 		svelte2tsx: asTaskResults(svelte2tsx),
+		svelteCheck: { ...svelteCheck, filesCount: SVELTE_CHECK_FILES },
 	};
 
 	console.log(JSON.stringify(output, null, 2));
