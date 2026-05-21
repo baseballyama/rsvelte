@@ -50,25 +50,36 @@ function ensureBenchDeps() {
 	}
 
 	// 2. language-tools — svelte2tsx → language-server → svelte-check is a
-	// hard dependency chain (each package's rollup config imports the
+	// hard dependency chain (each package's build config imports the
 	// previous package's `dist/`). Walk it explicitly so we don't end up
-	// re-running upstream's `pnpm build` script, which tail-runs a slow
-	// `test:sanity` fixture pass.
+	// re-running upstream's recursive `pnpm build` script, which
+	// rebuilds everything and tail-runs a slow `test:sanity` pass.
+	// Each package's own build command differs: svelte2tsx and
+	// svelte-check use rollup, language-server uses tsc — call each
+	// package's defined `pnpm build` for the first two, and rollup
+	// directly for svelte-check (skipping the recursive cd dance).
 	const langPkgs = [
 		{
 			name: 'svelte2tsx',
 			marker: 'submodules/language-tools/packages/svelte2tsx/index.mjs',
 			cwd: 'submodules/language-tools/packages/svelte2tsx',
+			cmd: 'pnpm build',
 		},
 		{
 			name: 'language-server',
 			marker: 'submodules/language-tools/packages/language-server/dist/src/index.js',
 			cwd: 'submodules/language-tools/packages/language-server',
+			cmd: 'pnpm build',
 		},
 		{
 			name: 'svelte-check',
 			marker: 'submodules/language-tools/packages/svelte-check/dist/src/index.js',
 			cwd: 'submodules/language-tools/packages/svelte-check',
+			// Upstream's `pnpm build` recursively rebuilds svelte2tsx +
+			// language-server (idempotent but slow) and runs a fixture
+			// `test:sanity` pass. Invoke rollup directly — it's in
+			// svelte-check's own devDeps.
+			cmd: 'pnpm exec rollup -c',
 		},
 	];
 	const langPending = langPkgs.filter((p) => !built(p.marker));
@@ -79,7 +90,7 @@ function ensureBenchDeps() {
 		}
 		for (const pkg of langPending) {
 			console.error(`[run-benchmark] building language-tools/${pkg.name} (one-time)…`);
-			run('pnpm exec rollup -c', pkg.cwd);
+			run(pkg.cmd, pkg.cwd);
 		}
 	}
 }
