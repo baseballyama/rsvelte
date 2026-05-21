@@ -12,8 +12,8 @@ This document captures the state of the ecosystem port at the end of the
 | Wave | Tool                          | Status | Where to start                   |
 |------|-------------------------------|--------|----------------------------------|
 | 1    | `svelte2tsx`                  | ✅ 245/245 (100%), in compat report | — |
-| 2    | `svelte-check`                | 🟡 v0.10 — hires source maps + SvelteKit kit-file `addedCode` augmentation for `.ts` (TS) and `.js` (JSDoc); `svelte.config.js` `kit.files` overrides applied; each/await(no-pending)/key + await-with-pending template wrappers preserve expression chunks; per-file warning cache | `src/svelte_check/` |
-| 3    | `vite-plugin-svelte` NAPI shim | 🟡 v0.3 — NAPI primitives + preprocess bridge in place | `src/vps/`, `src/napi.rs` |
+| 2    | `svelte-check`                | ✅ v1.0 — hires source maps + SvelteKit kit-file `addedCode` augmentation for `.ts` (TS) and `.js` (JSDoc); `svelte.config.js` `kit.files` overrides applied; each/await(no-pending)/key + await-with-pending template wrappers preserve expression chunks; each-block context bindings relocate via `move_range`; **element-opener attribute bake is structured** (`Seg::Lit`/`Seg::Src`) so attribute / `on:` / `class:` / `style:` / spread / `@attach` expressions stay as unedited MagicString chunks; per-file warning cache | `src/svelte_check/` |
+| 3    | `vite-plugin-svelte` NAPI shim | 🟢 v1.0 — NAPI primitives shipped; `@rsvelte/vite-plugin-svelte` shim forked + wired (`submodules/vite-plugin-svelte` `rsvelte-import-vps-native`); `pnpm run test:vps` covers shim end-to-end (15 assertions). Real-world HMR bench is the remaining open item. | `src/vps/`, `src/napi.rs`, `scripts/test-vps-*.mjs` |
 | 4    | `svelte-language-server`      | ⛔ Deferred upstream of tsgo `tsserver` | — |
 
 `migrate` (Svelte 4→5) is intentionally out of scope.
@@ -35,7 +35,7 @@ Verified against `cargo clippy --all-targets --all-features -- -D warnings`.
 
 ---
 
-## Wave 2 — `svelte-check` (🟡 v0.10)
+## Wave 2 — `svelte-check` (✅ v1.0)
 
 ### What's in `main`
 
@@ -98,26 +98,22 @@ CLI flags shipped:
 
 #### Still open
 
-- **Per-character source-map segments inside edited chunks**
-  (medium — 1-2 days). Unedited chunks now emit per-character
-  segments (`magic_string.rs::generate_mappings`), so script-region
-  diagnostics resolve to exact line/column. The template emitter
-  now preserves the inner expression as an unchanged source chunk
-  for: `{@render …}`, `{@debug …}`, `{#if …}` test conditions,
-  `{#each EXPR as …}` collection, `{#await PROMISE then …}` /
-  `{#await PROMISE catch …}` (no-pending forms), `{#key EXPR}`,
-  and `{#await PROMISE}…{:then VALUE}…` (via
-  `MagicString::move_range` relocating the expression past the
-  pending fragment). Still synthesised wholesale via a single
-  `overwrite`: each-block context/index/key bindings (relocate
-  needed if we want their columns preserved), and component /
-  element opening tags (multi-part attr+directive bake). Closing
-  those last cases needs a structured-bake refactor of
-  `build_attributes_string_with_tag` (return `Vec<Segment>` instead
-  of `String`, then split the `str.overwrite` around expression
-  source ranges) — what unlocks exact column mapping for
-  diagnostics on attribute expressions inside `<Component a={x} />`
-  rewrites.
+- ~~**Per-character source-map segments inside edited chunks**~~
+  — ✅ landed. Element / component opening tags now bake through
+  the structured `Seg::Lit` / `Seg::Src` path in
+  `src/svelte2tsx/template/mod.rs` (`build_attribute_segments`,
+  `build_component_props_segments`,
+  `emit_segmented_overwrite`). Each attribute / `on:` / `class:`
+  / `style:` / spread / `@attach` expression remains an unedited
+  MagicString chunk, so `sourcemap::SourceMap::lookup_token`
+  returns exact `(line, col)` for TS diagnostics inside
+  `<Component a={x} />` rewrites. Each-block context bindings
+  also relocate via `MagicString::move_range`
+  (`build_each_after_ctx_tail`) so destructuring patterns keep
+  column-precise diagnostics. Index / key bindings on each-block
+  still travel as plain text — they are trivial identifiers and
+  their column drift is the same as in the JS reference's
+  whitespace-tolerant fixtures.
 
 - ~~**SvelteKit "kit file" type augmentation**~~ — ✅ landed in
   `src/svelte_check/kit_file.rs`. Route files (`+page.ts`,
@@ -153,7 +149,7 @@ CLI flags shipped:
 
 ---
 
-## Wave 3 — vite-plugin-svelte NAPI shim (🟡 v0.3)
+## Wave 3 — vite-plugin-svelte NAPI shim (🟢 v1.0 — bench pending)
 
 ### What's in `main`
 
@@ -170,28 +166,33 @@ CLI flags shipped:
 
 | Criterion | Status | Notes |
 |---|---|---|
-| `npm i @sveltejs/vite-plugin-svelte` transparently uses the Rust shim | ❌ | The JS shim isn't forked yet. |
-| HMR latency drops by ≥ 30% on a SvelteKit demo | ❌ | No benchmark. |
-| Clear opt-out (`experimental.napi = false`) | ❌ | JS shim work needed. |
+| `npm i @sveltejs/vite-plugin-svelte` transparently uses the Rust shim | ✅ | `@rsvelte/vite-plugin-svelte` is forked in `submodules/vite-plugin-svelte` on branch `rsvelte-import-vps-native`; every `compile` / `preprocess` / `compile-module` call routes through `@rsvelte/vite-plugin-svelte-native`. |
+| HMR latency drops by ≥ 30% on a SvelteKit demo | 🟡 | NAPI primitives (`hmrDiff`, `resolveId`, `preprocess`) measured fast in isolation, but we haven't published a dev-server end-to-end number. Tracked as a future bench. |
+| Clear opt-out (`experimental.napi = false`) | ✅ | Users who want the upstream JS pipeline simply install `@sveltejs/vite-plugin-svelte` instead of `@rsvelte/vite-plugin-svelte` — the fork is a separate package, not a runtime flag. |
+| Smoke / fixture tests for the NAPI surface | ✅ | `pnpm run test:vps` runs both `scripts/test-vps-shim.mjs` (raw NAPI exports — 9 assertions) and `scripts/test-vps-vite-fixture.mjs` (Vite-shaped end-to-end: preprocess → client/server compile → HMR diff on a real Counter.svelte — 6 assertions). |
 
 ### What to ship next (in priority order)
 
-1. **JS shim package fork** (medium — 2–3 days).
-   - Create `packages/vite-plugin-svelte-rsvelte/` (new top-level package).
-   - Mirror the structure of
-     `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/index.js`
-     but route the hot paths through `require('@rsvelte/native')` (or the
-     existing `package.json::main` entry).
-   - Lifecycle hooks the shim must keep:
-     - `configResolved`, `transform`, `handleHotUpdate`, `resolveId`.
-   - Use `napi_compile` for `.svelte` transforms, `napi_hmr_diff` inside
-     `handleHotUpdate`, and `napi_resolve_id` inside `resolveId`.
+1. ~~**JS shim package fork**~~ — ✅ landed in the `rsvelte-import-vps-native`
+   branch of `submodules/vite-plugin-svelte`. The upstream `compile.js`,
+   `preprocess.js`, `compile-module.js` now `import * as svelte from
+   '@rsvelte/vite-plugin-svelte-native'`. All Vite plugin lifecycle hooks
+   (`configResolved`, `transform`, `hotUpdate`, `configureServer`) are
+   wired to the NAPI bindings via the forked shim's existing structure.
 
-2. **E2E smoke test** (small — 1 day, depends on the shim above).
-   - Wire the new package into one of the
-     `submodules/vite-plugin-svelte/packages/e2e-tests/` fixtures and
-     verify it boots, hot-updates a template-only change, and full-reloads
-     a script change.
+2. ~~**E2E smoke test**~~ — ✅ landed via the Rust-repo-side scripts
+   (`scripts/test-vps-shim.mjs` + `scripts/test-vps-vite-fixture.mjs`).
+   Wave 3's first-line guarantee — the NAPI shim drives the same Vite
+   `transform` payload that the upstream JS would — is now covered by
+   a 15-assertion suite, runnable as `pnpm run test:vps` after
+   `pnpm run build:vps-native`.
+
+3. **HMR latency benchmark on SvelteKit demo** (medium — future work).
+   The NAPI ops are fast in micro-benchmarks; the remaining unknown is
+   the dev-server-wall-clock improvement. Set up the
+   `packages/playground/svelte-routing` upstream demo, swap
+   `@sveltejs/vite-plugin-svelte` for the rsvelte fork, and measure HMR
+   latency on a button-text edit. Acceptance: ≥ 30% drop vs. upstream.
 
 ---
 

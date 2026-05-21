@@ -132,6 +132,168 @@ fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -
     }
 }
 
+// =============================================================================
+// Structured bake: segments
+// =============================================================================
+//
+// An element-opener bake (`<button class={cls} on:click={handler}>` →
+// `{ svelteHTML.createElement("button", {"class":cls,"onclick":handler,});`)
+// used to be a single `str.overwrite(el.start, opening_tag_end, &opener)`.
+// That collapses every original byte (including the user's expression
+// source) into a single edited chunk, which can only emit one source-map
+// segment for the whole opener — diagnostics on `cls` or `handler` map
+// back to the start of the opener instead of the exact column.
+//
+// The `Seg` enum below lets a producer return a list of (generated text,
+// preserved source range) chunks. `emit_segmented_overwrite` then splits
+// the wholesale overwrite into per-gap overwrites, leaving each `Seg::Src`
+// range untouched so its unedited chunk still emits per-character
+// mappings via `MagicString::generate_mappings`.
+//
+// Mirrors the JS reference's behaviour where every attribute / directive
+// expression is `prependLeft`/`appendRight` around the source span,
+// preserving the expression chunk inline.
+
+/// A piece of the structured bake output. `Lit` is generated text; `Src`
+/// names a source byte range that should be kept as-is.
+#[derive(Debug, Clone)]
+enum Seg {
+    Lit(String),
+    Src(u32, u32),
+}
+
+/// Push a literal segment, merging with the previous Lit when adjacent.
+fn segs_push_lit(segs: &mut Vec<Seg>, s: &str) {
+    if s.is_empty() {
+        return;
+    }
+    if let Some(Seg::Lit(last)) = segs.last_mut() {
+        last.push_str(s);
+    } else {
+        segs.push(Seg::Lit(s.to_string()));
+    }
+}
+
+/// Push a source-range segment, with sanity checks against zero-length.
+fn segs_push_src(segs: &mut Vec<Seg>, start: u32, end: u32) {
+    if start >= end {
+        return;
+    }
+    segs.push(Seg::Src(start, end));
+}
+
+/// Flatten segments back into a string. Used by callers that still want
+/// the wholesale bake (e.g. `build_attributes_string_with_tag`'s legacy
+/// String API for the component path during the staged refactor).
+fn segs_to_string(segs: &[Seg], source: &str) -> String {
+    let mut out = String::new();
+    for seg in segs {
+        match seg {
+            Seg::Lit(s) => out.push_str(s),
+            Seg::Src(s, e) => out.push_str(&source[*s as usize..*e as usize]),
+        }
+    }
+    out
+}
+
+/// Returns true when no `Src` is present and every `Lit` is empty.
+fn segs_is_empty(segs: &[Seg]) -> bool {
+    segs.iter().all(|s| match s {
+        Seg::Lit(t) => t.is_empty(),
+        Seg::Src(_, _) => false,
+    })
+}
+
+/// Trim leading whitespace from the very first textual position in `segs`
+/// (across leading whitespace-only `Lit` segments). Returns the resulting
+/// vector with its head normalized — used by the element-opener leading
+/// whitespace bookkeeping.
+fn segs_trim_start(segs: &mut Vec<Seg>) {
+    while let Some(first) = segs.first_mut() {
+        match first {
+            Seg::Lit(s) => {
+                let trimmed = s.trim_start_matches(|c: char| c.is_whitespace());
+                if trimmed.is_empty() {
+                    segs.remove(0);
+                    continue;
+                }
+                if trimmed.len() != s.len() {
+                    *s = trimmed.to_string();
+                }
+                break;
+            }
+            Seg::Src(_, _) => break,
+        }
+    }
+}
+
+/// Apply a list of segments to a MagicString, overwriting `[start, end)`
+/// while preserving every `Seg::Src(s, e)` chunk as an unedited region —
+/// the cornerstone of the structured bake. The unedited chunks survive
+/// MagicString's per-character `generate_mappings` pass intact, so
+/// diagnostics inside `<Component a={x} />` resolve to the exact column.
+///
+/// Invariants on `segments` (debug-asserted):
+///   - `Src(s, e)` ranges appear in strictly increasing order.
+///   - Each `Src(s, e)` lies within `[range_start, range_end]`.
+fn emit_segmented_overwrite(
+    str: &mut MagicString,
+    range_start: u32,
+    range_end: u32,
+    segments: &[Seg],
+) {
+    if range_start >= range_end {
+        // Degenerate: still attach the pending literal at the boundary so
+        // injected text doesn't get dropped. Use append_left to mimic the
+        // current append-on-empty-range behaviour.
+        let mut pending = String::new();
+        for seg in segments {
+            if let Seg::Lit(s) = seg {
+                pending.push_str(s);
+            }
+            // Src segments inside a zero-length range are impossible — skip.
+        }
+        if !pending.is_empty() {
+            str.append_left(range_start, &pending);
+        }
+        return;
+    }
+
+    let mut pending = String::new();
+    let mut cursor = range_start;
+    for seg in segments {
+        match seg {
+            Seg::Lit(s) => pending.push_str(s),
+            Seg::Src(s, e) => {
+                debug_assert!(
+                    *s >= cursor && *e <= range_end && *s < *e,
+                    "emit_segmented_overwrite: bad Src ({}, {}) for cursor {} range_end {}",
+                    s,
+                    e,
+                    cursor,
+                    range_end
+                );
+                if cursor < *s {
+                    str.overwrite(cursor, *s, &pending);
+                    pending.clear();
+                } else if !pending.is_empty() {
+                    // cursor == *s — overwrite would be empty range; use
+                    // prepend_right so the literal lands before the
+                    // preserved source chunk.
+                    str.prepend_right(*s, &pending);
+                    pending.clear();
+                }
+                cursor = *e;
+            }
+        }
+    }
+    if cursor < range_end {
+        str.overwrite(cursor, range_end, &pending);
+    } else if !pending.is_empty() {
+        str.append_left(range_end, &pending);
+    }
+}
+
 /// Generate a reversed component constructor variable name.
 /// Component → $$_tnenopmoC0C (always ends with 'C' for Constructor)
 fn reversed_component_name(name: &str, index: u32) -> String {
@@ -756,6 +918,38 @@ fn handle_if_block(
     }
 }
 
+/// Header lead-in for the each-block when CTX is relocated. Mirrors the
+/// simple-case ` for(let ` prefix; the trailing space lets the moved CTX
+/// chunk slot in cleanly.
+fn prefix_with_for(prefix: &str) -> String {
+    format!("{}for(let ", prefix)
+}
+
+/// Build the text emitted after EXPR (and the relocated CTX) in the
+/// structured-bake each-block header. Mirrors the non-relocated
+/// `header_after_expr`: `))` closes `__sveltets_2_ensureArray(EXPR)` and
+/// the `for(...)` argument list; `{` opens the for body; the idx / key
+/// bindings still travel as plain text — only CTX is source-preserved.
+fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
+    let suffix = if block.context.is_some() {
+        ""
+    } else {
+        "$$each_item;"
+    };
+    // `))` closes `__sveltets_2_ensureArray(EXPR)` + the `for(...)`
+    // argument list; `{` opens the for body.
+    let mut s = format!(")){{{}", suffix);
+    if let Some(ref index) = block.index {
+        s.push_str(&format!("let {} = 1;", index));
+    }
+    if let Some(ref key) = block.key {
+        let key_text = get_expression_text(key, source);
+        s.push_str(key_text);
+        s.push(';');
+    }
+    s
+}
+
 /// Handle an each block: `{#each items as item, i (key)}...{:else}...{/each}`.
 ///
 /// Generates: `for(let item of __sveltets_2_ensureArray(items)){let i = 1;key;...}`
@@ -853,14 +1047,59 @@ fn handle_each_block(
     };
 
     if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
-        str.overwrite(block.start, expr_start, &header_before_expr);
-        if expr_end < body_start {
-            str.overwrite(expr_end, body_start, &header_after_expr);
+        // Try to also preserve the context binding's source range so a
+        // diagnostic on a destructuring pattern like `{ name, age }` keeps
+        // its exact column. The relocation pattern mirrors the
+        // await-with-pending case (`MagicString::move_range` + surrounding
+        // overwrites).
+        //
+        // Bails to the simpler EXPR-only preservation when:
+        //   - the context isn't an identifier or pattern with a stable
+        //     source range,
+        //   - the expression and context source ranges overlap (parser
+        //     edge case),
+        //   - the variable name collides with the expression text
+        //     (`{#each items as items}`) — the `needs_temp_var` branch
+        //     above rebakes the wrapper around the expression and would
+        //     repeat the context text twice.
+        let context_range = block.context.as_ref().and_then(get_expression_range);
+        if let (Some((ctx_s, ctx_e)), false) = (context_range, needs_temp_var)
+            && ctx_s > expr_end
+            && ctx_e <= body_start
+        {
+            // Generated header rewritten to flow as:
+            //   "  for(let " + CTX + " of __sveltets_2_ensureArray(" + EXPR + "){...rest..."
+            //
+            // We move CTX in the chunk list to before EXPR, then overwrite
+            // each surrounding gap. Idx / key bindings stay baked into
+            // the "after-expr" tail as plain text — preserving their
+            // columns would require additional relocations and offers
+            // little user value for trivial identifiers.
+            str.move_range(ctx_s, ctx_e, expr_start);
+            str.overwrite(block.start, expr_start, &prefix_with_for(&prefix));
+            str.prepend_right(expr_start, " of __sveltets_2_ensureArray(");
+            // " as " (or whitespace) between EXPR and CTX → "){...tail".
+            // Then the trailing characters between CTX and body get
+            // emitted/cleared.
+            let tail = build_each_after_ctx_tail(block, source);
+            if expr_end < ctx_s {
+                str.overwrite(expr_end, ctx_s, &tail);
+            } else {
+                str.append_left(ctx_s, &tail);
+            }
+            if ctx_e < body_start {
+                str.overwrite(ctx_e, body_start, "");
+            }
         } else {
-            // expr_end >= body_start (no space between expr and body opener).
-            // Append the suffix immediately after the expression chunk so
-            // MagicString anchors it at the right boundary.
-            str.append_left(expr_end, &header_after_expr);
+            str.overwrite(block.start, expr_start, &header_before_expr);
+            if expr_end < body_start {
+                str.overwrite(expr_end, body_start, &header_after_expr);
+            } else {
+                // expr_end >= body_start (no space between expr and body opener).
+                // Append the suffix immediately after the expression chunk so
+                // MagicString anchors it at the right boundary.
+                str.append_left(expr_end, &header_after_expr);
+            }
         }
     } else {
         // Parser produced no span for the expression — fall back to the
@@ -1408,21 +1647,30 @@ fn handle_regular_element(
     // Find the end of the opening tag (after the `>`)
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
-    // Build attribute string
-    let mut attrs_str = build_attributes_string_with_tag(&el.attributes, source, &el.name);
+    // Build attribute segments. Source-bearing expressions become
+    // `Seg::Src` so the resulting overwrite leaves them as unedited
+    // MagicString chunks — which `generate_mappings` then maps
+    // per-character back to the original `.svelte` columns. Element-
+    // opener attribute expressions previously baked into a single
+    // edited chunk and collapsed to a single source-map segment.
+    let mut attr_segs = build_attribute_segments(&el.attributes, source, &el.name);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior.
     // The JS MagicString preserves whitespace between tag name and first attribute,
     // plus the attribute handling adds an additional space. We replicate this by
     // counting the original whitespace and adding 1 for the inherent leading space.
-    if !el.attributes.is_empty() && !attrs_str.is_empty() {
+    let attrs_empty_before_pad = segs_is_empty(&attr_segs);
+    if !el.attributes.is_empty() && !attrs_empty_before_pad {
         let extra_spaces = count_tag_to_attr_spaces(&el.name, el.start, source);
         if extra_spaces >= 1 {
-            // Total spaces = original whitespace + 1 (for the default leading space)
+            // Replace the leading single-space `Lit` with `extra_spaces + 1`
+            // spaces so the column geometry matches the JS reference.
             let total_spaces = extra_spaces + 1;
-            let mut padded = " ".repeat(total_spaces);
-            padded.push_str(attrs_str.trim_start());
-            attrs_str = padded;
+            segs_trim_start(&mut attr_segs);
+            let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
+            padded.push(Seg::Lit(" ".repeat(total_spaces)));
+            padded.extend(attr_segs);
+            attr_segs = padded;
         }
     }
 
@@ -1473,37 +1721,42 @@ fn handle_regular_element(
     // When all surviving props are empty but a `bind:` directive was
     // stripped, JS reference still leaves whitespace inside `{ }`. Add a
     // single space so `createElement("div", { })` matches.
-    if attrs_str.is_empty() && !bind_suffix.is_empty() {
-        attrs_str.push(' ');
+    if segs_is_empty(&attr_segs) && !bind_suffix.is_empty() {
+        attr_segs.push(Seg::Lit(" ".into()));
     }
 
-    // Overwrite the entire opening tag. Action declarations (if any) are
-    // emitted *before* the inner `{ … createElement(…); … }` block so
-    // they're in scope for the `__sveltets_2_union(...)` arg. The inner
+    // Build the opener as a `Vec<Seg>` (header lit + attr segs + trailer
+    // lit) and apply via `emit_segmented_overwrite`. Action declarations
+    // (if any) are emitted *before* the inner `{ … createElement(…); … }`
+    // block so they're in scope for `__sveltets_2_union(...)`. The inner
     // `{` opens a separate block scope.
     let element_var_decl = if let Some(ref var) = element_var {
         format!("const {} = ", var)
     } else {
         String::new()
     };
-    let opener = if !directive_prefix.is_empty() {
-        format!(
-            " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
-            directive_prefix,
-            element_var_decl,
-            el.name,
-            actions_arg,
-            attrs_str,
-            directive_suffix,
-            bind_suffix,
+    let (header_lit, trailer_lit) = if !directive_prefix.is_empty() {
+        (
+            format!(
+                " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
+                directive_prefix, element_var_decl, el.name, actions_arg,
+            ),
+            format!("}});{}{}", directive_suffix, bind_suffix),
         )
     } else {
-        format!(
-            " {{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
-            element_var_decl, el.name, actions_arg, attrs_str, directive_suffix, bind_suffix,
+        (
+            format!(
+                " {{ {}svelteHTML.createElement(\"{}\"{}, {{",
+                element_var_decl, el.name, actions_arg,
+            ),
+            format!("}});{}{}", directive_suffix, bind_suffix),
         )
     };
-    str.overwrite(el.start, opening_tag_end, &opener);
+    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+    opener_segs.push(Seg::Lit(header_lit));
+    opener_segs.extend(attr_segs);
+    opener_segs.push(Seg::Lit(trailer_lit));
+    emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
     // Process children
     process_fragment_inplace(&el.fragment, source, options, str, counter);
@@ -1582,49 +1835,53 @@ fn handle_component(
     // Check if Svelte 5 children prop is needed
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
 
-    // Build attribute/props string (excluding on: and let: directives)
-    let mut attrs_str = build_component_props_string(&comp.attributes, source);
+    // Build attribute/props segments (excluding on: and let: directives).
+    let mut attr_segs = build_component_props_segments(&comp.attributes, source);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
-    if !comp.attributes.is_empty() && !attrs_str.is_empty() {
+    let attrs_empty_before_pad = segs_is_empty(&attr_segs);
+    if !comp.attributes.is_empty() && !attrs_empty_before_pad {
         let extra_spaces = count_tag_to_attr_spaces(&comp.name, comp.start, source);
         if extra_spaces >= 1 {
             let total_spaces = extra_spaces + 1;
-            let mut padded = " ".repeat(total_spaces);
-            padded.push_str(attrs_str.trim_start());
-            attrs_str = padded;
+            segs_trim_start(&mut attr_segs);
+            let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
+            padded.push(Seg::Lit(" ".repeat(total_spaces)));
+            padded.extend(attr_segs);
+            attr_segs = padded;
         }
     }
 
-    // Add children prop for Svelte 5 if component has children.
-    // The children prop is inserted at the beginning of the props object,
-    // after any leading whitespace from the attribute spacing.
+    // Add children prop for Svelte 5 if component has children. Inserted
+    // at the beginning of the props object, AFTER any leading whitespace
+    // from the attribute spacing (when applicable).
     if is_svelte5 && has_children {
-        // Insert children prop: strip leading whitespace from attrs_str,
-        // prepend children, then re-add leading whitespace.
-        //
-        // When `has_lets` is true (the component has `let:` directives),
-        // the JS reference's slot-def block already provides the
-        // visual offset, so the children prop is inserted without
-        // leading whitespace — `props: {children:() => ..., ...}` rather
-        // than `props: {  children:() => ..., ...}`.
         let children_text = "children:() => { return __sveltets_2_any(0); },";
-        let trimmed = attrs_str.trim_start();
-        if trimmed.is_empty() {
-            // No other attrs: just children (no leading space)
-            attrs_str = children_text.to_string();
+        if segs_is_empty(&attr_segs) {
+            attr_segs = vec![Seg::Lit(children_text.to_string())];
         } else if has_lets || children_have_named_slots {
-            // Skip leading whitespace when slot let-forwarding is in play
-            // (whether the let: is on the component itself or on a
-            // <svelte:fragment slot="..." let:...> child).
-            attrs_str = format!("{}{}", children_text, trimmed);
+            // Slot let-forwarding owns the leading whitespace already.
+            segs_trim_start(&mut attr_segs);
+            let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
+            prefixed.push(Seg::Lit(children_text.to_string()));
+            prefixed.extend(attr_segs);
+            attr_segs = prefixed;
         } else {
-            // Has other attrs: insert children before them, preserving leading whitespace
-            let leading_ws: String = attrs_str
-                .chars()
-                .take_while(|c| c.is_whitespace())
-                .collect();
-            attrs_str = format!("{}{}{}", leading_ws, children_text, trimmed);
+            // Has other attrs: insert children between the leading whitespace
+            // `Lit` and the first attribute.
+            let mut leading_ws = String::new();
+            if let Some(Seg::Lit(first)) = attr_segs.first_mut() {
+                let trimmed = first.trim_start_matches(|c: char| c.is_whitespace());
+                leading_ws.push_str(&first[..first.len() - trimmed.len()]);
+                *first = trimmed.to_string();
+                if first.is_empty() {
+                    attr_segs.remove(0);
+                }
+            }
+            let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+            prefixed.push(Seg::Lit(format!("{}{}", leading_ws, children_text)));
+            prefixed.extend(attr_segs);
+            attr_segs = prefixed;
         }
     }
 
@@ -1654,23 +1911,33 @@ fn handle_component(
         }
         out
     };
-    let opener = if needs_instance {
+    let (header_lit, trailer_lit) = if needs_instance {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
             String::new()
         };
-        format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
-            ctor_var, comp.name, inst_var, ctor_var, attrs_str, component_bind_suffix, on_calls
+        (
+            format!(
+                " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{",
+                ctor_var, comp.name, inst_var, ctor_var,
+            ),
+            format!("}}}});{}{}", component_bind_suffix, on_calls),
         )
     } else {
-        format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{{}}}}});",
-            ctor_var, comp.name, ctor_var, attrs_str
+        (
+            format!(
+                " {{ const {} = __sveltets_2_ensureComponent({}); new {}({{ target: __sveltets_2_any(), props: {{",
+                ctor_var, comp.name, ctor_var,
+            ),
+            "}});".to_string(),
         )
     };
-    str.overwrite(comp.start, opening_tag_end, &opener);
+    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+    opener_segs.push(Seg::Lit(header_lit));
+    opener_segs.extend(attr_segs);
+    opener_segs.push(Seg::Lit(trailer_lit));
+    emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
 
     // Handle closing tag
     let closing_tag_start = find_closing_tag_start(source, comp.end);
@@ -2659,70 +2926,98 @@ fn build_attributes_string_with_tag(
     source: &str,
     parent_tag: &str,
 ) -> String {
-    let mut parts: Vec<String> = Vec::new();
+    let segs = build_attribute_segments(attributes, source, parent_tag);
+    segs_to_string(&segs, source)
+}
+
+/// Structured-bake counterpart of `build_attributes_string_with_tag`.
+///
+/// Emits the inner content of `{ ... }` in `createElement(name, { ... })`
+/// as a list of `Seg`s. Source-bearing expressions (regular attribute
+/// values, `on:` / `class:` / `style:` handlers, spreads, `@attach`
+/// expressions) become `Seg::Src` so their column mapping survives the
+/// element-opener overwrite. `bind:` directives stay as literals — their
+/// expression also appears in `build_bind_directive_suffix` where the
+/// column mapping is already exact.
+fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: &str) -> Vec<Seg> {
+    let mut segs: Vec<Seg> = Vec::new();
+    let mut any_pushed = false;
+
+    let mut push_with_separator = |segs: &mut Vec<Seg>, inner: Vec<Seg>| {
+        if inner.is_empty() {
+            return;
+        }
+        for s in inner {
+            match s {
+                Seg::Lit(t) => segs_push_lit(segs, &t),
+                Seg::Src(a, b) => segs_push_src(segs, a, b),
+            }
+        }
+    };
 
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
-                if let Some(s) = format_attribute_node(node, source) {
-                    parts.push(s);
+                if let Some(part) = format_attribute_node_segments(node, source) {
+                    push_with_separator(&mut segs, part);
+                    any_pushed = true;
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                if let Some(s) = format_spread_attribute(spread, source) {
-                    parts.push(s);
+                if let Some(part) = format_spread_attribute_segments(spread, source) {
+                    push_with_separator(&mut segs, part);
+                    any_pushed = true;
                 }
             }
             Attribute::BindDirective(bind) => {
-                // `bind:this` and one-way bindings (`bind:contentRect`,
-                // `bind:clientWidth`, …) don't appear in the createElement
-                // props — they're emitted as typed assignment statements
-                // after the createElement call (`build_bind_directive_suffix`).
                 if !bind_is_filtered_from_props(&bind.name, parent_tag) {
-                    parts.push(format_bind_directive(bind, source));
+                    let part = format_bind_directive_segments(bind, source);
+                    push_with_separator(&mut segs, part);
+                    any_pushed = true;
                 }
             }
             Attribute::OnDirective(on) => {
-                parts.push(format_on_directive(on, source));
+                let part = format_on_directive_segments(on, source);
+                push_with_separator(&mut segs, part);
+                any_pushed = true;
             }
             Attribute::ClassDirective(class) => {
-                parts.push(format_class_directive(class, source));
+                let part = format_class_directive_segments(class, source);
+                push_with_separator(&mut segs, part);
+                any_pushed = true;
             }
             Attribute::StyleDirective(style) => {
-                parts.push(format_style_directive(style, source));
+                let part = format_style_directive_segments(style, source);
+                push_with_separator(&mut segs, part);
+                any_pushed = true;
             }
             Attribute::TransitionDirective(_)
             | Attribute::UseDirective(_)
             | Attribute::AnimateDirective(_) => {
-                // Mirrors the JS reference's V4-style directive output:
-                // these are emitted as `__sveltets_2_ensureXxx(name(...))`
-                // statements *outside* the createElement props (action
-                // becomes a `const $$action_N = …;` BEFORE createElement,
-                // transition/animate become `__sveltets_2_ensureTransition(…);`
-                // appended AFTER). Handled by
-                // `build_directive_prefix_suffix` at the call site.
+                // Emitted by `build_directive_prefix_suffix` outside the
+                // props object. No props contribution here.
             }
             Attribute::LetDirective(_) => {
-                // Let directives don't produce TSX output here.
+                // No TSX output here.
             }
             Attribute::AttachTag(attach) => {
-                // `{@attach expr}` becomes a `[Symbol("@attach")]: expr,`
-                // computed key in the createElement props. Mirrors the JS
-                // reference's `htmlxtojsx_v2/nodes/AttachTag.ts`.
-                let expr_text = get_expression_text(&attach.expression, source);
-                parts.push(format!("[Symbol(\"@attach\")]:{},", expr_text));
+                let part = format_attach_tag_segments(attach, source);
+                push_with_separator(&mut segs, part);
+                any_pushed = true;
             }
         }
     }
 
-    let result = parts.join("");
-    if result.is_empty() {
-        result
+    if any_pushed && !segs_is_empty(&segs) {
+        // Leading single space: `{ "attr":val,}` (not `{"attr":val,}`).
+        // Inserted as a fresh first Lit so callers can replace/pad it
+        // without disturbing the inner segments.
+        let mut padded: Vec<Seg> = Vec::with_capacity(segs.len() + 1);
+        padded.push(Seg::Lit(" ".to_string()));
+        padded.extend(segs);
+        padded
     } else {
-        // Add leading space: `{ "attr":val,}` (not `{"attr":val,}`)
-        // Note: JS svelte2tsx may produce variable whitespace due to MagicString
-        // position arithmetic, but a single space is the most common case.
-        format!(" {}", result)
+        segs
     }
 }
 
@@ -2831,6 +3126,121 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
     }
 }
 
+/// Structured-bake variant of [`build_component_props_string`]. Same
+/// shape — single value-or-empty leading space, `let:` spacers — but
+/// surfaces every expression as a `Seg::Src` so the eventual
+/// `emit_segmented_overwrite` keeps the per-character source map.
+fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec<Seg> {
+    let mut inner: Vec<Seg> = Vec::new();
+    let mut has_on_directives = false;
+    let mut let_count = 0u32;
+
+    let extend_segs = |dst: &mut Vec<Seg>, src: Vec<Seg>| {
+        for s in src {
+            match s {
+                Seg::Lit(t) => segs_push_lit(dst, &t),
+                Seg::Src(a, b) => segs_push_src(dst, a, b),
+            }
+        }
+    };
+
+    for attr in attributes {
+        match attr {
+            Attribute::Attribute(node) => {
+                if node.name == "slot" {
+                    continue;
+                }
+                if let Some(part) = format_attribute_node_segments(node, source) {
+                    if node.name.starts_with("--") {
+                        // CSS custom property wrap: `--x:val,` →
+                        // `...__sveltets_2_cssProp({--x:val}),`. Strip the
+                        // trailing `,` literal from the inner segment list
+                        // before wrapping.
+                        let mut inner_stripped = part;
+                        if let Some(Seg::Lit(last)) = inner_stripped.last_mut() {
+                            if last.ends_with(',') {
+                                last.pop();
+                                if last.is_empty() {
+                                    inner_stripped.pop();
+                                }
+                            }
+                        }
+                        segs_push_lit(&mut inner, "...__sveltets_2_cssProp({");
+                        extend_segs(&mut inner, inner_stripped);
+                        segs_push_lit(&mut inner, "}),");
+                    } else {
+                        extend_segs(&mut inner, part);
+                    }
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                if let Some(part) = format_spread_attribute_segments(spread, source) {
+                    extend_segs(&mut inner, part);
+                }
+            }
+            Attribute::BindDirective(bind) => {
+                if bind.name == "this" {
+                    continue;
+                }
+                // Component-side bind:foo={expr} → foo:expr, (no quotes,
+                // no `bind:` prefix). Mirrors the JS reference.
+                segs_push_lit(&mut inner, &format!("{}:", bind.name));
+                if let Some((s, e)) = get_expression_range(&bind.expression) {
+                    segs_push_src(&mut inner, s, e);
+                } else {
+                    segs_push_lit(&mut inner, get_expression_text(&bind.expression, source));
+                }
+                segs_push_lit(&mut inner, ",");
+            }
+            Attribute::OnDirective(_) => {
+                has_on_directives = true;
+            }
+            Attribute::ClassDirective(class) => {
+                let part = format_class_directive_segments(class, source);
+                extend_segs(&mut inner, part);
+            }
+            Attribute::StyleDirective(style) => {
+                let part = format_style_directive_segments(style, source);
+                extend_segs(&mut inner, part);
+            }
+            Attribute::TransitionDirective(transition) => {
+                if let Some(s) = format_transition_directive(transition, source) {
+                    segs_push_lit(&mut inner, &s);
+                }
+            }
+            Attribute::UseDirective(use_dir) => {
+                if let Some(s) = format_use_directive(use_dir, source) {
+                    segs_push_lit(&mut inner, &s);
+                }
+            }
+            Attribute::LetDirective(_) => {
+                let_count += 1;
+            }
+            Attribute::AnimateDirective(_) => {}
+            Attribute::AttachTag(attach) => {
+                let part = format_attach_tag_segments(attach, source);
+                extend_segs(&mut inner, part);
+            }
+        }
+    }
+
+    let let_spaces = " ".repeat(let_count as usize);
+    if segs_is_empty(&inner) {
+        if has_on_directives && let_count == 0 {
+            vec![Seg::Lit(" ".to_string())]
+        } else if let_count > 0 {
+            vec![Seg::Lit(let_spaces)]
+        } else {
+            Vec::new()
+        }
+    } else {
+        let mut out: Vec<Seg> = Vec::with_capacity(inner.len() + 1);
+        out.push(Seg::Lit(format!(" {}", let_spaces)));
+        out.extend(inner);
+        out
+    }
+}
+
 /// Collect references to all `on:` directives from an attribute list.
 fn get_on_directives(attributes: &[Attribute]) -> Vec<&OnDirective> {
     attributes
@@ -2909,6 +3319,200 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
             Some(format!("\"{}\":`{}`,", name, value_parts.join("")))
         }
     }
+}
+
+/// Structured-bake variant of [`format_attribute_node`]. Wraps every
+/// expression site in `Seg::Src` so the resulting MagicString chunks
+/// retain per-character source-map fidelity.
+fn format_attribute_node_segments(node: &AttributeNode, source: &str) -> Option<Vec<Seg>> {
+    let name = &node.name;
+    let mut out: Vec<Seg> = Vec::new();
+
+    match &node.value {
+        AttributeValue::True(_) => {
+            segs_push_lit(&mut out, &format!("\"{}\":true,", name));
+            Some(out)
+        }
+        AttributeValue::Expression(expr) => {
+            let expr_range = get_expression_range(&expr.expression);
+            let expr_text = get_expression_text(&expr.expression, source);
+            let is_shorthand = name.as_str() == expr_text;
+
+            if let Some((s, e)) = expr_range {
+                if is_shorthand {
+                    segs_push_src(&mut out, s, e);
+                    segs_push_lit(&mut out, ",");
+                } else {
+                    segs_push_lit(&mut out, &format!("\"{}\":", name));
+                    segs_push_src(&mut out, s, e);
+                    segs_push_lit(&mut out, ",");
+                }
+            } else if is_shorthand {
+                segs_push_lit(&mut out, &format!("{},", name));
+            } else {
+                segs_push_lit(&mut out, &format!("\"{}\":{},", name, expr_text));
+            }
+            Some(out)
+        }
+        AttributeValue::Sequence(parts) => {
+            // Single-expression sequence stays as a bare expression — same
+            // shape as the `Expression` arm.
+            if parts.len() == 1 {
+                if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
+                    let range = get_expression_range(&expr.expression);
+                    segs_push_lit(&mut out, &format!("\"{}\":", name));
+                    if let Some((s, e)) = range {
+                        segs_push_src(&mut out, s, e);
+                    } else {
+                        segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                    }
+                    segs_push_lit(&mut out, ",");
+                    return Some(out);
+                }
+            }
+
+            // Mixed text + expression sequence → template literal. Each
+            // `${EXPR}` slot still preserves the expression chunk.
+            segs_push_lit(&mut out, &format!("\"{}\":`", name));
+            for part in parts {
+                match part {
+                    AttributeValuePart::Text(text) => {
+                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        segs_push_lit(&mut out, &escaped);
+                    }
+                    AttributeValuePart::ExpressionTag(expr) => {
+                        let range = get_expression_range(&expr.expression);
+                        segs_push_lit(&mut out, "${");
+                        if let Some((s, e)) = range {
+                            segs_push_src(&mut out, s, e);
+                        } else {
+                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                        }
+                        segs_push_lit(&mut out, "}");
+                    }
+                }
+            }
+            segs_push_lit(&mut out, "`,");
+            Some(out)
+        }
+    }
+}
+
+/// Structured-bake variant of [`format_spread_attribute`].
+fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> Option<Vec<Seg>> {
+    let mut out = Vec::new();
+    segs_push_lit(&mut out, "...");
+    if let Some((s, e)) = get_expression_range(&spread.expression) {
+        segs_push_src(&mut out, s, e);
+    } else {
+        segs_push_lit(&mut out, get_expression_text(&spread.expression, source));
+    }
+    segs_push_lit(&mut out, ",");
+    Some(out)
+}
+
+/// Structured-bake variant of [`format_bind_directive`].
+fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
+    segs_push_lit(&mut out, &format!("\"bind:{}\":", bind.name));
+    if let Some((s, e)) = get_expression_range(&bind.expression) {
+        segs_push_src(&mut out, s, e);
+    } else {
+        segs_push_lit(&mut out, get_expression_text(&bind.expression, source));
+    }
+    segs_push_lit(&mut out, ",");
+    out
+}
+
+/// Structured-bake variant of [`format_on_directive`].
+fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
+    if let Some(ref expr) = on.expression {
+        segs_push_lit(&mut out, &format!("\"on:{}\":", on.name));
+        if let Some((s, e)) = get_expression_range(expr) {
+            segs_push_src(&mut out, s, e);
+        } else {
+            segs_push_lit(&mut out, get_expression_text(expr, source));
+        }
+        segs_push_lit(&mut out, ",");
+    } else {
+        // Event forwarding has no expression to preserve.
+        segs_push_lit(&mut out, &format!("\"on:{}\":undefined,", on.name));
+    }
+    out
+}
+
+/// Structured-bake variant of [`format_class_directive`].
+fn format_class_directive_segments(class: &ClassDirective, source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
+    segs_push_lit(&mut out, &format!("\"class:{}\":", class.name));
+    if let Some((s, e)) = get_expression_range(&class.expression) {
+        segs_push_src(&mut out, s, e);
+    } else {
+        segs_push_lit(&mut out, get_expression_text(&class.expression, source));
+    }
+    segs_push_lit(&mut out, ",");
+    out
+}
+
+/// Structured-bake variant of [`format_style_directive`].
+fn format_style_directive_segments(style: &StyleDirective, source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
+    match &style.value {
+        AttributeValue::True(_) => {
+            // Shorthand `style:color` → `"style:color":color,`. The
+            // implicit `color` reference has no source range we can pin
+            // because it's synthesised from the directive name.
+            segs_push_lit(
+                &mut out,
+                &format!("\"style:{}\":{},", style.name, style.name),
+            );
+        }
+        AttributeValue::Expression(expr) => {
+            segs_push_lit(&mut out, &format!("\"style:{}\":", style.name));
+            if let Some((s, e)) = get_expression_range(&expr.expression) {
+                segs_push_src(&mut out, s, e);
+            } else {
+                segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+            }
+            segs_push_lit(&mut out, ",");
+        }
+        AttributeValue::Sequence(parts) => {
+            segs_push_lit(&mut out, &format!("\"style:{}\":`", style.name));
+            for part in parts {
+                match part {
+                    AttributeValuePart::Text(text) => {
+                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        segs_push_lit(&mut out, &escaped);
+                    }
+                    AttributeValuePart::ExpressionTag(expr) => {
+                        segs_push_lit(&mut out, "${");
+                        if let Some((s, e)) = get_expression_range(&expr.expression) {
+                            segs_push_src(&mut out, s, e);
+                        } else {
+                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                        }
+                        segs_push_lit(&mut out, "}");
+                    }
+                }
+            }
+            segs_push_lit(&mut out, "`,");
+        }
+    }
+    out
+}
+
+/// Structured-bake variant of the `@attach` tag's inline emission.
+fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
+    let mut out = Vec::new();
+    segs_push_lit(&mut out, "[Symbol(\"@attach\")]:");
+    if let Some((s, e)) = get_expression_range(&attach.expression) {
+        segs_push_src(&mut out, s, e);
+    } else {
+        segs_push_lit(&mut out, get_expression_text(&attach.expression, source));
+    }
+    segs_push_lit(&mut out, ",");
+    out
 }
 
 /// Format a slot prop attribute. Unlike regular attributes, slot props
@@ -3593,5 +4197,50 @@ mod tests {
             "$$_tnenopmoC0"
         );
         assert_eq!(reversed_component_instance_name("Button", 0), "$$_nottuB0");
+    }
+
+    #[test]
+    fn test_emit_segmented_overwrite_preserves_src_chunk() {
+        // Source: `<X attr={EXPR}>`. We bake `<X attr=` and `>` as
+        // generated text and keep EXPR (positions 9..13) as a `Src`
+        // chunk. The result must round-trip the original expression
+        // text — that is the load-bearing invariant for source-map
+        // fidelity in svelte-check.
+        let source = "<X attr={WXYZ}>tail";
+        let mut s = MagicString::new(source);
+        let segs = vec![
+            Seg::Lit("OPEN(".to_string()),
+            Seg::Src(9, 13),
+            Seg::Lit(")".to_string()),
+        ];
+        emit_segmented_overwrite(&mut s, 0, 15, &segs);
+        assert_eq!(s.to_string(), "OPEN(WXYZ)tail");
+    }
+
+    #[test]
+    fn test_emit_segmented_overwrite_handles_leading_src() {
+        // Edge case: cursor lines up with the start of a Src chunk —
+        // `prepend_right` must place the pending literal before it.
+        let source = "ABCDE";
+        let mut s = MagicString::new(source);
+        let segs = vec![
+            Seg::Lit("[".to_string()),
+            Seg::Src(0, 3),
+            Seg::Lit("]".to_string()),
+        ];
+        emit_segmented_overwrite(&mut s, 0, 5, &segs);
+        // 'D' and 'E' (positions 3..5) are cleared by the final
+        // overwrite of pending = "]" over [3, 5).
+        assert_eq!(s.to_string(), "[ABC]");
+    }
+
+    #[test]
+    fn test_emit_segmented_overwrite_empty_segments() {
+        // Empty/literal-only segment lists collapse to a normal wholesale
+        // overwrite — the structured bake is a strict superset.
+        let source = "ABCDE";
+        let mut s = MagicString::new(source);
+        emit_segmented_overwrite(&mut s, 1, 4, &[Seg::Lit("xyz".to_string())]);
+        assert_eq!(s.to_string(), "AxyzE");
     }
 }

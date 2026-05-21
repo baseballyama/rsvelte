@@ -30,10 +30,10 @@ on its own (no half-finished tools sitting in `main`).
 
 | Wave | Tool | Status | Estimated effort |
 |---|---|---|---|
-| 1 | svelte2tsx (complete remaining 18.4%) | 🟡 81.6% | 1–2 weeks |
-| 2 | svelte-check (Rust + tsgo backend) | 🔴 not started | 1–1.5 weeks |
-| 3 | vite-plugin-svelte (NAPI shim) | 🔴 not started | 2–3 weeks |
-| 4 | svelte-language-server | ⛔ blocked on tsgo tsserver | (deferred) |
+| 1 | svelte2tsx (complete remaining 18.4%) | ✅ 245/245 (100%) | — |
+| 2 | svelte-check (Rust + tsgo backend) | ✅ v1.0 (structured attribute bake) | — |
+| 3 | vite-plugin-svelte (NAPI shim) | 🟢 v1.0 — NAPI primitives + forked JS shim + 15-assertion smoke suite | bench pending |
+| 4 | svelte-language-server | ⛔ blocked on tsgo tsserver — CLI checking covered by Wave 2 | (deferred) |
 
 Out of scope: SvelteKit, eslint-plugin-svelte (route to oxlint),
 prettier-plugin-svelte (route to dprint/biome), svelte-preprocess (delegates
@@ -345,12 +345,24 @@ LSP requires **<50 ms** response times for hover, completion, signature help.
 A subprocess invocation of tsgo currently has ~100–300 ms minimum RTT, which
 shows up as latency in the editor.
 
+### CLI-side checking is already covered
+
+The Wave 2 `svelte-check` CLI provides the *checking* half of the language
+server today: `.svelte` + `.ts` diagnostics, watch mode, incremental cache,
+GitHub Actions / machine output, exact column mapping via the structured
+attribute bake. Users who only need "errors in CI / pre-commit" don't have
+to wait for the LSP — `target/release/svelte_check` is the answer.
+
+What the LSP would add (and what's still gated on `tsserver`): in-editor
+hover, completion, signature help, find-references, rename, code actions.
+
 ### When to revisit
 
 When tsgo ships a long-running language-services daemon (an analogue to
 `tsserver`). Microsoft has indicated that's on the roadmap. Until then:
 
 - Keep using the current Node `svelte-language-server` (it works).
+- For pure checking, use `svelte-check` (this repo).
 - Track the tsgo issue tracker for `tsserver` mode RFCs / releases.
 
 ### Pre-work we can do anyway
