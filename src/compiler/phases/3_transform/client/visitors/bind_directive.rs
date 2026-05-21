@@ -1634,40 +1634,6 @@ fn build_bind_this_each_block(
     ))
 }
 
-/// Build a bind:this call (legacy - without context).
-#[allow(dead_code)]
-fn build_bind_this_call(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-    value: &JsExpr,
-    get: &JsExpr,
-    set: &Option<JsExpr>,
-) -> JsExpr {
-    // Check if expression is a sequence (getter/setter pair)
-    if let Some(setter) = set {
-        // Already have getter/setter pair
-        b::call(
-            arena,
-            b::member_path(arena, "$.bind_this"),
-            vec![value.clone(), setter.clone(), get.clone()],
-        )
-    } else {
-        // Simple identifier: just pass it as both getter and setter
-        // $.bind_this(value, (v) => { expr = v }, () => expr)
-        let getter = b::arrow(arena, vec![], get.clone());
-        let setter = b::arrow(
-            arena,
-            vec![b::id_pattern("$$value")],
-            b::assign(arena, get.clone(), b::id("$$value")),
-        );
-
-        b::call(
-            arena,
-            b::member_path(arena, "$.bind_this"),
-            vec![value.clone(), setter, getter],
-        )
-    }
-}
-
 /// Check if an expression is a sequence expression (getter/setter pair).
 fn is_sequence_expression(expr: &JsExpr) -> bool {
     matches!(expr, JsExpr::Sequence(_))
@@ -2239,9 +2205,9 @@ pub fn build_each_block_getter_setter(
 
 /// Information about how a binding expression references an each block item.
 #[derive(Debug)]
+#[allow(dead_code)]
 enum EachBindingExprInfo {
     /// Direct reference to the each item (bind:value={item})
-    #[allow(dead_code)]
     DirectItem { item_name: String },
     /// Property access on the each item (bind:value={item.prop})
     ItemProperty {
