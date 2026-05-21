@@ -31,16 +31,14 @@ mod rest_prop_member_access_ast;
 mod rune_transforms;
 mod scope_analysis;
 mod state;
+mod state_assigns_combined_ast;
 mod state_call_ast;
-mod state_compound_assigns_ast;
 mod state_member_mutate_ast;
 mod state_raw_frozen_ast;
 mod state_reads_ast;
 mod state_set_reactive_ast;
-mod state_simple_assigns_ast;
 mod state_snapshot_ast;
 mod state_transforms;
-mod state_update_assigns_ast;
 mod store_assign_ast;
 mod store_member_mutate_ast;
 mod store_transforms;
@@ -2772,22 +2770,17 @@ pub(crate) fn transform_module_script_runes(
         // heuristic. The symbol-identity match (PR #226) correctly
         // distinguishes the module-local state var from same-name
         // shadows.
-        result = state_simple_assigns_ast::transform_state_simple_assigns_ast(
+        // Unified visitor handles simple + compound + update in
+        // one parse + Semantic build per fixed-point iteration
+        // (previously: three separate helpers, each doing its own
+        // parse + SemanticBuilder, multiplied by up to 16 fixed-
+        // point iterations apiece).
+        result = state_assigns_combined_ast::transform_state_assigns_ast(
             &result,
             &reactive_module_state_vars,
-            &derived_vars, // raw_state treatment for proxy skip
+            &derived_vars,
             analysis.runes,
             &[],
-        )
-        .unwrap_or(result);
-        result = state_compound_assigns_ast::transform_state_compound_assigns_ast(
-            &result,
-            &reactive_module_state_vars,
-        )
-        .unwrap_or(result);
-        result = state_update_assigns_ast::transform_state_update_assigns_ast(
-            &result,
-            &reactive_module_state_vars,
         )
         .unwrap_or(result);
 
@@ -3790,26 +3783,13 @@ fn transform_instance_script_for_visitors(
             // This handles cases like: `$: selected ? component = Sub : component = banana`
             // where state variables are assigned inside conditional expressions.
             //
-            // Whole-statement AST passes (simple / compound / update).
-            // The text version is no longer needed at this site —
-            // statements parse cleanly and `find_state_var_symbols`
-            // (PR #226) correctly handles shadow semantics.
-            let mut transformed = state_simple_assigns_ast::transform_state_simple_assigns_ast(
+            // Unified AST pass — see Site 1 comment for rationale.
+            let transformed = state_assigns_combined_ast::transform_state_assigns_ast(
                 &transformed,
                 state_vars,
                 raw_state_vars,
                 analysis.runes,
                 &non_proxy_vars,
-            )
-            .unwrap_or(transformed);
-            transformed = state_compound_assigns_ast::transform_state_compound_assigns_ast(
-                &transformed,
-                state_vars,
-            )
-            .unwrap_or(transformed);
-            transformed = state_update_assigns_ast::transform_state_update_assigns_ast(
-                &transformed,
-                state_vars,
             )
             .unwrap_or(transformed);
             // Collect reactive statements to append at end (matching official compiler behavior
@@ -3865,23 +3845,13 @@ fn transform_instance_script_for_visitors(
             let transformed = if analysis.runes {
                 transformed // AST transform handles state var wrapping
             } else {
-                // Whole-statement AST passes for assignments.
-                let mut transformed = state_simple_assigns_ast::transform_state_simple_assigns_ast(
+                // Unified AST pass — see Site 1 comment for rationale.
+                let transformed = state_assigns_combined_ast::transform_state_assigns_ast(
                     &transformed,
                     state_vars,
                     raw_state_vars,
                     analysis.runes,
                     &non_proxy_vars,
-                )
-                .unwrap_or(transformed);
-                transformed = state_compound_assigns_ast::transform_state_compound_assigns_ast(
-                    &transformed,
-                    state_vars,
-                )
-                .unwrap_or(transformed);
-                transformed = state_update_assigns_ast::transform_state_update_assigns_ast(
-                    &transformed,
-                    state_vars,
                 )
                 .unwrap_or(transformed);
                 wrap_state_vars_in_expr(
@@ -4051,23 +4021,13 @@ fn transform_instance_script_for_visitors(
         let transformed = if analysis.runes {
             transformed
         } else {
-            // Whole-statement AST passes for assignments.
-            let mut transformed = state_simple_assigns_ast::transform_state_simple_assigns_ast(
+            // Unified AST pass — see Site 1 comment for rationale.
+            let transformed = state_assigns_combined_ast::transform_state_assigns_ast(
                 &transformed,
                 state_vars,
                 raw_state_vars,
                 analysis.runes,
                 &non_proxy_vars,
-            )
-            .unwrap_or(transformed);
-            transformed = state_compound_assigns_ast::transform_state_compound_assigns_ast(
-                &transformed,
-                state_vars,
-            )
-            .unwrap_or(transformed);
-            transformed = state_update_assigns_ast::transform_state_update_assigns_ast(
-                &transformed,
-                state_vars,
             )
             .unwrap_or(transformed);
             wrap_store_unsub_for_state_sets(&transformed, state_vars, store_sub_vars)

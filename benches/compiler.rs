@@ -87,6 +87,50 @@ fn create_large_synthetic_file() -> (String, String) {
     ("synthetic-large".to_string(), source)
 }
 
+/// Legacy-mode (non-runes) state-var-heavy synthetic. Exercises
+/// the AST helpers in `state_assigns_combined_ast` (and its
+/// `_simple` / `_compound` / `_update` predecessors) which are
+/// only called in non-runes mode.
+fn create_legacy_state_var_heavy_file() -> (String, String) {
+    let mut script = String::from(
+        r#"<script>
+    let count = 0;
+    let total = 0;
+    let items = [];
+    let flag = false;
+    let name = '';
+
+"#,
+    );
+    for i in 0..40 {
+        script.push_str(&format!(
+            r#"    function action_{i}() {{
+        count = {i};
+        total += count;
+        total -= 1;
+        items = [...items, count];
+        flag = !flag;
+        name = `item-${{count}}`;
+        count++;
+        total *= 2;
+        if (flag) {{
+            let local = count + total;
+            items = items.concat([local]);
+        }}
+        count ??= 0;
+    }}
+"#
+        ));
+    }
+    script.push_str("</script>\n\n");
+    for i in 0..20 {
+        script.push_str(&format!(
+            "<button on:click={{action_{i}}}>Action {i}</button>\n"
+        ));
+    }
+    ("synthetic-legacy-state-heavy".to_string(), script)
+}
+
 /// Synthetic file exercising the state-var assignment surface
 /// heavily. Used to baseline the perf impact of recent AST
 /// migrations (PRs #215-#234, especially #230-#234 which deleted
@@ -142,6 +186,7 @@ fn bench_phase1_parse(c: &mut Criterion) {
     let mut files = get_sample_files();
     files.push(create_large_synthetic_file());
     files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
 
     if files.is_empty() {
         eprintln!("No sample files found for benchmarking");
@@ -174,6 +219,7 @@ fn bench_phase2_analyze(c: &mut Criterion) {
     let mut files = get_sample_files();
     files.push(create_large_synthetic_file());
     files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
 
     if files.is_empty() {
         eprintln!("No sample files found for benchmarking");
@@ -218,6 +264,7 @@ fn bench_phase3_transform_client(c: &mut Criterion) {
     let mut files = get_sample_files();
     files.push(create_large_synthetic_file());
     files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
 
     if files.is_empty() {
         eprintln!("No sample files found for benchmarking");
@@ -277,6 +324,7 @@ fn bench_phase3_transform_server(c: &mut Criterion) {
     let mut files = get_sample_files();
     files.push(create_large_synthetic_file());
     files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
 
     if files.is_empty() {
         eprintln!("No sample files found for benchmarking");
@@ -336,6 +384,7 @@ fn bench_full_compile(c: &mut Criterion) {
     let mut files = get_sample_files();
     files.push(create_large_synthetic_file());
     files.push(create_state_var_heavy_file());
+    files.push(create_legacy_state_var_heavy_file());
 
     if files.is_empty() {
         eprintln!("No sample files found for benchmarking");
