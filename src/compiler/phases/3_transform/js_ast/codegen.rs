@@ -1442,21 +1442,6 @@ impl<'a> JsCodegen<'a> {
         self.output.push('}');
     }
 
-    #[allow(dead_code)]
-    fn emit_expression_with_parens(&mut self, expr: &JsExpr, _parent_op: Option<&JsBinaryOp>) {
-        let needs_parens = matches!(
-            expr,
-            JsExpr::Binary(_) | JsExpr::Conditional(_) | JsExpr::Assignment(_)
-        );
-        if needs_parens {
-            self.output.push('(');
-        }
-        self.emit_expression(expr);
-        if needs_parens {
-            self.output.push(')');
-        }
-    }
-
     fn emit_params(&mut self, params: &[JsPattern]) {
         for (i, param) in params.iter().enumerate() {
             if i > 0 {
@@ -1598,15 +1583,6 @@ impl<'a> JsCodegen<'a> {
         let mut tmp = self.tmp_codegen();
         tmp.emit_statement(stmt);
         has_multiple_newlines(tmp.output.as_bytes())
-    }
-
-    /// Pre-render an expression to a string without modifying the output.
-    /// Still used by emit_call_args for per-argument multiline check.
-    #[allow(dead_code)]
-    fn pre_render_expr(&self, expr: &JsExpr) -> String {
-        let mut tmp = self.tmp_codegen();
-        tmp.emit_expression(expr);
-        tmp.output
     }
 
     /// Heuristic check if an expression is likely to render as multiline.

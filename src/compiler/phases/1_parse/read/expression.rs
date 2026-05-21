@@ -2705,34 +2705,6 @@ fn convert_ts_type_name_adjusted(
     }
 }
 
-/// Convert oxc TSTypeAnnotation to a serde_json::Value.
-#[allow(dead_code)]
-fn convert_type_annotation(
-    type_ann: &oxc_ast::ast::TSTypeAnnotation,
-    offset: usize,
-    line_offsets: &[usize],
-) -> Value {
-    let start = offset + type_ann.span.start as usize;
-    let end = offset + type_ann.span.end as usize;
-
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("TSTypeAnnotation".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    // Convert the inner type
-    let inner_type = convert_ts_type(&type_ann.type_annotation, offset, line_offsets);
-    obj.insert("typeAnnotation".to_string(), inner_type);
-
-    Value::Object(obj)
-}
-
 /// Convert oxc TSType to a serde_json::Value.
 #[allow(dead_code)]
 fn convert_ts_type(ts_type: &oxc_ast::ast::TSType, offset: usize, line_offsets: &[usize]) -> Value {
@@ -4992,35 +4964,6 @@ fn convert_binding_pattern_for_decl(
     }
 }
 
-/// Convert a type annotation for declarations.
-/// Note: offset should be the raw document offset. This function applies -1 adjustment
-/// for the inner type because we're in paren-wrapped expression context.
-#[allow(dead_code)]
-fn convert_type_annotation_basic(
-    type_ann: &oxc_ast::ast::TSTypeAnnotation,
-    start: usize,
-    end: usize,
-    offset: usize,
-    line_offsets: &[usize],
-) -> Value {
-    let mut obj = Map::new();
-    obj.insert(
-        "type".to_string(),
-        Value::String("TSTypeAnnotation".to_string()),
-    );
-    obj.insert("start".to_string(), Value::Number((start as i64).into()));
-    obj.insert("end".to_string(), Value::Number((end as i64).into()));
-    if let Some(loc) = create_loc(start, end, line_offsets) {
-        obj.insert("loc".to_string(), loc);
-    }
-
-    // Convert the inner type annotation with -1 adjustment for paren-wrapped context
-    let inner = convert_ts_type_adjusted(&type_ann.type_annotation, offset - 1, line_offsets);
-    obj.insert("typeAnnotation".to_string(), inner);
-
-    Value::Object(obj)
-}
-
 fn create_template_literal(
     arena: &ParseArena,
     template: &oxc_ast::ast::TemplateLiteral,
@@ -5158,46 +5101,6 @@ fn create_loc(start: usize, end: usize, line_offsets: &[usize]) -> Option<Value>
     Some(Value::Object(loc))
 }
 
-/// Create a loc object with character field included.
-/// Used for Svelte-level identifiers like snippet names.
-#[allow(dead_code)]
-fn create_loc_with_character(start: usize, end: usize, line_offsets: &[usize]) -> Option<Value> {
-    if line_offsets.is_empty() {
-        return None;
-    }
-    let start_loc = get_line_column(start, line_offsets);
-    let end_loc = get_line_column(end, line_offsets);
-
-    let mut loc = Map::new();
-
-    let mut start_obj = Map::new();
-    start_obj.insert(
-        "line".to_string(),
-        Value::Number((start_loc.0 as i64).into()),
-    );
-    start_obj.insert(
-        "column".to_string(),
-        Value::Number((start_loc.1 as i64).into()),
-    );
-    start_obj.insert(
-        "character".to_string(),
-        Value::Number((start as i64).into()),
-    );
-
-    let mut end_obj = Map::new();
-    end_obj.insert("line".to_string(), Value::Number((end_loc.0 as i64).into()));
-    end_obj.insert(
-        "column".to_string(),
-        Value::Number((end_loc.1 as i64).into()),
-    );
-    end_obj.insert("character".to_string(), Value::Number((end as i64).into()));
-
-    loc.insert("start".to_string(), Value::Object(start_obj));
-    loc.insert("end".to_string(), Value::Object(end_obj));
-
-    Some(Value::Object(loc))
-}
-
 fn get_line_column(pos: usize, line_offsets: &[usize]) -> (u32, u32) {
     let line = line_offsets
         .partition_point(|&offset| offset <= pos)
@@ -5266,72 +5169,6 @@ fn create_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]) -> O
     loc.insert("end".to_string(), Value::Object(end_obj));
 
     Some(Value::Object(loc))
-}
-
-/// Create loc for simple Identifier binding patterns with character field.
-/// Uses standard column calculation (0-indexed from line start).
-#[allow(dead_code)]
-fn create_loc_for_binding_identifier(
-    start: usize,
-    end: usize,
-    line_offsets: &[usize],
-) -> Option<Value> {
-    if line_offsets.is_empty() {
-        return None;
-    }
-    let start_line = line_offsets
-        .partition_point(|&offset| offset <= start)
-        .saturating_sub(1);
-    let end_line = line_offsets
-        .partition_point(|&offset| offset <= end)
-        .saturating_sub(1);
-
-    let start_line_offset = line_offsets.get(start_line).copied().unwrap_or(0);
-    let end_line_offset = line_offsets.get(end_line).copied().unwrap_or(0);
-
-    let start_col = start - start_line_offset;
-    let end_col = end - end_line_offset;
-
-    let mut loc = Map::new();
-
-    let mut start_obj = Map::new();
-    start_obj.insert(
-        "line".to_string(),
-        Value::Number(((start_line + 1) as i64).into()),
-    );
-    start_obj.insert(
-        "column".to_string(),
-        Value::Number((start_col as i64).into()),
-    );
-    start_obj.insert(
-        "character".to_string(),
-        Value::Number((start as i64).into()),
-    );
-
-    let mut end_obj = Map::new();
-    end_obj.insert(
-        "line".to_string(),
-        Value::Number(((end_line + 1) as i64).into()),
-    );
-    end_obj.insert("column".to_string(), Value::Number((end_col as i64).into()));
-    end_obj.insert("character".to_string(), Value::Number((end as i64).into()));
-
-    loc.insert("start".to_string(), Value::Object(start_obj));
-    loc.insert("end".to_string(), Value::Object(end_obj));
-
-    Some(Value::Object(loc))
-}
-
-/// Calculate line offsets for a string.
-#[allow(dead_code)]
-fn calculate_line_offsets(content: &str) -> Vec<usize> {
-    let mut offsets = vec![0];
-    for (i, c) in content.char_indices() {
-        if c == '\n' {
-            offsets.push(i + 1);
-        }
-    }
-    offsets
 }
 
 // ============================================================================

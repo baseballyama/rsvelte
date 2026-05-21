@@ -457,38 +457,6 @@ fn adjust_positions_recursive(obj: &mut Map<String, JsonValue>, offset: usize) {
     }
 }
 
-/// Attach comments to AST nodes (equivalent to add_comments in acorn.js)
-///
-/// This is a simplified version - the full implementation would use a walker
-/// to traverse the AST and attach leading/trailing comments based on positions
-#[allow(dead_code)]
-pub fn attach_comments_to_ast(ast: &mut JsonValue, comments: &[Comment], _source: &str) {
-    if comments.is_empty() {
-        return;
-    }
-
-    // This would require a full AST walker implementation
-    // For now, we'll add comments as a top-level property
-    if let JsonValue::Object(obj) = ast {
-        let comment_values: Vec<JsonValue> = comments
-            .iter()
-            .map(|c| {
-                let mut comment_obj = Map::new();
-                comment_obj.insert(
-                    "type".to_string(),
-                    JsonValue::String(c.kind.as_str().to_string()),
-                );
-                comment_obj.insert("value".to_string(), JsonValue::String(c.value.clone()));
-                comment_obj.insert("start".to_string(), JsonValue::Number(c.start.into()));
-                comment_obj.insert("end".to_string(), JsonValue::Number(c.end.into()));
-                JsonValue::Object(comment_obj)
-            })
-            .collect();
-
-        obj.insert("comments".to_string(), JsonValue::Array(comment_values));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

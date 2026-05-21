@@ -12,7 +12,7 @@ pub mod html;
 #[allow(unused_imports)]
 pub use bracket::{find_matching_bracket, match_bracket};
 #[allow(unused_imports)]
-pub use create::{create_empty_fragment, create_fragment, create_fragment_with_node};
+pub use create::{create_empty_fragment, create_fragment};
 #[allow(unused_imports)]
 pub use entities::decode_html_entities;
 #[allow(unused_imports)]

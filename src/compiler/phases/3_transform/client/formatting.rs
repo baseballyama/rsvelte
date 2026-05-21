@@ -1039,20 +1039,6 @@ pub(super) fn rejoin_tmp_destructure_declarations(code: &str) -> String {
     result.join("\n")
 }
 
-/// Extract the variable name from a bare `let x;` declaration (no initializer).
-/// Returns None if the line is not a bare let declaration.
-#[allow(dead_code)]
-pub(super) fn extract_bare_let_name(line: &str) -> Option<String> {
-    let trimmed = line.trim();
-    if trimmed.starts_with("let ") && trimmed.ends_with(';') && !trimmed.contains('=') {
-        let name = trimmed[4..trimmed.len() - 1].trim();
-        if !name.is_empty() && !name.contains(',') && !name.contains(' ') {
-            return Some(name.to_string());
-        }
-    }
-    None
-}
-
 /// Strip standalone empty statements (`;` on its own line) from JavaScript code.
 ///
 /// OXC sometimes emits standalone semicolons that the Svelte compiler doesn't produce.

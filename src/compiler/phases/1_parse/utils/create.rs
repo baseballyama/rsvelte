@@ -46,19 +46,6 @@ pub fn create_empty_fragment() -> Fragment {
     create_fragment(false)
 }
 
-/// Create a Fragment with a single node (backward compatibility).
-///
-/// Note: This doesn't exist in the JS version.
-#[inline]
-#[allow(dead_code)]
-pub fn create_fragment_with_node(node: crate::ast::template::TemplateNode) -> Fragment {
-    Fragment {
-        node_type: FragmentType::Fragment,
-        nodes: vec![node],
-        metadata: FragmentMetadata::default(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
