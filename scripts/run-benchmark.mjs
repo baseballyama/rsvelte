@@ -34,37 +34,53 @@ const SVELTE_TESTS = join(REPO_ROOT, 'submodules/svelte/packages/svelte/tests');
  * cost nothing.
  */
 function ensureBenchDeps() {
-	const deps = [
-		{
-			name: 'svelte/compiler',
-			marker: 'submodules/svelte/packages/svelte/compiler/index.js',
-			cwd: 'submodules/svelte',
-			build: 'pnpm install --frozen-lockfile && pnpm build',
-		},
+	// Stdio used for every shell-out below: stdin ignored, child stdout
+	// redirected to *our* stderr so it can never corrupt the JSON the
+	// parent script pipes from our stdout, stderr inherited so build
+	// logs still surface in the terminal.
+	const sio = { stdio: ['ignore', 2, 'inherit'] };
+	const run = (cmd, cwd) =>
+		execSync(cmd, { ...sio, cwd: join(REPO_ROOT, cwd) });
+	const built = (marker) => existsSync(join(REPO_ROOT, marker));
+
+	// 1. svelte/compiler — self-contained, has its own install + build.
+	if (!built('submodules/svelte/packages/svelte/compiler/index.js')) {
+		console.error('[run-benchmark] building svelte/compiler (one-time)…');
+		run('pnpm install --frozen-lockfile && pnpm build', 'submodules/svelte');
+	}
+
+	// 2. language-tools — svelte2tsx → language-server → svelte-check is a
+	// hard dependency chain (each package's rollup config imports the
+	// previous package's `dist/`). Walk it explicitly so we don't end up
+	// re-running upstream's `pnpm build` script, which tail-runs a slow
+	// `test:sanity` fixture pass.
+	const langPkgs = [
 		{
 			name: 'svelte2tsx',
 			marker: 'submodules/language-tools/packages/svelte2tsx/index.mjs',
-			cwd: 'submodules/language-tools',
-			build: 'pnpm install --frozen-lockfile && (cd packages/svelte2tsx && pnpm build)',
+			cwd: 'submodules/language-tools/packages/svelte2tsx',
+		},
+		{
+			name: 'language-server',
+			marker: 'submodules/language-tools/packages/language-server/dist/src/index.js',
+			cwd: 'submodules/language-tools/packages/language-server',
 		},
 		{
 			name: 'svelte-check',
-			// The CLI entrypoint is `bin/svelte-check`, which requires the
-			// rollup-bundled dist; build it if missing. svelte-check's own
-			// `pnpm build` script also builds svelte2tsx + language-server
-			// transitively, but the cheaper path here is just `rollup -c`
-			// (svelte2tsx is already covered above).
 			marker: 'submodules/language-tools/packages/svelte-check/dist/src/index.js',
 			cwd: 'submodules/language-tools/packages/svelte-check',
-			build: 'pnpm exec rollup -c',
 		},
 	];
-	for (const dep of deps) {
-		if (existsSync(join(REPO_ROOT, dep.marker))) continue;
-		console.error(`[run-benchmark] ${dep.name}: ${dep.marker} missing — building (one-time setup)…`);
-		// Route the build's stdout to our stderr so it never lands in
-		// the benchmark JSON the parent pipes to a file.
-		execSync(dep.build, { cwd: join(REPO_ROOT, dep.cwd), stdio: ['ignore', 2, 'inherit'] });
+	const langPending = langPkgs.filter((p) => !built(p.marker));
+	if (langPending.length > 0) {
+		if (!built('submodules/language-tools/node_modules/.modules.yaml')) {
+			console.error('[run-benchmark] installing language-tools workspace (one-time)…');
+			run('pnpm install --frozen-lockfile', 'submodules/language-tools');
+		}
+		for (const pkg of langPending) {
+			console.error(`[run-benchmark] building language-tools/${pkg.name} (one-time)…`);
+			run('pnpm exec rollup -c', pkg.cwd);
+		}
 	}
 }
 

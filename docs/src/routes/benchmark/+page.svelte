@@ -75,6 +75,20 @@
 		return list;
 	});
 
+	const headlineSpeedups: { id: TaskId; label: string; sub: string; x: number; precision: number }[] = $derived(
+		tasks.map((t) => ({
+			id: t.id,
+			label: t.label,
+			sub: t.sub,
+			x: t.data.speedup.multiThreadVsJs,
+			precision: t.data.speedup.multiThreadVsJs >= 50 ? 0 : 1
+		}))
+	);
+
+	const maxHeadlineSpeedup = $derived(
+		headlineSpeedups.reduce((m, s) => Math.max(m, s.x), 0)
+	);
+
 	const getMaxDuration = (r: BenchmarkTaskResults): number =>
 		Math.max(r.javascript.durationMs, r.rustSingleThread.durationMs, r.rustMultiThread.durationMs);
 
@@ -144,11 +158,13 @@
 		{@const r = data.results}
 
 		<header class="hero">
-			<p class="eyebrow"><span class="rule"></span>Compilation speed · against svelte/compiler</p>
+			<p class="eyebrow">
+				<span class="rule"></span>Across the Svelte toolchain · multi-threaded vs official JS
+			</p>
 
 			<h1 class="title">
-				<span class="ink-svelte">{r.speedup.multiThreadVsJs.toFixed(1)}×</span> faster than
-				<code>svelte/compiler</code>.
+				Up to <span class="ink-svelte">{maxHeadlineSpeedup.toFixed(0)}×</span> faster across the
+				Svelte toolchain.
 			</h1>
 
 			<dl class="hero-meta">
@@ -168,34 +184,15 @@
 		</header>
 
 		<section class="stats">
-			<article class="stat stat-hero">
-				<span class="stat-k">Multi-threaded</span>
-				<span class="stat-n">
-					{r.speedup.multiThreadVsJs.toFixed(1)}<span class="stat-x">×</span>
-				</span>
-				<span class="stat-s">rayon fan-out · full pipeline</span>
-			</article>
-			<article class="stat">
-				<span class="stat-k">Single-threaded</span>
-				<span class="stat-n">
-					{r.speedup.singleThreadVsJs.toFixed(1)}<span class="stat-x">×</span>
-				</span>
-				<span class="stat-s">no parallelism</span>
-			</article>
-			<article class="stat">
-				<span class="stat-k">Throughput</span>
-				<span class="stat-n">
-					{formatThroughput(r.rustMultiThread.throughputFilesPerSec)}<span class="stat-x">/s</span>
-				</span>
-				<span class="stat-s">files compiled per second</span>
-			</article>
-			<article class="stat">
-				<span class="stat-k">Parser alone</span>
-				<span class="stat-n">
-					{r.parse.speedup.multiThreadVsJs.toFixed(0)}<span class="stat-x">×</span>
-				</span>
-				<span class="stat-s">phase 1, isolated</span>
-			</article>
+			{#each headlineSpeedups as s, i (s.id)}
+				<article class="stat" class:stat-hero={i === 0}>
+					<span class="stat-k">{s.label}</span>
+					<span class="stat-n">
+						{s.x.toFixed(s.precision)}<span class="stat-x">×</span>
+					</span>
+					<span class="stat-s">{s.sub}</span>
+				</article>
+			{/each}
 		</section>
 
 		<section class="chart">
@@ -329,18 +326,6 @@
 		color: var(--ink);
 		margin: 0;
 		max-width: 22ch;
-	}
-
-	.title code {
-		font-family: 'Fira Mono', monospace;
-		font-size: 0.7em;
-		font-weight: 500;
-		padding: 0.06em 0.42em;
-		background: var(--paper);
-		border: 1px solid var(--rule);
-		border-radius: 4px;
-		color: var(--ink);
-		vertical-align: 0.08em;
 	}
 
 	.ink-svelte {
