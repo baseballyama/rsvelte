@@ -2589,38 +2589,6 @@ pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
     result
 }
 
-/// Check if a position in the code is inside a `$.inspect()` callback.
-///
-/// The `$.inspect()` call has the form:
-///   `$.inspect(() => [...], (...$$args) => console.log(...$$args), true)`
-///
-/// The second argument is the callback function. Console calls inside this
-/// callback should NOT be wrapped with `$.log_if_contains_state`.
-#[allow(dead_code)]
-pub(super) fn is_inside_inspect_callback(code: &str, pos: usize) -> bool {
-    // Look backwards from pos for `$.inspect(` to see if we're inside it
-    let before = &code[..pos];
-
-    // Find the nearest unmatched `$.inspect(` before our position
-    let mut search_pos = 0;
-    while let Some(rel_idx) = memmem::find(&before.as_bytes()[search_pos..], b"$.inspect(") {
-        let inspect_pos = search_pos + rel_idx;
-        let args_start = inspect_pos + 10; // after "$.inspect("
-
-        // Check if our position is within the $.inspect(...) call
-        if let Some(args_end) = find_matching_paren(&code[args_start..]) {
-            let call_end = args_start + args_end;
-            if pos > args_start && pos < call_end {
-                return true;
-            }
-        }
-
-        search_pos = inspect_pos + 10;
-    }
-
-    false
-}
-
 /// Check if all arguments in a comma-separated argument list are simple literals.
 ///
 /// Simple literals are: string literals, numeric literals, boolean literals,

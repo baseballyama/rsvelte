@@ -1039,53 +1039,6 @@ pub(super) fn rejoin_tmp_destructure_declarations(code: &str) -> String {
     result.join("\n")
 }
 
-/// Re-join consecutive bare `let x;` declarations that OXC splits from `let x, y, z;`.
-///
-/// OXC's codegen splits `let x, y, z;` into `let x;\nlet y;\nlet z;`.
-/// This function detects consecutive bare `let` declarations (no initializer) at the
-/// same indent level and re-joins them into a single comma-separated declaration.
-#[allow(dead_code)]
-pub(super) fn rejoin_bare_let_declarations(code: &str) -> String {
-    let lines: Vec<&str> = code.lines().collect();
-    let mut result: Vec<String> = Vec::with_capacity(lines.len());
-    let mut i = 0;
-
-    while i < lines.len() {
-        let line = lines[i];
-        if let Some(name) = extract_bare_let_name(line) {
-            let indent = &line[..line.len() - line.trim_start().len()];
-            let mut names = vec![name];
-            let mut j = i + 1;
-
-            while j < lines.len() {
-                let next = lines[j];
-                let next_indent = &next[..next.len() - next.trim_start().len()];
-                if next_indent == indent
-                    && let Some(next_name) = extract_bare_let_name(next)
-                {
-                    names.push(next_name);
-                    j += 1;
-                    continue;
-                }
-                break;
-            }
-
-            if names.len() > 1 {
-                result.push(format!("{}let {};", indent, names.join(", ")));
-                i = j;
-            } else {
-                result.push(line.to_string());
-                i += 1;
-            }
-        } else {
-            result.push(line.to_string());
-            i += 1;
-        }
-    }
-
-    result.join("\n")
-}
-
 /// Extract the variable name from a bare `let x;` declaration (no initializer).
 /// Returns None if the line is not a bare let declaration.
 #[allow(dead_code)]
