@@ -3019,6 +3019,7 @@ impl Memoizer {
 
         let start_n = next_suffix.get(sanitized).copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
+        let mut itoa_buf = itoa::Buffer::new();
         let mut n = start_n;
         loop {
             name.clear();
@@ -3027,8 +3028,7 @@ impl Memoizer {
             if n < 10 {
                 name.push((b'0' + n as u8) as char);
             } else {
-                use std::fmt::Write;
-                let _ = write!(name, "{}", n);
+                name.push_str(itoa_buf.format(n));
             }
             if !conflicts.contains(name.as_str()) {
                 break;
@@ -3055,6 +3055,7 @@ impl Memoizer {
         let start_n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
         let mut n = start_n;
         let mut name = String::with_capacity(sanitized.len() + 4);
+        let mut itoa_buf = itoa::Buffer::new();
         loop {
             name.clear();
             name.push_str(&sanitized);
@@ -3062,8 +3063,7 @@ impl Memoizer {
             if n < 10 {
                 name.push((b'0' + n as u8) as char);
             } else {
-                use std::fmt::Write;
-                let _ = write!(name, "{}", n);
+                name.push_str(itoa_buf.format(n));
             }
             if !conflicts.contains(name.as_str()) {
                 break;
