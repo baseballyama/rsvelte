@@ -115,18 +115,18 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-05, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-22, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
 | Parser Modern | 22/22 | |
 | Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
 | Compiler Errors | 144/144 | |
-| Compiler Snapshot | 28/28 | |
+| Compiler Snapshot | 20/20 | |
 | CSS | 179/179 | |
-| Validator | 324/324 | 1 skipped (`error-mode-warn`) |
+| Validator | 324/325 | 1 skipped (`error-mode-warn`) |
 | SSR | 82/82 | |
-| Hydration | 78/78 | |
+| Hydration | 77/77 | |
 | Runtime Legacy | 1202/1202 | |
 | Runtime Runes | 865/865 | |
 | Runtime Browser | 31/31 | |
@@ -136,7 +136,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-05, Svelte commit `04
 | svelte2tsx | 245/245 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3341/3341 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
+**Compatibility report total: 3332/3332 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
 
 ### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
 
