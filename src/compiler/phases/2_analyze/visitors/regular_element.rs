@@ -465,30 +465,24 @@ pub fn visit(
                                     }
                                 }
                                 AttributeValuePart::ExpressionTag(expr_tag) => {
-                                    if let Ok(expr_json) =
-                                        serde_json::to_value(&expr_tag.expression)
+                                    let expr_json = expr_tag.expression.as_json();
+                                    use super::super::css::get_possible_values;
+                                    if let Some(possible_vals) =
+                                        get_possible_values(expr_json, false)
                                     {
-                                        use super::super::css::get_possible_values;
-                                        if let Some(possible_vals) =
-                                            get_possible_values(&expr_json, false)
-                                        {
-                                            if possible_vals.len() > 20 {
-                                                // Too many combinations, bail out
-                                                all_resolved = false;
-                                                break;
+                                        if possible_vals.len() > 20 {
+                                            // Too many combinations, bail out
+                                            all_resolved = false;
+                                            break;
+                                        }
+                                        let prev = computed_values.clone();
+                                        computed_values.clear();
+                                        for pv in &prev {
+                                            for ev in &possible_vals {
+                                                computed_values.push(format!("{}{}", pv, ev));
                                             }
-                                            let prev = computed_values.clone();
-                                            computed_values.clear();
-                                            for pv in &prev {
-                                                for ev in &possible_vals {
-                                                    computed_values.push(format!("{}{}", pv, ev));
-                                                }
-                                            }
-                                            if computed_values.len() > 100 {
-                                                all_resolved = false;
-                                                break;
-                                            }
-                                        } else {
+                                        }
+                                        if computed_values.len() > 100 {
                                             all_resolved = false;
                                             break;
                                         }
@@ -513,18 +507,13 @@ pub fn visit(
                     // Expression or other dynamic value
                     // Try to statically determine the value for CSS attribute selector matching
                     if let AttributeValue::Expression(expr_tag) = &attr_node.value {
-                        if let Ok(expr_json) = serde_json::to_value(&expr_tag.expression) {
-                            use super::super::css::get_possible_values;
-                            if let Some(possible_values) = get_possible_values(&expr_json, false) {
-                                // We can determine the possible values statically
-                                for value in &possible_values {
-                                    static_attributes.push((
-                                        attr_node.name.to_string(),
-                                        Some(value.to_string()),
-                                    ));
-                                }
-                            } else {
-                                dynamic_attribute_names.insert(attr_node.name.to_string());
+                        let expr_json = expr_tag.expression.as_json();
+                        use super::super::css::get_possible_values;
+                        if let Some(possible_values) = get_possible_values(expr_json, false) {
+                            // We can determine the possible values statically
+                            for value in &possible_values {
+                                static_attributes
+                                    .push((attr_node.name.to_string(), Some(value.to_string())));
                             }
                         } else {
                             dynamic_attribute_names.insert(attr_node.name.to_string());
@@ -554,14 +543,9 @@ pub fn visit(
                                         Some(vec![text.data.to_string()])
                                     }
                                     AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        if let Ok(expr_json) =
-                                            serde_json::to_value(&expr_tag.expression)
-                                        {
-                                            use super::super::css::get_possible_values;
-                                            get_possible_values(&expr_json, true)
-                                        } else {
-                                            None
-                                        }
+                                        let expr_json = expr_tag.expression.as_json();
+                                        use super::super::css::get_possible_values;
+                                        get_possible_values(expr_json, true)
                                     }
                                 };
 
@@ -666,28 +650,23 @@ pub fn visit(
                         }
                         AttributeValue::Expression(expr_tag) => {
                             // Expression as attribute value: class={{ ... }}
-                            // Serialize the expression to JSON to analyze it
-                            if let Ok(expr_json) = serde_json::to_value(&expr_tag.expression) {
-                                use super::super::css::get_possible_values;
-                                if let Some(possible_values) = get_possible_values(&expr_json, true)
-                                {
-                                    // We can statically determine the classes
-                                    for value in &possible_values {
-                                        for class_name in value.split_whitespace() {
-                                            context
-                                                .analysis
-                                                .css
-                                                .used_classes
-                                                .insert(class_name.to_string());
-                                            element_classes.insert(class_name.to_string());
-                                        }
+                            // Use the cached JSON view of the expression to analyze it
+                            let expr_json = expr_tag.expression.as_json();
+                            use super::super::css::get_possible_values;
+                            if let Some(possible_values) = get_possible_values(expr_json, true) {
+                                // We can statically determine the classes
+                                for value in &possible_values {
+                                    for class_name in value.split_whitespace() {
+                                        context
+                                            .analysis
+                                            .css
+                                            .used_classes
+                                            .insert(class_name.to_string());
+                                        element_classes.insert(class_name.to_string());
                                     }
-                                } else {
-                                    // Unknown expression - mark as dynamic
-                                    context.analysis.css.has_dynamic_classes = true;
                                 }
                             } else {
-                                // Failed to serialize - mark as dynamic
+                                // Unknown expression - mark as dynamic
                                 context.analysis.css.has_dynamic_classes = true;
                             }
                         }
