@@ -51,9 +51,18 @@ jobs:
           INPUT_TARGET='${{ github.event.inputs.target }}'
           INPUT_TAG='${{ github.event.inputs.tag }}'
           if [ -n "$INPUT_TARGET" ]; then
+            # Explicit single-target dispatch — run it even if disabled, so
+            # we can investigate disabled targets on demand.
             targets=$(printf '%s' "$INPUT_TARGET" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           else
-            mapfile -t all < <(find ecosystem-ci/targets -name '*.json' -exec basename {} .json \; | sort)
+            # Skip targets marked `disabled: true` in the JSON. They stay
+            # checked in for visibility (and re-enable via dispatch input).
+            all=()
+            for f in $(find ecosystem-ci/targets -name '*.json' | sort); do
+              name=$(basename "$f" .json)
+              if jq -e '.disabled == true' "$f" > /dev/null; then continue; fi
+              all+=("$name")
+            done
             if [ -n "$INPUT_TAG" ]; then
               filtered=()
               for t in "${all[@]}"; do

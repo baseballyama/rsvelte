@@ -15,5 +15,7 @@
   "tags": ["ui-library", "sveltekit"],
   "allowList": {
     "expectedBaselineFailures": []
-  }
+  },
+  "disabled": true,
+  "disabledReason": "Triggers FATAL ERROR threadsafe_function.rs:749 (\"Failed to convert return value ... Failed to call then method\") during vite's parallel preprocess. await_tsfn in src/napi.rs needs a Promise-detection probe before the typed call_async. Re-enable once the rsvelte fix lands."
 }

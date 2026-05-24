@@ -9,7 +9,7 @@
   },
   "commands": {
     "install": "pnpm install --no-frozen-lockfile",
-    "build": "pnpm build"
+    "build": "pnpm package"
   },
   "timeoutMinutes": 30,
   "tags": ["ui-library"],
