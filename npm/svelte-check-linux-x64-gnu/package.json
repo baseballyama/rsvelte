@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte-check-linux-x64-gnu",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prebuilt svelte-check binary for linux-x64 (glibc)",
   "license": "MIT",
   "repository": {
@@ -8,10 +8,18 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "npm/svelte-check-linux-x64-gnu"
   },
-  "os": ["linux"],
-  "cpu": ["x64"],
-  "libc": ["glibc"],
-  "files": ["svelte-check"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "svelte-check"
+  ],
   "scripts": {
     "prepack": "chmod +x svelte-check"
   },
