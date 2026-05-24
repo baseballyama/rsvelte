@@ -666,9 +666,17 @@ pub fn validate_opening_tag(
     source: &str,
     expected: char,
 ) -> Result<(), AnalysisError> {
+    // Only the second char matters — collecting `source[start..]` into a
+    // `Vec<char>` (the previous implementation) allocates ~4 bytes per
+    // byte of remaining source for every tag opening. On template-heavy
+    // input that single hot-path accounts for ~33% of phase-2 analyze
+    // self time (jemalloc dominated by `Vec::from_iter`).
     if start + 1 < source.len() {
-        let chars: Vec<char> = source[start..].chars().collect();
-        if chars.len() > 1 && chars[1] != expected {
+        let mut chars = source[start..].chars();
+        chars.next();
+        if let Some(second) = chars.next()
+            && second != expected
+        {
             return Err(errors::block_unexpected_character(&expected.to_string()));
         }
     }
