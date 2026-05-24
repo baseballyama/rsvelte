@@ -447,11 +447,24 @@ else
      | .dependencies["@rsvelte/vite-plugin-svelte-native"] = $natv' \
     "$SHIM_PKG" > "$SHIM_PKG.tmp" && mv "$SHIM_PKG.tmp" "$SHIM_PKG"
 
-  step "install submodule shim deps" \
-    bash -c "cd '$SHIM_DIR' && pnpm install --no-frozen-lockfile"
+  # The submodule's pnpm workspace still has e2e-tests packages that
+  # depend on `@sveltejs/vite-plugin-svelte@workspace:^`. The shim was
+  # renamed to `@rsvelte/vite-plugin-svelte` (PR #2/#3 on the fork), so
+  # a normal `pnpm install` from the shim dir resolves the whole
+  # workspace and 500s on the now-dangling e2e workspace deps. Install
+  # the shim as a standalone package with `--ignore-workspace`.
+  step "install submodule shim deps (standalone, ignore-workspace)" \
+    bash -c "cd '$SHIM_DIR' && pnpm install --no-frozen-lockfile --ignore-workspace"
 
-  step "generate shim types" \
-    bash -c "cd '$SHIM_DIR' && pnpm run check:types && pnpm run generate:types || true"
+  # Regenerate types only if they aren't already present from a prior
+  # build. The `types/index.d.ts` is checked in to the fork, so for a
+  # plain "publish today's fork HEAD" run this step is a no-op.
+  if [ -f "$SHIM_DIR/types/index.d.ts" ]; then
+    log "↻ $SHIM_DIR/types/index.d.ts already exists — skipping type regen"
+  else
+    step "generate shim types" \
+      bash -c "cd '$SHIM_DIR' && pnpm run check:types && pnpm run generate:types || true"
+  fi
 
   step "publish @rsvelte/vite-plugin-svelte" \
     bash -c "cd '$SHIM_DIR' && pnpm publish --access public --no-git-checks"
