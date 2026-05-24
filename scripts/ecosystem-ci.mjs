@@ -164,6 +164,26 @@ function cloneOrUpdate(target) {
 			{ cwd: dest },
 		);
 	}
+	// Bound pnpm's upward workspace search at the target's checkout root.
+	// Without this, pnpm walking up from `ecosystem-ci/checkout/<name>/`
+	// finds rsvelte's own `pnpm-workspace.yaml` at the repo root and
+	// installs rsvelte's workspace members instead of the target's deps —
+	// "Scope: all 15 workspace projects" while the target's `node_modules`
+	// stays empty. Drop a marker only when the target itself doesn't ship
+	// `pnpm-workspace.yaml` (monorepos already define their own boundary).
+	const targetHasWorkspace = ['pnpm-workspace.yaml', 'pnpm-workspace.yml'].some(
+		(f) => fs.existsSync(path.join(dest, f)),
+	);
+	if (!targetHasWorkspace) {
+		fs.writeFileSync(
+			path.join(dest, 'pnpm-workspace.yaml'),
+			'# Sentinel: bounds pnpm\'s upward workspace search at this target\n' +
+				'# root so pnpm doesn\'t walk into rsvelte\'s own workspace.\n' +
+				'packages: []\n',
+		);
+		log(`bound workspace search: dropped pnpm-workspace.yaml in ${path.relative(ROOT, dest)}`);
+	}
+
 	const sha = runCapture('git', ['rev-parse', 'HEAD'], { cwd: dest }).stdout
 		?.trim();
 	return { path: dest, sha };
