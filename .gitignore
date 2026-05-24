@@ -81,3 +81,10 @@ REVIEW_REPORT.md
 # so it doesn't show up in `git status` for everyone who has the same
 # pattern in their shell history.
 pbcopy
+
+# CI matrix-build artifacts staged into `artifacts/` by the release
+# workflow before `stage-*-binaries.mjs` copies them into the per-triple
+# npm package dirs. They are downloaded fresh on every run; without this
+# entry, `changesets/action` includes them in the "Version Packages" PR
+# (~70 MB per run, baked into git history forever).
+artifacts/
