@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-24T16:46:53.429956+00:00",
-  "commit_sha": "b8f2b86105e0",
+  "generated_at": "2026-05-24T17:02:05.824055+00:00",
+  "commit_sha": "8ea33bf7fe86",
   "summary": {
-    "total": 3413,
-    "passed": 3333,
+    "total": 3416,
+    "passed": 3336,
     "failed": 0,
     "skipped": 80,
     "percentage": 100
@@ -11920,8 +11920,8 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 82,
-      "passed": 82,
+      "total": 85,
+      "passed": 85,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -11992,6 +11992,10 @@
         },
         {
           "name": "falsy-dynamic-component",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic-element-xss-prevention",
           "status": "pass"
         },
         {
@@ -12116,6 +12120,10 @@
         },
         {
           "name": "dynamic-element-variable",
+          "status": "pass"
+        },
+        {
+          "name": "spread-attributes-event-handler-xss",
           "status": "pass"
         },
         {
@@ -12252,6 +12260,10 @@
         },
         {
           "name": "store-init-props",
+          "status": "pass"
+        },
+        {
+          "name": "option-body-escaped",
           "status": "pass"
         }
       ]
