@@ -5267,20 +5267,30 @@ fn ends_with_css_hex_escape(text: &str) -> bool {
     // Return true if the string ends with hex digits that are part of a CSS escape
     // (i.e., \HH where HH are hex digits and the escape has consumed fewer than 6 digits
     // without a whitespace terminator).
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len();
+    //
+    // All tokens we test (`\\`, hex digits 0-9/a-f/A-F, space/tab/newline)
+    // are ASCII, so byte indexing is UTF-8 safe and avoids allocating a
+    // `Vec<char>` on every CSS selector emission. The single-char-escape
+    // branch advances by exactly one *byte*: a non-hex char after `\\`
+    // could be a multi-byte UTF-8 sequence in pathological CSS, but this
+    // function only checks whether the *tail* of the string is a hex
+    // escape — over-skipping into a multi-byte sequence's leading byte
+    // just falls through the loop normally and produces the correct
+    // `false` answer.
+    let bytes = text.as_bytes();
+    let len = bytes.len();
     if len < 2 {
         return false;
     }
 
     let mut i = 0;
     while i < len {
-        if chars[i] == '\\' && i + 1 < len {
+        if bytes[i] == b'\\' && i + 1 < len {
             i += 1; // skip backslash
-            if chars[i].is_ascii_hexdigit() {
+            if bytes[i].is_ascii_hexdigit() {
                 // Hex escape: consume up to 6 hex digits
                 let mut hex_count = 0;
-                while i < len && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                while i < len && hex_count < 6 && bytes[i].is_ascii_hexdigit() {
                     i += 1;
                     hex_count += 1;
                 }
@@ -5289,7 +5299,7 @@ fn ends_with_css_hex_escape(text: &str) -> bool {
                     return true;
                 }
                 // Consume optional single whitespace terminator
-                if chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n' {
+                if matches!(bytes[i], b' ' | b'\t' | b'\n') {
                     i += 1;
                 }
                 // Otherwise the escape is fully terminated, continue

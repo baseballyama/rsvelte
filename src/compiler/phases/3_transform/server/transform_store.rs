@@ -6,6 +6,13 @@
 
 /// Replace store identifier in an expression with $.store_get() call.
 pub(crate) fn replace_store_identifier(expr: &str, store_ref: &str, store_name: &str) -> String {
+    // Fast path: if `store_ref` doesn't appear in `expr` at all, there is
+    // nothing to replace. Skips the `Vec<char>` allocation and the full
+    // state-machine walk for the (very common) case where most expressions
+    // don't reference a given store.
+    if !expr.contains(store_ref) {
+        return expr.to_string();
+    }
     let mut result = String::with_capacity(expr.len() * 2);
     let chars: Vec<char> = expr.chars().collect();
     let store_ref_chars: Vec<char> = store_ref.chars().collect();
@@ -83,6 +90,10 @@ pub(crate) fn replace_store_identifier_in_script(
     store_ref: &str,
     store_name: &str,
 ) -> String {
+    // Fast path: skip the full lexer if the store ref doesn't appear at all.
+    if !script.contains(store_ref) {
+        return script.to_string();
+    }
     let mut result = String::with_capacity(script.len() * 2);
     let chars: Vec<char> = script.chars().collect();
     let store_ref_chars: Vec<char> = store_ref.chars().collect();
