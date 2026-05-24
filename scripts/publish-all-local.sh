@@ -141,6 +141,40 @@ else
   log "npm auth: 2FA in \"Authorization only\" mode (no per-publish OTP)"
 fi
 
+# The token might be a Granular one scoped only to packages that
+# already exist (`@rsvelte/compiler`). All our other publishes target
+# fresh @rsvelte/* names, which a too-narrowly-scoped token can't
+# touch — `pnpm publish` then returns 403/401 mid-run, looking like a
+# "please login" stall to the operator. Dry-run a publish that we know
+# is new (svelte2tsx) to surface the permission gap up front.
+log "verifying token covers @rsvelte/* writes (svelte2tsx dry-run)…"
+if ! (cd npm/svelte2tsx && pnpm publish --dry-run --access public --no-git-checks) \
+     >/tmp/publish-preflight.log 2>&1; then
+  tail -20 /tmp/publish-preflight.log >&2
+  cat >&2 <<EOF
+
+  ✗ Dry-run publish of @rsvelte/svelte2tsx failed.
+
+    Most common cause: the current token can write to packages it
+    already owns (e.g. @rsvelte/compiler) but is not scoped to publish
+    new @rsvelte/* names. Re-issue the token with a broader scope:
+
+      1) Open https://www.npmjs.com/settings/$(npm whoami)/tokens/new
+      2) "Classic Token" → Type: "Automation"   (simplest — covers everything)
+         — OR —
+         "Granular Access Token" with:
+           Permissions:      Read and write
+           Allowed packages: @rsvelte/*    (wildcard)
+           Allowed scopes:   @rsvelte
+      3) Replace the line in ~/.npmrc:
+           sed -i '' '/^\/\/registry\.npmjs\.org\/:_authToken=/d' ~/.npmrc
+           echo "//registry.npmjs.org/:_authToken=npm_NEW_TOKEN" >> ~/.npmrc
+
+EOF
+  die "publish dry-run failed — fix npm token and re-run"
+fi
+log "  ↳ dry-run OK"
+
 # `cargo-zigbuild` + `zig` for Linux cross-compile targets. `cross`'s
 # rustup-host probe doesn't survive on macOS hosts (it tries to install
 # a host-side `stable-x86_64-unknown-linux-gnu` toolchain, which rustup
