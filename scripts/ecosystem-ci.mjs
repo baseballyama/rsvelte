@@ -76,6 +76,13 @@ function loadTarget(name) {
 	return target;
 }
 
+// Active targets (non-disabled). Disabled targets stay tracked in the
+// repo for visibility but are filtered out of dispatch / run-all so a
+// known rsvelte regression doesn't keep the whole matrix red.
+function activeTargets() {
+	return listTargets().filter((name) => !loadTarget(name).disabled);
+}
+
 function runCapture(cmd, args, opts = {}) {
 	return spawnSync(cmd, args, { encoding: 'utf8', ...opts });
 }
@@ -478,7 +485,7 @@ function exitCodeForResult(result) {
 }
 
 async function runAll(filterTag) {
-	const targets = listTargets();
+	const targets = activeTargets();
 	const results = [];
 	for (const name of targets) {
 		const t = loadTarget(name);
@@ -493,7 +500,8 @@ function cmdList() {
 	for (const name of listTargets()) {
 		const t = loadTarget(name);
 		const tags = (t.tags ?? []).join(',');
-		console.log(`${name.padEnd(28)} ${t.type.padEnd(6)} [${tags}]`);
+		const flag = t.disabled ? ' [disabled]' : '';
+		console.log(`${name.padEnd(28)} ${t.type.padEnd(6)} [${tags}]${flag}`);
 	}
 }
 
@@ -521,7 +529,7 @@ async function cmdPoll() {
 	// workflow_dispatch invocations.
 	ensureDirs();
 	const changed = [];
-	for (const name of listTargets()) {
+	for (const name of activeTargets()) {
 		const t = loadTarget(name);
 		const m = /github\.com[:/](.+?)\/(.+?)(?:\.git)?$/.exec(t.repo);
 		if (!m) {
