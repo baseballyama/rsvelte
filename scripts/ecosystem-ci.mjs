@@ -106,7 +106,11 @@ function runPhase(target, phaseName, command, env = {}, timeoutMinutes) {
 	const durationMs = Date.now() - start;
 	const combined = (child.stdout ?? '') + (child.stderr ?? '');
 	fs.writeFileSync(logFile, combined);
-	const tail = combined.split('\n').slice(-20).join('\n');
+	// Print last 50 lines after every phase (not just failures) so CI logs
+	// show what each step actually did. The full output is always written
+	// to the log file for artifact upload.
+	const lines = combined.split('\n');
+	const tail = lines.slice(-50).join('\n');
 	// child.status === null means the process didn't exit cleanly (signal /
 	// timeout / spawn error). Surface child.error so the result JSON
 	// records *why* — otherwise it just looks like "exit null".
@@ -115,7 +119,8 @@ function runPhase(target, phaseName, command, env = {}, timeoutMinutes) {
 		log(`[${target.name}] ${phaseName} FAILED (exit ${exitCode}${child.signal ? `, signal ${child.signal}` : ''}${child.error ? `, ${child.error.code ?? child.error.message}` : ''}) — tail:`);
 		console.log(tail);
 	} else {
-		log(`[${target.name}] ${phaseName} ok (${(durationMs / 1000).toFixed(1)}s)`);
+		log(`[${target.name}] ${phaseName} ok (${(durationMs / 1000).toFixed(1)}s, ${lines.length} log lines) — tail:`);
+		console.log(tail);
 	}
 	return {
 		exitCode,
@@ -334,7 +339,7 @@ async function runTarget(name) {
 	);
 	if (baseline.install.exitCode !== 0) {
 		writeResult(target, targetSha, { result: 'baseline-failure', baseline });
-		return;
+		return 'baseline-failure';
 	}
 	if (target.commands.build) {
 		baseline.build = runPhase(
@@ -359,7 +364,7 @@ async function runTarget(name) {
 	);
 	if (baselineFailed) {
 		writeResult(target, targetSha, { result: 'baseline-failure', baseline });
-		return;
+		return 'baseline-failure';
 	}
 
 	// Build rsvelte NAPI and stage it under the target's .rsvelte/
@@ -376,7 +381,7 @@ async function runTarget(name) {
 			error: e.message,
 		});
 		restoreTarget(target);
-		return;
+		return 'swap-failure';
 	}
 
 	const rsvelte = {};
@@ -396,7 +401,7 @@ async function runTarget(name) {
 				swap: { strategy: swap.strategy },
 			});
 			restoreTarget(target);
-			return;
+			return 'rsvelte-install-failure';
 		}
 	}
 	if (target.commands.build) {
@@ -429,15 +434,39 @@ async function runTarget(name) {
 		swap: { strategy: swap.strategy },
 	});
 	restoreTarget(target);
+	return result;
+}
+
+// Map a result classification to a process exit code.
+// 0 = pass. Anything non-zero surfaces as a job failure in CI so an
+// operator looking at the matrix doesn't see misleading green.
+function exitCodeForResult(result) {
+	switch (result) {
+		case 'pass':
+			return 0;
+		case 'regression':
+			return 2;
+		case 'baseline-failure':
+			return 3;
+		case 'rsvelte-install-failure':
+			return 4;
+		case 'swap-failure':
+			return 5;
+		default:
+			return 1;
+	}
 }
 
 async function runAll(filterTag) {
 	const targets = listTargets();
+	const results = [];
 	for (const name of targets) {
 		const t = loadTarget(name);
 		if (filterTag && !(t.tags ?? []).includes(filterTag)) continue;
-		await runTarget(name);
+		const r = await runTarget(name);
+		results.push(r);
 	}
+	return results;
 }
 
 function cmdList() {
@@ -515,34 +544,47 @@ async function main() {
 	const [, , cmd, ...rest] = process.argv;
 	switch (cmd) {
 		case 'list':
-			return cmdList();
+			cmdList();
+			return 0;
 		case 'run': {
 			const name = rest[0];
 			if (!name) {
 				console.error('usage: ecosystem-ci run <target>');
-				process.exit(64);
+				return 64;
 			}
-			return runTarget(name);
+			const result = await runTarget(name);
+			return exitCodeForResult(result);
 		}
 		case 'run-all': {
 			let tag = null;
 			const i = rest.indexOf('--tag');
 			if (i >= 0) tag = rest[i + 1];
-			return runAll(tag);
+			const results = await runAll(tag);
+			// run-all surfaces non-zero exit if any target wasn't a clean pass.
+			const worst = (results ?? []).reduce(
+				(acc, r) => Math.max(acc, exitCodeForResult(r)),
+				0,
+			);
+			return worst;
 		}
 		case 'report':
-			return cmdReport();
+			cmdReport();
+			return 0;
 		case 'poll':
-			return cmdPoll();
+			await cmdPoll();
+			return 0;
 		default:
 			console.error(
 				'usage: ecosystem-ci [list | run <target> | run-all [--tag T] | report | poll]',
 			);
-			process.exit(64);
+			return 64;
 	}
 }
 
-main().catch((e) => {
-	console.error(e);
-	process.exit(1);
-});
+main().then(
+	(code) => process.exit(code ?? 0),
+	(e) => {
+		console.error(e);
+		process.exit(1);
+	},
+);

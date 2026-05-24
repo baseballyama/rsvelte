@@ -119,7 +119,11 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload phase logs
-        if: failure()
+        # Always upload — success paths can still have useful diagnostic
+        # output (e.g. baseline build that ran in 1.3s and silently
+        # produced an empty node_modules, which only surfaces if you can
+        # read the install log).
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: logs-${{ matrix.target }}
