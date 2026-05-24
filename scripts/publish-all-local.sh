@@ -93,6 +93,54 @@ if ! npm whoami >/dev/null 2>&1; then
 fi
 log "npm user: $(npm whoami)"
 
+# Make sure the auth credential is an automation token (or 2FA is set to
+# "Authorization only"), otherwise the run will pause for an interactive
+# OTP prompt at every one of the ~14 publishes below — 14 OTPs, each
+# valid for 30 seconds, single-use. Fail fast here with actionable
+# remediation instead.
+have_authtoken_in_npmrc() {
+  # Look for `//registry.npmjs.org/:_authToken=...` in either user or
+  # project npmrc. Token auth bypasses 2FA-writes prompts entirely.
+  ( [ -f "$HOME/.npmrc" ] && grep -q '^//registry\.npmjs\.org/:_authToken=' "$HOME/.npmrc" ) || \
+  ( [ -f "$REPO_ROOT/.npmrc" ] && grep -q '^//registry\.npmjs\.org/:_authToken=' "$REPO_ROOT/.npmrc" )
+}
+npm_2fa_mode_blocks_writes() {
+  # npm profile → tfa.mode: "auth-and-writes" prompts OTP on every
+  # publish; "auth-only" does not; missing/null means 2FA is off.
+  local mode
+  mode="$(npm profile get tfa --json 2>/dev/null | jq -r '.mode // ""')"
+  [ "$mode" = "auth-and-writes" ]
+}
+if ! have_authtoken_in_npmrc && npm_2fa_mode_blocks_writes; then
+  cat >&2 <<EOF
+
+  ✗ npm 2FA is set to "Authorization and writes" mode AND no automation
+    token is configured in ~/.npmrc. The script publishes ~14 packages
+    back-to-back; without a token you'd be prompted for a fresh OTP
+    every single publish — 14 OTPs, each single-use, each valid for 30
+    seconds. The run would stall on the first publish waiting for input.
+
+  Pick one of the two fixes below and re-run. Both take under a minute:
+
+  [A] Create an automation/granular token (recommended — bypasses 2FA):
+      1) Open https://www.npmjs.com/settings/$(npm whoami)/tokens/new
+      2) "Granular Access Token", scope to @rsvelte/*, "Read and write".
+      3) Append to ~/.npmrc:
+           //registry.npmjs.org/:_authToken=npm_XXXXXXXXXXXX
+
+  [B] Switch 2FA to "Authorization only" (no token needed):
+      Open https://www.npmjs.com/settings/$(npm whoami)/profile
+      → "Two-Factor Authentication" → change mode to "Authorization only"
+
+EOF
+  die "blocking on npm 2FA configuration — see above"
+fi
+if have_authtoken_in_npmrc; then
+  log "npm auth: automation token (no OTP prompts)"
+else
+  log "npm auth: 2FA in \"Authorization only\" mode (no per-publish OTP)"
+fi
+
 # `cargo-zigbuild` + `zig` for Linux cross-compile targets. `cross`'s
 # rustup-host probe doesn't survive on macOS hosts (it tries to install
 # a host-side `stable-x86_64-unknown-linux-gnu` toolchain, which rustup
