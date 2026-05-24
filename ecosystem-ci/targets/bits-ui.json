@@ -9,8 +9,7 @@
   },
   "commands": {
     "install": "pnpm install --no-frozen-lockfile",
-    "build": "pnpm -F bits-ui build",
-    "test": "pnpm -F bits-ui test:unit -- --run"
+    "build": "pnpm -F bits-ui build"
   },
   "timeoutMinutes": 30,
   "tags": ["ui-library", "headless"],

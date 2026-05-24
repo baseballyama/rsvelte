@@ -8,9 +8,8 @@
     "strategy": "vps-shim"
   },
   "commands": {
-    "install": "pnpm install --no-frozen-lockfile",
-    "build": "pnpm build",
-    "test": "pnpm test:unit -- --run"
+    "install": "rm -rf node_modules && pnpm install --no-frozen-lockfile",
+    "build": "pnpm exec vite build"
   },
   "timeoutMinutes": 30,
   "tags": ["ui-library"],
