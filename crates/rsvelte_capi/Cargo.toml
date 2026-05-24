@@ -1,0 +1,30 @@
+[package]
+name = "rsvelte_capi"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "C ABI bindings for the rsvelte Svelte compiler"
+license = "MIT"
+
+[lib]
+# rlib is required so integration tests can `use rsvelte_capi::*`.
+# cdylib/staticlib are the FFI artifacts downstream wrappers consume.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+svelte-compiler-rust = { path = "../..", default-features = false, features = ["native"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[dev-dependencies]
+cbindgen = "0.29"
+serde_json = "1.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "abort"
