@@ -121,9 +121,13 @@ const TEST_CATEGORIES = [
 	'validator/samples',
 ];
 
-// How many iterations to run for accurate timing
-const WARMUP_ITERATIONS = 1;
-const BENCHMARK_ITERATIONS = 3;
+// How many iterations to run for accurate timing.
+// Override via env vars when you need tighter error bars — e.g. when
+// publishing `docs/static/benchmark-results.json`, run with
+// `BENCHMARK_WARMUP=3 BENCHMARK_ITERATIONS=10 node scripts/run-benchmark.mjs`
+// so per-run jitter (mostly JS-side V8 inlining warmup) is averaged out.
+const WARMUP_ITERATIONS = Number(process.env.BENCHMARK_WARMUP ?? 1);
+const BENCHMARK_ITERATIONS = Number(process.env.BENCHMARK_ITERATIONS ?? 3);
 
 /**
  * Recursively find all .svelte files in a directory
