@@ -54,6 +54,25 @@ step() {
   "$@"
 }
 
+# Publish a workspace package only if `<name>@<version>` isn't already on
+# the registry. Keeps the whole script re-runnable: a failure on package
+# N doesn't force the operator to manually skip the N-1 already-published
+# packages on retry.
+#
+# Usage: publish_if_new <package-directory>
+publish_if_new() {
+  local dir="$1"
+  local pkg_name pkg_version
+  pkg_name="$(jq -r .name "$dir/package.json")"
+  pkg_version="$(jq -r .version "$dir/package.json")"
+  if npm view "${pkg_name}@${pkg_version}" version >/dev/null 2>&1; then
+    log "  ↻ ${pkg_name}@${pkg_version} already on npm — skipping"
+    return 0
+  fi
+  log "  ▲ publishing ${pkg_name}@${pkg_version}"
+  (cd "$dir" && pnpm publish --access public --no-git-checks)
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Pre-flight
 # ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +85,7 @@ need cargo
 need rustup
 need git
 need jq
-need docker
+need brew
 
 # npm auth — `pnpm publish` reads ~/.npmrc, so the user must have logged in.
 if ! npm whoami >/dev/null 2>&1; then
@@ -74,16 +93,18 @@ if ! npm whoami >/dev/null 2>&1; then
 fi
 log "npm user: $(npm whoami)"
 
-# Docker daemon must be running for `cross`.
-if ! docker info >/dev/null 2>&1; then
-  die "docker is installed but the daemon is not running. start Docker Desktop."
+# `cargo-zigbuild` + `zig` for Linux cross-compile targets. `cross`'s
+# rustup-host probe doesn't survive on macOS hosts (it tries to install
+# a host-side `stable-x86_64-unknown-linux-gnu` toolchain, which rustup
+# can't materialise on Darwin and fails the whole flow). `zigbuild`
+# uses Zig as the linker — no Docker, no host-toolchain dance.
+if ! command -v zig >/dev/null 2>&1; then
+  log "installing zig via Homebrew (one-time)…"
+  brew install zig
 fi
-
-# `cross` is the cleanest path for Linux cross-compile targets (it spins up
-# pre-built Docker images with the right cross toolchains).
-if ! command -v cross >/dev/null 2>&1; then
-  log "installing cross (one-time)…"
-  cargo install cross --locked
+if ! command -v cargo-zigbuild >/dev/null 2>&1; then
+  log "installing cargo-zigbuild (one-time)…"
+  cargo install cargo-zigbuild --locked
 fi
 
 # `cargo-xwin` for Windows MSVC cross-compile. First run will download the
@@ -126,14 +147,19 @@ log "═════════════════════════
 step "sync version (npm/compiler/package.json → Cargo.toml/.lock)" \
   pnpm run sync-version
 
-step "wasm-pack build" \
-  pnpm run build:wasm
+# Build the WASM bundle only if pkg/ doesn't already reflect the current
+# compiler version. Re-runs after a successful build skip the slow step.
+COMPILER_VERSION="$(jq -r .version npm/compiler/package.json)"
+if [ ! -f pkg/package.json ] || [ "$(jq -r .version pkg/package.json 2>/dev/null || echo '')" != "$COMPILER_VERSION" ]; then
+  step "wasm-pack build" \
+    pnpm run build:wasm
+  step "finalize pkg/package.json as @rsvelte/compiler" \
+    pnpm run finalize-pkg
+else
+  log "↻ pkg/package.json already at $COMPILER_VERSION — skipping wasm rebuild"
+fi
 
-step "finalize pkg/package.json as @rsvelte/compiler" \
-  pnpm run finalize-pkg
-
-step "publish pkg/" \
-  bash -c 'cd pkg && pnpm publish --access public --no-git-checks'
+publish_if_new pkg
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 2: @rsvelte/svelte2tsx (pure JS)
@@ -144,8 +170,7 @@ log "═════════════════════════
 log " Phase 2/6: @rsvelte/svelte2tsx"
 log "═════════════════════════════════════════════════════════════════════"
 
-step "publish npm/svelte2tsx" \
-  bash -c 'cd npm/svelte2tsx && pnpm publish --access public --no-git-checks'
+publish_if_new npm/svelte2tsx
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 3: build native binaries for 5 triples (svelte-check + vps-native)
@@ -156,8 +181,9 @@ log "═════════════════════════
 log " Phase 3/6: cross-build native binaries (10 builds: 2 crates × 5 triples)"
 log "═════════════════════════════════════════════════════════════════════"
 
-# Build command selector — native cargo for darwin (we're on macOS), `cross`
-# for Linux, `cargo xwin` for Windows MSVC.
+# Build command selector — native cargo for darwin (we're on macOS),
+# `cargo zigbuild` for Linux (uses Zig as the cross linker, no Docker),
+# `cargo xwin` for Windows MSVC.
 build_for_target() {
   local triple="$1"   # e.g. "darwin-arm64"
   local target="$2"   # e.g. "aarch64-apple-darwin"
@@ -170,8 +196,11 @@ build_for_target() {
     x86_64-pc-windows-msvc)
       cargo xwin build --release --target="$target" "${crate_args[@]}"
       ;;
+    *-unknown-linux-gnu)
+      cargo zigbuild --release --target="$target" "${crate_args[@]}"
+      ;;
     *)
-      cross build --release --target="$target" "${crate_args[@]}"
+      die "unsupported cross target: $target"
       ;;
   esac
 }
@@ -194,30 +223,57 @@ dylib_for() {
   esac
 }
 
+# Returns 0 iff <name>@<version> from the given package.json is already
+# on the npm registry — used to skip the expensive cross-build entirely
+# when both per-triple packages for this target are already published.
+is_published() {
+  local dir="$1"
+  local pkg_name pkg_version
+  pkg_name="$(jq -r .name "$dir/package.json")"
+  pkg_version="$(jq -r .version "$dir/package.json")"
+  npm view "${pkg_name}@${pkg_version}" version >/dev/null 2>&1
+}
+
 # Stage outputs into the per-triple package directories.
 for entry in "${TRIPLES[@]}"; do
   triple="${entry%%:*}"
   target="${entry##*:}"
+  sc_dir="$REPO_ROOT/npm/svelte-check-$triple"
+  vps_dir="$REPO_ROOT/npm/vite-plugin-svelte-native-$triple"
+
+  # Skip the whole triple if both per-triple packages are already on npm
+  # AT the local version. Saves ~3-10 min of cross-compile per triple.
+  if is_published "$sc_dir" && is_published "$vps_dir"; then
+    log "↻ $triple — both packages already published; skipping build"
+    continue
+  fi
+
   log "─── building $triple ($target) ───"
 
   # svelte-check binary
-  step "  svelte_check ($triple)" \
-    build_for_target "$triple" "$target" --bin svelte_check
-  sc_bin="$(sc_binary_for "$target")"
-  sc_dest_dir="$REPO_ROOT/npm/svelte-check-$triple"
-  sc_dest="$sc_dest_dir/$sc_bin"
-  cp "target/$target/release/$sc_bin" "$sc_dest"
-  [[ "$sc_bin" == *.exe ]] || chmod 755 "$sc_dest"
-  log "  staged $sc_dest ($(stat -f %z "$sc_dest" 2>/dev/null || stat -c %s "$sc_dest") bytes)"
+  if is_published "$sc_dir"; then
+    log "  ↻ @rsvelte/svelte-check-$triple already published; skipping svelte_check build"
+  else
+    step "  svelte_check ($triple)" \
+      build_for_target "$triple" "$target" --bin svelte_check
+    sc_bin="$(sc_binary_for "$target")"
+    sc_dest="$sc_dir/$sc_bin"
+    cp "target/$target/release/$sc_bin" "$sc_dest"
+    [[ "$sc_bin" == *.exe ]] || chmod 755 "$sc_dest"
+    log "  staged $sc_dest ($(stat -f %z "$sc_dest" 2>/dev/null || stat -c %s "$sc_dest") bytes)"
+  fi
 
   # NAPI cdylib for vps-native
-  step "  napi cdylib ($triple)" \
-    build_for_target "$triple" "$target" --lib --features napi
-  vps_dylib="$(dylib_for "$target")"
-  vps_dest_dir="$REPO_ROOT/npm/vite-plugin-svelte-native-$triple"
-  vps_dest="$vps_dest_dir/rsvelte.node"
-  cp "target/$target/release/$vps_dylib" "$vps_dest"
-  log "  staged $vps_dest ($(stat -f %z "$vps_dest" 2>/dev/null || stat -c %s "$vps_dest") bytes)"
+  if is_published "$vps_dir"; then
+    log "  ↻ @rsvelte/vite-plugin-svelte-native-$triple already published; skipping napi build"
+  else
+    step "  napi cdylib ($triple)" \
+      build_for_target "$triple" "$target" --lib --features napi
+    vps_dylib="$(dylib_for "$target")"
+    vps_dest="$vps_dir/rsvelte.node"
+    cp "target/$target/release/$vps_dylib" "$vps_dest"
+    log "  staged $vps_dest ($(stat -f %z "$vps_dest" 2>/dev/null || stat -c %s "$vps_dest") bytes)"
+  fi
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -231,12 +287,10 @@ log "═════════════════════════
 
 for entry in "${TRIPLES[@]}"; do
   triple="${entry%%:*}"
-  step "publish @rsvelte/svelte-check-$triple" \
-    bash -c "cd npm/svelte-check-$triple && pnpm publish --access public --no-git-checks"
+  publish_if_new "npm/svelte-check-$triple"
 done
 
-step "publish @rsvelte/svelte-check (loader)" \
-  bash -c 'cd npm/svelte-check && pnpm publish --access public --no-git-checks'
+publish_if_new npm/svelte-check
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 5: publish vps-native (platforms first, then loader)
@@ -249,12 +303,10 @@ log "═════════════════════════
 
 for entry in "${TRIPLES[@]}"; do
   triple="${entry%%:*}"
-  step "publish @rsvelte/vite-plugin-svelte-native-$triple" \
-    bash -c "cd npm/vite-plugin-svelte-native-$triple && pnpm publish --access public --no-git-checks"
+  publish_if_new "npm/vite-plugin-svelte-native-$triple"
 done
 
-step "publish @rsvelte/vite-plugin-svelte-native (loader)" \
-  bash -c 'cd npm/vite-plugin-svelte-native && pnpm publish --access public --no-git-checks'
+publish_if_new npm/vite-plugin-svelte-native
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 6: submodule — @rsvelte/vite-plugin-svelte (JS shim)
@@ -271,47 +323,67 @@ log "═════════════════════════
 SUBMODULE_PATH="submodules/vite-plugin-svelte"
 SHIM_DIR="$SUBMODULE_PATH/packages/vite-plugin-svelte"
 
-# Make sure we're on the `rsvelte` branch (the submodule is checked out
-# at a detached HEAD by default).
-log "switching submodule to rsvelte branch"
-(cd "$SUBMODULE_PATH" && git checkout rsvelte && git pull origin rsvelte --ff-only)
+# Skip the whole submodule dance if VPS_VERSION is already published.
+if npm view "@rsvelte/vite-plugin-svelte@$VPS_VERSION" version >/dev/null 2>&1; then
+  log "↻ @rsvelte/vite-plugin-svelte@$VPS_VERSION already on npm — skipping submodule publish"
+else
+  # Make sure we're on the `rsvelte` branch (the submodule is checked out
+  # at a detached HEAD by default). `checkout` is idempotent on a branch
+  # we're already on.
+  log "switching submodule to rsvelte branch"
+  (cd "$SUBMODULE_PATH" && git checkout rsvelte && git pull origin rsvelte --ff-only)
 
-# Bump version + pin dependency floors to what we just published. The shim's
-# package.json already names @rsvelte/vite-plugin-svelte-native and
-# @rsvelte/compiler in dependencies; we just patch the version specifiers.
-log "patching $SHIM_DIR/package.json to v$VPS_VERSION"
-SHIM_PKG="$SHIM_DIR/package.json"
-COMPILER_VERSION="$(jq -r .version "$REPO_ROOT/npm/compiler/package.json")"
-VPS_NATIVE_VERSION="$(jq -r .version "$REPO_ROOT/npm/vite-plugin-svelte-native/package.json")"
-jq \
-  --arg v       "$VPS_VERSION" \
-  --arg compv   ">=$COMPILER_VERSION" \
-  --arg natv    ">=$VPS_NATIVE_VERSION" \
-  '.version = $v
-   | .dependencies["@rsvelte/compiler"] = $compv
-   | .dependencies["@rsvelte/vite-plugin-svelte-native"] = $natv' \
-  "$SHIM_PKG" > "$SHIM_PKG.tmp" && mv "$SHIM_PKG.tmp" "$SHIM_PKG"
+  # Bump version + pin dependency floors to what we just published. The shim's
+  # package.json already names @rsvelte/vite-plugin-svelte-native and
+  # @rsvelte/compiler in dependencies; we just patch the version specifiers.
+  # `jq` rewrite is idempotent — if the file is already at the target shape,
+  # `git diff --quiet` later short-circuits the commit step.
+  log "patching $SHIM_DIR/package.json to v$VPS_VERSION"
+  SHIM_PKG="$SHIM_DIR/package.json"
+  COMPILER_VERSION="$(jq -r .version "$REPO_ROOT/npm/compiler/package.json")"
+  VPS_NATIVE_VERSION="$(jq -r .version "$REPO_ROOT/npm/vite-plugin-svelte-native/package.json")"
+  jq \
+    --arg v       "$VPS_VERSION" \
+    --arg compv   ">=$COMPILER_VERSION" \
+    --arg natv    ">=$VPS_NATIVE_VERSION" \
+    '.version = $v
+     | .dependencies["@rsvelte/compiler"] = $compv
+     | .dependencies["@rsvelte/vite-plugin-svelte-native"] = $natv' \
+    "$SHIM_PKG" > "$SHIM_PKG.tmp" && mv "$SHIM_PKG.tmp" "$SHIM_PKG"
 
-step "install submodule shim deps" \
-  bash -c "cd '$SHIM_DIR' && pnpm install --no-frozen-lockfile"
+  step "install submodule shim deps" \
+    bash -c "cd '$SHIM_DIR' && pnpm install --no-frozen-lockfile"
 
-step "generate shim types" \
-  bash -c "cd '$SHIM_DIR' && pnpm run check:types && pnpm run generate:types || true"
+  step "generate shim types" \
+    bash -c "cd '$SHIM_DIR' && pnpm run check:types && pnpm run generate:types || true"
 
-step "publish @rsvelte/vite-plugin-svelte" \
-  bash -c "cd '$SHIM_DIR' && pnpm publish --access public --no-git-checks"
+  step "publish @rsvelte/vite-plugin-svelte" \
+    bash -c "cd '$SHIM_DIR' && pnpm publish --access public --no-git-checks"
 
-# Commit the version bump in the submodule and push it.
-log "committing version bump in submodule"
-(cd "$SUBMODULE_PATH"
-  git add packages/vite-plugin-svelte/package.json
-  git commit -m "chore(release): @rsvelte/vite-plugin-svelte $VPS_VERSION"
-  git push origin rsvelte)
+  # Commit + push the version bump in the submodule. Both steps are
+  # no-ops if there's nothing new to commit / nothing new to push, which
+  # is exactly what we want on a re-run after a partial failure.
+  log "committing version bump in submodule"
+  (cd "$SUBMODULE_PATH"
+    git add packages/vite-plugin-svelte/package.json
+    if ! git diff --cached --quiet; then
+      git commit -m "chore(release): @rsvelte/vite-plugin-svelte $VPS_VERSION"
+    else
+      log "  ↻ no submodule changes to commit"
+    fi
+    git push origin rsvelte || log "  ↻ submodule push: nothing to push"
+  )
 
-# Bump the submodule pointer in the parent repo so the new SHA is what
-# everyone else's checkout uses.
-git add "$SUBMODULE_PATH"
-git commit -m "chore: bump vite-plugin-svelte submodule to $VPS_VERSION" || true
+  # Bump the submodule pointer in the parent repo so the new SHA is what
+  # everyone else's checkout uses. `git diff --cached --quiet` skips the
+  # commit on re-runs where the pointer is already up to date.
+  git add "$SUBMODULE_PATH"
+  if ! git diff --cached --quiet -- "$SUBMODULE_PATH"; then
+    git commit -m "chore: bump vite-plugin-svelte submodule to $VPS_VERSION"
+  else
+    log "↻ submodule pointer already up to date in parent repo"
+  fi
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Done
