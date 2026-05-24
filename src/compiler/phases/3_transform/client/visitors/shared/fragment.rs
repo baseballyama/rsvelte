@@ -275,8 +275,10 @@ pub fn process_children<F>(
     let mut prev: SiblingPrev<F> = SiblingPrev::Initial(initial);
     let mut skipped = 0usize;
 
-    // Sequence of Text/ExpressionTag nodes - pre-allocate with a reasonable capacity
-    let mut sequence: Vec<TextOrExpr> = Vec::new();
+    // Sequence of Text/ExpressionTag nodes — pre-allocate for the common
+    // case (≤8 contiguous text/expression nodes per fragment) so we don't
+    // pay the Vec growth-and-reallocate cost on every push.
+    let mut sequence: Vec<TextOrExpr> = Vec::with_capacity(8);
 
     // SAFETY: Extract a reference to the arena that outlives the closures.
     // The arena uses UnsafeCell internally and only appends, so holding a
@@ -290,8 +292,11 @@ pub fn process_children<F>(
             return prev_fn.call(is_text);
         }
 
+        // `$.sibling(...)` takes at most 3 args. Pre-allocate with that
+        // capacity so the two subsequent pushes never grow the Vec.
         let prev_expr = prev_fn.call(false);
-        let mut args = vec![prev_expr];
+        let mut args = Vec::with_capacity(3);
+        args.push(prev_expr);
 
         if is_text || skip_count != 1 {
             args.push(b::number(skip_count as f64));
@@ -419,7 +424,7 @@ pub fn process_children<F>(
                 // Flush any pending sequence
                 if !sequence.is_empty() {
                     flush_sequence(sequence, &mut prev, &mut skipped, context);
-                    sequence = Vec::new();
+                    sequence = Vec::with_capacity(8);
                 }
 
                 // Visit the const tag to generate its declarations
@@ -430,7 +435,7 @@ pub fn process_children<F>(
                 // Flush any pending sequence
                 if !sequence.is_empty() {
                     flush_sequence(sequence, &mut prev, &mut skipped, context);
-                    sequence = Vec::new();
+                    sequence = Vec::with_capacity(8);
                 }
 
                 if is_static_element(node, &context.state) {
