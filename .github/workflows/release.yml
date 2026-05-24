@@ -166,8 +166,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      # npm OIDC trusted publishing requires npm >= 11.5.1. Node 22 ships an
+      # older bundled npm, so pin to a known-good version that supports
+      # `npm publish` against a Trusted Publisher with no NPM_TOKEN.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -192,14 +198,13 @@ jobs:
       - name: Stage vps-native binaries
         run: pnpm run stage-vps-native
 
-      # changesets/action runs `pnpm publish` via the `publish` script when no
-      # changesets remain on main. pnpm authenticates against npmjs.org from
-      # ~/.npmrc, so we write the token there before the action runs.
-      - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
+      # Authentication: every publish in this job (changesets/action's
+      # `changeset publish`, and the bare `npm publish` in
+      # publish-platform-binaries.mjs) goes through npm OIDC trusted
+      # publishing. Each @rsvelte package needs a Trusted Publisher config
+      # on npmjs.com pointing at this repo + workflow. No NPM_TOKEN is set
+      # on purpose — writing an empty token to ~/.npmrc silently disables
+      # the OIDC fallback.
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
@@ -217,4 +222,3 @@ jobs:
           title: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
