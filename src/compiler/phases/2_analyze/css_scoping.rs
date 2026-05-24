@@ -1322,10 +1322,20 @@ fn mark_elements_in_fragment(
         process_node_scoping(node, css_selectors, ancestors, snippet_ancestors);
     }
 
-    // Second pass: handle sibling combinators
-    // This needs to find all elements that could be siblings (including across block boundaries)
-    // and mark matching ones as scoped.
-    process_sibling_selectors(fragment, css_selectors, ancestors, snippet_ancestors);
+    // Second pass: handle sibling combinators.
+    // Pre-compute the sibling-combinator subset once so the recursive
+    // walk doesn't re-filter on every fragment.
+    let sibling_selectors: Vec<&CssComplexSelector> = css_selectors
+        .iter()
+        .filter(|s| has_sibling_combinator(s))
+        .collect();
+    process_sibling_selectors(
+        fragment,
+        css_selectors,
+        &sibling_selectors,
+        ancestors,
+        snippet_ancestors,
+    );
 
     // Third pass: propagate scoping to ancestor elements
     propagate_ancestor_scoping(fragment, css_selectors, ancestors, snippet_ancestors);
@@ -1474,20 +1484,16 @@ struct PathSegment<'a> {
 fn process_sibling_selectors(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) {
-    let sibling_selectors: Vec<&CssComplexSelector> = css_selectors
-        .iter()
-        .filter(|s| has_sibling_combinator(s))
-        .collect();
-
     if !sibling_selectors.is_empty() {
         // Phase 1: Collect elements to scope (immutable)
         let mut elements_to_scope: FxHashSet<(u32, u32)> = FxHashSet::default();
         collect_sibling_scoping(
             fragment,
-            &sibling_selectors,
+            sibling_selectors,
             ancestors,
             &[],
             &mut elements_to_scope,
@@ -1500,7 +1506,13 @@ fn process_sibling_selectors(
     }
 
     // Recurse into child elements for their own sibling handling
-    recurse_sibling_processing(fragment, css_selectors, ancestors, snippet_ancestors);
+    recurse_sibling_processing(
+        fragment,
+        css_selectors,
+        sibling_selectors,
+        ancestors,
+        snippet_ancestors,
+    );
 }
 
 /// Walk the tree immutably, finding all sibling relationships and recording which
@@ -2190,37 +2202,41 @@ fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &FxHashSet<(u
 fn recurse_sibling_processing(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) {
     for node in &mut fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {
                 let ei = ElementInfo::from_element(el);
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(ei);
+                ancestors.push(ei);
                 process_sibling_selectors(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    sibling_selectors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::SvelteElement(el) => {
                 let ei = ElementInfo::from_svelte_element(el);
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(ei);
+                ancestors.push(ei);
                 process_sibling_selectors(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    sibling_selectors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::Component(comp) => {
                 process_sibling_selectors(
                     &mut comp.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2229,17 +2245,25 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut if_block.consequent,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
                 if let Some(ref mut alt) = if_block.alternate {
-                    process_sibling_selectors(alt, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        alt,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
             }
             TemplateNode::EachBlock(each) => {
                 process_sibling_selectors(
                     &mut each.body,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2247,6 +2271,7 @@ fn recurse_sibling_processing(
                     process_sibling_selectors(
                         fallback,
                         css_selectors,
+                        sibling_selectors,
                         ancestors,
                         snippet_ancestors,
                     );
@@ -2254,19 +2279,38 @@ fn recurse_sibling_processing(
             }
             TemplateNode::AwaitBlock(await_block) => {
                 if let Some(ref mut pending) = await_block.pending {
-                    process_sibling_selectors(pending, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        pending,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
                 if let Some(ref mut then) = await_block.then {
-                    process_sibling_selectors(then, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        then,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
                 if let Some(ref mut catch) = await_block.catch {
-                    process_sibling_selectors(catch, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        catch,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
             }
             TemplateNode::KeyBlock(key) => {
                 process_sibling_selectors(
                     &mut key.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2278,10 +2322,16 @@ fn recurse_sibling_processing(
                     .and_then(|name| snippet_ancestors.get(name));
                 if let Some(chains) = render_site_chains {
                     for site_anc in chains {
+                        // Replace ancestors with the render-site chain.
+                        // Snippet bodies are processed once per render site,
+                        // and SnippetAncestorMap is per-name, so the chain
+                        // is small and the clone is bounded by snippet count.
+                        let mut chain = site_anc.clone();
                         process_sibling_selectors(
                             &mut snippet.body,
                             css_selectors,
-                            site_anc,
+                            sibling_selectors,
+                            &mut chain,
                             snippet_ancestors,
                         );
                     }
@@ -2289,6 +2339,7 @@ fn recurse_sibling_processing(
                     process_sibling_selectors(
                         &mut snippet.body,
                         css_selectors,
+                        sibling_selectors,
                         ancestors,
                         snippet_ancestors,
                     );
@@ -2298,6 +2349,7 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut head.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2306,6 +2358,7 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut slot.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2314,6 +2367,7 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut title.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2576,7 +2630,7 @@ fn element_is_ancestor_in_matching_selector(
 fn propagate_ancestor_scoping(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) {
     for node in &mut fragment.nodes {
@@ -2597,14 +2651,14 @@ fn propagate_ancestor_scoping(
                     });
                 }
 
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
+                ancestors.push(element_info);
                 propagate_ancestor_scoping(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::Component(comp) => {
                 propagate_ancestor_scoping(
@@ -2672,10 +2726,14 @@ fn propagate_ancestor_scoping(
                     .and_then(|name| snippet_ancestors.get(name));
                 if let Some(chains) = render_site_chains {
                     for site_anc in chains {
+                        // Snippet bodies use the render-site ancestor chain
+                        // rather than the current one. Clone is bounded by the
+                        // (small) chain length and the snippet count.
+                        let mut chain = site_anc.clone();
                         propagate_ancestor_scoping(
                             &mut snippet.body,
                             css_selectors,
-                            site_anc,
+                            &mut chain,
                             snippet_ancestors,
                         );
                     }
@@ -2712,14 +2770,14 @@ fn propagate_ancestor_scoping(
                     });
                 }
 
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
+                ancestors.push(element_info);
                 propagate_ancestor_scoping(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::SlotElement(slot) => {
                 propagate_ancestor_scoping(
@@ -2747,18 +2805,23 @@ fn subtree_has_matching_subject(
     fragment: &Fragment,
     selector: &CssComplexSelector,
     ancestor_element: &ElementInfo,
-    outer_ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) -> bool {
-    let mut ancestors = outer_ancestors.to_vec();
+    // Push the immediate ancestor element onto the shared chain rather than
+    // cloning the entire chain. Clone of `ancestor_element` is unavoidable
+    // because the caller still owns it.
     ancestors.push(ancestor_element.clone());
-    subtree_has_matching_subject_inner(fragment, selector, &ancestors, snippet_ancestors)
+    let result =
+        subtree_has_matching_subject_inner(fragment, selector, ancestors, snippet_ancestors);
+    ancestors.pop();
+    result
 }
 
 fn subtree_has_matching_subject_inner(
     fragment: &Fragment,
     selector: &CssComplexSelector,
-    ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) -> bool {
     let effective = truncate_globals(&selector.children);
@@ -2779,14 +2842,15 @@ fn subtree_has_matching_subject_inner(
                 {
                     return true;
                 }
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
-                if subtree_has_matching_subject_inner(
+                ancestors.push(element_info);
+                let matched = subtree_has_matching_subject_inner(
                     &el.fragment,
                     selector,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
-                ) {
+                );
+                ancestors.pop();
+                if matched {
                     return true;
                 }
             }
@@ -2801,14 +2865,15 @@ fn subtree_has_matching_subject_inner(
                 {
                     return true;
                 }
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
-                if subtree_has_matching_subject_inner(
+                ancestors.push(element_info);
+                let matched = subtree_has_matching_subject_inner(
                     &el.fragment,
                     selector,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
-                ) {
+                );
+                ancestors.pop();
+                if matched {
                     return true;
                 }
             }
