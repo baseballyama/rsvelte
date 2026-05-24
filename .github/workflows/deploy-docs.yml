@@ -79,10 +79,11 @@ jobs:
       # NOTE: docs/static/benchmark-results.json is *not* regenerated on
       # every deploy — running the JS-vs-Rust benchmark added ~30 minutes
       # to each Pages publish for numbers that don't move per push.
-      # The committed JSON is the source of truth; refresh it via the
-      # manually-triggered `Refresh benchmark` workflow
-      # (.github/workflows/refresh-benchmark.yml), which opens a PR with
-      # the new file.
+      # The committed JSON is the source of truth; refresh it locally by
+      # running `node scripts/run-benchmark.mjs > docs/static/benchmark-results.json`
+      # on a machine with enough cores to exercise the multi-thread path
+      # (GitHub-hosted runners top out at low core counts, so they can't
+      # show the parallelism gains we care about), then commit the file.
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
