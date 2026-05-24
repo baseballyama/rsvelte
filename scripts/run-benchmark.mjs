@@ -16,7 +16,7 @@
 
 import { execSync, spawn, spawnSync } from 'child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'fs';
-import { arch as nodeArch, cpus, platform as nodePlatform, tmpdir } from 'os';
+import { arch as nodeArch, cpus, loadavg as osLoadAvg, platform as nodePlatform, tmpdir } from 'os';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -321,7 +321,15 @@ function getCommitSha() {
  */
 function getRunnerInfo() {
 	const cpuList = cpus();
-	const loadAvg = typeof process.loadavg === 'function' ? process.loadavg()[0] : null;
+	// `os.loadavg()` returns [1min, 5min, 15min] on Unix; on Windows it
+	// returns `[0, 0, 0]`. We only emit the 1-minute figure (the rest is
+	// rarely actionable for a benchmark run that takes <5min total).
+	let loadAvg = null;
+	try {
+		loadAvg = osLoadAvg()[0];
+	} catch {
+		loadAvg = null;
+	}
 	return {
 		label: process.env.BENCHMARK_RUNNER_LABEL || 'local',
 		os: nodePlatform(),
