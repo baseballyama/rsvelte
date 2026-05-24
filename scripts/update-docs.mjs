@@ -34,27 +34,33 @@ function getSvelteCommitHash() {
 	}
 }
 
-// Get the closest Svelte release tag for the submodule HEAD (e.g. "5.51.3")
+// Get the Svelte release version (e.g. "5.51.3"). We read the version field
+// from `packages/svelte/package.json` because CI checks out submodules with
+// shallow depth and no tags, so `git describe` can't resolve `svelte@<ver>`.
 function getSvelteVersion() {
+	try {
+		const pkgPath = path.join(
+			rootDir,
+			'submodules',
+			'svelte',
+			'packages',
+			'svelte',
+			'package.json'
+		);
+		const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+		if (pkg && typeof pkg.version === 'string') return pkg.version;
+	} catch {
+		// Fall through to git-describe.
+	}
 	try {
 		const result = execSync('git describe --tags --exact-match HEAD 2>/dev/null', {
 			cwd: path.join(rootDir, 'submodules', 'svelte'),
 			encoding: 'utf-8'
 		}).trim();
-		// Tag format is e.g. "svelte@5.51.3" — strip the prefix.
 		const match = /^svelte@(.+)$/.exec(result);
 		return match ? match[1] : result || 'unknown';
 	} catch {
-		// No exact tag — fall back to nearest tag with a -gSHORT suffix.
-		try {
-			const result = execSync('git describe --tags --always', {
-				cwd: path.join(rootDir, 'submodules', 'svelte'),
-				encoding: 'utf-8'
-			}).trim();
-			return result.replace(/^svelte@/, '');
-		} catch {
-			return 'unknown';
-		}
+		return 'unknown';
 	}
 }
 
