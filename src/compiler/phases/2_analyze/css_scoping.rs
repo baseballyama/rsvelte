@@ -283,13 +283,9 @@ fn sequence_possible_values(
 
 /// Info about a template element for CSS matching.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ElementInfo {
     pub tag_name: String,
     pub has_spread: bool,
-    pub classes: Vec<String>,
-    pub ids: Vec<String>,
-    pub has_dynamic_class: bool,
     /// Whether this is a dynamic element (<svelte:element>), which matches any type selector
     pub is_dynamic: bool,
     /// All attributes on the element (name, value pairs)
@@ -318,10 +314,7 @@ impl ElementInfo {
     ) -> Self {
         use template::Attribute;
 
-        let mut classes = Vec::new();
-        let mut ids = Vec::new();
         let mut has_spread = false;
-        let mut has_dynamic_class = false;
         let mut attr_pairs: Vec<(String, AttrValue)> = Vec::new();
         let mut bind_names = Vec::new();
         let mut has_style_directive = false;
@@ -348,41 +341,18 @@ impl ElementInfo {
                             }
                             if is_all_text && !static_parts.is_empty() {
                                 let full_value = static_parts.join("");
-                                attr_pairs.push((
-                                    attr_name.clone(),
-                                    AttrValue::Static(full_value.clone()),
-                                ));
-                                if attr_name == "class" {
-                                    for class in full_value.split_whitespace() {
-                                        classes.push(class.to_string());
-                                    }
-                                } else if attr_name == "id" {
-                                    ids.push(full_value);
-                                }
+                                attr_pairs.push((attr_name.clone(), AttrValue::Static(full_value)));
                             } else if attr_name == "class" {
-                                has_dynamic_class = true;
                                 // Try to compute possible values across all chunks, so
                                 // selectors like `.foo` can be pruned when `foo` isn't
                                 // a candidate token. Mirrors the official compiler's
                                 // `attribute_matches` logic in css-prune.js.
                                 if let Some(possible) = sequence_possible_values(parts, true) {
-                                    for value in &possible {
-                                        for class in value.split_whitespace() {
-                                            classes.push(class.to_string());
-                                        }
-                                    }
                                     attr_pairs.push((
                                         attr_name.clone(),
                                         AttrValue::PossibleValues(possible),
                                     ));
                                 } else {
-                                    for part in parts {
-                                        if let template::AttributeValuePart::Text(text) = part {
-                                            for class in text.data.split_whitespace() {
-                                                classes.push(class.to_string());
-                                            }
-                                        }
-                                    }
                                     attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                                 }
                             } else {
@@ -391,16 +361,9 @@ impl ElementInfo {
                         }
                         template::AttributeValue::Expression(expr_tag) => {
                             if attr_name == "class" {
-                                has_dynamic_class = true;
                                 if let Some(possible) =
                                     get_possible_class_values(&expr_tag.expression)
                                 {
-                                    // Extract class tokens from each possible value.
-                                    for value in &possible {
-                                        for class in value.split_whitespace() {
-                                            classes.push(class.to_string());
-                                        }
-                                    }
                                     attr_pairs.push((
                                         attr_name.clone(),
                                         AttrValue::PossibleValues(possible),
@@ -415,7 +378,6 @@ impl ElementInfo {
                     }
                 }
                 Attribute::ClassDirective(cd) => {
-                    classes.push(cd.name.to_string());
                     class_directive_names.push(cd.name.to_string());
                 }
                 Attribute::SpreadAttribute(_) => {
@@ -434,9 +396,6 @@ impl ElementInfo {
         Self {
             tag_name: tag_name.to_string(),
             has_spread,
-            classes,
-            ids,
-            has_dynamic_class,
             is_dynamic,
             attributes: attr_pairs,
             bind_names,
@@ -1363,10 +1322,20 @@ fn mark_elements_in_fragment(
         process_node_scoping(node, css_selectors, ancestors, snippet_ancestors);
     }
 
-    // Second pass: handle sibling combinators
-    // This needs to find all elements that could be siblings (including across block boundaries)
-    // and mark matching ones as scoped.
-    process_sibling_selectors(fragment, css_selectors, ancestors, snippet_ancestors);
+    // Second pass: handle sibling combinators.
+    // Pre-compute the sibling-combinator subset once so the recursive
+    // walk doesn't re-filter on every fragment.
+    let sibling_selectors: Vec<&CssComplexSelector> = css_selectors
+        .iter()
+        .filter(|s| has_sibling_combinator(s))
+        .collect();
+    process_sibling_selectors(
+        fragment,
+        css_selectors,
+        &sibling_selectors,
+        ancestors,
+        snippet_ancestors,
+    );
 
     // Third pass: propagate scoping to ancestor elements
     propagate_ancestor_scoping(fragment, css_selectors, ancestors, snippet_ancestors);
@@ -1515,20 +1484,16 @@ struct PathSegment<'a> {
 fn process_sibling_selectors(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) {
-    let sibling_selectors: Vec<&CssComplexSelector> = css_selectors
-        .iter()
-        .filter(|s| has_sibling_combinator(s))
-        .collect();
-
     if !sibling_selectors.is_empty() {
         // Phase 1: Collect elements to scope (immutable)
         let mut elements_to_scope: FxHashSet<(u32, u32)> = FxHashSet::default();
         collect_sibling_scoping(
             fragment,
-            &sibling_selectors,
+            sibling_selectors,
             ancestors,
             &[],
             &mut elements_to_scope,
@@ -1541,7 +1506,13 @@ fn process_sibling_selectors(
     }
 
     // Recurse into child elements for their own sibling handling
-    recurse_sibling_processing(fragment, css_selectors, ancestors, snippet_ancestors);
+    recurse_sibling_processing(
+        fragment,
+        css_selectors,
+        sibling_selectors,
+        ancestors,
+        snippet_ancestors,
+    );
 }
 
 /// Walk the tree immutably, finding all sibling relationships and recording which
@@ -2231,37 +2202,41 @@ fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &FxHashSet<(u
 fn recurse_sibling_processing(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    sibling_selectors: &[&CssComplexSelector],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) {
     for node in &mut fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {
                 let ei = ElementInfo::from_element(el);
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(ei);
+                ancestors.push(ei);
                 process_sibling_selectors(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    sibling_selectors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::SvelteElement(el) => {
                 let ei = ElementInfo::from_svelte_element(el);
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(ei);
+                ancestors.push(ei);
                 process_sibling_selectors(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    sibling_selectors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::Component(comp) => {
                 process_sibling_selectors(
                     &mut comp.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2270,17 +2245,25 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut if_block.consequent,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
                 if let Some(ref mut alt) = if_block.alternate {
-                    process_sibling_selectors(alt, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        alt,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
             }
             TemplateNode::EachBlock(each) => {
                 process_sibling_selectors(
                     &mut each.body,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2288,6 +2271,7 @@ fn recurse_sibling_processing(
                     process_sibling_selectors(
                         fallback,
                         css_selectors,
+                        sibling_selectors,
                         ancestors,
                         snippet_ancestors,
                     );
@@ -2295,19 +2279,38 @@ fn recurse_sibling_processing(
             }
             TemplateNode::AwaitBlock(await_block) => {
                 if let Some(ref mut pending) = await_block.pending {
-                    process_sibling_selectors(pending, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        pending,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
                 if let Some(ref mut then) = await_block.then {
-                    process_sibling_selectors(then, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        then,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
                 if let Some(ref mut catch) = await_block.catch {
-                    process_sibling_selectors(catch, css_selectors, ancestors, snippet_ancestors);
+                    process_sibling_selectors(
+                        catch,
+                        css_selectors,
+                        sibling_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                    );
                 }
             }
             TemplateNode::KeyBlock(key) => {
                 process_sibling_selectors(
                     &mut key.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2319,10 +2322,16 @@ fn recurse_sibling_processing(
                     .and_then(|name| snippet_ancestors.get(name));
                 if let Some(chains) = render_site_chains {
                     for site_anc in chains {
+                        // Replace ancestors with the render-site chain.
+                        // Snippet bodies are processed once per render site,
+                        // and SnippetAncestorMap is per-name, so the chain
+                        // is small and the clone is bounded by snippet count.
+                        let mut chain = site_anc.clone();
                         process_sibling_selectors(
                             &mut snippet.body,
                             css_selectors,
-                            site_anc,
+                            sibling_selectors,
+                            &mut chain,
                             snippet_ancestors,
                         );
                     }
@@ -2330,6 +2339,7 @@ fn recurse_sibling_processing(
                     process_sibling_selectors(
                         &mut snippet.body,
                         css_selectors,
+                        sibling_selectors,
                         ancestors,
                         snippet_ancestors,
                     );
@@ -2339,6 +2349,7 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut head.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2347,6 +2358,7 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut slot.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2355,6 +2367,7 @@ fn recurse_sibling_processing(
                 process_sibling_selectors(
                     &mut title.fragment,
                     css_selectors,
+                    sibling_selectors,
                     ancestors,
                     snippet_ancestors,
                 );
@@ -2617,7 +2630,7 @@ fn element_is_ancestor_in_matching_selector(
 fn propagate_ancestor_scoping(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
-    ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) {
     for node in &mut fragment.nodes {
@@ -2638,14 +2651,14 @@ fn propagate_ancestor_scoping(
                     });
                 }
 
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
+                ancestors.push(element_info);
                 propagate_ancestor_scoping(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::Component(comp) => {
                 propagate_ancestor_scoping(
@@ -2713,10 +2726,14 @@ fn propagate_ancestor_scoping(
                     .and_then(|name| snippet_ancestors.get(name));
                 if let Some(chains) = render_site_chains {
                     for site_anc in chains {
+                        // Snippet bodies use the render-site ancestor chain
+                        // rather than the current one. Clone is bounded by the
+                        // (small) chain length and the snippet count.
+                        let mut chain = site_anc.clone();
                         propagate_ancestor_scoping(
                             &mut snippet.body,
                             css_selectors,
-                            site_anc,
+                            &mut chain,
                             snippet_ancestors,
                         );
                     }
@@ -2753,14 +2770,14 @@ fn propagate_ancestor_scoping(
                     });
                 }
 
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
+                ancestors.push(element_info);
                 propagate_ancestor_scoping(
                     &mut el.fragment,
                     css_selectors,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
                 );
+                ancestors.pop();
             }
             TemplateNode::SlotElement(slot) => {
                 propagate_ancestor_scoping(
@@ -2788,18 +2805,23 @@ fn subtree_has_matching_subject(
     fragment: &Fragment,
     selector: &CssComplexSelector,
     ancestor_element: &ElementInfo,
-    outer_ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) -> bool {
-    let mut ancestors = outer_ancestors.to_vec();
+    // Push the immediate ancestor element onto the shared chain rather than
+    // cloning the entire chain. Clone of `ancestor_element` is unavoidable
+    // because the caller still owns it.
     ancestors.push(ancestor_element.clone());
-    subtree_has_matching_subject_inner(fragment, selector, &ancestors, snippet_ancestors)
+    let result =
+        subtree_has_matching_subject_inner(fragment, selector, ancestors, snippet_ancestors);
+    ancestors.pop();
+    result
 }
 
 fn subtree_has_matching_subject_inner(
     fragment: &Fragment,
     selector: &CssComplexSelector,
-    ancestors: &[ElementInfo],
+    ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
 ) -> bool {
     let effective = truncate_globals(&selector.children);
@@ -2820,14 +2842,15 @@ fn subtree_has_matching_subject_inner(
                 {
                     return true;
                 }
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
-                if subtree_has_matching_subject_inner(
+                ancestors.push(element_info);
+                let matched = subtree_has_matching_subject_inner(
                     &el.fragment,
                     selector,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
-                ) {
+                );
+                ancestors.pop();
+                if matched {
                     return true;
                 }
             }
@@ -2842,14 +2865,15 @@ fn subtree_has_matching_subject_inner(
                 {
                     return true;
                 }
-                let mut new_ancestors = ancestors.to_vec();
-                new_ancestors.push(element_info);
-                if subtree_has_matching_subject_inner(
+                ancestors.push(element_info);
+                let matched = subtree_has_matching_subject_inner(
                     &el.fragment,
                     selector,
-                    &new_ancestors,
+                    ancestors,
                     snippet_ancestors,
-                ) {
+                );
+                ancestors.pop();
+                if matched {
                     return true;
                 }
             }

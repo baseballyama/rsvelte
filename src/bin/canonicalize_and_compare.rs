@@ -311,46 +311,6 @@ fn collapse_ws_in_template_interpolations(code: &str) -> String {
     out
 }
 
-#[allow(dead_code)]
-fn canonicalize(code: &str) -> String {
-    let allocator = Allocator::new();
-    let source_type = SourceType::mjs();
-    let parsed = Parser::new(&allocator, code, source_type).parse();
-    if parsed.panicked || !parsed.errors.is_empty() {
-        // On parse failure, normalize whitespace heavily so that two inputs
-        // that only differ in formatting still compare equal.
-        return normalize_whitespace_and_quotes(code);
-    }
-    let options = CodegenOptions {
-        single_quote: true,
-        comments: CommentOptions {
-            normal: false,
-            jsdoc: false,
-            annotation: false,
-            legal: LegalComment::None,
-        },
-        ..Default::default()
-    };
-    let out = Codegen::new()
-        .with_options(options)
-        .build(&parsed.program)
-        .code
-        .trim()
-        .to_string();
-
-    // OXC's `single_quote: true` doesn't always normalize import-source string
-    // literals (it leaves the original quote style for some imports). We
-    // post-process to convert any remaining double-quoted import sources to
-    // single quotes so that two semantically-equal files with different quote
-    // styles compare equal.
-    let out = normalize_import_quotes(&out);
-
-    // Normalize consecutive whitespace inside template literals to a single space.
-    // This handles differences like `/>  <meta` vs `/> <meta` caused by comment
-    // removal and whitespace collapsing differences between compilers.
-    normalize_template_literal_whitespace(&out)
-}
-
 /// On parse-failure fallback: normalize whitespace (collapse runs, unify
 /// indentation) and import quote style so that two superficially-different
 /// inputs that only differ in formatting can still compare equal.

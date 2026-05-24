@@ -9,36 +9,40 @@ use memchr::memmem;
 /// Check if the declaration string contains a semicolon at depth 0 (not inside braces/parens/brackets).
 /// This is used to determine if an export let declaration is complete.
 fn has_top_level_semicolon(s: &str) -> bool {
-    let chars: Vec<char> = s.chars().collect();
+    // Byte-indexing is safe here: every character we test (`'`, `"`, `` ` ``,
+    // `\\`, brackets, `;`) is ASCII, and UTF-8 continuation/leading bytes
+    // (0x80-0xFF) never collide with ASCII bytes (0x00-0x7F).
+    let bytes = s.as_bytes();
     let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    while i < chars.len() {
-        let c = chars[i];
+    while i < bytes.len() {
+        let c = bytes[i];
         if in_string {
-            if c == '\\' {
-                // Skip the escaped character
+            if c == b'\\' {
+                // Skip the escaped character (always ASCII in valid JS escapes:
+                // \n, \t, \\, \", \u{..}, \x.., …).
                 i += 2;
                 continue;
             } else if c == string_char {
                 in_string = false;
             }
-        } else if c == '"' || c == '\'' || c == '`' {
+        } else if c == b'"' || c == b'\'' || c == b'`' {
             in_string = true;
             string_char = c;
         } else {
             match c {
-                '(' => paren_depth += 1,
-                ')' => paren_depth -= 1,
-                '[' => bracket_depth += 1,
-                ']' => bracket_depth -= 1,
-                '{' => brace_depth += 1,
-                '}' => brace_depth -= 1,
-                ';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                b'(' => paren_depth += 1,
+                b')' => paren_depth -= 1,
+                b'[' => bracket_depth += 1,
+                b']' => bracket_depth -= 1,
+                b'{' => brace_depth += 1,
+                b'}' => brace_depth -= 1,
+                b';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
                     return true;
                 }
                 _ => {}
@@ -53,36 +57,37 @@ fn has_top_level_semicolon(s: &str) -> bool {
 /// For example: `bg = "gre"; // comment` -> `bg = "gre"`.
 /// If there is no top-level semicolon the string is returned trimmed as-is.
 fn strip_at_top_level_semicolon(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    while i < chars.len() {
-        let c = chars[i];
+    while i < bytes.len() {
+        let c = bytes[i];
         if in_string {
-            if c == '\\' {
+            if c == b'\\' {
                 i += 2;
                 continue;
             } else if c == string_char {
                 in_string = false;
             }
-        } else if c == '"' || c == '\'' || c == '`' {
+        } else if c == b'"' || c == b'\'' || c == b'`' {
             in_string = true;
             string_char = c;
         } else {
             match c {
-                '(' => paren_depth += 1,
-                ')' => paren_depth -= 1,
-                '[' => bracket_depth += 1,
-                ']' => bracket_depth -= 1,
-                '{' => brace_depth += 1,
-                '}' => brace_depth -= 1,
-                ';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
-                    // Truncate at this semicolon
+                b'(' => paren_depth += 1,
+                b')' => paren_depth -= 1,
+                b'[' => bracket_depth += 1,
+                b']' => bracket_depth -= 1,
+                b'{' => brace_depth += 1,
+                b'}' => brace_depth -= 1,
+                b';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                    // Truncate at this semicolon. `i` points at an ASCII `;`,
+                    // so `s[..i]` is always on a char boundary.
                     return s[..i].trim().to_string();
                 }
                 _ => {}
@@ -99,35 +104,35 @@ fn strip_at_top_level_semicolon(s: &str) -> String {
 fn export_let_declaration_seems_complete(decl: &str) -> bool {
     // The `decl` is the entire declarator text after `export let `, e.g. `x = 42` or `x = [1, 2`.
     // First, check if brackets/parens/braces are balanced - if unbalanced, definitely incomplete.
-    let chars: Vec<char> = decl.chars().collect();
+    let bytes = decl.as_bytes();
     let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    while i < chars.len() {
-        let c = chars[i];
+    while i < bytes.len() {
+        let c = bytes[i];
         if in_string {
-            if c == '\\' {
+            if c == b'\\' {
                 // Skip the escaped character
                 i += 2;
                 continue;
             } else if c == string_char {
                 in_string = false;
             }
-        } else if c == '"' || c == '\'' || c == '`' {
+        } else if c == b'"' || c == b'\'' || c == b'`' {
             in_string = true;
             string_char = c;
         } else {
             match c {
-                '(' => paren_depth += 1,
-                ')' => paren_depth -= 1,
-                '[' => bracket_depth += 1,
-                ']' => bracket_depth -= 1,
-                '{' => brace_depth += 1,
-                '}' => brace_depth -= 1,
+                b'(' => paren_depth += 1,
+                b')' => paren_depth -= 1,
+                b'[' => bracket_depth += 1,
+                b']' => bracket_depth -= 1,
+                b'{' => brace_depth += 1,
+                b'}' => brace_depth -= 1,
                 _ => {}
             }
         }
@@ -310,61 +315,58 @@ fn transform_single_export_let(declaration: &str) -> String {
 
 fn split_declarators(declaration: &str) -> Vec<String> {
     let mut result = Vec::new();
-    let mut current = String::new();
+    let bytes = declaration.as_bytes();
     let mut depth = 0;
-    let chars: Vec<char> = declaration.chars().collect();
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
+    let mut segment_start = 0;
 
-    for (i, &c) in chars.iter().enumerate() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+    for i in 0..bytes.len() {
+        let c = bytes[i];
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
             } else if c == string_char {
                 in_string = false;
             }
-            current.push(c);
             continue;
         }
 
         if in_string {
-            current.push(c);
             continue;
         }
 
         match c {
-            '(' | '[' | '{' => {
-                depth += 1;
-                current.push(c);
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => {
+                // `i` points at an ASCII `,`, so `declaration[segment_start..i]`
+                // is on a char boundary.
+                result.push(declaration[segment_start..i].trim().to_string());
+                segment_start = i + 1;
             }
-            ')' | ']' | '}' => {
-                depth -= 1;
-                current.push(c);
-            }
-            ',' if depth == 0 => {
-                result.push(current.trim().to_string());
-                current = String::new();
-            }
-            _ => current.push(c),
+            _ => {}
         }
     }
 
-    if !current.trim().is_empty() {
-        result.push(current.trim().to_string());
+    let last = declaration[segment_start..].trim();
+    if !last.is_empty() {
+        result.push(last.to_string());
     }
 
     result
 }
 
 fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
+    let bytes = declarator.as_bytes();
     let mut depth = 0;
-    let chars: Vec<char> = declarator.chars().collect();
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    for (i, &c) in chars.iter().enumerate() {
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+    for i in 0..bytes.len() {
+        let c = bytes[i];
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -379,21 +381,17 @@ fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
         }
 
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '=' if depth == 0 => {
-                let prev = if i > 0 {
-                    chars.get(i - 1).copied()
-                } else {
-                    None
-                };
-                let next = chars.get(i + 1).copied();
-                if prev != Some('=')
-                    && prev != Some('!')
-                    && prev != Some('<')
-                    && prev != Some('>')
-                    && next != Some('=')
-                    && next != Some('>')
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let prev = if i > 0 { Some(bytes[i - 1]) } else { None };
+                let next = bytes.get(i + 1).copied();
+                if prev != Some(b'=')
+                    && prev != Some(b'!')
+                    && prev != Some(b'<')
+                    && prev != Some(b'>')
+                    && next != Some(b'=')
+                    && next != Some(b'>')
                 {
                     return Some(i);
                 }
@@ -489,15 +487,15 @@ fn is_arrow_function(s: &str) -> bool {
 }
 
 fn find_arrow_at_depth_zero(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut depth = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    for i in 0..chars.len().saturating_sub(1) {
-        let c = chars[i];
+    for i in 0..bytes.len().saturating_sub(1) {
+        let c = bytes[i];
 
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -512,9 +510,9 @@ fn find_arrow_at_depth_zero(s: &str) -> Option<usize> {
         }
 
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '=' if depth == 0 && chars.get(i + 1) == Some(&'>') => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 && bytes.get(i + 1) == Some(&b'>') => {
                 return Some(i);
             }
             _ => {}
@@ -531,15 +529,15 @@ fn is_string_literal(s: &str) -> bool {
 
     // Note: backtick template literals are TemplateLiteral AST nodes (not Literal), so they
     // are NOT simple by the official Svelte compiler's definition.
-    for quote in &['"', '\''] {
-        if trimmed.starts_with(*quote) && trimmed.ends_with(*quote) {
+    for &quote in [b'"', b'\''].iter() {
+        if trimmed.as_bytes()[0] == quote && trimmed.as_bytes()[trimmed.len() - 1] == quote {
             let inner = &trimmed[1..trimmed.len() - 1];
-            let chars: Vec<char> = inner.chars().collect();
+            let bytes = inner.as_bytes();
             let mut i = 0;
-            while i < chars.len() {
-                if chars[i] == '\\' && i + 1 < chars.len() {
+            while i < bytes.len() {
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
                     i += 2;
-                } else if chars[i] == *quote {
+                } else if bytes[i] == quote {
                     return false;
                 } else {
                     i += 1;
@@ -552,15 +550,15 @@ fn is_string_literal(s: &str) -> bool {
 }
 
 fn split_binary_expression(s: &str) -> Option<(&str, &str)> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut depth = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    for i in (0..chars.len()).rev() {
-        let c = chars[i];
+    for i in (0..bytes.len()).rev() {
+        let c = bytes[i];
 
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -575,12 +573,12 @@ fn split_binary_expression(s: &str) -> Option<(&str, &str)> {
         }
 
         match c {
-            ')' | ']' | '}' => depth += 1,
-            '(' | '[' | '{' => depth -= 1,
-            '+' if depth == 0 => {
-                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
-                let next = chars.get(i + 1).copied();
-                if prev != Some('+') && next != Some('+') && next != Some('=') {
+            b')' | b']' | b'}' => depth += 1,
+            b'(' | b'[' | b'{' => depth -= 1,
+            b'+' if depth == 0 => {
+                let prev = if i > 0 { Some(bytes[i - 1]) } else { None };
+                let next = bytes.get(i + 1).copied();
+                if prev != Some(b'+') && next != Some(b'+') && next != Some(b'=') {
                     return Some((&s[..i], &s[i + 1..]));
                 }
             }
@@ -591,16 +589,16 @@ fn split_binary_expression(s: &str) -> Option<(&str, &str)> {
 }
 
 fn split_logical_expression(s: &str) -> Option<(&str, &str)> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut depth = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    for i in (0..chars.len().saturating_sub(1)).rev() {
-        let c = chars[i];
-        let next = chars[i + 1];
+    for i in (0..bytes.len().saturating_sub(1)).rev() {
+        let c = bytes[i];
+        let next = bytes[i + 1];
 
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -615,15 +613,15 @@ fn split_logical_expression(s: &str) -> Option<(&str, &str)> {
         }
 
         match c {
-            ')' | ']' | '}' => depth += 1,
-            '(' | '[' | '{' => depth -= 1,
-            '&' if next == '&' && depth == 0 => {
+            b')' | b']' | b'}' => depth += 1,
+            b'(' | b'[' | b'{' => depth -= 1,
+            b'&' if next == b'&' && depth == 0 => {
                 return Some((&s[..i], &s[i + 2..]));
             }
-            '|' if next == '|' && depth == 0 => {
+            b'|' if next == b'|' && depth == 0 => {
                 return Some((&s[..i], &s[i + 2..]));
             }
-            '?' if next == '?' && depth == 0 => {
+            b'?' if next == b'?' && depth == 0 => {
                 return Some((&s[..i], &s[i + 2..]));
             }
             _ => {}
@@ -633,16 +631,16 @@ fn split_logical_expression(s: &str) -> Option<(&str, &str)> {
 }
 
 fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut depth = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
     let mut question_pos = None;
 
-    for i in 0..chars.len() {
-        let c = chars[i];
+    for i in 0..bytes.len() {
+        let c = bytes[i];
 
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -657,12 +655,12 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
         }
 
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '?' if depth == 0 && chars.get(i + 1) != Some(&'?') && question_pos.is_none() => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'?' if depth == 0 && bytes.get(i + 1) != Some(&b'?') && question_pos.is_none() => {
                 question_pos = Some(i);
             }
-            ':' if depth == 0 && question_pos.is_some() => {
+            b':' if depth == 0 && question_pos.is_some() => {
                 let q = question_pos.unwrap();
                 return Some((&s[..q], &s[q + 1..i], &s[i + 1..]));
             }
@@ -864,25 +862,35 @@ fn extract_var_name_from_declarator(
 }
 
 fn find_assignment_eq(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut i = 0;
     let mut depth = 0;
 
-    while i < chars.len() {
-        match chars[i] {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            '=' if depth == 0 => {
-                let next = chars.get(i + 1).copied();
-                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
-                if next == Some('=') || next == Some('>') {
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let next = bytes.get(i + 1).copied();
+                let prev = if i > 0 { Some(bytes[i - 1]) } else { None };
+                if next == Some(b'=') || next == Some(b'>') {
                     i += 2;
                     continue;
                 }
                 if let Some(p) = prev
                     && matches!(
                         p,
-                        '!' | '<' | '>' | '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '?'
+                        b'!' | b'<'
+                            | b'>'
+                            | b'+'
+                            | b'-'
+                            | b'*'
+                            | b'/'
+                            | b'%'
+                            | b'&'
+                            | b'|'
+                            | b'^'
+                            | b'?'
                     )
                 {
                     i += 1;
@@ -1186,19 +1194,19 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
             let mut depth: i32 = 0;
             let mut in_template_literal = false;
             {
-                let chars: Vec<char> = trimmed.chars().collect();
+                let bytes = trimmed.as_bytes();
                 let mut ci = 0;
-                while ci < chars.len() {
-                    if chars[ci] == '\\' && ci + 1 < chars.len() {
+                while ci < bytes.len() {
+                    if bytes[ci] == b'\\' && ci + 1 < bytes.len() {
                         ci += 2; // skip escaped char
                         continue;
                     }
-                    if chars[ci] == '`' {
+                    if bytes[ci] == b'`' {
                         in_template_literal = !in_template_literal;
                     } else if !in_template_literal {
-                        match chars[ci] {
-                            '{' | '(' | '[' => depth += 1,
-                            '}' | ')' | ']' => depth -= 1,
+                        match bytes[ci] {
+                            b'{' | b'(' | b'[' => depth += 1,
+                            b'}' | b')' | b']' => depth -= 1,
                             _ => {}
                         }
                     }
@@ -1212,19 +1220,19 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
                 while i < lines.len() && (depth > 0 || in_template_literal) {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    let chars: Vec<char> = next.chars().collect();
+                    let bytes = next.as_bytes();
                     let mut ci = 0;
-                    while ci < chars.len() {
-                        if chars[ci] == '\\' && ci + 1 < chars.len() {
+                    while ci < bytes.len() {
+                        if bytes[ci] == b'\\' && ci + 1 < bytes.len() {
                             ci += 2;
                             continue;
                         }
-                        if chars[ci] == '`' {
+                        if bytes[ci] == b'`' {
                             in_template_literal = !in_template_literal;
                         } else if !in_template_literal {
-                            match chars[ci] {
-                                '{' | '(' | '[' => depth += 1,
-                                '}' | ')' | ']' => depth -= 1,
+                            match bytes[ci] {
+                                b'{' | b'(' | b'[' => depth += 1,
+                                b'}' | b')' | b']' => depth -= 1,
                                 _ => {}
                             }
                         }
@@ -2013,40 +2021,40 @@ fn transform_destructured_export_let_ssr(declaration: &str) -> Option<String> {
 }
 
 fn find_destructuring_pattern_end_ssr(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
-    let first = chars.first()?;
-    if *first != '{' && *first != '[' {
+    let bytes = s.as_bytes();
+    let first = *bytes.first()?;
+    if first != b'{' && first != b'[' {
         return None;
     }
 
     let mut depth = 0;
     let mut i = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    while i < chars.len() {
+    while i < bytes.len() {
         if in_string {
-            if chars[i] == '\\' {
+            if bytes[i] == b'\\' {
                 i += 2;
                 continue;
             }
-            if chars[i] == string_char {
+            if bytes[i] == string_char {
                 in_string = false;
             }
             i += 1;
             continue;
         }
 
-        if chars[i] == '\'' || chars[i] == '"' || chars[i] == '`' {
+        if bytes[i] == b'\'' || bytes[i] == b'"' || bytes[i] == b'`' {
             in_string = true;
-            string_char = chars[i];
+            string_char = bytes[i];
             i += 1;
             continue;
         }
 
-        if chars[i] == '{' || chars[i] == '[' {
+        if bytes[i] == b'{' || bytes[i] == b'[' {
             depth += 1;
-        } else if chars[i] == '}' || chars[i] == ']' {
+        } else if bytes[i] == b'}' || bytes[i] == b']' {
             depth -= 1;
             if depth == 0 {
                 return Some(i + 1);
@@ -2198,13 +2206,14 @@ fn extract_destructured_export_paths_ssr(
 }
 
 fn split_property_key_value_ssr(prop: &str) -> Option<(&str, &str)> {
-    let chars: Vec<char> = prop.chars().collect();
+    let bytes = prop.as_bytes();
     let mut depth = 0;
-    for (i, &ch) in chars.iter().enumerate() {
+    for i in 0..bytes.len() {
+        let ch = bytes[i];
         match ch {
-            '{' | '[' | '(' => depth += 1,
-            '}' | ']' | ')' => depth -= 1,
-            ':' if depth == 0 => {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b':' if depth == 0 => {
                 return Some((prop[..i].trim(), prop[i + 1..].trim()));
             }
             _ => {}
@@ -2227,16 +2236,17 @@ fn split_binding_name_default_ssr(s: &str) -> (&str, Option<&str>) {
 }
 
 fn split_destructuring_properties_ssr(s: &str) -> Vec<&str> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut result = Vec::new();
     let mut depth = 0;
     let mut start = 0;
     let mut in_string = false;
-    let mut string_char = ' ';
+    let mut string_char = 0u8;
 
-    for (i, &ch) in chars.iter().enumerate() {
+    for i in 0..bytes.len() {
+        let ch = bytes[i];
         if in_string {
-            if ch == '\\' {
+            if ch == b'\\' {
                 continue;
             }
             if ch == string_char {
@@ -2244,15 +2254,15 @@ fn split_destructuring_properties_ssr(s: &str) -> Vec<&str> {
             }
             continue;
         }
-        if ch == '\'' || ch == '"' || ch == '`' {
+        if ch == b'\'' || ch == b'"' || ch == b'`' {
             in_string = true;
             string_char = ch;
             continue;
         }
         match ch {
-            '{' | '[' | '(' => depth += 1,
-            '}' | ']' | ')' => depth -= 1,
-            ',' if depth == 0 => {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b',' if depth == 0 => {
                 result.push(&s[start..i]);
                 start = i + 1;
             }

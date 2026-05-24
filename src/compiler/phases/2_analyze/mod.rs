@@ -2642,7 +2642,6 @@ pub fn order_reactive_statements(
 ///
 /// Corresponds to `has_await` from `create_scopes()` in the official Svelte compiler,
 /// which tracks AwaitExpression nodes not nested inside function bodies.
-#[allow(dead_code)]
 /// Results from a combined fragment AST check for both await expressions and rune references.
 /// This allows a single traversal of the template AST to detect both features simultaneously.
 #[derive(Default)]

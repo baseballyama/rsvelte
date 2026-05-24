@@ -1,82 +1,147 @@
 {
-  "generatedAt": "2026-05-21T04:54:28.795Z",
-  "commitSha": "fa30f1e",
+  "generatedAt": "2026-05-24T08:54:00.811Z",
+  "commitSha": "da6b3c8",
   "runner": {
     "label": "local",
     "os": "darwin",
     "arch": "arm64",
     "cpus": 10,
-    "cpuModel": "Apple M1 Pro"
+    "cpuModel": "Apple M1 Pro",
+    "nodeVersion": "24.13.0",
+    "v8Version": "13.6.233.17-node.37",
+    "loadAvg1min": 3.12109375,
+    "warmupIterations": 3,
+    "benchmarkIterations": 10
   },
   "testFilesCount": 3637,
   "javascript": {
-    "durationMs": 2567.3257223333335,
-    "throughputFilesPerSec": 1416.649226999714
+    "durationMs": 864.7678960000007,
+    "throughputFilesPerSec": 4205.752800055377,
+    "minMs": 846.929916000001,
+    "maxMs": 906.0594999999998,
+    "meanMs": 866.9728543000001,
+    "stdDevMs": 15.58554022613731,
+    "samples": 10
   },
   "rustSingleThread": {
-    "durationMs": 597.8582,
-    "throughputFilesPerSec": 6083.382313732588
+    "durationMs": 381.11879999999996,
+    "throughputFilesPerSec": 9542.95615960168,
+    "minMs": 377.2322,
+    "maxMs": 402.2978,
+    "meanMs": 384.48970999999995,
+    "stdDevMs": 8.571990819226302,
+    "samples": 10
   },
   "rustMultiThread": {
-    "durationMs": 57.28946666666667,
-    "throughputFilesPerSec": 63484.619627575514
+    "durationMs": 50.113150000000005,
+    "throughputFilesPerSec": 72575.76105273765,
+    "minMs": 48.1451,
+    "maxMs": 58.8999,
+    "meanMs": 51.50852000000001,
+    "stdDevMs": 3.367595714690231,
+    "samples": 10
   },
   "speedup": {
-    "singleThreadVsJs": 4.294205084639357,
-    "multiThreadVsJs": 44.813224344905755
+    "singleThreadVsJs": 2.2690245036455847,
+    "multiThreadVsJs": 17.25630689749099
   },
   "parse": {
     "javascript": {
-      "durationMs": 215.38154200002705,
-      "throughputFilesPerSec": 16886.312384185378
+      "durationMs": 187.48202049999963,
+      "throughputFilesPerSec": 19399.19353493423,
+      "minMs": 185.91391699999804,
+      "maxMs": 197.68029200000456,
+      "meanMs": 189.3381710000045,
+      "stdDevMs": 3.907803400003908,
+      "samples": 10
     },
     "rustSingleThread": {
-      "durationMs": 14.038133333333333,
-      "throughputFilesPerSec": 259080.02963356956
+      "durationMs": 8.65385,
+      "throughputFilesPerSec": 420275.36876650277,
+      "minMs": 8.5485,
+      "maxMs": 8.9628,
+      "meanMs": 8.67866,
+      "stdDevMs": 0.11830958710096129,
+      "samples": 10
     },
     "rustMultiThread": {
-      "durationMs": 2.6806,
-      "throughputFilesPerSec": 1356785.7942251735
+      "durationMs": 1.8849,
+      "throughputFilesPerSec": 1929545.3339699719,
+      "minMs": 1.4472,
+      "maxMs": 1.9417,
+      "meanMs": 1.8140899999999998,
+      "stdDevMs": 0.16557500686999832,
+      "samples": 10
     },
     "speedup": {
-      "singleThreadVsJs": 15.342605522103632,
-      "multiThreadVsJs": 80.34825859883125
+      "singleThreadVsJs": 21.664579406853555,
+      "multiThreadVsJs": 99.46523449519849
     }
   },
   "svelte2tsx": {
     "javascript": {
-      "durationMs": 415.28627766668797,
-      "throughputFilesPerSec": 8757.814056449717
+      "durationMs": 306.05604150000727,
+      "throughputFilesPerSec": 11883.44455536557,
+      "minMs": 297.6431660000235,
+      "maxMs": 324.47320799995214,
+      "meanMs": 308.82014159997925,
+      "stdDevMs": 8.489191501299034,
+      "samples": 10
     },
     "rustSingleThread": {
-      "durationMs": 170.45809999999997,
-      "throughputFilesPerSec": 21336.62172698159
+      "durationMs": 115.31625,
+      "throughputFilesPerSec": 31539.353733753916,
+      "minMs": 114.7892,
+      "maxMs": 116.2603,
+      "meanMs": 115.33953,
+      "stdDevMs": 0.45297648515127115,
+      "samples": 10
     },
     "rustMultiThread": {
-      "durationMs": 19.4945,
-      "throughputFilesPerSec": 186565.4415347919
+      "durationMs": 16.01135,
+      "throughputFilesPerSec": 227151.36450080722,
+      "minMs": 14.7869,
+      "maxMs": 17.1429,
+      "meanMs": 16.086229999999997,
+      "stdDevMs": 0.879831208869065,
+      "samples": 10
     },
     "speedup": {
-      "singleThreadVsJs": 2.4362953574320496,
-      "multiThreadVsJs": 21.302740653347765
+      "singleThreadVsJs": 2.6540582224968925,
+      "multiThreadVsJs": 19.1149429311087
     }
   },
   "svelteCheck": {
     "javascript": {
-      "durationMs": 2265.6093613333333,
-      "throughputFilesPerSec": 220.69117851179124
+      "durationMs": 2087.9697085,
+      "throughputFilesPerSec": 239.46707558281614,
+      "minMs": 2068.028625,
+      "maxMs": 2097.983291,
+      "meanMs": 2086.8648458,
+      "stdDevMs": 8.418588180578206,
+      "samples": 10
     },
     "rustSingleThread": {
-      "durationMs": 51.55755533333333,
-      "throughputFilesPerSec": 9697.899692244266
+      "durationMs": 46.8917915,
+      "throughputFilesPerSec": 10662.847035818626,
+      "minMs": 45.800708,
+      "maxMs": 47.750375,
+      "meanMs": 46.7948,
+      "stdDevMs": 0.5972524083971537,
+      "samples": 10
     },
     "rustMultiThread": {
-      "durationMs": 15.404694333333333,
-      "throughputFilesPerSec": 32457.638508157786
+      "durationMs": 13.7850415,
+      "throughputFilesPerSec": 36271.20019914339,
+      "minMs": 13.431709,
+      "maxMs": 14.265917,
+      "meanMs": 13.798795899999998,
+      "stdDevMs": 0.2869505560348161,
+      "samples": 10
     },
     "speedup": {
-      "singleThreadVsJs": 43.94330465604052,
-      "multiThreadVsJs": 147.07265930171113
+      "singleThreadVsJs": 44.52740323431661,
+      "multiThreadVsJs": 151.46633461350115
     },
     "filesCount": 500
   }

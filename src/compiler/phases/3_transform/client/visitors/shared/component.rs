@@ -1204,31 +1204,6 @@ fn get_original_expression(value: &AttributeValue) -> crate::ast::js::Expression
     }
 }
 
-/// Check if an attribute value should be memoized.
-///
-/// An attribute should be memoized if it contains a complex expression
-/// (not just an Identifier or MemberExpression). This includes:
-/// - Ternary/conditional expressions
-/// - Binary expressions
-/// - Call expressions
-/// - Array/Object expressions
-/// - etc.
-#[allow(dead_code)]
-fn should_memoize_attribute(value: &AttributeValue) -> bool {
-    // Check if this is a single expression (not a template with multiple parts)
-    match value {
-        AttributeValue::Expression(expr_tag) => is_complex_expression(&expr_tag.expression),
-        AttributeValue::Sequence(parts) if parts.len() == 1 => {
-            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
-                is_complex_expression(&expr_tag.expression)
-            } else {
-                false
-            }
-        }
-        _ => false, // Multiple parts or text don't need memoization
-    }
-}
-
 /// Mirrors Svelte JS `should_wrap_in_derived` for component attribute values.
 /// Returns true if any chunk's expression is not a simple Identifier or MemberExpression.
 fn attribute_has_complex_chunk(value: &AttributeValue) -> bool {

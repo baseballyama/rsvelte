@@ -23,8 +23,8 @@ use crate::ast::template::{Fragment, FragmentMetadata, FragmentType};
 /// let fragment = create_fragment(false);
 /// assert_eq!(fragment.nodes.len(), 0);
 /// ```
-#[inline]
 #[allow(dead_code)]
+#[inline]
 pub fn create_fragment(transparent: bool) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,
@@ -40,23 +40,10 @@ pub fn create_fragment(transparent: bool) -> Fragment {
 // with existing Rust code, but they don't correspond to the JS implementation.
 
 /// Create an empty Fragment (backward compatibility).
-#[inline]
 #[allow(dead_code)]
+#[inline]
 pub fn create_empty_fragment() -> Fragment {
     create_fragment(false)
-}
-
-/// Create a Fragment with a single node (backward compatibility).
-///
-/// Note: This doesn't exist in the JS version.
-#[inline]
-#[allow(dead_code)]
-pub fn create_fragment_with_node(node: crate::ast::template::TemplateNode) -> Fragment {
-    Fragment {
-        node_type: FragmentType::Fragment,
-        nodes: vec![node],
-        metadata: FragmentMetadata::default(),
-    }
 }
 
 #[cfg(test)]

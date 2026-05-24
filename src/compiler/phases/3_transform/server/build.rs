@@ -1340,25 +1340,6 @@ impl<'a> ServerCodeGenerator<'a> {
         (JsProgram { body }, arena)
     }
 
-    #[allow(dead_code)]
-    /// Hoist ConstDeclaration parts to the front of a parts slice.
-    /// This mirrors the official Svelte compiler's behavior where @const declarations
-    /// are pushed to state.init (before template) in the EachBlock visitor.
-    #[allow(dead_code)]
-    fn hoist_const_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
-        let mut consts: Vec<OutputPart> = Vec::new();
-        let mut rest: Vec<OutputPart> = Vec::new();
-        for part in parts {
-            if matches!(part, OutputPart::ConstDeclaration(_)) {
-                consts.push(part.clone());
-            } else {
-                rest.push(part.clone());
-            }
-        }
-        consts.extend(rest);
-        consts
-    }
-
     /// Hoist ConstDeclaration parts to the front AND strip whitespace-only Html parts
     /// that appear interspersed among ConstDeclarations. This is needed for if-block bodies
     /// where the official compiler removes whitespace text nodes between @const declarations.
@@ -1444,108 +1425,6 @@ impl<'a> ServerCodeGenerator<'a> {
                 blocker_map,
                 all_blockers,
             );
-        }
-    }
-
-    /// Collect all blocker indices from output parts (recursively).
-    #[allow(dead_code)]
-    fn collect_parts_blockers(
-        parts: &[OutputPart],
-        blocker_map: &rustc_hash::FxHashMap<String, usize>,
-        all_blockers: &mut std::collections::BTreeSet<usize>,
-    ) {
-        for part in parts {
-            match part {
-                OutputPart::Expression(expr) | OutputPart::RawExpression(expr) => {
-                    for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
-                        all_blockers.insert(idx);
-                    }
-                }
-                OutputPart::AsyncExpression { expr, .. } => {
-                    for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
-                        all_blockers.insert(idx);
-                    }
-                }
-                OutputPart::Html(html) => {
-                    for idx in super::helpers::find_expression_blockers(html, blocker_map) {
-                        all_blockers.insert(idx);
-                    }
-                }
-                OutputPart::HtmlWithExclusions {
-                    html,
-                    excluded_blocker_vars,
-                } => {
-                    // Same as Html but exclude certain variable names from blocker detection.
-                    // This implements the PromiseOptimiser pattern where shorthand style
-                    // directives (style:color) bypass the transform callback and should not
-                    // contribute blocker dependencies.
-                    for idx in super::helpers::find_expression_blockers(html, blocker_map) {
-                        // Check if the variable corresponding to this blocker index is excluded
-                        let is_excluded = blocker_map.iter().any(|(var_name, &mapped_idx)| {
-                            mapped_idx == idx && excluded_blocker_vars.contains(var_name)
-                        });
-                        if !is_excluded {
-                            all_blockers.insert(idx);
-                        }
-                    }
-                }
-                OutputPart::IfBlock {
-                    test_expr,
-                    consequent_body,
-                    alternate_body,
-                    ..
-                } => {
-                    for idx in super::helpers::find_expression_blockers(test_expr, blocker_map) {
-                        all_blockers.insert(idx);
-                    }
-                    Self::collect_parts_blockers(consequent_body, blocker_map, all_blockers);
-                    if let Some(alt) = alternate_body {
-                        Self::collect_parts_blockers(alt, blocker_map, all_blockers);
-                    }
-                }
-                OutputPart::EachBlock { iterable, body, .. } => {
-                    for idx in super::helpers::find_expression_blockers(iterable, blocker_map) {
-                        all_blockers.insert(idx);
-                    }
-                    Self::collect_parts_blockers(body, blocker_map, all_blockers);
-                }
-                OutputPart::Component {
-                    name,
-                    props_and_spreads,
-                    attach_expressions,
-                    ..
-                } => {
-                    for idx in super::helpers::find_expression_blockers(name, blocker_map) {
-                        all_blockers.insert(idx);
-                    }
-                    for item in props_and_spreads {
-                        match item {
-                            ComponentPropItem::Props(props) => {
-                                for prop in props {
-                                    for idx in
-                                        super::helpers::find_expression_blockers(prop, blocker_map)
-                                    {
-                                        all_blockers.insert(idx);
-                                    }
-                                }
-                            }
-                            ComponentPropItem::Spread(expr) => {
-                                for idx in
-                                    super::helpers::find_expression_blockers(expr, blocker_map)
-                                {
-                                    all_blockers.insert(idx);
-                                }
-                            }
-                        }
-                    }
-                    for expr in attach_expressions {
-                        for idx in super::helpers::find_expression_blockers(expr, blocker_map) {
-                            all_blockers.insert(idx);
-                        }
-                    }
-                }
-                _ => {}
-            }
         }
     }
 
@@ -2524,27 +2403,6 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         segments
-    }
-
-    /// Hoist SnippetFunction declarations to the front of a parts vector.
-    /// This mirrors the official Svelte compiler's behavior where snippet functions
-    /// are placed in state.init (before template rendering) via the Fragment visitor.
-    #[allow(dead_code)]
-    fn hoist_snippet_functions(parts: Vec<OutputPart>) -> Vec<OutputPart> {
-        let mut snippets: Vec<OutputPart> = Vec::new();
-        let mut rest: Vec<OutputPart> = Vec::new();
-        for part in parts {
-            if matches!(part, OutputPart::SnippetFunction { .. }) {
-                snippets.push(part);
-            } else {
-                rest.push(part);
-            }
-        }
-        if snippets.is_empty() {
-            return rest;
-        }
-        snippets.extend(rest);
-        snippets
     }
 
     /// Hoist both ConstDeclaration and SnippetFunction parts to the front of a

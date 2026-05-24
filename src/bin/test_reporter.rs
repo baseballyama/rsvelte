@@ -746,15 +746,6 @@ fn run_ssr_tests(expected_outputs: &serde_json::Value) -> Category {
 // Compiler Error Tests
 // ============================================================================
 
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct ExpectedError {
-    code: String,
-    message: String,
-    #[serde(default)]
-    position: Option<[u32; 2]>,
-}
-
 fn extract_string_field(content: &str, field: &str) -> Option<String> {
     let patterns = [
         format!("{}: '", field),
@@ -954,9 +945,9 @@ fn run_compiler_error_tests() -> Category {
 // ============================================================================
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct ValidatorError {
     code: String,
+    #[allow(dead_code)]
     message: String,
 }
 

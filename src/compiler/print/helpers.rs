@@ -94,7 +94,6 @@ pub fn is_void_element(name: &str) -> bool {
 /// # Returns
 ///
 /// Returns the formatted JavaScript code as a string.
-#[allow(dead_code)]
 pub fn estree_to_string(node: &serde_json::Value) -> String {
     let mut generator = EstreeGenerator::new();
     generator.generate_node(node);
@@ -102,7 +101,6 @@ pub fn estree_to_string(node: &serde_json::Value) -> String {
 }
 
 /// ESTree to JavaScript code generator.
-#[allow(dead_code)]
 struct EstreeGenerator {
     output: String,
 }
@@ -729,44 +727,6 @@ impl EstreeGenerator {
             self.output.push(')');
         }
     }
-}
-
-/// Format JavaScript/TypeScript expression using oxc_codegen.
-///
-/// This function converts an oxc AST expression into a string representation.
-///
-/// # Arguments
-///
-/// * `_expr` - The oxc expression to format
-///
-/// # Returns
-///
-/// Returns the formatted expression as a string.
-#[allow(dead_code)]
-pub fn format_expression(_expr: &oxc_ast::ast::Expression) -> String {
-    // TODO: This is a simplified implementation
-    // We need to properly integrate oxc_codegen
-    // For now, return a placeholder
-    "/* expression */".to_string()
-}
-
-/// Format JavaScript/TypeScript statement using oxc_codegen.
-///
-/// This function converts an oxc AST statement into a string representation.
-///
-/// # Arguments
-///
-/// * `_stmt` - The oxc statement to format
-///
-/// # Returns
-///
-/// Returns the formatted statement as a string.
-#[allow(dead_code)]
-pub fn format_statement(_stmt: &oxc_ast::ast::Statement) -> String {
-    // TODO: This is a simplified implementation
-    // We need to properly integrate oxc_codegen
-    // For now, return a placeholder
-    "/* statement */".to_string()
 }
 
 /// Escape a string for use in HTML attributes.

@@ -278,41 +278,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
     }
 
-    /// Generate attributes for svelte:element.
-    /// This handles spread attributes, class/style directives, and regular attributes.
-    #[allow(dead_code)]
-    fn generate_svelte_element_attributes(
-        &mut self,
-        elem: &SvelteDynamicElement,
-    ) -> Result<Vec<OutputPart>, TransformError> {
-        let mut parts = Vec::new();
-
-        // Check if we have spread attributes
-        let has_spread = elem
-            .attributes
-            .iter()
-            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
-
-        if has_spread {
-            // Use $.attributes() for spread attributes
-            let attributes_call = self.build_svelte_element_spread_attributes(elem)?;
-            if !attributes_call.is_empty() {
-                parts.push(OutputPart::Html(attributes_call));
-            }
-        } else {
-            // Generate inline attributes
-            for attr in &elem.attributes {
-                if let Some(attr_str) = self.generate_attribute_for_element(attr, None)? {
-                    parts.push(OutputPart::Html(attr_str));
-                }
-            }
-        }
-
-        Ok(parts)
-    }
-
     /// Build $.attributes() call for svelte:element with spread.
-    #[allow(dead_code)]
     fn build_svelte_element_spread_attributes(
         &mut self,
         elem: &SvelteDynamicElement,

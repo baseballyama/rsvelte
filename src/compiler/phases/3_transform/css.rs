@@ -646,138 +646,6 @@ fn extract_css_tokens(code: &str) -> Vec<CssToken<'_>> {
     tokens
 }
 
-/// Build line start offsets for CSS source map generation.
-#[allow(dead_code)]
-fn build_css_line_starts(s: &str) -> Vec<usize> {
-    let mut starts = vec![0usize];
-    for (i, b) in s.bytes().enumerate() {
-        if b == b'\n' {
-            starts.push(i + 1);
-        }
-    }
-    starts
-}
-
-/// Minify CSS by removing unnecessary whitespace and comments.
-/// This is a simple minification for injected CSS in SSR.
-#[allow(dead_code)]
-fn minify_css(css: &str) -> String {
-    let mut result = String::with_capacity(css.len());
-    let chars: Vec<char> = css.chars().collect();
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
-    let mut last_was_space = true; // Start true to trim leading whitespace
-
-    while i < chars.len() {
-        let c = chars[i];
-
-        // Track string literals
-        if (c == '"' || c == '\'') && (i == 0 || chars[i - 1] != '\\') {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char {
-                in_string = false;
-            }
-        }
-
-        // In strings, preserve everything
-        if in_string {
-            result.push(c);
-            last_was_space = false;
-            i += 1;
-            continue;
-        }
-
-        // Skip CSS comments
-        if c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
-            // Find end of comment
-            let mut j = i + 2;
-            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
-                j += 1;
-            }
-            i = j + 2; // Skip past */
-            continue;
-        }
-
-        // Collapse whitespace
-        if c.is_whitespace() {
-            if !last_was_space {
-                // Only add a space if:
-                // - Not after certain characters that don't need space
-                // - Not at the start
-                // But DO add space after '}' or ',' when followed by a selector (to match official Svelte behavior)
-                // Skip over comments when looking for next meaningful character
-                let last_char = result.chars().last();
-                let next_nonws = {
-                    let mut j = i + 1;
-                    loop {
-                        // Skip whitespace
-                        while j < chars.len() && chars[j].is_whitespace() {
-                            j += 1;
-                        }
-                        // Skip comments
-                        if j + 1 < chars.len() && chars[j] == '/' && chars[j + 1] == '*' {
-                            j += 2;
-                            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
-                                j += 1;
-                            }
-                            if j + 1 < chars.len() {
-                                j += 2; // skip */
-                            }
-                            continue;
-                        }
-                        break;
-                    }
-                    if j < chars.len() {
-                        Some(&chars[j])
-                    } else {
-                        None
-                    }
-                };
-                let keep_space = matches!(
-                    (last_char, next_nonws),
-                    (Some('}'), Some('.'))
-                        | (Some('}'), Some('#'))
-                        | (Some(','), Some('.'))
-                        | (Some(','), Some('#'))
-                );
-                if keep_space
-                    || !matches!(
-                        last_char,
-                        Some('{') | Some('}') | Some(';') | Some(':') | Some(',') | None
-                    )
-                {
-                    result.push(' ');
-                }
-                last_was_space = true;
-            }
-            i += 1;
-            continue;
-        }
-
-        // Remove space before certain characters (but preserve space before '{')
-        if matches!(c, '}' | ':' | ';' | ',') {
-            // Remove trailing space before these characters
-            if result.ends_with(' ') {
-                result.pop();
-            }
-        }
-
-        result.push(c);
-        last_was_space = false;
-        i += 1;
-    }
-
-    // Trim trailing whitespace
-    while result.ends_with(' ') || result.ends_with('\n') || result.ends_with('\t') {
-        result.pop();
-    }
-
-    result
-}
-
 /// Collect all keyframe names defined in the stylesheet
 fn collect_keyframe_names(children: &[Value]) -> FxHashSet<String> {
     let mut keyframes = FxHashSet::default();
@@ -1107,22 +975,6 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
     true
 }
 
-/// Check if a block has any actual declarations (not just comments)
-#[allow(dead_code)]
-fn has_declarations(block: &Value) -> bool {
-    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-        children.iter().any(|child| {
-            child
-                .get("type")
-                .and_then(|t| t.as_str())
-                .map(|t| t == "Declaration" || t == "Atrule" || t == "Rule")
-                .unwrap_or(false)
-        })
-    } else {
-        false
-    }
-}
-
 /// Check if a rule is a :global block (selector is just `:global` without arguments)
 fn is_global_block(node: &Value) -> bool {
     if let Some(prelude) = node.get("prelude")
@@ -1145,7 +997,6 @@ fn is_global_block(node: &Value) -> bool {
 
 /// Check if a rule starts with :global (with or without arguments)
 /// This includes both `:global { ... }` and `:global(.x) { ... }`
-#[allow(dead_code)]
 fn is_global_selector_rule(node: &Value) -> bool {
     if let Some(prelude) = node.get("prelude")
         && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
@@ -2726,7 +2577,6 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
 }
 
 /// Get the type selector name from a relative selector
-#[allow(dead_code)]
 fn get_type_selector_name(rel_selector: &Value) -> Option<String> {
     rel_selector
         .get("selectors")
@@ -2978,7 +2828,6 @@ fn decode_css_escape(name: &str) -> String {
 /// Check if a selector with :has() is unused by checking if the :has() argument
 /// can match within the subject element's subtree.
 /// For example, `x:has(> z)` is unused if no `x` element has a direct child `z`.
-#[allow(dead_code)]
 fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     if ctx.dom_structure.elements.is_empty() {
         return false;
@@ -3206,7 +3055,6 @@ fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> boo
 
 /// Check if a :has() argument is unused relative to the subject elements.
 /// Returns true if the argument cannot match within any subject element's context.
-#[allow(dead_code)]
 fn is_has_argument_unused(
     has_complex: &Value,
     subject_elements: &[usize],
@@ -3337,7 +3185,6 @@ fn is_has_argument_unused(
 }
 
 /// Check if a multi-part :has() argument (like > h > i) is unused
-#[allow(dead_code)]
 fn is_multi_part_has_unused(
     rel_selectors: &[Value],
     subject_elements: &[usize],
@@ -3413,7 +3260,6 @@ fn is_multi_part_has_unused(
     false
 }
 
-#[allow(dead_code)]
 /// Check if an element has a matching descendant
 fn has_matching_descendant(parent_idx: usize, info: &SelectorInfo, ctx: &CssContext) -> bool {
     let parent = &ctx.dom_structure.elements[parent_idx];
@@ -3440,7 +3286,6 @@ fn has_matching_descendant(parent_idx: usize, info: &SelectorInfo, ctx: &CssCont
     false
 }
 
-#[allow(dead_code)]
 /// Collect all matching descendants
 fn collect_matching_descendants(
     parent_idx: usize,
@@ -3460,7 +3305,6 @@ fn collect_matching_descendants(
 }
 
 /// Extract SelectorInfo from a set of simple selectors (not the relative selector)
-#[allow(dead_code)]
 fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
     let mut info = SelectorInfo {
         tag_name: None,
@@ -5423,20 +5267,30 @@ fn ends_with_css_hex_escape(text: &str) -> bool {
     // Return true if the string ends with hex digits that are part of a CSS escape
     // (i.e., \HH where HH are hex digits and the escape has consumed fewer than 6 digits
     // without a whitespace terminator).
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len();
+    //
+    // All tokens we test (`\\`, hex digits 0-9/a-f/A-F, space/tab/newline)
+    // are ASCII, so byte indexing is UTF-8 safe and avoids allocating a
+    // `Vec<char>` on every CSS selector emission. The single-char-escape
+    // branch advances by exactly one *byte*: a non-hex char after `\\`
+    // could be a multi-byte UTF-8 sequence in pathological CSS, but this
+    // function only checks whether the *tail* of the string is a hex
+    // escape — over-skipping into a multi-byte sequence's leading byte
+    // just falls through the loop normally and produces the correct
+    // `false` answer.
+    let bytes = text.as_bytes();
+    let len = bytes.len();
     if len < 2 {
         return false;
     }
 
     let mut i = 0;
     while i < len {
-        if chars[i] == '\\' && i + 1 < len {
+        if bytes[i] == b'\\' && i + 1 < len {
             i += 1; // skip backslash
-            if chars[i].is_ascii_hexdigit() {
+            if bytes[i].is_ascii_hexdigit() {
                 // Hex escape: consume up to 6 hex digits
                 let mut hex_count = 0;
-                while i < len && hex_count < 6 && chars[i].is_ascii_hexdigit() {
+                while i < len && hex_count < 6 && bytes[i].is_ascii_hexdigit() {
                     i += 1;
                     hex_count += 1;
                 }
@@ -5445,7 +5299,7 @@ fn ends_with_css_hex_escape(text: &str) -> bool {
                     return true;
                 }
                 // Consume optional single whitespace terminator
-                if chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n' {
+                if matches!(bytes[i], b' ' | b'\t' | b'\n') {
                     i += 1;
                 }
                 // Otherwise the escape is fully terminated, continue

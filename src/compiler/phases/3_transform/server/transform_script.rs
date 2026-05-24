@@ -12,27 +12,6 @@ use super::transform_store::{
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
-/// Transform script content for server-side rendering.
-#[allow(dead_code)]
-pub(crate) fn transform_script_content(script: &str) -> String {
-    transform_script_content_inner(script, false, &[], &FxHashSet::default(), false)
-}
-
-/// Transform script content with additional bindable prop names from `export { x }` patterns.
-#[allow(dead_code)]
-pub(crate) fn transform_script_content_with_props(
-    script: &str,
-    reexported_props: &[(String, String)],
-) -> String {
-    transform_script_content_inner(
-        script,
-        false,
-        reexported_props,
-        &FxHashSet::default(),
-        false,
-    )
-}
-
 pub(crate) fn transform_script_content_module(script: &str, dev: bool) -> String {
     transform_script_content_inner(script, true, &[], &FxHashSet::default(), dev)
 }
@@ -1067,53 +1046,6 @@ fn has_svelte_ignore_before(before: &str, code: &str) -> bool {
         }
     }
     false
-}
-
-/// Simple rune call transformation for template expressions.
-///
-/// Kept for reference; the live SSR template path now goes through
-/// `server::template_rune_ast::transform_template_rune_ast`.
-#[allow(dead_code)]
-pub(crate) fn transform_rune_call_simple(expr: &str, prefix: &str) -> String {
-    let mut result = String::new();
-    let mut i = 0;
-    let bytes = expr.as_bytes();
-    let prefix_bytes = prefix.as_bytes();
-    let prefix_len = prefix_bytes.len();
-
-    while i < bytes.len() {
-        if i + prefix_len <= bytes.len() && &bytes[i..i + prefix_len] == prefix_bytes {
-            let start = i + prefix_len;
-            let mut depth = 1;
-            let mut end = start;
-            while end < bytes.len() && depth > 0 {
-                match bytes[end] {
-                    b'(' => depth += 1,
-                    b')' => depth -= 1,
-                    b'\'' | b'"' | b'`' => {
-                        let quote = bytes[end];
-                        end += 1;
-                        while end < bytes.len() && bytes[end] != quote {
-                            if bytes[end] == b'\\' {
-                                end += 1;
-                            }
-                            end += 1;
-                        }
-                    }
-                    _ => {}
-                }
-                if depth > 0 {
-                    end += 1;
-                }
-            }
-            result.push_str(&expr[start..end]);
-            i = end + 1;
-        } else {
-            result.push(expr.as_bytes()[i] as char);
-            i += 1;
-        }
-    }
-    result
 }
 
 /// Flatten object destructure declarations with `$.store_get()` initializers.

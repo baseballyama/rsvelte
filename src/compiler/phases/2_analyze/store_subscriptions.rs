@@ -791,68 +791,6 @@ fn collect_dollar_identifiers_from_js_with_context(
     }
 }
 
-/// Collect $xxx identifiers from a script block.
-#[allow(dead_code)]
-fn collect_dollar_refs_from_script(script: &Script, source: &str, refs: &mut FxHashSet<String>) {
-    let start = script.content.start().unwrap_or(0) as usize;
-    let end = script.content.end().unwrap_or(0) as usize;
-
-    if end <= start || end > source.len() {
-        return;
-    }
-
-    let content = &source[start..end];
-    collect_dollar_identifiers_from_js(content, refs);
-}
-
-/// Collect $xxx identifiers from a JavaScript string.
-fn collect_dollar_identifiers_from_js(js: &str, refs: &mut FxHashSet<String>) {
-    // Simple regex-like scanning for $xxx identifiers
-    // We look for $ followed by valid identifier characters
-    let chars: Vec<char> = js.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
-
-    while i < len {
-        // Check for $ that could start an identifier
-        if chars[i] == '$' {
-            // Check if this is a valid identifier start (not part of a larger identifier)
-            // Also skip $ preceded by '.' (member access like `obj.$set`)
-            let prev_is_ident_char = if i > 0 {
-                is_identifier_char(chars[i - 1]) || chars[i - 1] == '.'
-            } else {
-                false
-            };
-
-            if !prev_is_ident_char {
-                // Collect the identifier
-                let mut ident = String::from("$");
-                i += 1;
-
-                // Allow for $$ prefix
-                if i < len && chars[i] == '$' {
-                    ident.push('$');
-                    i += 1;
-                }
-
-                // Collect identifier characters
-                while i < len && is_identifier_char(chars[i]) {
-                    ident.push(chars[i]);
-                    i += 1;
-                }
-
-                // Only add if we have more than just $
-                // (bare $ detection is handled separately via proper AST analysis)
-                if ident.len() > 1 {
-                    refs.insert(ident);
-                }
-                continue;
-            }
-        }
-        i += 1;
-    }
-}
-
 /// Check if a character is a valid JavaScript identifier character.
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
@@ -1187,46 +1125,6 @@ fn collect_dollar_refs_from_snippet_block(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_collect_dollar_identifiers() {
-        let mut refs = FxHashSet::default();
-
-        // Simple store reference
-        collect_dollar_identifiers_from_js("$store", &mut refs);
-        assert!(refs.contains("$store"));
-
-        // Multiple references
-        refs.clear();
-        collect_dollar_identifiers_from_js("$a + $b", &mut refs);
-        assert!(refs.contains("$a"));
-        assert!(refs.contains("$b"));
-
-        // $$ prefix (internal variables)
-        refs.clear();
-        collect_dollar_identifiers_from_js("$$props", &mut refs);
-        assert!(refs.contains("$$props"));
-
-        // Just $
-        refs.clear();
-        collect_dollar_identifiers_from_js("$ + 1", &mut refs);
-        assert!(!refs.contains("$"));
-
-        // $ in string literal (would be collected, but that's OK since we validate later)
-        refs.clear();
-        collect_dollar_identifiers_from_js("'$store'", &mut refs);
-        assert!(refs.contains("$store"));
-
-        // Rune-like names
-        refs.clear();
-        collect_dollar_identifiers_from_js("$state(0)", &mut refs);
-        assert!(refs.contains("$state"));
-
-        // Property access on store
-        refs.clear();
-        collect_dollar_identifiers_from_js("$store.value", &mut refs);
-        assert!(refs.contains("$store"));
-    }
 
     #[test]
     fn test_is_identifier_char() {

@@ -12,7 +12,7 @@ pub mod html;
 #[allow(unused_imports)]
 pub use bracket::{find_matching_bracket, match_bracket};
 #[allow(unused_imports)]
-pub use create::{create_empty_fragment, create_fragment, create_fragment_with_node};
+pub use create::{create_empty_fragment, create_fragment};
 #[allow(unused_imports)]
 pub use entities::decode_html_entities;
 #[allow(unused_imports)]
@@ -79,7 +79,6 @@ const RESERVED_WORDS: &[&str] = &[
 ///
 /// Corresponds to `is_reserved()` in `svelte/packages/svelte/src/utils.js`.
 /// Uses first-byte dispatch and match for O(1) lookup instead of linear scan.
-#[allow(dead_code)]
 pub fn is_reserved(word: &str) -> bool {
     matches!(
         word,

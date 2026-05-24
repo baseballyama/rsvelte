@@ -33,10 +33,10 @@ use super::ParseOptions;
 ///
 /// Corresponds to `LastAutoClosedTag` in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct LastAutoClosedTag {
     pub tag: CompactString,
     pub reason: CompactString,
+    #[allow(dead_code)]
     pub depth: usize,
 }
 
@@ -51,7 +51,6 @@ pub struct Parser<'a> {
     /// Current byte position in the source.
     pub(crate) index: usize,
     /// Parser options.
-    #[allow(dead_code)]
     pub(crate) options: ParseOptions,
     /// Stack of open elements/blocks for validation.
     pub(crate) stack: Vec<StackEntry>,
@@ -70,17 +69,14 @@ pub struct Parser<'a> {
     /// Whether we're in TypeScript mode.
     ///
     /// Corresponds to `ts` field in JavaScript Parser.
-    #[allow(dead_code)]
     pub(crate) ts: bool,
     /// Meta tags (e.g., svelte:head, svelte:options).
     ///
     /// Corresponds to `meta_tags` field in JavaScript Parser.
-    #[allow(dead_code)]
     pub(crate) meta_tags: FxHashMap<String, bool>,
     /// Last auto-closed tag.
     ///
     /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
-    #[allow(dead_code)]
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
@@ -90,7 +86,6 @@ pub struct Parser<'a> {
 
 /// An entry on the parser stack.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum StackEntry {
     Root,
     Element {
@@ -339,17 +334,6 @@ impl<'a> Parser<'a> {
                 column: column as u32,
                 character: pos as u32,
             },
-        }
-    }
-
-    /// Get source location for a range.
-    #[allow(dead_code)]
-    pub fn get_location_range(&self, start: usize, end: usize) -> SourceLocation {
-        let start_loc = self.get_location(start);
-        let end_loc = self.get_location(end);
-        SourceLocation {
-            start: start_loc.start,
-            end: end_loc.start,
         }
     }
 

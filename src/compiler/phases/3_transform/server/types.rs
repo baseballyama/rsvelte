@@ -269,7 +269,6 @@ pub(crate) enum OutputPart {
         /// Interleaved props and spreads, preserving source order.
         props_and_spreads: Vec<ComponentPropItem>,
         bindings: Vec<ComponentBinding>,
-        #[allow(dead_code)]
         // Always true for component bindings - comment marker handled in build_parts
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
@@ -280,10 +279,8 @@ pub(crate) enum OutputPart {
         /// Whether this component is dynamic (could be undefined/null)
         dynamic: bool,
         /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
-        #[allow(dead_code)]
         css_custom_props: Vec<(String, String)>,
         /// Whether CSS custom props should use HTML wrapper or SVG wrapper
-        #[allow(dead_code)]
         css_props_is_html: bool,
         /// Whether SequenceExpression bind_get/bind_set declarations have been
         /// hoisted out (e.g., when wrapped in an AsyncBlock). When true, the
@@ -305,7 +302,6 @@ pub(crate) enum OutputPart {
         index_alias: Option<String>,
         body: Vec<OutputPart>,
         /// Fallback content (for {:else} clause)
-        #[allow(dead_code)]
         fallback: Option<Vec<OutputPart>>,
     },
     /// If block - produces an if statement
@@ -357,10 +353,8 @@ pub(crate) enum OutputPart {
         then_body: Vec<OutputPart>,
         /// Catch param - populated by the visitor but not used in server-side output
         /// (the official Svelte compiler only passes 4 args to $.await on the server)
-        #[allow(dead_code)]
         catch_param: String,
         /// Catch body - populated by the visitor but not used in server-side output
-        #[allow(dead_code)]
         catch_body: Vec<OutputPart>,
     },
     /// svelte:boundary - async error boundary
@@ -523,18 +517,6 @@ pub(crate) enum ComponentPropItem {
     Props(Vec<String>),
     /// A spread expression (e.g., `props` from `{...props}`)
     Spread(String),
-}
-
-/// Push a prop string into a `Vec<ComponentPropItem>`, grouping consecutive
-/// props together in a single `Props` variant (mirrors the official compiler's
-/// `push_prop` helper).
-#[allow(dead_code)]
-pub(crate) fn push_component_prop(items: &mut Vec<ComponentPropItem>, prop: String) {
-    if let Some(ComponentPropItem::Props(props)) = items.last_mut() {
-        props.push(prop);
-    } else {
-        items.push(ComponentPropItem::Props(vec![prop]));
-    }
 }
 
 /// Check whether a `Vec<ComponentPropItem>` contains any spreads.

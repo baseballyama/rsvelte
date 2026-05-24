@@ -51,11 +51,9 @@
 //! Note: Legacy AST conversion is in `compiler/legacy.rs` (matches Svelte's
 //! `svelte/packages/svelte/src/compiler/legacy.js`).
 
-#[allow(dead_code)]
 pub mod estree_compat;
 mod parser;
 pub(crate) mod read;
-#[allow(dead_code)]
 pub mod remove_typescript_nodes;
 pub(crate) mod resolve_lazy;
 mod state;
