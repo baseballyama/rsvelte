@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-05T07:09:28.992639+00:00",
-  "commit_sha": "04c0368aa8d8",
+  "generated_at": "2026-05-24T16:46:53.429956+00:00",
+  "commit_sha": "b8f2b86105e0",
   "summary": {
-    "total": 3421,
-    "passed": 3341,
+    "total": 3413,
+    "passed": 3333,
     "failed": 0,
     "skipped": 80,
     "percentage": 100
@@ -455,28 +455,12 @@
     {
       "id": "snapshot",
       "name": "Compiler Snapshot",
-      "total": 28,
-      "passed": 28,
+      "total": 20,
+      "passed": 20,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
       "tests": [
-        {
-          "name": "async-if-chain",
-          "status": "pass"
-        },
-        {
-          "name": "async-each-hoisting",
-          "status": "pass"
-        },
-        {
-          "name": "async-if-hoisting",
-          "status": "pass"
-        },
-        {
-          "name": "async-top-level-inspect-server",
-          "status": "pass"
-        },
         {
           "name": "nullish-coallescence-omittance",
           "status": "pass"
@@ -487,14 +471,6 @@
         },
         {
           "name": "svelte-element",
-          "status": "pass"
-        },
-        {
-          "name": "async-in-derived",
-          "status": "pass"
-        },
-        {
-          "name": "async-each-fallback-hoisting",
           "status": "pass"
         },
         {
@@ -511,10 +487,6 @@
         },
         {
           "name": "await-block-scope",
-          "status": "pass"
-        },
-        {
-          "name": "async-const",
           "status": "pass"
         },
         {
@@ -535,10 +507,6 @@
         },
         {
           "name": "bind-this",
-          "status": "pass"
-        },
-        {
-          "name": "async-if-alternate-hoisting",
           "status": "pass"
         },
         {
@@ -3204,8 +3172,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 865,
-      "passed": 865,
+      "total": 866,
+      "passed": 866,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -6660,6 +6628,10 @@
         },
         {
           "name": "props-local-teardown",
+          "status": "pass"
+        },
+        {
+          "name": "each-key-volatile",
           "status": "pass"
         },
         {
@@ -11629,8 +11601,8 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 78,
-      "passed": 78,
+      "total": 77,
+      "passed": 77,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -11793,10 +11765,6 @@
         },
         {
           "name": "pre-first-node-newline",
-          "status": "pass"
-        },
-        {
-          "name": "boundary-pending-attribute",
           "status": "pass"
         },
         {

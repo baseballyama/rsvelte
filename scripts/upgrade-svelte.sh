@@ -32,7 +32,7 @@ echo ""
 
 # Step 1: Checkout submodule
 echo "[1/6] Checking out svelte submodule to ${TAG}..."
-cd "${ROOT}/svelte"
+cd "${ROOT}/submodules/svelte"
 git fetch --tags
 git checkout "${TAG}"
 COMMIT_HASH=$(git rev-parse --short HEAD)
@@ -44,9 +44,9 @@ cd "${ROOT}"
 # Without this step, the old compiled version remains and fixtures will be wrong.
 echo ""
 echo "[2/6] Building Svelte compiler from source..."
-cd "${ROOT}/svelte"
+cd "${ROOT}/submodules/svelte"
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-cd "${ROOT}/svelte/packages/svelte"
+cd "${ROOT}/submodules/svelte/packages/svelte"
 pnpm build
 cd "${ROOT}"
 echo "  -> compiler/index.js rebuilt"
@@ -78,7 +78,7 @@ else
     npm run update-docs
 fi
 
-# Step 6: Update docs site preview runtime version
+# Step 6: Update docs site preview runtime version + rsvelte shim version
 echo ""
 echo "[6/6] Updating docs preview runtime to ${VERSION}..."
 PREVIEW_FILE="${ROOT}/docs/src/lib/preview.ts"
@@ -88,6 +88,16 @@ if [ -f "${PREVIEW_FILE}" ]; then
     echo "  -> Updated ${PREVIEW_FILE}"
 else
     echo "  -> WARNING: ${PREVIEW_FILE} not found"
+fi
+
+# Bump the VERSION constant reported by the docs rsvelte shim so tools that
+# call `compiler.VERSION` see the same version we target.
+SHIM_FILE="${ROOT}/docs/rsvelte-shim/compiler.mjs"
+if [ -f "${SHIM_FILE}" ]; then
+    sed -i.bak "s|export const VERSION = '[0-9.]*';|export const VERSION = '${VERSION}';|g" "${SHIM_FILE}"
+    sed -i.bak "s|sveltejs/svelte@[0-9.]*|sveltejs/svelte@${VERSION}|g" "${SHIM_FILE}"
+    rm -f "${SHIM_FILE}.bak"
+    echo "  -> Updated ${SHIM_FILE}"
 fi
 
 echo ""
