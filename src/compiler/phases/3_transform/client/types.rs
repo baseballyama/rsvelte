@@ -3008,15 +3008,26 @@ impl Memoizer {
             return self.generate_id_slow(base);
         };
 
-        let mut conflicts = self.conflicts.borrow_mut();
-        let mut next_suffix = self.next_suffix.borrow_mut();
-
-        if !conflicts.contains(sanitized) {
+        // Fast path: most calls succeed on the first attempt. Only borrow the
+        // shared `conflicts` set (skip the `next_suffix` borrow), and use
+        // `HashSet::insert` to combine the lookup + insert into a single
+        // hash. This function is ~33% of phase-3 transform inclusive time
+        // on template-heavy input, so trimming a redundant hash lookup +
+        // a RefCell borrow per call matters.
+        {
+            let mut conflicts = self.conflicts.borrow_mut();
             let owned = sanitized.to_string();
-            conflicts.insert(owned.clone());
-            return owned;
+            if conflicts.insert(owned.clone()) {
+                return owned;
+            }
         }
 
+        // Conflict path: fall through to the suffix loop. The loop body uses
+        // `contains` rather than `insert` so we don't allocate a String per
+        // candidate when the suffix tracker keeps us close to the next free
+        // slot — only the winning name gets cloned for insertion at the end.
+        let mut conflicts = self.conflicts.borrow_mut();
+        let mut next_suffix = self.next_suffix.borrow_mut();
         let start_n = next_suffix.get(sanitized).copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
@@ -3044,14 +3055,18 @@ impl Memoizer {
     fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
 
-        let mut conflicts = self.conflicts.borrow_mut();
-        let mut next_suffix = self.next_suffix.borrow_mut();
-
-        if !conflicts.contains(sanitized.as_str()) {
-            conflicts.insert(sanitized.clone());
-            return sanitized;
+        // Mirror the fast-path optimization in `generate_id`: skip the
+        // `next_suffix` borrow on the no-conflict path and combine the
+        // lookup + insert into a single `HashSet::insert`.
+        {
+            let mut conflicts = self.conflicts.borrow_mut();
+            if conflicts.insert(sanitized.clone()) {
+                return sanitized;
+            }
         }
 
+        let mut conflicts = self.conflicts.borrow_mut();
+        let mut next_suffix = self.next_suffix.borrow_mut();
         let start_n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
         let mut n = start_n;
         let mut name = String::with_capacity(sanitized.len() + 4);
