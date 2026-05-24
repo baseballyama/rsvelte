@@ -310,28 +310,59 @@ function getCommitSha() {
  * of how many cores were available. In CI the workflow sets
  * `BENCHMARK_RUNNER_LABEL` to the GitHub-hosted runner label
  * (e.g. `ubuntu-22.04-arm-16-cores`); locally it's just "local".
+ *
+ * Also records the Node + V8 versions and a 1-minute load average so
+ * that JS-baseline regressions between snapshots are diagnosable. V8
+ * inlining heuristics and per-version optimizations can move the JS
+ * Svelte compiler's wall-clock time by 2× between Node releases, and
+ * background CPU contention can move it another 2× — without these
+ * fields recorded, a future "why did the speedup ratio change?" review
+ * can't tell environmental drift from real regressions.
  */
 function getRunnerInfo() {
 	const cpuList = cpus();
+	const loadAvg = typeof process.loadavg === 'function' ? process.loadavg()[0] : null;
 	return {
 		label: process.env.BENCHMARK_RUNNER_LABEL || 'local',
 		os: nodePlatform(),
 		arch: nodeArch(),
 		cpus: cpuList.length,
 		cpuModel: cpuList[0]?.model?.trim() ?? 'unknown',
+		nodeVersion: process.versions.node,
+		v8Version: process.versions.v8,
+		loadAvg1min: loadAvg,
+		warmupIterations: WARMUP_ITERATIONS,
+		benchmarkIterations: BENCHMARK_ITERATIONS,
 	};
 }
 
 /**
- * Calculate statistics from timing results
+ * Calculate statistics from timing results.
+ *
+ * Headline `durationMs` uses the **median** rather than the mean —
+ * median ignores a single warmup-jitter outlier without us having to
+ * over-warm. `min` is the best-case (mostly-JIT-warm) time, `max` is
+ * the worst case, and `stdDev` lets the page render an error bar so
+ * apples-to-apples comparisons between snapshots are obvious.
  */
 function calculateStats(times, filesCount) {
 	const sum = times.reduce((a, b) => a + b, 0);
-	const avg = sum / times.length;
+	const mean = sum / times.length;
+	const sorted = times.slice().sort((a, b) => a - b);
+	const median = sorted.length % 2 === 0
+		? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+		: sorted[(sorted.length - 1) / 2];
+	const variance = times.reduce((acc, t) => acc + (t - mean) ** 2, 0) / times.length;
+	const stdDev = Math.sqrt(variance);
 
 	return {
-		durationMs: avg,
-		throughputFilesPerSec: (filesCount / avg) * 1000,
+		durationMs: median,
+		throughputFilesPerSec: (filesCount / median) * 1000,
+		minMs: sorted[0],
+		maxMs: sorted[sorted.length - 1],
+		meanMs: mean,
+		stdDevMs: stdDev,
+		samples: times.length,
 	};
 }
 
@@ -465,11 +496,11 @@ function timeSvelteCheckRun(label, bin, args, env) {
 		const t1 = process.hrtime.bigint();
 		samples.push(Number(t1 - t0) / 1e6);
 	}
-	const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+	const stats = calculateStats(samples, SVELTE_CHECK_FILES);
 	console.error(
-		`    ${label.padEnd(28)} ${avg.toFixed(2)}ms (${((SVELTE_CHECK_FILES / avg) * 1000).toFixed(0)} files/sec)`,
+		`    ${label.padEnd(28)} ${stats.durationMs.toFixed(2)}ms (${stats.throughputFilesPerSec.toFixed(0)} files/sec)`,
 	);
-	return avg;
+	return stats;
 }
 
 async function runSvelteCheckTask() {
@@ -482,10 +513,10 @@ async function runSvelteCheckTask() {
 		const jsArgs = [JS_SVELTE_CHECK_BIN, '--workspace', fixture, '--output', 'machine'];
 
 		console.error('  Benchmarking JavaScript (svelte-check)...');
-		const jsMs = timeSvelteCheckRun('JS svelte-check', 'node', jsArgs);
+		const jsStats = timeSvelteCheckRun('JS svelte-check', 'node', jsArgs);
 
 		console.error('  Benchmarking Rust (single-threaded)...');
-		const rsSingleMs = timeSvelteCheckRun(
+		const rsSingleStats = timeSvelteCheckRun(
 			'rsvelte (RAYON=1)',
 			RSVELTE_SVELTE_CHECK_BIN,
 			rsArgs,
@@ -493,25 +524,20 @@ async function runSvelteCheckTask() {
 		);
 
 		console.error('  Benchmarking Rust (multi-threaded)...');
-		const rsMultiMs = timeSvelteCheckRun(
+		const rsMultiStats = timeSvelteCheckRun(
 			'rsvelte (default)',
 			RSVELTE_SVELTE_CHECK_BIN,
 			rsArgs,
 			{},
 		);
 
-		const toStats = (ms) => ({
-			durationMs: ms,
-			throughputFilesPerSec: (SVELTE_CHECK_FILES / ms) * 1000,
-		});
-
 		const result = {
-			javascript: toStats(jsMs),
-			rustSingleThread: toStats(rsSingleMs),
-			rustMultiThread: toStats(rsMultiMs),
+			javascript: jsStats,
+			rustSingleThread: rsSingleStats,
+			rustMultiThread: rsMultiStats,
 			speedup: {
-				singleThreadVsJs: jsMs / rsSingleMs,
-				multiThreadVsJs: jsMs / rsMultiMs,
+				singleThreadVsJs: jsStats.durationMs / rsSingleStats.durationMs,
+				multiThreadVsJs: jsStats.durationMs / rsMultiStats.durationMs,
 			},
 		};
 		console.error(
