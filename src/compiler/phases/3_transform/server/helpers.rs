@@ -1896,65 +1896,76 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
 
 /// Strip `export { ... }` statements from script content.
 fn strip_export_specifiers(script: &str) -> String {
-    let mut result = String::new();
-    let chars: Vec<char> = script.chars().collect();
-    let len = chars.len();
+    // The previous implementation collected `script.chars()` into a `Vec<char>`
+    // AND, more wastefully, allocated a fresh `String` per byte position by
+    // doing `chars[i..i+6].iter().collect()` just to compare against "export".
+    // Switch to byte-indexing + a segment-flush emit pattern. All tokens we
+    // look at (`export`, space/tab/newline, `{}`, `;`) are pure ASCII, so
+    // byte indexing is UTF-8 safe (continuation bytes 0x80-0xFF never collide
+    // with ASCII).
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut result = String::with_capacity(len);
+    let mut segment_start = 0;
     let mut i = 0;
 
     while i < len {
-        if i + 6 <= len {
-            let potential: String = chars[i..i + 6].iter().collect();
-            if potential == "export" {
-                let mut j = i + 6;
+        if i + 6 <= len && &bytes[i..i + 6] == b"export" {
+            let mut j = i + 6;
 
-                while j < len && (chars[j] == ' ' || chars[j] == '\t' || chars[j] == '\n') {
-                    j += 1;
+            while j < len && matches!(bytes[j], b' ' | b'\t' | b'\n') {
+                j += 1;
+            }
+
+            if j < len && bytes[j] == b'{' {
+                let mut depth = 1;
+                let start = j + 1;
+                let mut end = start;
+
+                while end < len && depth > 0 {
+                    match bytes[end] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        _ => {}
+                    }
+                    if depth > 0 {
+                        end += 1;
+                    }
                 }
 
-                if j < len && chars[j] == '{' {
-                    let mut depth = 1;
-                    let start = j + 1;
-                    let mut end = start;
-
-                    while end < len && depth > 0 {
-                        match chars[end] {
-                            '{' => depth += 1,
-                            '}' => depth -= 1,
-                            _ => {}
-                        }
-                        if depth > 0 {
-                            end += 1;
-                        }
-                    }
-
-                    if end < len {
-                        end += 1; // skip '}'
-                    }
-
-                    // Skip trailing semicolons, whitespace, and newline
-                    while end < len && (chars[end] == ' ' || chars[end] == '\t') {
-                        end += 1;
-                    }
-                    if end < len && chars[end] == ';' {
-                        end += 1; // skip trailing semicolon
-                    }
-                    while end < len && (chars[end] == ' ' || chars[end] == '\t') {
-                        end += 1;
-                    }
-                    if end < len && chars[end] == '\n' {
-                        end += 1;
-                    }
-
-                    i = end;
-                    continue;
+                if end < len {
+                    end += 1; // skip '}'
                 }
+
+                // Skip trailing semicolons, whitespace, and newline
+                while end < len && matches!(bytes[end], b' ' | b'\t') {
+                    end += 1;
+                }
+                if end < len && bytes[end] == b';' {
+                    end += 1; // skip trailing semicolon
+                }
+                while end < len && matches!(bytes[end], b' ' | b'\t') {
+                    end += 1;
+                }
+                if end < len && bytes[end] == b'\n' {
+                    end += 1;
+                }
+
+                // Flush the bytes before the `export` and skip to `end`. Both
+                // segment_start and i / end point at ASCII or UTF-8 char
+                // boundaries (we only advance through ASCII control tokens
+                // or stay at the original position), so the slice is valid.
+                result.push_str(&script[segment_start..i]);
+                segment_start = end;
+                i = end;
+                continue;
             }
         }
 
-        result.push(chars[i]);
         i += 1;
     }
 
+    result.push_str(&script[segment_start..]);
     result
 }
 
@@ -2604,38 +2615,40 @@ pub fn update_template_literal_state_full(
     currently_in_template: bool,
     current_brace_depth: i32,
 ) -> (bool, i32) {
+    // All tokens we test (`'`, `"`, `` ` ``, `\`, `{`, `}`, `$`, `/`) are
+    // ASCII, so byte indexing is UTF-8 safe.
     let mut in_template = currently_in_template;
     let mut brace_depth = current_brace_depth;
-    let chars: Vec<char> = line.chars().collect();
+    let bytes = line.as_bytes();
     let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
+    while i < bytes.len() {
+        let c = bytes[i];
 
         // If we're inside a ${...} expression (brace_depth > 0)
         if brace_depth > 0 {
-            if c == '\'' || c == '"' {
+            if c == b'\'' || c == b'"' {
                 // Skip string literals inside the expression
                 let quote = c;
                 i += 1;
-                while i < chars.len() {
-                    if chars[i] == '\\' {
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
                         i += 2;
                         continue;
                     }
-                    if chars[i] == quote {
+                    if bytes[i] == quote {
                         break;
                     }
                     i += 1;
                 }
-            } else if c == '`' {
+            } else if c == b'`' {
                 // Nested template literal inside ${...}
                 // For simplicity, skip it by counting backticks
                 // (nested template literals are rare in practice)
                 i += 1;
                 continue;
-            } else if c == '{' {
+            } else if c == b'{' {
                 brace_depth += 1;
-            } else if c == '}' {
+            } else if c == b'}' {
                 brace_depth -= 1;
                 if brace_depth == 0 {
                     // Closed the ${...} expression, back to template literal text
@@ -2647,32 +2660,32 @@ pub fn update_template_literal_state_full(
         }
 
         if in_template {
-            if c == '\\' {
+            if c == b'\\' {
                 i += 2;
                 continue;
-            } else if c == '`' {
+            } else if c == b'`' {
                 in_template = false;
-            } else if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+            } else if c == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
                 brace_depth = 1;
                 i += 2;
                 continue;
             }
-        } else if c == '\'' || c == '"' {
+        } else if c == b'\'' || c == b'"' {
             let quote = c;
             i += 1;
-            while i < chars.len() {
-                if chars[i] == '\\' {
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
                     i += 2;
                     continue;
                 }
-                if chars[i] == quote {
+                if bytes[i] == quote {
                     break;
                 }
                 i += 1;
             }
-        } else if c == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+        } else if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
             break;
-        } else if c == '`' {
+        } else if c == b'`' {
             in_template = true;
         }
         i += 1;

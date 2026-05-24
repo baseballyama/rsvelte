@@ -1150,29 +1150,31 @@ fn extract_and_reformat_css(source: &str, stylesheet: &StyleSheet) -> Option<Str
 /// Split CSS content into top-level blocks (rules, at-rules).
 /// Returns trimmed block strings.
 fn split_css_top_level_blocks(css: &str) -> Vec<String> {
+    // Byte-indexing is safe here: every token we test (`{`, `}`) is ASCII,
+    // and `current_start..=i` is sliced when `i` points at an ASCII `}`,
+    // so the slice is always on a UTF-8 char boundary.
     let mut blocks = Vec::new();
     let mut depth = 0;
     let mut current_start = 0;
     let mut in_block = false;
-    let chars: Vec<char> = css.chars().collect();
+    let bytes = css.as_bytes();
 
     let mut i = 0;
-    while i < chars.len() {
-        match chars[i] {
-            '{' => {
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => {
                 if depth == 0 {
                     in_block = true;
                 }
                 depth += 1;
             }
-            '}' => {
+            b'}' => {
                 depth -= 1;
                 if depth == 0 && in_block {
                     // End of top-level block
-                    let block_text: String = chars[current_start..=i].iter().collect();
-                    let trimmed = block_text.trim().to_string();
+                    let trimmed = css[current_start..=i].trim();
                     if !trimmed.is_empty() {
-                        blocks.push(trimmed);
+                        blocks.push(trimmed.to_string());
                     }
                     current_start = i + 1;
                     in_block = false;
@@ -1184,10 +1186,9 @@ fn split_css_top_level_blocks(css: &str) -> Vec<String> {
     }
 
     // Handle any remaining text (shouldn't happen in valid CSS)
-    let remaining: String = chars[current_start..].iter().collect();
-    let trimmed = remaining.trim().to_string();
+    let trimmed = css[current_start..].trim();
     if !trimmed.is_empty() {
-        blocks.push(trimmed);
+        blocks.push(trimmed.to_string());
     }
 
     blocks
@@ -1300,32 +1301,30 @@ fn split_css_declarations_and_blocks(inner: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut depth = 0;
     let mut current_start = 0;
-    let chars: Vec<char> = inner.chars().collect();
+    let bytes = inner.as_bytes();
 
     let mut i = 0;
-    while i < chars.len() {
-        match chars[i] {
-            '{' => {
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => {
                 depth += 1;
             }
-            '}' => {
+            b'}' => {
                 depth -= 1;
                 if depth == 0 {
-                    // End of a nested block - collect everything from current_start
-                    let block_text: String = chars[current_start..=i].iter().collect();
-                    let trimmed = block_text.trim().to_string();
+                    // End of a nested block - slice from current_start
+                    let trimmed = inner[current_start..=i].trim();
                     if !trimmed.is_empty() {
-                        parts.push(trimmed);
+                        parts.push(trimmed.to_string());
                     }
                     current_start = i + 1;
                 }
             }
-            ';' if depth == 0 => {
+            b';' if depth == 0 => {
                 // End of a declaration
-                let decl: String = chars[current_start..=i].iter().collect();
-                let trimmed = decl.trim().to_string();
+                let trimmed = inner[current_start..=i].trim();
                 if !trimmed.is_empty() {
-                    parts.push(trimmed);
+                    parts.push(trimmed.to_string());
                 }
                 current_start = i + 1;
             }
@@ -1335,10 +1334,9 @@ fn split_css_declarations_and_blocks(inner: &str) -> Vec<String> {
     }
 
     // Handle remaining text
-    let remaining: String = chars[current_start..].iter().collect();
-    let trimmed = remaining.trim().to_string();
+    let trimmed = inner[current_start..].trim();
     if !trimmed.is_empty() {
-        parts.push(trimmed);
+        parts.push(trimmed.to_string());
     }
 
     parts
@@ -1418,21 +1416,20 @@ fn split_css_inner_blocks(inner: &str) -> Vec<String> {
     let mut blocks = Vec::new();
     let mut depth = 0;
     let mut current_start = 0;
-    let chars: Vec<char> = inner.chars().collect();
+    let bytes = inner.as_bytes();
 
     let mut i = 0;
-    while i < chars.len() {
-        match chars[i] {
-            '{' => {
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => {
                 depth += 1;
             }
-            '}' => {
+            b'}' => {
                 depth -= 1;
                 if depth == 0 {
-                    let block_text: String = chars[current_start..=i].iter().collect();
-                    let trimmed = block_text.trim().to_string();
+                    let trimmed = inner[current_start..=i].trim();
                     if !trimmed.is_empty() {
-                        blocks.push(trimmed);
+                        blocks.push(trimmed.to_string());
                     }
                     current_start = i + 1;
                 }
@@ -1443,12 +1440,11 @@ fn split_css_inner_blocks(inner: &str) -> Vec<String> {
     }
 
     // Handle remaining declarations without braces
-    let remaining: String = chars[current_start..].iter().collect();
-    let trimmed = remaining.trim().to_string();
+    let trimmed = inner[current_start..].trim();
     if !trimmed.is_empty() {
         // These are standalone declarations, add them to the previous block
         // or create a new one
-        blocks.push(trimmed);
+        blocks.push(trimmed.to_string());
     }
 
     blocks
