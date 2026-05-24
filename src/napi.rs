@@ -595,8 +595,7 @@ mod preprocess_bridge {
             napi_val: napi::sys::napi_value,
         ) -> napi::Result<Self> {
             let mut is_promise = false;
-            let status =
-                unsafe { napi::sys::napi_is_promise(env, napi_val, &mut is_promise) };
+            let status = unsafe { napi::sys::napi_is_promise(env, napi_val, &mut is_promise) };
             if status != napi::sys::Status::napi_ok {
                 return Err(napi::Error::from_status(napi::Status::from(status)));
             }
@@ -691,10 +690,7 @@ mod preprocess_bridge {
         // `napi_fatal_error`, surfacing as `threadsafe_function.rs:749 Failed
         // to convert return value … Failed to call then method`). The outer
         // `Option` collapses `undefined`/`null` to `None` on both paths.
-        match tsfn
-            .call_async::<MaybePromise<Option<Value>>>(arg)
-            .await
-        {
+        match tsfn.call_async::<MaybePromise<Option<Value>>>(arg).await {
             Ok(MaybePromise::Promise(promise)) => match promise.await {
                 Ok(Some(v)) => Ok(v),
                 Ok(None) => Ok(Value::Null),
