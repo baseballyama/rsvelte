@@ -253,7 +253,26 @@ pub fn process_children<F>(
     F: FnMut(bool) -> JsExpr,
 {
     let within_bound_contenteditable = false; // TODO: implement bound_contenteditable tracking
-    let mut prev: Box<dyn FnMut(bool) -> JsExpr> = Box::new(initial);
+
+    // After the first flush, `prev` always returns a cached `JsExpr` clone.
+    // Express the two states as an enum so we don't `Box::new` a new
+    // closure on every flush (each child of every element used to allocate
+    // a fresh Box and pay dynamic-dispatch cost on every call).
+    enum SiblingPrev<F: FnMut(bool) -> JsExpr> {
+        Initial(F),
+        Reuse(JsExpr),
+    }
+    impl<F: FnMut(bool) -> JsExpr> SiblingPrev<F> {
+        #[inline]
+        fn call(&mut self, is_text: bool) -> JsExpr {
+            match self {
+                SiblingPrev::Initial(f) => f(is_text),
+                SiblingPrev::Reuse(e) => e.clone(),
+            }
+        }
+    }
+
+    let mut prev: SiblingPrev<F> = SiblingPrev::Initial(initial);
     let mut skipped = 0usize;
 
     // Sequence of Text/ExpressionTag nodes - pre-allocate with a reasonable capacity
@@ -266,15 +285,12 @@ pub fn process_children<F>(
         unsafe { &*(&context.arena as *const _) };
 
     // Helper: get node with proper sibling navigation
-    let get_node = |is_text: bool,
-                    prev_fn: &mut Box<dyn FnMut(bool) -> JsExpr>,
-                    skip_count: usize|
-     -> JsExpr {
+    let get_node = |is_text: bool, prev_fn: &mut SiblingPrev<F>, skip_count: usize| -> JsExpr {
         if skip_count == 0 {
-            return prev_fn(is_text);
+            return prev_fn.call(is_text);
         }
 
-        let prev_expr = prev_fn(false);
+        let prev_expr = prev_fn.call(false);
         let mut args = vec![prev_expr];
 
         if is_text || skip_count != 1 {
@@ -292,7 +308,7 @@ pub fn process_children<F>(
     let flush_node = |is_text: bool,
                       name: &str,
                       _loc: Option<&str>,
-                      prev_fn: &mut Box<dyn FnMut(bool) -> JsExpr>,
+                      prev_fn: &mut SiblingPrev<F>,
                       skip_count: &mut usize,
                       ctx: &mut ComponentContext|
      -> JsExpr {
@@ -310,9 +326,8 @@ pub fn process_children<F>(
                 .push(b::var_decl(arena_ref, &id_name, Some(expression)));
         }
 
-        // Update prev to return this id
-        let id_for_closure = id.clone();
-        *prev_fn = Box::new(move |_is_text: bool| id_for_closure.clone());
+        // Update prev to return this id (no allocation — enum variant swap).
+        *prev_fn = SiblingPrev::Reuse(id.clone());
         *skip_count = 1; // the next node is `$.sibling(id)`
 
         id
@@ -320,7 +335,7 @@ pub fn process_children<F>(
 
     // Helper: flush a sequence of Text/ExpressionTag nodes
     let flush_sequence = |seq: Vec<TextOrExpr>,
-                          prev_fn: &mut Box<dyn FnMut(bool) -> JsExpr>,
+                          prev_fn: &mut SiblingPrev<F>,
                           skip_count: &mut usize,
                           ctx: &mut ComponentContext| {
         // If all nodes are text, just push to template
