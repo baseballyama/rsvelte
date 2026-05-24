@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte-check-win32-x64-msvc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prebuilt svelte-check binary for win32-x64 (msvc)",
   "license": "MIT",
   "repository": {
@@ -8,9 +8,15 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "npm/svelte-check-win32-x64-msvc"
   },
-  "os": ["win32"],
-  "cpu": ["x64"],
-  "files": ["svelte-check.exe"],
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "svelte-check.exe"
+  ],
   "publishConfig": {
     "access": "public"
   }

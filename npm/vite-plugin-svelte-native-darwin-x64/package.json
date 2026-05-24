@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/vite-plugin-svelte-native-darwin-x64",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Prebuilt rsvelte NAPI binding for darwin-x64",
   "license": "MIT",
   "repository": {
@@ -8,10 +8,16 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "npm/vite-plugin-svelte-native-darwin-x64"
   },
-  "os": ["darwin"],
-  "cpu": ["x64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "main": "./rsvelte.node",
-  "files": ["rsvelte.node"],
+  "files": [
+    "rsvelte.node"
+  ],
   "publishConfig": {
     "access": "public"
   }
