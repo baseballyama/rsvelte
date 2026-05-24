@@ -1,6 +1,6 @@
 {
   "name": "melt-ui",
-  "repo": "https://github.com/melt-ui/melt",
+  "repo": "https://github.com/melt-ui/next-gen",
   "license": "MIT",
   "branch": "main",
   "type": "tool",
@@ -9,8 +9,7 @@
   },
   "commands": {
     "install": "pnpm install --no-frozen-lockfile",
-    "build": "pnpm -F melt build",
-    "test": "pnpm -F melt test -- --run"
+    "build": "pnpm --filter melt build"
   },
   "timeoutMinutes": 30,
   "tags": ["ui-library", "headless", "runes"],
