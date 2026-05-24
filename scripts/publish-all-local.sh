@@ -205,12 +205,23 @@ build_for_target() {
   esac
 }
 
-# Linker artifact name depends on the target.
-sc_binary_for() {
+# Cargo writes the binary as the bin target's `name` (`svelte_check`,
+# underscore — cargo doesn't translate the filename). The loader package
+# (`npm/svelte-check/bin/svelte-check.cjs`) execs `svelte-check` /
+# `svelte-check.exe` (dash), so we rename during the staging copy. CI
+# does the same rename in its `Stage binary` step.
+sc_src_for() {
   local target="$1"
   case "$target" in
     *-pc-windows-msvc) echo "svelte_check.exe" ;;
     *)                 echo "svelte_check" ;;
+  esac
+}
+sc_dest_for() {
+  local target="$1"
+  case "$target" in
+    *-pc-windows-msvc) echo "svelte-check.exe" ;;
+    *)                 echo "svelte-check" ;;
   esac
 }
 
@@ -256,10 +267,13 @@ for entry in "${TRIPLES[@]}"; do
   else
     step "  svelte_check ($triple)" \
       build_for_target "$triple" "$target" --bin svelte_check
-    sc_bin="$(sc_binary_for "$target")"
-    sc_dest="$sc_dir/$sc_bin"
-    cp "target/$target/release/$sc_bin" "$sc_dest"
-    [[ "$sc_bin" == *.exe ]] || chmod 755 "$sc_dest"
+    sc_src="$(sc_src_for "$target")"
+    sc_dest_name="$(sc_dest_for "$target")"
+    sc_dest="$sc_dir/$sc_dest_name"
+    cp "target/$target/release/$sc_src" "$sc_dest"
+    [[ "$sc_dest_name" == *.exe ]] || chmod 755 "$sc_dest"
+    # Sweep any wrongly-named legacy artifact from a previous run.
+    rm -f "$sc_dir/svelte_check" "$sc_dir/svelte_check.exe"
     log "  staged $sc_dest ($(stat -f %z "$sc_dest" 2>/dev/null || stat -c %s "$sc_dest") bytes)"
   fi
 
