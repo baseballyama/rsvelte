@@ -41,8 +41,10 @@ for (const { triple, binary } of targets) {
 		continue;
 	}
 	copyFileSync(src, dest);
-	// Make sure the binary is executable. `pnpm publish` preserves the file
-	// mode in the tarball, so this is what end users will receive.
+	// Make sure the binary is executable. The platform packages are
+	// published via `scripts/publish-platform-binaries.mjs` (`npm publish`),
+	// which preserves the file mode in the tarball — without that hop
+	// `pnpm publish` would normalise it back to 0644.
 	if (!binary.endsWith('.exe')) {
 		chmodSync(dest, 0o755);
 	}

@@ -31,13 +31,14 @@
     "finalize-pkg": "node scripts/finalize-pkg.mjs",
     "stage-svelte-check": "node scripts/stage-svelte-check-binaries.mjs",
     "stage-vps-native": "node scripts/stage-vps-binaries.mjs",
+    "publish-platform-binaries": "node scripts/publish-platform-binaries.mjs",
     "test:vps-shim": "node scripts/test-vps-shim.mjs",
     "test:vps-fixture": "node scripts/test-vps-vite-fixture.mjs",
     "test:vps": "node scripts/test-vps-shim.mjs && node scripts/test-vps-vite-fixture.mjs",
     "build:vps-native": "node scripts/build-vps-native-local.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version && pnpm run sync-version",
-    "release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && changeset publish"
+    "release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.10",

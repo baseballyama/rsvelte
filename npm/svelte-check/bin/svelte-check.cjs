@@ -4,6 +4,7 @@
 // platform and execs its binary.
 
 const { spawnSync } = require('node:child_process');
+const { chmodSync, statSync, constants } = require('node:fs');
 const path = require('node:path');
 
 function resolveTriple() {
@@ -54,6 +55,22 @@ try {
 			`Original error: ${err.message}`,
 	);
 	process.exit(1);
+}
+
+// `pnpm pack` (used by `pnpm publish` and therefore `changeset publish` when
+// pnpm is detected) normalises file modes to 0644, dropping the execute bit
+// the staging script set before pack. On POSIX, re-apply +x best-effort right
+// before spawn so the binary can actually run.
+if (process.platform !== 'win32') {
+	try {
+		const mode = statSync(binPath).mode;
+		if (!(mode & constants.S_IXUSR)) {
+			chmodSync(binPath, (mode & 0o777) | 0o111);
+		}
+	} catch {
+		// Read-only filesystems and similar are not fatal here — spawn will
+		// surface a clear error below if the binary really isn't executable.
+	}
 }
 
 const result = spawnSync(binPath, process.argv.slice(2), {
