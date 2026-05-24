@@ -34,6 +34,30 @@ function getSvelteCommitHash() {
 	}
 }
 
+// Get the closest Svelte release tag for the submodule HEAD (e.g. "5.51.3")
+function getSvelteVersion() {
+	try {
+		const result = execSync('git describe --tags --exact-match HEAD 2>/dev/null', {
+			cwd: path.join(rootDir, 'submodules', 'svelte'),
+			encoding: 'utf-8'
+		}).trim();
+		// Tag format is e.g. "svelte@5.51.3" — strip the prefix.
+		const match = /^svelte@(.+)$/.exec(result);
+		return match ? match[1] : result || 'unknown';
+	} catch {
+		// No exact tag — fall back to nearest tag with a -gSHORT suffix.
+		try {
+			const result = execSync('git describe --tags --always', {
+				cwd: path.join(rootDir, 'submodules', 'svelte'),
+				encoding: 'utf-8'
+			}).trim();
+			return result.replace(/^svelte@/, '');
+		} catch {
+			return 'unknown';
+		}
+	}
+}
+
 // Get the compatibility report path
 function getReportPath() {
 	const args = process.argv.slice(2);
@@ -121,25 +145,57 @@ function generateReadmeTable(report) {
 	return table;
 }
 
+// Replace the <!-- svelte-target-version -->…<!-- /svelte-target-version -->
+// marker block in README.md so the displayed Svelte version stays in sync with
+// the submodule pointer. Used by CI to enforce that the README never drifts.
+function renderSvelteTargetBlock(version, commitHash) {
+	const shortHash = commitHash.slice(0, 12);
+	return [
+		'<!-- svelte-target-version -->',
+		`**Targeting Svelte \`v${version}\`** ([\`${shortHash}\`](https://github.com/sveltejs/svelte/commit/${shortHash})) — automatically maintained by \`pnpm run update-docs\`.`,
+		'<!-- /svelte-target-version -->'
+	].join('\n');
+}
+
+function updateSvelteTargetMarker(content, version, commitHash) {
+	const block = renderSvelteTargetBlock(version, commitHash);
+	const markerRegex =
+		/<!-- svelte-target-version -->[\s\S]*?<!-- \/svelte-target-version -->/;
+	if (markerRegex.test(content)) {
+		return content.replace(markerRegex, block);
+	}
+	// First-time insertion: place it right before the compatibility table.
+	const insertRegex =
+		/(## Compatibility\s*\n\s*)(Current compatibility with the official Svelte compiler test suite:)/;
+	if (insertRegex.test(content)) {
+		return content.replace(insertRegex, `$1${block}\n\n$2`);
+	}
+	console.warn(
+		'Warning: Could not find compatibility marker or section in README.md — Svelte target version not written.'
+	);
+	return content;
+}
+
 // Update README.md
-function updateReadme(report) {
+//
+// We only touch the <!-- svelte-target-version --> marker block so the
+// displayed Svelte version stays in sync with the submodule pointer. The
+// compatibility table itself is maintained manually because it carries
+// hand-written annotations (totals row, skip reasons) that don't survive
+// a fully automated regeneration.
+function updateReadme(_report) {
 	const readmePath = path.join(rootDir, 'README.md');
-	let content = fs.readFileSync(readmePath, 'utf-8');
+	const original = fs.readFileSync(readmePath, 'utf-8');
 
-	// Generate new table
-	const newTable = generateReadmeTable(report);
+	const version = getSvelteVersion();
+	const commit = getSvelteCommitHash();
+	const updated = updateSvelteTargetMarker(original, version, commit);
 
-	// Find and replace the compatibility table
-	// Look for the section starting with "## Compatibility" and ending with the table
-	const compatibilityRegex =
-		/(## Compatibility\s*\n\s*Current compatibility with the official Svelte compiler test suite:\s*\n\s*)\|[^#]+(\n\n###|\n\n## |\n\n$)/s;
-
-	if (compatibilityRegex.test(content)) {
-		content = content.replace(compatibilityRegex, `$1${newTable}$2`);
-		fs.writeFileSync(readmePath, content);
-		console.log('Updated README.md compatibility table');
+	if (updated !== original) {
+		fs.writeFileSync(readmePath, updated);
+		console.log(`Updated README.md Svelte target marker (v${version} @ ${commit.slice(0, 12)})`);
 	} else {
-		console.warn('Warning: Could not find compatibility table in README.md');
+		console.log(`README.md Svelte target marker already up to date (v${version} @ ${commit.slice(0, 12)})`);
 	}
 }
 
@@ -206,9 +262,39 @@ function updateTestResults(report) {
 	console.log('Updated docs/static/test-results.json');
 }
 
+// Verify the README's Svelte target-version marker is consistent with the
+// submodule pointer. Used by CI to catch stale docs after a submodule bump.
+function checkReadmeInSync(_report) {
+	const readmePath = path.join(rootDir, 'README.md');
+	const original = fs.readFileSync(readmePath, 'utf-8');
+
+	const version = getSvelteVersion();
+	const commit = getSvelteCommitHash();
+	const expected = updateSvelteTargetMarker(original, version, commit);
+
+	if (expected !== original) {
+		console.error(
+			'README.md Svelte target-version marker is out of sync with the submodule.'
+		);
+		console.error('Run `pnpm run update-docs` and commit the result.');
+		console.error('');
+		console.error(`Expected Svelte target: v${version} (${commit.slice(0, 12)})`);
+		process.exit(1);
+	}
+
+	console.log(`README.md Svelte target marker is in sync (v${version} @ ${commit.slice(0, 12)})`);
+}
+
 // Main
 function main() {
-	console.log('Updating documentation from compatibility report...\n');
+	const args = process.argv.slice(2);
+	const checkMode = args.includes('--check');
+
+	if (checkMode) {
+		console.log('Checking documentation is in sync with compatibility report...\n');
+	} else {
+		console.log('Updating documentation from compatibility report...\n');
+	}
 
 	const reportPath = getReportPath();
 	console.log(`Loading report from: ${reportPath}`);
@@ -218,6 +304,11 @@ function main() {
 	console.log(`Svelte commit: ${report.svelte_short_hash}`);
 	console.log(`Total tests: ${report.summary.total_tests}`);
 	console.log(`Overall: ${report.summary.total_passed}/${report.summary.total_tests - report.summary.total_skipped} (${report.summary.overall_percentage.toFixed(1)}%)\n`);
+
+	if (checkMode) {
+		checkReadmeInSync(report);
+		return;
+	}
 
 	updateReadme(report);
 	updateTestResults(report);
