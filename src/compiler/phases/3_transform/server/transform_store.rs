@@ -1312,14 +1312,18 @@ fn expand_array_store_destructure(
 
 /// Find matching opening bracket by walking backwards.
 fn find_matching_open(s: &str, close_pos: usize, open: char, close: char) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    // open/close are always ASCII brackets (`(`, `)`, `[`, `]`, `{`, `}`)
+    // at the call sites, so byte indexing is safe.
+    let bytes = s.as_bytes();
+    let open_b = open as u8;
+    let close_b = close as u8;
     let mut depth = 1i32;
     let mut i = close_pos;
     while i > 0 {
         i -= 1;
-        if chars[i] == close {
+        if bytes[i] == close_b {
             depth += 1;
-        } else if chars[i] == open {
+        } else if bytes[i] == open_b {
             depth -= 1;
             if depth == 0 {
                 return Some(i);
@@ -1331,16 +1335,16 @@ fn find_matching_open(s: &str, close_pos: usize, open: char, close: char) -> Opt
 
 /// Find the end of an expression at the given start position.
 fn find_expression_end(s: &str, start: usize) -> usize {
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len();
+    let bytes = s.as_bytes();
+    let len = bytes.len();
     let mut depth = 0i32;
     let mut i = start;
-    let mut in_string: Option<char> = None;
+    let mut in_string: Option<u8> = None;
 
     while i < len {
-        let c = chars[i];
+        let c = bytes[i];
         if let Some(q) = in_string {
-            if c == '\\' {
+            if c == b'\\' {
                 i += 2;
                 continue;
             }
@@ -1350,17 +1354,17 @@ fn find_expression_end(s: &str, start: usize) -> usize {
             i += 1;
             continue;
         }
-        if c == '\'' || c == '"' || c == '`' {
+        if c == b'\'' || c == b'"' || c == b'`' {
             in_string = Some(c);
             i += 1;
             continue;
         }
         match c {
-            '(' | '[' | '{' => {
+            b'(' | b'[' | b'{' => {
                 depth += 1;
                 i += 1;
             }
-            ')' | ']' | '}' => {
+            b')' | b']' | b'}' => {
                 if depth > 0 {
                     depth -= 1;
                     i += 1;
@@ -1368,7 +1372,7 @@ fn find_expression_end(s: &str, start: usize) -> usize {
                     return i;
                 }
             }
-            ';' | '\n' if depth == 0 => return i,
+            b';' | b'\n' if depth == 0 => return i,
             _ => {
                 i += 1;
             }
@@ -1423,25 +1427,25 @@ fn split_top_level_commas(s: &str) -> Vec<String> {
 
 /// Find the position of a top-level colon in a string (not inside brackets/parens/strings).
 fn find_top_level_colon_pos(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut depth = 0i32;
-    let mut in_string: Option<char> = None;
+    let mut in_string: Option<u8> = None;
 
-    for (i, &c) in chars.iter().enumerate() {
+    for (i, &c) in bytes.iter().enumerate() {
         if let Some(q) = in_string {
             if c == q {
                 in_string = None;
             }
             continue;
         }
-        if c == '\'' || c == '"' || c == '`' {
+        if c == b'\'' || c == b'"' || c == b'`' {
             in_string = Some(c);
             continue;
         }
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            ':' if depth == 0 => return Some(i),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b':' if depth == 0 => return Some(i),
             _ => {}
         }
     }
@@ -1595,17 +1599,17 @@ fn strip_trailing_line_comments(value: &str) -> String {
     value
         .lines()
         .map(|line| {
-            let chars: Vec<char> = line.chars().collect();
-            let len = chars.len();
+            let bytes = line.as_bytes();
+            let len = bytes.len();
             let mut i = 0;
-            let mut in_str: Option<char> = None;
+            let mut in_str: Option<u8> = None;
 
             while i < len {
-                let ch = chars[i];
+                let ch = bytes[i];
 
                 // Handle string literals
                 if let Some(q) = in_str {
-                    if ch == '\\' && i + 1 < len {
+                    if ch == b'\\' && i + 1 < len {
                         i += 2;
                         continue;
                     }
@@ -1616,17 +1620,16 @@ fn strip_trailing_line_comments(value: &str) -> String {
                     continue;
                 }
 
-                if ch == '\'' || ch == '"' || ch == '`' {
+                if ch == b'\'' || ch == b'"' || ch == b'`' {
                     in_str = Some(ch);
                     i += 1;
                     continue;
                 }
 
-                // Found `//` outside a string - this starts a comment
-                if ch == '/' && i + 1 < len && chars[i + 1] == '/' {
-                    // Return line up to the comment, trimming trailing whitespace
-                    let before_comment: String = chars[..i].iter().collect();
-                    return before_comment.trim_end().to_string();
+                // Found `//` outside a string - this starts a comment.
+                // `i` points at an ASCII `/`, so `line[..i]` is on a char boundary.
+                if ch == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+                    return line[..i].trim_end().to_string();
                 }
 
                 i += 1;
@@ -1640,16 +1643,16 @@ fn strip_trailing_line_comments(value: &str) -> String {
 
 fn find_statement_end(s: &str) -> usize {
     let mut depth = 0;
-    let chars: Vec<char> = s.chars().collect();
+    let bytes = s.as_bytes();
     let mut in_string = false;
-    let mut string_char = ' ';
-    let len = chars.len();
+    let mut string_char = 0u8;
+    let len = bytes.len();
     let mut i = 0;
 
     while i < len {
-        let c = chars[i];
+        let c = bytes[i];
 
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == b'"' || c == b'\'' || c == b'`') && (i == 0 || bytes[i - 1] != b'\\') {
             if !in_string {
                 in_string = true;
                 string_char = c;
@@ -1666,9 +1669,9 @@ fn find_statement_end(s: &str) -> usize {
         }
 
         // Skip single-line comments: `//` to end of line
-        if c == '/' && i + 1 < len && chars[i + 1] == '/' {
+        if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
             // Advance past the comment to the newline (or end of string)
-            while i < len && chars[i] != '\n' {
+            while i < len && bytes[i] != b'\n' {
                 i += 1;
             }
             // Now i is at the '\n' or past the end; the loop will handle it
@@ -1676,9 +1679,9 @@ fn find_statement_end(s: &str) -> usize {
         }
 
         // Skip multi-line comments: `/* ... */`
-        if c == '/' && i + 1 < len && chars[i + 1] == '*' {
+        if c == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
             i += 2;
-            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                 i += 1;
             }
             if i + 1 < len {
@@ -1688,12 +1691,12 @@ fn find_statement_end(s: &str) -> usize {
         }
 
         match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' if depth > 0 => {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' if depth > 0 => {
                 depth -= 1;
             }
-            ';' if depth == 0 => return i,
-            '\n' if depth == 0 => {
+            b';' if depth == 0 => return i,
+            b'\n' if depth == 0 => {
                 // Newline at depth 0 ends the statement ONLY if the previous
                 // non-whitespace char is not a continuation operator (=, +, -, etc.)
                 // This handles multi-line assignments like:
