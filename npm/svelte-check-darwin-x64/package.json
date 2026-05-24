@@ -11,6 +11,9 @@
   "os": ["darwin"],
   "cpu": ["x64"],
   "files": ["svelte-check"],
+  "scripts": {
+    "prepack": "chmod +x svelte-check"
+  },
   "publishConfig": {
     "access": "public"
   }
