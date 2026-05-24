@@ -93,87 +93,52 @@ if ! npm whoami >/dev/null 2>&1; then
 fi
 log "npm user: $(npm whoami)"
 
-# Make sure the auth credential is an automation token (or 2FA is set to
-# "Authorization only"), otherwise the run will pause for an interactive
-# OTP prompt at every one of the ~14 publishes below — 14 OTPs, each
-# valid for 30 seconds, single-use. Fail fast here with actionable
-# remediation instead.
-have_authtoken_in_npmrc() {
-  # Look for `//registry.npmjs.org/:_authToken=...` in either user or
-  # project npmrc. Token auth bypasses 2FA-writes prompts entirely.
-  ( [ -f "$HOME/.npmrc" ] && grep -q '^//registry\.npmjs\.org/:_authToken=' "$HOME/.npmrc" ) || \
-  ( [ -f "$REPO_ROOT/.npmrc" ] && grep -q '^//registry\.npmjs\.org/:_authToken=' "$REPO_ROOT/.npmrc" )
+# Detect npm 2FA mode (interactive OTP-per-publish needed?) and warn
+# the operator up-front about how many OTP entries to expect. We do
+# NOT block on it any more — the operator has decided to keep 2FA in
+# `auth-and-writes` mode, so just count the publishes and tell them
+# how many OTPs they'll be feeding.
+npm_2fa_mode() {
+  npm profile get tfa --json 2>/dev/null | jq -r '.mode // "off"'
 }
-npm_2fa_mode_blocks_writes() {
-  # npm profile → tfa.mode: "auth-and-writes" prompts OTP on every
-  # publish; "auth-only" does not; missing/null means 2FA is off.
-  local mode
-  mode="$(npm profile get tfa --json 2>/dev/null | jq -r '.mode // ""')"
-  [ "$mode" = "auth-and-writes" ]
-}
-if ! have_authtoken_in_npmrc && npm_2fa_mode_blocks_writes; then
-  cat >&2 <<EOF
+TFA_MODE="$(npm_2fa_mode)"
 
-  ✗ npm 2FA is set to "Authorization and writes" mode AND no automation
-    token is configured in ~/.npmrc. The script publishes ~14 packages
-    back-to-back; without a token you'd be prompted for a fresh OTP
-    every single publish — 14 OTPs, each single-use, each valid for 30
-    seconds. The run would stall on the first publish waiting for input.
+# Count how many packages this run might publish (some will be skipped
+# at `publish_if_new` time if already on the registry — this is the
+# upper bound).
+EXPECTED_PUBLISHES=$((
+  1 +                                              # compiler
+  1 +                                              # svelte2tsx
+  ${#TRIPLES[@]} + 1 +                             # svelte-check 5 platforms + loader
+  ${#TRIPLES[@]} + 1 +                             # vps-native 5 platforms + loader
+  1                                                # vps shim (submodule)
+))
 
-  Pick one of the two fixes below and re-run. Both take under a minute:
+case "$TFA_MODE" in
+  auth-and-writes)
+    cat >&2 <<EOF
 
-  [A] Create an automation/granular token (recommended — bypasses 2FA):
-      1) Open https://www.npmjs.com/settings/$(npm whoami)/tokens/new
-      2) "Granular Access Token", scope to @rsvelte/*, "Read and write".
-      3) Append to ~/.npmrc:
-           //registry.npmjs.org/:_authToken=npm_XXXXXXXXXXXX
+  ⚠ npm 2FA is in "Authorization and writes" mode. pnpm will prompt for a
+    fresh 6-digit OTP at every publish — up to $EXPECTED_PUBLISHES of them
+    if no packages are skipped. Have your authenticator app ready; OTPs
+    are single-use and refresh every 30 seconds.
 
-  [B] Switch 2FA to "Authorization only" (no token needed):
-      Open https://www.npmjs.com/settings/$(npm whoami)/profile
-      → "Two-Factor Authentication" → change mode to "Authorization only"
+    (Tip: an Automation token in ~/.npmrc bypasses 2FA entirely if you
+    ever want to skip the OTP entry next time. Not required.)
 
 EOF
-  die "blocking on npm 2FA configuration — see above"
-fi
-if have_authtoken_in_npmrc; then
-  log "npm auth: automation token (no OTP prompts)"
-else
-  log "npm auth: 2FA in \"Authorization only\" mode (no per-publish OTP)"
-fi
-
-# The token might be a Granular one scoped only to packages that
-# already exist (`@rsvelte/compiler`). All our other publishes target
-# fresh @rsvelte/* names, which a too-narrowly-scoped token can't
-# touch — `pnpm publish` then returns 403/401 mid-run, looking like a
-# "please login" stall to the operator. Dry-run a publish that we know
-# is new (svelte2tsx) to surface the permission gap up front.
-log "verifying token covers @rsvelte/* writes (svelte2tsx dry-run)…"
-if ! (cd npm/svelte2tsx && pnpm publish --dry-run --access public --no-git-checks) \
-     >/tmp/publish-preflight.log 2>&1; then
-  tail -20 /tmp/publish-preflight.log >&2
-  cat >&2 <<EOF
-
-  ✗ Dry-run publish of @rsvelte/svelte2tsx failed.
-
-    Most common cause: the current token can write to packages it
-    already owns (e.g. @rsvelte/compiler) but is not scoped to publish
-    new @rsvelte/* names. Re-issue the token with a broader scope:
-
-      1) Open https://www.npmjs.com/settings/$(npm whoami)/tokens/new
-      2) "Classic Token" → Type: "Automation"   (simplest — covers everything)
-         — OR —
-         "Granular Access Token" with:
-           Permissions:      Read and write
-           Allowed packages: @rsvelte/*    (wildcard)
-           Allowed scopes:   @rsvelte
-      3) Replace the line in ~/.npmrc:
-           sed -i '' '/^\/\/registry\.npmjs\.org\/:_authToken=/d' ~/.npmrc
-           echo "//registry.npmjs.org/:_authToken=npm_NEW_TOKEN" >> ~/.npmrc
-
-EOF
-  die "publish dry-run failed — fix npm token and re-run"
-fi
-log "  ↳ dry-run OK"
+    log "npm auth: 2FA \"auth-and-writes\" (~$EXPECTED_PUBLISHES OTP prompts expected)"
+    ;;
+  auth-only)
+    log "npm auth: 2FA \"auth-only\" (no per-publish OTP)"
+    ;;
+  off)
+    log "npm auth: 2FA off (no per-publish OTP)"
+    ;;
+  *)
+    log "npm auth: 2FA mode \"$TFA_MODE\" (unknown; pnpm may prompt)"
+    ;;
+esac
 
 # `cargo-zigbuild` + `zig` for Linux cross-compile targets. `cross`'s
 # rustup-host probe doesn't survive on macOS hosts (it tries to install
