@@ -16,7 +16,14 @@ crate-type = ["cdylib", "rlib"]
 default = ["native"]
 native = ["rayon", "miette/fancy", "jemalloc"]
 trace-fastpath = []
-napi = ["dep:napi", "dep:napi-derive", "dep:napi-build"]
+# `napi` opts the cdylib into the NAPI build. When the cdylib gets
+# dlopen'd by Node (post-program-start), jemalloc's default
+# initial-exec TLS model can exhaust the static TLS reserve on Linux —
+# producing "cannot allocate memory in static TLS block" at load time.
+# Pull in the `disable_initial_exec_tls` feature transitively so the
+# NAPI build is always dlopen-safe. The `?` makes it a no-op when
+# jemalloc is disabled (e.g. `--no-default-features --features napi`).
+napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
 wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
 
