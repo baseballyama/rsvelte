@@ -1,0 +1,20 @@
+{
+  "name": "melt-ui",
+  "repo": "https://github.com/melt-ui/melt",
+  "license": "MIT",
+  "branch": "main",
+  "type": "tool",
+  "swap": {
+    "strategy": "vps-shim"
+  },
+  "commands": {
+    "install": "pnpm install --no-frozen-lockfile",
+    "build": "pnpm -F melt build",
+    "test": "pnpm -F melt test -- --run"
+  },
+  "timeoutMinutes": 30,
+  "tags": ["ui-library", "headless", "runes"],
+  "allowList": {
+    "expectedBaselineFailures": []
+  }
+}

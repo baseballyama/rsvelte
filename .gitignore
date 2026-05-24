@@ -66,6 +66,13 @@ language-tools
 # the skill bisects against), so nothing inside it should be tracked.
 compat-targets/
 
+# ecosystem-ci: per-target clones, logs, and per-run result JSON. Only
+# ecosystem-ci/targets/*.json and ecosystem-ci/README.md are tracked.
+/ecosystem-ci/checkout/
+/ecosystem-ci/results/
+/ecosystem-ci/.cache/
+/ecosystem-ci/state/
+
 # Tool / review scratch artefacts. None of these are inputs to a build;
 # they're outputs of local tooling (benchmarks, profilers, code-review
 # skills) that get regenerated on demand and should not pollute git.
