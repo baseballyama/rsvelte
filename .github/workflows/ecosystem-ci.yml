@@ -83,7 +83,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Init vite-plugin-svelte submodule (only one ecosystem-ci needs)
-        run: git submodule update --init submodules/vite-plugin-svelte
+        # The fork's submodule URL in .gitmodules is the maintainer's SSH URL
+        # (git@github.com:.../vite-plugin-svelte.git). CI runners don't have
+        # that SSH key, so override to HTTPS for the duration of this init.
+        run: |
+          git config submodule.submodules/vite-plugin-svelte.url \
+            https://github.com/baseballyama/vite-plugin-svelte.git
+          git submodule update --init submodules/vite-plugin-svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
