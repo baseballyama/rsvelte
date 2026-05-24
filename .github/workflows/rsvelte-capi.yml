@@ -99,12 +99,16 @@ jobs:
           cc -O2 -Wall -Wextra \
             -I crates/rsvelte_capi/include \
             -L target/release \
-            -Wl,-rpath,'$ORIGIN' \
             crates/rsvelte_capi/examples/c/smoke.c \
             -lrsvelte_capi \
             -o target/release/c_smoke
-          cp target/release/${{ matrix.lib }} target/release/
-          (cd target/release && ./c_smoke)
+          cd target/release
+          # Same dir for binary + dylib — both env vars cover Linux/macOS.
+          LD_LIBRARY_PATH=. DYLD_LIBRARY_PATH=. ./c_smoke
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: C smoke (Windows)
         if: runner.os == 'Windows'
@@ -115,15 +119,21 @@ jobs:
             crates\rsvelte_capi\examples\c\smoke.c ^
             /link /LIBPATH:target\release rsvelte_capi.dll.lib ^
             /OUT:target\release\c_smoke.exe
+          if errorlevel 1 exit /b 1
           target\release\c_smoke.exe
 
       # ---------------- Go ----------------
+      # cgo on Windows needs MinGW/gcc on PATH, which the default
+      # runner doesn't have — skip Windows here; the Rust cargo tests
+      # cover the Windows ABI surface.
       - name: Set up Go
+        if: runner.os != 'Windows'
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
       - name: Go smoke
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           cd crates/rsvelte_capi/examples/go

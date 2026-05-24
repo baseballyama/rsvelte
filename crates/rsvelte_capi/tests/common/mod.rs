@@ -48,14 +48,19 @@ fn drive(source: &str, options_json: &str, which: FnVariant) -> Value {
     let bytes = unsafe { std::slice::from_raw_parts(buf.data, buf.len) }.to_vec();
     unsafe { rsvelte_free(buf) };
 
-    serde_json::from_slice(&bytes)
-        .unwrap_or_else(|e| panic!("envelope is not valid JSON: {e}\nbody={:?}", String::from_utf8_lossy(&bytes)))
+    serde_json::from_slice(&bytes).unwrap_or_else(|e| {
+        panic!(
+            "envelope is not valid JSON: {e}\nbody={:?}",
+            String::from_utf8_lossy(&bytes)
+        )
+    })
 }
 
 /// Convenience: assert ok=true and return `result`.
 pub fn ok_result(envelope: &Value) -> &Value {
     assert_eq!(
-        envelope["ok"], Value::Bool(true),
+        envelope["ok"],
+        Value::Bool(true),
         "expected ok=true envelope, got {envelope}"
     );
     &envelope["result"]

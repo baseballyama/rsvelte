@@ -43,7 +43,10 @@ fn success_result_has_js_css_warnings_metadata() {
         result["css"]
     );
 
-    assert!(result["warnings"].is_array(), "result.warnings must be array");
+    assert!(
+        result["warnings"].is_array(),
+        "result.warnings must be array"
+    );
     assert!(
         result["metadata"].is_object(),
         "result.metadata must be object"
@@ -86,7 +89,10 @@ fn warning_objects_have_documented_keys() {
     assert!(!warnings.is_empty(), "expected at least one warning");
     let w = &warnings[0];
     assert!(w["code"].is_string(), "warnings[].code must be string");
-    assert!(w["message"].is_string(), "warnings[].message must be string");
+    assert!(
+        w["message"].is_string(),
+        "warnings[].message must be string"
+    );
     // start/end/position/frame are optional but when present must have these shapes
     if !w["start"].is_null() {
         assert!(w["start"]["line"].is_number());
@@ -113,8 +119,10 @@ fn parse_error_returns_ok_false_envelope() {
 fn malformed_options_returns_ok_false_envelope() {
     let env = compile("<h1>x</h1>", "{not json");
     assert_eq!(env["ok"], Value::Bool(false));
-    assert!(env["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("options_json"));
+    assert!(
+        env["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("options_json")
+    );
 }

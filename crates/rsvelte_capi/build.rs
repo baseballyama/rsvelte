@@ -43,7 +43,11 @@ fn main() {
         }
     } else {
         if let Err(e) = fs::write(&header_path, generated_str.as_bytes()) {
-            println!("cargo:warning=failed to write {}: {}", header_path.display(), e);
+            println!(
+                "cargo:warning=failed to write {}: {}",
+                header_path.display(),
+                e
+            );
         }
     }
 }

@@ -300,10 +300,7 @@ struct CapiModuleCompileOptionsJson {
 
 /// # Safety
 /// See [`borrow_utf8`].
-unsafe fn parse_compile_options(
-    ptr: *const u8,
-    len: usize,
-) -> Result<CompileOptions, String> {
+unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOptions, String> {
     let raw: CapiCompileOptionsJson = if len == 0 {
         CapiCompileOptionsJson::default()
     } else {
@@ -417,10 +414,7 @@ unsafe fn parse_compile_options(
 
 /// # Safety
 /// See [`borrow_utf8`].
-unsafe fn parse_module_options(
-    ptr: *const u8,
-    len: usize,
-) -> Result<ModuleCompileOptions, String> {
+unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompileOptions, String> {
     let raw: CapiModuleCompileOptionsJson = if len == 0 {
         CapiModuleCompileOptionsJson::default()
     } else {

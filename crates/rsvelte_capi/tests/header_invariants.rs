@@ -66,8 +66,8 @@ fn header_has_include_guard() {
 #[test]
 fn header_matches_freshly_generated() {
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let config = cbindgen::Config::from_file(crate_dir.join("cbindgen.toml"))
-        .expect("cbindgen.toml");
+    let config =
+        cbindgen::Config::from_file(crate_dir.join("cbindgen.toml")).expect("cbindgen.toml");
     let bindings = cbindgen::Builder::new()
         .with_crate(&crate_dir)
         .with_config(config)

@@ -83,10 +83,7 @@ fn runes_true_is_reflected_in_metadata() {
 
 #[test]
 fn runes_false_is_reflected_in_metadata() {
-    let env = compile(
-        "<h1>x</h1>",
-        r#"{"filename":"App.svelte","runes":false}"#,
-    );
+    let env = compile("<h1>x</h1>", r#"{"filename":"App.svelte","runes":false}"#);
     let result = ok_result(&env);
     assert_eq!(result["metadata"]["runes"], serde_json::Value::Bool(false));
 }

@@ -21,10 +21,7 @@ fn repeated_compile_does_not_panic() {
     // Smoke-test for double-free / use-after-free safety: 1k iterations
     // exercise the alloc/free cycle hard enough to surface obvious bugs.
     for i in 0..1_000 {
-        let env = compile(
-            "<h1>Hi {name}!</h1>",
-            r#"{"filename":"App.svelte"}"#,
-        );
+        let env = compile("<h1>Hi {name}!</h1>", r#"{"filename":"App.svelte"}"#);
         assert_eq!(env["ok"], serde_json::Value::Bool(true), "iter {i}: {env}");
     }
 }

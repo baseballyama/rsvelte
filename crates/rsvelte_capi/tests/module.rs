@@ -38,8 +38,10 @@ fn module_compile_server_generate() {
 fn module_compile_handles_malformed_options() {
     let env = compile_module("export const x = 1;", "{nope");
     assert_eq!(env["ok"], serde_json::Value::Bool(false));
-    assert!(env["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("options_json"));
+    assert!(
+        env["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("options_json")
+    );
 }
