@@ -1,0 +1,20 @@
+{
+  "name": "flowbite-svelte",
+  "repo": "https://github.com/themesberg/flowbite-svelte",
+  "license": "MIT",
+  "branch": "main",
+  "type": "tool",
+  "swap": {
+    "strategy": "vps-shim"
+  },
+  "commands": {
+    "install": "pnpm install --no-frozen-lockfile",
+    "build": "pnpm build",
+    "test": "pnpm test:unit -- --run"
+  },
+  "timeoutMinutes": 30,
+  "tags": ["ui-library"],
+  "allowList": {
+    "expectedBaselineFailures": []
+  }
+}

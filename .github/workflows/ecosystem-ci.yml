@@ -1,0 +1,151 @@
+name: ecosystem-ci
+
+# Verifies rsvelte against real-world MIT-licensed Svelte projects by running
+# each target's own test/build suite under (1) the official svelte/compiler
+# (baseline) and (2) rsvelte (swap). See ecosystem-ci/README.md for design.
+#
+# Triggers:
+#   - workflow_dispatch: manual run, optional `target` input selects one target
+#   - PR with label `ecosystem-ci`: opt-in verification for a rsvelte change
+#   - schedule: nightly full sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Single target to run (empty = all)'
+        required: false
+        type: string
+      tag:
+        description: 'Tag filter (e.g. "ui-library"). Ignored if target is set.'
+        required: false
+        type: string
+  pull_request:
+    types: [labeled, synchronize]
+  schedule:
+    # Nightly at 02:00 UTC. Adjust if the matrix grows past 4–5 targets.
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: ecosystem-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Discover targets
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ecosystem-ci'))
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute target matrix
+        id: list
+        shell: bash
+        run: |
+          set -euo pipefail
+          INPUT_TARGET='${{ github.event.inputs.target }}'
+          INPUT_TAG='${{ github.event.inputs.tag }}'
+          if [ -n "$INPUT_TARGET" ]; then
+            targets=$(printf '%s' "$INPUT_TARGET" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          else
+            mapfile -t all < <(find ecosystem-ci/targets -name '*.json' -exec basename {} .json \; | sort)
+            if [ -n "$INPUT_TAG" ]; then
+              filtered=()
+              for t in "${all[@]}"; do
+                if jq -e --arg tag "$INPUT_TAG" '.tags | index($tag)' "ecosystem-ci/targets/${t}.json" > /dev/null; then
+                  filtered+=("$t")
+                fi
+              done
+              targets=$(printf '%s\n' "${filtered[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            else
+              targets=$(printf '%s\n' "${all[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            fi
+          fi
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Targets: $targets"
+
+  run:
+    name: ${{ matrix.target }}
+    needs: discover
+    if: needs.discover.outputs.targets != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.discover.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Init vite-plugin-svelte submodule (only one ecosystem-ci needs)
+        run: git submodule update --init submodules/vite-plugin-svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Run ecosystem-ci
+        run: node scripts/ecosystem-ci.mjs run "${{ matrix.target }}"
+
+      - name: Upload result JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ matrix.target }}
+          path: ecosystem-ci/results/${{ matrix.target }}.json
+          if-no-files-found: warn
+
+      - name: Upload phase logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.target }}
+          path: ecosystem-ci/.cache/${{ matrix.target }}-*.log
+          if-no-files-found: warn
+
+  summary:
+    name: Summary
+    needs: run
+    if: always() && needs.run.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all result artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ecosystem-ci/results
+          pattern: result-*
+          merge-multiple: true
+
+      - name: Aggregate
+        run: node scripts/ecosystem-ci.mjs report | tee summary.md
+
+      - name: Post summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('summary.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## ecosystem-ci results\n\n' + body,
+            });
