@@ -65,7 +65,11 @@ for (const relDir of platformDirs) {
 		continue;
 	}
 	console.log(`[publish-platform] publishing ${name}@${version}${dryRun ? ' (dry-run)' : ''}`);
-	const args = ['publish', '--access', 'public'];
+	// --provenance is required when publishing via npm OIDC trusted
+	// publishing from CI; it links each tarball back to the workflow run
+	// that produced it. Locally (where OIDC isn't available) npm will fail
+	// fast, which is the correct behaviour — these packages are CI-only.
+	const args = ['publish', '--access', 'public', '--provenance'];
 	if (dryRun) args.push('--dry-run');
 	const result = spawnSync('npm', args, {
 		cwd: absDir,
