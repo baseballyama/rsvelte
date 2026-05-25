@@ -2013,20 +2013,30 @@ fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
                     continue;
                 }
                 if c == b'?' && depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
-                    // Disambiguate ternary `?` from `??` (nullish coalescing)
-                    // and `?.` (optional chaining). Both can sit at the same
-                    // walkback position, but only the ternary makes this an
-                    // expression context; the others are operators between
-                    // expressions and we should keep walking back to find the
-                    // enclosing brace (which may turn out to be an object key
-                    // position and stop the rewrite).
+                    // A `?` at depth-0 walkback isn't automatically a ternary
+                    // opener for our identifier. Three disambiguations:
                     //
-                    // Real-world surface: shadcn-svelte's
-                    // `design-system-provider.svelte` had
-                    // `{ chartColor: x ?? y, radius: derived }` — walking back
-                    // from `radius` hit the `??` in the previous property's
-                    // value and incorrectly classified `radius` as a ternary
-                    // RHS, wrapping it to `radius()` in object-key position.
+                    // (a) `??` (nullish coalescing) — operator, keep walking.
+                    // (b) `?.` (optional chaining) — operator, keep walking.
+                    // (c) A real ternary whose `:` already sits before our
+                    //     identifier. The ternary is closed and our identifier
+                    //     is past it (e.g. a destructuring property name).
+                    //     Forward-scan from the `?` to find the matching `:`
+                    //     at the same depth; if it lands before `start`, the
+                    //     ternary is closed.
+                    //
+                    // Real-world surfaces:
+                    // - shadcn-svelte/design-system-provider:
+                    //   `{ chartColor: x ?? y, radius: derived }`
+                    //   walking back from `radius` hit `??` and falsely
+                    //   declared a ternary RHS, wrapping `radius` to
+                    //   `radius()` in object-key position. (a)
+                    // - layerchart/Axis.svelte:
+                    //   `let { …, tickSpacing = […].includes(p) ? 80 :
+                    //   […].includes(p) ? 50 : undefined, scale: scaleProp, …}`
+                    //   walking back from `scale` hit a `?` inside the
+                    //   already-closed ternary in `tickSpacing`'s default
+                    //   value, falsely wrapping `scale` to `scale()`. (c)
                     let prev_char = (0..j).rev().find(|&k| !bytes[k].is_ascii_whitespace());
                     let next_char_after_q = (j + 1..bytes.len())
                         .find(|&k| !bytes[k].is_ascii_whitespace())
@@ -2035,12 +2045,36 @@ fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
                         prev_char.map(|k| bytes[k] == b'?').unwrap_or(false)
                             || next_char_after_q == Some(b'?');
                     let is_optional_chain = next_char_after_q == Some(b'.');
-                    if !is_nullish_coalescing && !is_optional_chain {
-                        // Ternary: `cond ? foo : bar` — rewrite.
-                        return true;
+                    if is_nullish_coalescing || is_optional_chain {
+                        continue;
                     }
-                    // Otherwise keep scanning back.
-                    continue;
+                    // Forward-scan for the ternary's `:` at this depth.
+                    let mut fk = j + 1;
+                    let mut fdp = 0i32;
+                    let mut fdb = 0i32;
+                    let mut fdk = 0i32;
+                    let mut ternary_already_closed = false;
+                    while fk < start {
+                        let cc = bytes[fk];
+                        match cc {
+                            b'(' => fdp += 1,
+                            b')' => fdp -= 1,
+                            b'[' => fdb += 1,
+                            b']' => fdb -= 1,
+                            b'{' => fdk += 1,
+                            b'}' => fdk -= 1,
+                            b':' if fdp == 0 && fdb == 0 && fdk == 0 => {
+                                ternary_already_closed = true;
+                                break;
+                            }
+                            _ => {}
+                        }
+                        fk += 1;
+                    }
+                    if ternary_already_closed {
+                        continue;
+                    }
+                    return true;
                 }
                 // Default: keep scanning.
             }
