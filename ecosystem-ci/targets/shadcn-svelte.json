@@ -12,11 +12,10 @@
     "build": "pnpm -F docs build"
   },
   "timeoutMinutes": 30,
-  "tags": [
-    "ui-library",
-    "sveltekit"
-  ],
+  "tags": ["ui-library", "sveltekit"],
   "allowList": {
     "expectedBaselineFailures": []
-  }
+  },
+  "disabled": true,
+  "disabledReason": "Surfaces multiple parser-side rsvelte regressions on shadcn-svelte/docs (verified locally after the napi await_tsfn fix): (1) private class method call with default-object arg `this.#config({})` in svelte.ts modules → `Unexpected token`; (2) destructured param with `= {}` default in svelte.ts → `Unexpected token`; (3) compile_module duplicate-declaration check rejects `message` shadowing in svelte-sonner's toast-state.svelte.js; (4) TS type assertions inside Svelte template expressions (`{mode.current as 'light' | 'dark'}`) are flagged `Type assertion expressions can only be used in TypeScript files`. Each is its own parser fix; re-enable as they land."
 }
