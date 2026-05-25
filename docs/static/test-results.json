@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T03:13:24.476194+00:00",
-  "commit_sha": "c2fc95a4674f",
+  "generated_at": "2026-05-25T03:32:14.442236+00:00",
+  "commit_sha": "d258f8523599",
   "summary": {
-    "total": 3429,
+    "total": 3430,
     "passed": 3346,
     "failed": 0,
-    "skipped": 83,
+    "skipped": 84,
     "percentage": 100
   },
   "categories": [
@@ -3178,10 +3178,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 874,
+      "total": 875,
       "passed": 873,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 2,
       "percentage": 100,
       "tests": [
         {
@@ -6264,6 +6264,11 @@
         {
           "name": "typescript-as-expression",
           "status": "pass"
+        },
+        {
+          "name": "derived-name-shadowed",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "error-boundary-7",
