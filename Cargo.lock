@@ -591,12 +591,6 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
-
-[[package]]
-name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
@@ -764,12 +758,12 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.13.0"
+version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
+checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown 0.16.1",
+ "hashbrown",
  "serde",
  "serde_core",
 ]
@@ -1181,7 +1175,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b44db8e77f8ead7332d0dd95850d27fb7bb09f288761447e804be05ad2f89d3"
 dependencies = [
  "allocator-api2",
- "hashbrown 0.17.1",
+ "hashbrown",
  "oxc_data_structures",
  "oxc_estree",
  "rustc-hash",
@@ -1404,7 +1398,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf9548a6a9ab4a6227e1d890d7d244a9b5eb427c6b46790c770f5914b565c52b"
 dependencies = [
  "compact_str",
- "hashbrown 0.17.1",
+ "hashbrown",
  "oxc_allocator",
  "oxc_estree",
  "serde",
