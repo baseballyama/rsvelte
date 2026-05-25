@@ -1043,6 +1043,14 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   fixtures hit the same async-batching follow-up.
         ("runtime-runes", "async-effect-pending-eager"),
         ("runtime-runes", "async-context-after-await-const"),
+        // - `derived-dep-set-while-rendering` (Svelte 5.55.5, runtime-only
+        //   commit `b771df3` adds a fixture): SSR `const x = $derived(visible)`
+        //   where the arg is a bare identifier referring to another derived
+        //   should emit `$.derived(visible)` (no thunk wrap). rsvelte's
+        //   `wrap_derived_reads` re-wraps `visible` to `visible()` inside the
+        //   thunk, producing `$.derived(() => visible())`. Tracked as a
+        //   follow-up.
+        ("runtime-runes", "derived-dep-set-while-rendering"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
