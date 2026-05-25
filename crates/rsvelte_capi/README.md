@@ -39,7 +39,7 @@ library, the static archive (where applicable), and `include/rsvelte.h`.
 #   darwin-arm64, darwin-x64,
 #   linux-x64-gnu, linux-arm64-gnu,
 #   win32-x64-msvc
-VERSION=0.1.0
+VERSION=0.1.1
 TRIPLE=darwin-arm64
 
 curl -L -o rsvelte_capi.tar.gz \
@@ -88,7 +88,7 @@ git dependency in the meantime:
 
 ```toml
 [dependencies]
-rsvelte_capi = { git = "https://github.com/baseballyama/rsvelte", tag = "capi-v0.1.0" }
+rsvelte_capi = { git = "https://github.com/baseballyama/rsvelte", tag = "capi-v0.1.1" }
 ```
 
 ## API at a glance

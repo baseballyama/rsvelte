@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_capi"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.90"
 description = "C ABI bindings for the rsvelte Svelte 5 compiler — drive the compiler from C, Go, Python, Ruby, PHP, Zig, Java (JDK 22+ FFM), or any language with a C FFI"

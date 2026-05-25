@@ -1549,9 +1549,13 @@ mod tests {
         // Should contain the button
         assert!(code.contains("<button"), "Should have button");
 
-        // Should contain if statement
+        // Should contain if statement. `derivedSecond` is a `$derived(...)` binding,
+        // which the SSR transform compiles to a callable: every read becomes
+        // `derivedSecond()`. Originally this test asserted the bare identifier — it
+        // started failing on main after #322 (SSR compiler upgrade) without the
+        // assertion being updated to match the new derived-read shape.
         assert!(
-            code.contains("if (first || derivedSecond)"),
+            code.contains("if (first || derivedSecond())"),
             "Should have if statement with condition"
         );
         // Should contain BLOCK_OPEN marker

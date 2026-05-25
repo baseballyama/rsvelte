@@ -175,7 +175,7 @@ A `cdylib` exposing a stable C ABI ships in [`crates/rsvelte_capi`](crates/rsvel
 **Download prebuilt binaries** from [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) under the `capi-vX.Y.Z` tag scheme (`darwin-{arm64,x64}`, `linux-{x64,arm64}-gnu`, `win32-x64-msvc`; each archive ships the dylib + static archive + `rsvelte.h` + checksums):
 
 ```bash
-VERSION=0.1.0 TRIPLE=darwin-arm64
+VERSION=0.1.1 TRIPLE=darwin-arm64
 curl -L "https://github.com/baseballyama/rsvelte/releases/download/capi-v${VERSION}/rsvelte_capi-${VERSION}-${TRIPLE}.tar.gz" | tar -xz
 ```
 
@@ -222,7 +222,7 @@ A single-threaded **100× speedup** over the JS compiler is one of this project'
 ## Compatibility
 
 <!-- svelte-target-version -->
-**Targeting Svelte `v5.52.0`** ([`cbf4e246fc0d`](https://github.com/sveltejs/svelte/commit/cbf4e246fc0d)) — automatically maintained by `pnpm run update-docs`.
+**Targeting Svelte `v5.53.3`** ([`97f3ac557158`](https://github.com/sveltejs/svelte/commit/97f3ac557158)) — automatically maintained by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
 Current compatibility with the official Svelte compiler test suite:
