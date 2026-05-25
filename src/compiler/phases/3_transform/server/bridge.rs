@@ -1443,8 +1443,13 @@ fn convert_if_block(
     // Start the if statement
     code.push_str(&format!("{}if ({}) {{\n", indent, effective_test));
 
-    // Opening marker for consequent branch
-    code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
+    // Opening marker for consequent branch. Upstream Svelte 5.53.7 commit
+    // `86ec21086` "fix: correctly add `__svelte_meta` after else-if chains"
+    // switched if-block hydration markers from `<!--[-->` / `<!--[!-->` to
+    // numbered indices `<!--[0-->` / `<!--[1-->` ... / `<!--[-1-->` so the
+    // client can distinguish which branch rendered. Other block kinds (each /
+    // boundary / key / await) still use the legacy markers.
+    code.push_str(&format!("{}\t$$renderer.push('<!--[0-->');\n", indent));
 
     // Consequent body
     let consequent_code = generate_inner_body_code(
@@ -1468,7 +1473,7 @@ fn convert_if_block(
             None => {
                 // No alternate: add empty else with BLOCK_OPEN_ELSE marker
                 code.push_str(" else {\n");
-                code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                code.push_str(&format!("{}\t$$renderer.push('<!--[-1-->');\n", indent));
                 code.push_str(&format!("{}}}", indent));
                 break;
             }
@@ -1504,7 +1509,7 @@ fn convert_if_block(
                 } else {
                     // Regular else (final branch)
                     code.push_str(" else {\n");
-                    code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                    code.push_str(&format!("{}\t$$renderer.push('<!--[-1-->');\n", indent));
 
                     let alt_code = generate_inner_body_code(
                         alt_body,
