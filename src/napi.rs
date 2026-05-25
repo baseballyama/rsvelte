@@ -563,10 +563,51 @@ mod preprocess_bridge {
         PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
         PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
     };
-    use napi::bindgen_prelude::{Object, Promise};
+    use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
     use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction};
     use rustc_hash::FxHashMap;
     use serde_json::Value;
+
+    // Either a Promise<T> or a plain T from a threadsafe_function return.
+    //
+    // We can't use napi-rs's `Either<Promise<T>, T>` here because
+    // `Promise::validate` doesn't fail on non-Promise input — it
+    // substitutes a *rejected* Promise. Either then unconditionally picks
+    // variant A and calls `Promise::from_napi_value` on the original
+    // non-Promise value, which crashes inside `napi_call_function(then)`
+    // with `Failed to call then method` and triggers the FATAL ERROR at
+    // threadsafe_function.rs:749 — aborting the whole Node process.
+    //
+    // Probe `napi_is_promise` directly *before* the typed conversion
+    // and dispatch from there. The Svelte preprocessor contract allows
+    // sync `Processed` returns alongside `Promise<Processed>`, so this
+    // matters in practice the moment any user preprocessor in the chain
+    // happens to be synchronous (e.g. an inline `vitePreprocess`-style
+    // markup filter that just returns `{ code }` without an `async`).
+    pub(super) enum MaybePromise<T: FromNapiValue> {
+        Promise(Promise<T>),
+        Value(T),
+    }
+
+    impl<T: FromNapiValue> FromNapiValue for MaybePromise<T> {
+        unsafe fn from_napi_value(
+            env: napi::sys::napi_env,
+            napi_val: napi::sys::napi_value,
+        ) -> napi::Result<Self> {
+            let mut is_promise = false;
+            let status = unsafe { napi::sys::napi_is_promise(env, napi_val, &mut is_promise) };
+            if status != napi::sys::Status::napi_ok {
+                return Err(napi::Error::from_status(napi::Status::from(status)));
+            }
+            if is_promise {
+                let p = unsafe { Promise::<T>::from_napi_value(env, napi_val)? };
+                Ok(MaybePromise::Promise(p))
+            } else {
+                let v = unsafe { T::from_napi_value(env, napi_val)? };
+                Ok(MaybePromise::Value(v))
+            }
+        }
+    }
 
     // Fatal strategy: the user-supplied JS callback receives the options
     // object as its sole argument — matching the upstream Svelte
@@ -643,29 +684,21 @@ mod preprocess_bridge {
     async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Value, PreprocessError> {
         // The upstream Svelte preprocessor contract allows the callback to
         // return `Processed | Promise<Processed> | undefined | null`,
-        // sync or async. The outer `Option<Promise<…>>` handles the case
-        // where the JS callback returns `undefined`/`null` directly (sync
-        // no-op); the inner `Option<Value>` handles the case where an
-        // async callback resolves to `undefined`/`null` (async no-op).
-        // Sync object returns fall through to the raw `Value` path.
-        match tsfn
-            .call_async::<Option<Promise<Option<Value>>>>(arg.clone())
-            .await
-        {
-            Ok(Some(promise)) => match promise.await {
+        // sync or async. `MaybePromise<Option<Value>>` probes `napi_is_promise`
+        // *before* the typed conversion, so we never let napi-rs call
+        // `.then()` on a non-Promise value (which would abort the process via
+        // `napi_fatal_error`, surfacing as `threadsafe_function.rs:749 Failed
+        // to convert return value … Failed to call then method`). The outer
+        // `Option` collapses `undefined`/`null` to `None` on both paths.
+        match tsfn.call_async::<MaybePromise<Option<Value>>>(arg).await {
+            Ok(MaybePromise::Promise(promise)) => match promise.await {
                 Ok(Some(v)) => Ok(v),
                 Ok(None) => Ok(Value::Null),
                 Err(e) => Err(PreprocessError::Other(format!("{e}"))),
             },
-            Ok(None) => Ok(Value::Null),
-            Err(_) => {
-                // Not a Promise — accept a sync object/undefined return.
-                match tsfn.call_async::<Option<Value>>(arg).await {
-                    Ok(Some(v)) => Ok(v),
-                    Ok(None) => Ok(Value::Null),
-                    Err(e) => Err(PreprocessError::Other(format!("{e}"))),
-                }
-            }
+            Ok(MaybePromise::Value(Some(v))) => Ok(v),
+            Ok(MaybePromise::Value(None)) => Ok(Value::Null),
+            Err(e) => Err(PreprocessError::Other(format!("{e}"))),
         }
     }
 

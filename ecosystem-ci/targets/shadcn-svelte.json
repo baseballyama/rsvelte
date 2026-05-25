@@ -17,5 +17,5 @@
     "expectedBaselineFailures": []
   },
   "disabled": true,
-  "disabledReason": "Triggers FATAL ERROR threadsafe_function.rs:749 (\"Failed to convert return value ... Failed to call then method\") during vite's parallel preprocess. await_tsfn in src/napi.rs needs a Promise-detection probe before the typed call_async. Re-enable once the rsvelte fix lands."
+  "disabledReason": "Surfaces multiple parser-side rsvelte regressions on shadcn-svelte/docs (verified locally after the napi await_tsfn fix): (1) private class method call with default-object arg `this.#config({})` in svelte.ts modules → `Unexpected token`; (2) destructured param with `= {}` default in svelte.ts → `Unexpected token`; (3) compile_module duplicate-declaration check rejects `message` shadowing in svelte-sonner's toast-state.svelte.js; (4) TS type assertions inside Svelte template expressions (`{mode.current as 'light' | 'dark'}`) are flagged `Type assertion expressions can only be used in TypeScript files`. Each is its own parser fix; re-enable as they land."
 }
