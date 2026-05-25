@@ -115,7 +115,13 @@ impl<'a> ServerCodeGenerator<'a> {
             None
         };
 
-        // Detect content-editable binding (bind:innerHTML, bind:textContent, bind:innerText)
+        // Detect content-editable binding (bind:innerHTML, bind:textContent, bind:innerText).
+        //
+        // Svelte 5.53.5 (upstream commit `0df5abcae`, "Merge commit from fork")
+        // started HTML-escaping `bind:innerText` / `bind:textContent` to
+        // prevent XSS via attacker-controlled content in contenteditable
+        // surfaces. `bind:innerHTML` keeps its raw expression because the
+        // user is explicitly opting into HTML.
         let content_editable_expr: Option<String> = element.attributes.iter().find_map(|attr| {
             if let Attribute::BindDirective(bind) = attr {
                 let bind_name = bind.name.as_str();
@@ -125,7 +131,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let raw = self.source[expr_start..expr_end].trim().to_string();
                         let raw = self.transform_store_refs(&raw);
-                        return Some(raw);
+                        return if bind_name == "innerHTML" {
+                            Some(raw)
+                        } else {
+                            Some(format!("$.escape({})", raw))
+                        };
                     }
                 }
             }

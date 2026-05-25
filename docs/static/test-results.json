@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-25T05:33:46.423900+00:00",
-  "commit_sha": "96fd3ce76352",
+  "generated_at": "2026-05-25T05:49:35.872425+00:00",
+  "commit_sha": "ed14b499d6ea",
   "summary": {
-    "total": 3437,
-    "passed": 3343,
+    "total": 3442,
+    "passed": 3348,
     "failed": 0,
     "skipped": 94,
     "percentage": 100
@@ -12002,8 +12002,8 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 89,
-      "passed": 89,
+      "total": 94,
+      "passed": 94,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12017,11 +12017,23 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-html-comment-overlap-escape",
+          "status": "pass"
+        },
+        {
           "name": "textarea-value",
           "status": "pass"
         },
         {
           "name": "select-value-implicit-value-complex",
+          "status": "pass"
+        },
+        {
+          "name": "boundary-error-html-comment-escape",
+          "status": "pass"
+        },
+        {
+          "name": "contenteditable-bindings-escaped",
           "status": "pass"
         },
         {
@@ -12097,6 +12109,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-html-comment-open-escape",
+          "status": "pass"
+        },
+        {
           "name": "invalid-nested-svelte-element",
           "status": "pass"
         },
@@ -12154,6 +12170,10 @@
         },
         {
           "name": "head-svelte-components-raw-content",
+          "status": "pass"
+        },
+        {
+          "name": "boundary-error-html-comment-close-bang-escape",
           "status": "pass"
         },
         {
