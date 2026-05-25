@@ -41,7 +41,7 @@ jobs:
     outputs:
       targets: ${{ steps.list.outputs.targets }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Compute target matrix
         id: list
@@ -89,7 +89,7 @@ jobs:
       matrix:
         target: ${{ fromJSON(needs.discover.outputs.targets) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Init vite-plugin-svelte submodule (only one ecosystem-ci needs)
         # The fork's submodule URL in .gitmodules is the maintainer's SSH URL
@@ -145,7 +145,7 @@ jobs:
     if: always() && needs.run.result != 'skipped'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download all result artifacts
         uses: actions/download-artifact@v4

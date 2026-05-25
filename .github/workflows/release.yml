@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install cross-compile linker
         if: matrix.apt
@@ -97,7 +97,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install cross-compile linker
         if: matrix.apt
@@ -147,7 +147,7 @@ jobs:
     needs: [build-svelte-check, build-vps-native]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history so changesets can read the merge base when computing
           # which packages need releasing.
