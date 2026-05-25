@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # Include the default events plus `labeled` so adding the `coverage`
+    # label to an existing PR (re-)triggers the workflow. The job's `if:`
+    # below short-circuits when the label isn't present, so unlabeled PRs
+    # cost nothing beyond GitHub's free event scheduling.
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -18,6 +24,15 @@ jobs:
     name: Code coverage
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Run unconditionally on push-to-main and manual dispatch. On PRs run
+    # only when the author opts in by labeling the PR `coverage` —
+    # llvm-cov instrumentation roughly doubles test runtime and the
+    # report is rarely actionable per-PR, so the default is to skip it.
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'coverage'))
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,7 +68,22 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
+      - name: Cache Svelte compiler build
+        # See the matching step in `.github/workflows/ci.yml`.
+        id: svelte-build-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
       - name: Build Svelte compiler
+        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
         run: |
           cd submodules/svelte
           pnpm install --frozen-lockfile

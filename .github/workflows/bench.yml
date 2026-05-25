@@ -1,7 +1,7 @@
 name: Benchmark
 
 on:
-  pull_request:
+  push:
     branches: [main]
     paths:
       - 'src/**'
@@ -9,6 +9,11 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/bench.yml'
+  pull_request:
+    branches: [main]
+    # Default + `labeled` so adding the `bench` label triggers a run; the
+    # job's `if:` below skips unlabeled events.
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 concurrency:
@@ -23,6 +28,15 @@ jobs:
     name: Criterion benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Criterion takes ~25 minutes per run; not worth gating every PR on
+    # absolute throughput numbers that move slowly. Always run on push to
+    # `main` (and manual dispatch); on PRs run only when the PR is
+    # labeled `bench`.
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'bench'))
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,7 +71,22 @@ jobs:
           path: fixtures
           key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
+      - name: Cache Svelte compiler build
+        # See the matching step in `.github/workflows/ci.yml`.
+        id: svelte-build-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
       - name: Build Svelte compiler
+        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
         run: |
           cd submodules/svelte
           pnpm install --frozen-lockfile

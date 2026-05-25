@@ -50,14 +50,38 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+  # macOS is dropped from the PR matrix to keep PR feedback fast — it
+  # consistently runs ~2x slower than Linux for identical work and the
+  # platform-specific failure modes (PATH, line endings, dylib loading)
+  # are already covered by `rsvelte_capi` and the `Release` workflow.
+  # macOS still runs on every push to `main` and on demand via the
+  # `macos-ci` label, so regressions are caught before the next release.
+  set-test-matrix:
+    name: Set Test matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      os: ${{ steps.matrix.outputs.os }}
+    steps:
+      - id: matrix
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" \
+                || "${{ contains(github.event.pull_request.labels.*.name, 'macos-ci') }}" == "true" ]]; then
+            echo 'os=["ubuntu-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'os=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     name: Test
+    needs: set-test-matrix
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,7 +121,27 @@ jobs:
           # from `_config.js`, so any cache pre-dating that change is stale.
           key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
+      - name: Cache Svelte compiler build
+        # The Svelte compiler is built identically across CI / Compatibility
+        # Report / Coverage / Bench / Deploy Docs. Cache `node_modules` +
+        # `packages/svelte/dist` keyed on the submodule SHA + pnpm-lock so
+        # cache-hit runs skip the ~1-2 minute `pnpm install && pnpm build`.
+        # Includes `node_modules/.bin/tsc`, which is referenced via
+        # `TSGO_BIN` below.
+        id: svelte-build-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
       - name: Build Svelte compiler
+        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
         run: |
           cd submodules/svelte
           pnpm install --frozen-lockfile
@@ -200,7 +244,22 @@ jobs:
           # from `_config.js`, so any cache pre-dating that change is stale.
           key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
+      - name: Cache Svelte compiler build
+        # See the matching step in the `test` job above.
+        id: svelte-build-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
       - name: Build Svelte compiler
+        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
         run: |
           cd submodules/svelte
           pnpm install --frozen-lockfile
@@ -269,23 +328,12 @@ jobs:
               });
             }
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build release
-        run: cargo build --release
+  # `Build` (`cargo build --release` for the main crate) was removed —
+  # release-mode codegen is already exercised by `rsvelte_capi (C ABI)`
+  # (Linux/macOS/Windows release builds with the same crate's source) and
+  # by the `Release` workflow's `build-svelte-check` / `build-vps-native`
+  # matrices, so a standalone PR-time build only repeated work. To restore
+  # a pure release-mode smoke test add a `cargo check --release` step here.
 
   docs:
     name: Documentation
