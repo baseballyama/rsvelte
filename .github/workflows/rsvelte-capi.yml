@@ -134,7 +134,7 @@ jobs:
         if: runner.os != 'Windows'
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.26'
 
       - name: Go smoke
         if: runner.os != 'Windows'
