@@ -79,8 +79,11 @@ jobs:
           path: |
             submodules/svelte/node_modules
             submodules/svelte/packages/svelte/node_modules
-            submodules/svelte/packages/svelte/dist
-          key: svelte-build-v1-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
 
       - name: Build Svelte compiler
         if: steps.svelte-build-cache.outputs.cache-hit != 'true'
