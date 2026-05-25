@@ -5626,8 +5626,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // Start the if statement
         code.push_str(&format!("{}if ({}) {{\n", indent, test_expr));
 
-        // Add opening marker for consequent (BLOCK_OPEN = <!--[-->)
-        code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
+        // Opening marker for consequent. Svelte 5.53.7 (upstream commit
+        // `86ec21086`) switched if-block markers from `<!--[-->` / `<!--[!-->`
+        // to numbered indices `<!--[0-->` ... `<!--[N-->` / `<!--[-1-->`.
+        code.push_str(&format!("{}\t$$renderer.push('<!--[0-->');\n", indent));
 
         // Generate consequent body - hoist @const declarations to the top
         let hoisted_consequent = Self::hoist_const_declarations_and_strip_ws(consequent_body);
@@ -5651,7 +5653,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 None => {
                     // No alternate at all - add empty else with BLOCK_OPEN_ELSE
                     code.push_str(" else {\n");
-                    code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                    code.push_str(&format!("{}\t$$renderer.push('<!--[-1-->');\n", indent));
                     code.push_str(&format!("{}}}", indent));
                     break;
                 }
@@ -5692,7 +5694,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         // Regular else (final branch in chain, or non-elseif block inside else)
                         code.push_str(" else {\n");
-                        code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                        code.push_str(&format!("{}\t$$renderer.push('<!--[-1-->');\n", indent));
 
                         let hoisted_alt = Self::hoist_const_declarations_and_strip_ws(alt_body);
                         let alternate_code = Self::build_parts_with_store_subs(

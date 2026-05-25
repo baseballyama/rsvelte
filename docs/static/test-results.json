@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T05:33:46.423900+00:00",
-  "commit_sha": "96fd3ce76352",
+  "generated_at": "2026-05-25T07:07:12.991612+00:00",
+  "commit_sha": "25a1c5368be7",
   "summary": {
-    "total": 3437,
-    "passed": 3343,
+    "total": 3449,
+    "passed": 3353,
     "failed": 0,
-    "skipped": 94,
+    "skipped": 96,
     "percentage": 100
   },
   "categories": [
@@ -552,10 +552,10 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 179,
+      "total": 180,
       "passed": 179,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -661,6 +661,11 @@
         {
           "name": "host",
           "status": "pass"
+        },
+        {
+          "name": "css-prune-edge-cases",
+          "status": "skip",
+          "skip_reason": "CSS pruning edge cases (Svelte 5.53.7) not yet ported"
         },
         {
           "name": "unicode-identifier",
@@ -3178,8 +3183,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 882,
-      "passed": 876,
+      "total": 885,
+      "passed": 879,
       "failed": 0,
       "skipped": 6,
       "percentage": 100,
@@ -4288,6 +4293,10 @@
         },
         {
           "name": "derived-server-memoization",
+          "status": "pass"
+        },
+        {
+          "name": "async-each-preserve-pending",
           "status": "pass"
         },
         {
@@ -5829,6 +5838,10 @@
           "status": "pass"
         },
         {
+          "name": "svelte-meta-if-else",
+          "status": "pass"
+        },
+        {
           "name": "svg-namespace-if-block",
           "status": "pass"
         },
@@ -6708,6 +6721,10 @@
         },
         {
           "name": "each-key-volatile",
+          "status": "pass"
+        },
+        {
+          "name": "async-each-const-await-error-boundary",
           "status": "pass"
         },
         {
@@ -12002,10 +12019,10 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 89,
-      "passed": 89,
+      "total": 97,
+      "passed": 96,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -12017,11 +12034,23 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-html-comment-overlap-escape",
+          "status": "pass"
+        },
+        {
           "name": "textarea-value",
           "status": "pass"
         },
         {
           "name": "select-value-implicit-value-complex",
+          "status": "pass"
+        },
+        {
+          "name": "boundary-error-html-comment-escape",
+          "status": "pass"
+        },
+        {
+          "name": "contenteditable-bindings-escaped",
           "status": "pass"
         },
         {
@@ -12034,6 +12063,10 @@
         },
         {
           "name": "bindings-readonly",
+          "status": "pass"
+        },
+        {
+          "name": "select-option-store-text-content",
           "status": "pass"
         },
         {
@@ -12097,6 +12130,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-html-comment-open-escape",
+          "status": "pass"
+        },
+        {
           "name": "invalid-nested-svelte-element",
           "status": "pass"
         },
@@ -12129,6 +12166,11 @@
           "status": "pass"
         },
         {
+          "name": "select-option-store-implicit-value",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "component-yield",
           "status": "pass"
         },
@@ -12154,6 +12196,10 @@
         },
         {
           "name": "head-svelte-components-raw-content",
+          "status": "pass"
+        },
+        {
+          "name": "boundary-error-html-comment-close-bang-escape",
           "status": "pass"
         },
         {
@@ -12274,6 +12320,10 @@
         },
         {
           "name": "head-meta-hydrate-duplicate",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-strip-svg-mathml-ce",
           "status": "pass"
         },
         {
