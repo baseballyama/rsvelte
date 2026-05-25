@@ -465,6 +465,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     if let Some(ctor_pos) = memmem::find(class_body.as_bytes(), b"constructor(") {
         let after_ctor = &class_body[ctor_pos..];
         // Extract constructor parameters
+        let mut params_end_in_after: Option<usize> = None;
         if let Some(paren_start) = after_ctor.find('(') {
             let params_start = paren_start + 1;
             let mut depth = 1;
@@ -483,9 +484,19 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 }
             }
             constructor_params = after_ctor[params_start..params_end].to_string();
+            params_end_in_after = Some(params_end);
         }
 
-        if let Some(brace_pos_inner) = after_ctor.find('{') {
+        // Scan for the body's `{` *after* the closing `)` of the param list,
+        // not from the start of the signature. Otherwise a default-object
+        // parameter like `constructor(options = {}) {` makes the scan latch
+        // onto the `{` inside the default value, treating that empty `{}`
+        // as the entire constructor body and mis-slicing the rest of the
+        // class. Surfaced by layerchart's `states/settings.svelte.js` →
+        // SSR output had an orphaned `) {` and rolldown rejected the file.
+        let brace_search_start = params_end_in_after.map(|e| e + 1).unwrap_or(0);
+        if let Some(brace_rel) = after_ctor[brace_search_start..].find('{') {
+            let brace_pos_inner = brace_search_start + brace_rel;
             let ctor_body_start = ctor_pos + brace_pos_inner + 1;
             let mut depth = 1;
             let mut ctor_body_end = ctor_body_start;

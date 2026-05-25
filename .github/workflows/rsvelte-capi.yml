@@ -1,0 +1,205 @@
+name: rsvelte_capi (C ABI)
+
+# Tests the C FFI surface on Linux, macOS, and Windows:
+#  - Build the cdylib + verify the committed include/rsvelte.h matches
+#    fresh cbindgen output (RSVELTE_CAPI_CHECK_HEADER=1). Breaking
+#    changes to RsvelteBuf / extern signatures will fail this step.
+#  - Run the Rust integration tests under crates/rsvelte_capi/tests/.
+#    Covers JSON envelope shape, every documented CompileOption, and
+#    rsvelte_compile_module. These tests fail loudly if any FFI-related
+#    surface (JSON keys, option names, envelope structure) changes
+#    without explicit acknowledgement.
+#  - Run the C / Go / Python / Ruby / Zig smoke tests where the
+#    runner has the toolchain.
+#  - Upload the per-OS shared library and the generated header as
+#    workflow artifacts so downstream consumers can grab them.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/rsvelte_capi/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rsvelte-capi.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crates/rsvelte_capi/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rsvelte-capi.yml'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  capi:
+    name: capi (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            lib: librsvelte_capi.so
+            exe_ext: ""
+          - os: macos-latest
+            lib: librsvelte_capi.dylib
+            exe_ext: ""
+          - os: windows-latest
+            lib: rsvelte_capi.dll
+            exe_ext: ".exe"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # Build twice on purpose: the first run regenerates the header
+      # into include/rsvelte.h (build script writes when env var unset),
+      # the second run *verifies* the committed header is identical to
+      # what cbindgen produces. We keep them separate to surface clear
+      # error messages.
+      - name: Build cdylib
+        run: cargo build -p rsvelte_capi --release
+
+      - name: Verify header is up-to-date (RSVELTE_CAPI_CHECK_HEADER=1)
+        env:
+          RSVELTE_CAPI_CHECK_HEADER: '1'
+        run: cargo build -p rsvelte_capi --release
+
+      - name: Verify no uncommitted header drift
+        # Belt-and-braces: even if the build script were bypassed, this
+        # surfaces drift via git.
+        shell: bash
+        run: |
+          if ! git diff --exit-code crates/rsvelte_capi/include/rsvelte.h; then
+            echo "::error::crates/rsvelte_capi/include/rsvelte.h drifted — re-run \`cargo build -p rsvelte_capi\` and commit the result."
+            exit 1
+          fi
+
+      - name: Run cargo tests (envelope, options, header, module, memory)
+        run: cargo test -p rsvelte_capi --release
+
+      # ---------------- C smoke ----------------
+      - name: C smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cc -O2 -Wall -Wextra \
+            -I crates/rsvelte_capi/include \
+            -L target/release \
+            crates/rsvelte_capi/examples/c/smoke.c \
+            -lrsvelte_capi \
+            -o target/release/c_smoke
+          cd target/release
+          # Same dir for binary + dylib — both env vars cover Linux/macOS.
+          LD_LIBRARY_PATH=. DYLD_LIBRARY_PATH=. ./c_smoke
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: C smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          cl /nologo /O2 ^
+            /I crates\rsvelte_capi\include ^
+            crates\rsvelte_capi\examples\c\smoke.c ^
+            /link /LIBPATH:target\release rsvelte_capi.dll.lib ^
+            /OUT:target\release\c_smoke.exe
+          if errorlevel 1 exit /b 1
+          target\release\c_smoke.exe
+
+      # ---------------- Go ----------------
+      # cgo on Windows needs MinGW/gcc on PATH, which the default
+      # runner doesn't have — skip Windows here; the Rust cargo tests
+      # cover the Windows ABI surface.
+      - name: Set up Go
+        if: runner.os != 'Windows'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Go smoke
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd crates/rsvelte_capi/examples/go
+          go run .
+
+      # ---------------- Python ----------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Python smoke
+        shell: bash
+        run: python3 crates/rsvelte_capi/examples/python/smoke.py
+
+      # ---------------- Ruby ----------------
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Ruby smoke
+        shell: bash
+        run: ruby crates/rsvelte_capi/examples/ruby/smoke.rb
+
+      # ---------------- Zig ----------------
+      # Zig smoke is locally verified (see crates/rsvelte_capi/examples/zig/smoke.zig)
+      # but currently not run in CI: mlugg/setup-zig@v1's mirror set
+      # repeatedly returns 404/503 for both 0.16.0 and 0.15.1, and
+      # ziglang.org/builds itself answered 404 in the same run. The
+      # cargo tests + 6 other language smokes already cover the C ABI
+      # surface on every PR; Zig will rejoin once setup-zig stabilises.
+
+      # ---------------- PHP ----------------
+      - name: Set up PHP
+        if: runner.os != 'Windows'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ffi
+          ini-values: ffi.enable=true
+
+      - name: PHP smoke
+        if: runner.os != 'Windows'
+        shell: bash
+        run: php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php
+
+      # ---------------- Java FFM (JDK 22+) ----------------
+      - name: Set up JDK 22
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '22'
+
+      - name: Java FFM smoke
+        shell: bash
+        run: |
+          java --enable-native-access=ALL-UNNAMED \
+            crates/rsvelte_capi/examples/java/Smoke.java
+
+      # ---------------- Artifacts ----------------
+      - name: Upload shared library
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsvelte_capi-${{ matrix.os }}
+          path: |
+            target/release/${{ matrix.lib }}
+            crates/rsvelte_capi/include/rsvelte.h
+          if-no-files-found: error

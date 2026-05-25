@@ -168,6 +168,27 @@ println!("{}", result.js.code);
 
 The Rust API is the same surface OXC will eventually wire `oxlint` / `oxfmt` into. Unlike the JS surface, the Rust `CompileOptions` honours **every** field — including `css_hash` and `warning_filter` as real Rust closures.
 
+### Call from C / Go / PHP / Ruby / Zig / Java / …
+
+A `cdylib` exposing a stable C ABI ships in [`crates/rsvelte_capi`](crates/rsvelte_capi). One shared library + one cbindgen-generated header (`rsvelte.h`) lets any language with a C FFI drive the same compiler — UTF-8 JSON in, UTF-8 JSON out, no per-language schema generation.
+
+**Download prebuilt binaries** from [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) under the `capi-vX.Y.Z` tag scheme (`darwin-{arm64,x64}`, `linux-{x64,arm64}-gnu`, `win32-x64-msvc`; each archive ships the dylib + static archive + `rsvelte.h` + checksums):
+
+```bash
+VERSION=0.1.1 TRIPLE=darwin-arm64
+curl -L "https://github.com/baseballyama/rsvelte/releases/download/capi-v${VERSION}/rsvelte_capi-${VERSION}-${TRIPLE}.tar.gz" | tar -xz
+```
+
+Or build from source:
+
+```bash
+cargo build -p rsvelte_capi --release
+# → target/release/librsvelte_capi.{dylib,so,a}, rsvelte_capi.dll
+# → crates/rsvelte_capi/include/rsvelte.h (regenerated via cbindgen)
+```
+
+Ready-to-run smoke tests are shipped — and run in CI on every PR — for **C, Go, Python, Ruby, Zig, PHP, and Java (JDK 22+ FFM)**. Drift in the generated header or any `CompileOption` deserializer is caught by 35 cargo integration tests + a `RSVELTE_CAPI_CHECK_HEADER=1` build guard. See [`crates/rsvelte_capi/README.md`](crates/rsvelte_capi/README.md) for the full API, JSON envelope shape, memory ownership rules, and the per-language quick-start table.
+
 ## Compiler option compatibility
 
 The JS-facing surfaces (`@rsvelte/compiler` wasm bundle, `@rsvelte/vite-plugin-svelte-native` NAPI bindings) accept the full `svelte/compiler#CompileOptions` shape, but **function-valued** options can't currently cross the language boundary. The Rust core has no way to call back into JavaScript, so callback-shaped fields are accepted (so the TypeScript types stay drop-in compatible with upstream Svelte) and then **silently ignored**.
@@ -201,7 +222,7 @@ A single-threaded **100× speedup** over the JS compiler is one of this project'
 ## Compatibility
 
 <!-- svelte-target-version -->
-**Targeting Svelte `v5.52.0`** ([`cbf4e246fc0d`](https://github.com/sveltejs/svelte/commit/cbf4e246fc0d)) — automatically maintained by `pnpm run update-docs`.
+**Targeting Svelte `v5.53.3`** ([`97f3ac557158`](https://github.com/sveltejs/svelte/commit/97f3ac557158)) — automatically maintained by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
 Current compatibility with the official Svelte compiler test suite:

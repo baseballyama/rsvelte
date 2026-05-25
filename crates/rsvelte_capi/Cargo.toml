@@ -1,0 +1,41 @@
+[package]
+name = "rsvelte_capi"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.90"
+description = "C ABI bindings for the rsvelte Svelte 5 compiler — drive the compiler from C, Go, Python, Ruby, PHP, Zig, Java (JDK 22+ FFM), or any language with a C FFI"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+homepage = "https://github.com/baseballyama/rsvelte/tree/main/crates/rsvelte_capi"
+documentation = "https://github.com/baseballyama/rsvelte/blob/main/crates/rsvelte_capi/README.md"
+readme = "README.md"
+keywords = ["svelte", "compiler", "ffi", "cdylib", "bindings"]
+categories = ["compilers", "external-ffi-bindings", "web-programming"]
+# Releases live on GitHub Releases (per-OS prebuilt cdylibs) — see the
+# Release rsvelte_capi workflow. crates.io publishing additionally
+# requires `svelte-compiler-rust` itself to be published; until then,
+# Rust callers should depend on this crate via a git path.
+publish = false
+
+[lib]
+# rlib is required so integration tests can `use rsvelte_capi::*`.
+# cdylib/staticlib are the FFI artifacts downstream wrappers consume.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+svelte-compiler-rust = { path = "../..", default-features = false, features = ["native"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[dev-dependencies]
+cbindgen = "0.29"
+serde_json = "1.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "abort"

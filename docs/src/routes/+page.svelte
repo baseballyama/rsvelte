@@ -241,9 +241,38 @@
 		</figure>
 	</section>
 
-	<section class="compat">
+	<section class="capi">
 		<div class="section-head">
 			<span class="num">03</span>
+			<h2>Not just <em>Node.js</em>.</h2>
+			<p class="lede">
+				A stable C ABI ships alongside the NAPI build — one shared library, one header,
+				UTF-8 JSON in/out. Drive the same compiler from any language with a C FFI.
+			</p>
+		</div>
+
+		<ul class="capi-langs">
+			<li><span class="capi-tag">C / C++</span><span>include <code>rsvelte.h</code></span></li>
+			<li><span class="capi-tag">Go</span><span>cgo</span></li>
+			<li><span class="capi-tag">Python</span><span>ctypes / cffi</span></li>
+			<li><span class="capi-tag">Ruby</span><span>stdlib <code>fiddle</code></span></li>
+			<li><span class="capi-tag">PHP</span><span>built-in <code>FFI</code> (7.4+)</span></li>
+			<li><span class="capi-tag">Zig</span><span><code>@cImport</code></span></li>
+			<li><span class="capi-tag">Java / Kotlin</span><span>FFM API (JDK 22+)</span></li>
+			<li><span class="capi-tag">.NET</span><span><code>LibraryImport</code></span></li>
+		</ul>
+
+		<p class="capi-foot">
+			Smoke-tested per OS on every PR. See the
+			<a class="link" href="https://github.com/baseballyama/rsvelte/tree/main/crates/rsvelte_capi"
+				><code>crates/rsvelte_capi</code></a
+			> for the full API and per-language quick start.
+		</p>
+	</section>
+
+	<section class="compat">
+		<div class="section-head">
+			<span class="num">04</span>
 			<h2>Every test, passing.</h2>
 			<p class="lede">
 				<span class="big-pct">3,341 / 3,341</span> in-scope fixtures from the official
@@ -268,7 +297,7 @@
 
 	<section class="why">
 		<div class="section-head">
-			<span class="num">04</span>
+			<span class="num">05</span>
 			<h2>Why a port?</h2>
 		</div>
 
@@ -437,6 +466,7 @@
 
 	.perf .section-head,
 	.dropin .section-head,
+	.capi .section-head,
 	.compat .section-head,
 	.why .section-head {
 		max-width: 1080px;
@@ -809,6 +839,56 @@
 
 	.d-str {
 		color: var(--rust);
+	}
+
+	/* CAPI (Beyond Node.js) */
+	.capi {
+		max-width: 1080px;
+		margin: 0 auto clamp(4rem, 10vh, 7rem);
+		padding: 0 clamp(1rem, 4vw, 2.5rem);
+	}
+
+	.capi-langs {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+		gap: 0.6rem 1.5rem;
+		list-style: none;
+		padding: 0;
+		margin: 0 auto clamp(1.5rem, 3vh, 2rem);
+		max-width: 880px;
+		font-size: 0.92rem;
+		color: var(--ink-soft);
+	}
+
+	.capi-langs li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.65rem;
+		padding: 0.55rem 0;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.capi-tag {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.78rem;
+		letter-spacing: 0.02em;
+		color: var(--ink);
+		min-width: 7rem;
+		font-weight: 600;
+	}
+
+	.capi-langs code {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.85em;
+		color: var(--ink);
+	}
+
+	.capi-foot {
+		text-align: center;
+		font-size: 0.88rem;
+		color: var(--ink-faint);
+		max-width: 720px;
+		margin: 0 auto;
 	}
 
 	/* COMPAT */

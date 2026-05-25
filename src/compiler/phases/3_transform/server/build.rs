@@ -2196,17 +2196,23 @@ impl<'a> ServerCodeGenerator<'a> {
                         });
                     }
                 }
-                OutputPart::SvelteBoundary { body, is_pending } => {
+                OutputPart::SvelteBoundary {
+                    body,
+                    is_pending,
+                    failed_props,
+                } => {
                     let wrapped_body = Self::apply_const_async_wrapping(body, &local_map);
                     result.push(OutputPart::SvelteBoundary {
                         body: wrapped_body,
                         is_pending: *is_pending,
+                        failed_props: failed_props.clone(),
                     });
                 }
                 OutputPart::SvelteBoundaryWithPending {
                     pending_expr,
                     pending_body,
                     main_body,
+                    failed_props,
                 } => {
                     let wrapped_pending =
                         Self::apply_const_async_wrapping(pending_body, &local_map);
@@ -2215,6 +2221,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         pending_expr: pending_expr.clone(),
                         pending_body: wrapped_pending,
                         main_body: wrapped_main,
+                        failed_props: failed_props.clone(),
                     });
                 }
                 OutputPart::BlockScope { body } => {
@@ -5017,43 +5024,74 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Add closing marker to the next push
                     current_html.push_str("<!--]-->");
                 }
-                OutputPart::SvelteBoundary { body, is_pending } => {
-                    // Add boundary marker to current HTML and flush together
-                    // Use <!--[!--> for pending state, <!--[--> for main content
-                    // block_open = <!--[-->
-                    // block_open_else = <!--[!-->
-                    // block_close = <!--]-->
-                    if *is_pending {
-                        current_html.push_str("<!--[!-->");
+                OutputPart::SvelteBoundary {
+                    body,
+                    is_pending,
+                    failed_props,
+                } => {
+                    // Flush any pending HTML before the boundary markers - upstream
+                    // emits block_open/block_close as separate $$renderer.push() statements
+                    // (b.stmt nodes inside build_template), so they must NOT fuse with
+                    // surrounding HTML.
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    let open_marker = if *is_pending { "<!--[!-->" } else { "<!--[-->" };
+
+                    if let Some(props) = failed_props {
+                        // Wrap in $$renderer.boundary({props}, ($$renderer) => { ... });
+                        body_code.push_str(&format!(
+                            "\n{}$$renderer.boundary({}, ($$renderer) => {{\n",
+                            indent, props
+                        ));
+                        let inner_indent_level = indent_level + 1;
+                        let inner_indent = "\t".repeat(inner_indent_level);
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);\n\n",
+                            inner_indent, open_marker
+                        ));
+                        body_code.push_str(&format!("{}{{\n", inner_indent));
+                        if !body.is_empty() {
+                            let body_code_inner = Self::build_parts_with_store_subs(
+                                body,
+                                inner_indent_level + 1,
+                                each_counter,
+                                store_subs,
+                            );
+                            body_code.push_str(&body_code_inner);
+                        }
+                        body_code.push_str(&format!("{}}}\n\n", inner_indent));
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", inner_indent));
+                        body_code.push_str(&format!("{}}});\n", indent));
                     } else {
-                        current_html.push_str("<!--[-->");
+                        // Emit open marker, body block, close marker as separate pushes
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);\n\n",
+                            indent, open_marker
+                        ));
+                        body_code.push_str(&format!("{}{{\n", indent));
+                        if !body.is_empty() {
+                            let body_code_inner = Self::build_parts_with_store_subs(
+                                body,
+                                indent_level + 1,
+                                each_counter,
+                                store_subs,
+                            );
+                            body_code.push_str(&body_code_inner);
+                        }
+                        body_code.push_str(&format!("{}}}\n\n", indent));
+                        body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
                     }
-                    body_code.push_str(&format!(
-                        "{}$$renderer.push(`{}`);\n\n",
-                        indent, current_html
-                    ));
-                    current_html.clear();
-
-                    // Render the body in a block (always add block even if empty)
-                    body_code.push_str(&format!("{}{{\n", indent));
-                    if !body.is_empty() {
-                        let body_code_inner = Self::build_parts_with_store_subs(
-                            body,
-                            indent_level + 1,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&body_code_inner);
-                    }
-                    body_code.push_str(&format!("{}}}\n\n", indent));
-
-                    // Add closing marker to current_html to combine with subsequent content
-                    current_html.push_str("<!--]-->");
                 }
                 OutputPart::SvelteBoundaryWithPending {
                     pending_expr,
                     pending_body,
                     main_body,
+                    failed_props,
                 } => {
                     // Flush current HTML before conditional
                     if !current_html.is_empty() {
@@ -5064,34 +5102,59 @@ impl<'a> ServerCodeGenerator<'a> {
                         current_html.clear();
                     }
 
-                    // Generate: if (pending_expr) { <!--[!--> pending_body <!--]--> }
-                    //           else { <!--[--> main_body <!--]--> }
-                    body_code.push_str(&format!("{}if ({}) {{\n", indent, pending_expr));
-                    let inner_indent = format!("{}\t", indent);
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--[!-->`);\n", inner_indent));
-                    if !pending_body.is_empty() {
-                        let pending_code = Self::build_parts_with_store_subs(
-                            pending_body,
-                            indent_level + 1,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&pending_code);
+                    let render_inner =
+                        |body_code: &mut String, indent_level: usize, each_counter: &mut usize| {
+                            let indent = "\t".repeat(indent_level);
+                            let inner_indent = format!("{}\t", indent);
+                            body_code.push_str(&format!("{}if ({}) {{\n", indent, pending_expr));
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`<!--[!-->`);\n",
+                                inner_indent
+                            ));
+                            if !pending_body.is_empty() {
+                                let pending_code = Self::build_parts_with_store_subs(
+                                    pending_body,
+                                    indent_level + 1,
+                                    each_counter,
+                                    store_subs,
+                                );
+                                body_code.push_str(&pending_code);
+                            }
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`<!--]-->`);\n",
+                                inner_indent
+                            ));
+                            body_code.push_str(&format!("{}}} else {{\n", indent));
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`<!--[-->`);\n",
+                                inner_indent
+                            ));
+                            if !main_body.is_empty() {
+                                let main_code = Self::build_parts_with_store_subs(
+                                    main_body,
+                                    indent_level + 1,
+                                    each_counter,
+                                    store_subs,
+                                );
+                                body_code.push_str(&main_code);
+                            }
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`<!--]-->`);\n",
+                                inner_indent
+                            ));
+                            body_code.push_str(&format!("{}}}\n", indent));
+                        };
+
+                    if let Some(props) = failed_props {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.boundary({}, ($$renderer) => {{\n",
+                            indent, props
+                        ));
+                        render_inner(&mut body_code, indent_level + 1, each_counter);
+                        body_code.push_str(&format!("{}}});\n", indent));
+                    } else {
+                        render_inner(&mut body_code, indent_level, each_counter);
                     }
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", inner_indent));
-                    body_code.push_str(&format!("{}}} else {{\n", indent));
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--[-->`);\n", inner_indent));
-                    if !main_body.is_empty() {
-                        let main_code = Self::build_parts_with_store_subs(
-                            main_body,
-                            indent_level + 1,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&main_code);
-                    }
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", inner_indent));
-                    body_code.push_str(&format!("{}}}\n", indent));
                 }
                 OutputPart::SvelteHead { hash, body } => {
                     // Flush current HTML before head call
