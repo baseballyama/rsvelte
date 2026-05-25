@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T09:24:36.268451+00:00",
-  "commit_sha": "6e52f40d41e0",
+  "generated_at": "2026-05-25T09:45:33.766731+00:00",
+  "commit_sha": "37ab33c0a335",
   "summary": {
-    "total": 3477,
-    "passed": 3359,
+    "total": 3498,
+    "passed": 3373,
     "failed": 0,
-    "skipped": 118,
+    "skipped": 125,
     "percentage": 100
   },
   "categories": [
@@ -3183,10 +3183,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 911,
-      "passed": 892,
+      "total": 932,
+      "passed": 906,
       "failed": 0,
-      "skipped": 19,
+      "skipped": 26,
       "percentage": 100,
       "tests": [
         {
@@ -3211,6 +3211,10 @@
         },
         {
           "name": "snippet-prop-explicit",
+          "status": "pass"
+        },
+        {
+          "name": "async-overlap-multiple-fork-2",
           "status": "pass"
         },
         {
@@ -3256,6 +3260,10 @@
         },
         {
           "name": "derived-stale-value",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-new-branch-fork-1",
           "status": "pass"
         },
         {
@@ -3488,6 +3496,10 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-fork-3",
+          "status": "pass"
+        },
+        {
           "name": "hydrate-modified-input",
           "status": "pass"
         },
@@ -3661,6 +3673,11 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-6",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "snippet-select",
           "status": "pass"
         },
@@ -3705,7 +3722,16 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-1",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "event-handler-async-delegated",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-new-branch-1",
           "status": "pass"
         },
         {
@@ -3975,7 +4001,16 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-7",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "fork-derived-class-instance",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-new-branch-all-combinations",
           "status": "pass"
         },
         {
@@ -4233,6 +4268,10 @@
         },
         {
           "name": "async-if-after-await-in-script",
+          "status": "pass"
+        },
+        {
+          "name": "async-hydrate-html-tag",
           "status": "pass"
         },
         {
@@ -5226,6 +5265,10 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-fork-1",
+          "status": "pass"
+        },
+        {
           "name": "reassigned-store-not-state",
           "status": "pass"
         },
@@ -5299,6 +5342,10 @@
           "status": "pass"
         },
         {
+          "name": "async-state-new-branch-fork-5",
+          "status": "pass"
+        },
+        {
           "name": "snippet-store",
           "status": "pass"
         },
@@ -5320,6 +5367,10 @@
         },
         {
           "name": "effect-tracking-unowned",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-new-branch-fork-2",
           "status": "pass"
         },
         {
@@ -5475,6 +5526,10 @@
           "status": "pass"
         },
         {
+          "name": "async-state-new-branch-fork-3",
+          "status": "pass"
+        },
+        {
           "name": "snippet-namespace-1",
           "status": "pass"
         },
@@ -5488,6 +5543,10 @@
         },
         {
           "name": "effect-loop-infinite",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-new-branch-fork-4",
           "status": "pass"
         },
         {
@@ -5671,6 +5730,15 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-2",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
+          "name": "async-state-new-branch-2",
+          "status": "pass"
+        },
+        {
           "name": "clean-block-inner-effects",
           "status": "pass"
         },
@@ -5705,6 +5773,11 @@
         {
           "name": "attribute-spread-casing",
           "status": "pass"
+        },
+        {
+          "name": "async-overlap-multiple-5",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "each-mutation-2",
@@ -5971,6 +6044,11 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-4",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "effect-loop",
           "status": "pass"
         },
@@ -5991,7 +6069,16 @@
           "status": "pass"
         },
         {
+          "name": "async-overlap-multiple-3",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "style-directive-mutations",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-new-branch-3",
           "status": "pass"
         },
         {
@@ -6637,6 +6724,10 @@
         },
         {
           "name": "image-loading-attribute",
+          "status": "pass"
+        },
+        {
+          "name": "async-hydration-binding",
           "status": "pass"
         },
         {
