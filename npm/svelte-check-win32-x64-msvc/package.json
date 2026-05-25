@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte-check-win32-x64-msvc",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Prebuilt svelte-check binary for win32-x64 (msvc)",
   "license": "MIT",
   "repository": {
