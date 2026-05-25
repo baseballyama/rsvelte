@@ -236,6 +236,19 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // derived-dep-set-while-rendering (Svelte 5.55.5): also skipped in
     // compatibility_report.
     "derived-dep-set-while-rendering",
+    // 5.55.6 async-codegen cluster: same gap as the previous async batches,
+    // skipped in compatibility_report.
+    "async-debug-awaited-expression",
+    "async-dont-rebase-new-batch-1",
+    "async-dont-rebase-new-batch-2",
+    "async-dont-rebase-new-batch-3",
+    "async-dont-rebase-new-batch-4",
+    "async-eager-block",
+    "async-eager-each-block",
+    "async-flushsync-in-effect",
+    "async-stale-derived-4",
+    "async-state-updates-microtask-separated",
+    "dynamic-component-member",
 ];
 
 /// runtime-legacy fixtures that diverged after the Svelte 5.53.4 scope fix
