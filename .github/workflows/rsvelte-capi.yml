@@ -163,7 +163,10 @@ jobs:
       - name: Set up Zig
         uses: mlugg/setup-zig@v1
         with:
-          version: 0.16.0
+          # 0.16.0 was unreachable across every mirror in the first CI
+          # run; 0.15.1 is the most recent stable on the cached path
+          # and uses the same lowercase `callconv(.c)` syntax.
+          version: 0.15.1
 
       - name: Zig smoke (Unix)
         if: runner.os != 'Windows'
