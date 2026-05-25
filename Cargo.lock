@@ -209,10 +209,10 @@ dependencies = [
  "indexmap",
  "log",
  "proc-macro2 1.0.106",
- "quote 1.0.44",
+ "quote 1.0.45",
  "serde",
  "serde_json",
- "syn 2.0.114",
+ "syn 2.0.117",
  "tempfile",
  "toml",
 ]
