@@ -4211,7 +4211,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        if memmem::find(trimmed.as_bytes(), b"constructor(").is_some() && !trimmed.contains('=') {
+        // `constructor(` distinguishes the *method* signature from a
+        // `constructor = ...` *field* (which would be `constructor` followed by
+        // whitespace then `=`, never `constructor(`). The old extra guard
+        // `!trimmed.contains('=')` was overly broad — it false-negatives any
+        // ctor with a default param (`constructor(options = {}) {`), causing
+        // the class body scanner to lose the in-ctor block boundary and emit
+        // malformed JS. Real-world surface: layerchart's
+        // `states/settings.svelte.js` → SSR output had an orphaned `) {`,
+        // rolldown rejected with `Unexpected token` at line 11:1. Restrict to
+        // "the first `=` (if any) appears *after* `constructor(`".
+        if let Some(ctor_pos) = memmem::find(trimmed.as_bytes(), b"constructor(")
+            && trimmed.find('=').is_none_or(|eq_pos| ctor_pos < eq_pos)
+        {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;
