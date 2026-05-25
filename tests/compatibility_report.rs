@@ -1038,6 +1038,11 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-reactivity-loss-no-false-positive-2"),
         ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
         ("runtime-runes", "async-reactivity-loss-async-after-sync"),
+        // - Svelte 5.55.4 (upstream commit `0ed8c282f` "fix: reset context
+        //   after waiting on blockers of @const expressions"): two new
+        //   fixtures hit the same async-batching follow-up.
+        ("runtime-runes", "async-effect-pending-eager"),
+        ("runtime-runes", "async-context-after-await-const"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
