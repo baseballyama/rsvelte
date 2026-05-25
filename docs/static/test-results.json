@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-25T07:45:59.552914+00:00",
-  "commit_sha": "d54361b97f34",
+  "generated_at": "2026-05-25T07:52:46.818084+00:00",
+  "commit_sha": "72cd247c33ed",
   "summary": {
-    "total": 3455,
-    "passed": 3346,
+    "total": 3457,
+    "passed": 3348,
     "failed": 0,
     "skipped": 109,
     "percentage": 100
@@ -3183,8 +3183,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 890,
-      "passed": 880,
+      "total": 892,
+      "passed": 882,
       "failed": 0,
       "skipped": 10,
       "percentage": 100,
@@ -3315,6 +3315,10 @@
         },
         {
           "name": "custom-element-slot-in-snippet",
+          "status": "pass"
+        },
+        {
+          "name": "new-branch-reschedule",
           "status": "pass"
         },
         {
@@ -5990,6 +5994,10 @@
         },
         {
           "name": "effect-inside-derived-frozen",
+          "status": "pass"
+        },
+        {
+          "name": "new-branch-reschedule-2",
           "status": "pass"
         },
         {

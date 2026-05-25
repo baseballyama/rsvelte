@@ -222,7 +222,7 @@ A single-threaded **100× speedup** over the JS compiler is one of this project'
 ## Compatibility
 
 <!-- svelte-target-version -->
-**Targeting Svelte `v5.53.9`** ([`d54361b97f34`](https://github.com/sveltejs/svelte/commit/d54361b97f34)) — automatically maintained by `pnpm run update-docs`.
+**Targeting Svelte `v5.53.10`** ([`72cd247c33ed`](https://github.com/sveltejs/svelte/commit/72cd247c33ed)) — automatically maintained by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
 Current compatibility with the official Svelte compiler test suite:
