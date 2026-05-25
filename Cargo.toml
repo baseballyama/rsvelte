@@ -28,7 +28,7 @@ trace-fastpath = []
 # jemalloc is disabled (e.g. `--no-default-features --features napi`).
 napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
-wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
+wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
 
 [dependencies]
 # Serialization
