@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-25T07:37:46.271587+00:00",
-  "commit_sha": "d2b347042c8c",
+  "generated_at": "2026-05-25T07:45:59.552914+00:00",
+  "commit_sha": "d54361b97f34",
   "summary": {
-    "total": 3453,
-    "passed": 3344,
+    "total": 3455,
+    "passed": 3346,
     "failed": 0,
     "skipped": 109,
     "percentage": 100
@@ -3183,8 +3183,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 888,
-      "passed": 878,
+      "total": 890,
+      "passed": 880,
       "failed": 0,
       "skipped": 10,
       "percentage": 100,
@@ -4811,6 +4811,10 @@
           "status": "pass"
         },
         {
+          "name": "bind-this-destroy-timing",
+          "status": "pass"
+        },
+        {
           "name": "text-effect-multi-deps",
           "status": "pass"
         },
@@ -4856,6 +4860,10 @@
         },
         {
           "name": "event-import-no-param-hoisting",
+          "status": "pass"
+        },
+        {
+          "name": "bind-this-destroy-timing2",
           "status": "pass"
         },
         {
