@@ -31,7 +31,7 @@ jobs:
 
       - name: Restore state cache
         id: state-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ecosystem-ci/state
           key: ecosystem-ci-state-${{ github.run_id }}
@@ -60,7 +60,7 @@ jobs:
 
       - name: Save state cache
         if: steps.poll.outputs.changed != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ecosystem-ci/state
           key: ecosystem-ci-state-${{ github.run_id }}

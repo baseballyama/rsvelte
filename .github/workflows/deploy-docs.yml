@@ -43,7 +43,7 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Mirrors the cache used by CI (`.github/workflows/ci.yml`) so that
           # the deploy job reuses generated fixtures when the Svelte submodule
