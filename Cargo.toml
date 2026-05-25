@@ -73,7 +73,7 @@ itoa = "1"
 sourcemap = "9.0"
 
 # MagicString (Rolldown's port)
-string_wizard = "0.0.27"
+string_wizard = "0.1.0"
 
 # File system
 walkdir = "2.5"
