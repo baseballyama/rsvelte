@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T10:23:54.734188+00:00",
-  "commit_sha": "4a50e8ea3b7d",
+  "generated_at": "2026-05-25T10:39:19.389749+00:00",
+  "commit_sha": "7fddfbdbbde8",
   "summary": {
-    "total": 3511,
-    "passed": 3376,
+    "total": 3514,
+    "passed": 3377,
     "failed": 0,
-    "skipped": 135,
+    "skipped": 137,
     "percentage": 100
   },
   "categories": [
@@ -3188,10 +3188,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 942,
-      "passed": 908,
+      "total": 945,
+      "passed": 909,
       "failed": 0,
-      "skipped": 34,
+      "skipped": 36,
       "percentage": 100,
       "tests": [
         {
@@ -4382,6 +4382,11 @@
           "status": "pass"
         },
         {
+          "name": "async-effect-pending-eager",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "svelte-meta-parent",
           "status": "pass"
         },
@@ -4853,6 +4858,10 @@
         },
         {
           "name": "deferred-events-consistency-3",
+          "status": "pass"
+        },
+        {
+          "name": "effect-root-6",
           "status": "pass"
         },
         {
@@ -6484,6 +6493,11 @@
         {
           "name": "inspect-derived-4",
           "status": "pass"
+        },
+        {
+          "name": "async-context-after-await-const",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "bind-value-input-type-dynamic",
