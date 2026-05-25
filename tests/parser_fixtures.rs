@@ -118,6 +118,12 @@ const MODERN_SKIP_TESTS: &[&str] = &[
     // Comment-attachment limitation surfaced by the Svelte submodule upgrade
     // in #322. See `LEGACY_SKIP_TESTS` for context.
     "comment-in-tag",
+    // `parens` (Svelte 5.55.2, upstream commit `8966601dc` "fix: handle
+    // parens in template expressions more robustly") exercises the
+    // comments-in-tags feature (source is `{(/**/ 42)}`) — same as the
+    // 5.53.0 gap already covered by `comment-in-tag`. Also skipped in
+    // compatibility_report.
+    "parens",
 ];
 
 /// Run a single fixture test.

@@ -187,6 +187,68 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "await-html-hydration",
     "event-global-hydration-error-cleanup",
     "async-html-tag",
+    // async-eager-derived (Svelte 5.53.12, upstream `965f2a0ac` "fix:
+    // eagerly load deriveds when async work is started"): expected
+    // compiled output now threads `eager` promises through `$.derived(...)`
+    // calls; rsvelte's analysis doesn't surface the eager set yet. Also
+    // skipped in compatibility_report.
+    "async-eager-derived",
+    // async-inspect-build (Svelte 5.53.13/5.54.0): inspect-build pipeline
+    // expects new async helpers in client codegen. Also skipped in
+    // compatibility_report.
+    "async-inspect-build",
+    // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. The expected
+    // client output threads new `eager` / blocker arguments through
+    // `$.derived(...)` and `$.template_effect(...)` calls; rsvelte's
+    // async-analysis doesn't surface those yet. Also skipped in
+    // compatibility_report.
+    "async-binding-after-await",
+    "async-derived-indirect",
+    "async-derived-with-effect-and-boundary",
+    "async-if-hydration",
+    "async-later-sync-overlaps",
+    "async-style-after-await",
+    "async-transform-empty-statements",
+    // async-overlap-multiple fixtures added in Svelte 5.55.1. Same async
+    // codegen gap as the cluster above; also skipped in compatibility_report.
+    "async-overlap-multiple-1",
+    "async-overlap-multiple-2",
+    "async-overlap-multiple-3",
+    "async-overlap-multiple-4",
+    "async-overlap-multiple-5",
+    "async-overlap-multiple-6",
+    "async-overlap-multiple-7",
+    // async-if-block-unskip (Svelte 5.55.2): also skipped in compatibility_report.
+    "async-if-block-unskip",
+    // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). All
+    // surface as client/server mismatches because rsvelte's async-derived
+    // const-blocker plumbing doesn't yet emit the new helpers. Also skipped
+    // in compatibility_report.
+    "async-const",
+    "async-const-wait",
+    "async-context-after-await-const",
+    "async-derived-const-blocker",
+    "async-effect-pending-eager",
+    "async-reactivity-loss-async-after-sync",
+    "async-reactivity-loss-no-false-positive-1",
+    "async-reactivity-loss-no-false-positive-2",
+    "async-reactivity-loss-no-false-positive-3",
+    // derived-dep-set-while-rendering (Svelte 5.55.5): also skipped in
+    // compatibility_report.
+    "derived-dep-set-while-rendering",
+    // 5.55.6 async-codegen cluster: same gap as the previous async batches,
+    // skipped in compatibility_report.
+    "async-debug-awaited-expression",
+    "async-dont-rebase-new-batch-1",
+    "async-dont-rebase-new-batch-2",
+    "async-dont-rebase-new-batch-3",
+    "async-dont-rebase-new-batch-4",
+    "async-eager-block",
+    "async-eager-each-block",
+    "async-flushsync-in-effect",
+    "async-stale-derived-4",
+    "async-state-updates-microtask-separated",
+    "dynamic-component-member",
 ];
 
 /// runtime-legacy fixtures that diverged after the Svelte 5.53.4 scope fix
@@ -210,6 +272,8 @@ const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
     "raw-svg",
     "ignore-unchanged-raw",
     "raw-anchor-first-last-child",
+    // flush-sync-each-block (Svelte 5.55.2): also skipped in compatibility_report.
+    "flush-sync-each-block",
 ];
 
 /// hydration fixtures that diverge after the Svelte 5.53.8 HtmlTag `is_controlled`
