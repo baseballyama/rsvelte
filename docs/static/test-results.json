@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T08:15:22.507716+00:00",
-  "commit_sha": "8b86bdd82db5",
+  "generated_at": "2026-05-25T08:47:53.376920+00:00",
+  "commit_sha": "6a303c3638b3",
   "summary": {
-    "total": 3467,
-    "passed": 3357,
+    "total": 3472,
+    "passed": 3361,
     "failed": 0,
-    "skipped": 110,
+    "skipped": 111,
     "percentage": 100
   },
   "categories": [
@@ -3183,10 +3183,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 902,
-      "passed": 891,
+      "total": 907,
+      "passed": 895,
       "failed": 0,
-      "skipped": 11,
+      "skipped": 12,
       "percentage": 100,
       "tests": [
         {
@@ -4732,6 +4732,10 @@
           "status": "pass"
         },
         {
+          "name": "async-each-await-stale-rows",
+          "status": "pass"
+        },
+        {
           "name": "class-private-raw-state",
           "status": "pass"
         },
@@ -5405,6 +5409,10 @@
           "status": "pass"
         },
         {
+          "name": "async-late-value-init",
+          "status": "pass"
+        },
+        {
           "name": "async-derived-reverse-order",
           "status": "pass"
         },
@@ -5522,6 +5530,10 @@
         },
         {
           "name": "attachment-component-spread",
+          "status": "pass"
+        },
+        {
+          "name": "async-render-component-hydration",
           "status": "pass"
         },
         {
@@ -5702,6 +5714,10 @@
         },
         {
           "name": "side-effect-derived-map",
+          "status": "pass"
+        },
+        {
+          "name": "async-discard-obsolete-batch",
           "status": "pass"
         },
         {
@@ -6417,6 +6433,11 @@
         {
           "name": "each-keyed-child-effect",
           "status": "pass"
+        },
+        {
+          "name": "async-inspect-build",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "async-style-after-await",

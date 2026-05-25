@@ -975,6 +975,12 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   the fixture diff is a 1-line array reordering. Same underlying
         //   blocker-threading gap as `async-derived-title-update`.
         ("runtime-runes", "async-eager-derived"),
+        // - `async-inspect-build` (Svelte 5.53.13, upstream `b472171de`
+        //   "ensure `$inspect` after top level await doesn't break builds"):
+        //   the new fixture's `$.run([test, () => void 0])` array exercises
+        //   `$inspect` ordering after a top-level await that rsvelte's client
+        //   transform doesn't yet emit. Tracked as a follow-up port.
+        ("runtime-runes", "async-inspect-build"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
