@@ -168,6 +168,18 @@ println!("{}", result.js.code);
 
 The Rust API is the same surface OXC will eventually wire `oxlint` / `oxfmt` into. Unlike the JS surface, the Rust `CompileOptions` honours **every** field — including `css_hash` and `warning_filter` as real Rust closures.
 
+### Call from C / Go / PHP / Ruby / Zig / Java / …
+
+A `cdylib` exposing a stable C ABI ships in [`crates/rsvelte_capi`](crates/rsvelte_capi). One shared library + one cbindgen-generated header (`rsvelte.h`) lets any language with a C FFI drive the same compiler — UTF-8 JSON in, UTF-8 JSON out, no per-language schema generation.
+
+```bash
+cargo build -p rsvelte_capi --release
+# → target/release/librsvelte_capi.{dylib,so,a}, rsvelte_capi.dll
+# → crates/rsvelte_capi/include/rsvelte.h (regenerated via cbindgen)
+```
+
+Ready-to-run smoke tests are shipped — and run in CI on every PR — for **C, Go, Python, Ruby, Zig, PHP, and Java (JDK 22+ FFM)**. Drift in the generated header or any `CompileOption` deserializer is caught by 35 cargo integration tests + a `RSVELTE_CAPI_CHECK_HEADER=1` build guard. See [`crates/rsvelte_capi/README.md`](crates/rsvelte_capi/README.md) for the full API, JSON envelope shape, memory ownership rules, and the per-language quick-start table.
+
 ## Compiler option compatibility
 
 The JS-facing surfaces (`@rsvelte/compiler` wasm bundle, `@rsvelte/vite-plugin-svelte-native` NAPI bindings) accept the full `svelte/compiler#CompileOptions` shape, but **function-valued** options can't currently cross the language boundary. The Rust core has no way to call back into JavaScript, so callback-shaped fields are accepted (so the TypeScript types stay drop-in compatible with upstream Svelte) and then **silently ignored**.

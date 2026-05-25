@@ -1,3 +1,6 @@
+[workspace]
+members = ["crates/rsvelte_capi"]
+
 [package]
 name = "svelte-compiler-rust"
 version = "0.3.2"
