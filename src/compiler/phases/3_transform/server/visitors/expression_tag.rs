@@ -45,6 +45,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     let transformed = self.transform_special_vars(&transformed);
                     // Transform rune calls that need server-side handling
                     let transformed = Self::transform_rune_in_template_expr(&transformed);
+                    // Svelte 5.52+: rewrite bare reads of `$derived` bindings
+                    // to calls (e.g. `count` -> `count()`).
+                    let transformed = self.wrap_derived_reads(&transformed);
                     // If this is a sequence (comma) expression at the top level, wrap in parens
                     // so that $.escape(x, '') doesn't misinterpret as two arguments.
                     let transformed = if has_top_level_comma(&transformed) {

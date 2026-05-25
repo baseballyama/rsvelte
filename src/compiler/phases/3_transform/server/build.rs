@@ -9,8 +9,8 @@ use super::helpers::*;
 use super::transform_script;
 use super::transform_store::resolve_binding_exprs;
 use super::types::{
-    ComponentBinding, ComponentCodeResult, ComponentPropItem, OutputPart, TrailingMarkerBehavior,
-    collect_all_props, has_spreads,
+    ComponentBinding, ComponentCodeResult, ComponentPropItem, DynamicComponentWrap, OutputPart,
+    TrailingMarkerBehavior, collect_all_props, has_spreads,
 };
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use memchr::memmem;
@@ -566,6 +566,155 @@ enum HtmlSegment {
 enum AwaitHtmlSegment {
     Static(String),
     ElementWithAwait(String),
+}
+
+/// Strip a single matched pair of outer parens from `s` if present.
+/// Used for emitting the `if (test)` condition on dynamic components when the
+/// component name was wrapped in parens for safe optional-chain calls
+/// (e.g. `(x ? Foo : Bar)`).
+fn strip_outer_parens(s: &str) -> &str {
+    let trimmed = s.trim();
+    if trimmed.len() < 2 || !trimmed.starts_with('(') || !trimmed.ends_with(')') {
+        return trimmed;
+    }
+    let inner = &trimmed[1..trimmed.len() - 1];
+    // Verify that the leading `(` matches the trailing `)` (i.e. depth never
+    // dips below 0 before the end).
+    let bytes = inner.as_bytes();
+    let mut depth: i32 = 0;
+    let mut in_string: Option<u8> = None;
+    let mut escape = false;
+    for &b in bytes {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if let Some(q) = in_string {
+            if b == b'\\' {
+                escape = true;
+            } else if b == q {
+                in_string = None;
+            }
+            continue;
+        }
+        match b {
+            b'"' | b'\'' | b'`' => in_string = Some(b),
+            b'(' => depth += 1,
+            b')' => {
+                if depth == 0 {
+                    return trimmed;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    if depth == 0 { inner } else { trimmed }
+}
+
+/// Wrap a dynamic component call statement (or block) in the new Svelte 5.52
+/// hydration if/else markers.
+///
+/// Input:
+/// ```text
+///     Foo($$renderer, { ... });
+/// ```
+/// Output:
+/// ```text
+///     if (Foo) {
+///         $$renderer.push('<!--[-->');
+///         Foo($$renderer, { ... });
+///         $$renderer.push('<!--]-->');
+///     } else {
+///         $$renderer.push('<!--[!-->');
+///         $$renderer.push('<!--]-->');
+///     }
+/// ```
+///
+/// `call_code` is the raw call code (with trailing newline, no leading indent)
+/// indented at one level deeper than `base_indent`. `name` is the component
+/// expression (possibly wrapped in outer parens by `svelte_component.rs`).
+/// Wrap a component-call code block emitted directly into
+/// `build_parts_with_store_subs`'s `body_code` at the given `indent`.
+///
+/// The captured `component_code` already includes `indent` on every line.
+/// We need to:
+/// 1. Re-indent each non-empty line by one extra `\t` (so it sits inside the
+///    `if` block / `else` block).
+/// 2. Build the surrounding `if (name) { ... } else { ... }` at `indent`.
+///
+/// When `has_css_props` is true, the captured code looks like
+/// `\n{indent}$.css_props($$renderer, ..., () => {\n{indent}\t<call>\n{indent}}, true);\n`,
+/// so we wrap just the callback body instead of the whole thing.
+fn wrap_dynamic_component_call_in_block(
+    component_code: &str,
+    name: &str,
+    indent: &str,
+    has_css_props: bool,
+) -> String {
+    if has_css_props {
+        // Find `() => {\n` and `\n{indent}}, true);` in the captured code.
+        let close_marker = format!("\n{}}}, true);", indent);
+        if let (Some(arrow_idx), Some(close_idx)) = (
+            component_code.find("() => {\n"),
+            component_code.rfind(&close_marker),
+        ) && close_idx > arrow_idx
+        {
+            let body_start = arrow_idx + "() => {\n".len();
+            // The body is indented at `indent + "\t"` already.
+            let body = &component_code[body_start..close_idx + 1]; // include the trailing `\n`
+            // Wrap inner body in if/else at `indent + "\t"` indent.
+            let inner_indent_str = format!("{}\t", indent);
+            let wrapped_inner = wrap_indented_call(body, name, &inner_indent_str);
+            let mut out = String::with_capacity(component_code.len() + 256);
+            out.push_str(&component_code[..body_start]);
+            out.push_str(&wrapped_inner);
+            out.push_str(&component_code[close_idx + 1..]);
+            return out;
+        }
+    }
+    wrap_indented_call(component_code, name, indent)
+}
+
+/// Wrap an indented call expression (every non-empty line already starts with
+/// `base_indent`) in the `if (name) { ... } else { ... }` hydration guard.
+///
+/// The inner call gets re-indented by one extra `\t`. `push BLOCK_OPEN` /
+/// `push BLOCK_CLOSE` calls sit at `base_indent + "\t"`. The surrounding `if`
+/// / `else` braces sit at `base_indent`.
+fn wrap_indented_call(call_code: &str, name: &str, base_indent: &str) -> String {
+    let test = strip_outer_parens(name);
+    let inner_indent = format!("{}\t", base_indent);
+    // Re-indent each non-empty line by an extra `\t`.
+    let mut reindented = String::with_capacity(call_code.len() + 64);
+    for line in call_code.split_inclusive('\n') {
+        // Drop a wholly empty line (just `\n`) from being prefixed.
+        if line.trim_start_matches([' ', '\t']).is_empty() {
+            reindented.push_str(line);
+        } else {
+            reindented.push('\t');
+            reindented.push_str(line);
+        }
+    }
+    let mut out = String::with_capacity(reindented.len() + 256);
+    out.push_str(base_indent);
+    out.push_str("if (");
+    out.push_str(test);
+    out.push_str(") {\n");
+    out.push_str(&inner_indent);
+    out.push_str("$$renderer.push('<!--[-->');\n");
+    out.push_str(&reindented);
+    out.push_str(&inner_indent);
+    out.push_str("$$renderer.push('<!--]-->');\n");
+    out.push_str(base_indent);
+    out.push_str("} else {\n");
+    out.push_str(&inner_indent);
+    out.push_str("$$renderer.push('<!--[!-->');\n");
+    out.push_str(&inner_indent);
+    out.push_str("$$renderer.push('<!--]-->');\n");
+    out.push_str(base_indent);
+    out.push_str("}\n");
+    out
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -3084,21 +3233,23 @@ impl<'a> ServerCodeGenerator<'a> {
                     // bind_get/bind_set declarations are emitted as VarDeclaration parts
                     // in the component visitor and hoisted by hoist_const_and_snippet_declarations.
 
-                    // Flush any prior HTML content (with dynamic marker if needed, pushed separately)
+                    // Flush any prior HTML content.
+                    // Svelte 5.52+: dynamic components no longer emit a leading
+                    // `<!---->` marker — the if/else hydration wrapper supplies
+                    // the boundary.
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
-                        if *dynamic {
-                            body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
-                        }
-                    } else if *dynamic {
-                        // Even if no prior HTML, dynamic components need a marker
-                        body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
                     }
 
-                    // Use optional chaining for dynamic components
-                    let call_syntax = if *dynamic { "?." } else { "" };
+                    // Svelte 5.52+: dynamic components are wrapped in `if (expr)`,
+                    // so we always emit a direct call (no `?.`).
+                    let call_syntax = "";
+
+                    // Capture position so we can wrap the emitted code in if/else
+                    // after generation when `dynamic` is true.
+                    let component_code_start = body_code.len();
 
                     // Generate component call - use $.spread_props if spreads exist
                     if has_spreads(props_and_spreads) {
@@ -3330,13 +3481,27 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     }
 
-                    // Add <!---->  marker for hydration boundary after binding component
-                    // Add if there's content before OR content after this component
-                    let has_more_content = parts[i + 1..]
-                        .iter()
-                        .any(|p| !matches!(p, OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. } if s.trim().is_empty()));
-                    if *has_prior_content || has_more_content {
-                        current_html.push_str("<!---->");
+                    // Svelte 5.52+: dynamic components emit their own if/else
+                    // hydration markers; static components keep the trailing
+                    // `<!---->` boundary marker behavior.
+                    if *dynamic {
+                        let component_code = body_code[component_code_start..].to_string();
+                        body_code.truncate(component_code_start);
+                        body_code.push_str(&wrap_dynamic_component_call_in_block(
+                            &component_code,
+                            name,
+                            &indent,
+                            false,
+                        ));
+                    } else {
+                        // Add <!----> marker for hydration boundary after binding component.
+                        // Add if there's content before OR content after this component
+                        let has_more_content = parts[i + 1..]
+                            .iter()
+                            .any(|p| !matches!(p, OutputPart::Html(s) | OutputPart::HtmlWithExclusions { html: s, .. } if s.trim().is_empty()));
+                        if *has_prior_content || has_more_content {
+                            current_html.push_str("<!---->");
+                        }
                     }
                 }
                 OutputPart::Component {
@@ -3355,18 +3520,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     dev: component_dev,
                     hmr: _,
                 } => {
-                    // Flush current HTML before the component call
-                    // For dynamic components, add <!---->  marker before the call (pushed separately)
+                    // Flush current HTML before the component call.
+                    // Svelte 5.52+: dynamic components no longer emit a leading
+                    // `<!---->` marker — the `if (expr) { push('<!--[--> ...) }`
+                    // wrapper supplies the hydration boundary.
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
-                        if *dynamic {
-                            body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
-                        }
-                    } else if *dynamic {
-                        // Even if no prior HTML, dynamic components need a marker
-                        body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
                     }
 
                     // Check if we have snippets or children
@@ -3374,9 +3535,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     let has_children = children.is_some();
                     let component_has_spreads = has_spreads(props_and_spreads);
 
-                    // Use optional chaining for dynamic components
-                    let call_syntax = if *dynamic { "?." } else { "" };
+                    // Svelte 5.52+: dynamic components are wrapped in an
+                    // `if (expr) { ... }` guard, so we always emit a direct call.
+                    let call_syntax = "";
                     let has_css_props = !css_custom_props.is_empty();
+
+                    // Capture where the component code starts so we can wrap it
+                    // in `if (name) { ... } else { ... }` post-hoc when dynamic.
+                    let component_code_start = body_code.len();
 
                     if has_snippets || has_children {
                         // Separate snippets into:
@@ -4177,22 +4343,28 @@ impl<'a> ServerCodeGenerator<'a> {
                         has_await_in_props && !*in_async_block
                     };
 
-                    // Add trailing <!----> marker after the component call.
-                    // Per the official compiler's clean_nodes logic, dynamic components
-                    // are never "standalone" and always get the closing marker, UNLESS
-                    // the component is inside an async block (optimiser.is_async() in the
-                    // official compiler suppresses the marker).
-                    // For static components, add only if there's surrounding content.
-                    // When CSS custom props are present, skip the marker
-                    // ($.css_props handles its own boundaries).
-                    // When child_block wrapping is used, skip the marker (child_block
-                    // acts as its own boundary).
-                    if !has_css_props && !used_child_block && !*in_async_block {
-                        if *dynamic {
-                            // Dynamic components always need the closing marker
-                            // (they are never "standalone" per clean_nodes)
-                            current_html.push_str("<!---->");
-                        } else {
+                    // Svelte 5.52+: dynamic components emit their own if/else
+                    // hydration markers in place of the leading/trailing
+                    // `<!---->` comments. Wrap the just-emitted component code
+                    // in the guard now.
+                    if *dynamic {
+                        let component_code = body_code[component_code_start..].to_string();
+                        body_code.truncate(component_code_start);
+                        body_code.push_str(&wrap_dynamic_component_call_in_block(
+                            &component_code,
+                            name,
+                            &indent,
+                            has_css_props,
+                        ));
+                    } else {
+                        // Add trailing <!----> marker after the component call.
+                        // Per the official compiler's clean_nodes logic, static
+                        // components get the closing marker only if surrounding
+                        // content needs the boundary. When CSS custom props are
+                        // present, skip the marker ($.css_props handles its own
+                        // boundaries). When child_block wrapping is used, skip
+                        // the marker (child_block acts as its own boundary).
+                        if !has_css_props && !used_child_block && !*in_async_block {
                             let has_content_after = parts[i + 1..].iter().any(|p| {
                                 matches!(
                                     p,
@@ -6178,7 +6350,9 @@ impl<'a> ServerCodeGenerator<'a> {
         let has_snippets = !snippets.is_empty();
         let has_children = children.is_some();
         let component_has_spreads = has_spreads(props_and_spreads);
-        let call_syntax = if dynamic { "?." } else { "" };
+        // Svelte 5.52+: dynamic components are wrapped in an `if (expr) { ... }`
+        // hydration guard, so the call itself is always direct (no `?.`).
+        let call_syntax = "";
         let has_css_props = !css_custom_props.is_empty();
 
         if has_snippets || has_children {
@@ -6773,9 +6947,23 @@ impl<'a> ServerCodeGenerator<'a> {
             has_await_in_props && !in_async_block
         };
 
-        let trailing_marker = if has_css_props || used_child_block || in_async_block {
+        // Svelte 5.52+: dynamic components now emit their own
+        // `if (expr) { ... <!--[--> ... <!--]--> } else { <!--[!--> <!--]--> }`
+        // hydration markers, so we no longer emit a leading `<!---->` or a
+        // trailing `<!---->` for them. Static components still get the
+        // trailing-marker treatment.
+        let dynamic_wrap = if dynamic {
+            Some(DynamicComponentWrap {
+                test: strip_outer_parens(name).to_string(),
+                has_css_props,
+            })
+        } else {
+            None
+        };
+
+        let trailing_marker = if has_css_props || used_child_block || in_async_block || dynamic {
             TrailingMarkerBehavior::None
-        } else if dynamic || hmr {
+        } else if hmr {
             // HMR forces an unconditional trailing marker because the runtime
             // needs the boundary comment to swap the component (mirrors the
             // `!state.options.hmr` guard in the official `is_standalone` check
@@ -6788,8 +6976,9 @@ impl<'a> ServerCodeGenerator<'a> {
 
         ComponentCodeResult {
             code,
-            needs_leading_marker: dynamic,
+            needs_leading_marker: false,
             trailing_marker,
+            dynamic_wrap,
         }
     }
 
@@ -6809,7 +6998,9 @@ impl<'a> ServerCodeGenerator<'a> {
         store_subs: &[(&str, &str)],
     ) -> ComponentCodeResult {
         let mut code = String::new();
-        let call_syntax = if dynamic { "?." } else { "" };
+        // Svelte 5.52+: dynamic components are guarded by an `if (expr) { ... }`
+        // hydration wrapper, so the call itself is always direct.
+        let call_syntax = "";
 
         if has_spreads(props_and_spreads) {
             code.push_str(&format!(
@@ -6977,12 +7168,28 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        let trailing_marker = TrailingMarkerBehavior::Conditional { has_prior_content };
+        // Svelte 5.52+: dynamic components emit their own if/else hydration
+        // markers (no leading or trailing `<!---->`).
+        let dynamic_wrap = if dynamic {
+            Some(DynamicComponentWrap {
+                test: strip_outer_parens(name).to_string(),
+                has_css_props: false,
+            })
+        } else {
+            None
+        };
+
+        let trailing_marker = if dynamic {
+            TrailingMarkerBehavior::None
+        } else {
+            TrailingMarkerBehavior::Conditional { has_prior_content }
+        };
 
         ComponentCodeResult {
             code,
-            needs_leading_marker: dynamic,
+            needs_leading_marker: false,
             trailing_marker,
+            dynamic_wrap,
         }
     }
 }

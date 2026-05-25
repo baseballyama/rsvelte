@@ -23,6 +23,7 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use helpers::*;
 use memchr::memmem;
+use rustc_hash::FxHashSet;
 use types::{OutputPart, SnippetDef};
 
 use rustc_hash::FxHashMap;
@@ -662,6 +663,15 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// are accumulated into this group. Flushed by the fragment visitor after processing all nodes.
     /// Format: (group_name, thunks, declared_variable_names_with_thunk_indices)
     pub(crate) async_consts: Option<AsyncConstsGroup>,
+    /// Names of `$derived` / `$derived.by` bindings. On the server (Svelte 5.52+)
+    /// every bare read of these names is rewritten to a call `name()`, so we
+    /// need a quick lookup at template-emit sites that interpolate raw source
+    /// expressions. Populated from the Phase 2 analysis.
+    pub(crate) derived_names: FxHashSet<String>,
+    /// Subset of `derived_names` declared with `var` — reads of these are
+    /// rewritten to `name?.()` (matching upstream `build_getter`'s
+    /// `declaration_kind === 'var' ? b.maybe_call : b.call`).
+    pub(crate) derived_var_names: FxHashSet<String>,
 }
 
 /// Accumulator for grouping multiple const tags into a single `$$renderer.run()` call.
@@ -835,6 +845,33 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Collect derived binding names from the analysis. We rewrite reads
+        // of these to `name()` at template-emit sites (Svelte 5.52+).
+        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+        let derived_names: FxHashSet<String> = analysis
+            .map(|a| {
+                a.root
+                    .bindings
+                    .iter()
+                    .filter(|b| matches!(b.kind, BindingKind::Derived))
+                    .map(|b| b.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let derived_var_names: FxHashSet<String> = analysis
+            .map(|a| {
+                a.root
+                    .bindings
+                    .iter()
+                    .filter(|b| {
+                        matches!(b.kind, BindingKind::Derived)
+                            && matches!(b.declaration_kind, DeclarationKind::Var)
+                    })
+                    .map(|b| b.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+
         // Check if the analysis has any StoreSub bindings
         let uses_store_subs = analysis
             .map(|a| {
@@ -889,6 +926,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 rustc_hash::FxHashMap::default(),
             )),
             async_consts: None,
+            derived_names,
+            derived_var_names,
         }
     }
 
@@ -920,6 +959,8 @@ impl<'a> ServerCodeGenerator<'a> {
             const_promises_counter: self.const_promises_counter.clone(),
             const_blocker_map: self.const_blocker_map.clone(),
             async_consts: None,
+            derived_names: self.derived_names.clone(),
+            derived_var_names: self.derived_var_names.clone(),
         }
     }
 
@@ -932,9 +973,14 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Converts `$store` to `$.store_get($$store_subs ??= {}, '$store', store)`.
     /// Also handles `$store.prop = value` -> `$.store_mutate(...)` and
     /// `$store = value` -> `$.store_set(...)`.
+    ///
+    /// In Svelte 5.52+ this also rewrites bare reads of `$derived` bindings
+    /// to calls (`foo` -> `foo()`). The wrap is gated on the binding set
+    /// extracted from analysis, so static (non-derived) components pay
+    /// nothing.
     pub(crate) fn transform_store_refs(&self, expr: &str) -> String {
         if !self.uses_store_subs {
-            return expr.to_string();
+            return self.wrap_derived_reads(expr);
         }
 
         let analysis = match self.analysis {
@@ -983,7 +1029,7 @@ impl<'a> ServerCodeGenerator<'a> {
             result = replace_store_identifier(&result, name, store_name);
         }
 
-        result
+        self.wrap_derived_reads(&result)
     }
 
     /// Transform special legacy variables in template expressions.
@@ -1005,6 +1051,23 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         expr.to_string()
+    }
+
+    /// Rewrite bare reads of `$derived` bindings to calls.
+    ///
+    /// On the server (Svelte 5.52+), every reference to a `derived` binding
+    /// gets emitted as `name()` (or `name?.()` for `var`-kind declarations).
+    /// Template-side expressions are pulled as raw source slices, so we run a
+    /// string-level pass here using the names collected from analysis.
+    pub(crate) fn wrap_derived_reads(&self, expr: &str) -> String {
+        if self.derived_names.is_empty() {
+            return expr.to_string();
+        }
+        crate::compiler::phases::phase3_transform::server::transform_script::wrap_derived_reads_for_template(
+            expr,
+            &self.derived_names,
+            &self.derived_var_names,
+        )
     }
 
     /// Transform rune calls in template expressions for server-side rendering.

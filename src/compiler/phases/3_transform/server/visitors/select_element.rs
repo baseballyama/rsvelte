@@ -55,6 +55,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
                         let expr = Self::transform_rune_in_template_expr(&expr);
+                        let expr = self.wrap_derived_reads(&expr);
                         attrs.push(("__spread__".to_string(), format!("...{}", expr)));
                     }
                 }

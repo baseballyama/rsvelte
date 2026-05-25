@@ -754,7 +754,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
                         // Transform rune calls in spread expressions
-                        let mut expr = Self::transform_rune_in_template_expr(&expr);
+                        let expr = Self::transform_rune_in_template_expr(&expr);
+                        // Wrap bare reads of $derived bindings (Svelte 5.52+).
+                        let mut expr = self.wrap_derived_reads(&expr);
                         // In dev mode, if the parent element has a svelte-ignore
                         // state_snapshot_uncloneable comment, add `true` arg to $.snapshot()
                         if self.dev
@@ -1680,28 +1682,33 @@ impl<'a> ServerCodeGenerator<'a> {
                                 self.source[getter_start..getter_end].trim().to_string();
                             let getter_src = self.strip_ts_from_expr(&getter_src);
                             let getter_src = self.transform_store_refs(&getter_src);
+                            let getter_src = self.wrap_derived_reads(&getter_src);
                             // Invoke the getter: (() => val)()
                             format!("({})() ", getter_src).trim().to_string()
                         } else {
                             // Fallback to full expression
                             let raw = self.source[expr_start..expr_end].trim().to_string();
                             let raw = self.strip_ts_from_expr(&raw);
-                            self.transform_store_refs(&raw)
+                            let raw = self.transform_store_refs(&raw);
+                            self.wrap_derived_reads(&raw)
                         }
                     } else {
                         let raw = self.source[expr_start..expr_end].trim().to_string();
                         let raw = self.strip_ts_from_expr(&raw);
-                        self.transform_store_refs(&raw)
+                        let raw = self.transform_store_refs(&raw);
+                        self.wrap_derived_reads(&raw)
                     }
                 } else {
                     let raw = self.source[expr_start..expr_end].trim().to_string();
                     let raw = self.strip_ts_from_expr(&raw);
-                    self.transform_store_refs(&raw)
+                    let raw = self.transform_store_refs(&raw);
+                    self.wrap_derived_reads(&raw)
                 }
             } else {
                 let raw = self.source[expr_start..expr_end].trim().to_string();
                 let raw = self.strip_ts_from_expr(&raw);
-                self.transform_store_refs(&raw)
+                let raw = self.transform_store_refs(&raw);
+                self.wrap_derived_reads(&raw)
             };
 
             // Handle bind:group specially - convert to checked attribute

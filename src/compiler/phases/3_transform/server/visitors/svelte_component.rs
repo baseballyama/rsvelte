@@ -61,6 +61,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = self.transform_store_refs(&expr);
                         props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }
@@ -177,6 +178,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = self.transform_store_refs(&expr);
                         props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }

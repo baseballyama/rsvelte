@@ -1804,6 +1804,8 @@ impl<'a> ScopeBuilder<'a> {
             }]
         });
         self.bindings[binding_idx].initial = Some(import_json.to_string());
+        self.bindings[binding_idx].initial_node_type = Some("ImportDeclaration".to_string());
+        self.bindings[binding_idx].import_source = Some(source_val.to_string());
     }
 
     /// Process a function body (BlockStatement) from a typed JsNode.
