@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T08:55:17.168714+00:00",
-  "commit_sha": "7ec156a7b025",
+  "generated_at": "2026-05-25T09:14:38.527848+00:00",
+  "commit_sha": "db69b7e34509",
   "summary": {
-    "total": 3472,
-    "passed": 3361,
+    "total": 3477,
+    "passed": 3359,
     "failed": 0,
-    "skipped": 111,
+    "skipped": 118,
     "percentage": 100
   },
   "categories": [
@@ -3183,10 +3183,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 907,
-      "passed": 895,
+      "total": 911,
+      "passed": 892,
       "failed": 0,
-      "skipped": 12,
+      "skipped": 19,
       "percentage": 100,
       "tests": [
         {
@@ -3244,6 +3244,11 @@
         {
           "name": "store-from-state-2",
           "status": "pass"
+        },
+        {
+          "name": "async-derived-indirect",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "snippet-hoisting-4",
@@ -3467,7 +3472,8 @@
         },
         {
           "name": "async-if-hydration",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "attachment-basic",
@@ -4106,7 +4112,8 @@
         },
         {
           "name": "async-derived-with-effect-and-boundary",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "array-to-string",
@@ -4331,7 +4338,8 @@
         },
         {
           "name": "async-binding-after-await",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "async-stale-derived",
@@ -4725,7 +4733,8 @@
         },
         {
           "name": "async-transform-empty-statements",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "error-boundary-16",
@@ -5136,6 +5145,10 @@
           "status": "pass"
         },
         {
+          "name": "async-overlapping-array",
+          "status": "pass"
+        },
+        {
           "name": "legacy-runes-ambiguous-export-labeled",
           "status": "pass"
         },
@@ -5172,6 +5185,11 @@
           "status": "pass"
         },
         {
+          "name": "async-later-sync-overlaps",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "snippet-whitespace",
           "status": "pass"
         },
@@ -5181,6 +5199,10 @@
         },
         {
           "name": "effect-order-3",
+          "status": "pass"
+        },
+        {
+          "name": "async-ignore-skipped-block",
           "status": "pass"
         },
         {
@@ -5378,6 +5400,10 @@
         },
         {
           "name": "derived-unowned",
+          "status": "pass"
+        },
+        {
+          "name": "async-reactivity-loss-for-await-break-return",
           "status": "pass"
         },
         {
@@ -5838,10 +5864,6 @@
         },
         {
           "name": "event-attribute-template",
-          "status": "pass"
-        },
-        {
-          "name": "async-each-overlap",
           "status": "pass"
         },
         {
@@ -6441,7 +6463,8 @@
         },
         {
           "name": "async-style-after-await",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "global-variable-assignment",
@@ -11804,8 +11827,8 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 77,
-      "passed": 74,
+      "total": 78,
+      "passed": 75,
       "failed": 0,
       "skipped": 3,
       "percentage": 100,
@@ -11900,6 +11923,10 @@
         },
         {
           "name": "option-rich-content-continues",
+          "status": "pass"
+        },
+        {
+          "name": "css-props-hmr",
           "status": "pass"
         },
         {

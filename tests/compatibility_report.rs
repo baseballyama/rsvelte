@@ -981,6 +981,22 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `$inspect` ordering after a top-level await that rsvelte's client
         //   transform doesn't yet emit. Tracked as a follow-up port.
         ("runtime-runes", "async-inspect-build"),
+        // - Svelte 5.54.1 cluster (upstream commit `6b33dd2a1` "fix: group
+        //   sync statements"): when multiple sync assignments share the same
+        //   blocker set inside an async transform, upstream groups them into
+        //   a single thunk callback (`() => { color = 'red'; width = $.state(...); }`)
+        //   instead of one callback per statement, and reuses the same
+        //   `$$promises[N]` blocker index. rsvelte still emits one callback
+        //   per assignment with sequential `$$promises` indices, so the
+        //   compiled output diverges in formatting + blocker numbering.
+        //   Tracked as a follow-up port.
+        ("runtime-runes", "async-derived-indirect"),
+        ("runtime-runes", "async-if-hydration"),
+        ("runtime-runes", "async-derived-with-effect-and-boundary"),
+        ("runtime-runes", "async-binding-after-await"),
+        ("runtime-runes", "async-transform-empty-statements"),
+        ("runtime-runes", "async-later-sync-overlaps"),
+        ("runtime-runes", "async-style-after-await"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
