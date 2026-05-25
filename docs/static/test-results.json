@@ -1,21 +1,21 @@
 {
-  "generated_at": "2026-05-25T09:45:33.766731+00:00",
-  "commit_sha": "37ab33c0a335",
+  "generated_at": "2026-05-25T10:00:48.462701+00:00",
+  "commit_sha": "2e29c87cc9f4",
   "summary": {
-    "total": 3498,
-    "passed": 3373,
+    "total": 3504,
+    "passed": 3376,
     "failed": 0,
-    "skipped": 125,
+    "skipped": 128,
     "percentage": 100
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
-      "total": 23,
+      "total": 24,
       "passed": 22,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 2,
       "percentage": 100,
       "tests": [
         {
@@ -73,6 +73,11 @@
         {
           "name": "loose-unclosed-tag",
           "status": "pass"
+        },
+        {
+          "name": "parens",
+          "status": "skip",
+          "skip_reason": "Comments-in-tags (Svelte 5.53.0) not yet ported"
         },
         {
           "name": "if-block",
@@ -3183,10 +3188,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 932,
-      "passed": 906,
+      "total": 935,
+      "passed": 908,
       "failed": 0,
-      "skipped": 26,
+      "skipped": 27,
       "percentage": 100,
       "tests": [
         {
@@ -3982,6 +3987,10 @@
         },
         {
           "name": "async-set-context",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-resolves-promise",
           "status": "pass"
         },
         {
@@ -5662,6 +5671,10 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-if-derived",
+          "status": "pass"
+        },
+        {
           "name": "comment-separated-text",
           "status": "pass"
         },
@@ -6880,6 +6893,11 @@
           "status": "pass"
         },
         {
+          "name": "async-if-block-unskip",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "async-attribute",
           "status": "pass"
         },
@@ -6948,10 +6966,10 @@
     {
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
-      "total": 1203,
-      "passed": 1191,
+      "total": 1205,
+      "passed": 1192,
       "failed": 0,
-      "skipped": 12,
+      "skipped": 13,
       "percentage": 100,
       "tests": [
         {
@@ -9474,6 +9492,11 @@
           "status": "pass"
         },
         {
+          "name": "flush-sync-each-block",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "prop-exports",
           "status": "pass"
         },
@@ -10544,6 +10567,10 @@
         },
         {
           "name": "transition-css-deferred-removal",
+          "status": "pass"
+        },
+        {
+          "name": "const-tag-depends-on-const-tag",
           "status": "pass"
         },
         {
