@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T10:39:19.389749+00:00",
-  "commit_sha": "7fddfbdbbde8",
+  "generated_at": "2026-05-25T10:52:49.212633+00:00",
+  "commit_sha": "b771df346444",
   "summary": {
-    "total": 3514,
-    "passed": 3377,
+    "total": 3516,
+    "passed": 3378,
     "failed": 0,
-    "skipped": 137,
+    "skipped": 138,
     "percentage": 100
   },
   "categories": [
@@ -3188,10 +3188,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 945,
-      "passed": 909,
+      "total": 947,
+      "passed": 910,
       "failed": 0,
-      "skipped": 36,
+      "skipped": 37,
       "percentage": 100,
       "tests": [
         {
@@ -3429,6 +3429,10 @@
         },
         {
           "name": "form-default-value",
+          "status": "pass"
+        },
+        {
+          "name": "animate-no-transition-events",
           "status": "pass"
         },
         {
@@ -4389,6 +4393,11 @@
         {
           "name": "svelte-meta-parent",
           "status": "pass"
+        },
+        {
+          "name": "derived-dep-set-while-rendering",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "async-fork-snippet-dev",
