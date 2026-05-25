@@ -2919,10 +2919,16 @@ impl Memoizer {
             return None;
         }
 
+        // Use `b::arrow(_, vec![], expr)` instead of `b::thunk` so bare
+        // identifier references like `getX` aren't unthunked to themselves.
+        // Svelte 5.53.13 (upstream commit `32a48ed17` "fix: don't eagerly
+        // access not-yet-initialized functions in template") needs the
+        // wrapping `() => getX()` so the function is only read when the
+        // deferred template effect actually runs.
         let thunks: Vec<JsExpr> = self
             .sync
             .iter()
-            .map(|memo| b::thunk(arena, memo.expression.clone()))
+            .map(|memo| b::arrow(arena, vec![], memo.expression.clone()))
             .collect();
 
         Some(b::array(thunks))
@@ -2941,10 +2947,13 @@ impl Memoizer {
             return None;
         }
 
+        // Same upstream fix as `sync_values`: emit a fresh `async () => expr`
+        // arrow per entry so deferred reads always see live bindings, no
+        // unthunk optimization.
         let thunks: Vec<JsExpr> = self
             .async_entries
             .iter()
-            .map(|memo| b::async_thunk(arena, memo.expression.clone()))
+            .map(|memo| b::async_arrow(arena, vec![], memo.expression.clone()))
             .collect();
 
         Some(b::array(thunks))

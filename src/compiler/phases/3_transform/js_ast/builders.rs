@@ -331,7 +331,19 @@ pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
 }
 
 /// Create an async arrow function with expression body.
+///
+/// Mirrors Svelte 5.53.13's `arrow(params, body, async = true)` optimization
+/// (upstream commit `32a48ed17`): `async () => await x` collapses to
+/// `() => x` when `x` itself contains no awaits. This avoids an unnecessary
+/// async wrapper for `Memoizer.async_values()` entries that just dereference
+/// a plain promise.
 pub fn async_arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
+    if let JsExpr::Await(inner_id) = &body
+        && !has_await_expression_arena(arena, arena.get_expr(*inner_id))
+    {
+        let inner_clone = arena.get_expr(*inner_id).clone();
+        return arrow(arena, params, inner_clone);
+    }
     JsExpr::Arrow(JsArrowFunction {
         params: params.into(),
         body: JsArrowBody::Expression(arena.alloc_expr(body)),
