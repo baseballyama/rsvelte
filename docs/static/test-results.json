@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T05:49:35.872425+00:00",
-  "commit_sha": "ed14b499d6ea",
+  "generated_at": "2026-05-25T06:06:39.249499+00:00",
+  "commit_sha": "d4c78292ed66",
   "summary": {
-    "total": 3442,
-    "passed": 3348,
+    "total": 3445,
+    "passed": 3350,
     "failed": 0,
-    "skipped": 94,
+    "skipped": 95,
     "percentage": 100
   },
   "categories": [
@@ -12002,10 +12002,10 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 94,
-      "passed": 94,
+      "total": 97,
+      "passed": 96,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -12046,6 +12046,10 @@
         },
         {
           "name": "bindings-readonly",
+          "status": "pass"
+        },
+        {
+          "name": "select-option-store-text-content",
           "status": "pass"
         },
         {
@@ -12143,6 +12147,11 @@
         {
           "name": "computed",
           "status": "pass"
+        },
+        {
+          "name": "select-option-store-implicit-value",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "component-yield",
@@ -12294,6 +12303,10 @@
         },
         {
           "name": "head-meta-hydrate-duplicate",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-strip-svg-mathml-ce",
           "status": "pass"
         },
         {
