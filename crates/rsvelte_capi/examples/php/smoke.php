@@ -54,7 +54,13 @@ CDEF;
 
 $ffi = FFI::cdef($cdef, $dyPath);
 
-printf("rsvelte version: %s\n", FFI::string($ffi->rsvelte_version()));
+// PHP-FFI auto-decodes `const char *` returns into a PHP string, so we
+// must not double-wrap with FFI::string() here (it expects FFI\CData).
+$version = $ffi->rsvelte_version();
+if ($version instanceof FFI\CData) {
+    $version = FFI::string($version);
+}
+printf("rsvelte version: %s\n", $version);
 
 /**
  * Copy a PHP string into an FFI-owned uint8_t buffer; returns the
