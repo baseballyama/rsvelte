@@ -1,0 +1,243 @@
+name: Release rsvelte_capi
+
+# Cut a versioned release of the C ABI bindings.
+#
+#  - Tag the worktree as `capi-v<MAJOR.MINOR.PATCH>` (must match the
+#    `version` in `crates/rsvelte_capi/Cargo.toml`) and push the tag.
+#    The push event triggers this workflow; on success it creates a
+#    GitHub Release with the per-OS/arch archives attached.
+#  - `workflow_dispatch` lets you do a dry-run end-to-end without
+#    actually publishing — pick a "version" input (defaults to "test")
+#    and run; the build matrix produces artifacts you can inspect.
+#
+# The matrix mirrors the existing svelte-check / vps-native release
+# pipelines (.github/workflows/release.yml) so the toolchain quirks
+# are already known to work: aarch64-apple-darwin natively, intel mac
+# cross-compiled from arm64 runner, linux arm64 with the gcc cross-
+# linker, windows-msvc native.
+
+on:
+  push:
+    tags:
+      - 'capi-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to use for the dry-run archive names (no Release is created)'
+        required: false
+        default: 'test'
+
+permissions:
+  contents: write   # gh release create / upload
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (${{ matrix.triple }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest,   target: aarch64-apple-darwin,       triple: darwin-arm64,    archive: tar.gz, lib: librsvelte_capi.dylib,  staticlib: librsvelte_capi.a }
+          - { os: macos-latest,   target: x86_64-apple-darwin,        triple: darwin-x64,      archive: tar.gz, lib: librsvelte_capi.dylib,  staticlib: librsvelte_capi.a }
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu,   triple: linux-x64-gnu,   archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a }
+          - { os: ubuntu-latest,  target: aarch64-unknown-linux-gnu,  triple: linux-arm64-gnu, archive: tar.gz, lib: librsvelte_capi.so,     staticlib: librsvelte_capi.a, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc,     triple: win32-x64-msvc,  archive: zip,    lib: rsvelte_capi.dll,       staticlib: rsvelte_capi.lib, implib: rsvelte_capi.dll.lib }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install cross-compile linker
+        if: matrix.apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-capi-${{ matrix.target }}
+
+      # Resolve the release version from the trigger:
+      #   - push of capi-vX.Y.Z → strip the `capi-v` prefix
+      #   - workflow_dispatch   → use the `version` input
+      - name: Resolve release version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/capi-v* ]]; then
+            version="${GITHUB_REF#refs/tags/capi-v}"
+          else
+            version="${{ github.event.inputs.version || 'test' }}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # On a real tag push, refuse to build if the crate version
+      # disagrees with the tag — otherwise the published archive would
+      # claim a version the actual binary doesn't carry.
+      - name: Verify Cargo.toml version matches tag
+        if: startsWith(github.ref, 'refs/tags/capi-v')
+        shell: bash
+        run: |
+          tag_ver="${GITHUB_REF#refs/tags/capi-v}"
+          crate_ver=$(grep -E '^version = ' crates/rsvelte_capi/Cargo.toml | head -1 | sed -E 's/version = "(.+)"/\1/')
+          if [[ "$tag_ver" != "$crate_ver" ]]; then
+            echo "::error::Tag is capi-v${tag_ver} but crates/rsvelte_capi/Cargo.toml has version = \"${crate_ver}\""
+            exit 1
+          fi
+
+      - name: Build cdylib + staticlib
+        shell: bash
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
+          RSVELTE_CAPI_CHECK_HEADER: '1'
+        run: cargo build --release -p rsvelte_capi --target ${{ matrix.target }}
+
+      - name: Stage archive contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${{ steps.ver.outputs.version }}"
+          name="rsvelte_capi-${ver}-${{ matrix.triple }}"
+          stage="stage/${name}"
+          mkdir -p "${stage}/lib" "${stage}/include"
+          cp "target/${{ matrix.target }}/release/${{ matrix.lib }}" "${stage}/lib/"
+          if [[ -f "target/${{ matrix.target }}/release/${{ matrix.staticlib }}" ]]; then
+            cp "target/${{ matrix.target }}/release/${{ matrix.staticlib }}" "${stage}/lib/"
+          fi
+          # Windows MSVC also writes an import library next to the DLL.
+          if [[ -n "${{ matrix.implib || '' }}" && -f "target/${{ matrix.target }}/release/${{ matrix.implib }}" ]]; then
+            cp "target/${{ matrix.target }}/release/${{ matrix.implib }}" "${stage}/lib/"
+          fi
+          cp crates/rsvelte_capi/include/rsvelte.h "${stage}/include/"
+          cp crates/rsvelte_capi/README.md         "${stage}/README.md"
+          cp LICENSE                                "${stage}/LICENSE"
+          echo "${ver}" > "${stage}/VERSION"
+          echo "$(git rev-parse HEAD)" > "${stage}/COMMIT"
+          ls -lR "${stage}"
+
+      - name: Pack archive
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver="${{ steps.ver.outputs.version }}"
+          name="rsvelte_capi-${ver}-${{ matrix.triple }}"
+          cd stage
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            # Windows runners ship 7z and bsdtar; use the latter for portability.
+            tar -a -cf "../${name}.zip" "${name}"
+            archive="${name}.zip"
+          else
+            tar -czf "../${name}.tar.gz" "${name}"
+            archive="${name}.tar.gz"
+          fi
+          cd ..
+          # Per-archive SHA-256 for the release notes.
+          if command -v sha256sum >/dev/null; then
+            sha256sum "${archive}" > "${archive}.sha256"
+          else
+            shasum -a 256 "${archive}" > "${archive}.sha256"
+          fi
+          cat "${archive}.sha256"
+          echo "archive=${archive}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsvelte_capi-${{ matrix.triple }}
+          path: |
+            ${{ steps.pack.outputs.archive }}
+            ${{ steps.pack.outputs.archive }}.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only publish on a real tag push. workflow_dispatch leaves the
+    # artifacts attached to the workflow run for inspection without
+    # creating a Release.
+    if: startsWith(github.ref, 'refs/tags/capi-v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Inspect what was downloaded
+        run: ls -la artifacts/
+
+      - name: Build combined checksums file
+        run: |
+          set -euo pipefail
+          cd artifacts
+          : > SHA256SUMS
+          for f in *.tar.gz *.zip; do
+            [[ -e "$f" ]] || continue
+            shasum -a 256 "$f" >> SHA256SUMS
+          done
+          cat SHA256SUMS
+
+      - name: Compose release notes
+        id: notes
+        shell: bash
+        run: |
+          ver="${GITHUB_REF#refs/tags/capi-v}"
+          {
+            echo "## rsvelte_capi v${ver}"
+            echo
+            echo "C ABI bindings for the rsvelte Svelte compiler. One \`cdylib\` + one cbindgen-generated \`rsvelte.h\` lets any language with a C FFI drive the compiler — UTF-8 JSON in, UTF-8 JSON out."
+            echo
+            echo "### Download"
+            echo
+            echo "| Triple | Archive |"
+            echo "|---|---|"
+            for f in artifacts/*.tar.gz artifacts/*.zip; do
+              [[ -e "$f" ]] || continue
+              base="$(basename "$f")"
+              triple="$(basename "$f" | sed -E "s/^rsvelte_capi-${ver}-//; s/\.(tar\.gz|zip)$//")"
+              echo "| \`${triple}\` | [${base}](https://github.com/${{ github.repository }}/releases/download/capi-v${ver}/${base}) |"
+            done
+            echo
+            echo "### Verify"
+            echo
+            echo '```sh'
+            echo "curl -LO https://github.com/${{ github.repository }}/releases/download/capi-v${ver}/SHA256SUMS"
+            echo "shasum -a 256 -c SHA256SUMS"
+            echo '```'
+            echo
+            echo "### Documentation"
+            echo
+            echo "See [\`crates/rsvelte_capi/README.md\`](https://github.com/${{ github.repository }}/blob/capi-v${ver}/crates/rsvelte_capi/README.md) for the API, JSON envelope, memory ownership rules, and per-language quick-start."
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Create / update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF#refs/tags/capi-v}"
+          tag="capi-v${ver}"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release edit "${tag}" --notes-file release-notes.md --title "rsvelte_capi v${ver}"
+          else
+            gh release create "${tag}" --title "rsvelte_capi v${ver}" --notes-file release-notes.md
+          fi
+          gh release upload "${tag}" artifacts/*.tar.gz artifacts/*.zip artifacts/*.sha256 artifacts/SHA256SUMS --clobber
