@@ -19,7 +19,9 @@
 //!   marker `TemplateItem::Expression`s for coalescing by `build_template()`.
 
 use super::ServerCodeGenerator;
-use super::types::{ComponentCodeResult, OutputPart, TemplateItem, TrailingMarkerBehavior};
+use super::types::{
+    ComponentCodeResult, DynamicComponentWrap, OutputPart, TemplateItem, TrailingMarkerBehavior,
+};
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
@@ -572,7 +574,7 @@ fn convert_part_to_item(
                 each_counter,
                 store_subs,
             );
-            convert_component_result(result, remaining_parts, items);
+            convert_component_result(result, remaining_parts, items, _arena);
         }
 
         // ComponentWithBindings: direct generation via generate_component_with_bindings_call_code
@@ -603,7 +605,7 @@ fn convert_part_to_item(
                 each_counter,
                 store_subs,
             );
-            convert_component_result(result, remaining_parts, items);
+            convert_component_result(result, remaining_parts, items, _arena);
         }
 
         // SelectElement: $$renderer.select() call
@@ -736,6 +738,7 @@ fn convert_component_result(
     result: ComponentCodeResult,
     remaining_parts: &[OutputPart],
     items: &mut Vec<TemplateItem>,
+    arena: &JsArena,
 ) {
     // Leading marker for dynamic components.
     // This must be a separate $$renderer.push('<!---->') statement, NOT an Expression
@@ -750,9 +753,16 @@ fn convert_component_result(
     // The component call code
     let trimmed = result.code.trim();
     if !trimmed.is_empty() {
-        items.push(TemplateItem::Statement(JsStatement::Raw(
-            CompactString::new(trimmed),
-        )));
+        if let Some(wrap) = result.dynamic_wrap {
+            // Build a `JsStatement::If` so the codegen handles indentation
+            // for the if/else blocks naturally (Svelte 5.52+ hydration
+            // guard for dynamic components).
+            push_dynamic_component_if_else(trimmed, &wrap, items, arena);
+        } else {
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(trimmed),
+            )));
+        }
     }
 
     // Trailing marker
@@ -778,6 +788,150 @@ fn convert_component_result(
             }
         }
     }
+}
+
+/// Add `extra` to every non-empty line *after* the first of `code`.
+///
+/// Used to lift a multi-line `JsStatement::Raw` block down one indent level
+/// when nesting it inside another structured statement (e.g. inside an
+/// `if (test) { ... }` consequent). The first line gets its indent from the
+/// surrounding codegen, but subsequent lines emit verbatim and need to
+/// carry the relative indent themselves.
+fn reindent_multiline_raw(code: &str, extra: &str) -> String {
+    let mut out = String::with_capacity(code.len() + extra.len() * 8);
+    let mut first = true;
+    for line in code.split_inclusive('\n') {
+        if first {
+            first = false;
+            out.push_str(line);
+            continue;
+        }
+        // Don't prefix empty or whitespace-only lines.
+        if line.trim_start_matches([' ', '\t']).is_empty() {
+            out.push_str(line);
+        } else {
+            out.push_str(extra);
+            out.push_str(line);
+        }
+    }
+    out
+}
+
+/// Build a `JsStatement::If` wrapping the component call code in Svelte
+/// 5.52's hydration guard:
+///
+/// ```text
+/// if (test) {
+///   $$renderer.push('<!--[-->');
+///   <call_code>
+///   $$renderer.push('<!--]-->');
+/// } else {
+///   $$renderer.push('<!--[!-->');
+///   $$renderer.push('<!--]-->');
+/// }
+/// ```
+///
+/// For the `has_css_props` case the `call_code` looks like
+/// `$.css_props($$renderer, ..., () => { <inner_call> }, true);` and we want
+/// the guard to wrap just `<inner_call>` (so the markers live inside the
+/// `$.css_props` callback). Rather than parse JS, we surgically substitute
+/// the inner call portion of the raw string.
+fn push_dynamic_component_if_else(
+    call_code: &str,
+    wrap: &DynamicComponentWrap,
+    items: &mut Vec<TemplateItem>,
+    arena: &JsArena,
+) {
+    if wrap.has_css_props {
+        // Surgically wrap just the inner call. The `call_code` looks like:
+        //     \n$.css_props($$renderer, ..., () => {\n\t<inner>\n}, true);\n
+        // We split on `() => {` and the trailing `}, true);`.
+        if let (Some(open_idx), Some(close_idx)) =
+            (call_code.find("() => {\n"), call_code.rfind("\n}, true);"))
+            && close_idx > open_idx
+        {
+            let body_start = open_idx + "() => {\n".len();
+            let body_end = close_idx + 1; // include trailing `\n`
+            let prefix = &call_code[..body_start];
+            let body = &call_code[body_start..body_end];
+            let suffix = &call_code[body_end..];
+
+            // The body has a leading `\t` on each line. We need to:
+            //   1. Emit the prefix verbatim (ends just past `() => {\n`).
+            //   2. Build an `if (test) { ... } else { ... }` with the body
+            //      raw-statement as the consequent body, and the markers.
+            //   3. Emit the suffix verbatim (the closing `}, true);`).
+            //
+            // Concretely we just bake everything into a single Raw string —
+            // this avoids changing the bridge's TemplateItem shape for the
+            // css_props case. Indentation will be slightly off, but the
+            // existing css_props fixtures already accept this style.
+            let mut combined =
+                String::with_capacity(prefix.len() + body.len() + suffix.len() + 256);
+            combined.push_str(prefix);
+            combined.push_str("\tif (");
+            combined.push_str(&wrap.test);
+            combined.push_str(") {\n");
+            combined.push_str("\t\t$$renderer.push('<!--[-->');\n");
+            // Re-indent each body line by one extra `\t`.
+            for line in body.split_inclusive('\n') {
+                if line.trim_start_matches([' ', '\t']).is_empty() {
+                    combined.push_str(line);
+                } else {
+                    combined.push('\t');
+                    combined.push_str(line);
+                }
+            }
+            combined.push_str("\t\t$$renderer.push('<!--]-->');\n");
+            combined.push_str("\t} else {\n");
+            combined.push_str("\t\t$$renderer.push('<!--[!-->');\n");
+            combined.push_str("\t\t$$renderer.push('<!--]-->');\n");
+            combined.push_str("\t}\n");
+            combined.push_str(suffix);
+            items.push(TemplateItem::Statement(JsStatement::Raw(
+                CompactString::new(combined.trim()),
+            )));
+            return;
+        }
+        // Fallback: just emit raw without the if/else.
+        items.push(TemplateItem::Statement(JsStatement::Raw(
+            CompactString::new(call_code),
+        )));
+        return;
+    }
+
+    // Non-css-props case: build a proper `JsStatement::If` so codegen
+    // handles indentation for us.
+    //
+    // We re-indent the call code by one extra `\t` on each non-empty line so
+    // that multi-line component calls (with `children:` props, nested
+    // components, etc.) end up at the correct relative depth inside the
+    // `if (test) { ... }` block: the codegen prepends the surrounding
+    // indent to the first line of each Raw statement, but subsequent lines
+    // of the Raw stay verbatim, so they need to carry the extra indent
+    // themselves.
+    let test_expr = arena.alloc_expr(JsExpr::Raw(CompactString::new(&wrap.test)));
+    let reindented_call = reindent_multiline_raw(call_code, "\t");
+    let consequent_block = JsBlockStatement {
+        body: vec![
+            JsStatement::Raw(CompactString::new("$$renderer.push('<!--[-->');")),
+            JsStatement::Raw(CompactString::new(&reindented_call)),
+            JsStatement::Raw(CompactString::new("$$renderer.push('<!--]-->');")),
+        ],
+    };
+    let alternate_block = JsBlockStatement {
+        body: vec![
+            JsStatement::Raw(CompactString::new("$$renderer.push('<!--[!-->');")),
+            JsStatement::Raw(CompactString::new("$$renderer.push('<!--]-->');")),
+        ],
+    };
+    let consequent = arena.alloc_stmt(JsStatement::Block(consequent_block));
+    let alternate = arena.alloc_stmt(JsStatement::Block(alternate_block));
+    items.push(TemplateItem::Statement(JsStatement::If(JsIfStatement {
+        test: test_expr,
+        consequent,
+        alternate: Some(alternate),
+    })));
 }
 
 /// Check if a Component/ComponentWithBindings part needs marker compensation.

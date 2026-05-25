@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-24T17:02:05.824055+00:00",
-  "commit_sha": "8ea33bf7fe86",
+  "generated_at": "2026-05-25T00:53:58.002736+00:00",
+  "commit_sha": "cbf4e246fc0d",
   "summary": {
-    "total": 3416,
-    "passed": 3336,
+    "total": 3419,
+    "passed": 3339,
     "failed": 0,
     "skipped": 80,
     "percentage": 100
@@ -3172,8 +3172,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 866,
-      "passed": 866,
+      "total": 869,
+      "passed": 869,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -4264,6 +4264,10 @@
         },
         {
           "name": "action-sequence",
+          "status": "pass"
+        },
+        {
+          "name": "derived-server-memoization",
           "status": "pass"
         },
         {
@@ -5363,6 +5367,10 @@
           "status": "pass"
         },
         {
+          "name": "dynamic-component-falsy-hydrate",
+          "status": "pass"
+        },
+        {
           "name": "spread-props-2",
           "status": "pass"
         },
@@ -5964,6 +5972,10 @@
         },
         {
           "name": "bigint-increment-mutation",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic-component-css-props",
           "status": "pass"
         },
         {

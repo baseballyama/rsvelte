@@ -23,6 +23,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Transform store subscriptions ($store -> $.store_get())
         let promise_expr = self.transform_store_refs(&promise_expr);
+        // Svelte 5.52+: derived reads in template expressions become calls.
+        let promise_expr = self.wrap_derived_reads(&promise_expr);
 
         // Get the then value variable name if present
         let then_param = if let Some(ref value) = block.value {

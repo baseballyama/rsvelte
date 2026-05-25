@@ -48,6 +48,15 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.dev = self.dev;
         body_generator.is_typescript = self.is_typescript;
         body_generator.uses_store_subs = self.uses_store_subs;
+        // Snippet parameters shadow outer derived bindings: drop any derived
+        // name that matches a parameter binding from the body's derived_names
+        // / derived_var_names so we don't wrap reads of the parameter as
+        // `name()` inside the body.
+        let param_names = Self::collect_snippet_param_binding_names(&params);
+        for name in &param_names {
+            body_generator.derived_names.remove(name);
+            body_generator.derived_var_names.remove(name);
+        }
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -301,6 +310,18 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(body_parts)
     }
 
+    /// Extract the set of bound identifier names from a list of snippet
+    /// parameter source strings (possibly destructured). Used to suppress
+    /// outer derived-binding wrap inside the snippet body when a parameter
+    /// shadows the derived.
+    fn collect_snippet_param_binding_names(params: &[String]) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        for p in params {
+            collect_binding_names_from_pattern(p, &mut names);
+        }
+        names
+    }
+
     /// Extract a snippet parameter string from an Expression, stripping TypeScript
     /// type annotations. This uses the Expression's JSON structure to correctly
     /// handle cases where the source span may be incorrect (e.g., when optional
@@ -446,4 +467,159 @@ impl<'a> ServerCodeGenerator<'a> {
             _ => String::new(),
         }
     }
+}
+
+/// Collect bound identifier names from a parameter-pattern source string.
+/// Handles plain identifiers, object/array destructure patterns, defaults
+/// (`name = value`), and TS type annotations (`name: number`). Recurses into
+/// nested patterns.
+fn collect_binding_names_from_pattern(pattern: &str, out: &mut Vec<String>) {
+    let p = pattern.trim();
+    if p.is_empty() {
+        return;
+    }
+    // Strip default value: `name = expr` — only the LHS counts.
+    let p_lhs = if let Some(eq) = find_top_level_eq_for_pattern(p) {
+        p[..eq].trim()
+    } else {
+        p
+    };
+    if p_lhs.starts_with('{') && p_lhs.ends_with('}') {
+        let inner = &p_lhs[1..p_lhs.len() - 1];
+        for prop in split_top_level_comma(inner) {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+            if let Some(rest) = prop.strip_prefix("...") {
+                collect_binding_names_from_pattern(rest, out);
+                continue;
+            }
+            if let Some(colon) = find_top_level_colon_for_pattern(prop) {
+                // `key: alias_or_pattern (= default)`
+                let value = prop[colon + 1..].trim();
+                collect_binding_names_from_pattern(value, out);
+            } else {
+                // Shorthand `name (= default)` — strip type and default.
+                let lhs = if let Some(eq) = find_top_level_eq_for_pattern(prop) {
+                    prop[..eq].trim()
+                } else {
+                    prop
+                };
+                // Strip TS type annotation: `name: type` already handled above.
+                if is_simple_ident(lhs) {
+                    out.push(lhs.to_string());
+                }
+            }
+        }
+        return;
+    }
+    if p_lhs.starts_with('[') && p_lhs.ends_with(']') {
+        let inner = &p_lhs[1..p_lhs.len() - 1];
+        for elem in split_top_level_comma(inner) {
+            let elem = elem.trim();
+            if elem.is_empty() {
+                continue;
+            }
+            if let Some(rest) = elem.strip_prefix("...") {
+                collect_binding_names_from_pattern(rest, out);
+                continue;
+            }
+            collect_binding_names_from_pattern(elem, out);
+        }
+        return;
+    }
+    // Plain identifier (possibly with TS type annotation `name: type`).
+    if let Some(colon) = find_top_level_colon_for_pattern(p_lhs) {
+        let name = p_lhs[..colon].trim();
+        if is_simple_ident(name) {
+            out.push(name.to_string());
+        }
+    } else if is_simple_ident(p_lhs) {
+        out.push(p_lhs.to_string());
+    }
+}
+
+fn split_top_level_comma(s: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b',' if depth == 0 => {
+                out.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    out.push(&s[start..]);
+    out
+}
+
+fn find_top_level_eq_for_pattern(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b'=' if depth == 0 => {
+                let next = bytes.get(i + 1).copied();
+                if next == Some(b'=') || next == Some(b'>') {
+                    i += 2;
+                    continue;
+                }
+                let prev = if i > 0 { Some(bytes[i - 1]) } else { None };
+                if matches!(prev, Some(b'!' | b'<' | b'>' | b'=')) {
+                    i += 1;
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+fn find_top_level_colon_for_pattern(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+fn is_simple_ident(s: &str) -> bool {
+    let s = s.trim();
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }

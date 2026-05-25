@@ -101,6 +101,15 @@ fn transform_script_content_inner(
     } else {
         script
     };
+    // Svelte 5.52+: destructured `$derived(...)` / `$derived.by(...)` expands
+    // into per-leaf `$.derived(...)` declarators (extract_paths semantics).
+    // This must run BEFORE the plain `$derived[.by](` rewrites below so the
+    // expanded form can use the standard pipeline.
+    let script = if !derived_imported {
+        expand_destructured_derived(&script)
+    } else {
+        script
+    };
     let script = if !derived_imported {
         transform_rune_call_multiline(&script, "$derived.by(")
     } else {
@@ -111,6 +120,10 @@ fn transform_script_content_inner(
     } else {
         script
     };
+    // Svelte 5.52+: derived bindings now stay callable on the server, so any
+    // bare read of a derived name must be rewritten to `name()`. Collect names
+    // from the `$.derived(...)` declarators we just emitted, then wrap reads.
+    let script = wrap_derived_reads_in_script(&script);
     let script = transform_rune_call_multiline(&script, "$bindable(");
     let script = transform_store_destructure_assignments(&script);
     let script = transform_store_assignments(&script);
@@ -1137,6 +1150,2341 @@ pub(crate) fn flatten_store_get_destructures(script: &str) -> String {
     result
 }
 
+/// Scan `script` for `let|const|var NAME = $.derived(...)` declarators and
+/// return the set of derived binding names declared at any scope.
+///
+/// This is a string-level scan over the already-transformed source where
+/// `$derived(...)` / `$derived.by(...)` have been rewritten to
+/// `$.derived(...)` (Svelte 5.52+). It mirrors the upstream behaviour where
+/// any `Identifier` reference resolving to a `derived` binding is emitted as
+/// a call.
+type DerivedNameCollection = (
+    rustc_hash::FxHashSet<String>,
+    rustc_hash::FxHashSet<String>,
+    // Byte ranges of derived declarators (covering just the identifier),
+    // used to suppress false-positive "shadow" matches for the derived's
+    // own declaration.
+    Vec<(usize, usize, String)>,
+);
+
+fn collect_derived_names_from_script(script: &str) -> DerivedNameCollection {
+    let mut names: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    let mut var_names: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    let mut declarators: Vec<(usize, usize, String)> = Vec::new();
+    let bytes = script.as_bytes();
+    let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal(", b"$.async_derived("];
+    for pat in patterns {
+        let finder = memmem::Finder::new(*pat);
+        for pos in finder.find_iter(bytes) {
+            // Walk left from `pos` to find the `let|const|var <name> = ` shape
+            // (or the prior identifier in a comma-separated declarator list).
+            let mut left = pos;
+            // Skip whitespace + `=`.
+            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
+                left -= 1;
+            }
+            // Async derived case: `bar = await $.async_derived(...)` — the
+            // initializer expression itself begins with `await`, so when the
+            // pattern is `$.async_derived(` we may need to step over an
+            // `await` keyword before locating the `=`.
+            if *pat == b"$.async_derived("
+                && left >= 5
+                && &bytes[left - 5..left] == b"await"
+                && (left == 5
+                    || !{
+                        let pc = bytes[left - 6];
+                        pc.is_ascii_alphanumeric() || pc == b'_' || pc == b'$'
+                    })
+            {
+                left -= 5;
+                while left > 0 && bytes[left - 1].is_ascii_whitespace() {
+                    left -= 1;
+                }
+            }
+            if left == 0 || bytes[left - 1] != b'=' {
+                continue;
+            }
+            left -= 1;
+            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
+                left -= 1;
+            }
+            let id_end = left;
+            while left > 0 {
+                let b = bytes[left - 1];
+                if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
+                    left -= 1;
+                } else {
+                    break;
+                }
+            }
+            if left == id_end {
+                continue;
+            }
+            // Skip private class fields like `#foo = $.derived(...)` — those
+            // are handled by the `$.get(this.#foo)` → `this.#foo()` rewrite
+            // in `post_process_for_server` and shouldn't appear as bare
+            // identifiers we'd wrap.
+            if left > 0 && bytes[left - 1] == b'#' {
+                continue;
+            }
+            // Walk further back to find the declaration keyword (`let` / `const`
+            // / `var`) — if there's a `,` separator the kind belongs to the
+            // outer declarator. We treat anything but `var` as the default
+            // (call without optional chaining); only `var` triggers `?.()`.
+            let mut kw_search = left;
+            // Skip whitespace.
+            while kw_search > 0 && bytes[kw_search - 1].is_ascii_whitespace() {
+                kw_search -= 1;
+            }
+            // Walk back over alternating ident/comma/whitespace until we hit
+            // `let` / `const` / `var` (or anything else, in which case we
+            // default to non-`var`).
+            let is_var = loop {
+                let kw_end = kw_search;
+                if kw_end == 0 {
+                    break false;
+                }
+                let c = bytes[kw_end - 1];
+                if c == b',' {
+                    // Comma-separated declarator: keep walking.
+                    kw_search -= 1;
+                    // Skip whitespace, identifier, optional `=`, expression.
+                    while kw_search > 0 && bytes[kw_search - 1].is_ascii_whitespace() {
+                        kw_search -= 1;
+                    }
+                    let ident_end = kw_search;
+                    while kw_search > 0 {
+                        let cc = bytes[kw_search - 1];
+                        if cc.is_ascii_alphanumeric() || cc == b'_' || cc == b'$' {
+                            kw_search -= 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    if kw_search == ident_end {
+                        break false;
+                    }
+                    while kw_search > 0 && bytes[kw_search - 1].is_ascii_whitespace() {
+                        kw_search -= 1;
+                    }
+                    continue;
+                }
+                // Try to read backwards a keyword.
+                if kw_end >= 3 && &bytes[kw_end - 3..kw_end] == b"let" {
+                    let boundary_ok = kw_end == 3
+                        || !{
+                            let pc = bytes[kw_end - 4];
+                            pc.is_ascii_alphanumeric() || pc == b'_' || pc == b'$'
+                        };
+                    if boundary_ok {
+                        break false;
+                    }
+                }
+                if kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const" {
+                    let boundary_ok = kw_end == 5
+                        || !{
+                            let pc = bytes[kw_end - 6];
+                            pc.is_ascii_alphanumeric() || pc == b'_' || pc == b'$'
+                        };
+                    if boundary_ok {
+                        break false;
+                    }
+                }
+                if kw_end >= 3 && &bytes[kw_end - 3..kw_end] == b"var" {
+                    let boundary_ok = kw_end == 3
+                        || !{
+                            let pc = bytes[kw_end - 4];
+                            pc.is_ascii_alphanumeric() || pc == b'_' || pc == b'$'
+                        };
+                    if boundary_ok {
+                        break true;
+                    }
+                }
+                break false;
+            };
+            // The thing before the identifier may be `let`/`const`/`var`
+            // (start of a declarator) OR a `,` (comma-separated declarator).
+            // Either way, we found a fresh declarator.
+            if let Ok(name) = std::str::from_utf8(&bytes[left..id_end]) {
+                // Filter out invalid identifier-starting chars just to be safe.
+                if name
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+                {
+                    if is_var {
+                        var_names.insert(name.to_string());
+                    }
+                    names.insert(name.to_string());
+                    declarators.push((left, id_end, name.to_string()));
+                }
+            }
+        }
+    }
+    (names, var_names, declarators)
+}
+
+/// Rewrite bare reads of derived bindings (e.g. `foo`) to calls (`foo()`).
+///
+/// Skips identifiers in these positions:
+/// - Member access: `obj.foo` — preceded by `.`.
+/// - Identifier joins: `_foo`, `barfoo` — preceded by an identifier char.
+/// - Property keys: `{ foo: ... }` — followed by `:` and the identifier is
+///   not preceded by an open paren / comma / brace that would make it an
+///   expression position.
+/// - Declaration targets / property shorthand: `let foo`, `const foo`,
+///   `var foo`, `function foo`, `class foo`.
+/// - Inside strings / template literal text / line / block comments.
+///
+/// Notes:
+/// - For Svelte 5.52, assignments `foo = X` to a derived become `foo(X)`
+///   upstream. Implementing that here properly requires distinguishing
+///   `foo = X` from `foo == X` / `foo === X`, plus deciding what to do with
+///   compound assignments. We do **not** rewrite assignments in this pass —
+///   the upstream tests we care about exercise read paths, and the upstream
+///   AssignmentExpression diff acknowledges that assignment to a derived
+///   on the server is intentionally broken.
+fn wrap_derived_reads_in_script(script: &str) -> String {
+    let (derived_names, derived_var_names, derived_declarators) =
+        collect_derived_names_from_script(script);
+    if derived_names.is_empty() {
+        return script.to_string();
+    }
+    // Pre-pass: find byte ranges (start, end) where derived names are
+    // shadowed by inner `let|const|var|function|class IDENT` declarations or
+    // by parameter lists. References to a derived name inside such a range
+    // bind to the inner declaration, not the derived, so we must not wrap.
+    let shadow_ranges = compute_shadow_ranges(script, &derived_names, &derived_declarators);
+    // Byte positions where a derived's LHS appears in its own declarator —
+    // these must NOT be wrapped to `name()`.
+    let declarator_lhs_positions: rustc_hash::FxHashSet<usize> =
+        derived_declarators.iter().map(|(s, _, _)| *s).collect();
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(script.len() + derived_names.len() * 8);
+    let mut i = 0;
+
+    while i < len {
+        let b = bytes[i];
+
+        // Skip line comments.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let start = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[start..i]);
+            continue;
+        }
+        // Skip block comments.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let start = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            out.push_str(&script[start..i]);
+            continue;
+        }
+        // Skip string literals.
+        if b == b'"' || b == b'\'' {
+            let quote = b;
+            let start = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[start..i]);
+            continue;
+        }
+        // Skip template literals, but recurse into `${...}` placeholders so
+        // identifier refs inside interpolations still get rewritten.
+        if b == b'`' {
+            let start = i;
+            out.push(b as char);
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    // Push backslash + the escaped codepoint. The escaped
+                    // character may be multi-byte UTF-8, so step by its full
+                    // UTF-8 length rather than a fixed 2 bytes.
+                    out.push('\\');
+                    let escaped_start = i + 1;
+                    let mut escaped_end = escaped_start + 1;
+                    while escaped_end < len && !script.is_char_boundary(escaped_end) {
+                        escaped_end += 1;
+                    }
+                    out.push_str(&script[escaped_start..escaped_end]);
+                    i = escaped_end;
+                    continue;
+                }
+                if bytes[i] == b'`' {
+                    out.push('`');
+                    i += 1;
+                    break;
+                }
+                if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    out.push_str("${");
+                    i += 2;
+                    let mut depth: i32 = 1;
+                    let placeholder_start = i;
+                    // Find matching `}` respecting nested braces / strings.
+                    while i < len && depth > 0 {
+                        let c = bytes[i];
+                        if c == b'\\' && i + 1 < len {
+                            i += 2;
+                            continue;
+                        }
+                        if c == b'"' || c == b'\'' {
+                            let q = c;
+                            i += 1;
+                            while i < len {
+                                if bytes[i] == b'\\' && i + 1 < len {
+                                    i += 2;
+                                    continue;
+                                }
+                                if bytes[i] == q {
+                                    i += 1;
+                                    break;
+                                }
+                                i += 1;
+                            }
+                            continue;
+                        }
+                        if c == b'`' {
+                            // Nested template literal — copy verbatim by
+                            // recursing through this loop on the slice.
+                            i += 1;
+                            let mut inner_depth: i32 = 0;
+                            while i < len {
+                                if bytes[i] == b'\\' && i + 1 < len {
+                                    i += 2;
+                                    continue;
+                                }
+                                if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                                    inner_depth += 1;
+                                    i += 2;
+                                    continue;
+                                }
+                                if bytes[i] == b'}' && inner_depth > 0 {
+                                    inner_depth -= 1;
+                                    i += 1;
+                                    continue;
+                                }
+                                if bytes[i] == b'`' && inner_depth == 0 {
+                                    i += 1;
+                                    break;
+                                }
+                                i += 1;
+                            }
+                            continue;
+                        }
+                        if c == b'{' {
+                            depth += 1;
+                        } else if c == b'}' {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
+                        i += 1;
+                    }
+                    let placeholder_end = i;
+                    let inner = &script[placeholder_start..placeholder_end];
+                    out.push_str(&wrap_derived_reads_in_script_inner_with_shadow(
+                        inner,
+                        &derived_names,
+                        &derived_var_names,
+                        &shadow_ranges,
+                        &declarator_lhs_positions,
+                        placeholder_start,
+                    ));
+                    if i < len && bytes[i] == b'}' {
+                        out.push('}');
+                        i += 1;
+                    }
+                    continue;
+                }
+                // Multi-byte UTF-8 safe step: byte-level `as char` would
+                // corrupt non-ASCII chars (e.g. 'é' bytes → "Ã©"). Slice the
+                // codepoint instead.
+                let mut next = i + 1;
+                while next < len && !script.is_char_boundary(next) {
+                    next += 1;
+                }
+                out.push_str(&script[i..next]);
+                i = next;
+            }
+            let _ = start;
+            continue;
+        }
+        // Identifier?
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !is_after_ident_char(bytes, i) {
+            let start = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &script[start..i];
+            let is_shadowed = shadow_ranges
+                .get(name)
+                .map(|ranges| ranges.iter().any(|&(s, e)| start >= s && start < e))
+                .unwrap_or(false);
+            let is_own_declarator_lhs = declarator_lhs_positions.contains(&start);
+            if !is_shadowed
+                && !is_own_declarator_lhs
+                && derived_names.contains(name)
+                && is_derived_read_position(bytes, start, i)
+            {
+                if is_object_shorthand_position(bytes, start, i) {
+                    // `{ foo }` — must expand to `{ foo: foo() }` not
+                    // `{ foo() }` (which would be invalid method shorthand).
+                    out.push_str(name);
+                    out.push_str(": ");
+                    out.push_str(name);
+                    if derived_var_names.contains(name) {
+                        out.push_str("?.()");
+                    } else {
+                        out.push_str("()");
+                    }
+                } else {
+                    out.push_str(name);
+                    if derived_var_names.contains(name) {
+                        out.push_str("?.()");
+                    } else {
+                        out.push_str("()");
+                    }
+                }
+            } else {
+                out.push_str(name);
+            }
+            continue;
+        }
+        // Step by UTF-8 codepoint so non-ASCII chars (string literals,
+        // comments) survive the round-trip. `b as char` would Latin-1-encode
+        // a continuation byte and double-encode the source.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
+}
+
+/// True when an identifier at byte range `[start, end)` is in object-literal
+/// shorthand position: preceded by `{` or `,` within an object literal, AND
+/// followed (after whitespace) by `,` or `}`.
+fn is_object_shorthand_position(bytes: &[u8], start: usize, end: usize) -> bool {
+    let len = bytes.len();
+    // Look forward: next non-whitespace must be `,` or `}`.
+    let mut k = end;
+    while k < len && bytes[k].is_ascii_whitespace() {
+        k += 1;
+    }
+    let next = bytes.get(k).copied();
+    if !matches!(next, Some(b',') | Some(b'}')) {
+        return false;
+    }
+    // Look backward: the immediately preceding non-whitespace must be `{`
+    // or `,` (a property separator within an object).
+    let mut j = start;
+    while j > 0 && bytes[j - 1].is_ascii_whitespace() {
+        j -= 1;
+    }
+    if j == 0 {
+        return false;
+    }
+    let prev = bytes[j - 1];
+    if prev != b'{' && prev != b',' {
+        return false;
+    }
+    // If preceded by `,`, walk further back to find the enclosing `{` and
+    // ensure we're inside an object literal context (not arg list, array, or
+    // block). We walk back over commas/identifiers/property-pairs at depth 0.
+    //
+    // Note: the depth-0 `{` check has to run BEFORE the `p == 0` short-circuit
+    // so that an enclosing `{` sitting at byte 0 is still recognised — without
+    // this, `{ doubled }` at the start of an expression slice (e.g. inside a
+    // snippet-arg call) was wrongly classified as not-shorthand.
+    let mut p = j - 1;
+    let mut depth_paren = 0i32;
+    let mut depth_brace = 0i32;
+    let mut depth_bracket = 0i32;
+    loop {
+        let c = bytes[p];
+        if c == b'}' {
+            depth_brace += 1;
+        } else if c == b'{' {
+            if depth_brace == 0 && depth_paren == 0 && depth_bracket == 0 {
+                break;
+            }
+            depth_brace -= 1;
+        } else if c == b')' {
+            depth_paren += 1;
+        } else if c == b'(' {
+            // Unbalanced ( — we walked too far; not an object literal.
+            if depth_paren == 0 {
+                return false;
+            }
+            depth_paren -= 1;
+        } else if c == b']' {
+            depth_bracket += 1;
+        } else if c == b'[' {
+            if depth_bracket == 0 {
+                return false;
+            }
+            depth_bracket -= 1;
+        }
+        if p == 0 {
+            return false;
+        }
+        p -= 1;
+    }
+    // `p` now points to the opening `{`. Look at what precedes — that
+    // determines whether it's an object literal vs a block.
+    let mut q = p;
+    while q > 0 && bytes[q - 1].is_ascii_whitespace() {
+        q -= 1;
+    }
+    if q == 0 {
+        // Bare `{` at start of input — treat as expression / object literal.
+        return true;
+    }
+    let pc = bytes[q - 1];
+    // Object literal contexts: `(`, `[`, `,`, `=`, `?`, `:`, `<`, `>`,
+    // operators (`+`, `-`, `*`, `/`, `%`, `!`, `&`, `|`, `^`, `~`), or
+    // after `return`, `await`, `yield`, `throw`, `in`, `of`, `new`,
+    // `typeof`, `void`, `delete`.
+    if matches!(
+        pc,
+        b'(' | b'['
+            | b','
+            | b'='
+            | b'?'
+            | b':'
+            | b'<'
+            | b'>'
+            | b'+'
+            | b'-'
+            | b'*'
+            | b'/'
+            | b'%'
+            | b'!'
+            | b'&'
+            | b'|'
+            | b'^'
+            | b'~'
+            | b'.'
+            | b';'
+    ) {
+        return true;
+    }
+    // Spread `...` precedes object literal: `f(...{a: 1})`. Detect three
+    // dots immediately preceding.
+    if pc == b'.' {
+        return true;
+    }
+    // After an identifier — could be `return obj` or `await obj`. Check
+    // for object-literal-introducing keywords.
+    if pc.is_ascii_alphabetic() || pc == b'_' || pc == b'$' {
+        // Walk back to read the keyword.
+        let mut r = q;
+        while r > 0 {
+            let cc = bytes[r - 1];
+            if cc.is_ascii_alphanumeric() || cc == b'_' || cc == b'$' {
+                r -= 1;
+            } else {
+                break;
+            }
+        }
+        let kw = std::str::from_utf8(&bytes[r..q]).unwrap_or("");
+        return matches!(
+            kw,
+            "return"
+                | "await"
+                | "yield"
+                | "throw"
+                | "in"
+                | "of"
+                | "new"
+                | "typeof"
+                | "void"
+                | "delete"
+        );
+    }
+    false
+}
+
+/// Wrap derived reads in a template-source expression using a pre-collected
+/// name set (from the Phase 2 analysis).
+pub(crate) fn wrap_derived_reads_for_template(
+    expr: &str,
+    derived_names: &rustc_hash::FxHashSet<String>,
+    derived_var_names: &rustc_hash::FxHashSet<String>,
+) -> String {
+    if derived_names.is_empty() {
+        return expr.to_string();
+    }
+    let out = wrap_derived_reads_in_script_inner(expr, derived_names, derived_var_names);
+    if std::env::var("DEBUG_WRAP").is_ok() {
+        eprintln!(
+            "DEBUG_WRAP: in={:?} names={:?} out={:?}",
+            expr, derived_names, out
+        );
+    }
+    out
+}
+
+/// Recursive helper for placeholder bodies that doesn't re-collect names.
+/// Same as `wrap_derived_reads_in_script_inner` but with the outer
+/// `shadow_ranges` / declarator-LHS positions threaded through, so we don't
+/// re-wrap names that are shadowed by inner parameters / declarations.
+/// The `outer_offset` is the byte offset of `script` within the full source
+/// — every byte position we compare against `shadow_ranges` and
+/// `declarator_lhs_positions` gets translated by adding this offset.
+fn wrap_derived_reads_in_script_inner_with_shadow(
+    script: &str,
+    derived_names: &rustc_hash::FxHashSet<String>,
+    derived_var_names: &rustc_hash::FxHashSet<String>,
+    shadow_ranges: &rustc_hash::FxHashMap<String, Vec<(usize, usize)>>,
+    declarator_lhs_positions: &rustc_hash::FxHashSet<usize>,
+    outer_offset: usize,
+) -> String {
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(script.len() + 4);
+    let mut i = 0;
+    while i < len {
+        let b = bytes[i];
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let s = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let s = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'"' || b == b'\'' {
+            let quote = b;
+            let s = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !is_after_ident_char(bytes, i) {
+            let start = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &script[start..i];
+            let absolute_start = start + outer_offset;
+            let is_shadowed = shadow_ranges
+                .get(name)
+                .map(|ranges| {
+                    ranges
+                        .iter()
+                        .any(|&(s, e)| absolute_start >= s && absolute_start < e)
+                })
+                .unwrap_or(false);
+            let is_own_declarator_lhs = declarator_lhs_positions.contains(&absolute_start);
+            if !is_shadowed
+                && !is_own_declarator_lhs
+                && derived_names.contains(name)
+                && is_derived_read_position(bytes, start, i)
+            {
+                if is_object_shorthand_position(bytes, start, i) {
+                    out.push_str(name);
+                    out.push_str(": ");
+                    out.push_str(name);
+                    if derived_var_names.contains(name) {
+                        out.push_str("?.()");
+                    } else {
+                        out.push_str("()");
+                    }
+                } else {
+                    out.push_str(name);
+                    if derived_var_names.contains(name) {
+                        out.push_str("?.()");
+                    } else {
+                        out.push_str("()");
+                    }
+                }
+            } else {
+                out.push_str(name);
+            }
+            continue;
+        }
+        // UTF-8 safe step. See `wrap_derived_reads_in_script`.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
+}
+
+fn wrap_derived_reads_in_script_inner(
+    script: &str,
+    derived_names: &rustc_hash::FxHashSet<String>,
+    derived_var_names: &rustc_hash::FxHashSet<String>,
+) -> String {
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(script.len() + 4);
+    let mut i = 0;
+    while i < len {
+        let b = bytes[i];
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let start = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[start..i]);
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let start = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            out.push_str(&script[start..i]);
+            continue;
+        }
+        if b == b'"' || b == b'\'' {
+            let quote = b;
+            let start = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[start..i]);
+            continue;
+        }
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !is_after_ident_char(bytes, i) {
+            let start = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &script[start..i];
+            if derived_names.contains(name) && is_derived_read_position(bytes, start, i) {
+                if is_object_shorthand_position(bytes, start, i) {
+                    out.push_str(name);
+                    out.push_str(": ");
+                    out.push_str(name);
+                    if derived_var_names.contains(name) {
+                        out.push_str("?.()");
+                    } else {
+                        out.push_str("()");
+                    }
+                } else {
+                    out.push_str(name);
+                    if derived_var_names.contains(name) {
+                        out.push_str("?.()");
+                    } else {
+                        out.push_str("()");
+                    }
+                }
+            } else {
+                out.push_str(name);
+            }
+            continue;
+        }
+        // UTF-8 safe step. See `wrap_derived_reads_in_script`.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
+}
+
+fn is_after_ident_char(bytes: &[u8], i: usize) -> bool {
+    if i == 0 {
+        return false;
+    }
+    let c = bytes[i - 1];
+    c.is_ascii_alphanumeric() || c == b'_' || c == b'$'
+}
+
+/// Decide whether the identifier at `bytes[start..end]` is a *read* of a
+/// derived binding (so it should be rewritten to `name()`).
+fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
+    // The identifier already passes `!is_after_ident_char`, but we still
+    // need to reject `obj.foo` (member access) and a number of declaration
+    // / shorthand-property positions.
+    let prev_non_ws_idx = (0..start).rev().find(|&i| !bytes[i].is_ascii_whitespace());
+    let prev_non_ws = prev_non_ws_idx.map(|i| bytes[i]);
+    if matches!(prev_non_ws, Some(b'.')) {
+        // `obj.foo` / `obj?.foo` is member access — skip. But `...foo` is
+        // a spread / rest operator, and `foo` *is* a read in that case.
+        // Detect spread by looking at the two bytes before `.`.
+        if let Some(dot_idx) = prev_non_ws_idx
+            && dot_idx >= 2
+            && bytes[dot_idx - 1] == b'.'
+            && bytes[dot_idx - 2] == b'.'
+        {
+            // `...foo` — fall through to wrap.
+        } else {
+            return false;
+        }
+    }
+    // Declaration / function name positions: `let foo`, `const foo`,
+    // `var foo`, `function foo`, `class foo`. Look back for the keyword.
+    if let Some(b) = prev_non_ws {
+        // Skip if previous token is one of these keywords.
+        let kw_end = (0..start)
+            .rev()
+            .find(|&i| !bytes[i].is_ascii_whitespace())
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let _ = b;
+        for kw in [
+            &b"let"[..],
+            &b"const"[..],
+            &b"var"[..],
+            &b"function"[..],
+            &b"class"[..],
+        ] {
+            if kw_end >= kw.len() && bytes[kw_end - kw.len()..kw_end] == *kw {
+                // Word boundary check on the left side.
+                if kw_end == kw.len()
+                    || !{
+                        let pc = bytes[kw_end - kw.len() - 1];
+                        pc.is_ascii_alphanumeric() || pc == b'_' || pc == b'$'
+                    }
+                {
+                    return false;
+                }
+            }
+        }
+    }
+    // What follows the identifier?
+    let next_non_ws = (end..bytes.len())
+        .find(|&i| !bytes[i].is_ascii_whitespace())
+        .map(|i| bytes[i]);
+    match next_non_ws {
+        // Already a call: `foo(` — leave it.
+        Some(b'(') => false,
+        // Property shorthand or object key: `{ foo: ... }` / `{ foo,` /
+        // `{ foo }`. Detect by scanning back to the nearest `{` and ensuring
+        // it's not a block context (e.g. `({ foo: ... })` in a return).
+        Some(b':') => {
+            // Only treat as a key if we're at the top of an object literal.
+            // Heuristic: look back for `,` or `{` skipping whitespace; if we
+            // hit `{`, this is a property key. If we hit `(`, `[`, or
+            // operators / `?` / etc., it's a ternary / labelled statement
+            // and we should rewrite.
+            let mut j = start;
+            let mut depth_paren: i32 = 0;
+            let mut depth_brace: i32 = 0;
+            let mut depth_bracket: i32 = 0;
+            while j > 0 {
+                j -= 1;
+                let c = bytes[j];
+                if c.is_ascii_whitespace() {
+                    continue;
+                }
+                if c == b')' {
+                    depth_paren += 1;
+                    continue;
+                }
+                if c == b'(' {
+                    if depth_paren == 0 {
+                        // Function call / parenthesized expression context.
+                        return true;
+                    }
+                    depth_paren -= 1;
+                    continue;
+                }
+                if c == b']' {
+                    depth_bracket += 1;
+                    continue;
+                }
+                if c == b'[' {
+                    if depth_bracket == 0 {
+                        return true;
+                    }
+                    depth_bracket -= 1;
+                    continue;
+                }
+                if c == b'}' {
+                    depth_brace += 1;
+                    continue;
+                }
+                if c == b'{' {
+                    if depth_brace == 0 {
+                        // It's a property key.
+                        return false;
+                    }
+                    depth_brace -= 1;
+                    continue;
+                }
+                if c == b',' && depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                    // Comma at this nesting level — could be inside an object
+                    // literal `{ a, foo: ... }`. Continue scanning back.
+                    continue;
+                }
+                if c == b'?' && depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                    // Ternary: `cond ? foo : bar` — rewrite.
+                    return true;
+                }
+                // Default: keep scanning.
+            }
+            // Hit start of file — treat as label, do not rewrite.
+            false
+        }
+        _ => true,
+    }
+}
+
+/// For each name in `names`, find byte ranges in `script` where that name is
+/// shadowed by a nested `let|const|var|function|class IDENT` declaration or
+/// by a function parameter list. Returns a map `name -> Vec<(start, end)>`.
+///
+/// This is a coarse, brace-counting approximation of lexical scope. It
+/// catches the common cases that drive the upstream test suite (e.g.
+/// `let x = $derived(...)` then `function foo() { let x = $state(0); ... x ... }`)
+/// without doing a full scope analysis.
+fn compute_shadow_ranges(
+    script: &str,
+    names: &rustc_hash::FxHashSet<String>,
+    derived_declarators: &[(usize, usize, String)],
+) -> rustc_hash::FxHashMap<String, Vec<(usize, usize)>> {
+    let mut ranges: rustc_hash::FxHashMap<String, Vec<(usize, usize)>> =
+        rustc_hash::FxHashMap::default();
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    if len == 0 || names.is_empty() {
+        return ranges;
+    }
+    // Positions of derived identifier declarations — when scanning `let X`
+    // declarators we skip these (they are the deriveds themselves, not
+    // shadow declarations).
+    let derived_positions: rustc_hash::FxHashSet<usize> =
+        derived_declarators.iter().map(|(s, _, _)| *s).collect();
+    // Brace-tracking state: for each `{` we push the brace's index and a
+    // set of names declared in *that* block. When `}` closes the block, we
+    // pop the frame and add a range for every name declared.
+    #[derive(Default)]
+    struct Frame {
+        open: usize,
+        // Names declared in this block.
+        declared: Vec<String>,
+    }
+    let mut stack: Vec<Frame> = Vec::new();
+    // Helper to add a declared name + a range that runs from the next
+    // statement until the closing brace. The range start is the position
+    // *after* the declaration's identifier (so the declaration itself
+    // doesn't get wrapped, while subsequent reads inside the block do).
+    let mut i = 0;
+    // Track whether the most recent non-whitespace, non-comment token is
+    // one that should be followed by parameter list / declaration. Used
+    // for detecting `function NAME(...)`, `(IDENT) => ...`, etc.
+    let mut saw_function_kw = false;
+
+    while i < len {
+        let b = bytes[i];
+        // Skip comments.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            continue;
+        }
+        // Skip string literals.
+        if b == b'"' || b == b'\'' {
+            let q = b;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == q {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        // Skip template literals (but track `${...}` placeholders by treating
+        // them as nested code regions — we still want to find shadow decls
+        // inside placeholders).
+        if b == b'`' {
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == b'`' {
+                    i += 1;
+                    break;
+                }
+                if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                    // Step into the placeholder by treating `{` as a brace
+                    // we'll see in the outer loop.
+                    i += 2;
+                    stack.push(Frame {
+                        open: i,
+                        declared: Vec::new(),
+                    });
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        if b == b'{' {
+            stack.push(Frame {
+                open: i,
+                declared: Vec::new(),
+            });
+            i += 1;
+            continue;
+        }
+        if b == b'}' {
+            if let Some(frame) = stack.pop() {
+                for name in &frame.declared {
+                    ranges
+                        .entry(name.clone())
+                        .or_default()
+                        .push((frame.open, i));
+                }
+            }
+            i += 1;
+            continue;
+        }
+        // Detect declaration keywords and arrow params.
+        // `let`/`const`/`var`: read identifier after.
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !is_after_ident_char(bytes, i) {
+            let id_start = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            let id = &script[id_start..i];
+            // Handle `let`/`const`/`var` — collect every identifier in the
+            // declarator list until we hit a top-level `;` or `=` at depth 0.
+            if id == "let" || id == "const" || id == "var" {
+                // Just read the declarator names + their positions, but
+                // don't advance `i` past the value RHS — we need to keep
+                // scanning inside (`$derived(() => { ... })` may contain
+                // nested declarations that themselves shadow names).
+                let decl_start = i;
+                // Find the end of the declarator pattern (up to the first
+                // top-level `=` or `;`/`,`). We only need the LHS patterns.
+                let mut depth_paren = 0i32;
+                let mut depth_bracket = 0i32;
+                let mut depth_brace_inline = 0i32;
+                let mut j = decl_start;
+                while j < len {
+                    let cc = bytes[j];
+                    if cc == b'"' || cc == b'\'' {
+                        let q = cc;
+                        j += 1;
+                        while j < len {
+                            if bytes[j] == b'\\' && j + 1 < len {
+                                j += 2;
+                                continue;
+                            }
+                            if bytes[j] == q {
+                                j += 1;
+                                break;
+                            }
+                            j += 1;
+                        }
+                        continue;
+                    }
+                    match cc {
+                        b'(' => depth_paren += 1,
+                        b')' => depth_paren -= 1,
+                        b'[' => depth_bracket += 1,
+                        b']' => depth_bracket -= 1,
+                        b'{' => depth_brace_inline += 1,
+                        b'}' => {
+                            if depth_brace_inline == 0 {
+                                break;
+                            }
+                            depth_brace_inline -= 1;
+                        }
+                        b';' if depth_paren == 0
+                            && depth_bracket == 0
+                            && depth_brace_inline == 0 =>
+                        {
+                            break;
+                        }
+                        // Stop at top-level `=` — everything after is the
+                        // value expression, which we'll keep scanning.
+                        b'=' if depth_paren == 0
+                            && depth_bracket == 0
+                            && depth_brace_inline == 0 =>
+                        {
+                            // Check this isn't `==` / `===` — but at depth 0
+                            // inside a declarator, `=` is always assignment.
+                            break;
+                        }
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                let decl_text = &script[decl_start..j];
+                for (rel_start, n) in extract_declarator_names_with_pos(decl_text) {
+                    let abs_start = decl_start + rel_start;
+                    // Skip the derived's own declaration — references to
+                    // the derived inside the enclosing block should still
+                    // wrap.
+                    if derived_positions.contains(&abs_start) {
+                        continue;
+                    }
+                    if names.contains(&n)
+                        && let Some(top) = stack.last_mut()
+                    {
+                        top.declared.push(n);
+                    }
+                }
+                // Continue scanning from `j` (the `=` or `;` position) so
+                // the value expression (which may contain nested
+                // declarations / arrow bodies) gets scanned normally.
+                i = j;
+                continue;
+            }
+            // Function declaration: `function NAME(params) { ... }` —
+            // NAME is declared in the *enclosing* scope, params in the
+            // function body scope. We'll catch params when we enter the
+            // body's `{`.
+            if id == "function" {
+                saw_function_kw = true;
+                continue;
+            }
+            // Class declaration: `class NAME { ... }` — NAME in enclosing scope.
+            if id == "class" {
+                // Read NAME if present.
+                let mut j = i;
+                while j < len && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+                if j < len
+                    && (bytes[j].is_ascii_alphabetic() || bytes[j] == b'_' || bytes[j] == b'$')
+                {
+                    let ns = j;
+                    while j < len {
+                        let cc = bytes[j];
+                        if cc.is_ascii_alphanumeric() || cc == b'_' || cc == b'$' {
+                            j += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    let n = &script[ns..j];
+                    if names.contains(n)
+                        && let Some(top) = stack.last_mut()
+                    {
+                        top.declared.push(n.to_string());
+                    }
+                }
+                i = j;
+                continue;
+            }
+            if saw_function_kw {
+                // Identifier right after `function` is the function name —
+                // declared in enclosing scope.
+                if names.contains(id)
+                    && let Some(top) = stack.last_mut()
+                {
+                    top.declared.push(id.to_string());
+                }
+                saw_function_kw = false;
+                continue;
+            }
+            // Otherwise, normal identifier — ignore.
+            saw_function_kw = false;
+            continue;
+        }
+        // Arrow function detection: when we see `(`, *peek* ahead to find
+        // the matching `)` and check if `=>` follows. If yes, treat the
+        // body's brace as a shadowing scope. Crucially, we do NOT consume
+        // the body — we let the normal brace scanner descend into it so
+        // nested declarations get tracked.
+        if b == b'(' {
+            let open = i;
+            let mut peek = i + 1;
+            let mut depth = 1i32;
+            let param_text_start = peek;
+            while peek < len && depth > 0 {
+                let cc = bytes[peek];
+                if cc == b'"' || cc == b'\'' {
+                    let q = cc;
+                    peek += 1;
+                    while peek < len {
+                        if bytes[peek] == b'\\' && peek + 1 < len {
+                            peek += 2;
+                            continue;
+                        }
+                        if bytes[peek] == q {
+                            peek += 1;
+                            break;
+                        }
+                        peek += 1;
+                    }
+                    continue;
+                }
+                if cc == b'`' {
+                    peek += 1;
+                    while peek < len {
+                        if bytes[peek] == b'\\' && peek + 1 < len {
+                            peek += 2;
+                            continue;
+                        }
+                        if bytes[peek] == b'`' {
+                            peek += 1;
+                            break;
+                        }
+                        peek += 1;
+                    }
+                    continue;
+                }
+                if cc == b'(' {
+                    depth += 1;
+                } else if cc == b')' {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                peek += 1;
+            }
+            let param_text_end = peek;
+            let after_paren = peek + 1; // past `)`
+            // Look for `=>` after closing paren.
+            let mut k = after_paren;
+            while k < len && bytes[k].is_ascii_whitespace() {
+                k += 1;
+            }
+            let is_arrow = k + 1 < len && bytes[k] == b'=' && bytes[k + 1] == b'>';
+            // Detect `function NAME(params) { ... }` / `function (params) { ... }`
+            // / `function* NAME(params) { ... }`. The opening paren may also be
+            // for a method definition: `foo(params) { ... }` inside an object /
+            // class body. In either case, the `{` directly following the `)`
+            // opens a new scope and the params shadow.
+            let is_fn_like_body = !is_arrow && k < len && bytes[k] == b'{' && {
+                // Walk back from `open` (the `(`), skipping whitespace, to find
+                // the function keyword or method name. We only treat this as a
+                // function-body open when:
+                //   - the token immediately before is `function` (possibly
+                //     followed by a `*` and a name), OR
+                //   - the token immediately before is an identifier *and*
+                //     preceded by `function`, OR
+                //   - the prev token is an identifier (method shorthand). To
+                //     avoid false positives on `if(...){`, `for(...){`,
+                //     `while(...){`, `switch(...){`, `catch(...){`, we
+                //     blacklist those keywords.
+                let mut p = open;
+                while p > 0 && bytes[p - 1].is_ascii_whitespace() {
+                    p -= 1;
+                }
+                let prev_end = p;
+                while p > 0 {
+                    let cc = bytes[p - 1];
+                    if cc.is_ascii_alphanumeric() || cc == b'_' || cc == b'$' {
+                        p -= 1;
+                    } else {
+                        break;
+                    }
+                }
+                if p == prev_end {
+                    false
+                } else {
+                    let prev_ident = &script[p..prev_end];
+                    !matches!(
+                        prev_ident,
+                        "if" | "for"
+                            | "while"
+                            | "switch"
+                            | "catch"
+                            | "with"
+                            | "do"
+                            | "return"
+                            | "typeof"
+                            | "void"
+                            | "delete"
+                            | "new"
+                            | "in"
+                            | "of"
+                            | "await"
+                            | "yield"
+                            | "throw"
+                    )
+                }
+            };
+            if is_arrow || is_fn_like_body {
+                let param_text = if param_text_end > param_text_start {
+                    &script[param_text_start..param_text_end]
+                } else {
+                    ""
+                };
+                let mut params = extract_param_names(param_text);
+                params.retain(|n| names.contains(n));
+                let mut m = if is_arrow { k + 2 } else { k }; // past `=>` or at `{`
+                while m < len && bytes[m].is_ascii_whitespace() {
+                    m += 1;
+                }
+                if m < len && bytes[m] == b'{' {
+                    // Push a frame for the body, pre-populated with params.
+                    // Advance `i` to *just past* the body `{` so brace
+                    // tracking is consistent.
+                    stack.push(Frame {
+                        open: m,
+                        declared: params,
+                    });
+                    i = m + 1;
+                    continue;
+                } else if is_arrow {
+                    // Single-expression arrow. Find end of expression by
+                    // a coarse scan, then record param shadow range.
+                    let mut depth_p = 0i32;
+                    let mut depth_b = 0i32;
+                    let mut e = m;
+                    while e < len {
+                        let cc = bytes[e];
+                        if cc == b'(' {
+                            depth_p += 1;
+                        } else if cc == b')' {
+                            if depth_p == 0 {
+                                break;
+                            }
+                            depth_p -= 1;
+                        } else if cc == b'[' {
+                            depth_b += 1;
+                        } else if cc == b']' {
+                            if depth_b == 0 {
+                                break;
+                            }
+                            depth_b -= 1;
+                        } else if (cc == b',' || cc == b';') && depth_p == 0 && depth_b == 0 {
+                            break;
+                        }
+                        e += 1;
+                    }
+                    for n in params {
+                        ranges.entry(n).or_default().push((m, e));
+                    }
+                    i = m;
+                    continue;
+                }
+            }
+            // Not an arrow — step past the `(` and keep scanning so
+            // inner braces / decls get tracked.
+            let _ = open;
+            i += 1;
+            continue;
+        }
+        saw_function_kw = false;
+        i += 1;
+    }
+    ranges
+}
+
+/// Same as `extract_declarator_names` but also returns the byte offset of
+/// each identifier within `decl`.
+fn extract_declarator_names_with_pos(decl: &str) -> Vec<(usize, String)> {
+    let bytes = decl.as_bytes();
+    let len = bytes.len();
+    let mut out: Vec<(usize, String)> = Vec::new();
+    let mut i = 0;
+    let mut depth_paren = 0i32;
+    let mut depth_bracket = 0i32;
+    let mut depth_brace = 0i32;
+    let mut after_eq_at_top = false;
+    while i < len {
+        let b = bytes[i];
+        match b {
+            b'"' | b'\'' => {
+                let q = b;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'(' => depth_paren += 1,
+            b')' => depth_paren -= 1,
+            b'[' => depth_bracket += 1,
+            b']' => depth_bracket -= 1,
+            b'{' => depth_brace += 1,
+            b'}' => depth_brace -= 1,
+            b',' if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 => {
+                after_eq_at_top = false;
+                i += 1;
+                continue;
+            }
+            b'=' if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 => {
+                after_eq_at_top = true;
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+        if !after_eq_at_top
+            && (b.is_ascii_alphabetic() || b == b'_' || b == b'$')
+            && !is_after_ident_char(bytes, i)
+        {
+            let s = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &decl[s..i];
+            out.push((s, name.to_string()));
+            continue;
+        }
+        i += 1;
+    }
+    out
+}
+
+fn extract_declarator_names(decl: &str) -> Vec<String> {
+    // Extract identifier names from a declarator list like ` x, y = 1, { a, b: c }`.
+    // We respect bracket/paren nesting and only emit names at top level.
+    let bytes = decl.as_bytes();
+    let len = bytes.len();
+    let mut names: Vec<String> = Vec::new();
+    let mut i = 0;
+    let mut depth_paren = 0i32;
+    let mut depth_bracket = 0i32;
+    let mut depth_brace = 0i32;
+    let mut after_eq_at_top = false;
+    while i < len {
+        let b = bytes[i];
+        match b {
+            b'"' | b'\'' => {
+                let q = b;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'(' => {
+                depth_paren += 1;
+            }
+            b')' => {
+                depth_paren -= 1;
+            }
+            b'[' => {
+                depth_bracket += 1;
+            }
+            b']' => {
+                depth_bracket -= 1;
+            }
+            b'{' => {
+                depth_brace += 1;
+            }
+            b'}' => {
+                depth_brace -= 1;
+            }
+            b',' if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 => {
+                after_eq_at_top = false;
+                i += 1;
+                continue;
+            }
+            b'=' if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 => {
+                // Equals at top level — skip the value until the next top-level `,`.
+                after_eq_at_top = true;
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+        // Read identifier if at the right depth and not after `=` at top level.
+        if !after_eq_at_top
+            && (b.is_ascii_alphabetic() || b == b'_' || b == b'$')
+            && !is_after_ident_char(bytes, i)
+        {
+            let s = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            // Inside `{ a, b: c }` patterns, after `:` is the renaming target
+            // (the actual binding). Both `a` (shorthand) and `c` (renamed
+            // target) bind. For our purposes we treat any identifier reached
+            // here as a potential binding.
+            let name = &decl[s..i];
+            names.push(name.to_string());
+            continue;
+        }
+        i += 1;
+    }
+    names
+}
+
+fn extract_param_names(params: &str) -> Vec<String> {
+    // Identical lexical structure to a declarator list (well, mostly).
+    extract_declarator_names(params)
+}
+
+/// Expand destructured `$derived(...)` / `$derived.by(...)` declarations into
+/// per-leaf `$.derived(...)` declarators, mirroring upstream's `extract_paths`
+/// pass in `VariableDeclaration.js` (Svelte 5.52+).
+///
+/// Examples:
+///   `let { foo, bar: [a, b] } = $derived(stuff)`
+/// becomes:
+///   `let $$derived_array = $.derived(() => $.to_array(stuff.bar, 2)),
+///        foo = $.derived(() => stuff.foo),
+///        a = $.derived(() => $$derived_array[0]),
+///        b = $.derived(() => $$derived_array[1])`
+///
+/// The post-pass `wrap_derived_reads_in_script` then converts
+/// `$$derived_array[0]` to `$$derived_array()[0]`.
+///
+/// When the rune is plain `$derived` *and* the argument is a bare identifier,
+/// upstream skips the intermediate `$$d` declarator and inlines the identifier
+/// directly in each path expression (matches the
+/// `derived-destructured` / `derived-rest-includes-symbol` fixtures).
+fn expand_destructured_derived(script: &str) -> String {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    // Counter for generating unique `$$derived_array` / `$$d` names across
+    // the whole script. We don't try to be clever about scoping — there are
+    // no nested destructured deriveds in the test corpus.
+    static DERIVED_ARRAY_COUNTER: AtomicUsize = AtomicUsize::new(0);
+    static D_COUNTER: AtomicUsize = AtomicUsize::new(0);
+    DERIVED_ARRAY_COUNTER.store(0, Ordering::Relaxed);
+    D_COUNTER.store(0, Ordering::Relaxed);
+
+    let mut result = String::with_capacity(script.len());
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    // Push the codepoint starting at byte `i` and return the byte length we
+    // advanced. We can't `bytes[i] as char`: that interprets a single UTF-8
+    // continuation byte as a Latin-1 code point and corrupts multi-byte chars
+    // (e.g. 'é' = 0xC3 0xA9 → "Ã©"). Step by UTF-8 char boundary instead.
+    let push_char = |result: &mut String, i: usize| -> usize {
+        let mut end = i + 1;
+        while end < len && !script.is_char_boundary(end) {
+            end += 1;
+        }
+        result.push_str(&script[i..end]);
+        end - i
+    };
+
+    while i < len {
+        // Try to match `let|var|const`  WS  PATTERN  WS  `=`  WS  `$derived(`/`$derived.by(`
+        //
+        // Use byte slicing — the source can contain multi-byte UTF-8 (e.g.
+        // identifiers / string literals with accented chars), so string
+        // slicing here will panic on a char-boundary mismatch even though we
+        // only ever care about ASCII keywords.
+        let keyword_len = if i + 4 <= len
+            && &bytes[i..i + 3] == b"let"
+            && is_word_boundary(bytes, i, i + 3)
+        {
+            Some(3usize)
+        } else if i + 6 <= len && &bytes[i..i + 5] == b"const" && is_word_boundary(bytes, i, i + 5)
+        {
+            Some(5)
+        } else if i + 4 <= len && &bytes[i..i + 3] == b"var" && is_word_boundary(bytes, i, i + 3) {
+            Some(3)
+        } else {
+            None
+        };
+        let Some(kw_len) = keyword_len else {
+            i += push_char(&mut result, i);
+            continue;
+        };
+        // Word boundary on left: must be at start, or preceded by
+        // non-identifier char.
+        if i > 0 {
+            let prev = bytes[i - 1];
+            if prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$' {
+                i += push_char(&mut result, i);
+                continue;
+            }
+        }
+        let kw_end = i + kw_len;
+        // Skip whitespace
+        let mut p = kw_end;
+        while p < len && (bytes[p] == b' ' || bytes[p] == b'\t') {
+            p += 1;
+        }
+        // Expect '{' or '[' for a destructure pattern
+        if p >= len || (bytes[p] != b'{' && bytes[p] != b'[') {
+            i += push_char(&mut result, i);
+            continue;
+        }
+        let pattern_start = p;
+        let open = bytes[p];
+        let close = if open == b'{' { b'}' } else { b']' };
+        let Some(pattern_end) = find_matching_bracket(bytes, pattern_start + 1, open, close) else {
+            i += push_char(&mut result, i);
+            continue;
+        };
+        // After the pattern, expect optional whitespace, then `=`, then `$derived(` / `$derived.by(`.
+        let mut q = pattern_end + 1;
+        while q < len && (bytes[q] == b' ' || bytes[q] == b'\t' || bytes[q] == b'\n') {
+            q += 1;
+        }
+        if q >= len || bytes[q] != b'=' {
+            i += push_char(&mut result, i);
+            continue;
+        }
+        // Reject `==` / `=>`
+        if q + 1 < len && (bytes[q + 1] == b'=' || bytes[q + 1] == b'>') {
+            i += push_char(&mut result, i);
+            continue;
+        }
+        q += 1;
+        while q < len && (bytes[q] == b' ' || bytes[q] == b'\t' || bytes[q] == b'\n') {
+            q += 1;
+        }
+        // Match `$derived(` or `$derived.by(`
+        let (is_by, rhs_start) = if q + 12 <= len && &script[q..q + 12] == "$derived.by(" {
+            (true, q + 12)
+        } else if q + 9 <= len && &script[q..q + 9] == "$derived(" {
+            (false, q + 9)
+        } else {
+            i += push_char(&mut result, i);
+            continue;
+        };
+        // Word boundary before `$derived` — must not be an identifier char.
+        // (We already know it's preceded by `=` and whitespace, so this is
+        // mostly defensive.)
+        let Some(close_paren_offset) = find_matching_paren_for_state(&script[rhs_start..]) else {
+            i += push_char(&mut result, i);
+            continue;
+        };
+        let rhs_end = rhs_start + close_paren_offset;
+        let arg_expr = script[rhs_start..rhs_end].trim();
+        // Drop trailing comma like upstream's call-arg cleanup.
+        let arg_expr = arg_expr.trim_end_matches(',').trim();
+
+        // Build the replacement. First, figure out the base RHS we use in
+        // each path expression. Upstream:
+        //   - For `$derived(IDENT)`, base = `IDENT`, no `$$d` declarator.
+        //   - Else, generate `$$d` declarator, base = `$$d` (which becomes
+        //     `$$d()` after wrap_derived_reads_in_script).
+        let mut decls: Vec<(String, String)> = Vec::new(); // (lhs, rhs)
+        let arg_is_ident = is_plain_identifier(arg_expr);
+        let base_expr = if !is_by && arg_is_ident {
+            arg_expr.to_string()
+        } else {
+            let n = D_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let name = if n == 0 {
+                "$$d".to_string()
+            } else {
+                format!("$$d_{}", n)
+            };
+            // Initializer: `$.derived(...)` — for `.by` we pass the value
+            // directly; for plain `$derived(expr)` we wrap in `() => expr`.
+            let init = if is_by {
+                format!("$.derived({})", arg_expr)
+            } else {
+                let needs_paren = arg_expr.trim_start().starts_with('{');
+                if needs_paren {
+                    format!("$.derived(() => ({}))", arg_expr)
+                } else if let Some(ident) = unthunk_no_arg_ident_call(arg_expr) {
+                    format!("$.derived({})", ident)
+                } else {
+                    format!("$.derived(() => {})", arg_expr)
+                }
+            };
+            decls.push((name.clone(), init));
+            name
+        };
+        // Walk the pattern, collecting inserts and paths.
+        let pattern_text = &script[pattern_start..=pattern_end];
+        let mut inserts: Vec<(String, String)> = Vec::new(); // (lhs_name, rhs_init)
+        let mut paths: Vec<(String, String)> = Vec::new(); // (lhs_text, leaf_expression)
+        extract_paths_walk(
+            pattern_text,
+            &base_expr,
+            &mut inserts,
+            &mut paths,
+            &DERIVED_ARRAY_COUNTER,
+        );
+
+        // Compose declarators in upstream order: inserts (already in DFS
+        // order) come before all leaf paths.
+        for (name, init_expr) in &inserts {
+            decls.push((name.clone(), format!("$.derived(() => {})", init_expr)));
+        }
+        for (lhs, expr) in &paths {
+            decls.push((lhs.clone(), format!("$.derived(() => {})", expr)));
+        }
+
+        // Emit `let|const|var <lhs1> = <rhs1>, <lhs2> = <rhs2>, ...;`
+        // We preserve the original keyword and continue the source past
+        // `)` (close paren of the `$derived(...)` call). Trailing source
+        // (e.g. `;` or `,` continuation) is preserved.
+        let keyword = &script[i..kw_end];
+        result.push_str(keyword);
+        result.push(' ');
+        for (idx, (lhs, rhs)) in decls.iter().enumerate() {
+            if idx > 0 {
+                result.push_str(",\n\t");
+            }
+            result.push_str(lhs);
+            result.push_str(" = ");
+            result.push_str(rhs);
+        }
+        // Continue past the closing `)` of `$derived(...)`.
+        i = rhs_end + 1;
+    }
+
+    result
+}
+
+/// Walk a destructure pattern (text starting with `{` or `[`) and populate
+/// `inserts` (intermediate `$$derived_array` declarators) and `paths` (leaf
+/// declarators with their access expression).
+fn extract_paths_walk(
+    pattern: &str,
+    initial: &str,
+    inserts: &mut Vec<(String, String)>,
+    paths: &mut Vec<(String, String)>,
+    derived_array_counter: &std::sync::atomic::AtomicUsize,
+) {
+    use std::sync::atomic::Ordering;
+    let pattern = pattern.trim();
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let props = split_top_level(inner, b',');
+        // First collect non-rest property keys for any rest's exclusion.
+        let exclude_keys: Vec<String> = props
+            .iter()
+            .filter_map(|p| {
+                let p = p.trim();
+                if p.is_empty() || p.starts_with("...") {
+                    return None;
+                }
+                let key = if let Some(colon) = find_top_level_colon(p) {
+                    p[..colon].trim()
+                } else if let Some(eq) = find_top_level_equals(p) {
+                    p[..eq].trim()
+                } else {
+                    p
+                };
+                if key.starts_with('[') {
+                    None
+                } else {
+                    Some(format!("\"{}\"", key))
+                }
+            })
+            .collect();
+
+        for prop in &props {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+            if let Some(rest_name) = prop.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                let rest_expr = format!(
+                    "$.exclude_from_object({}, [{}])",
+                    initial,
+                    exclude_keys.join(", ")
+                );
+                if is_plain_identifier(rest_name) {
+                    paths.push((rest_name.to_string(), rest_expr));
+                } else {
+                    extract_paths_walk(
+                        rest_name,
+                        &rest_expr,
+                        inserts,
+                        paths,
+                        derived_array_counter,
+                    );
+                }
+                continue;
+            }
+            // Detect renamed property: `key: value_pattern` (value_pattern may itself be a destructure or default).
+            if let Some(colon) = find_top_level_colon(prop) {
+                let key = prop[..colon].trim();
+                let value_pat = prop[colon + 1..].trim();
+                let member = make_member(initial, key);
+                handle_value_pattern(value_pat, &member, inserts, paths, derived_array_counter);
+            } else if let Some(eq) = find_top_level_equals(prop) {
+                // Shorthand with default: `name = default`
+                let name = prop[..eq].trim();
+                let default = prop[eq + 1..].trim();
+                let member = make_member(initial, name);
+                let fallback = build_fallback_text(&member, default);
+                paths.push((name.to_string(), fallback));
+            } else {
+                // Shorthand: `name`
+                let name = prop;
+                let member = make_member(initial, name);
+                paths.push((name.to_string(), member));
+            }
+        }
+    } else if pattern.starts_with('[') && pattern.ends_with(']') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let elements = split_top_level(inner, b',');
+        // Determine whether the last element is a rest. If so, the
+        // upstream call omits the second `to_array` arg (capacity).
+        let has_rest = elements
+            .last()
+            .map(|e| e.trim().starts_with("..."))
+            .unwrap_or(false);
+        let array_name = {
+            let n = derived_array_counter.fetch_add(1, Ordering::Relaxed);
+            if n == 0 {
+                "$$derived_array".to_string()
+            } else {
+                format!("$$derived_array_{}", n)
+            }
+        };
+        let to_array_call = if has_rest {
+            format!("$.to_array({})", initial)
+        } else {
+            format!("$.to_array({}, {})", initial, elements.len())
+        };
+        inserts.push((array_name.clone(), to_array_call));
+        for (idx, elem) in elements.iter().enumerate() {
+            let elem = elem.trim();
+            if elem.is_empty() {
+                continue;
+            }
+            if let Some(rest_name) = elem.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                // upstream: `b.call(b.member(id, 'slice'), b.literal(i))`
+                // After wrap_derived_reads, `array_name` becomes
+                // `array_name()`. So the literal we emit is
+                // `array_name.slice(i)` which becomes `array_name().slice(i)`.
+                let rest_expr = format!("{}.slice({})", array_name, idx);
+                if is_plain_identifier(rest_name) {
+                    paths.push((rest_name.to_string(), rest_expr));
+                } else {
+                    extract_paths_walk(
+                        rest_name,
+                        &rest_expr,
+                        inserts,
+                        paths,
+                        derived_array_counter,
+                    );
+                }
+                continue;
+            }
+            // Element access via index. We emit `array_name[idx]` and
+            // wrap_derived_reads_in_script will turn it into `array_name()[idx]`.
+            let elem_access = format!("{}[{}]", array_name, idx);
+            // Default value: `name = default`
+            if let Some(eq) = find_top_level_equals(elem) {
+                let name_part = elem[..eq].trim();
+                let default = elem[eq + 1..].trim();
+                if is_plain_identifier(name_part) {
+                    let fallback = build_fallback_text(&elem_access, default);
+                    paths.push((name_part.to_string(), fallback));
+                } else {
+                    // Nested with default: `{a, b} = {}`
+                    let fallback = build_fallback_text(&elem_access, default);
+                    extract_paths_walk(name_part, &fallback, inserts, paths, derived_array_counter);
+                }
+            } else if elem.starts_with('{') || elem.starts_with('[') {
+                extract_paths_walk(elem, &elem_access, inserts, paths, derived_array_counter);
+            } else {
+                paths.push((elem.to_string(), elem_access));
+            }
+        }
+    } else {
+        // Identifier leaf
+        if is_plain_identifier(pattern) {
+            paths.push((pattern.to_string(), initial.to_string()));
+        }
+    }
+}
+
+/// Inside an object pattern property `key: value`, the `value` may itself be a
+/// destructure pattern, a default, or an identifier.
+fn handle_value_pattern(
+    value_pat: &str,
+    member: &str,
+    inserts: &mut Vec<(String, String)>,
+    paths: &mut Vec<(String, String)>,
+    derived_array_counter: &std::sync::atomic::AtomicUsize,
+) {
+    let value_pat = value_pat.trim();
+    if value_pat.starts_with('{') || value_pat.starts_with('[') {
+        // Could have a trailing default after the matching bracket.
+        let (sub_pattern, default) = split_pattern_default(value_pat);
+        let effective = if let Some(d) = default {
+            build_fallback_text(member, d)
+        } else {
+            member.to_string()
+        };
+        extract_paths_walk(
+            sub_pattern,
+            &effective,
+            inserts,
+            paths,
+            derived_array_counter,
+        );
+    } else if let Some(eq) = find_top_level_equals(value_pat) {
+        // `key: name = default`
+        let name = value_pat[..eq].trim();
+        let default = value_pat[eq + 1..].trim();
+        let fallback = build_fallback_text(member, default);
+        paths.push((name.to_string(), fallback));
+    } else {
+        // `key: value` — value is an identifier
+        paths.push((value_pat.to_string(), member.to_string()));
+    }
+}
+
+/// Split a pattern with a possible default after the matching outer bracket.
+/// `{a, b} = {}` → (`{a, b}`, Some(`{}`)).
+fn split_pattern_default(pattern: &str) -> (&str, Option<&str>) {
+    let pattern = pattern.trim();
+    if pattern.is_empty() {
+        return (pattern, None);
+    }
+    let open = pattern.as_bytes()[0];
+    let close = match open {
+        b'{' => b'}',
+        b'[' => b']',
+        _ => return (pattern, None),
+    };
+    let bytes = pattern.as_bytes();
+    let mut depth = 0i32;
+    for i in 0..bytes.len() {
+        let c = bytes[i];
+        if c == open {
+            depth += 1;
+        } else if c == close {
+            depth -= 1;
+            if depth == 0 {
+                let after = pattern[i + 1..].trim_start();
+                if let Some(rest) = after.strip_prefix('=') {
+                    let default = rest.trim();
+                    return (&pattern[..=i], Some(default));
+                }
+                return (pattern, None);
+            }
+        }
+    }
+    (pattern, None)
+}
+
+/// Build `(member ?? default)` text, mirroring `build_fallback`.
+fn build_fallback_text(member: &str, default: &str) -> String {
+    format!("({} ?? {})", member, default)
+}
+
+/// Build a member-access expression: `obj.key` or `obj["complex"]` for
+/// non-identifier keys.
+fn make_member(obj: &str, key: &str) -> String {
+    let key = key.trim();
+    if key.starts_with('[') && key.ends_with(']') {
+        // Computed: `[expr]` → `obj[expr]`
+        format!("{}{}", obj, key)
+    } else if is_plain_identifier(key) {
+        format!("{}.{}", obj, key)
+    } else {
+        // Literal string key etc. — leave bracketed.
+        format!("{}[{}]", obj, key)
+    }
+}
+
+/// Split a string `s` at top-level occurrences of `delim`, respecting
+/// nesting (`{}[]()`), strings, and template literals.
+fn split_top_level(s: &str, delim: u8) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    let mut i = 0usize;
+    let len = bytes.len();
+    while i < len {
+        let c = bytes[i];
+        if c == b'"' || c == b'\'' || c == b'`' {
+            // Skip string literal
+            let quote = c;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            _ => {}
+        }
+        if c == delim && depth == 0 {
+            out.push(s[start..i].to_string());
+            start = i + 1;
+        }
+        i += 1;
+    }
+    out.push(s[start..].to_string());
+    out
+}
+
+/// Find a top-level `:` in `prop`, respecting nesting and strings.
+fn find_top_level_colon(prop: &str) -> Option<usize> {
+    let bytes = prop.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    let len = bytes.len();
+    while i < len {
+        let c = bytes[i];
+        if c == b'"' || c == b'\'' || c == b'`' {
+            let quote = c;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Find a top-level `=` (default-value position) in `prop`, distinguishing
+/// from `==`, `===`, `=>`, and shorthand member operators.
+fn find_top_level_equals(prop: &str) -> Option<usize> {
+    let bytes = prop.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    let len = bytes.len();
+    while i < len {
+        let c = bytes[i];
+        if c == b'"' || c == b'\'' || c == b'`' {
+            let quote = c;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b'=' if depth == 0 => {
+                let next = bytes.get(i + 1).copied();
+                if next == Some(b'=') || next == Some(b'>') {
+                    i += 2;
+                    continue;
+                }
+                // Reject `>=`, `<=`, `!=`, etc.
+                let prev = if i > 0 { Some(bytes[i - 1]) } else { None };
+                if matches!(prev, Some(b'!' | b'<' | b'>' | b'=')) {
+                    i += 1;
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Check if `s` is a plain identifier (letters/digits/`_`/`$`, starts with
+/// non-digit).
+fn is_plain_identifier(s: &str) -> bool {
+    let s = s.trim();
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+/// True if [start, end) is a word — i.e., no identifier char immediately
+/// before `start` or after `end - 1`.
+fn is_word_boundary(bytes: &[u8], start: usize, end: usize) -> bool {
+    let before = if start == 0 {
+        None
+    } else {
+        Some(bytes[start - 1])
+    };
+    let after = bytes.get(end).copied();
+    let before_ok = match before {
+        Some(b) => !(b.is_ascii_alphanumeric() || b == b'_' || b == b'$'),
+        None => true,
+    };
+    let after_ok = match after {
+        Some(b) => !(b.is_ascii_alphanumeric() || b == b'_' || b == b'$'),
+        None => true,
+    };
+    before_ok && after_ok
+}
+
+/// Find a matching bracket. `start` is the byte position immediately after
+/// the opening bracket. Returns the byte position of the matching close
+/// bracket. Respects strings/templates and nesting of `{}[]()`.
+fn find_matching_bracket(bytes: &[u8], start: usize, open: u8, close: u8) -> Option<usize> {
+    let mut depth: i32 = 1;
+    let mut i = start;
+    let len = bytes.len();
+    while i < len {
+        let c = bytes[i];
+        if c == b'"' || c == b'\'' || c == b'`' {
+            let quote = c;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        if c == open {
+            depth += 1;
+        } else if c == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(i);
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Strip a top-level `await` keyword from the start of an expression string.
+///
+/// Mirrors upstream's `unthunk` collapse of `async () => await x` into
+/// `async () => x` when `x` has no nested await. We use this server-side
+/// when emitting `await $.async_derived(...)` around the visited value.
+fn strip_top_level_await_from_expr(expr: &str) -> String {
+    let trimmed = expr.trim();
+    if let Some(rest) = trimmed.strip_prefix("await ") {
+        rest.trim_start().to_string()
+    } else if let Some(rest) = trimmed.strip_prefix("await\n") {
+        rest.trim_start().to_string()
+    } else if let Some(rest) = trimmed.strip_prefix("await\t") {
+        rest.trim_start().to_string()
+    } else if let Some(rest) = trimmed.strip_prefix("await(") {
+        format!("({}", rest)
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// If `expr` is a simple no-argument call to a bare identifier (e.g. `foo()`),
+/// return the identifier (so it can be passed as a function reference to
+/// `$.derived`, mirroring upstream `unthunk`). Otherwise return `None`.
+fn unthunk_no_arg_ident_call(expr: &str) -> Option<&str> {
+    let trimmed = expr.trim();
+    let inner = trimmed.strip_suffix(')')?;
+    let (id_part, after) = inner.split_once('(')?;
+    if !after.trim().is_empty() {
+        return None;
+    }
+    let id_part = id_part.trim_end();
+    // `id_part` must be a plain identifier (no `.`, `?`, `[`, etc.) and
+    // must contain only identifier chars. Empty `foo  ()` is fine.
+    let id_trimmed = id_part.trim_start();
+    if id_trimmed.is_empty() {
+        return None;
+    }
+    if !id_trimmed
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+    {
+        return None;
+    }
+    if !id_trimmed
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+    {
+        return None;
+    }
+    // Reject reserved words that can't be used as identifiers in this slot.
+    if matches!(
+        id_trimmed,
+        "true" | "false" | "null" | "undefined" | "void" | "new" | "this"
+    ) {
+        return None;
+    }
+    Some(id_trimmed)
+}
+
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     // First, find function scopes where the rune name is shadowed by a parameter.
     // E.g., `function bar($derived, $effect) { ... }` shadows `$derived` inside bar.
@@ -1150,6 +3498,7 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let mut i = 0;
 
     let is_derived_by = prefix == "$derived.by(";
+    let is_derived = prefix == "$derived(";
 
     while i < chars.len() {
         if i + prefix_len <= chars.len() {
@@ -1201,27 +3550,82 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 let trimmed_inner = inner.trim();
 
                 if trimmed_inner.is_empty() {
-                    result.push_str("void 0");
+                    // Svelte 5.52+: empty `$derived()` is a no-op and shouldn't
+                    // appear in real code; treat it as `$.derived(() => void 0)`
+                    // for `$derived` and `$.derived(void 0)` for `$derived.by`.
+                    if is_derived {
+                        result.push_str("$.derived(() => void 0)");
+                    } else if is_derived_by {
+                        result.push_str("$.derived(void 0)");
+                    } else {
+                        result.push_str("void 0");
+                    }
                 } else if is_derived_by {
-                    // `$derived.by(fn)` becomes `(fn)()`. Strip a trailing
-                    // comma from `fn` first — Prettier-formatted call
-                    // sites often produce `$derived.by(fn,)` (a legal
-                    // trailing comma in function-call arguments), which
-                    // when rewritten naively would yield `(fn,)()` —
-                    // an invalid parenthesized expression with a
-                    // trailing comma. Preserve leading whitespace so
-                    // multi-line structure (newlines) survives.
+                    // Svelte 5.52+: `$derived.by(fn)` becomes `$.derived(fn)`
+                    // so the derived can be re-run on every render (the server
+                    // runtime calls the function each time the derived is read).
                     let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
-                    result.push('(');
+                    result.push_str("$.derived(");
                     result.push_str(cleaned);
-                    result.push_str(")()");
+                    result.push(')');
+                } else if is_derived {
+                    // Svelte 5.52+: `$derived(expr)` becomes
+                    // `$.derived(() => expr)` so the derived re-runs each time
+                    // a render reads it. An object-literal expression must be
+                    // wrapped in parens (`() => ({ ... })`) — otherwise the
+                    // braces parse as a function body.
+                    //
+                    // Mirror upstream's `unthunk` optimization: a bare
+                    // `$derived(foo())` (no-arg call to a simple identifier)
+                    // collapses to `$.derived(foo)` rather than
+                    // `$.derived(() => foo())`.
+                    //
+                    // For async derived (top-level `await` in expression), the
+                    // upstream emits `await $.async_derived(b.thunk(value, true))`
+                    // — i.e. `await $.async_derived(async () => value)` with
+                    // an unthunk pass that collapses `async () => await x`
+                    // to `async () => x` when `x` has no nested await.
+                    let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+                    if super::helpers::expr_contains_await(cleaned) {
+                        // Async derived emission. Strip the top-level `await`
+                        // (the unthunk pass), then check whether the remaining
+                        // expression has nested awaits — if so we still need
+                        // an `async` arrow.
+                        let stripped = strip_top_level_await_from_expr(cleaned);
+                        let nested_await = super::helpers::expr_contains_await(&stripped);
+                        let needs_paren = stripped.trim_start().starts_with('{');
+                        if nested_await {
+                            result.push_str("await $.async_derived(async () => ");
+                        } else {
+                            result.push_str("await $.async_derived(() => ");
+                        }
+                        if needs_paren {
+                            result.push('(');
+                            result.push_str(&stripped);
+                            result.push(')');
+                        } else {
+                            result.push_str(&stripped);
+                        }
+                        result.push(')');
+                    } else if let Some(ident) = unthunk_no_arg_ident_call(cleaned) {
+                        result.push_str("$.derived(");
+                        result.push_str(ident);
+                        result.push(')');
+                    } else {
+                        let needs_paren = cleaned.trim_start().starts_with('{');
+                        result.push_str("$.derived(() => ");
+                        if needs_paren {
+                            result.push('(');
+                            result.push_str(cleaned);
+                            result.push(')');
+                        } else {
+                            result.push_str(cleaned);
+                        }
+                        result.push(')');
+                    }
                 } else {
-                    // Strip trailing comma from the extracted expression.
-                    // $derived(expr,) is valid JS (trailing comma in function args),
-                    // but after stripping $derived(), `let x = expr,` would be invalid.
-                    // We must preserve leading whitespace/newlines to maintain multi-line
-                    // structure (so that `add_statement_semicolon` doesn't prematurely
-                    // terminate the expression).
+                    // $state and friends keep their previous semantics: strip
+                    // the rune wrapper, preserve the raw expression.
                     let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
                     result.push_str(cleaned);
                 }

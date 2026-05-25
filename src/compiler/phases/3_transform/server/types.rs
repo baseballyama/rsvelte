@@ -548,6 +548,22 @@ pub(crate) struct ComponentCodeResult {
     pub needs_leading_marker: bool,
     /// Trailing marker behavior after the component call.
     pub trailing_marker: TrailingMarkerBehavior,
+    /// If set, the call code must be wrapped in an `if (test) { ... } else { ... }`
+    /// hydration guard (Svelte 5.52+ dynamic component handling). The bridge
+    /// builds a structured `JsStatement::If` so the codegen handles
+    /// indentation naturally.
+    pub dynamic_wrap: Option<DynamicComponentWrap>,
+}
+
+/// Information needed to wrap a dynamic component call in a hydration
+/// guard.
+pub(crate) struct DynamicComponentWrap {
+    /// Test expression used in the `if` condition (e.g. `Comp` or `x ? Foo : Bar`).
+    pub test: String,
+    /// Whether the wrapped `code` contains a `$.css_props($$renderer, ..., () => { <call> }, true);`
+    /// outer wrapper. In that case we wrap just the inner call rather than
+    /// the whole `code` string.
+    pub has_css_props: bool,
 }
 
 /// Describes how a trailing `<!---->` marker should be emitted after a component call.

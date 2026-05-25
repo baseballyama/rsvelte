@@ -3612,6 +3612,15 @@ fn transform_instance_script_for_visitors(
             }
             let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
             // Regular non-reactive bindings with initial literal/primitive value.
+            //
+            // Mirror upstream `should_proxy`: when the binding initial is one
+            // of the "transparent" non-value declarations (function / class /
+            // import / each-block / snippet-block) we must NOT classify the
+            // name as non-proxy. Upstream `should_proxy(Identifier)` recurses
+            // into `binding.initial` only when initial.type is NOT one of
+            // those five and otherwise falls through to `return true`.
+            // Imports show up with `import_source.is_some()` and may not have
+            // an `initial_node_type` set; treat them the same way.
             if is_top_level
                 && b.initial.is_some()
                 && !matches!(
@@ -3622,6 +3631,17 @@ fn transform_instance_script_for_visitors(
                         | BindingKind::Prop
                         | BindingKind::BindableProp
                         | BindingKind::StoreSub
+                )
+                && b.import_source.is_none()
+                && !matches!(
+                    b.initial_node_type.as_deref(),
+                    Some(
+                        "FunctionDeclaration"
+                            | "ClassDeclaration"
+                            | "ImportDeclaration"
+                            | "EachBlock"
+                            | "SnippetBlock"
+                    )
                 )
             {
                 return true;

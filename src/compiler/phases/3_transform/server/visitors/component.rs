@@ -24,7 +24,9 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         component: &Component,
     ) -> Result<(), TransformError> {
-        let comp_name = component.name.to_string();
+        // Svelte 5.52+: if the component identifier resolves to a `$derived`
+        // binding, emit `name()` so the dynamic call gets the live component.
+        let comp_name = self.wrap_derived_reads(component.name.as_ref());
 
         // Check if there's any prior content (HTML, expressions, or other components)
         let has_prior_content = self.output_parts.iter().any(|part| {
@@ -281,9 +283,13 @@ impl<'a> ServerCodeGenerator<'a> {
                                 let getter_expr =
                                     self.source[getter_start..getter_end].trim().to_string();
                                 let getter_expr = self.strip_ts_from_expr(&getter_expr);
+                                // Svelte 5.52+: rewrite bare reads of $derived
+                                // bindings to calls.
+                                let getter_expr = self.wrap_derived_reads(&getter_expr);
                                 let setter_expr =
                                     self.source[setter_start..setter_end].trim().to_string();
                                 let setter_expr = self.strip_ts_from_expr(&setter_expr);
+                                let setter_expr = self.wrap_derived_reads(&setter_expr);
                                 bindings.push(ComponentBinding::SequenceExpression {
                                     prop_name: prop_name.to_string(),
                                     getter_expr,
