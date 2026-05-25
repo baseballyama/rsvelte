@@ -233,6 +233,9 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-reactivity-loss-no-false-positive-1",
     "async-reactivity-loss-no-false-positive-2",
     "async-reactivity-loss-no-false-positive-3",
+    // derived-dep-set-while-rendering (Svelte 5.55.5): also skipped in
+    // compatibility_report.
+    "derived-dep-set-while-rendering",
 ];
 
 /// runtime-legacy fixtures that diverged after the Svelte 5.53.4 scope fix
