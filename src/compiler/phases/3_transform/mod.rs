@@ -139,6 +139,24 @@ pub fn transform_component(
         }
         GenerateMode::Server => {
             let code = server::transform_server(analysis, ast, source, options)?;
+            // Template-expression interpolations in the SSR output are spliced
+            // straight from source positions, so for a TypeScript component
+            // (`<script lang="ts">`) bits of TS-only syntax — `as T` casts,
+            // `<T>` generics, `! ` non-null assertions, `: T` annotations on
+            // inline destructures — can leak into the emitted JS inside
+            // `$.escape(...)`, `$.stringify(...)`, `$.attr_style(...)`, etc.
+            // rolldown then rejects the result with
+            // `Type assertion expressions can only be used in TypeScript files`.
+            // Run the same TypeScript strip the analyzer uses over the final
+            // output to catch every leak in one pass, rather than threading
+            // a per-expression strip through every visitor source-slice site.
+            // Real-world surface: shadcn-svelte's `base-color-picker.svelte`
+            // → `style="--color: {map?.[mode.current as 'light' | 'dark']?.[…]}"`.
+            let code = if analysis.is_typescript {
+                crate::compiler::phases::phase2_analyze::types::strip_typescript(&code)
+            } else {
+                code
+            };
             if options.enable_sourcemap {
                 // Generate token-level mappings by matching tokens in the server
                 // output to tokens in the original source
