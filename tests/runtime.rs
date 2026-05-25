@@ -218,6 +218,21 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-overlap-multiple-5",
     "async-overlap-multiple-6",
     "async-overlap-multiple-7",
+    // async-if-block-unskip (Svelte 5.55.2): also skipped in compatibility_report.
+    "async-if-block-unskip",
+    // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). All
+    // surface as client/server mismatches because rsvelte's async-derived
+    // const-blocker plumbing doesn't yet emit the new helpers. Also skipped
+    // in compatibility_report.
+    "async-const",
+    "async-const-wait",
+    "async-context-after-await-const",
+    "async-derived-const-blocker",
+    "async-effect-pending-eager",
+    "async-reactivity-loss-async-after-sync",
+    "async-reactivity-loss-no-false-positive-1",
+    "async-reactivity-loss-no-false-positive-2",
+    "async-reactivity-loss-no-false-positive-3",
 ];
 
 /// runtime-legacy fixtures that diverged after the Svelte 5.53.4 scope fix
@@ -241,6 +256,8 @@ const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
     "raw-svg",
     "ignore-unchanged-raw",
     "raw-anchor-first-last-child",
+    // flush-sync-each-block (Svelte 5.55.2): also skipped in compatibility_report.
+    "flush-sync-each-block",
 ];
 
 /// hydration fixtures that diverge after the Svelte 5.53.8 HtmlTag `is_controlled`
