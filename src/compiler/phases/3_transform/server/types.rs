@@ -363,6 +363,10 @@ pub(crate) enum OutputPart {
         /// True if this is rendering the pending state (use <!--[!-->) marker)
         /// False if rendering main content (use <!--[--> marker)
         is_pending: bool,
+        /// When `Some`, wrap the open marker / body block / close marker in
+        /// `$$renderer.boundary({ failed: <expr> }, ($$renderer) => { ... })`.
+        /// The string is the props expression for the boundary call (e.g. `{ failed }`).
+        failed_props: Option<String>,
     },
     /// svelte:boundary with a pending attribute expression
     /// When the pending expression is non-null, renders the pending function call;
@@ -374,6 +378,9 @@ pub(crate) enum OutputPart {
         pending_body: Vec<OutputPart>,
         /// Body to render when pending is falsy (main content)
         main_body: Vec<OutputPart>,
+        /// When `Some`, wrap the if/else in
+        /// `$$renderer.boundary({ failed: <expr> }, ($$renderer) => { ... })`.
+        failed_props: Option<String>,
     },
     /// svelte:head - document head manipulation
     SvelteHead {

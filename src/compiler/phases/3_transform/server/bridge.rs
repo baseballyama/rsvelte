@@ -474,29 +474,66 @@ fn convert_part_to_item(
         // Complex parts: delegate each individually to build_parts_with_store_subs.
         // This allows block markers and expressions around them to be properly
         // coalesced by build_template().
-        // SvelteBoundary: handle directly so the opening/closing markers
-        // can coalesce with adjacent HTML through build_template().
-        OutputPart::SvelteBoundary { body, is_pending } => {
-            // Opening marker as Expression (coalesces with preceding HTML)
+        // SvelteBoundary: per upstream feat: allow error boundaries to work on the
+        // server (5.53.0) the open/close markers are emitted as separate
+        // $$renderer.push() statements rather than fusing with surrounding HTML.
+        // When a failed snippet/attribute is present, the whole sequence is
+        // wrapped in $$renderer.boundary({...}, ($$renderer) => { ... });
+        OutputPart::SvelteBoundary {
+            body,
+            is_pending,
+            failed_props,
+        } => {
             let open_marker = if *is_pending { "<!--[!-->" } else { "<!--[-->" };
-            items.push(TemplateItem::Expression(JsExpr::Literal(
-                JsLiteral::String(open_marker.into()),
-            )));
+            let inner_body_code =
+                generate_inner_body_code(body, _arena, store_subs, each_counter, 1);
 
-            // Body in a JavaScript block
-            let body_code = generate_inner_body_code(body, _arena, store_subs, each_counter, 1);
-            let block_code = format!("{{\n{}}}", body_code);
-            let trimmed = block_code.trim();
-            if !trimmed.is_empty() {
+            let inner = {
+                let mut s = String::new();
+                s.push_str(&format!("$$renderer.push(`{}`);\n\n", open_marker));
+                s.push_str("{\n");
+                s.push_str(&inner_body_code);
+                s.push_str("}\n\n");
+                s.push_str("$$renderer.push(`<!--]-->`);");
+                s
+            };
+
+            if let Some(props) = failed_props {
+                let mut code = String::new();
+                code.push_str(&format!(
+                    "$$renderer.boundary({}, ($$renderer) => {{\n",
+                    props
+                ));
+                for line in inner.lines() {
+                    if line.is_empty() {
+                        code.push('\n');
+                    } else {
+                        code.push('\t');
+                        code.push_str(line);
+                        code.push('\n');
+                    }
+                }
+                code.push_str("});");
                 items.push(TemplateItem::Statement(JsStatement::Raw(
-                    CompactString::new(trimmed),
+                    CompactString::new(code),
+                )));
+            } else {
+                // Emit each marker as its own Statement so it doesn't fuse with
+                // adjacent HTML via Expression coalescing.
+                items.push(TemplateItem::Statement(JsStatement::Raw(
+                    CompactString::new(format!("$$renderer.push(`{}`);", open_marker)),
+                )));
+                let block_code = format!("{{\n{}}}", inner_body_code);
+                let trimmed = block_code.trim();
+                if !trimmed.is_empty() {
+                    items.push(TemplateItem::Statement(JsStatement::Raw(
+                        CompactString::new(trimmed),
+                    )));
+                }
+                items.push(TemplateItem::Statement(JsStatement::Raw(
+                    CompactString::new("$$renderer.push(`<!--]-->`);"),
                 )));
             }
-
-            // Closing marker as Expression (coalesces with following HTML)
-            items.push(TemplateItem::Expression(JsExpr::Literal(
-                JsLiteral::String("<!--]-->".into()),
-            )));
         }
 
         // BlockScope: wrap body in { }
@@ -672,11 +709,13 @@ fn convert_part_to_item(
             pending_expr,
             pending_body,
             main_body,
+            failed_props,
         } => {
             convert_svelte_boundary_with_pending(
                 pending_expr,
                 pending_body,
                 main_body,
+                failed_props.as_deref(),
                 items,
                 store_subs,
                 each_counter,
@@ -1953,42 +1992,63 @@ fn convert_slot(
 /// Convert a SvelteBoundaryWithPending OutputPart to TemplateItems.
 ///
 /// Generates: `if (pending_expr) { <!--[!--> pending_body <!--]--> } else { <!--[--> main_body <!--]--> }`
+#[allow(clippy::too_many_arguments)]
 fn convert_svelte_boundary_with_pending(
     pending_expr: &str,
     pending_body: &[OutputPart],
     main_body: &[OutputPart],
+    failed_props: Option<&str>,
     items: &mut Vec<TemplateItem>,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
 ) {
-    let mut code = String::new();
-
-    code.push_str(&format!("if ({}) {{\n", pending_expr));
-    code.push_str("\t$$renderer.push(`<!--[!-->`);\n");
+    // Build the if/else block body. When inside a boundary call, indent each
+    // line by one extra tab.
+    let mut inner = String::new();
+    inner.push_str(&format!("if ({}) {{\n", pending_expr));
+    inner.push_str("\t$$renderer.push(`<!--[!-->`);\n");
     if !pending_body.is_empty() {
         let pending_code =
             generate_inner_body_code_direct(pending_body, store_subs, each_counter, 1);
-        code.push_str(&pending_code);
+        inner.push_str(&pending_code);
     }
-    code.push_str("\t$$renderer.push(`<!--]-->`);\n");
-    code.push_str("} else {\n");
-    code.push_str("\t$$renderer.push(`<!--[-->`);\n");
+    inner.push_str("\t$$renderer.push(`<!--]-->`);\n");
+    inner.push_str("} else {\n");
+    inner.push_str("\t$$renderer.push(`<!--[-->`);\n");
     if !main_body.is_empty() {
         // Wrap the main body in a `{ ... }` block scope. The official
         // SvelteBoundary visitor scopes the else-branch's hoisted `let`
         // declarations (e.g. `let data; var promises = ...`) so they don't
-        // leak into the surrounding function. Match that — without the
-        // wrapper our async-body transform's hoisted vars sit in the parent
-        // function scope, diffing against the expected fixture.
-        code.push_str("\n\t{\n");
+        // leak into the surrounding function.
+        inner.push_str("\n\t{\n");
         let main_code = generate_inner_body_code_direct(main_body, store_subs, each_counter, 2);
-        code.push_str(&main_code);
-        code.push_str("\t}\n\n");
+        inner.push_str(&main_code);
+        inner.push_str("\t}\n\n");
     }
-    code.push_str("\t$$renderer.push(`<!--]-->`);\n");
-    code.push('}');
+    inner.push_str("\t$$renderer.push(`<!--]-->`);\n");
+    inner.push('}');
 
-    let trimmed = code.trim();
+    let trimmed = if let Some(props) = failed_props {
+        let mut wrapped = String::new();
+        wrapped.push_str(&format!(
+            "$$renderer.boundary({}, ($$renderer) => {{\n",
+            props
+        ));
+        for line in inner.lines() {
+            if line.is_empty() {
+                wrapped.push('\n');
+            } else {
+                wrapped.push('\t');
+                wrapped.push_str(line);
+                wrapped.push('\n');
+            }
+        }
+        wrapped.push_str("});");
+        wrapped
+    } else {
+        inner.trim().to_string()
+    };
+
     if !trimmed.is_empty() {
         items.push(TemplateItem::Statement(JsStatement::Raw(
             CompactString::new(trimmed),

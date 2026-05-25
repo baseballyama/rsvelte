@@ -1,21 +1,21 @@
 {
-  "generated_at": "2026-05-25T00:53:58.002736+00:00",
-  "commit_sha": "cbf4e246fc0d",
+  "generated_at": "2026-05-25T03:13:24.476194+00:00",
+  "commit_sha": "c2fc95a4674f",
   "summary": {
-    "total": 3419,
-    "passed": 3339,
+    "total": 3429,
+    "passed": 3346,
     "failed": 0,
-    "skipped": 80,
+    "skipped": 83,
     "percentage": 100
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
-      "total": 22,
+      "total": 23,
       "passed": 22,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -99,6 +99,11 @@
           "status": "pass"
         },
         {
+          "name": "comment-in-tag",
+          "status": "skip",
+          "skip_reason": "Comments-in-tags (Svelte 5.53.0) not yet ported"
+        },
+        {
           "name": "comment-before-script",
           "status": "pass"
         },
@@ -112,9 +117,9 @@
       "id": "parser-legacy",
       "name": "Parser Legacy",
       "total": 83,
-      "passed": 82,
+      "passed": 81,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 2,
       "percentage": 100,
       "tests": [
         {
@@ -224,7 +229,8 @@
         },
         {
           "name": "script-comment-only",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Comments-in-tags (Svelte 5.53.0) not yet ported"
         },
         {
           "name": "attribute-style-directive-string",
@@ -3172,10 +3178,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 869,
-      "passed": 869,
+      "total": 874,
+      "passed": 873,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -3909,6 +3915,11 @@
         {
           "name": "member-expression-component",
           "status": "pass"
+        },
+        {
+          "name": "async-derived-title-update",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "class-raw-state",
@@ -4699,6 +4710,10 @@
           "status": "pass"
         },
         {
+          "name": "error-boundary-27",
+          "status": "pass"
+        },
+        {
           "name": "hydration-html-changed-ignored",
           "status": "pass"
         },
@@ -4832,6 +4847,10 @@
         },
         {
           "name": "class-state-init",
+          "status": "pass"
+        },
+        {
+          "name": "error-boundary-26",
           "status": "pass"
         },
         {
@@ -6143,6 +6162,10 @@
           "status": "pass"
         },
         {
+          "name": "async-error-boundary",
+          "status": "pass"
+        },
+        {
           "name": "event-on-3",
           "status": "pass"
         },
@@ -6616,6 +6639,10 @@
         },
         {
           "name": "snippet-const",
+          "status": "pass"
+        },
+        {
+          "name": "async-error-boundary-2",
           "status": "pass"
         },
         {
@@ -11932,8 +11959,8 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 85,
-      "passed": 85,
+      "total": 89,
+      "passed": 89,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12039,6 +12066,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-no-onerror",
+          "status": "pass"
+        },
+        {
           "name": "select-value-bind-store",
           "status": "pass"
         },
@@ -12123,6 +12154,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-no-failed-snippet",
+          "status": "pass"
+        },
+        {
           "name": "attribute-spread-with-null",
           "status": "pass"
         },
@@ -12175,6 +12210,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-error-failed-prop",
+          "status": "pass"
+        },
+        {
           "name": "static-div",
           "status": "pass"
         },
@@ -12220,6 +12259,10 @@
         },
         {
           "name": "attribute-spread-hidden",
+          "status": "pass"
+        },
+        {
+          "name": "boundary-error-with-onerror",
           "status": "pass"
         },
         {
