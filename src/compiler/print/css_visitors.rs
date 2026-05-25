@@ -306,8 +306,11 @@ fn visit_nth(context: &mut Context, node: &Value) {
 /// * `node` - The Percentage node
 fn visit_percentage(context: &mut Context, node: &Value) {
     if let Some(value) = node.get("value").and_then(|v| v.as_str()) {
+        // `value` already contains the trailing `%` (the parser captures the
+        // `%` as part of the literal — same shape as upstream's Percentage
+        // AST). Mirrors upstream commit `ca3f35bf7` which fixed
+        // double-printing here.
         context.write(value);
-        context.write("%");
     }
 }
 
@@ -400,13 +403,7 @@ fn visit_relative_selector(context: &mut Context, node: &Value) {
                 && e <= source.len()
             {
                 let text = source[s..e].trim();
-                // For keyframe percentages, double the % for esrap compatibility
-                if text.ends_with('%') {
-                    context.write(text);
-                    context.write("%");
-                } else {
-                    context.write(text);
-                }
+                context.write(text);
             }
         } else {
             for selector in selectors {
@@ -633,7 +630,7 @@ mod tests {
         let mut ctx = Context::new(&allocator);
         let node = json!({
             "type": "Percentage",
-            "value": "50"
+            "value": "50%"
         });
         visit_percentage(&mut ctx, &node);
         assert_eq!(ctx.to_string(), "50%");

@@ -1355,18 +1355,12 @@ fn reformat_css_at_rule(block: &str) -> String {
                 return format!("{} {{}}", prelude);
             }
 
-            let is_keyframes = prelude.starts_with("@keyframes");
-
             // Check if inner contains nested blocks (like @media, @keyframes)
             if inner.contains('{') {
                 let nested_blocks = split_css_inner_blocks(inner);
                 let mut lines = vec![format!("{} {{", prelude)];
                 for nested in &nested_blocks {
-                    let mut reformatted = reformat_css_block(nested);
-                    // For keyframes, double the % in percentage selectors
-                    if is_keyframes {
-                        reformatted = double_keyframe_percentages(&reformatted);
-                    }
+                    let reformatted = reformat_css_block(nested);
                     lines.push(indent_lines(&reformatted, "\t"));
                 }
                 lines.push("}".to_string());
@@ -1391,23 +1385,6 @@ fn reformat_css_at_rule(block: &str) -> String {
         format!("{};", block)
     } else {
         block.to_string()
-    }
-}
-
-/// Double percentage signs in keyframe selectors (e.g., "50%" -> "50%%").
-/// This matches the official Svelte printer behavior where esrap's Percentage
-/// visitor outputs "50%" but inside keyframes it becomes "50%%".
-fn double_keyframe_percentages(text: &str) -> String {
-    // Only double % in the prelude (before the {)
-    if let Some(brace_pos) = text.find('{') {
-        let prelude = &text[..brace_pos];
-        let rest = &text[brace_pos..];
-
-        // Check if prelude contains a percentage (digits followed by %)
-        let doubled_prelude = prelude.replace('%', "%%");
-        format!("{}{}", doubled_prelude, rest)
-    } else {
-        text.to_string()
     }
 }
 
