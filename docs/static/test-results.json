@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T06:06:39.249499+00:00",
-  "commit_sha": "d4c78292ed66",
+  "generated_at": "2026-05-25T07:07:12.991612+00:00",
+  "commit_sha": "25a1c5368be7",
   "summary": {
-    "total": 3445,
-    "passed": 3350,
+    "total": 3449,
+    "passed": 3353,
     "failed": 0,
-    "skipped": 95,
+    "skipped": 96,
     "percentage": 100
   },
   "categories": [
@@ -552,10 +552,10 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 179,
+      "total": 180,
       "passed": 179,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -661,6 +661,11 @@
         {
           "name": "host",
           "status": "pass"
+        },
+        {
+          "name": "css-prune-edge-cases",
+          "status": "skip",
+          "skip_reason": "CSS pruning edge cases (Svelte 5.53.7) not yet ported"
         },
         {
           "name": "unicode-identifier",
@@ -3178,8 +3183,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 882,
-      "passed": 876,
+      "total": 885,
+      "passed": 879,
       "failed": 0,
       "skipped": 6,
       "percentage": 100,
@@ -4288,6 +4293,10 @@
         },
         {
           "name": "derived-server-memoization",
+          "status": "pass"
+        },
+        {
+          "name": "async-each-preserve-pending",
           "status": "pass"
         },
         {
@@ -5829,6 +5838,10 @@
           "status": "pass"
         },
         {
+          "name": "svelte-meta-if-else",
+          "status": "pass"
+        },
+        {
           "name": "svg-namespace-if-block",
           "status": "pass"
         },
@@ -6708,6 +6721,10 @@
         },
         {
           "name": "each-key-volatile",
+          "status": "pass"
+        },
+        {
+          "name": "async-each-const-await-error-boundary",
           "status": "pass"
         },
         {
