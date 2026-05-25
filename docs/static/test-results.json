@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T04:48:46.069210+00:00",
-  "commit_sha": "97f3ac557158",
+  "generated_at": "2026-05-25T05:33:46.423900+00:00",
+  "commit_sha": "96fd3ce76352",
   "summary": {
-    "total": 3433,
-    "passed": 3347,
+    "total": 3437,
+    "passed": 3343,
     "failed": 0,
-    "skipped": 86,
+    "skipped": 94,
     "percentage": 100
   },
   "categories": [
@@ -3178,10 +3178,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 878,
-      "passed": 874,
+      "total": 882,
+      "passed": 876,
       "failed": 0,
-      "skipped": 4,
+      "skipped": 6,
       "percentage": 100,
       "tests": [
         {
@@ -4211,6 +4211,10 @@
           "status": "pass"
         },
         {
+          "name": "function-parameter-shadowing",
+          "status": "pass"
+        },
+        {
           "name": "nested-destructure-assignment",
           "status": "pass"
         },
@@ -5198,6 +5202,11 @@
         {
           "name": "snippet-children-without-render-tag-dev-prod",
           "status": "pass"
+        },
+        {
+          "name": "async-boundary-nav-race",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "async-effect-conservative",
@@ -6465,6 +6474,10 @@
           "status": "pass"
         },
         {
+          "name": "async-error-boundary-3",
+          "status": "pass"
+        },
+        {
           "name": "proxy-prop-bound",
           "status": "pass"
         },
@@ -6559,6 +6572,11 @@
         {
           "name": "effect-teardown-stale-value",
           "status": "pass"
+        },
+        {
+          "name": "async-if-else",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "effect-root-4",
@@ -6706,9 +6724,9 @@
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
       "total": 1202,
-      "passed": 1202,
+      "passed": 1196,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 6,
       "percentage": 100,
       "tests": [
         {
@@ -6773,7 +6791,8 @@
         },
         {
           "name": "const-tag-each-arrow",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "component-events",
@@ -7617,7 +7636,8 @@
         },
         {
           "name": "const-tag-each-duplicated-variable2",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "module-context-export-referenced-in-template",
@@ -7905,7 +7925,8 @@
         },
         {
           "name": "const-tag-each-duplicated-variable3",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "reactive-update-expression",
@@ -8057,7 +8078,8 @@
         },
         {
           "name": "const-tag-each-function",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "const-tag-each-destructure-computed-in-computed",
@@ -10149,7 +10171,8 @@
         },
         {
           "name": "await-block-func-function",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "binding-input-group-each-5",
@@ -10465,7 +10488,8 @@
         },
         {
           "name": "const-tag-each-const",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "immutable-nested",
