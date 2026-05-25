@@ -2013,8 +2013,34 @@ fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
                     continue;
                 }
                 if c == b'?' && depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
-                    // Ternary: `cond ? foo : bar` — rewrite.
-                    return true;
+                    // Disambiguate ternary `?` from `??` (nullish coalescing)
+                    // and `?.` (optional chaining). Both can sit at the same
+                    // walkback position, but only the ternary makes this an
+                    // expression context; the others are operators between
+                    // expressions and we should keep walking back to find the
+                    // enclosing brace (which may turn out to be an object key
+                    // position and stop the rewrite).
+                    //
+                    // Real-world surface: shadcn-svelte's
+                    // `design-system-provider.svelte` had
+                    // `{ chartColor: x ?? y, radius: derived }` — walking back
+                    // from `radius` hit the `??` in the previous property's
+                    // value and incorrectly classified `radius` as a ternary
+                    // RHS, wrapping it to `radius()` in object-key position.
+                    let prev_char = (0..j).rev().find(|&k| !bytes[k].is_ascii_whitespace());
+                    let next_char_after_q = (j + 1..bytes.len())
+                        .find(|&k| !bytes[k].is_ascii_whitespace())
+                        .map(|k| bytes[k]);
+                    let is_nullish_coalescing =
+                        prev_char.map(|k| bytes[k] == b'?').unwrap_or(false)
+                            || next_char_after_q == Some(b'?');
+                    let is_optional_chain = next_char_after_q == Some(b'.');
+                    if !is_nullish_coalescing && !is_optional_chain {
+                        // Ternary: `cond ? foo : bar` — rewrite.
+                        return true;
+                    }
+                    // Otherwise keep scanning back.
+                    continue;
                 }
                 // Default: keep scanning.
             }
