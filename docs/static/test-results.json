@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T10:00:48.462701+00:00",
-  "commit_sha": "2e29c87cc9f4",
+  "generated_at": "2026-05-25T10:23:54.734188+00:00",
+  "commit_sha": "4a50e8ea3b7d",
   "summary": {
-    "total": 3504,
+    "total": 3511,
     "passed": 3376,
     "failed": 0,
-    "skipped": 128,
+    "skipped": 135,
     "percentage": 100
   },
   "categories": [
@@ -3188,10 +3188,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 935,
+      "total": 942,
       "passed": 908,
       "failed": 0,
-      "skipped": 27,
+      "skipped": 34,
       "percentage": 100,
       "tests": [
         {
@@ -3671,6 +3671,10 @@
         },
         {
           "name": "event-attribute-bubble",
+          "status": "pass"
+        },
+        {
+          "name": "hmr-dynamic-component",
           "status": "pass"
         },
         {
@@ -4212,6 +4216,11 @@
           "status": "pass"
         },
         {
+          "name": "async-reactivity-loss-no-false-positive-2",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "async-settled-after-dom",
           "status": "pass"
         },
@@ -4416,6 +4425,11 @@
         {
           "name": "proxy-array",
           "status": "pass"
+        },
+        {
+          "name": "async-reactivity-loss-no-false-positive-3",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "proxy-cyclical",
@@ -4753,7 +4767,8 @@
         },
         {
           "name": "async-const-wait",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "accessors-props",
@@ -4890,7 +4905,8 @@
         },
         {
           "name": "async-const",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "deferred-events-consistency",
@@ -5957,6 +5973,10 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-failure-escapes",
+          "status": "pass"
+        },
+        {
           "name": "derived-cascade",
           "status": "pass"
         },
@@ -6232,6 +6252,11 @@
           "status": "pass"
         },
         {
+          "name": "async-reactivity-loss-no-false-positive-1",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "legacy-recursive-reactive-block",
           "status": "pass"
         },
@@ -6254,6 +6279,11 @@
         {
           "name": "dependencyless-abort-signal",
           "status": "pass"
+        },
+        {
+          "name": "async-derived-const-blocker",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "derived-destructure",
@@ -6936,6 +6966,11 @@
         {
           "name": "async-head",
           "status": "pass"
+        },
+        {
+          "name": "async-reactivity-loss-async-after-sync",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "form-default-value-from-spread",
