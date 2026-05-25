@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/vite-plugin-svelte-native",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "NAPI bindings to the rsvelte compiler — used by the @rsvelte vite-plugin-svelte shim",
   "license": "MIT",
   "repository": {
