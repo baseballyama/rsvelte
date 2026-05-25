@@ -29,8 +29,19 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 ///   const expression = build_expression(context, node.expression, node.metadata.expression);
 ///   b.stmt(b.call('$.html', context.state.node, b.thunk(expression), ...))
 pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
+    // Svelte 5.53.8 (upstream commit `0206a2019` "fix: clean up
+    // externally-added DOM nodes in {@html} on re-render") added an
+    // `is_controlled` flag — when the {@html} sits directly inside a
+    // contenteditable element the parent owns the namespace and the wrapper
+    // anchor comment is skipped. rsvelte doesn't surface
+    // `metadata.is_controlled` from analysis yet, so treat every {@html} as
+    // non-controlled (the common case) and always emit the anchor comment.
+    let is_controlled = false;
+
     // Push comment anchor to template
-    context.state.template.push_comment(None);
+    if !is_controlled {
+        context.state.template.push_comment(None);
+    }
 
     let has_await = node.metadata.expression.has_await()
         || super::shared::utils::expression_has_await(&node.expression);
@@ -61,9 +72,10 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
         built_expression.clone()
     };
 
-    // Check namespace for SVG/MathML
-    let is_svg = context.state.metadata.namespace == "svg";
-    let is_mathml = context.state.metadata.namespace == "mathml";
+    // When `is_controlled`, the parent already provides the namespace, so the
+    // is_svg / is_mathml flags only matter for the non-controlled wrapper.
+    let is_svg = !is_controlled && context.state.metadata.namespace == "svg";
+    let is_mathml = !is_controlled && context.state.metadata.namespace == "mathml";
 
     // Create thunk and apply unthunk optimization
     let thunked = b::thunk(&context.arena, html_expr);
@@ -76,9 +88,22 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
             .iter()
             .any(|c| c == "hydration_html_changed");
 
-    // Build arguments: $.html(node, thunked_expression, is_svg?, is_mathml?, ignore_hydration?)
+    // Build arguments: $.html(node, thunked, is_controlled?, is_svg?, is_mathml?, ignore_hydration?)
+    //
+    // Svelte 5.53.8 inserted `is_controlled` between `thunked` and the
+    // existing namespace flags. We emit it as `void 0` when not controlled
+    // (rsvelte never sets `metadata.is_controlled = true` for now) and only
+    // when a later argument is also present, mirroring upstream's
+    // tail-trimming of trailing falsy args.
     let mut html_args = vec![context.state.node.clone(), thunked];
 
+    if is_controlled || is_svg || is_mathml || ignore_hydration {
+        html_args.push(if is_controlled {
+            b::boolean(true)
+        } else {
+            b::undefined(&context.arena)
+        });
+    }
     if is_svg || is_mathml || ignore_hydration {
         html_args.push(if is_svg {
             b::boolean(true)
