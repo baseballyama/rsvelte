@@ -5,8 +5,9 @@
 //! 2. Analyze - Semantic analysis
 //! 3. Transform - Code generation
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fs;
+use std::hint::black_box;
 use std::path::PathBuf;
 
 use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};

@@ -2,8 +2,9 @@
 //!
 //! Measures the performance of the Svelte parser on various inputs.
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fs;
+use std::hint::black_box;
 use std::path::PathBuf;
 
 use svelte_compiler_rust::{ParseOptions, parse, parse_parallel};
