@@ -128,7 +128,7 @@ jobs:
       # cover the Windows ABI surface.
       - name: Set up Go
         if: runner.os != 'Windows'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
 
