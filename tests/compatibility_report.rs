@@ -43,7 +43,12 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     let skip_tests: &[&str] = if !modern {
         &["javascript-comments", "script-comment-only"]
     } else {
-        &["comment-in-tag"]
+        // `parens` (Svelte 5.55.2, upstream commit `8966601dc` "fix: handle
+        // parens in template expressions more robustly") tests the
+        // comments-in-tags feature (the source is `{(/**/ 42)}`) which is the
+        // same already-skipped 5.53.0 gap; the comments-in-tags port will
+        // also fix this fixture.
+        &["comment-in-tag", "parens"]
     };
 
     for sample_dir in &samples {
@@ -1012,6 +1017,16 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-overlap-multiple-5"),
         ("runtime-runes", "async-overlap-multiple-6"),
         ("runtime-runes", "async-overlap-multiple-7"),
+        // - Svelte 5.55.2 cluster: upstream commits `8966601dc` "handle parens
+        //   in template expressions more robustly" + `edcbb0e64` "invalidate
+        //   `@const` tags based on visible references in legacy mode" expose
+        //   pre-existing rsvelte parsing/codegen gaps:
+        //   * `async-if-block-unskip` — blank-line placement only.
+        //   * `flush-sync-each-block` — no-semicolon import statements
+        //     (`import "./Inner.svelte"` without `;`) cause the following
+        //     declaration to merge into the import line.
+        ("runtime-runes", "async-if-block-unskip"),
+        ("runtime-legacy", "flush-sync-each-block"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
