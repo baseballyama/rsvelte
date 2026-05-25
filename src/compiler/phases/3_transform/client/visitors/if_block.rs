@@ -226,13 +226,17 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
             )),
         ));
 
-        // $$render(alternate, false)
+        // $$render(alternate, -1). Svelte 5.53.7 (upstream commit
+        // `86ec21086` "fix: correctly add `__svelte_meta` after else-if
+        // chains") replaced the legacy `false` else-marker with `-1` so the
+        // numbered branch index passed to `$$render` is consistent with the
+        // SSR hydration markers (`<!--[-1-->`).
         Some(b::stmt(
             &context.arena,
             b::call(
                 &context.arena,
                 b::id("$$render"),
-                vec![alternate_id, b::boolean(false)],
+                vec![alternate_id, b::number(-1.0)],
             ),
         ))
     } else {
