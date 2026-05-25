@@ -57,7 +57,19 @@ jobs:
           path: fixtures
           key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
 
+      - name: Cache Svelte compiler build
+        # See the matching step in `.github/workflows/ci.yml`.
+        id: svelte-build-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/dist
+          key: svelte-build-v1-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
       - name: Build Svelte compiler
+        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
         run: |
           cd submodules/svelte
           pnpm install --frozen-lockfile
