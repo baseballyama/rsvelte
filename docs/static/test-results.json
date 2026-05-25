@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T11:15:00.663034+00:00",
-  "commit_sha": "4d8f99a2709e",
+  "generated_at": "2026-05-25T11:31:34.570405+00:00",
+  "commit_sha": "f9440dc3ed28",
   "summary": {
-    "total": 3544,
-    "passed": 3395,
+    "total": 3549,
+    "passed": 3398,
     "failed": 0,
-    "skipped": 149,
+    "skipped": 151,
     "percentage": 100
   },
   "categories": [
@@ -3192,8 +3192,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 973,
-      "passed": 925,
+      "total": 976,
+      "passed": 928,
       "failed": 0,
       "skipped": 48,
       "percentage": 100,
@@ -5952,6 +5952,10 @@
           "status": "pass"
         },
         {
+          "name": "async-run-isolated-batch",
+          "status": "pass"
+        },
+        {
           "name": "async-binding-update-while-focused-2",
           "status": "pass"
         },
@@ -6097,6 +6101,10 @@
         },
         {
           "name": "typescript-non-null-expression",
+          "status": "pass"
+        },
+        {
+          "name": "transition-derived-uninitialized",
           "status": "pass"
         },
         {
@@ -6665,6 +6673,10 @@
         },
         {
           "name": "class-raw-state-object",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-eager-const",
           "status": "pass"
         },
         {
@@ -12949,10 +12961,10 @@
     {
       "id": "print",
       "name": "Print",
-      "total": 40,
+      "total": 42,
       "passed": 40,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 2,
       "percentage": 100,
       "tests": [
         {
@@ -12996,6 +13008,11 @@
           "status": "pass"
         },
         {
+          "name": "css-keyframes-percent",
+          "status": "skip",
+          "skip_reason": "CSS print re-formatter (Svelte 5.55.8) not yet ported"
+        },
+        {
           "name": "comment",
           "status": "pass"
         },
@@ -13033,7 +13050,8 @@
         },
         {
           "name": "style",
-          "status": "pass"
+          "status": "skip",
+          "skip_reason": "CSS print re-formatter (Svelte 5.55.8) not yet ported"
         },
         {
           "name": "expression-tag",
@@ -13105,6 +13123,10 @@
         },
         {
           "name": "attach-tag",
+          "status": "pass"
+        },
+        {
+          "name": "svelte-body",
           "status": "pass"
         },
         {
