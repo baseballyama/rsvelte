@@ -3754,10 +3754,23 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             "BlockStatement" => {
+                // Push a new lexical scope. Without this, `let`/`const`
+                // inside if/else branches and other free blocks collapse
+                // into the parent function scope and trigger spurious
+                // `declaration_duplicate` validation errors when two
+                // branches each declare a same-named local (real-world
+                // case: svelte-sonner's toast-state.svelte.js — three
+                // `const message` declarations in if/else if branches of
+                // a `.then()` callback). Function-body BlockStatements
+                // are iterated directly by their owning function handler,
+                // so this only affects inner blocks where lexical
+                // block-scoping actually applies.
                 if let Some(body) = obj.get("body").and_then(|b| b.as_array()) {
+                    let old_scope = self.push_scope();
                     for stmt in body {
                         self.track_json_statement_updates(stmt);
                     }
+                    self.pop_scope(old_scope);
                 }
             }
             "ForStatement" | "WhileStatement" | "DoWhileStatement" => {
