@@ -1392,7 +1392,7 @@ mod tests {
         // Should contain if statement
         assert!(code.contains("if (visible)"), "Should have if statement");
         // Should contain BLOCK_OPEN marker
-        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        assert!(code.contains("<!--[0-->"), "Should have BLOCK_OPEN marker");
         // Should contain BLOCK_CLOSE marker
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
         // Should contain the div content
@@ -1421,10 +1421,10 @@ mod tests {
         assert!(code.contains("if (visible)"), "Should have if statement");
         assert!(code.contains("else"), "Should have else branch");
         // Should contain BLOCK_OPEN marker for if branch
-        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        assert!(code.contains("<!--[0-->"), "Should have BLOCK_OPEN marker");
         // Should contain BLOCK_OPEN_ELSE marker for else branch
         assert!(
-            code.contains("<!--[!-->"),
+            code.contains("<!--[-1-->"),
             "Should have BLOCK_OPEN_ELSE marker"
         );
         // Should contain BLOCK_CLOSE marker
@@ -1456,7 +1456,7 @@ mod tests {
 
         // Following official Svelte compiler, else-if is rendered as nested if inside else block
         // Structure:
-        // if (value === 1) { <!--[--> ... } else { <!--[!--> if (value === 2) { <!--[--> ... } else { <!--[!--> ... } <!--]--> } <!--]-->
+        // if (value === 1) { <!--[0--> ... } else { <!--[-1--> if (value === 2) { <!--[0--> ... } else { <!--[-1--> ... } <!--]--> } <!--]-->
         assert!(
             code.contains("if (value === 1)"),
             "Should have outer if statement"
@@ -1467,9 +1467,9 @@ mod tests {
         );
         assert!(code.contains("else"), "Should have else branch");
         // Verify block markers
-        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN markers");
+        assert!(code.contains("<!--[0-->"), "Should have BLOCK_OPEN markers");
         assert!(
-            code.contains("<!--[!-->"),
+            code.contains("<!--[-1-->"),
             "Should have BLOCK_OPEN_ELSE markers"
         );
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE markers");
@@ -1498,9 +1498,9 @@ mod tests {
 
         // Verify structure
         assert!(code.contains("if (visible)"), "Should have if statement");
-        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        assert!(code.contains("<!--[0-->"), "Should have BLOCK_OPEN marker");
         assert!(
-            code.contains("<!--[!-->"),
+            code.contains("<!--[-1-->"),
             "Should have BLOCK_OPEN_ELSE marker"
         );
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
@@ -1559,7 +1559,7 @@ mod tests {
             "Should have if statement with condition"
         );
         // Should contain BLOCK_OPEN marker
-        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        assert!(code.contains("<!--[0-->"), "Should have BLOCK_OPEN marker");
         // Should contain BLOCK_CLOSE marker
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
     }
