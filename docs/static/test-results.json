@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-25T07:52:46.818084+00:00",
-  "commit_sha": "72cd247c33ed",
+  "generated_at": "2026-05-25T07:59:24.863655+00:00",
+  "commit_sha": "bd433c5ceb74",
   "summary": {
-    "total": 3457,
-    "passed": 3348,
+    "total": 3460,
+    "passed": 3351,
     "failed": 0,
     "skipped": 109,
     "percentage": 100
@@ -3183,8 +3183,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 892,
-      "passed": 882,
+      "total": 895,
+      "passed": 885,
       "failed": 0,
       "skipped": 10,
       "percentage": 100,
@@ -3998,6 +3998,10 @@
         },
         {
           "name": "store-increment-decrement",
+          "status": "pass"
+        },
+        {
+          "name": "assignment-value-stale-lazy-rhs",
           "status": "pass"
         },
         {
@@ -4908,6 +4912,10 @@
         },
         {
           "name": "hydrate-modified-input-group",
+          "status": "pass"
+        },
+        {
+          "name": "error-recovery",
           "status": "pass"
         },
         {
@@ -6194,6 +6202,10 @@
         },
         {
           "name": "state-store-props",
+          "status": "pass"
+        },
+        {
+          "name": "effect-in-pending-boundary",
           "status": "pass"
         },
         {
