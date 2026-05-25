@@ -962,7 +962,10 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   so store refs (`$label` → `$.store_get(...)`) get rewritten.
         //   rsvelte's SSR transform doesn't route the synthetic value node
         //   through `transform_store_refs` yet — tracked as a follow-up port.
-        ("server-side-rendering", "select-option-store-implicit-value"),
+        (
+            "server-side-rendering",
+            "select-option-store-implicit-value",
+        ),
     ];
 
     for sample_dir in &samples {
