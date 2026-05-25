@@ -968,6 +968,13 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     //   function-scope porosity matches upstream.
     let runtime_skip_tests: &[(&str, &str)] = &[
         ("runtime-runes", "async-derived-title-update"),
+        // - `async-eager-derived` (Svelte 5.53.12, upstream `965f2a0ac`
+        //   "fix: handle async RHS in assignment_value_stale"): rsvelte's
+        //   client transform emits the `$$promises[…]` blockers array in
+        //   declaration order; upstream emits them in latest-use order, so
+        //   the fixture diff is a 1-line array reordering. Same underlying
+        //   blocker-threading gap as `async-derived-title-update`.
+        ("runtime-runes", "async-eager-derived"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
