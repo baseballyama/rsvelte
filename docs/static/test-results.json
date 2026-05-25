@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T07:59:24.863655+00:00",
-  "commit_sha": "bd433c5ceb74",
+  "generated_at": "2026-05-25T08:15:22.507716+00:00",
+  "commit_sha": "8b86bdd82db5",
   "summary": {
-    "total": 3460,
-    "passed": 3351,
+    "total": 3467,
+    "passed": 3357,
     "failed": 0,
-    "skipped": 109,
+    "skipped": 110,
     "percentage": 100
   },
   "categories": [
@@ -3183,10 +3183,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 895,
-      "passed": 885,
+      "total": 902,
+      "passed": 891,
       "failed": 0,
-      "skipped": 10,
+      "skipped": 11,
       "percentage": 100,
       "tests": [
         {
@@ -4463,6 +4463,10 @@
           "status": "pass"
         },
         {
+          "name": "async-select-dynamic-options-while-focused",
+          "status": "pass"
+        },
+        {
           "name": "debug-tag-object",
           "status": "pass"
         },
@@ -4567,6 +4571,10 @@
           "status": "pass"
         },
         {
+          "name": "assignment-value-stale-lazy-rhs-async",
+          "status": "pass"
+        },
+        {
           "name": "derived-map",
           "status": "pass"
         },
@@ -4665,6 +4673,15 @@
         {
           "name": "bigint-increment",
           "status": "pass"
+        },
+        {
+          "name": "untrack-allows-writes",
+          "status": "pass"
+        },
+        {
+          "name": "async-eager-derived",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "snippet-complicated-defaults",
@@ -5472,6 +5489,10 @@
           "status": "pass"
         },
         {
+          "name": "select-option-added",
+          "status": "pass"
+        },
+        {
           "name": "create-context-programmatic",
           "status": "pass"
         },
@@ -5921,6 +5942,10 @@
         },
         {
           "name": "transition-if-nested-access-property",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-discard-derived-writable-uninitialized",
           "status": "pass"
         },
         {
@@ -6661,6 +6686,10 @@
         },
         {
           "name": "props-array-each",
+          "status": "pass"
+        },
+        {
+          "name": "async-pending-effect",
           "status": "pass"
         },
         {
