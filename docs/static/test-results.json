@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-25T11:08:25.009322+00:00",
-  "commit_sha": "55f9c85c09d6",
+  "generated_at": "2026-05-25T11:15:00.663034+00:00",
+  "commit_sha": "4d8f99a2709e",
   "summary": {
-    "total": 3543,
-    "passed": 3394,
+    "total": 3544,
+    "passed": 3395,
     "failed": 0,
     "skipped": 149,
     "percentage": 100
@@ -11987,8 +11987,8 @@
     {
       "id": "runtime-browser",
       "name": "Runtime Browser",
-      "total": 31,
-      "passed": 31,
+      "total": 32,
+      "passed": 32,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12035,6 +12035,10 @@
         },
         {
           "name": "svelte-self-css-custom-properties",
+          "status": "pass"
+        },
+        {
+          "name": "dom-clobbering-cache-symbols-spread",
           "status": "pass"
         },
         {
