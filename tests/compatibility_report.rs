@@ -206,13 +206,10 @@ fn run_snapshot_tests() -> CategoryResult {
     let samples = get_fixture_samples("snapshot");
     let mut result = CategoryResult::new("snapshot");
 
-    // - `nullish-coallescence-omittance` (Svelte 5.55.9, upstream commit
-    //   `a5df6616e` "fix: avoid unnecessary stringify in server attributes"):
-    //   static interpolated literals are now inlined into the HTML template
-    //   push instead of routed through `$.stringify(...)`. rsvelte still
-    //   emits `$.stringify` for the static case. Tracked as a follow-up port
-    //   alongside the runtime-legacy `attribute-*` regressions in 5.55.9.
-    let skip_snapshot: &[&str] = &["nullish-coallescence-omittance"];
+    // Snapshot fixtures intentionally skipped. Empty for now — the upstream
+    // 5.55.9 `nullish-coallescence-omittance` gap is handled by the
+    // attribute-value evaluator in `generate_attribute_node`.
+    let skip_snapshot: &[&str] = &[];
 
     for sample_dir in &samples {
         let name = sample_dir

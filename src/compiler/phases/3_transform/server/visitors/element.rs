@@ -44,6 +44,16 @@ enum SelectDescendant {
     Other,
 }
 
+/// Outcome of evaluating an interpolated attribute expression.
+/// Drives whether the value is folded into the surrounding template string,
+/// dropped, emitted as a raw string, or wrapped in `$.stringify`.
+enum AttrExprEval {
+    InlineLiteral(String),
+    Empty,
+    StringNoWrap,
+    Wrap,
+}
+
 /// Check if an element emits `load` and `error` events.
 /// Reference: svelte/src/utils.js - LOAD_ERROR_ELEMENTS
 fn is_load_error_element(name: &str) -> bool {
@@ -2001,19 +2011,40 @@ impl<'a> ServerCodeGenerator<'a> {
                             current_text.push_str(&sanitize_template_string(&text_data));
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
-                            has_expressions = true;
-                            // Push current text as template part
-                            template_parts.push(current_text.clone());
-                            current_text.clear();
+                            // Constant-fold the expression following the official compiler's
+                            // `build_attribute_value` logic (server/visitors/shared/utils.js):
+                            // known values are inlined into the surrounding text, null/undefined
+                            // are omitted, expressions proven to be strings skip $.stringify.
+                            let eval = self.evaluate_attribute_expression(&expr_tag.expression);
+                            match eval {
+                                AttrExprEval::InlineLiteral(value) => {
+                                    current_text.push_str(&sanitize_template_string(&value));
+                                    continue;
+                                }
+                                AttrExprEval::Empty => {
+                                    continue;
+                                }
+                                AttrExprEval::StringNoWrap | AttrExprEval::Wrap => {
+                                    has_expressions = true;
+                                    template_parts.push(current_text.clone());
+                                    current_text.clear();
 
-                            // Get the expression
-                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                            if expr_end > expr_start && expr_end <= self.source.len() {
-                                let expr = self.source[expr_start..expr_end].trim().to_string();
-                                let expr = self.transform_store_refs(&expr);
-                                // All attributes with expressions need $.stringify() for proper value coercion
-                                template_parts.push(format!("${{$.stringify({})}}", expr));
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        let expr = self.transform_store_refs(&expr);
+                                        let formatted =
+                                            if matches!(eval, AttrExprEval::StringNoWrap) {
+                                                format!("${{{}}}", expr)
+                                            } else {
+                                                format!("${{$.stringify({})}}", expr)
+                                            };
+                                        template_parts.push(formatted);
+                                    }
+                                }
                             }
                         }
                     }
@@ -2275,6 +2306,86 @@ impl<'a> ServerCodeGenerator<'a> {
                     Ok(None)
                 }
             }
+        }
+    }
+
+    /// How an interpolated attribute expression should be emitted.
+    /// Mirrors the four outcomes of upstream `build_attribute_value` after
+    /// `scope.evaluate(node.expression)`:
+    /// known → inline; null/undefined → drop; defined-string → no `$.stringify`; else wrap.
+    fn evaluate_attribute_expression(&self, expr: &crate::ast::js::Expression) -> AttrExprEval {
+        self.eval_attr_expr_json(expr.as_json())
+    }
+
+    fn eval_attr_expr_json(&self, json: &serde_json::Value) -> AttrExprEval {
+        use serde_json::Value;
+        let Some(obj) = json.as_object() else {
+            return AttrExprEval::Wrap;
+        };
+        let Some(ty) = obj.get("type").and_then(|t| t.as_str()) else {
+            return AttrExprEval::Wrap;
+        };
+        match ty {
+            "Literal" => match obj.get("value") {
+                Some(Value::String(s)) => AttrExprEval::InlineLiteral(s.clone()),
+                Some(Value::Number(n)) => {
+                    let f = n.as_f64().unwrap_or(0.0);
+                    if f.fract() == 0.0 && f.abs() < i64::MAX as f64 {
+                        AttrExprEval::InlineLiteral((f as i64).to_string())
+                    } else {
+                        AttrExprEval::InlineLiteral(f.to_string())
+                    }
+                }
+                Some(Value::Bool(b)) => AttrExprEval::InlineLiteral(b.to_string()),
+                Some(Value::Null) | None => AttrExprEval::Empty,
+                _ => AttrExprEval::Wrap,
+            },
+            "Identifier" => {
+                let Some(name) = obj.get("name").and_then(|n| n.as_str()) else {
+                    return AttrExprEval::Wrap;
+                };
+                if name == "undefined" {
+                    return AttrExprEval::Empty;
+                }
+                if let Some(val) = self.constant_vars.get(name) {
+                    return match val.as_str() {
+                        "null" | "undefined" => AttrExprEval::Empty,
+                        _ => AttrExprEval::InlineLiteral(val.clone()),
+                    };
+                }
+                AttrExprEval::Wrap
+            }
+            "UnaryExpression" => {
+                let operator = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+                if operator == "typeof" {
+                    AttrExprEval::StringNoWrap
+                } else {
+                    AttrExprEval::Wrap
+                }
+            }
+            "TemplateLiteral" => {
+                let expressions = obj.get("expressions").and_then(|e| e.as_array());
+                let quasis = obj.get("quasis").and_then(|q| q.as_array());
+                if let (Some(exprs), Some(qs)) = (expressions, quasis) {
+                    if exprs.is_empty() {
+                        let mut s = String::new();
+                        for q in qs {
+                            if let Some(cooked) = q
+                                .get("value")
+                                .and_then(|v| v.get("cooked"))
+                                .and_then(|c| c.as_str())
+                            {
+                                s.push_str(cooked);
+                            }
+                        }
+                        return AttrExprEval::InlineLiteral(s);
+                    }
+                    AttrExprEval::StringNoWrap
+                } else {
+                    AttrExprEval::Wrap
+                }
+            }
+            _ => AttrExprEval::Wrap,
         }
     }
 
