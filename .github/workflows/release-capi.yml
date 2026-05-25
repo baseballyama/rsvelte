@@ -103,6 +103,21 @@ jobs:
           RSVELTE_CAPI_CHECK_HEADER: '1'
         run: cargo build --release -p rsvelte_capi --target ${{ matrix.target }}
 
+      # On macOS, cargo defaults the dylib's LC_ID_DYLIB to the build's
+      # absolute path. Anything that links against the shipped dylib
+      # then asks dyld to load it from that nonexistent CI runner path
+      # (/Users/runner/work/...). Repoint to @rpath so downstream
+      # binaries find the dylib via their own LC_RPATH instead.
+      - name: Patch macOS install_name to @rpath
+        if: startsWith(matrix.target, 'aarch64-apple-darwin') || startsWith(matrix.target, 'x86_64-apple-darwin')
+        shell: bash
+        run: |
+          set -euo pipefail
+          dylib="target/${{ matrix.target }}/release/${{ matrix.lib }}"
+          install_name_tool -id "@rpath/${{ matrix.lib }}" "${dylib}"
+          echo "After patch:"
+          otool -D "${dylib}"
+
       - name: Stage archive contents
         shell: bash
         run: |
