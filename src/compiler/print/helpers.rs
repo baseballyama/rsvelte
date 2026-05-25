@@ -893,7 +893,11 @@ pub fn format_variable_declaration_from_source(
             }
         }
 
-        result.push(';');
+        // Svelte 5.54.1 (upstream commit `7123bf3a1` "fix: remove trailing
+        // semicolon from {@const} tag printer") dropped the trailing `;`
+        // because `{@const x = expr}` is a closed template tag, not a JS
+        // statement that needs a terminator. Source-extracted declarators
+        // also already exclude the trailing `;` (the span ends before it).
         return result;
     }
 
