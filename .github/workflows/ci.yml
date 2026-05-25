@@ -79,7 +79,7 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Fixtures are keyed on the Svelte submodule SHA; if the SHA hasn't
           # changed we can reuse them and skip generation entirely.
@@ -188,7 +188,7 @@ jobs:
         run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
 
       - name: Cache fixtures
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: fixtures
           # Bump `v2` to invalidate previously-cached fixtures: the
