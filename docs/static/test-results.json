@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T04:28:51.301514+00:00",
-  "commit_sha": "69e6c4cdbb87",
+  "generated_at": "2026-05-25T04:48:46.069210+00:00",
+  "commit_sha": "97f3ac557158",
   "summary": {
-    "total": 3431,
-    "passed": 3346,
+    "total": 3433,
+    "passed": 3347,
     "failed": 0,
-    "skipped": 85,
+    "skipped": 86,
     "percentage": 100
   },
   "categories": [
@@ -3178,10 +3178,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 876,
-      "passed": 873,
+      "total": 878,
+      "passed": 874,
       "failed": 0,
-      "skipped": 3,
+      "skipped": 4,
       "percentage": 100,
       "tests": [
         {
@@ -4345,6 +4345,11 @@
         {
           "name": "error-boundary-3",
           "status": "pass"
+        },
+        {
+          "name": "set-text-stable-coercion",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "legacy-runes-ambiguous",
@@ -6108,6 +6113,10 @@
         },
         {
           "name": "lifecycle-render-order-for-children-4",
+          "status": "pass"
+        },
+        {
+          "name": "await-immediate-fulfilled",
           "status": "pass"
         },
         {
