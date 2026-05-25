@@ -1051,6 +1051,23 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   thunk, producing `$.derived(() => visible())`. Tracked as a
         //   follow-up.
         ("runtime-runes", "derived-dep-set-while-rendering"),
+        // - Svelte 5.55.6 cluster: upstream commits `e00944ffd`/`89b6a939f`/
+        //   `4c96b469f`/`69b4c9f56`. New async-* fixtures exercise the same
+        //   sync-grouping/`Promise.all`-save follow-up tracked since 5.54.1.
+        //   `dynamic-component-member` exposes an additional rsvelte gap
+        //   (`<svelte:component this={state.x.Y}>` doesn't wrap `state` in
+        //   `$.get(...)` for SSR/client). Tracked as a follow-up port.
+        ("runtime-runes", "async-flushsync-in-effect"),
+        ("runtime-runes", "async-stale-derived-4"),
+        ("runtime-runes", "async-eager-block"),
+        ("runtime-runes", "async-eager-each-block"),
+        ("runtime-runes", "async-dont-rebase-new-batch-1"),
+        ("runtime-runes", "async-dont-rebase-new-batch-2"),
+        ("runtime-runes", "async-dont-rebase-new-batch-3"),
+        ("runtime-runes", "async-dont-rebase-new-batch-4"),
+        ("runtime-runes", "async-debug-awaited-expression"),
+        ("runtime-runes", "async-state-updates-microtask-separated"),
+        ("runtime-runes", "dynamic-component-member"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),

@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-25T10:52:49.212633+00:00",
-  "commit_sha": "b771df346444",
+  "generated_at": "2026-05-25T11:08:25.009322+00:00",
+  "commit_sha": "55f9c85c09d6",
   "summary": {
-    "total": 3516,
-    "passed": 3378,
+    "total": 3543,
+    "passed": 3394,
     "failed": 0,
-    "skipped": 138,
+    "skipped": 149,
     "percentage": 100
   },
   "categories": [
@@ -557,8 +557,8 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 180,
-      "passed": 179,
+      "total": 181,
+      "passed": 180,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -690,6 +690,10 @@
         },
         {
           "name": "general-siblings-combinator-nested-slots",
+          "status": "pass"
+        },
+        {
+          "name": "comment-with-apostrophe",
           "status": "pass"
         },
         {
@@ -3188,10 +3192,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 947,
-      "passed": 910,
+      "total": 973,
+      "passed": 925,
       "failed": 0,
-      "skipped": 37,
+      "skipped": 48,
       "percentage": 100,
       "tests": [
         {
@@ -3225,6 +3229,11 @@
         {
           "name": "transition-if-nested-static",
           "status": "pass"
+        },
+        {
+          "name": "async-flushsync-in-effect",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "img-loading-lazy-no-static",
@@ -3364,6 +3373,10 @@
           "status": "pass"
         },
         {
+          "name": "async-batch-order",
+          "status": "pass"
+        },
+        {
           "name": "non-local-mutation-inherited-owner-3",
           "status": "pass"
         },
@@ -3404,6 +3417,10 @@
           "status": "pass"
         },
         {
+          "name": "async-stale-derived-3",
+          "status": "pass"
+        },
+        {
           "name": "derived-unowned-10",
           "status": "pass"
         },
@@ -3426,6 +3443,11 @@
         {
           "name": "effect-teardown-derived",
           "status": "pass"
+        },
+        {
+          "name": "async-stale-derived-4",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "form-default-value",
@@ -3566,6 +3588,10 @@
         },
         {
           "name": "writable-derived-4",
+          "status": "pass"
+        },
+        {
+          "name": "async-stale-derived-5",
           "status": "pass"
         },
         {
@@ -3880,6 +3906,10 @@
           "status": "pass"
         },
         {
+          "name": "async-reactivity-loss-for-await-throws-1",
+          "status": "pass"
+        },
+        {
           "name": "async-top-level-deriveds",
           "status": "pass"
         },
@@ -3947,6 +3977,11 @@
         {
           "name": "svg-namespace-if-block-2",
           "status": "pass"
+        },
+        {
+          "name": "async-eager-block",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "attachment-spread-stable",
@@ -4155,6 +4190,11 @@
           "status": "pass"
         },
         {
+          "name": "async-eager-each-block",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "nullish-operator",
           "status": "pass"
         },
@@ -4333,6 +4373,11 @@
           "status": "pass"
         },
         {
+          "name": "async-dont-rebase-new-batch-4",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "hydratable-script-escape",
           "status": "pass"
         },
@@ -4355,6 +4400,11 @@
         {
           "name": "lifecycle-render-order-for-children-6",
           "status": "pass"
+        },
+        {
+          "name": "async-dont-rebase-new-batch-3",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "await-html-hydration",
@@ -4519,6 +4569,11 @@
           "status": "pass"
         },
         {
+          "name": "async-dont-rebase-new-batch-2",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "invalidate-effect",
           "status": "pass"
         },
@@ -4569,6 +4624,11 @@
         {
           "name": "muted-without-bind-works",
           "status": "pass"
+        },
+        {
+          "name": "async-debug-awaited-expression",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "await-non-promise",
@@ -5043,6 +5103,10 @@
           "status": "pass"
         },
         {
+          "name": "inspect-derived-if-destroy",
+          "status": "pass"
+        },
+        {
           "name": "snippet-argument-destructured",
           "status": "pass"
         },
@@ -5251,6 +5315,10 @@
           "status": "pass"
         },
         {
+          "name": "async-stale-derived-7",
+          "status": "pass"
+        },
+        {
           "name": "each-text-template",
           "status": "pass"
         },
@@ -5301,6 +5369,10 @@
         },
         {
           "name": "array-delete-item",
+          "status": "pass"
+        },
+        {
+          "name": "async-obsolete-branch-no-effect-runs",
           "status": "pass"
         },
         {
@@ -5513,6 +5585,10 @@
           "status": "pass"
         },
         {
+          "name": "async-stale-derived-6",
+          "status": "pass"
+        },
+        {
           "name": "class-state-constructor-derived-unowned",
           "status": "pass"
         },
@@ -5534,6 +5610,10 @@
         },
         {
           "name": "async-derived-reverse-order",
+          "status": "pass"
+        },
+        {
+          "name": "async-stale-derived-8",
           "status": "pass"
         },
         {
@@ -5566,6 +5646,10 @@
         },
         {
           "name": "async-attach-hydration-mismatch",
+          "status": "pass"
+        },
+        {
+          "name": "bind-this-proxy-deep",
           "status": "pass"
         },
         {
@@ -5618,6 +5702,10 @@
         },
         {
           "name": "array-sort-in-effect",
+          "status": "pass"
+        },
+        {
+          "name": "props-default-value-reactivity",
           "status": "pass"
         },
         {
@@ -5757,6 +5845,10 @@
           "status": "pass"
         },
         {
+          "name": "async-reactivity-loss-for-await-throws-2",
+          "status": "pass"
+        },
+        {
           "name": "event-handler-component-invalid-warning",
           "status": "pass"
         },
@@ -5771,6 +5863,11 @@
         {
           "name": "async-nested-top-level",
           "status": "pass"
+        },
+        {
+          "name": "dynamic-component-member",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "class-private-state-increment",
@@ -6254,6 +6351,11 @@
           "status": "pass"
         },
         {
+          "name": "async-state-updates-microtask-separated",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+        },
+        {
           "name": "props-quoted",
           "status": "pass"
         },
@@ -6372,6 +6474,10 @@
           "status": "pass"
         },
         {
+          "name": "store-unsubscribe-not-referenced-after-2",
+          "status": "pass"
+        },
+        {
           "name": "inspect-trace-reassignment",
           "status": "pass"
         },
@@ -6402,6 +6508,11 @@
         {
           "name": "inspect-trace-class",
           "status": "pass"
+        },
+        {
+          "name": "async-dont-rebase-new-batch-1",
+          "status": "skip",
+          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
         },
         {
           "name": "async-await-store-mutate",
@@ -6837,6 +6948,10 @@
           "status": "pass"
         },
         {
+          "name": "async-commit-preserve-new-batch",
+          "status": "pass"
+        },
+        {
           "name": "fork-derived-uncached-1",
           "status": "pass"
         },
@@ -6956,6 +7071,10 @@
         },
         {
           "name": "derived-shadowed",
+          "status": "pass"
+        },
+        {
+          "name": "async-new-batch-during-initial-load",
           "status": "pass"
         },
         {
