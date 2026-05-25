@@ -59,7 +59,7 @@ jobs:
             lib: rsvelte_capi.dll
             exe_ext: ".exe"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
