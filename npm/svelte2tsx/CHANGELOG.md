@@ -1,5 +1,37 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [a7cdebe]
+- Updated dependencies [1e9483a]
+- Updated dependencies [f1d65ad]
+- Updated dependencies [1cd18da]
+- Updated dependencies [b720d08]
+- Updated dependencies [3756592]
+- Updated dependencies [6c1b11d]
+- Updated dependencies [3a1b613]
+- Updated dependencies [43d20b1]
+- Updated dependencies [752055a]
+- Updated dependencies [1088eba]
+- Updated dependencies [a4c5334]
+- Updated dependencies [c74572c]
+- Updated dependencies [356b7f6]
+- Updated dependencies [6be628d]
+- Updated dependencies [6ea2484]
+- Updated dependencies [412eb00]
+- Updated dependencies [a110812]
+- Updated dependencies [8613663]
+- Updated dependencies [a8a5f77]
+- Updated dependencies [0ee799d]
+- Updated dependencies [b4a23af]
+- Updated dependencies [a97d9af]
+- Updated dependencies [bed3534]
+- Updated dependencies [fbb7d44]
+- Updated dependencies [e438591]
+  - @rsvelte/compiler@0.5.0
+
 ## 0.1.3
 
 ### Patch Changes
