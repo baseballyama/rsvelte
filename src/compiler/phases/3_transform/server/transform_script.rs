@@ -1734,6 +1734,14 @@ fn is_object_shorthand_position(bytes: &[u8], start: usize, end: usize) -> bool 
 
 /// Wrap derived reads in a template-source expression using a pre-collected
 /// name set (from the Phase 2 analysis).
+///
+/// Template expressions can locally shadow a `$derived` name with an inner
+/// declaration — e.g. `RADII.find((radius) => radius.name === effRadius)`
+/// when `radius` is itself a module-level `$derived`. The arrow's parameter
+/// `radius` must NOT be rewritten to `radius()`. Compute per-expression
+/// shadow ranges and feed them to the shadow-aware wrapper, matching the
+/// script-level path. Surfaced by ecosystem-ci on shadcn-svelte →
+/// `design-system-provider.svelte` and layerchart's `Arc.svelte`.
 pub(crate) fn wrap_derived_reads_for_template(
     expr: &str,
     derived_names: &rustc_hash::FxHashSet<String>,
@@ -1742,11 +1750,19 @@ pub(crate) fn wrap_derived_reads_for_template(
     if derived_names.is_empty() {
         return expr.to_string();
     }
-    let out = wrap_derived_reads_in_script_inner(expr, derived_names, derived_var_names);
+    let shadow_ranges = compute_shadow_ranges(expr, derived_names, &[]);
+    let out = wrap_derived_reads_in_script_inner_with_shadow(
+        expr,
+        derived_names,
+        derived_var_names,
+        &shadow_ranges,
+        &rustc_hash::FxHashSet::default(),
+        0,
+    );
     if std::env::var("DEBUG_WRAP").is_ok() {
         eprintln!(
-            "DEBUG_WRAP: in={:?} names={:?} out={:?}",
-            expr, derived_names, out
+            "DEBUG_WRAP: in={:?} names={:?} shadow={:?} out={:?}",
+            expr, derived_names, shadow_ranges, out
         );
     }
     out
@@ -2506,6 +2522,27 @@ fn compute_shadow_ranges(
                 };
                 let mut params = extract_param_names(param_text);
                 params.retain(|n| names.contains(n));
+
+                // Mark each param identifier's *own* byte position as
+                // shadowed. The body/arrow-expr shadow range (added below)
+                // starts at the body, not at the param list — so without
+                // this, `wrap_derived_reads` rewrites the param identifier
+                // at its declaration site to `name()` (e.g.
+                // `(radius) => …` → `(radius()) => …`). Real-world surface:
+                // shadcn-svelte's `design-system-provider.svelte` →
+                // `RADII.find((radius) => radius.name === effectiveRadius)`
+                // where `radius` is itself a module-level `$derived`.
+                let param_positions = extract_declarator_names_with_pos(param_text);
+                for (offset_in_text, name) in &param_positions {
+                    if names.contains(name) {
+                        let abs_start = param_text_start + *offset_in_text;
+                        let abs_end = abs_start + name.len();
+                        ranges
+                            .entry(name.clone())
+                            .or_default()
+                            .push((abs_start, abs_end));
+                    }
+                }
                 let mut m = if is_arrow { k + 2 } else { k }; // past `=>` or at `{`
                 while m < len && bytes[m].is_ascii_whitespace() {
                     m += 1;
