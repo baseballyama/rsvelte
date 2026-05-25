@@ -172,6 +172,15 @@ The Rust API is the same surface OXC will eventually wire `oxlint` / `oxfmt` int
 
 A `cdylib` exposing a stable C ABI ships in [`crates/rsvelte_capi`](crates/rsvelte_capi). One shared library + one cbindgen-generated header (`rsvelte.h`) lets any language with a C FFI drive the same compiler — UTF-8 JSON in, UTF-8 JSON out, no per-language schema generation.
 
+**Download prebuilt binaries** from [GitHub Releases](https://github.com/baseballyama/rsvelte/releases) under the `capi-vX.Y.Z` tag scheme (`darwin-{arm64,x64}`, `linux-{x64,arm64}-gnu`, `win32-x64-msvc`; each archive ships the dylib + static archive + `rsvelte.h` + checksums):
+
+```bash
+VERSION=0.1.0 TRIPLE=darwin-arm64
+curl -L "https://github.com/baseballyama/rsvelte/releases/download/capi-v${VERSION}/rsvelte_capi-${VERSION}-${TRIPLE}.tar.gz" | tar -xz
+```
+
+Or build from source:
+
 ```bash
 cargo build -p rsvelte_capi --release
 # → target/release/librsvelte_capi.{dylib,so,a}, rsvelte_capi.dll
