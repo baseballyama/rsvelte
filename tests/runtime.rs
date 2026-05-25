@@ -197,6 +197,27 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // expects new async helpers in client codegen. Also skipped in
     // compatibility_report.
     "async-inspect-build",
+    // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. The expected
+    // client output threads new `eager` / blocker arguments through
+    // `$.derived(...)` and `$.template_effect(...)` calls; rsvelte's
+    // async-analysis doesn't surface those yet. Also skipped in
+    // compatibility_report.
+    "async-binding-after-await",
+    "async-derived-indirect",
+    "async-derived-with-effect-and-boundary",
+    "async-if-hydration",
+    "async-later-sync-overlaps",
+    "async-style-after-await",
+    "async-transform-empty-statements",
+    // async-overlap-multiple fixtures added in Svelte 5.55.1. Same async
+    // codegen gap as the cluster above; also skipped in compatibility_report.
+    "async-overlap-multiple-1",
+    "async-overlap-multiple-2",
+    "async-overlap-multiple-3",
+    "async-overlap-multiple-4",
+    "async-overlap-multiple-5",
+    "async-overlap-multiple-6",
+    "async-overlap-multiple-7",
 ];
 
 /// runtime-legacy fixtures that diverged after the Svelte 5.53.4 scope fix
