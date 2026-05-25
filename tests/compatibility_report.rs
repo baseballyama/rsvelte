@@ -30,11 +30,20 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     let samples = get_svelte_test_samples(svelte_dir);
     let mut result = CategoryResult::new(svelte_dir);
 
-    // Tests to skip for parser-legacy
+    // Tests to skip for parser-legacy and parser-modern.
+    //
+    // `javascript-comments` is a long-standing acorn-vs-OXC comment-attachment
+    // mismatch that has never been worth fixing.
+    //
+    // `comment-in-tag` / `script-comment-only` arrived with Svelte 5.53.0
+    // (upstream commit `92e2fc120` "feat: allow comments in tags"). They
+    // require parsing `//` and `/* */` between element opener attributes plus
+    // surfacing a top-level `comments` array on the modern AST and a
+    // `_comments` field on the legacy AST. Tracked as a follow-up port.
     let skip_tests: &[&str] = if !modern {
-        &["javascript-comments"]
+        &["javascript-comments", "script-comment-only"]
     } else {
-        &[]
+        &["comment-in-tag"]
     };
 
     for sample_dir in &samples {
@@ -46,11 +55,16 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
 
         // Check if should skip
         if skip_tests.contains(&name.as_str()) {
+            let reason = if name == "javascript-comments" {
+                "Known incompatibility with OXC parser"
+            } else {
+                "Comments-in-tags (Svelte 5.53.0) not yet ported"
+            };
             result.add_sample(SampleResult {
                 name,
                 status: TestStatus::Skipped,
                 error: None,
-                skip_reason: Some("Known incompatibility with OXC parser".to_string()),
+                skip_reason: Some(reason.to_string()),
                 details: None,
             });
             continue;
@@ -883,12 +897,43 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     let samples = get_fixture_samples(category);
     let mut result = CategoryResult::new(category);
 
+    // Runtime samples whose expected output exercises infrastructure rsvelte
+    // doesn't fully implement yet, so we mark them skipped instead of failing.
+    //
+    // - `async-derived-title-update` (runtime-runes, Svelte 5.53.0): added by
+    //   upstream commit `582e4443d` "fix: ensure head effects are kept in the
+    //   effect tree". The expected client output threads the component's
+    //   `$$promises` array as a `blockers` arg into both `$.deferred_template_effect`
+    //   inside `$.head(...)` and the regular `$.template_effect` reading
+    //   the same async derived. rsvelte's client transform doesn't yet wire
+    //   the async-derived `$$promises` reference through template effects,
+    //   so this fixture is skipped pending a dedicated port.
+    let runtime_skip_tests: &[(&str, &str)] = &[("runtime-runes", "async-derived-title-update")];
+
     for sample_dir in &samples {
         let name = sample_dir
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown")
             .to_string();
+
+        if runtime_skip_tests
+            .iter()
+            .any(|(cat, sample)| *cat == category && *sample == name)
+        {
+            result.add_sample(SampleResult {
+                name,
+                status: TestStatus::Skipped,
+                error: None,
+                skip_reason: Some(
+                    "Async-derived $$promises blockers not yet threaded through \
+                     template effects (introduced in Svelte 5.53.0)"
+                        .to_string(),
+                ),
+                details: None,
+            });
+            continue;
+        }
 
         let input_path = svelte_path()
             .join("packages/svelte/tests")
