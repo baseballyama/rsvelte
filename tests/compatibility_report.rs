@@ -1027,6 +1027,17 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //     declaration to merge into the import line.
         ("runtime-runes", "async-if-block-unskip"),
         ("runtime-legacy", "flush-sync-each-block"),
+        // - Svelte 5.55.3 cluster: upstream commit `3937ec03b` "fix: correctly
+        //   calculate `@const` blockers" adds new fixtures that exercise the
+        //   same group-sync-statements async batching as 5.54.1's
+        //   `6b33dd2a1`. Same follow-up port.
+        ("runtime-runes", "async-const"),
+        ("runtime-runes", "async-const-wait"),
+        ("runtime-runes", "async-derived-const-blocker"),
+        ("runtime-runes", "async-reactivity-loss-no-false-positive-1"),
+        ("runtime-runes", "async-reactivity-loss-no-false-positive-2"),
+        ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
+        ("runtime-runes", "async-reactivity-loss-async-after-sync"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
