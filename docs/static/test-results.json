@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-26T05:10:41.966865+00:00",
+  "generated_at": "2026-05-26T08:24:50.868442+00:00",
   "commit_sha": "b65a3f3fc5e1",
   "summary": {
     "total": 3552,
-    "passed": 3414,
+    "passed": 3420,
     "failed": 0,
-    "skipped": 138,
+    "skipped": 132,
     "percentage": 100
   },
   "categories": [
@@ -3193,9 +3193,9 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 979,
-      "passed": 931,
+      "passed": 934,
       "failed": 0,
-      "skipped": 48,
+      "skipped": 45,
       "percentage": 100,
       "tests": [
         {
@@ -3507,8 +3507,7 @@
         },
         {
           "name": "attribute-parts",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-if-hydration",
@@ -3685,8 +3684,7 @@
         },
         {
           "name": "derived-update-server",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "each-updates-5",
@@ -4450,8 +4448,7 @@
         },
         {
           "name": "derived-dep-set-while-rendering",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-fork-snippet-dev",
@@ -7168,9 +7165,9 @@
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
       "total": 1205,
-      "passed": 1202,
+      "passed": 1203,
       "failed": 0,
-      "skipped": 3,
+      "skipped": 2,
       "percentage": 100,
       "tests": [
         {
@@ -11037,8 +11034,7 @@
         },
         {
           "name": "innerhtml-interpolated-literal",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "instrumentation-script-destructuring",
@@ -12464,9 +12460,9 @@
       "id": "server-side-rendering",
       "name": "SSR",
       "total": 97,
-      "passed": 95,
+      "passed": 97,
       "failed": 0,
-      "skipped": 2,
+      "skipped": 0,
       "percentage": 100,
       "tests": [
         {
@@ -12611,8 +12607,7 @@
         },
         {
           "name": "select-option-store-implicit-value",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "component-yield",
@@ -12676,8 +12671,7 @@
         },
         {
           "name": "head-raw-elements-content",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "component-binding",
