@@ -264,10 +264,10 @@ const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
     //   - inline-style-directive-string-variable-kebab-case relies on
     //     extracting a multi-line `let url = "..."` declaration as a constant;
     //     `extract_constant_vars` only handles single-line declarations.
-    //   - innerhtml-interpolated-literal hits the innerHTML codegen path,
-    //     which still emits `$.stringify` unconditionally.
+    //   - inline-style-directive-string-variable-kebab-case relies on a
+    //     multi-line `let url = "..."` declaration which
+    //     `extract_constant_vars` doesn't handle.
     "inline-style-directive-string-variable-kebab-case",
-    "innerhtml-interpolated-literal",
 ];
 
 /// hydration fixtures still failing. All HtmlTag is_controlled fixtures now pass

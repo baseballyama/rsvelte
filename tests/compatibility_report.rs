@@ -1102,7 +1102,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             "runtime-legacy",
             "inline-style-directive-string-variable-kebab-case",
         ),
-        ("runtime-legacy", "innerhtml-interpolated-literal"),
         ("server-side-rendering", "head-raw-elements-content"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "set-text-stable-coercion"),

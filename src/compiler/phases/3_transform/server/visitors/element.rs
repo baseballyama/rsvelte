@@ -2238,6 +2238,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let mut template_parts = Vec::new();
                 let mut current_text = String::new();
                 let mut is_first_part = true;
+                let mut has_remaining_expr = false;
 
                 for part in parts {
                     match part {
@@ -2284,6 +2285,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 AttrExprEval::InlineLiteral(s) => current_text.push_str(&s),
                                 AttrExprEval::Empty => {}
                                 AttrExprEval::StringNoWrap | AttrExprEval::Wrap => {
+                                    has_remaining_expr = true;
                                     // Add accumulated text
                                     template_parts.push(current_text.clone());
                                     current_text.clear();
@@ -2313,6 +2315,35 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 let template_content = template_parts.join("");
+
+                if !has_remaining_expr {
+                    // All expressions were inlined to constants — emit as a
+                    // plain string attribute, optionally with CSS hash. This
+                    // is the equivalent of the all-static-text branch above.
+                    let normalized: String =
+                        template_content
+                            .split_whitespace()
+                            .fold(String::new(), |mut acc, word| {
+                                if !acc.is_empty() {
+                                    acc.push(' ');
+                                }
+                                acc.push_str(word);
+                                acc
+                            });
+                    let final_value = if let Some(hash) = css_hash {
+                        if normalized.is_empty() {
+                            hash.to_string()
+                        } else {
+                            format!("{} {}", normalized, hash)
+                        }
+                    } else {
+                        normalized
+                    };
+                    if final_value.is_empty() {
+                        return Ok(None);
+                    }
+                    return Ok(Some(format!(" {}=\"{}\"", name, final_value)));
+                }
 
                 // Build $.attr_class() call
                 if let Some(hash) = css_hash {
