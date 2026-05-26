@@ -269,7 +269,7 @@ fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue
             .map(|(key, value)| match value {
                 AttributeValue::Boolean(true) => key.clone(),
                 AttributeValue::Boolean(false) => format!("{}=\"false\"", key),
-                AttributeValue::String(val) => format!("{}=\"{}\"", key, val),
+                AttributeValue::String(val) => format!("{}=\"{}\"", key, escape_attribute(val)),
             })
             .collect::<Vec<_>>()
             .join(" ");
@@ -282,6 +282,20 @@ fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue
     } else {
         String::new()
     }
+}
+
+fn escape_attribute(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '&' => escaped.push_str("&amp;"),
+            '"' => escaped.push_str("&quot;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            _ => escaped.push(c),
+        }
+    }
+    escaped
 }
 
 /// Calculate the updates required to process all instances of the specified tag.
@@ -539,6 +553,18 @@ mod tests {
         let stringified = stringify_tag_attributes(&Some(attrs));
         assert!(stringified.contains("lang=\"ts\""));
         assert!(stringified.contains("defer"));
+    }
+
+    #[test]
+    fn test_stringify_tag_attributes_escapes_values() {
+        let mut attrs = FxHashMap::default();
+        attrs.insert(
+            "data-test".to_string(),
+            AttributeValue::String(r#"a&b"c<d>e"#.to_string()),
+        );
+
+        let stringified = stringify_tag_attributes(&Some(attrs));
+        assert_eq!(stringified, " data-test=\"a&amp;b&quot;c&lt;d&gt;e\"");
     }
 
     #[test]
