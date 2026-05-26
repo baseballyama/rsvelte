@@ -36,6 +36,10 @@
 		)
 	);
 
+	const categoryOptions = $derived(
+		(data.results?.categories ?? []).map((cat) => ({ id: cat.id, name: cat.name }))
+	);
+
 	const filteredTests = $derived(
 		allTests
 			.filter((test) => {
@@ -43,10 +47,7 @@
 				if (statusFilter !== 'all' && test.status !== statusFilter) return false;
 				if (searchQuery) {
 					const q = searchQuery.toLowerCase();
-					return (
-						test.name.toLowerCase().includes(q) ||
-						test.categoryName.toLowerCase().includes(q)
-					);
+					return test.name.toLowerCase().includes(q) || test.categoryName.toLowerCase().includes(q);
 				}
 				return true;
 			})
@@ -78,9 +79,12 @@
 			<p class="eyebrow"><span class="rule"></span>Compatibility · unavailable</p>
 			<h1>Test results not generated.</h1>
 			<p class="lede">{data.error}</p>
-			<pre class="empty-code"><code><span class="c-cmt"># From the repo root</span>
-<span class="c-prompt">$</span> cargo run <span class="c-flag">--release --bin</span> test_reporter <span class="c-op">--</span> <span class="c-op">\</span>
-    <span class="c-flag">--output</span> docs/static/test-results.json</code></pre>
+			<pre class="empty-code"><code
+					><span class="c-cmt"># From the repo root</span>
+<span class="c-prompt">$</span> cargo run <span class="c-flag">--release --bin</span
+					> test_reporter <span class="c-op">--</span> <span class="c-op">\</span>
+    <span class="c-flag">--output</span> docs/static/test-results.json</code
+				></pre>
 		</section>
 	{:else if data.results}
 		{@const r = data.results}
@@ -98,7 +102,9 @@
 					<dt>In-scope passing</dt>
 					<dd>
 						<span class="big">{r.summary.passed.toLocaleString('en-US')}</span>
-						<span class="dim">/ {(r.summary.total - r.summary.skipped).toLocaleString('en-US')}</span>
+						<span class="dim"
+							>/ {(r.summary.total - r.summary.skipped).toLocaleString('en-US')}</span
+						>
 					</dd>
 				</div>
 				<div>
@@ -133,8 +139,8 @@
 				<span class="num">01</span>
 				<h2>Every <em>category</em>, verified.</h2>
 				<p class="lede">
-					Click any row to filter the fixture list below. Numbers reflect the official Svelte
-					test fixtures run locally against <code>{r.commit_sha}</code>.
+					Click any row to filter the fixture list below. Numbers reflect the official Svelte test
+					fixtures run locally against <code>{r.commit_sha}</code>.
 				</p>
 			</div>
 
@@ -172,9 +178,7 @@
 									style="width: {Math.max(2, cat.percentage)}%;"
 								></span>
 							</span>
-							<span class="spec-pct"
-								>{Math.round(cat.percentage)}<span class="dim">%</span></span
-							>
+							<span class="spec-pct">{Math.round(cat.percentage)}<span class="dim">%</span></span>
 						</span>
 					</button>
 				{/each}
@@ -195,11 +199,16 @@
 			<div class="filters">
 				<label class="search">
 					<span class="search-sigil" aria-hidden="true">⌕</span>
-					<input
-						type="text"
-						placeholder="Filter by name or category…"
-						bind:value={searchQuery}
-					/>
+					<input type="text" placeholder="Filter by name or category…" bind:value={searchQuery} />
+				</label>
+				<label class="cat-select">
+					<span class="cat-select-label">Category</span>
+					<select bind:value={selectedCategoryId}>
+						<option value={null}>All categories</option>
+						{#each categoryOptions as opt (opt.id)}
+							<option value={opt.id}>{opt.name}</option>
+						{/each}
+					</select>
 				</label>
 				<div class="status-tabs">
 					<button class:active={statusFilter === 'all'} onclick={() => (statusFilter = 'all')}
@@ -605,7 +614,10 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4em;
-		transition: background 0.18s, color 0.18s, border-color 0.18s;
+		transition:
+			background 0.18s,
+			color 0.18s,
+			border-color 0.18s;
 	}
 
 	.clear-filter:hover {
@@ -666,6 +678,54 @@
 		color: var(--ink-faint);
 	}
 
+	.cat-select {
+		display: inline-flex;
+		align-items: stretch;
+		border: 1px solid var(--rule-strong);
+		border-radius: 4px;
+		background: var(--bg);
+		overflow: hidden;
+		font-family: 'Fira Mono', monospace;
+	}
+
+	.cat-select:focus-within {
+		border-color: var(--svelte);
+		outline: 2px solid color-mix(in srgb, var(--svelte) 30%, transparent);
+		outline-offset: -1px;
+	}
+
+	.cat-select-label {
+		display: inline-flex;
+		align-items: center;
+		padding: 0 0.85rem;
+		background: var(--paper);
+		border-right: 1px solid var(--rule);
+		font-size: 0.66rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+	}
+
+	.cat-select select {
+		padding: 0.5rem 2rem 0.5rem 0.85rem;
+		background: var(--bg)
+			url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23808080' stroke-width='1.4' d='M1 1l4 4 4-4'/></svg>")
+			right 0.7rem center / 10px 6px no-repeat;
+		border: 0;
+		font: inherit;
+		font-size: 0.78rem;
+		color: var(--ink);
+		cursor: pointer;
+		appearance: none;
+		-webkit-appearance: none;
+		max-width: 16rem;
+		text-overflow: ellipsis;
+	}
+
+	.cat-select select:focus {
+		outline: none;
+	}
+
 	.status-tabs {
 		display: flex;
 		gap: 0;
@@ -688,7 +748,9 @@
 		align-items: center;
 		gap: 0.45em;
 		border-right: 1px solid var(--rule);
-		transition: color 0.2s ease, background 0.2s ease;
+		transition:
+			color 0.2s ease,
+			background 0.2s ease;
 	}
 
 	.status-tabs button:last-child {
