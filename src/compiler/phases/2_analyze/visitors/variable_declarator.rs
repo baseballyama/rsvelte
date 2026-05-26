@@ -772,8 +772,14 @@ fn is_expression_defined(node: &Value) -> bool {
         | "ObjectExpression"
         | "ArrowFunctionExpression"
         | "FunctionExpression"
-        | "TemplateLiteral"
-        | "NewExpression" => true,
+        | "TemplateLiteral" => true,
+        // `new SomeClass(...)` always returns an object at runtime, but its
+        // toString / valueOf are user-controlled, so upstream's scope.evaluate
+        // returns `is_string: false` and the template-literal `${...}`
+        // coercion adds `?? ''` for safety (Svelte 5.53.3 `f67d03df5`).
+        // Mirror that here by treating NewExpression as NOT provably-defined
+        // for `is_expression_defined`'s consumers.
+        "NewExpression" => false,
         "AssignmentExpression" => node
             .get("right")
             .map(is_expression_defined)
@@ -1121,8 +1127,12 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
         | JsNode::ObjectExpression { .. }
         | JsNode::ArrowFunctionExpression { .. }
         | JsNode::FunctionExpression { .. }
-        | JsNode::TemplateLiteral { .. }
-        | JsNode::NewExpression { .. } => true,
+        | JsNode::TemplateLiteral { .. } => true,
+        // See the JSON variant above — Svelte 5.53.3 `f67d03df5` treats
+        // `new SomeClass()` as not-provably-string, so we report it as
+        // not-provably-defined for the template-literal coercion path that
+        // consumes this signal via `binding.initial_is_defined`.
+        JsNode::NewExpression { .. } => false,
         JsNode::AssignmentExpression { right, .. } => {
             is_expression_defined_typed(arena.get_js_node(*right), arena)
         }

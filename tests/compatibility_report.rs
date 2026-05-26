@@ -1102,7 +1102,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             "inline-style-directive-string-variable-kebab-case",
         ),
         ("runtime-runes", "derived-name-shadowed"),
-        ("runtime-runes", "set-text-stable-coercion"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
         // - HtmlTag is_controlled cluster (Svelte 5.53.8, upstream commit
