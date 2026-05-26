@@ -95,3 +95,6 @@ pbcopy
 # entry, `changesets/action` includes them in the "Version Packages" PR
 # (~70 MB per run, baked into git history forever).
 artifacts/
+
+# Claude scheduled task lock (runtime artifact)
+.claude/scheduled_tasks.lock
