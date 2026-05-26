@@ -243,7 +243,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // is handled; the runes fixtures below also hit code paths that aren't
     // ported yet (attribute parts, async-await codegen). Mirrors the
     // entries in `tests/compatibility_report.rs`.
-    "attribute-parts",
     "async-await-block-2",
     "async-await",
     "async-duplicate-dependencies",

@@ -81,15 +81,7 @@ struct TestResult {
 /// yet implement. Mirrors the corresponding entries in `tests/compatibility_report.rs`
 /// so `test_ssr` stops blocking unrelated work; remove an entry as soon as the
 /// upstream behaviour is matched.
-const SSR_SKIP_NAMES: &[&str] = &[
-    // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
-    // stringify in server attributes"): static interpolated literals are now
-    // inlined directly into `$$renderer.push(...)` instead of going through
-    // `$.head` + `$.stringify(...)`. Mirrors the entry in
-    // `tests/compatibility_report.rs`; remove once the head-element SSR path
-    // applies the same constant-folding.
-    "head-raw-elements-content",
-];
+const SSR_SKIP_NAMES: &[&str] = &[];
 
 /// Run a single SSR fixture test.
 fn run_ssr_fixture_test(fixture: &SsrFixture) -> TestResult {

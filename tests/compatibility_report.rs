@@ -1094,7 +1094,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   rsvelte still emits the `$.stringify` form for the former and
         //   the un-grouped sync-statement form for the latter. Tracked as
         //   follow-up ports.
-        ("runtime-runes", "attribute-parts"),
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
@@ -1102,7 +1101,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             "runtime-legacy",
             "inline-style-directive-string-variable-kebab-case",
         ),
-        ("server-side-rendering", "head-raw-elements-content"),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "set-text-stable-coercion"),
         ("runtime-runes", "async-boundary-nav-race"),
