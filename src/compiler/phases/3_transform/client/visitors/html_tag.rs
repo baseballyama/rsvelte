@@ -31,12 +31,11 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     // Svelte 5.53.8 (upstream commit `0206a2019` "fix: clean up
     // externally-added DOM nodes in {@html} on re-render") added an
-    // `is_controlled` flag — when the {@html} sits directly inside a
-    // contenteditable element the parent owns the namespace and the wrapper
-    // anchor comment is skipped. rsvelte doesn't surface
-    // `metadata.is_controlled` from analysis yet, so treat every {@html} as
-    // non-controlled (the common case) and always emit the anchor comment.
-    let is_controlled = false;
+    // `is_controlled` flag — when the {@html} is the only child of an
+    // element the parent owns the namespace and the wrapper anchor comment
+    // is skipped. fragment.rs::process_children sets
+    // `state.is_controlled_html` before visiting; we read it here.
+    let is_controlled = context.state.is_controlled_html;
 
     // Push comment anchor to template
     if !is_controlled {

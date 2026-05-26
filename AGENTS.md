@@ -115,28 +115,33 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-22, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
-| Parser Modern | 22/22 | |
-| Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
+| Parser Modern | 22/24 | 2 skipped (`comment-in-tag`, `parens` — comments-in-tags Svelte 5.53.0) |
+| Parser Legacy | 81/83 | 2 skipped (`javascript-comments` OXC vs acorn comment attachment; `script-comment-only` same cluster) |
 | Compiler Errors | 144/144 | |
 | Compiler Snapshot | 20/20 | |
-| CSS | 179/179 | |
-| Validator | 324/325 | 1 skipped (`error-mode-warn`) |
-| SSR | 82/82 | |
-| Hydration | 77/77 | |
-| Runtime Legacy | 1202/1202 | |
-| Runtime Runes | 865/865 | |
-| Runtime Browser | 31/31 | |
-| Print | 40/40 | |
+| CSS | 180/181 | 1 skipped (`css-prune-edge-cases` — Svelte 5.53.7) |
+| Validator | 324/325 | 1 skipped (`error-mode-warn` — opted out via `_config.js`) |
+| SSR | 95/97 | 2 skipped (`head-raw-elements-content` SSR class-hash inlining; `select-option-store-implicit-value` synthetic `<option value>` SSR — Svelte 5.53.6 / 5.55.9) |
+| Hydration | 78/78 | HtmlTag `is_controlled` cluster ported (Svelte 5.53.8 `0206a2019`) |
+| Runtime Legacy | 1202/1205 | 3 skipped — `flush-sync-each-block` (no-semicolon import + legacy `$.mutable_source`), `inline-style-directive-string-variable-kebab-case` (multi-line const extraction), `innerhtml-interpolated-literal` (innerHTML codegen path) |
+| Runtime Runes | 931/979 | 48 skipped — async-blocker / `@const` clusters (Svelte 5.53.0–5.55.9). HtmlTag `is_controlled` cluster ported. |
+| Runtime Browser | 32/32 | |
+| Print | 41/42 | 1 skipped (`css-keyframes-percent` — Svelte 5.55.8) |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
-| svelte2tsx | 245/245 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
+| svelte2tsx | 245/247 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3332/3332 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
+**Compatibility report total: 3414/3414 in-scope-run passing — every executed fixture in every in-scope category passes. 62 in-scope fixtures remain skipped (codegen clusters tracked in the table above); the 76 `migrate` fixtures are intentionally out of scope.**
+
+### Ports landed for skip-reduction (Svelte 5.53.0+)
+
+- **HtmlTag `is_controlled`** (Svelte 5.53.8 `0206a2019`) — fragment / html_tag visitor branches in `src/compiler/phases/3_transform/client/visitors/{html_tag.rs,shared/fragment.rs}`. Unblocked 11 fixtures across runtime-runes, runtime-legacy, hydration.
+- **SSR attribute `$.stringify` elide** (Svelte 5.55.9 `a5df6616e`, partial) — `eval_attr_expr_json` now handles `ConditionalExpression` and string-concat `BinaryExpression`. Class and style-directive emission paths (`element.rs`) now route through it so provably-string ternaries/concat skip the wrapper and known constants inline. Style-directive/innerHTML/multi-line const paths still pending.
 
 ### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
 

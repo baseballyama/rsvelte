@@ -496,6 +496,32 @@ pub fn process_children<F>(
                         }
                         context.state.node = saved_node;
                     }
+                } else if let TemplateNode::HtmlTag(html_tag) = node
+                    && nodes.len() == 1
+                    && is_element
+                    && !html_tag.metadata.expression.is_async()
+                {
+                    // Svelte 5.53.8 (upstream `0206a2019`): when `{@html ...}` is
+                    // the only child of an element AND the expression is NOT async,
+                    // set is_controlled so the visitor emits
+                    // `$.html(parent, thunk, true, ...)` without a wrapper comment
+                    // anchor. The visitor uses the parent node directly, so
+                    // there's no flush_node call. Async expressions keep the
+                    // wrapper because $.async() needs to skip sibling nodes up to
+                    // the wrapper.
+                    let saved = context.state.is_controlled_html;
+                    context.state.is_controlled_html = true;
+                    let result = context.visit_node(node, None);
+                    context.state.is_controlled_html = saved;
+                    match result {
+                        crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(stmt) => {
+                            context.state.init.push(stmt);
+                        }
+                        crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
+                            context.state.init.push(JsStatement::Block(block));
+                        }
+                        _ => {}
+                    }
                 } else {
                     // Get node name for identifier
                     let name = if let TemplateNode::RegularElement(elem) = node {

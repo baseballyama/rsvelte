@@ -1926,6 +1926,15 @@ pub struct ComponentClientTransformState<'a> {
     /// This flag is set in fragment.rs process_children and checked in each_block.rs.
     pub is_controlled_each: bool,
 
+    /// Flag indicating if the current HtmlTag should be treated as "controlled".
+    /// Set when `{@html ...}` is the only child of an element (Svelte 5.53.8
+    /// upstream commit `0206a2019`); the visitor then skips the wrapper
+    /// comment anchor and emits `$.html(parent, thunk, true, ...)` so the
+    /// runtime can use the parent's namespace and clean up
+    /// externally-added DOM nodes (e.g. contenteditable input). Set in
+    /// shared/fragment.rs process_children and read in html_tag.rs.
+    pub is_controlled_html: bool,
+
     /// Local snippets for child processing (used when processing element children).
     /// In the JS version, this is `child_state.snippets`.
     /// When snippets are defined inside elements, they go here instead of init.
@@ -2155,6 +2164,7 @@ impl<'a> ComponentClientTransformState<'a> {
             in_event_attribute_handler: false,
             event_handler_arrow_body_level: 0,
             is_controlled_each: false,
+            is_controlled_html: false,
             snippets: Vec::new(),
             template_nesting_level: 0,
             in_control_flow_block: false,

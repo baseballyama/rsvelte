@@ -1099,10 +1099,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
-        ("runtime-legacy", "globals-not-overwritten-by-bindings"),
-        ("runtime-legacy", "attribute-dynamic-multiple"),
-        ("runtime-legacy", "attribute-url"),
-        ("runtime-legacy", "head-title-static-dynamic-element"),
         (
             "runtime-legacy",
             "inline-style-directive-string-variable-kebab-case",
@@ -1114,35 +1110,13 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "set-text-stable-coercion"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
-        ("runtime-legacy", "const-tag-each-arrow"),
-        ("runtime-legacy", "const-tag-each-duplicated-variable2"),
-        ("runtime-legacy", "const-tag-each-duplicated-variable3"),
-        ("runtime-legacy", "const-tag-each-function"),
-        ("runtime-legacy", "const-tag-each-const"),
-        ("runtime-legacy", "await-block-func-function"),
         // - HtmlTag is_controlled cluster (Svelte 5.53.8, upstream commit
-        //   `0206a2019` "fix: clean up externally-added DOM nodes in {@html}
-        //   on re-render"): when `{@html ...}` is the ONLY child of an
-        //   element, the parent fragment marks `metadata.is_controlled = true`
-        //   and the visitor skips the wrapper comment + uses the parent node
-        //   directly (`$.html(svg, ...)` instead of `$.html(node_1, ...)`).
-        //   rsvelte's analysis doesn't surface `is_controlled` yet so the
-        //   HtmlTag visitor always takes the non-controlled path, which is
-        //   correct for the common case but mismatches the new fixtures
-        //   below. Tracked as a follow-up port.
-        ("runtime-runes", "html-tag-contenteditable"),
-        ("runtime-runes", "await-html-hydration"),
-        ("runtime-runes", "event-global-hydration-error-cleanup"),
-        ("runtime-runes", "async-html-tag"),
-        ("runtime-legacy", "svg-html-tag3"),
-        ("runtime-legacy", "svg-html-tag4"),
-        ("runtime-legacy", "raw-mustaches-preserved"),
-        ("runtime-legacy", "raw-svg"),
-        ("runtime-legacy", "ignore-unchanged-raw"),
-        ("runtime-legacy", "raw-anchor-first-last-child"),
-        ("hydration", "raw-repair"),
-        ("hydration", "raw-empty"),
-        ("hydration", "raw-svg"),
+        //   `0206a2019`) is now ported in `client/visitors/shared/fragment.rs`
+        //   + `client/visitors/html_tag.rs` — all 13 fixtures (runtime-runes,
+        //   runtime-legacy, hydration) now pass. `head-raw-elements-content`
+        //   above survives as the only remaining HtmlTag-adjacent skip and
+        //   actually belongs to the SSR `$.stringify` elide cluster, not
+        //   is_controlled.
         // - `select-option-store-implicit-value` (server-side-rendering,
         //   Svelte 5.53.6): upstream commit `e3d277b00` "fix: visit synthetic
         //   value node during ssr" wraps the synthetic `value` expression
@@ -1356,7 +1330,7 @@ fn run_print_tests() -> CategoryResult {
     // doesn't re-format the bodies of selectors / `@keyframes` blocks the
     // way upstream does (multi-line block normalisation, percentage handling).
     // Tracked as a follow-up port.
-    let skip_print: &[&str] = &["css-keyframes-percent", "style"];
+    let skip_print: &[&str] = &["css-keyframes-percent"];
 
     for sample_dir in &samples {
         let name = sample_dir

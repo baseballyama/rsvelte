@@ -174,24 +174,56 @@ impl<'a> ServerCodeGenerator<'a> {
                             .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
                         if has_expr {
                             // Mixed text + expression: class="block {expr}"
+                            //
+                            // Upstream `scope.evaluate` (Svelte 5.55.9 `a5df6616e`)
+                            // drops the `$.stringify` wrapper when the chunk is
+                            // known-string, inlines known-constants directly, and
+                            // omits `null`/`undefined`. Mirror that here so
+                            // `class='{cond ? "a" : "b"}'` emits `${cond ? "a" : "b"}`.
                             let mut tmpl = String::new();
+                            let mut has_remaining_expr = false;
                             for part in parts {
                                 match part {
                                     AttributeValuePart::Text(text) => {
                                         tmpl.push_str(&text.data);
                                     }
                                     AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        let es = expr_tag.expression.start().unwrap_or(0) as usize;
-                                        let ee = expr_tag.expression.end().unwrap_or(0) as usize;
-                                        if ee > es && ee <= self.source.len() {
-                                            let expr = self.source[es..ee].trim().to_string();
-                                            let expr = self.transform_store_refs(&expr);
-                                            tmpl.push_str(&format!("${{$.stringify({})}}", expr));
+                                        let eval = self
+                                            .evaluate_attribute_expression(&expr_tag.expression);
+                                        match eval {
+                                            AttrExprEval::InlineLiteral(s) => tmpl.push_str(&s),
+                                            AttrExprEval::Empty => {}
+                                            AttrExprEval::StringNoWrap | AttrExprEval::Wrap => {
+                                                has_remaining_expr = true;
+                                                let es = expr_tag.expression.start().unwrap_or(0)
+                                                    as usize;
+                                                let ee =
+                                                    expr_tag.expression.end().unwrap_or(0) as usize;
+                                                if ee > es && ee <= self.source.len() {
+                                                    let expr =
+                                                        self.source[es..ee].trim().to_string();
+                                                    let expr = self.transform_store_refs(&expr);
+                                                    if matches!(eval, AttrExprEval::StringNoWrap) {
+                                                        tmpl.push_str(&format!("${{{}}}", expr));
+                                                    } else {
+                                                        tmpl.push_str(&format!(
+                                                            "${{$.stringify({})}}",
+                                                            expr
+                                                        ));
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
-                            base_class = Some(format!("__TMPL__:{}", tmpl));
+                            if has_remaining_expr {
+                                base_class = Some(format!("__TMPL__:{}", tmpl));
+                            } else {
+                                // All expressions were inlined to constants — fall
+                                // through to the static-string base_class path.
+                                base_class = Some(tmpl);
+                            }
                         } else {
                             base_class = self.extract_attribute_text_value(node);
                         }
@@ -2244,16 +2276,32 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
-                            // Add accumulated text
-                            template_parts.push(current_text.clone());
-                            current_text.clear();
+                            // Svelte 5.55.9 (upstream `a5df6616e`): inline
+                            // known-constants, drop `$.stringify` wrapper for
+                            // provably-string chunks, and omit null/undefined.
+                            let eval = self.evaluate_attribute_expression(&expr_tag.expression);
+                            match eval {
+                                AttrExprEval::InlineLiteral(s) => current_text.push_str(&s),
+                                AttrExprEval::Empty => {}
+                                AttrExprEval::StringNoWrap | AttrExprEval::Wrap => {
+                                    // Add accumulated text
+                                    template_parts.push(current_text.clone());
+                                    current_text.clear();
 
-                            // Add expression wrapped in $.stringify()
-                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                            if expr_end > expr_start && expr_end <= self.source.len() {
-                                let expr = self.source[expr_start..expr_end].trim().to_string();
-                                template_parts.push(format!("${{$.stringify({})}}", expr));
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        if matches!(eval, AttrExprEval::StringNoWrap) {
+                                            template_parts.push(format!("${{{}}}", expr));
+                                        } else {
+                                            template_parts
+                                                .push(format!("${{$.stringify({})}}", expr));
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -2325,6 +2373,13 @@ impl<'a> ServerCodeGenerator<'a> {
         let Some(ty) = obj.get("type").and_then(|t| t.as_str()) else {
             return AttrExprEval::Wrap;
         };
+        if std::env::var("DEBUG_EVAL").is_ok() {
+            eprintln!(
+                "[eval_attr_expr_json] type={} obj_keys={:?}",
+                ty,
+                obj.keys().collect::<Vec<_>>()
+            );
+        }
         match ty {
             "Literal" => match obj.get("value") {
                 Some(Value::String(s)) => AttrExprEval::InlineLiteral(s.clone()),
@@ -2385,7 +2440,57 @@ impl<'a> ServerCodeGenerator<'a> {
                     AttrExprEval::Wrap
                 }
             }
+            // Upstream `scope.evaluate` (Svelte 5.55.9 `a5df6616e`) treats a
+            // ternary as provably-string when BOTH branches are provably-string,
+            // so the wrapping `$.stringify(...)` can be elided.
+            "ConditionalExpression" => {
+                let Some(consequent) = obj.get("consequent") else {
+                    return AttrExprEval::Wrap;
+                };
+                let Some(alternate) = obj.get("alternate") else {
+                    return AttrExprEval::Wrap;
+                };
+                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(consequent))
+                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(alternate))
+                {
+                    AttrExprEval::StringNoWrap
+                } else {
+                    AttrExprEval::Wrap
+                }
+            }
+            // String concatenation `a + b` where both operands are provably-string
+            // is itself provably-string.
+            "BinaryExpression" => {
+                let operator = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+                if operator != "+" {
+                    return AttrExprEval::Wrap;
+                }
+                let Some(left) = obj.get("left") else {
+                    return AttrExprEval::Wrap;
+                };
+                let Some(right) = obj.get("right") else {
+                    return AttrExprEval::Wrap;
+                };
+                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(left))
+                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(right))
+                {
+                    AttrExprEval::StringNoWrap
+                } else {
+                    AttrExprEval::Wrap
+                }
+            }
             _ => AttrExprEval::Wrap,
+        }
+    }
+
+    /// Helper for `eval_attr_expr_json`: whether a sub-expression's evaluation
+    /// proves it returns a (non-nullish) string.
+    fn eval_is_string_or_inline(eval: &AttrExprEval) -> bool {
+        match eval {
+            AttrExprEval::InlineLiteral(_) | AttrExprEval::StringNoWrap => true,
+            // `Empty` corresponds to `null`/`undefined` — these are NOT strings,
+            // so a ternary with an `undefined` branch is not provably-string.
+            AttrExprEval::Empty | AttrExprEval::Wrap => false,
         }
     }
 
@@ -2603,8 +2708,13 @@ impl<'a> ServerCodeGenerator<'a> {
                         .iter()
                         .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
                     if has_expr {
-                        // Generate a template literal: `text${$.stringify(expr)}text`
-                        let mut template = String::from("`");
+                        // Svelte 5.55.9 (upstream `a5df6616e`): inline known
+                        // constants, elide `$.stringify` for provably-string
+                        // expressions, omit null/undefined. When all
+                        // expressions collapse to inline literals, emit a
+                        // plain string instead of a template literal.
+                        let mut template = String::new();
+                        let mut has_remaining_expr = false;
                         for part in parts {
                             match part {
                                 AttributeValuePart::Text(text) => {
@@ -2617,22 +2727,44 @@ impl<'a> ServerCodeGenerator<'a> {
                                     );
                                 }
                                 AttributeValuePart::ExpressionTag(expr_tag) => {
-                                    let expr_start =
-                                        expr_tag.expression.start().unwrap_or(0) as usize;
-                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                                    if expr_end > expr_start && expr_end <= self.source.len() {
-                                        let expr_src = self.source[expr_start..expr_end].trim();
-                                        let transformed = self.transform_store_refs(expr_src);
-                                        template.push_str(&format!(
-                                            "${{$.stringify({})}}",
-                                            transformed
-                                        ));
+                                    let eval =
+                                        self.evaluate_attribute_expression(&expr_tag.expression);
+                                    match eval {
+                                        AttrExprEval::InlineLiteral(s) => template.push_str(&s),
+                                        AttrExprEval::Empty => {}
+                                        AttrExprEval::StringNoWrap | AttrExprEval::Wrap => {
+                                            has_remaining_expr = true;
+                                            let expr_start =
+                                                expr_tag.expression.start().unwrap_or(0) as usize;
+                                            let expr_end =
+                                                expr_tag.expression.end().unwrap_or(0) as usize;
+                                            if expr_end > expr_start
+                                                && expr_end <= self.source.len()
+                                            {
+                                                let expr_src =
+                                                    self.source[expr_start..expr_end].trim();
+                                                let transformed =
+                                                    self.transform_store_refs(expr_src);
+                                                if matches!(eval, AttrExprEval::StringNoWrap) {
+                                                    template
+                                                        .push_str(&format!("${{{}}}", transformed));
+                                                } else {
+                                                    template.push_str(&format!(
+                                                        "${{$.stringify({})}}",
+                                                        transformed
+                                                    ));
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                        template.push('`');
-                        template
+                        if has_remaining_expr {
+                            format!("`{}`", template)
+                        } else {
+                            format!("'{}'", template)
+                        }
                     } else {
                         // Static text value only
                         let mut text_val = String::new();
