@@ -1097,7 +1097,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
-        ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
         // - HtmlTag is_controlled cluster (Svelte 5.53.8, upstream commit

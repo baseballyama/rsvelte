@@ -194,6 +194,28 @@ fn update_binding_kinds(
 ) -> Result<(), AnalysisError> {
     for path in paths {
         if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
+            if std::env::var("DBG_FOO").is_ok() && name == "foo" {
+                eprintln!(
+                    "[DBG_FOO] update_binding_kinds enter: rune={} function_depth={}",
+                    rune, context.function_depth
+                );
+                for (i, scope) in context.analysis.root.all_scopes.iter().enumerate() {
+                    if let Some(&idx) = scope.declarations.get(name) {
+                        let b = &context.analysis.root.bindings[idx];
+                        eprintln!(
+                            "[DBG_FOO]   all_scopes[{}] foo -> idx={} kind={:?} scope_index={}",
+                            i, idx, b.kind, b.scope_index
+                        );
+                    }
+                }
+                if let Some(&idx) = context.analysis.root.scope.declarations.get(name) {
+                    let b = &context.analysis.root.bindings[idx];
+                    eprintln!(
+                        "[DBG_FOO]   root.scope foo -> idx={} kind={:?} scope_index={}",
+                        idx, b.kind, b.scope_index
+                    );
+                }
+            }
             // Find the correct binding for this declaration. When inside a nested function
             // (function_depth > 1, since instance script starts at depth 1), the merged
             // declarations map might return an outer binding that shadows the inner one.
@@ -218,6 +240,9 @@ fn update_binding_kinds(
             } else {
                 context.analysis.root.scope.declarations.get(name).copied()
             };
+            if std::env::var("DBG_FOO").is_ok() && name == "foo" {
+                eprintln!("[DBG_FOO]   chosen binding_idx={:?}", binding_idx);
+            }
 
             let binding_idx = match binding_idx {
                 Some(idx) => idx,
@@ -1262,18 +1287,16 @@ fn update_binding_kinds_typed(
 ) -> Result<(), AnalysisError> {
     let arena = context.parse_arena;
     for path in paths {
-        let binding_idx = if context.function_depth > 1 {
-            let mut found = None;
-            for scope in context.analysis.root.all_scopes.iter().rev() {
-                if let Some(&idx) = scope.declarations.get(path.name.as_str())
-                    && let Some(b) = context.analysis.root.bindings.get(idx)
-                    && b.scope_index > 1
-                {
-                    found = Some(idx);
-                    break;
-                }
-            }
-            found.or_else(|| {
+        // Svelte 5.53.1 (upstream `0c7f81514` "handle shadowed function names
+        // correctly"): when an inner `const foo = $derived(...)` shadows an
+        // outer `function foo()`, the rune mutation must land on the inner
+        // binding only. Use lexical scoping — walk from `context.scope` up
+        // the parent chain to find the first scope that declares this name.
+        let binding_idx = context
+            .analysis
+            .root
+            .get_binding(path.name.as_str(), context.scope)
+            .or_else(|| {
                 context
                     .analysis
                     .root
@@ -1281,16 +1304,7 @@ fn update_binding_kinds_typed(
                     .declarations
                     .get(path.name.as_str())
                     .copied()
-            })
-        } else {
-            context
-                .analysis
-                .root
-                .scope
-                .declarations
-                .get(path.name.as_str())
-                .copied()
-        };
+            });
 
         let binding_idx = match binding_idx {
             Some(idx) => idx,
