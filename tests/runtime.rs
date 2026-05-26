@@ -162,31 +162,23 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // the official compiler structurally, but the live comparison harness
     // diverges. Last 3 main CI runs failed this same fixture.
     "async-derived-title-update",
-    // Shadowing of a `$derived` name by an inner declaration — same upstream
-    // class as the above; previously latent, now surfaced. Awaiting investigation.
+    // Shadowing of a `$derived` name by an inner declaration (Svelte 5.53.1
+    // upstream `0c7f81514`). rsvelte's FunctionDeclaration scope handling
+    // associates the inner `const foo = $derived(...)` with template lookups
+    // of the outer `function foo()` — needs the upstream scopes.set(node.id)
+    // fix on the rsvelte ScopeBuilder. Tracked as a follow-up port.
     "derived-name-shadowed",
-    // `$derived` with postfix/prefix update operators — SSR output diverges
-    // from the official compiler. Added in Svelte 5.53.2; also skipped in
-    // compatibility_report. Awaiting investigation.
-    "derived-update-server",
-    // Template-literal `set_text` interpolation expects `?? ''` coercion;
-    // rsvelte's client transform doesn't emit it yet. Added in Svelte 5.53.3;
-    // also skipped in compatibility_report.
+    // Svelte 5.53.3 `f67d03df5`: template-literal `set_text` should wrap
+    // non-provably-string values with `?? ''` to coerce. rsvelte's
+    // `is_expression_defined` treats `new Widget()` as defined; upstream's
+    // `scope.evaluate` distinguishes "defined" from "is_string" and only
+    // skips `?? ''` when both are true. Tracked as follow-up port.
     "set-text-stable-coercion",
     // Async boundary / async-if-else fixtures added in Svelte 5.53.4 that
     // exercise async-blocker plumbing rsvelte doesn't yet emit. Also
     // skipped in compatibility_report.
     "async-boundary-nav-race",
     "async-if-else",
-    // HtmlTag `is_controlled` cluster (Svelte 5.53.8 upstream `0206a2019`).
-    // When `{@html ...}` is the only child of an element, the parent
-    // fragment marks `metadata.is_controlled = true` and the visitor uses
-    // the parent node directly. rsvelte's analysis doesn't surface
-    // `is_controlled`; also skipped in compatibility_report.
-    "html-tag-contenteditable",
-    "await-html-hydration",
-    "event-global-hydration-error-cleanup",
-    "async-html-tag",
     // async-eager-derived (Svelte 5.53.12, upstream `965f2a0ac` "fix:
     // eagerly load deriveds when async work is started"): expected
     // compiled output now threads `eager` promises through `$.derived(...)`
@@ -233,9 +225,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-reactivity-loss-no-false-positive-1",
     "async-reactivity-loss-no-false-positive-2",
     "async-reactivity-loss-no-false-positive-3",
-    // derived-dep-set-while-rendering (Svelte 5.55.5): also skipped in
-    // compatibility_report.
-    "derived-dep-set-while-rendering",
     // 5.55.6 async-codegen cluster: same gap as the previous async batches,
     // skipped in compatibility_report.
     "async-debug-awaited-expression",
@@ -254,50 +243,35 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // is handled; the runes fixtures below also hit code paths that aren't
     // ported yet (attribute parts, async-await codegen). Mirrors the
     // entries in `tests/compatibility_report.rs`.
-    "attribute-parts",
     "async-await-block-2",
     "async-await",
     "async-duplicate-dependencies",
 ];
 
-/// runtime-legacy fixtures that diverged after the Svelte 5.53.4 scope fix
-/// (commit `3a289797b` "fix: handle default parameters scope leaks"). The
-/// upstream change uses separate scopes for function declarations and their
-/// bodies, which shifts the names emitted by `const-tag` / `await`-block
-/// client codegen. rsvelte's transform doesn't yet mirror the new scope
-/// model; tracked as a follow-up port.
+/// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
+/// labelled with the upstream commit responsible. Remove an entry once the
+/// underlying port lands.
 const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
-    "await-block-func-function",
-    "const-tag-each-arrow",
-    "const-tag-each-const",
-    "const-tag-each-duplicated-variable2",
-    "const-tag-each-duplicated-variable3",
-    "const-tag-each-function",
-    // HtmlTag `is_controlled` cluster (Svelte 5.53.8 upstream `0206a2019`),
-    // legacy half. See RUNTIME_RUNES_SKIP_NAMES for the wider context.
-    "svg-html-tag3",
-    "svg-html-tag4",
-    "raw-mustaches-preserved",
-    "raw-svg",
-    "ignore-unchanged-raw",
-    "raw-anchor-first-last-child",
-    // flush-sync-each-block (Svelte 5.55.2): also skipped in compatibility_report.
+    // flush-sync-each-block (Svelte 5.55.2): two combined failures —
+    //   1) client: `import "./Inner.svelte"` (no semicolon) merges into the
+    //      following `let count = 1` because the script raw-emission path
+    //      strips line breaks.
+    //   2) server: legacy `let count` is not lowered to `$.mutable_source(...)`.
     "flush-sync-each-block",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
-    // stringify in server attributes"): static and known-string-defined
-    // attribute interpolations now skip `$.stringify(...)`. The
-    // `<div title=...>` case is handled, but class/style/style-directive/
-    // innerHTML paths still emit the wrapper. Mirrors the entries in
-    // `tests/compatibility_report.rs`; remove as those paths are ported.
-    "attribute-dynamic-multiple",
-    "globals-not-overwritten-by-bindings",
+    // stringify in server attributes"): two paths remain.
+    //   - inline-style-directive-string-variable-kebab-case relies on
+    //     extracting a multi-line `let url = "..."` declaration as a constant;
+    //     `extract_constant_vars` only handles single-line declarations.
+    //   - inline-style-directive-string-variable-kebab-case relies on a
+    //     multi-line `let url = "..."` declaration which
+    //     `extract_constant_vars` doesn't handle.
     "inline-style-directive-string-variable-kebab-case",
-    "innerhtml-interpolated-literal",
 ];
 
-/// hydration fixtures that diverge after the Svelte 5.53.8 HtmlTag `is_controlled`
-/// upstream change. See RUNTIME_RUNES_SKIP_NAMES for context.
-const HYDRATION_SKIP_NAMES: &[&str] = &["raw-repair", "raw-empty", "raw-svg"];
+/// hydration fixtures still failing. All HtmlTag is_controlled fixtures now pass
+/// post-port (Svelte 5.53.8 upstream `0206a2019`).
+const HYDRATION_SKIP_NAMES: &[&str] = &[];
 
 /// Run a single runtime fixture test.
 fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestResult {

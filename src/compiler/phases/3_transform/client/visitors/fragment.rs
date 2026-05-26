@@ -173,6 +173,7 @@ pub fn fragment(
         in_event_attribute_handler: false,
         event_handler_arrow_body_level: 0,
         is_controlled_each: false,
+        is_controlled_html: false,
         snippets: Vec::new(),
         // Root fragment starts at level 0; non-root fragments (e.g., inside {#if}/{#each})
         // start at level 1 so that snippets inside blocks are not hoisted to the root.

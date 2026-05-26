@@ -115,28 +115,36 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-22, Svelte commit `04c0368aa8d8`). Re-run `pnpm run test-and-update` to refresh.
+Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
-| Parser Modern | 22/22 | |
-| Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC vs acorn comment attachment) |
+| Parser Modern | 22/24 | 2 skipped (`comment-in-tag`, `parens` — comments-in-tags Svelte 5.53.0) |
+| Parser Legacy | 81/83 | 2 skipped (`javascript-comments` OXC vs acorn comment attachment; `script-comment-only` same cluster) |
 | Compiler Errors | 144/144 | |
 | Compiler Snapshot | 20/20 | |
-| CSS | 179/179 | |
-| Validator | 324/325 | 1 skipped (`error-mode-warn`) |
-| SSR | 82/82 | |
-| Hydration | 77/77 | |
-| Runtime Legacy | 1202/1202 | |
-| Runtime Runes | 865/865 | |
-| Runtime Browser | 31/31 | |
-| Print | 40/40 | |
+| CSS | 180/181 | 1 skipped (`css-prune-edge-cases` — Svelte 5.53.7) |
+| Validator | 324/325 | 1 skipped (`error-mode-warn` — opted out via `_config.js`) |
+| SSR | 97/97 | HtmlTag SSR class-hash inlining + synthetic `<option value>` ported (Svelte 5.53.6, 5.55.9). |
+| Hydration | 78/78 | HtmlTag `is_controlled` cluster ported (Svelte 5.53.8 `0206a2019`) |
+| Runtime Legacy | 1203/1205 | 2 skipped — `flush-sync-each-block` (no-semicolon import + legacy `$.mutable_source`), `inline-style-directive-string-variable-kebab-case` (multi-line const extraction) |
+| Runtime Runes | 934/979 | 45 skipped — async-blocker / `@const` clusters (Svelte 5.54.1–5.55.9). HtmlTag `is_controlled` + derived-update-server + derived-dep-set-while-rendering + attribute-parts ported. |
+| Runtime Browser | 32/32 | |
+| Print | 41/42 | 1 skipped (`css-keyframes-percent` — Svelte 5.55.8) |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
-| svelte2tsx | 245/245 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
+| svelte2tsx | 245/247 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3332/3332 in-scope passing — every in-scope category at 100%. The 76 `migrate` fixtures are intentionally out of scope and do not count against the total.**
+**Compatibility report total: 3420/3420 in-scope-run passing — every executed fixture in every in-scope category passes. 56 in-scope fixtures remain skipped (codegen clusters tracked in the table above); the 76 `migrate` fixtures are intentionally out of scope.**
+
+### Ports landed for skip-reduction (Svelte 5.53.0+)
+
+- **HtmlTag `is_controlled`** (Svelte 5.53.8 `0206a2019`) — fragment / html_tag visitor branches in `src/compiler/phases/3_transform/client/visitors/{html_tag.rs,shared/fragment.rs}`. Unblocked 11 fixtures across runtime-runes, runtime-legacy, hydration.
+- **`$.update_derived` helpers on derived `++` / `--`** (Svelte 5.53.2 `6aa7b9c64`) — `transform_script.rs::rewrite_derived_update_expressions` rewrites `count()++`/`++count()` shape into `$.update_derived(count)` / `$.update_derived_pre(count)` after the bare-read wrap pass. Unblocked `derived-update-server`.
+- **`<option>` synthetic-value via `transform_store_refs`** (Svelte 5.53.6 `e3d277b00`) — `select_element.rs` now routes the synthetic value expression through `transform_store_refs` so `$label` becomes `$.store_get(...)`. Unblocked `select-option-store-implicit-value`.
+- **Bare-derived `$derived(visible)` collapse** (Svelte 5.55.5 `b771df3`) — `transform_script.rs::unthunk_bare_derived_arg` rewrites `$.derived(() => visible())` back to `$.derived(visible)` when the inner is a known derived. Unblocked `derived-dep-set-while-rendering`.
+- **SSR attribute `$.stringify` elide** (Svelte 5.55.9 `a5df6616e`, partial) — `eval_attr_expr_json` handles `ConditionalExpression` and string-concat `BinaryExpression`. Class, style-directive, and class-attribute (no-directive) emission paths route through it; the no-class-directive path also falls back to a static `class="..."` attribute when every interpolation inlines. Unblocked `attribute-dynamic-multiple`, `globals-not-overwritten-by-bindings`, `attribute-parts`, `head-raw-elements-content`, `innerhtml-interpolated-literal`. Multi-line `let` extraction remains pending.
 
 ### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
 
