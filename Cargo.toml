@@ -94,7 +94,7 @@ chrono = "0.4"
 
 # N-API support (optional)
 napi = { version = "2", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt"], optional = true }
-napi-derive = { version = "2", optional = true }
+napi-derive = { version = "3", optional = true }
 
 # WASM support (optional)
 wasm-bindgen = { version = "0.2", optional = true }
