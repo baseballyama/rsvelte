@@ -82,11 +82,6 @@ struct TestResult {
 /// so `test_ssr` stops blocking unrelated work; remove an entry as soon as the
 /// upstream behaviour is matched.
 const SSR_SKIP_NAMES: &[&str] = &[
-    // Svelte 5.53.6 (upstream `e3d277b00`): `<option>` synthetic `value` is
-    // visited through `context.visit(...)`, so store refs get rewritten via
-    // `$.store_get(...)`. rsvelte's SSR transform doesn't yet route the
-    // synthetic value node through `transform_store_refs`.
-    "select-option-store-implicit-value",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"): static interpolated literals are now
     // inlined directly into `$$renderer.push(...)` instead of going through

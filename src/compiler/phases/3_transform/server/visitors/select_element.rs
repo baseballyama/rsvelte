@@ -553,11 +553,16 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Check if we have a synthetic_value_node - if so, pass the value directly
         if let Some(synthetic_value_node) = &element.metadata.synthetic_value_node {
-            // Get expression source directly
+            // Get expression source. Svelte 5.53.6 (upstream `e3d277b00`):
+            // `<option>` synthetic value is visited through
+            // `context.visit(...)` so store refs (e.g. `$label`) get rewritten
+            // via `$.store_get(...)`. Mirror that here by routing the
+            // expression through `transform_store_refs`.
             let expr_start = synthetic_value_node.expression.start().unwrap_or(0) as usize;
             let expr_end = synthetic_value_node.expression.end().unwrap_or(0) as usize;
             let expr_source = if expr_end > expr_start && expr_end <= self.source.len() {
-                self.source[expr_start..expr_end].trim().to_string()
+                let raw = self.source[expr_start..expr_end].trim().to_string();
+                self.transform_store_refs(&raw)
             } else {
                 "undefined".to_string()
             };

@@ -1117,16 +1117,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   actually belongs to the SSR `$.stringify` elide cluster, not
         //   is_controlled.
         // - `select-option-store-implicit-value` (server-side-rendering,
-        //   Svelte 5.53.6): upstream commit `e3d277b00` "fix: visit synthetic
-        //   value node during ssr" wraps the synthetic `value` expression
-        //   computed for `<option>` inside `<select>` in `context.visit(...)`
-        //   so store refs (`$label` → `$.store_get(...)`) get rewritten.
-        //   rsvelte's SSR transform doesn't route the synthetic value node
-        //   through `transform_store_refs` yet — tracked as a follow-up port.
-        (
-            "server-side-rendering",
-            "select-option-store-implicit-value",
-        ),
+        //   Svelte 5.53.6, upstream `e3d277b00`): now ported in
+        //   `select_element.rs` — synthetic `<option>` value goes through
+        //   `transform_store_refs`.
     ];
 
     for sample_dir in &samples {

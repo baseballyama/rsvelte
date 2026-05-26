@@ -162,8 +162,11 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // the official compiler structurally, but the live comparison harness
     // diverges. Last 3 main CI runs failed this same fixture.
     "async-derived-title-update",
-    // Shadowing of a `$derived` name by an inner declaration — same upstream
-    // class as the above; previously latent, now surfaced. Awaiting investigation.
+    // Shadowing of a `$derived` name by an inner declaration (Svelte 5.53.1
+    // upstream `0c7f81514`). rsvelte's FunctionDeclaration scope handling
+    // associates the inner `const foo = $derived(...)` with template lookups
+    // of the outer `function foo()` — needs the upstream scopes.set(node.id)
+    // fix on the rsvelte ScopeBuilder. Tracked as a follow-up port.
     "derived-name-shadowed",
     // Svelte 5.53.3 `f67d03df5`: template-literal `set_text` should wrap
     // non-provably-string values with `?? ''` to coerce. rsvelte's
