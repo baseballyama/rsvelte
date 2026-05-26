@@ -1416,6 +1416,131 @@ pub(crate) fn transform_props_spread_ex(
     result
 }
 
+/// Collapse multi-line declarations / function calls into single logical lines.
+///
+/// `extract_constant_vars` walks the script line by line, but
+/// `let url =\n   "https://..."` is one logical statement split across two
+/// physical lines. We scan the script while tracking bracket / paren / brace
+/// / string depth — when a newline appears at depth > 0 (or directly after
+/// an open-paren / `=` with no value yet) we replace it with a single space
+/// so the next pass sees a complete declaration. Lines inside strings /
+/// template literals are left untouched.
+fn join_continuation_lines(script: &str) -> String {
+    let bytes = script.as_bytes();
+    let mut out = String::with_capacity(script.len());
+    let mut depth_paren: i32 = 0;
+    let mut depth_brace: i32 = 0;
+    let mut depth_bracket: i32 = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        // Line / block comments — copy as-is.
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            let s = i;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            let s = i;
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < bytes.len() {
+                i += 2;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        // String / template literals — copy verbatim. Newlines inside
+        // template literals are legal and must not be collapsed.
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let quote = b;
+            let s = i;
+            i += 1;
+            while i < bytes.len() {
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'(' {
+            depth_paren += 1;
+        } else if b == b')' {
+            depth_paren -= 1;
+        } else if b == b'{' {
+            depth_brace += 1;
+        } else if b == b'}' {
+            depth_brace -= 1;
+        } else if b == b'[' {
+            depth_bracket += 1;
+        } else if b == b']' {
+            depth_bracket -= 1;
+        }
+        if b == b'\n' {
+            // Look back over already-emitted output (skipping trailing
+            // spaces / tabs) to see if the previous non-whitespace character
+            // is one that suggests the statement continues onto the next
+            // line — `=`, `+`, `-`, `,`, `(`, `[`, `{`, `?`, `:`, `&`, `|`,
+            // `!` (only as part of `!=`), `<`, `>`, `*`, `/`, `%`, `^`, `~`,
+            // a backtick, etc. The most common case we care about is `=`,
+            // but covering operators avoids surprises with hand-formatted
+            // declarations like `const x = a +\n  b`.
+            let prev = out
+                .as_bytes()
+                .iter()
+                .rposition(|c| !c.is_ascii_whitespace())
+                .map(|p| out.as_bytes()[p]);
+            let in_expr = depth_paren > 0 || depth_bracket > 0 || depth_brace > 0;
+            let after_continuation_op = matches!(
+                prev,
+                Some(
+                    b'=' | b'+'
+                        | b'-'
+                        | b','
+                        | b'?'
+                        | b':'
+                        | b'&'
+                        | b'|'
+                        | b'<'
+                        | b'>'
+                        | b'*'
+                        | b'/'
+                        | b'%'
+                        | b'^'
+                        | b'~'
+                        | b'('
+                        | b'['
+                        | b'{'
+                )
+            );
+            if in_expr || after_continuation_op {
+                out.push(' ');
+                i += 1;
+                continue;
+            }
+        }
+        let mut next = i + 1;
+        while next < bytes.len() && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
+}
+
 /// Extract constant variable bindings from script content.
 /// Try to parse a value as a constant literal and insert into the constants map.
 /// Returns true if the value was successfully inserted.
@@ -1688,8 +1813,14 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
     // Collect unresolved expressions for a second pass
     let mut unresolved: Vec<(String, String, bool)> = Vec::new(); // (name, expr, is_const)
 
+    // Join physical lines into "logical lines" (statements). A declaration
+    // like `let url =\n  "https://..."` spans two physical lines but is one
+    // statement — collapsing it lets the rest of this function recognise it
+    // as `let url = "https://..."`.
+    let logical_script = join_continuation_lines(script);
+
     // First pass: extract constants from non-rune declarations
-    for line in script.lines() {
+    for line in logical_script.lines() {
         let trimmed = line.trim();
 
         // Skip lines with $state, $derived, or $props - these are reactive and

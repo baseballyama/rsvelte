@@ -252,15 +252,6 @@ const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
     //      strips line breaks.
     //   2) server: legacy `let count` is not lowered to `$.mutable_source(...)`.
     "flush-sync-each-block",
-    // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
-    // stringify in server attributes"): two paths remain.
-    //   - inline-style-directive-string-variable-kebab-case relies on
-    //     extracting a multi-line `let url = "..."` declaration as a constant;
-    //     `extract_constant_vars` only handles single-line declarations.
-    //   - inline-style-directive-string-variable-kebab-case relies on a
-    //     multi-line `let url = "..."` declaration which
-    //     `extract_constant_vars` doesn't handle.
-    "inline-style-directive-string-variable-kebab-case",
 ];
 
 /// hydration fixtures still failing. All HtmlTag is_controlled fixtures now pass

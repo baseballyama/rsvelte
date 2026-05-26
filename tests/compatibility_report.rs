@@ -1097,10 +1097,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
-        (
-            "runtime-legacy",
-            "inline-style-directive-string-variable-kebab-case",
-        ),
         ("runtime-runes", "derived-name-shadowed"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
