@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/suzuki-shunsuke/pinact/refs/heads/main/json-schema/pinact.json
+# pinact - https://github.com/suzuki-shunsuke/pinact
+version: 3
+
+rules:
+  # dtolnay/rust-toolchain uses branch names (@stable, @nightly, @1.85) as the
+  # toolchain selector — pinning to a SHA would freeze the Rust version, which
+  # defeats the action's design.
+  - ignore: true
+    conditions:
+      - expr: |
+          ActionRepoOwner == "dtolnay" && ActionRepoName == "rust-toolchain"
+
+  # taiki-e/install-action uses the tag (@cargo-llvm-cov, @cargo-nextest, ...)
+  # as a tool selector rather than a version, so pinning to a SHA would lose
+  # the install target.
+  - ignore: true
+    conditions:
+      - expr: |
+          ActionRepoOwner == "taiki-e" && ActionRepoName == "install-action"
