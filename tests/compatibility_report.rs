@@ -1106,7 +1106,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-legacy", "innerhtml-interpolated-literal"),
         ("server-side-rendering", "head-raw-elements-content"),
         ("runtime-runes", "derived-name-shadowed"),
-        ("runtime-runes", "derived-update-server"),
         ("runtime-runes", "set-text-stable-coercion"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),

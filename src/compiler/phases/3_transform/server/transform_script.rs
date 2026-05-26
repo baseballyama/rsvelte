@@ -124,6 +124,12 @@ fn transform_script_content_inner(
     // bare read of a derived name must be rewritten to `name()`. Collect names
     // from the `$.derived(...)` declarators we just emitted, then wrap reads.
     let script = wrap_derived_reads_in_script(&script);
+    // Svelte 5.53.2 (upstream `6aa7b9c64` "fix: update expressions on server
+    // deriveds"): `name++` / `--name` etc. on a derived must use
+    // `$.update_derived(name)` / `$.update_derived_pre(name)` helpers. After
+    // `wrap_derived_reads_in_script` the source looks like `name()++`; this
+    // pass rewrites those wrappers to the proper helpers.
+    let script = rewrite_derived_update_expressions(&script);
     let script = transform_rune_call_multiline(&script, "$bindable(");
     let script = transform_store_destructure_assignments(&script);
     let script = transform_store_assignments(&script);
@@ -1748,6 +1754,154 @@ pub(crate) fn wrap_derived_reads_for_template(
             "DEBUG_WRAP: in={:?} names={:?} out={:?}",
             expr, derived_names, out
         );
+    }
+    out
+}
+
+/// Rewrite postfix/prefix update expressions on derived bindings.
+///
+/// Svelte 5.53.2 (upstream commit `6aa7b9c64` "fix: update expressions on
+/// server deriveds") routes `name++`/`name--`/`++name`/`--name` through new
+/// `$.update_derived(name)` / `$.update_derived_pre(name)` helpers when
+/// `name` resolves to a derived binding. By the time this pass runs,
+/// `wrap_derived_reads_in_script` has already rewritten reads of `count` to
+/// `count()`, so the input we see is `count()++`. We scan for that exact
+/// shape (any name in `derived_names` immediately followed by `()` and a
+/// `++`/`--`, or preceded by `++`/`--`) and substitute the helper call.
+///
+/// We deliberately do NOT walk strings / comments / regex literals here:
+/// the input has already been transformed by `wrap_derived_reads_in_script`
+/// which never inserts `name()` inside those regions, so the additional
+/// patterns can only appear in real code.
+fn rewrite_derived_update_expressions(script: &str) -> String {
+    let (derived_names, _, _) = collect_derived_names_from_script(script);
+    if derived_names.is_empty() {
+        return script.to_string();
+    }
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(script.len());
+    let mut i = 0;
+    while i < len {
+        let b = bytes[i];
+        // Skip line / block comments and string / template literals — we
+        // only need to track them to avoid splicing inside them. The
+        // wrapping pass already left these untouched, but a derived
+        // declarator that happens to appear inside a template-string body
+        // would still hit our scan otherwise.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let s = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let s = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let quote = b;
+            let s = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        // Prefix `++name()` / `--name()` — check before consuming the
+        // operator. The trailing `()` is what `wrap_derived_reads_in_script`
+        // inserts; we strip it back off when emitting the helper call.
+        if (b == b'+' || b == b'-')
+            && i + 1 < len
+            && bytes[i + 1] == b
+            && i + 2 < len
+            && (bytes[i + 2].is_ascii_alphabetic() || bytes[i + 2] == b'_' || bytes[i + 2] == b'$')
+        {
+            let op = b;
+            let name_start = i + 2;
+            let mut name_end = name_start;
+            while name_end < len {
+                let c = bytes[name_end];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    name_end += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &script[name_start..name_end];
+            if derived_names.contains(name)
+                && name_end + 1 < len
+                && bytes[name_end] == b'('
+                && bytes[name_end + 1] == b')'
+            {
+                out.push_str("$.update_derived_pre(");
+                out.push_str(name);
+                if op == b'-' {
+                    out.push_str(", -1");
+                }
+                out.push(')');
+                i = name_end + 2;
+                continue;
+            }
+        }
+        // Identifier — look for postfix `name()++` / `name()--`.
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !is_after_ident_char(bytes, i) {
+            let name_start = i;
+            while i < len {
+                let c = bytes[i];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &script[name_start..i];
+            if derived_names.contains(name)
+                && i + 3 < len
+                && bytes[i] == b'('
+                && bytes[i + 1] == b')'
+                && (bytes[i + 2] == b'+' || bytes[i + 2] == b'-')
+                && bytes[i + 3] == bytes[i + 2]
+            {
+                let op = bytes[i + 2];
+                out.push_str("$.update_derived(");
+                out.push_str(name);
+                if op == b'-' {
+                    out.push_str(", -1");
+                }
+                out.push(')');
+                i += 4;
+                continue;
+            }
+            out.push_str(name);
+            continue;
+        }
+        // UTF-8 safe step.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
     }
     out
 }

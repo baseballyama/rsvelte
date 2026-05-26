@@ -165,10 +165,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // Shadowing of a `$derived` name by an inner declaration — same upstream
     // class as the above; previously latent, now surfaced. Awaiting investigation.
     "derived-name-shadowed",
-    // `$derived` with postfix/prefix update operators — SSR output diverges
-    // from the official compiler. Added in Svelte 5.53.2; also skipped in
-    // compatibility_report. Awaiting investigation.
-    "derived-update-server",
     // Svelte 5.53.3 `f67d03df5`: template-literal `set_text` should wrap
     // non-provably-string values with `?? ''` to coerce. rsvelte's
     // `is_expression_defined` treats `new Widget()` as defined; upstream's
