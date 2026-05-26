@@ -168,12 +168,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // of the outer `function foo()` — needs the upstream scopes.set(node.id)
     // fix on the rsvelte ScopeBuilder. Tracked as a follow-up port.
     "derived-name-shadowed",
-    // Svelte 5.53.3 `f67d03df5`: template-literal `set_text` should wrap
-    // non-provably-string values with `?? ''` to coerce. rsvelte's
-    // `is_expression_defined` treats `new Widget()` as defined; upstream's
-    // `scope.evaluate` distinguishes "defined" from "is_string" and only
-    // skips `?? ''` when both are true. Tracked as follow-up port.
-    "set-text-stable-coercion",
     // Async boundary / async-if-else fixtures added in Svelte 5.53.4 that
     // exercise async-blocker plumbing rsvelte doesn't yet emit. Also
     // skipped in compatibility_report.
