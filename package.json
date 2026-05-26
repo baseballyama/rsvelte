@@ -18,7 +18,7 @@
     "generate-fixtures:verbose": "node scripts/generate-fixtures.mjs --verbose",
     "test-results": "cargo run --release --bin test_reporter -- --output docs/static/test-results.json",
     "generate-benchmark": "node scripts/run-benchmark.mjs > docs/static/benchmark-results.json",
-    "compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",
+    "compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --lib --test compatibility_report generate_compatibility_report -- --nocapture",
     "list-categories": "cargo test --release --test compatibility_report list_test_categories -- --nocapture",
     "update-docs": "node scripts/update-docs.mjs",
     "test-and-update": "npm run compatibility-report && npm run update-docs",
