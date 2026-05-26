@@ -130,6 +130,13 @@ fn transform_script_content_inner(
     // `wrap_derived_reads_in_script` the source looks like `name()++`; this
     // pass rewrites those wrappers to the proper helpers.
     let script = rewrite_derived_update_expressions(&script);
+    // Svelte 5.55.5 (upstream `b771df3`): `$derived(<bare_derived>)` should
+    // emit `$.derived(<bare_derived>)` directly (no thunk), because the
+    // server runtime treats a derived passed in this slot as a re-callable
+    // dependency. After `wrap_derived_reads_in_script` the bare ident gets
+    // wrapped to `<name>()`, leaving us with `$.derived(() => <name>())` —
+    // collapse that pattern back to `$.derived(<name>)`.
+    let script = unthunk_bare_derived_arg(&script);
     let script = transform_rune_call_multiline(&script, "$bindable(");
     let script = transform_store_destructure_assignments(&script);
     let script = transform_store_assignments(&script);
@@ -1898,6 +1905,64 @@ fn rewrite_derived_update_expressions(script: &str) -> String {
         // UTF-8 safe step.
         let mut next = i + 1;
         while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
+}
+
+/// Collapse `$.derived(() => NAME())` to `$.derived(NAME)` when `NAME` is a
+/// derived binding. Mirrors Svelte 5.55.5 upstream `b771df3` "correctly
+/// calculate `@const` blockers" — the bare-identifier argument is passed
+/// directly so the runtime can wire up the dependency without an extra
+/// thunk hop.
+fn unthunk_bare_derived_arg(script: &str) -> String {
+    let (derived_names, _, _) = collect_derived_names_from_script(script);
+    if derived_names.is_empty() {
+        return script.to_string();
+    }
+    let bytes = script.as_bytes();
+    let needle = b"$.derived(() => ";
+    let mut out = String::with_capacity(script.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if i + needle.len() <= bytes.len() && &bytes[i..i + needle.len()] == needle {
+            // After the prefix `$.derived(() => ` we expect `NAME()` followed
+            // by `)`. Read an identifier.
+            let start = i + needle.len();
+            let mut j = start;
+            if j < bytes.len()
+                && (bytes[j].is_ascii_alphabetic() || bytes[j] == b'_' || bytes[j] == b'$')
+            {
+                while j < bytes.len() {
+                    let c = bytes[j];
+                    if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                        j += 1;
+                    } else {
+                        break;
+                    }
+                }
+                let name = &script[start..j];
+                // Match the exact tail `()` then `)` — anything else is a
+                // genuine thunk body and must be left alone.
+                if derived_names.contains(name)
+                    && j + 2 < bytes.len()
+                    && bytes[j] == b'('
+                    && bytes[j + 1] == b')'
+                    && bytes[j + 2] == b')'
+                {
+                    out.push_str("$.derived(");
+                    out.push_str(name);
+                    out.push(')');
+                    i = j + 3;
+                    continue;
+                }
+            }
+        }
+        let mut next = i + 1;
+        while next < bytes.len() && !script.is_char_boundary(next) {
             next += 1;
         }
         out.push_str(&script[i..next]);

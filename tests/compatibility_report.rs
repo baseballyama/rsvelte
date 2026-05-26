@@ -1068,7 +1068,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `wrap_derived_reads` re-wraps `visible` to `visible()` inside the
         //   thunk, producing `$.derived(() => visible())`. Tracked as a
         //   follow-up.
-        ("runtime-runes", "derived-dep-set-while-rendering"),
         // - Svelte 5.55.6 cluster: upstream commits `e00944ffd`/`89b6a939f`/
         //   `4c96b469f`/`69b4c9f56`. New async-* fixtures exercise the same
         //   sync-grouping/`Promise.all`-save follow-up tracked since 5.54.1.

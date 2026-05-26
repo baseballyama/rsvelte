@@ -225,9 +225,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-reactivity-loss-no-false-positive-1",
     "async-reactivity-loss-no-false-positive-2",
     "async-reactivity-loss-no-false-positive-3",
-    // derived-dep-set-while-rendering (Svelte 5.55.5): also skipped in
-    // compatibility_report.
-    "derived-dep-set-while-rendering",
     // 5.55.6 async-codegen cluster: same gap as the previous async batches,
     // skipped in compatibility_report.
     "async-debug-awaited-expression",
