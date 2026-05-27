@@ -945,14 +945,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     // Runtime samples whose expected output exercises infrastructure rsvelte
     // doesn't fully implement yet, so we mark them skipped instead of failing.
     //
-    // - `async-derived-title-update` (runtime-runes, Svelte 5.53.0): added by
-    //   upstream commit `582e4443d` "fix: ensure head effects are kept in the
-    //   effect tree". The expected client output threads the component's
-    //   `$$promises` array as a `blockers` arg into both `$.deferred_template_effect`
-    //   inside `$.head(...)` and the regular `$.template_effect` reading
-    //   the same async derived. rsvelte's client transform doesn't yet wire
-    //   the async-derived `$$promises` reference through template effects,
-    //   so this fixture is skipped pending a dedicated port.
     // - `derived-name-shadowed` (runtime-runes, Svelte 5.53.1): upstream
     //   commit `0c7f81514` "fix: handle shadowed function names correctly"
     //   associates a `FunctionDeclaration` / `FunctionExpression` id node
@@ -988,7 +980,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     //   in the compiled output. Skipping until the rsvelte analyzer's
     //   function-scope porosity matches upstream.
     let runtime_skip_tests: &[(&str, &str)] = &[
-        ("runtime-runes", "async-derived-title-update"),
         // - `async-eager-derived` (Svelte 5.53.12, upstream `965f2a0ac`
         //   "fix: handle async RHS in assignment_value_stale"): rsvelte's
         //   client transform emits the `$$promises[…]` blockers array in

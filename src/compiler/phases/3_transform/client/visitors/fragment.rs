@@ -698,7 +698,7 @@ pub fn collect_identifiers_from_statement(
 }
 
 /// Collect identifiers from an expression (non-recursive across function boundaries).
-fn collect_ids_from_expr(
+pub(crate) fn collect_ids_from_expr(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,
