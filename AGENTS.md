@@ -115,7 +115,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump.
+Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -127,16 +127,16 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 | Validator | 324/325 | 1 skipped (`error-mode-warn` — opted out via `_config.js`) |
 | SSR | 97/97 | HtmlTag SSR class-hash inlining + synthetic `<option value>` ported (Svelte 5.53.6, 5.55.9). |
 | Hydration | 78/78 | HtmlTag `is_controlled` cluster ported (Svelte 5.53.8 `0206a2019`) |
-| Runtime Legacy | 1203/1205 | 2 skipped — `flush-sync-each-block` (no-semicolon import + legacy `$.mutable_source`), `inline-style-directive-string-variable-kebab-case` (multi-line const extraction) |
-| Runtime Runes | 934/979 | 45 skipped — async-blocker / `@const` clusters (Svelte 5.54.1–5.55.9). HtmlTag `is_controlled` + derived-update-server + derived-dep-set-while-rendering + attribute-parts ported. |
+| Runtime Legacy | 1204/1205 | 1 skipped — `flush-sync-each-block` (no-semicolon import + legacy `$.mutable_source`) |
+| Runtime Runes | 936/979 | 43 skipped — async-blocker / `@const` clusters (Svelte 5.54.1–5.55.9). HtmlTag `is_controlled` + derived-update-server + derived-dep-set-while-rendering + derived-name-shadowed + set-text-stable-coercion + attribute-parts ported. |
 | Runtime Browser | 32/32 | |
-| Print | 41/42 | 1 skipped (`css-keyframes-percent` — Svelte 5.55.8) |
+| Print | 41/42 | 1 skipped (`css-keyframes-percent` — upstream fixture inconsistency, see docs) |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
 | svelte2tsx | 245/247 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3420/3420 in-scope-run passing — every executed fixture in every in-scope category passes. 56 in-scope fixtures remain skipped (codegen clusters tracked in the table above); the 76 `migrate` fixtures are intentionally out of scope.**
+**Compatibility report total: 3423/3423 in-scope-run passing — every executed fixture in every in-scope category passes. 53 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
