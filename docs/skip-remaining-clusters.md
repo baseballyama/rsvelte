@@ -87,21 +87,21 @@ parser comments — on `Root.comments` (modern AST) and `_comments`
 
 ---
 
-## 4. CSS prune-edge-cases (1 fixture, **CSS pruning**)
+## 4. CSS prune-edge-cases ✅ landed
 
-`css/css-prune-edge-cases`. Upstream commit `0965028d3` "perf: optimize
-CSS selector pruning" (Svelte 5.53.7).
+Was `css/css-prune-edge-cases`. Upstream commit `0965028d3` "perf:
+optimize CSS selector pruning" (Svelte 5.53.7). Both divergences are now
+fixed in `src/compiler/phases/3_transform/css.rs`:
 
-Two known divergences:
-
-1. A deep `main > article > div > section > span` chain that upstream
-   prunes as unused stays in our CSS output.
-2. `:where(li:where(.hash))` is emitted as `:where(.hash):where(li)` —
-   the selector composition order doesn't match upstream.
-
-Fix lives in `src/compiler/phases/3_transform/.../css` selector pruning
-and composition. Walking the fixture's tests with `--release` is fast
-(under 1s), so iterate locally before pushing.
+1. `is_descendant_selector_unused` walks arbitrary-depth combinator
+   chains (descendant + child) instead of only 2 links, so deep chains
+   like `main > article > div > section > span` are pruned when the DOM
+   doesn't satisfy them.
+2. `format_simple_selector_with_scope` + the relative-selector emission
+   loop now treat standalone `:where(...)` like `:is(...)`, recursing
+   into the inner SelectorList so `ul :where(li)` becomes
+   `ul.svelte-xxx :where(li:where(.svelte-xxx))` instead of
+   `:where(.svelte-xxx):where(li)`.
 
 ---
 
