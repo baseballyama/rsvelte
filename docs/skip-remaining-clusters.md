@@ -6,9 +6,9 @@ lists live in `tests/compatibility_report.rs` (the `runtime_skip_tests`
 array + per-category `skip_*` arrays), `tests/runtime.rs`, `tests/ssr.rs`,
 `tests/print.rs`, and `tests/parser_fixtures.rs`.
 
-Current count: **53 in-scope skipped fixtures** (the 76 `migrate` fixtures
+Current count: **52 in-scope skipped fixtures** (the 76 `migrate` fixtures
 are intentionally out of scope and not counted here). Every executed
-in-scope fixture passes (3423/3423).
+in-scope fixture passes (3424/3424).
 
 Each cluster below lists the upstream commit, the rsvelte gap it exposes,
 the fixtures it blocks, and a rough difficulty estimate. Land them one
@@ -32,7 +32,6 @@ client async transform end-to-end.
 | 5.54.1 cluster — `async-derived-indirect`, `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`, `async-later-sync-overlaps`, `async-style-after-await` (7 fixtures) | `6b33dd2a1` "fix: group sync statements" | When multiple sync assignments share the same blocker set, group them into a single thunk callback (`() => { color = 'red'; width = $.state(...); }`) and reuse the same `$$promises[N]` blocker index. rsvelte still emits one callback per statement with sequential indices. |
 | `async-overlap-multiple-1..7` (5.55.1 `5e8662fb2`, 7 fixtures) | "chore: lots of async tests" | Hoisted-function blank-line placement diverges + SSR emits `(await $.save(delay(x)))()` instead of `await delay(x)` for top-level template `await`. The trivial fix `has_save: false` regresses ~9 unrelated fixtures, so the predicate needs to be context-aware. |
 | `async-if-block-unskip` (5.55.2 `8966601dc` / `edcbb0e64`) | "handle parens" + "invalidate `@const` tags based on visible references" | Same blank-line placement + the `$.save` issue. |
-| `flush-sync-each-block` (5.55.2 cluster, **listed in runtime-legacy**) | same 5.55.2 commits | (Tracked separately below — different root cause from async-blocker.) |
 | 5.55.3 `@const` cluster — `async-const`, `async-const-wait`, `async-derived-const-blocker`, `async-reactivity-loss-no-false-positive-1..3`, `async-reactivity-loss-async-after-sync` (7 fixtures) | `3937ec03b` "fix: correctly calculate `@const` blockers" | Group `@const` assignments under the same group-sync-statements batching as 5.54.1. |
 | 5.55.4 `@const` context — `async-effect-pending-eager`, `async-context-after-await-const` (2 fixtures) | `0ed8c282f` "fix: reset context after waiting on blockers of @const expressions" | Reset reactive context after the blocker await of an `@const` expression so subsequent code sees the right scope. |
 | 5.55.6 cluster — `async-flushsync-in-effect`, `async-stale-derived-4`, `async-eager-block`, `async-eager-each-block`, `async-dont-rebase-new-batch-1..4`, `async-debug-awaited-expression`, `async-state-updates-microtask-separated`, `dynamic-component-member` (11 fixtures) | `e00944ffd` / `89b6a939f` / `4c96b469f` / `69b4c9f56` | Same sync-grouping/`Promise.all`-save follow-up + `<svelte:component this={state.x.Y}>` needs `$.get(state)` wrapping in SSR/client. |
@@ -57,32 +56,20 @@ pass state — use it after each step to keep regressions out.
 
 ---
 
-## 2. flush-sync-each-block (1 fixture, **infrastructure**)
+## 2. ~~flush-sync-each-block~~ (landed)
 
-`runtime-legacy/flush-sync-each-block`. Two combined failures:
+`runtime-legacy/flush-sync-each-block` now passes after teaching
+`extract_imports` (client + server text-based hoisting) to recognise
+single-line side-effect imports without a `;` terminator (e.g.
+`import "./Inner.svelte"`). Previously the line-by-line splitter only
+considered a one-line import complete when it contained a `;` or had
+`... from "…"`/`'…'` — so the side-effect form fell into the multi-line
+accumulator and merged the following statement into the import block.
 
-```svelte
-<script>
-    import "./Inner.svelte"     // no semicolon
-    let count = 1;
-</script>
-...
-```
-
-1. **Client codegen**: the user's `let count = 1` is emitted at module
-   level instead of inside `Main`, and concatenated onto the
-   `import "./Inner.svelte"` line because there's no terminating `;`. When
-   we add an explicit `;` locally the legacy-state lowering kicks in
-   correctly (`let count = $.mutable_source(1)` inside `Main`), so the
-   root cause is the parser/transform splitting statements on a
-   line-by-line basis instead of via ASI-aware parsing.
-2. **Server codegen**: `let count` is never lowered to
-   `$.mutable_source(1)` because of (1) — the legacy state walker never
-   sees it as a separate statement.
-
-Fix shape: route the script body through a real statement splitter (OXC
-parse → walk statements) before the legacy-state transforms run. Likely
-covers a few other "raw script" edge cases too.
+The new helper `is_complete_side_effect_import` returns `true` when
+`import ` is immediately followed by a closed string literal and only
+whitespace until end-of-line. Any default / named / namespace import or
+trailing tokens still take the existing code paths.
 
 ---
 
