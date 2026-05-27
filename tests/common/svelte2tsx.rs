@@ -11,8 +11,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use svelte_compiler_rust::svelte2tsx::{
-    RewriteExternalImportsOptions, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions,
-    SvelteVersion, svelte2tsx,
+    RewriteExternalImportsOptions, Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace,
+    Svelte2TsxOptions, SvelteVersion, svelte2tsx,
 };
 
 use super::{CategoryResult, SampleResult, TestStatus};
@@ -638,6 +638,90 @@ pub fn first_diff_snippet(actual: &str, expected: &str, context_lines: usize) ->
 }
 
 // =========================================================================
+// Error-fixture support (`expected.error.json`)
+// =========================================================================
+//
+// Upstream `language-tools` validates these fixtures by JSON-stringifying
+// the thrown `Error` (via `JSON.stringify(err)`), then — for Svelte 5+ —
+// only diffing the `{ start, end }` pair. We mirror that strategy: convert
+// the error's byte-offset span into `{ line, column, character }` and
+// compare it to the expected JSON's `start` / `end` objects.
+//
+// See `submodules/language-tools/packages/svelte2tsx/test/helpers.ts`
+// (`sample.has('expected.error.json')` branch in `test_samples`).
+
+/// Convert a byte offset into a `{ line, column, character }` object
+/// matching the shape upstream's `locate-character` emits.
+///
+/// Mirrors `magic-string`'s locator: `line` is the 1-based line number,
+/// `column` is the 0-based column within that line, and `character` is the
+/// 0-based byte offset into the source. For ASCII (which both currently
+/// covered fixtures are) `column` equals the byte distance from the line
+/// start, which is what upstream produces too.
+fn offset_to_position(source: &str, offset: usize) -> serde_json::Value {
+    let bytes = source.as_bytes();
+    let clamped = offset.min(bytes.len());
+    let mut line: u32 = 1;
+    let mut line_start: usize = 0;
+    for (i, &b) in bytes.iter().enumerate().take(clamped) {
+        if b == b'\n' {
+            line += 1;
+            line_start = i + 1;
+        }
+    }
+    let column = clamped - line_start;
+    serde_json::json!({
+        "line": line,
+        "column": column,
+        "character": clamped,
+    })
+}
+
+/// Compare the rsvelte error against the upstream `expected.error.json`
+/// fixture. Returns `None` on success, `Some(diff)` describing the
+/// mismatch otherwise.
+///
+/// Following upstream's Svelte 5 path we only diff the `start` and `end`
+/// position objects — `code` / `message` / `frame` drift across Svelte
+/// versions and aren't part of the contract.
+fn compare_error_to_expected(
+    source: &str,
+    error: &Svelte2TsxError,
+    expected: &serde_json::Value,
+) -> Option<String> {
+    let (start, end) = match error.span() {
+        Some(span) => span,
+        None => {
+            return Some(format!(
+                "error has no span: {} (variant: {:?})",
+                error, error
+            ));
+        }
+    };
+    let actual_start = offset_to_position(source, start);
+    let actual_end = offset_to_position(source, end);
+    let expected_start = expected
+        .get("start")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let expected_end = expected
+        .get("end")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+
+    if actual_start == expected_start && actual_end == expected_end {
+        return None;
+    }
+    Some(format!(
+        "error span mismatch:\n  expected start: {}\n  actual   start: {}\n  expected end:   {}\n  actual   end:   {}",
+        serde_json::to_string(&expected_start).unwrap_or_default(),
+        serde_json::to_string(&actual_start).unwrap_or_default(),
+        serde_json::to_string(&expected_end).unwrap_or_default(),
+        serde_json::to_string(&actual_end).unwrap_or_default(),
+    ))
+}
+
+// =========================================================================
 // Public runner — used by both the standalone test and the dashboard.
 // =========================================================================
 
@@ -674,14 +758,97 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
             continue;
         }
 
-        // Error fixtures expect a parse failure — out of scope for the
-        // svelte2tsx success path.
-        if sample_dir.join("expected.error.json").exists() {
-            outcomes.push(FixtureOutcome {
-                name: sample_name,
-                status: TestStatus::Skipped,
-                message: Some("expected.error.json (error fixture)".into()),
-            });
+        // Error fixtures expect a parse failure. Mirror upstream's
+        // Svelte 5 strategy: run svelte2tsx, assert it throws, and verify
+        // the error's `{ start, end }` positions match the JSON fixture.
+        // See `compare_error_to_expected` above for the comparison details.
+        let error_path = sample_dir.join("expected.error.json");
+        if error_path.exists() {
+            let input_path = match find_svelte_file(&sample_dir) {
+                Some(p) => p,
+                None => {
+                    outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Skipped,
+                        message: Some("no .svelte input file".into()),
+                    });
+                    continue;
+                }
+            };
+            let svelte_filename = input_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
+            let input = match fs::read_to_string(&input_path) {
+                Ok(s) => s,
+                Err(_) => {
+                    outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Skipped,
+                        message: Some("input.svelte unreadable".into()),
+                    });
+                    continue;
+                }
+            };
+            let expected_json: serde_json::Value = match fs::read_to_string(&error_path)
+                .ok()
+                .and_then(|s| serde_json::from_str(&s).ok())
+            {
+                Some(v) => v,
+                None => {
+                    outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Skipped,
+                        message: Some("expected.error.json unreadable".into()),
+                    });
+                    continue;
+                }
+            };
+
+            let options = build_options(&sample_name, &sample_dir, &svelte_filename);
+            let input_clone = input.clone();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                svelte2tsx(&input_clone, options)
+            }));
+
+            match result {
+                Ok(Ok(_)) => {
+                    outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Failed,
+                        message: Some(
+                            "expected svelte2tsx to throw an error but it succeeded".into(),
+                        ),
+                    });
+                }
+                Ok(Err(e)) => match compare_error_to_expected(&input, &e, &expected_json) {
+                    None => outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Passed,
+                        message: None,
+                    }),
+                    Some(diff) => outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Failed,
+                        message: Some(diff),
+                    }),
+                },
+                Err(panic_info) => {
+                    let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "unknown panic".to_string()
+                    };
+                    outcomes.push(FixtureOutcome {
+                        name: sample_name,
+                        status: TestStatus::Error,
+                        message: Some(format!("PANIC: {}", msg)),
+                    });
+                }
+            }
             continue;
         }
 

@@ -1778,10 +1778,11 @@ impl Parser<'_> {
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
+        let trimmed_offset = offset + leading_ws;
         super::super::expression::parse_expression(
             &self.arena,
             trimmed,
-            offset + leading_ws,
+            trimmed_offset,
             self.expression_line_offsets(),
             self.source,
             self.options.loose,
@@ -1789,8 +1790,17 @@ impl Parser<'_> {
             '{',
             self.ts,
         )
-        .map_err(|(msg, pos)| {
-            crate::error::ParseError::svelte("js_parse_error", msg, (pos, pos + trimmed.len()))
+        .map_err(|(msg, _)| {
+            // Recover the precise failure position from OXC's labeled span,
+            // mirroring upstream Svelte's `js_parse_error(err.pos, ...)` —
+            // a *point* error at the byte where acorn stopped consuming
+            // input. svelte2tsx's `expected.error.json` fixtures rely on
+            // this character-accurate location.
+            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed)
+                .map_or(trimmed_offset, |(_, content_pos)| {
+                    trimmed_offset + content_pos
+                });
+            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         })
     }
 
