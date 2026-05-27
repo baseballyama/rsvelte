@@ -17,13 +17,13 @@ importers:
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.8
-        version: 3.0.10(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@5.9.3)(vite@8.0.0-beta.16))
+        version: 3.0.10(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@6.0.3)(vite@8.0.0-beta.16))
       '@sveltejs/kit':
         specifier: ^2.49.2
-        version: 2.53.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@5.9.3)(vite@8.0.0-beta.16)
+        version: 2.53.4(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@6.0.3)(vite@8.0.0-beta.16)
       '@sveltejs/vite-plugin-svelte':
-        specifier: ^6.2.1
-        version: 6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16)
+        specifier: ^7.0.0
+        version: 7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16)
       oxlint:
         specifier: ^1.36.0
         version: 1.51.0
@@ -31,14 +31,14 @@ importers:
         specifier: ^3.5.3
         version: 3.8.1
       prettier-plugin-svelte:
-        specifier: ^3.4.0
-        version: 3.5.1(prettier@3.8.1)(svelte@5.53.7)
+        specifier: ^4.0.0
+        version: 4.0.1(prettier@3.8.1)(svelte@5.53.7)
       svelte:
         specifier: ^5.46.1
         version: 5.53.7
       typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
+        specifier: ^6.0.0
+        version: 6.0.3
       vite:
         specifier: ^8.0.0-beta.5
         version: 8.0.0-beta.16
@@ -309,20 +309,12 @@ packages:
       typescript:
         optional: true
 
-  '@sveltejs/vite-plugin-svelte-inspector@5.0.2':
-    resolution: {integrity: sha512-TZzRTcEtZffICSAoZGkPSl6Etsj2torOVrx6Uw0KpXxrec9Gg6jFWQ60Q3+LmNGfZSxHRCZL7vXVZIWmuV50Ig==}
+  '@sveltejs/vite-plugin-svelte@7.1.2':
+    resolution: {integrity: sha512-DrUBA2UXRfDmUX/ZTiEopd3X40yavsJF1FX2RygcuIScHL7o5YX1fMvoYnDhjeJQC4weCOklirpNWlcb2NiSeA==}
     engines: {node: ^20.19 || ^22.12 || >=24}
     peerDependencies:
-      '@sveltejs/vite-plugin-svelte': ^6.0.0-next.0
-      svelte: ^5.0.0
-      vite: ^6.3.0 || ^7.0.0
-
-  '@sveltejs/vite-plugin-svelte@6.2.4':
-    resolution: {integrity: sha512-ou/d51QSdTyN26D7h6dSpusAKaZkAiGM55/AKYi+9AGZw7q85hElbjK3kEyzXHhLSnRISHOYzVge6x0jRZ7DXA==}
-    engines: {node: ^20.19 || ^22.12 || >=24}
-    peerDependencies:
-      svelte: ^5.0.0
-      vite: ^6.3.0 || ^7.0.0
+      svelte: ^5.46.4
+      vite: ^8.0.0-beta.7 || ^8.0.0
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -515,11 +507,12 @@ packages:
     resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
     engines: {node: ^10 || ^12 || >=14}
 
-  prettier-plugin-svelte@3.5.1:
-    resolution: {integrity: sha512-65+fr5+cgIKWKiqM1Doum4uX6bY8iFCdztvvp2RcF+AJoieaw9kJOFMNcJo/bkmKYsxFaM9OsVZK/gWauG/5mg==}
+  prettier-plugin-svelte@4.0.1:
+    resolution: {integrity: sha512-oDVmtKi+M8bJeUoMfPvulUqZYcuXrs5AmhhLYPKtBeg6hcpMdx7UYYisVCqEaLQuKtiPSYFpotfwp4cZK3D4xw==}
+    engines: {node: '>=20'}
     peerDependencies:
       prettier: ^3.0.0
-      svelte: ^3.2.0 || ^4.0.0-next.0 || ^5.0.0-next.0
+      svelte: ^5.0.0
 
   prettier@3.8.1:
     resolution: {integrity: sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg==}
@@ -560,8 +553,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -779,15 +772,15 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@5.9.3)(vite@8.0.0-beta.16))':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@6.0.3)(vite@8.0.0-beta.16))':
     dependencies:
-      '@sveltejs/kit': 2.53.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@5.9.3)(vite@8.0.0-beta.16)
+      '@sveltejs/kit': 2.53.4(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@6.0.3)(vite@8.0.0-beta.16)
 
-  '@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@5.9.3)(vite@8.0.0-beta.16)':
+  '@sveltejs/kit@2.53.4(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(typescript@6.0.3)(vite@8.0.0-beta.16)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@sveltejs/acorn-typescript': 1.0.9(acorn@8.16.0)
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16)
+      '@sveltejs/vite-plugin-svelte': 7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16)
       '@types/cookie': 0.6.0
       acorn: 8.16.0
       cookie: 0.6.0
@@ -801,18 +794,10 @@ snapshots:
       svelte: 5.53.7
       vite: 8.0.0-beta.16
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
-  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(vite@8.0.0-beta.16)':
+  '@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.53.7)(vite@8.0.0-beta.16)':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16)
-      obug: 2.1.1
-      svelte: 5.53.7
-      vite: 8.0.0-beta.16
-
-  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16)':
-    dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.7)(vite@8.0.0-beta.16))(svelte@5.53.7)(vite@8.0.0-beta.16)
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.1
@@ -970,7 +955,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier-plugin-svelte@3.5.1(prettier@3.8.1)(svelte@5.53.7):
+  prettier-plugin-svelte@4.0.1(prettier@3.8.1)(svelte@5.53.7):
     dependencies:
       prettier: 3.8.1
       svelte: 5.53.7
@@ -1037,7 +1022,7 @@ snapshots:
   tslib@2.8.1:
     optional: true
 
-  typescript@5.9.3: {}
+  typescript@6.0.3: {}
 
   vite@8.0.0-beta.16:
     dependencies:
