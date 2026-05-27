@@ -661,60 +661,41 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         output.push_str(";\n\n");
     }
 
-    // Build thunks - pair each with whether it's a hole
-    let mut thunk_entries: Vec<(String, bool)> = Vec::new();
-    for stmt in &async_stmts {
-        let is_hole = matches!(stmt.kind, AsyncStmtKind::Hole(_));
-        let thunk = build_thunk(stmt, dev);
-        thunk_entries.push((thunk, is_hole));
-    }
-
-    // Count non-hole thunks to determine formatting
-    let non_hole_count = thunk_entries.iter().filter(|(_, is_hole)| !is_hole).count();
-    let _has_holes = thunk_entries.iter().any(|(_, is_hole)| *is_hole);
-    let has_multiline_thunk = thunk_entries
+    // Build thunks. `$inspect()`-shaped entries now emit a `() => void 0`
+    // thunk (upstream Svelte 5.53.13 `b472171de`) instead of producing a
+    // sparse-array hole, so every entry is a regular thunk string.
+    let thunk_entries: Vec<String> = async_stmts
         .iter()
-        .any(|(thunk, is_hole)| !is_hole && thunk.contains('\n'));
+        .map(|stmt| build_thunk(stmt, dev))
+        .collect();
+
+    let non_empty_count = thunk_entries.iter().filter(|t| !t.is_empty()).count();
+    let has_multiline_thunk = thunk_entries.iter().any(|t| t.contains('\n'));
 
     // Build $$promises = runner([thunks])
-    // Use single-line format when there's only one real thunk (possibly with holes)
-    // and no multiline thunks.
-    if non_hole_count <= 1 && !has_multiline_thunk {
-        // Single-line format: var $$promises = runner([thunk,,]);
+    // Use single-line format when there's only one thunk and no multiline thunk.
+    if non_empty_count <= 1 && !has_multiline_thunk {
         output.push_str(&format!("var $$promises = {}([", runner));
         let total = thunk_entries.len();
-        for (i, (thunk, is_hole)) in thunk_entries.iter().enumerate() {
-            if *is_hole {
-                // Array hole: just a comma (creates elision)
-                output.push(',');
-            } else {
-                output.push_str(thunk);
-                // Add comma after thunk if there are more entries after this one
-                if i + 1 < total {
-                    output.push(',');
-                }
+        for (i, thunk) in thunk_entries.iter().enumerate() {
+            output.push_str(thunk);
+            if i + 1 < total {
+                output.push_str(", ");
             }
         }
         output.push_str("]);\n");
     } else {
         output.push_str(&format!("var $$promises = {}([\n", runner));
-        for (i, (thunk, is_hole)) in thunk_entries.iter().enumerate() {
-            if *is_hole {
-                // Array hole in multi-line: output just a comma on its own
-                // Actually, the previous line's comma handles the elision,
-                // but we need an extra comma. Output an empty line with comma.
-                output.push_str("\t,\n");
-            } else {
-                output.push_str(&format!("\t{}", thunk));
-                if i < thunk_entries.len() - 1 {
-                    output.push(',');
-                }
+        for (i, thunk) in thunk_entries.iter().enumerate() {
+            output.push_str(&format!("\t{}", thunk));
+            if i < thunk_entries.len() - 1 {
+                output.push(',');
+            }
+            output.push('\n');
+            // Add blank line after multiline thunks (those with block bodies)
+            // to match the official compiler's formatting.
+            if thunk.contains('\n') && i < thunk_entries.len() - 1 {
                 output.push('\n');
-                // Add blank line after multiline thunks (those with block bodies)
-                // to match the official compiler's formatting.
-                if thunk.contains('\n') && i < thunk_entries.len() - 1 {
-                    output.push('\n');
-                }
             }
         }
         output.push_str("]);\n");
@@ -767,6 +748,45 @@ enum AsyncStmtKind {
 struct AsyncStmt {
     kind: AsyncStmtKind,
     has_await: bool,
+}
+
+/// If `expr` is a bare zero-argument identifier call like `name()`, return the
+/// callee identifier. Matches upstream's `unthunk()` predicate
+/// (`expression.body.type === 'CallExpression' && callee.type === 'Identifier'
+/// && params.length === arguments.length === 0`).
+///
+/// Returns `None` for non-trivial shapes (member calls, calls with args,
+/// optional calls, parenthesized expressions, etc.) so the caller falls
+/// back to the regular `() => expr` thunk.
+fn unthunk_bare_call(expr: &str) -> Option<String> {
+    let trimmed = expr.trim();
+    // Must end with `()` — zero arguments.
+    let without_parens = trimmed.strip_suffix(')')?;
+    let without_parens = without_parens.trim_end();
+    let callee = without_parens.strip_suffix('(')?;
+    let callee = callee.trim_end();
+    if callee.is_empty() {
+        return None;
+    }
+    // Optional call (`name?.()`) — must not unthunk: calling `undefined()` would crash.
+    if callee.ends_with("?.") {
+        return None;
+    }
+    // Callee must be a plain identifier: leading char letter / `_` / `$`, then
+    // letters / digits / `_` / `$`. Member expressions (`a.b`), namespaced
+    // calls (`$.foo`), index reads (`a[0]`), and computed callees are not bare
+    // identifiers and don't qualify.
+    let mut chars = callee.chars();
+    let first = chars.next()?;
+    if !(first.is_alphabetic() || first == '_' || first == '$') {
+        return None;
+    }
+    for ch in chars {
+        if !(ch.is_alphanumeric() || ch == '_' || ch == '$') {
+            return None;
+        }
+    }
+    Some(callee.to_string())
 }
 
 fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
@@ -822,6 +842,13 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                     "async () => void (await $.track_reactivity_loss({}))()",
                     expr
                 )
+            } else if let Some(name) = unthunk_bare_call(expr) {
+                // Upstream `b.thunk` calls `unthunk(() => name())` which collapses
+                // bare zero-arg identifier calls to just the callee. Matches
+                // `submodules/svelte/packages/svelte/src/compiler/utils/builders.js`
+                // (`unthunk`). Without this, an `await name();` top-level statement
+                // would emit `() => name()`, but upstream emits `name`.
+                name
             } else {
                 format!("() => {}", expr)
             }
@@ -848,7 +875,13 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
         }
         AsyncStmtKind::Noop => "() => {}".to_string(),
         AsyncStmtKind::VoidNoop => "() => void void 0".to_string(),
-        AsyncStmtKind::Hole(_) => String::new(),
+        // `$inspect()` calls become empty statements after the rune-removal pass.
+        // Upstream (Svelte 5.53.13 / 5.54.0 `b472171de`) replaces those entries
+        // with a `() => void 0` thunk instead of a sparse-array hole so that
+        // `$.run([...])` / `$$renderer.run([...])` still receives a function at
+        // every index (the runtime expects callables and previously threw on
+        // `,, ` elisions).
+        AsyncStmtKind::Hole(_) => "() => void 0".to_string(),
     }
 }
 

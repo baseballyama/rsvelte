@@ -6,9 +6,9 @@ lists live in `tests/compatibility_report.rs` (the `runtime_skip_tests`
 array + per-category `skip_*` arrays), `tests/runtime.rs`, `tests/ssr.rs`,
 `tests/print.rs`, and `tests/parser_fixtures.rs`.
 
-Current count: **52 in-scope skipped fixtures** (the 76 `migrate` fixtures
+Current count: **48 in-scope skipped fixtures** (the 76 `migrate` fixtures
 are intentionally out of scope and not counted here). Every executed
-in-scope fixture passes (3424/3424).
+in-scope fixture passes (3428/3428).
 
 Each cluster below lists the upstream commit, the rsvelte gap it exposes,
 the fixtures it blocks, and a rough difficulty estimate. Land them one
@@ -27,7 +27,6 @@ client async transform end-to-end.
 | Sub-cluster | Upstream commit | rsvelte gap |
 |---|---|---|
 | `async-eager-derived` (5.53.12 `965f2a0ac`) | "fix: handle async RHS in assignment_value_stale" | Reorder the `$$promises[…]` blockers array to latest-use order instead of declaration order. 1-line diff but the ordering walker must change. |
-| `async-inspect-build` (5.53.13/5.54.0 `b472171de`) | "ensure `$inspect` after top level await doesn't break builds" | Emit `$.run([test, () => void 0])` ordering after a top-level await — rsvelte's inspect-build pipeline doesn't produce it. |
 | 5.54.1 cluster — `async-derived-indirect`, `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`, `async-later-sync-overlaps`, `async-style-after-await` (7 fixtures) | `6b33dd2a1` "fix: group sync statements" | When multiple sync assignments share the same blocker set, group them into a single thunk callback (`() => { color = 'red'; width = $.state(...); }`) and reuse the same `$$promises[N]` blocker index. rsvelte still emits one callback per statement with sequential indices. |
 | `async-overlap-multiple-1..7` (5.55.1 `5e8662fb2`, 7 fixtures) | "chore: lots of async tests" | Hoisted-function blank-line placement diverges + SSR emits `(await $.save(delay(x)))()` instead of `await delay(x)` for top-level template `await`. The trivial fix `has_save: false` regresses ~9 unrelated fixtures, so the predicate needs to be context-aware. |
 | `async-if-block-unskip` (5.55.2 `8966601dc` / `edcbb0e64`) | "handle parens" + "invalidate `@const` tags based on visible references" | Same blank-line placement + the `$.save` issue. |
