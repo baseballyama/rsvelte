@@ -158,22 +158,6 @@ fn should_write_actual_output() -> bool {
 /// separately so the runtime suite stops blocking unrelated work; remove an
 /// entry as soon as the upstream behaviour is matched.
 const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
-    // `$derived(await promise)` reads — the SSR output rsvelte emits matches
-    // the official compiler structurally, but the live comparison harness
-    // diverges. Last 3 main CI runs failed this same fixture.
-    "async-derived-title-update",
-    // Shadowing of a `$derived` name by an inner declaration (Svelte 5.53.1
-    // upstream `0c7f81514`). rsvelte's FunctionDeclaration scope handling
-    // associates the inner `const foo = $derived(...)` with template lookups
-    // of the outer `function foo()` — needs the upstream scopes.set(node.id)
-    // fix on the rsvelte ScopeBuilder. Tracked as a follow-up port.
-    "derived-name-shadowed",
-    // Svelte 5.53.3 `f67d03df5`: template-literal `set_text` should wrap
-    // non-provably-string values with `?? ''` to coerce. rsvelte's
-    // `is_expression_defined` treats `new Widget()` as defined; upstream's
-    // `scope.evaluate` distinguishes "defined" from "is_string" and only
-    // skips `?? ''` when both are true. Tracked as follow-up port.
-    "set-text-stable-coercion",
     // Async boundary / async-if-else fixtures added in Svelte 5.53.4 that
     // exercise async-blocker plumbing rsvelte doesn't yet emit. Also
     // skipped in compatibility_report.
@@ -185,10 +169,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // calls; rsvelte's analysis doesn't surface the eager set yet. Also
     // skipped in compatibility_report.
     "async-eager-derived",
-    // async-inspect-build (Svelte 5.53.13/5.54.0): inspect-build pipeline
-    // expects new async helpers in client codegen. Also skipped in
-    // compatibility_report.
-    "async-inspect-build",
     // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. The expected
     // client output threads new `eager` / blocker arguments through
     // `$.derived(...)` and `$.template_effect(...)` calls; rsvelte's
@@ -251,23 +231,7 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
 /// labelled with the upstream commit responsible. Remove an entry once the
 /// underlying port lands.
-const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
-    // flush-sync-each-block (Svelte 5.55.2): two combined failures —
-    //   1) client: `import "./Inner.svelte"` (no semicolon) merges into the
-    //      following `let count = 1` because the script raw-emission path
-    //      strips line breaks.
-    //   2) server: legacy `let count` is not lowered to `$.mutable_source(...)`.
-    "flush-sync-each-block",
-    // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
-    // stringify in server attributes"): two paths remain.
-    //   - inline-style-directive-string-variable-kebab-case relies on
-    //     extracting a multi-line `let url = "..."` declaration as a constant;
-    //     `extract_constant_vars` only handles single-line declarations.
-    //   - inline-style-directive-string-variable-kebab-case relies on a
-    //     multi-line `let url = "..."` declaration which
-    //     `extract_constant_vars` doesn't handle.
-    "inline-style-directive-string-variable-kebab-case",
-];
+const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[];
 
 /// hydration fixtures still failing. All HtmlTag is_controlled fixtures now pass
 /// post-port (Svelte 5.53.8 upstream `0206a2019`).

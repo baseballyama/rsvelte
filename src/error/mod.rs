@@ -118,6 +118,24 @@ impl ParseError {
             span,
         }
     }
+
+    /// Return the `(start, end)` byte-offset span associated with this error.
+    ///
+    /// Every variant carries a `span` field (the `#[label]` source range used
+    /// by miette); this accessor exposes it without exhaustive matching.
+    pub fn span(&self) -> (usize, usize) {
+        match self {
+            ParseError::UnexpectedEof { span }
+            | ParseError::UnexpectedToken { span, .. }
+            | ParseError::UnclosedElement { span, .. }
+            | ParseError::UnclosedBlock { span, .. }
+            | ParseError::InvalidAttribute { span }
+            | ParseError::InvalidExpression { span, .. }
+            | ParseError::Generic { span, .. }
+            | ParseError::SvelteError { span, .. }
+            | ParseError::TypeScriptInvalidFeature { span, .. } => *span,
+        }
+    }
 }
 
 /// Result type for parse operations.

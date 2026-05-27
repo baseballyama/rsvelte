@@ -155,6 +155,20 @@ impl From<crate::error::ParseError> for Svelte2TsxError {
     }
 }
 
+impl Svelte2TsxError {
+    /// Return the `(start, end)` byte-offset span if the error has one.
+    ///
+    /// Currently only `Svelte2TsxError::Parse` carries position info — the
+    /// `Template` / `Script` / `Other` variants are message-only so this
+    /// returns `None` for them.
+    pub fn span(&self) -> Option<(usize, usize)> {
+        match self {
+            Svelte2TsxError::Parse(e) => Some(e.span()),
+            _ => None,
+        }
+    }
+}
+
 // =============================================================================
 // Main entry point
 // =============================================================================

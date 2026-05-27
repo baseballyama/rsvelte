@@ -814,6 +814,7 @@ pub fn compile_module(
             },
         },
         options: None,
+        comments: Vec::new(),
         instance: None,
         module: Some(Box::new(crate::ast::template::Script {
             node_type: crate::ast::template::ScriptType::Script,

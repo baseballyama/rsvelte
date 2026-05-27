@@ -2083,6 +2083,24 @@ impl<'a> ServerCodeGenerator<'a> {
                         });
                     }
                 }
+                OutputPart::SvelteHead { hash, body } => {
+                    // Recurse into the head body so async-derived expressions inside
+                    // `<svelte:head>` (e.g. `<title>{value}</title>`) get wrapped in
+                    // `$$renderer.async([$$promises[N]], ...)`. Matches upstream
+                    // commit 582e4443d "ensure head effects are kept in the effect tree".
+                    let wrapped_body = Self::apply_async_wrapping(body, blocker_map);
+                    result.push(OutputPart::SvelteHead {
+                        hash: hash.clone(),
+                        body: wrapped_body,
+                    });
+                }
+                OutputPart::TitleElement { body } => {
+                    // Recurse into the title body so reactive expressions inside
+                    // `<title>` get the same `$$renderer.async([...])` treatment as
+                    // siblings outside `<svelte:head>`.
+                    let wrapped_body = Self::apply_async_wrapping(body, blocker_map);
+                    result.push(OutputPart::TitleElement { body: wrapped_body });
+                }
                 _ => {
                     result.push(part.clone());
                 }

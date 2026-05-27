@@ -32,6 +32,12 @@ pub struct Root {
     pub fragment: Fragment,
     /// Component options, or null if none.
     pub options: Option<Box<SvelteOptions>>,
+    /// JS comments collected during parsing (Svelte 5.53+).
+    /// Includes comments in element openers (between attributes) plus
+    /// comments captured by the JS parser inside `{...}` expressions
+    /// and `<script>` blocks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub comments: Vec<JsComment>,
     /// Instance script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<Box<Script>>,
@@ -49,6 +55,27 @@ pub struct Root {
     /// Arena for JsNode instances. Stores all expression sub-nodes contiguously.
     #[serde(skip)]
     pub arena: crate::ast::arena::ParseArena,
+}
+
+/// A JavaScript-style comment captured during parsing.
+///
+/// Mirrors Svelte 5's `AST.JSComment`. The `loc` field always carries
+/// `{line, column, character}` (the test runner strips `character` before
+/// comparing against acorn-style fixtures via `normalize_json`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsComment {
+    #[serde(rename = "type")]
+    pub kind: JsCommentKind,
+    pub start: u32,
+    pub end: u32,
+    pub value: CompactString,
+    pub loc: super::span::SourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum JsCommentKind {
+    Line,
+    Block,
 }
 
 /// A warning emitted during parsing.

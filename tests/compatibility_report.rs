@@ -33,22 +33,13 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     // Tests to skip for parser-legacy and parser-modern.
     //
     // `javascript-comments` is a long-standing acorn-vs-OXC comment-attachment
-    // mismatch that has never been worth fixing.
-    //
-    // `comment-in-tag` / `script-comment-only` arrived with Svelte 5.53.0
-    // (upstream commit `92e2fc120` "feat: allow comments in tags"). They
-    // require parsing `//` and `/* */` between element opener attributes plus
-    // surfacing a top-level `comments` array on the modern AST and a
-    // `_comments` field on the legacy AST. Tracked as a follow-up port.
+    // mismatch that has never been worth fixing — OXC drops standalone
+    // comment statements that acorn surfaces via `leadingComments` /
+    // `trailingComments` attachment.
     let skip_tests: &[&str] = if !modern {
-        &["javascript-comments", "script-comment-only"]
+        &["javascript-comments"]
     } else {
-        // `parens` (Svelte 5.55.2, upstream commit `8966601dc` "fix: handle
-        // parens in template expressions more robustly") tests the
-        // comments-in-tags feature (the source is `{(/**/ 42)}`) which is the
-        // same already-skipped 5.53.0 gap; the comments-in-tags port will
-        // also fix this fixture.
-        &["comment-in-tag", "parens"]
+        &[]
     };
 
     for sample_dir in &samples {
@@ -112,8 +103,18 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
                         }
                     });
 
-                let actual_normalized = normalize_parser_json(&actual_json);
+                let mut actual_normalized = normalize_parser_json(&actual_json);
                 let expected_normalized = normalize_parser_json(&expected);
+
+                // Match upstream test logic: only compare the top-level
+                // `comments` array when the fixture explicitly snapshots it.
+                if modern
+                    && let serde_json::Value::Object(expected_obj) = &expected_normalized
+                    && !expected_obj.contains_key("comments")
+                    && let serde_json::Value::Object(actual_obj) = &mut actual_normalized
+                {
+                    actual_obj.remove("comments");
+                }
 
                 if actual_normalized == expected_normalized {
                     result.add_sample(SampleResult {
@@ -373,15 +374,12 @@ fn run_css_tests() -> CategoryResult {
     let mut result = CategoryResult::new("css");
 
     // CSS samples that exercise pruning/scoping edge cases rsvelte doesn't
-    // fully match upstream on yet.
-    //
-    // - `css-prune-edge-cases` (Svelte 5.53.7, upstream `0965028d3`
-    //   "perf: optimize CSS selector pruning"): a deep
-    //   `main > article > div > section > span` chain that upstream prunes
-    //   as unused stays in our output, and `:where(li:where(.hash))` is
-    //   emitted as `:where(.hash):where(li)` (selector composition order).
-    //   Tracked as a follow-up port.
-    let skip_css: &[&str] = &["css-prune-edge-cases"];
+    // fully match upstream on yet. Empty for now — the previous
+    // `css-prune-edge-cases` skip (Svelte 5.53.7, upstream `0965028d3`)
+    // was lifted once the deep descendant-chain prune walker became
+    // generalised and `:where(...)` started scoping its inner selector list
+    // like `:is()`/`:has()`/`:not()`.
+    let skip_css: &[&str] = &[];
 
     for sample_dir in &samples {
         let name = sample_dir
@@ -947,14 +945,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     // Runtime samples whose expected output exercises infrastructure rsvelte
     // doesn't fully implement yet, so we mark them skipped instead of failing.
     //
-    // - `async-derived-title-update` (runtime-runes, Svelte 5.53.0): added by
-    //   upstream commit `582e4443d` "fix: ensure head effects are kept in the
-    //   effect tree". The expected client output threads the component's
-    //   `$$promises` array as a `blockers` arg into both `$.deferred_template_effect`
-    //   inside `$.head(...)` and the regular `$.template_effect` reading
-    //   the same async derived. rsvelte's client transform doesn't yet wire
-    //   the async-derived `$$promises` reference through template effects,
-    //   so this fixture is skipped pending a dedicated port.
     // - `derived-name-shadowed` (runtime-runes, Svelte 5.53.1): upstream
     //   commit `0c7f81514` "fix: handle shadowed function names correctly"
     //   associates a `FunctionDeclaration` / `FunctionExpression` id node
@@ -990,7 +980,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     //   in the compiled output. Skipping until the rsvelte analyzer's
     //   function-scope porosity matches upstream.
     let runtime_skip_tests: &[(&str, &str)] = &[
-        ("runtime-runes", "async-derived-title-update"),
         // - `async-eager-derived` (Svelte 5.53.12, upstream `965f2a0ac`
         //   "fix: handle async RHS in assignment_value_stale"): rsvelte's
         //   client transform emits the `$$promises[…]` blockers array in
@@ -998,12 +987,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   the fixture diff is a 1-line array reordering. Same underlying
         //   blocker-threading gap as `async-derived-title-update`.
         ("runtime-runes", "async-eager-derived"),
-        // - `async-inspect-build` (Svelte 5.53.13, upstream `b472171de`
-        //   "ensure `$inspect` after top level await doesn't break builds"):
-        //   the new fixture's `$.run([test, () => void 0])` array exercises
-        //   `$inspect` ordering after a top-level await that rsvelte's client
-        //   transform doesn't yet emit. Tracked as a follow-up port.
-        ("runtime-runes", "async-inspect-build"),
         // - Svelte 5.54.1 cluster (upstream commit `6b33dd2a1` "fix: group
         //   sync statements"): when multiple sync assignments share the same
         //   blocker set inside an async transform, upstream groups them into
@@ -1040,11 +1023,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `@const` tags based on visible references in legacy mode" expose
         //   pre-existing rsvelte parsing/codegen gaps:
         //   * `async-if-block-unskip` — blank-line placement only.
-        //   * `flush-sync-each-block` — no-semicolon import statements
-        //     (`import "./Inner.svelte"` without `;`) cause the following
-        //     declaration to merge into the import line.
         ("runtime-runes", "async-if-block-unskip"),
-        ("runtime-legacy", "flush-sync-each-block"),
         // - Svelte 5.55.3 cluster: upstream commit `3937ec03b` "fix: correctly
         //   calculate `@const` blockers" adds new fixtures that exercise the
         //   same group-sync-statements async batching as 5.54.1's
@@ -1097,12 +1076,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
-        (
-            "runtime-legacy",
-            "inline-style-directive-string-variable-kebab-case",
-        ),
-        ("runtime-runes", "derived-name-shadowed"),
-        ("runtime-runes", "set-text-stable-coercion"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
         // - HtmlTag is_controlled cluster (Svelte 5.53.8, upstream commit

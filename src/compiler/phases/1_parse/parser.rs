@@ -80,6 +80,16 @@ pub struct Parser<'a> {
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
+    /// JS-style comments collected across the parse. Mirrors upstream
+    /// `parser.root.comments`. Populated by:
+    /// - `parse_attribute` for `// …` / `/* … */` comments between attributes
+    ///   inside an element opener (Svelte 5.53+).
+    /// - script/expression parsing for comments seen by the JS parser.
+    ///
+    /// `RefCell` because `parse_expression` is called from `&self` methods
+    /// (the parser arena/options sit behind `&self` and many existing
+    /// callers don't go through a `&mut` route).
+    pub(crate) root_comments: std::cell::RefCell<Vec<crate::ast::template::JsComment>>,
     /// Arena allocator for JsNode instances created during parsing.
     pub(crate) arena: ParseArena,
 }
@@ -134,6 +144,10 @@ impl<'a> Parser<'a> {
     ///
     /// Corresponds to the `Parser` constructor in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
     pub fn new(source: &'a str, options: ParseOptions) -> Self {
+        // Discard any comments left in the per-thread expression sink from
+        // a previous (possibly errored) parse on this thread.
+        let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
+
         // Calculate line offsets for location calculation using SIMD-accelerated memchr.
         // Skip entirely in compilation mode where line/column info is never used.
         let bytes = source.as_bytes();
@@ -174,6 +188,7 @@ impl<'a> Parser<'a> {
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
+            root_comments: std::cell::RefCell::new(Vec::new()),
             arena: ParseArena::new(),
         }
     }
@@ -211,6 +226,8 @@ impl<'a> Parser<'a> {
         self.meta_tags.clear();
         self.last_auto_closed_tag = None;
         self.parse_warnings.clear();
+        self.root_comments.borrow_mut().clear();
+        let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
         self.arena = ParseArena::new(); // Fresh arena per file
     }
 

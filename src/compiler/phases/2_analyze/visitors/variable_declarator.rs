@@ -194,6 +194,28 @@ fn update_binding_kinds(
 ) -> Result<(), AnalysisError> {
     for path in paths {
         if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
+            if std::env::var("DBG_FOO").is_ok() && name == "foo" {
+                eprintln!(
+                    "[DBG_FOO] update_binding_kinds enter: rune={} function_depth={}",
+                    rune, context.function_depth
+                );
+                for (i, scope) in context.analysis.root.all_scopes.iter().enumerate() {
+                    if let Some(&idx) = scope.declarations.get(name) {
+                        let b = &context.analysis.root.bindings[idx];
+                        eprintln!(
+                            "[DBG_FOO]   all_scopes[{}] foo -> idx={} kind={:?} scope_index={}",
+                            i, idx, b.kind, b.scope_index
+                        );
+                    }
+                }
+                if let Some(&idx) = context.analysis.root.scope.declarations.get(name) {
+                    let b = &context.analysis.root.bindings[idx];
+                    eprintln!(
+                        "[DBG_FOO]   root.scope foo -> idx={} kind={:?} scope_index={}",
+                        idx, b.kind, b.scope_index
+                    );
+                }
+            }
             // Find the correct binding for this declaration. When inside a nested function
             // (function_depth > 1, since instance script starts at depth 1), the merged
             // declarations map might return an outer binding that shadows the inner one.
@@ -218,6 +240,9 @@ fn update_binding_kinds(
             } else {
                 context.analysis.root.scope.declarations.get(name).copied()
             };
+            if std::env::var("DBG_FOO").is_ok() && name == "foo" {
+                eprintln!("[DBG_FOO]   chosen binding_idx={:?}", binding_idx);
+            }
 
             let binding_idx = match binding_idx {
                 Some(idx) => idx,
@@ -772,8 +797,14 @@ fn is_expression_defined(node: &Value) -> bool {
         | "ObjectExpression"
         | "ArrowFunctionExpression"
         | "FunctionExpression"
-        | "TemplateLiteral"
-        | "NewExpression" => true,
+        | "TemplateLiteral" => true,
+        // `new SomeClass(...)` always returns an object at runtime, but its
+        // toString / valueOf are user-controlled, so upstream's scope.evaluate
+        // returns `is_string: false` and the template-literal `${...}`
+        // coercion adds `?? ''` for safety (Svelte 5.53.3 `f67d03df5`).
+        // Mirror that here by treating NewExpression as NOT provably-defined
+        // for `is_expression_defined`'s consumers.
+        "NewExpression" => false,
         "AssignmentExpression" => node
             .get("right")
             .map(is_expression_defined)
@@ -1121,8 +1152,12 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
         | JsNode::ObjectExpression { .. }
         | JsNode::ArrowFunctionExpression { .. }
         | JsNode::FunctionExpression { .. }
-        | JsNode::TemplateLiteral { .. }
-        | JsNode::NewExpression { .. } => true,
+        | JsNode::TemplateLiteral { .. } => true,
+        // See the JSON variant above — Svelte 5.53.3 `f67d03df5` treats
+        // `new SomeClass()` as not-provably-string, so we report it as
+        // not-provably-defined for the template-literal coercion path that
+        // consumes this signal via `binding.initial_is_defined`.
+        JsNode::NewExpression { .. } => false,
         JsNode::AssignmentExpression { right, .. } => {
             is_expression_defined_typed(arena.get_js_node(*right), arena)
         }
@@ -1252,18 +1287,16 @@ fn update_binding_kinds_typed(
 ) -> Result<(), AnalysisError> {
     let arena = context.parse_arena;
     for path in paths {
-        let binding_idx = if context.function_depth > 1 {
-            let mut found = None;
-            for scope in context.analysis.root.all_scopes.iter().rev() {
-                if let Some(&idx) = scope.declarations.get(path.name.as_str())
-                    && let Some(b) = context.analysis.root.bindings.get(idx)
-                    && b.scope_index > 1
-                {
-                    found = Some(idx);
-                    break;
-                }
-            }
-            found.or_else(|| {
+        // Svelte 5.53.1 (upstream `0c7f81514` "handle shadowed function names
+        // correctly"): when an inner `const foo = $derived(...)` shadows an
+        // outer `function foo()`, the rune mutation must land on the inner
+        // binding only. Use lexical scoping — walk from `context.scope` up
+        // the parent chain to find the first scope that declares this name.
+        let binding_idx = context
+            .analysis
+            .root
+            .get_binding(path.name.as_str(), context.scope)
+            .or_else(|| {
                 context
                     .analysis
                     .root
@@ -1271,16 +1304,7 @@ fn update_binding_kinds_typed(
                     .declarations
                     .get(path.name.as_str())
                     .copied()
-            })
-        } else {
-            context
-                .analysis
-                .root
-                .scope
-                .declarations
-                .get(path.name.as_str())
-                .copied()
-        };
+            });
 
         let binding_idx = match binding_idx {
             Some(idx) => idx,
