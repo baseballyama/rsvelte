@@ -426,7 +426,7 @@ fn audit_skipped_fixtures() {
 
     let parser_legacy_skipped = &["javascript-comments", "script-comment-only"];
     let parser_modern_skipped = &["comment-in-tag", "parens"];
-    let css_skipped = &["css-prune-edge-cases"];
+    let css_skipped: &[&str] = &[];
     let print_skipped = &["css-keyframes-percent"];
 
     let mut now_passing: Vec<(String, String)> = Vec::new();

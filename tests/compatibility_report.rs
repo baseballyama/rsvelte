@@ -374,15 +374,12 @@ fn run_css_tests() -> CategoryResult {
     let mut result = CategoryResult::new("css");
 
     // CSS samples that exercise pruning/scoping edge cases rsvelte doesn't
-    // fully match upstream on yet.
-    //
-    // - `css-prune-edge-cases` (Svelte 5.53.7, upstream `0965028d3`
-    //   "perf: optimize CSS selector pruning"): a deep
-    //   `main > article > div > section > span` chain that upstream prunes
-    //   as unused stays in our output, and `:where(li:where(.hash))` is
-    //   emitted as `:where(.hash):where(li)` (selector composition order).
-    //   Tracked as a follow-up port.
-    let skip_css: &[&str] = &["css-prune-edge-cases"];
+    // fully match upstream on yet. Empty for now — the previous
+    // `css-prune-edge-cases` skip (Svelte 5.53.7, upstream `0965028d3`)
+    // was lifted once the deep descendant-chain prune walker became
+    // generalised and `:where(...)` started scoping its inner selector list
+    // like `:is()`/`:has()`/`:not()`.
+    let skip_css: &[&str] = &[];
 
     for sample_dir in &samples {
         let name = sample_dir

@@ -115,7 +115,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
+Source: `pnpm run compatibility-report` (generated 2026-05-27, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -123,7 +123,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 | Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC drops standalone comments that acorn surfaces) |
 | Compiler Errors | 144/144 | |
 | Compiler Snapshot | 20/20 | |
-| CSS | 180/181 | 1 skipped (`css-prune-edge-cases` — Svelte 5.53.7) |
+| CSS | 181/181 | Deep descendant-chain pruning + `:where(...)` inner scoping ported (Svelte 5.53.7 `0965028d3`). |
 | Validator | 324/325 | 1 skipped (`error-mode-warn` — opted out via `_config.js`) |
 | SSR | 97/97 | HtmlTag SSR class-hash inlining + synthetic `<option value>` ported (Svelte 5.53.6, 5.55.9). |
 | Hydration | 78/78 | HtmlTag `is_controlled` cluster ported (Svelte 5.53.8 `0206a2019`) |
@@ -136,7 +136,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 | svelte2tsx | 245/247 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3427/3427 in-scope-run passing — every executed fixture in every in-scope category passes. 49 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
+**Compatibility report total: 3428/3428 in-scope-run passing — every executed fixture in every in-scope category passes. 48 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
@@ -147,6 +147,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 - **SSR attribute `$.stringify` elide** (Svelte 5.55.9 `a5df6616e`, partial) — `eval_attr_expr_json` handles `ConditionalExpression` and string-concat `BinaryExpression`. Class, style-directive, and class-attribute (no-directive) emission paths route through it; the no-class-directive path also falls back to a static `class="..."` attribute when every interpolation inlines. Unblocked `attribute-dynamic-multiple`, `globals-not-overwritten-by-bindings`, `attribute-parts`, `head-raw-elements-content`, `innerhtml-interpolated-literal`. Multi-line `let` extraction remains pending.
 - **ASI-aware side-effect import detection** (Svelte 5.55.2 cluster) — `extract_imports` in `src/compiler/phases/3_transform/{client/mod.rs,server/helpers.rs}` now recognises `import "module"` / `import 'module'` (no `from`, no `;`) as a complete one-line side-effect import via `is_complete_side_effect_import`. Previously the line-by-line splitter only treated an import as complete when it contained `;` or matched `... from "…"`, so the side-effect form merged into the next statement (e.g. `let count = 1;`), breaking legacy `$.mutable_source` lowering. Unblocked `flush-sync-each-block`.
 - **Comments in element openers and `Root.comments`** (Svelte 5.53.0 `92e2fc120`) — `parse_attribute` in `1_parse/state/element.rs` consumes `// …` / `/* … */` between attributes and pushes a `JsComment` onto `Root.comments`. The JS parser pipeline (`parse_expression` / `parse_program`) also forwards every OXC-discovered comment via a per-thread sink. Legacy AST surfaces the same data as `_comments`. Unblocked `parser-modern/comment-in-tag`, `parser-modern/parens`, `parser-legacy/script-comment-only`.
+- **CSS prune-edge-cases / `:where()` composition** (Svelte 5.53.7 `0965028d3`) — `is_descendant_selector_unused` walks chains of arbitrary depth (was 2-link only), so `main > article > div > section > span` is now pruned as unused when the DOM doesn't satisfy the chain. `format_simple_selector_with_scope` and the relative-selector loop now also treat standalone `:where(...)` like `:is(...)`, recursing into the inner SelectorList so `ul :where(li)` emits `ul.svelte-xxx :where(li:where(.svelte-xxx))` instead of `:where(.svelte-xxx):where(li)`. Unblocked `css/css-prune-edge-cases`.
 
 ### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
 

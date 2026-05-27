@@ -2463,117 +2463,148 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
         return false;
     }
 
-    // Only handle simple two-selector case for now (parent > child or parent child)
-    if rel_selectors.len() != 2 {
-        return false;
+    // For a chain like `a > b > c > d`, every relative selector must contribute
+    // a usable constraint (TypeSelector or :not()-like universal pseudo). Bail
+    // out as soon as we encounter a link we can't reason about, so we stay
+    // conservative (e.g. compound selectors like `a.foo b` are already pruned
+    // by the simple-selector pass when `.foo` isn't used).
+    let owned_tags: Vec<Option<String>> =
+        rel_selectors.iter().map(get_type_selector_name).collect();
+    for (i, rel) in rel_selectors.iter().enumerate() {
+        if owned_tags[i].is_none() && !is_universal_pseudo_selector(rel) {
+            return false;
+        }
     }
 
-    // Get the parent element type (first selector)
-    let parent_tag = get_type_selector_name(&rel_selectors[0]);
-    if parent_tag.is_none() {
-        return false;
-    }
-    let parent_tag = parent_tag.unwrap();
-
-    // Get the child element type (second selector)
-    // If the child is just a pseudo-class like :not(.foo), it implicitly matches any element
-    let child_tag = get_type_selector_name(&rel_selectors[1]);
-
-    // Check if the second selector is a pure pseudo-class (like :not())
-    // that matches any element type
-    let is_universal_pseudo = if child_tag.is_none() {
-        // Check if it's a :not() pseudo-class without a type selector
-        is_universal_pseudo_selector(&rel_selectors[1])
-    } else {
-        false
-    };
-
-    // If no child type and not a universal pseudo, we can't determine usage
-    if child_tag.is_none() && !is_universal_pseudo {
-        return false;
-    }
-
-    // Get the combinator between parent and child
-    let combinator = rel_selectors[1]
-        .get("combinator")
-        .and_then(|c| c.get("name"))
-        .and_then(|n| n.as_str())
-        .unwrap_or(" ");
-
-    // Find all elements that match the parent
-    let parent_indices: Vec<usize> = ctx
+    // Pick start: every element whose tag matches the first link. When the
+    // first link is a universal pseudo (`:not(...)`-shaped), accept any tag.
+    let first_tag = owned_tags[0].as_deref();
+    let first_universal = matches!(first_tag, Some("*") | None);
+    let start_indices: Vec<usize> = ctx
         .dom_structure
         .elements
         .iter()
         .enumerate()
-        .filter(|(_, el)| el.tag_name == parent_tag)
+        .filter(|(_, el)| {
+            if first_universal {
+                true
+            } else {
+                first_tag.is_some_and(|t| t == el.tag_name)
+            }
+        })
         .map(|(i, _)| i)
         .collect();
 
-    if parent_indices.is_empty() {
-        // Parent element doesn't exist - will be caught by simple selector check
+    if start_indices.is_empty() {
+        // No element matches the first link — the simple-selector pass already
+        // marks this as unused; don't double-flag here.
         return false;
     }
 
-    // Check based on combinator type
-    for parent_idx in &parent_indices {
-        let parent_el = &ctx.dom_structure.elements[*parent_idx];
-
-        // If the parent has opaque content (render tags, slots, components),
-        // it could have any element as a descendant at runtime - be conservative
-        if parent_el.has_opaque_content {
-            return false;
+    // Walk every (combinator, tag) link from idx=1 onward, gathering the
+    // candidate descendants at each step. If any opaque ancestor is hit, bail.
+    fn walk(
+        ctx: &CssContext,
+        current: &[usize],
+        chain: &[(&str, &str)], // (combinator, "" for universal)
+        idx: usize,
+    ) -> Option<bool> {
+        if idx == chain.len() {
+            return Some(true);
         }
-
-        // Also check ancestors: if any ancestor has opaque content,
-        // the parent itself could receive unknown descendants via render tags
-        if has_opaque_ancestor(ctx, *parent_idx) {
-            return false;
-        }
-
-        if is_universal_pseudo {
-            // Universal pseudo (like :not()) matches any element
-            // Check if parent has any children at all
-            if combinator == ">" {
-                // Child combinator: only direct children
-                if has_any_direct_child(ctx, *parent_idx) {
-                    return false; // Found a potential match
-                }
-            } else {
-                // Descendant combinator: any descendant
-                if has_any_descendant(ctx, *parent_idx) {
-                    return false; // Found a potential match
-                }
+        let (combinator, tag) = chain[idx];
+        let mut next: Vec<usize> = Vec::new();
+        for &cur in current {
+            // Opaque content makes the chain unverifiable from this anchor.
+            if ctx.dom_structure.elements[cur].has_opaque_content {
+                return None;
             }
-        } else if let Some(ref child_tag) = child_tag {
-            // Universal selector (*) matches any element
-            let is_universal = child_tag == "*";
+            if has_opaque_ancestor(ctx, cur) {
+                return None;
+            }
+            collect_chain_candidates(ctx, cur, combinator, tag, &mut next);
+        }
+        if next.is_empty() {
+            return Some(false);
+        }
+        // Deduplicate to bound the recursion.
+        next.sort_unstable();
+        next.dedup();
+        walk(ctx, &next, chain, idx + 1)
+    }
 
-            if is_universal {
-                // * matches any element
-                if combinator == ">" {
-                    if has_any_direct_child(ctx, *parent_idx) {
-                        return false;
-                    }
-                } else if has_any_descendant(ctx, *parent_idx) {
-                    return false;
-                }
-            } else if combinator == ">" {
-                // Child combinator: only direct children
-                if has_direct_child_with_tag(ctx, *parent_idx, child_tag) {
-                    return false; // Found a valid parent > child relationship
-                }
-            } else {
-                // Descendant combinator: any descendant
-                if has_descendant_with_tag(ctx, *parent_idx, child_tag) {
-                    return false; // Found a valid parent child relationship
-                }
+    // Pre-compute the (combinator, tag) chain for idx>=1 in owned form.
+    let owned_chain: Vec<(&str, &str)> = (1..rel_selectors.len())
+        .map(|i| {
+            let combinator = rel_selectors[i]
+                .get("combinator")
+                .and_then(|c| c.get("name"))
+                .and_then(|n| n.as_str())
+                .unwrap_or(" ");
+            let tag = match owned_tags[i].as_deref() {
+                Some("*") | None => "*",
+                Some(t) => t,
+            };
+            (combinator, tag)
+        })
+        .collect();
+
+    match walk(ctx, &start_indices, &owned_chain, 0) {
+        Some(true) => false, // chain matches → not unused
+        Some(false) => true, // chain cannot match → unused
+        None => false,       // opaque element → stay conservative
+    }
+}
+
+/// Push every element under `parent_idx` that satisfies the next chain link
+/// (`combinator` + `tag`, with `tag == "*"` meaning universal).
+fn collect_chain_candidates(
+    ctx: &CssContext,
+    parent_idx: usize,
+    combinator: &str,
+    tag: &str,
+    out: &mut Vec<usize>,
+) {
+    let universal = tag == "*";
+    let total_elements = ctx.dom_structure.elements.len();
+    // Snapshot the child indices so we can recurse without re-borrowing
+    // `ctx.dom_structure.elements` later in the loop.
+    let children: Vec<usize> = ctx.dom_structure.elements[parent_idx].children_idx.to_vec();
+    let parent_tag_is_selectedcontent =
+        ctx.dom_structure.elements[parent_idx].tag_name == "selectedcontent";
+
+    let consider = |out: &mut Vec<usize>, child_idx: usize| {
+        if child_idx >= total_elements {
+            return;
+        }
+        let child = &ctx.dom_structure.elements[child_idx];
+        if universal || child.tag_name == tag {
+            out.push(child_idx);
+        }
+    };
+
+    if combinator == ">" {
+        for child_idx in &children {
+            consider(out, *child_idx);
+        }
+        if parent_tag_is_selectedcontent {
+            for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+                collect_chain_candidates(ctx, option_idx, combinator, tag, out);
+            }
+        }
+    } else {
+        // Descendant combinator (including the implicit " ").
+        for &child_idx in &children {
+            consider(out, child_idx);
+            // Recurse into grandchildren.
+            collect_chain_candidates(ctx, child_idx, combinator, tag, out);
+        }
+        if parent_tag_is_selectedcontent {
+            for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
+                collect_chain_candidates(ctx, option_idx, combinator, tag, out);
             }
         }
     }
-
-    // No valid relationship found
-    true
 }
 
 /// Get the type selector name from a relative selector
@@ -2590,101 +2621,6 @@ fn get_type_selector_name(rel_selector: &Value) -> Option<String> {
                 }
             })
         })
-}
-
-/// Check if an element has a direct child with the given tag name
-fn has_direct_child_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) -> bool {
-    let element = &ctx.dom_structure.elements[parent_idx];
-
-    for &child_idx in &element.children_idx {
-        if child_idx < ctx.dom_structure.elements.len() {
-            let child = &ctx.dom_structure.elements[child_idx];
-            if child.tag_name == tag_name {
-                return true;
-            }
-        }
-    }
-
-    // Special handling for <selectedcontent>: also check <option> descendants in parent <select>
-    if element.tag_name == "selectedcontent" {
-        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
-            if has_direct_child_with_tag(ctx, option_idx, tag_name) {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Check if an element has a descendant with the given tag name
-fn has_descendant_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) -> bool {
-    let element = &ctx.dom_structure.elements[parent_idx];
-
-    for &child_idx in &element.children_idx {
-        if child_idx < ctx.dom_structure.elements.len() {
-            let child = &ctx.dom_structure.elements[child_idx];
-            if child.tag_name == tag_name {
-                return true;
-            }
-            // Recursively check descendants
-            if has_descendant_with_tag(ctx, child_idx, tag_name) {
-                return true;
-            }
-        }
-    }
-
-    // Special handling for <selectedcontent>: also check <option> descendants in parent <select>
-    if element.tag_name == "selectedcontent" {
-        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
-            if has_descendant_with_tag(ctx, option_idx, tag_name) {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Check if an element has any direct children (elements, not text nodes)
-fn has_any_direct_child(ctx: &CssContext, parent_idx: usize) -> bool {
-    let element = &ctx.dom_structure.elements[parent_idx];
-    if !element.children_idx.is_empty() {
-        return true;
-    }
-
-    // Special handling for <selectedcontent>
-    if element.tag_name == "selectedcontent" {
-        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
-            if has_any_direct_child(ctx, option_idx) {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Check if an element has any descendants (elements, not text nodes)
-fn has_any_descendant(ctx: &CssContext, parent_idx: usize) -> bool {
-    let element = &ctx.dom_structure.elements[parent_idx];
-
-    for &child_idx in &element.children_idx {
-        if child_idx < ctx.dom_structure.elements.len() {
-            return true;
-        }
-    }
-
-    // Special handling for <selectedcontent>
-    if element.tag_name == "selectedcontent" {
-        for option_idx in find_option_elements_for_selectedcontent(ctx, parent_idx) {
-            if has_any_descendant(ctx, option_idx) {
-                return true;
-            }
-        }
-    }
-
-    false
 }
 
 /// Check if any ancestor of the given element has opaque content
@@ -5160,14 +5096,27 @@ fn transform_complex_selector(
                     // - For other pseudo-classes like :has, :not, :hover, etc., prepend the scoping class
                     // Also skip if we have a NestingSelector - it inherits scoping from parent
                     if needs_scoping && last_non_pseudo_idx.is_none() && !has_nesting_selector {
-                        // Check if first selector is one that should not have scoping added before it
+                        // Check if first selector is one that should not have scoping added before it.
+                        // Mirrors upstream Svelte's "skip standalone :is/:where/& selectors" branch
+                        // which only triggers when `relative_selector.selectors.length === 1`, plus
+                        // the unconditional :root / :host exemptions and the :is internal-scoping
+                        // case which rsvelte already collapses here.
                         let first_is_global_like = selectors.first().is_some_and(|s| {
                             if s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             {
                                 let name = s.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                                // Only :root, :host should NOT have scoping added before them
-                                // :is handles scoping internally via its arguments
-                                name == "is" || name == "host" || name == "root"
+                                if name == "host" || name == "root" {
+                                    return true;
+                                }
+                                if name == "is" {
+                                    return true;
+                                }
+                                // Standalone :where(...) handles scoping internally
+                                // (mirrors upstream `continue` for length===1 + :where)
+                                if name == "where" && selectors.len() == 1 {
+                                    return true;
+                                }
+                                false
                             } else {
                                 false
                             }
@@ -5418,10 +5367,14 @@ fn format_simple_selector_with_scope(
         "PseudoClassSelector" => {
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
-            // Handle :is(), :not(), :has() - these take selector lists as arguments
-            // and need to scope their inner selectors
+            // Handle :is(), :not(), :has(), :where() - these take selector lists as
+            // arguments and need to scope their inner selectors. Mirrors upstream
+            // Svelte's `PseudoClassSelector` visitor which calls `context.next()`
+            // for is/where/has/not so the inner SelectorList gets scoped.
             if let Some(args) = sel.get("args") {
-                if (name == "is" || name == "not" || name == "has") && !selector.is_empty() {
+                if (name == "is" || name == "not" || name == "has" || name == "where")
+                    && !selector.is_empty()
+                {
                     // Transform the inner selector list with appropriate scoping
                     // Per the official Svelte compiler, inner selectors inherit the
                     // specificity state from the outer context. When the outer selector
