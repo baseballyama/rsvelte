@@ -376,8 +376,11 @@ fn audit_skipped_fixtures() {
     ensure_fixtures_exist();
 
     // Names lifted from the skip lists in tests/compatibility_report.rs and
-    // tests/runtime.rs (excluding the always-out-of-scope migrate / svelte2tsx
-    // error fixtures / validator's _config.js opt-out).
+    // tests/runtime.rs (excluding the always-out-of-scope migrate fixtures
+    // and validator's `_config.js` opt-out). svelte2tsx `expected.error.json`
+    // fixtures are now driven by `tests/common/svelte2tsx.rs` directly — they
+    // execute as regular runs in the compatibility report rather than being
+    // skipped — so they don't need to appear here.
     let runtime_skipped: &[(&str, &str)] = &[
         ("runtime-runes", "async-derived-title-update"),
         ("runtime-runes", "async-eager-derived"),

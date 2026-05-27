@@ -1430,7 +1430,7 @@ pub fn parse_expression(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some(error_msg) = check_js_parse_error(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
     {
         return Err((error_msg, offset));
     }
@@ -1559,7 +1559,7 @@ pub fn parse_expression_with_end(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some(error_msg) = check_js_parse_error(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
     {
         return Err((error_msg, offset));
     }
@@ -1568,49 +1568,65 @@ pub fn parse_expression_with_end(
     Ok(create_invalid_identifier(offset, end, line_offsets))
 }
 
-/// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
-pub fn check_js_parse_error(content: &str) -> Option<String> {
+/// Check if a JavaScript expression has parse errors, returning the failure
+/// position alongside the message.
+///
+/// Returns `Some((message, pos_in_content))` on parse failure. `pos_in_content`
+/// is the 0-based byte offset *within `content`* where the failure occurs (so
+/// callers can add their own absolute-offset base) — mirroring upstream
+/// Svelte's `js_parse_error(err.pos, ...)` semantics where `err.pos` is the
+/// acorn-reported position. When OXC doesn't surface a position (e.g. the
+/// synthetic "Assigning to rvalue" case) this falls back to 0 so the caller
+/// still gets a deterministic span.
+///
+/// `content` is wrapped in `(...)` before being handed to OXC, so we subtract
+/// one from OXC's reported `offset + len` (the right-edge of the labeled span)
+/// to land back in the unwrapped expression's coordinate space — and clamp
+/// the result to `[0, content.len()]`. Acorn reports `err.pos` at the point
+/// where it stopped consuming tokens, which corresponds to the *end* of the
+/// problematic region, not its start.
+pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
     wrapped.push(')');
 
+    let probe = |source_type: SourceType| -> Option<(String, usize)> {
+        with_oxc_allocator(|allocator| {
+            let parser = OxcParser::new(allocator, &wrapped, source_type);
+            let result = parser.parse();
+            if let Some(first_error) = result.errors.first() {
+                let pos = first_error
+                    .labels
+                    .as_ref()
+                    .and_then(|labels| labels.first())
+                    .map(|label| label.offset() + label.len())
+                    .map(|wrapped_end| {
+                        // Strip the leading `(` we added and clamp.
+                        wrapped_end.saturating_sub(1).min(content.len())
+                    })
+                    .unwrap_or(0);
+                return Some((first_error.message.to_string(), pos));
+            }
+            // Check for invalid assignment targets that OXC doesn't report as errors
+            if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+                result.program.body.first()
+                && is_invalid_assignment_expression(&expr_stmt.expression)
+            {
+                return Some(("Assigning to rvalue".to_string(), 0));
+            }
+            None
+        })
+    };
+
     // Try TypeScript first
-    let ts_result = with_oxc_allocator(|allocator| {
-        let parser = OxcParser::new(allocator, &wrapped, SourceType::ts());
-        let result = parser.parse();
-        if let Some(first_error) = result.errors.first() {
-            return Some(first_error.message.to_string());
-        }
-        // Check for invalid assignment targets that OXC doesn't report as errors
-        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-            result.program.body.first()
-            && is_invalid_assignment_expression(&expr_stmt.expression)
-        {
-            return Some("Assigning to rvalue".to_string());
-        }
-        None
-    });
+    let ts_result = probe(SourceType::ts());
 
     // No TS errors means valid
     ts_result.as_ref()?;
 
     // Try JavaScript
-    let js_result = with_oxc_allocator(|allocator| {
-        let parser = OxcParser::new(allocator, &wrapped, SourceType::mjs());
-        let result = parser.parse();
-        if let Some(first_error) = result.errors.first() {
-            return Some(first_error.message.to_string());
-        }
-        // Check for invalid assignment targets that OXC doesn't report as errors
-        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-            result.program.body.first()
-            && is_invalid_assignment_expression(&expr_stmt.expression)
-        {
-            return Some("Assigning to rvalue".to_string());
-        }
-        None
-    });
+    let js_result = probe(SourceType::mjs());
 
     // No JS errors means valid
     js_result.as_ref()?;

@@ -140,15 +140,20 @@ required — the skip is intentional on the upstream side.
 
 ---
 
-## 7. svelte2tsx error fixtures (2 fixtures)
+## 7. svelte2tsx error fixtures (✅ landed)
 
 `svelte2tsx/editing-mustache`, `svelte2tsx/unclosed-tag-containing-tag.v5`.
 
-These ship `expected.error.json` (not `expected.tsx`). Our svelte2tsx
-test harness currently only walks success fixtures. Porting error-fixture
-support means teaching `tests/common/svelte2tsx.rs` to compare the
-emitted error against the expected JSON. Low priority — these fixtures
-test rsvelte's *error* output rather than success codegen.
+These ship `expected.error.json` (not `expected.tsx`). The fixture
+runner in `tests/common/svelte2tsx.rs` now detects them, calls
+`svelte2tsx`, and verifies the surfaced error's `{ start, end }`
+positions match the expected JSON — mirroring upstream's Svelte 5
+comparison strategy (see
+`submodules/language-tools/packages/svelte2tsx/test/helpers.ts`).
+To align with upstream's `js_parse_error(err.pos, …)` semantics,
+`check_js_parse_error` was widened to also surface the OXC label
+offset and `parse_js_expression_strict` now reports a point span
+(`start == end`).
 
 ---
 
