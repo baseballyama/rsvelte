@@ -1997,6 +1997,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
                 // Check if this import is complete on one line
                 if trimmed.contains(';')
+                    || is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
                         && (trimmed.ends_with('\'')
                             || trimmed.ends_with('"')
@@ -2019,6 +2020,57 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     }
 
     (imports, rest.join("\n"))
+}
+
+/// Check whether `trimmed` is a complete *side-effect* import statement —
+/// `import "module"` or `import 'module'` with no `from` clause and no
+/// terminating semicolon. ASI in real JavaScript allows this form to stand
+/// alone on its own line, so it must not be merged with the following line
+/// the way `extract_imports` accumulates incomplete multi-line imports.
+///
+/// The line is considered complete iff after `import` there is whitespace,
+/// then a single string literal (single or double quoted), then optional
+/// whitespace until end-of-line. Anything else (bindings, `from`, trailing
+/// content, dynamic `import(...)` calls) returns `false`.
+fn is_complete_side_effect_import(trimmed: &str) -> bool {
+    // Must start with `import ` (we already know this from the caller, but
+    // re-check defensively to keep the helper standalone).
+    let after_import = if let Some(rest) = trimmed.strip_prefix("import ") {
+        rest.trim_start()
+    } else {
+        return false;
+    };
+
+    // Side-effect imports start directly with a string literal — `"…"` or `'…'`.
+    let bytes = after_import.as_bytes();
+    let quote = match bytes.first() {
+        Some(&b'"') => b'"',
+        Some(&b'\'') => b'\'',
+        _ => return false,
+    };
+
+    // Walk the string literal, honouring escapes.
+    let mut i = 1;
+    let mut closed = false;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' if i + 1 < bytes.len() => i += 2,
+            c if c == quote => {
+                closed = true;
+                i += 1;
+                break;
+            }
+            _ => i += 1,
+        }
+    }
+    if !closed {
+        return false;
+    }
+
+    // After the closing quote only optional whitespace is allowed for this to
+    // be a *complete* side-effect import. Anything else (e.g. `from`, more
+    // tokens) means we should not treat the line as complete here.
+    after_import[i..].trim().is_empty()
 }
 
 /// Clean up an import statement after TypeScript stripping.
@@ -5334,6 +5386,42 @@ let { foo = false, bar = true } = $props();
     // now produced by `ast_state_transform::try_rewrite_derived_call_declarator`
     // and is exercised by the runtime/snapshot fixtures that round-trip
     // through the full compile pipeline.
+
+    #[test]
+    fn test_is_complete_side_effect_import() {
+        // Side-effect imports without `from`/`;` are complete on a single line.
+        assert!(is_complete_side_effect_import("import \"./Inner.svelte\""));
+        assert!(is_complete_side_effect_import("import './foo.js'"));
+        assert!(is_complete_side_effect_import(
+            "import  \"./Inner.svelte\"   "
+        ));
+        // Escaped quote inside string literal.
+        assert!(is_complete_side_effect_import("import \"./a\\\".svelte\""));
+
+        // Non-side-effect imports must NOT be detected here.
+        assert!(!is_complete_side_effect_import("import x from 'foo'"));
+        assert!(!is_complete_side_effect_import("import { x } from 'foo'"));
+        assert!(!is_complete_side_effect_import("import {"));
+        assert!(!is_complete_side_effect_import("import * as ns from 'foo'"));
+
+        // Anything trailing the closing quote also fails.
+        assert!(!is_complete_side_effect_import("import \"./foo\" extra"));
+
+        // Unclosed string literal is not complete.
+        assert!(!is_complete_side_effect_import("import \"./foo"));
+    }
+
+    #[test]
+    fn test_extract_imports_no_semicolon_side_effect() {
+        // Regression: `import "./Inner.svelte"` (no semicolon) followed by a
+        // `let count = 1;` declaration must split into a complete import and a
+        // separate body statement. Previously the line-by-line splitter merged
+        // both lines into the import block.
+        let script = "import \"./Inner.svelte\"\nlet count = 1;\n";
+        let (imports, rest) = extract_imports(script);
+        assert_eq!(imports, vec!["import \"./Inner.svelte\"".to_string()]);
+        assert_eq!(rest, "let count = 1;");
+    }
 
     #[test]
     fn test_transform_prop_reads_in_expr() {

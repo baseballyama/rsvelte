@@ -397,7 +397,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-overlap-multiple-6"),
         ("runtime-runes", "async-overlap-multiple-7"),
         ("runtime-runes", "async-if-block-unskip"),
-        ("runtime-legacy", "flush-sync-each-block"),
         ("runtime-runes", "async-const"),
         ("runtime-runes", "async-const-wait"),
         ("runtime-runes", "async-derived-const-blocker"),

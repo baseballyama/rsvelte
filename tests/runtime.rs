@@ -239,14 +239,7 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
 /// labelled with the upstream commit responsible. Remove an entry once the
 /// underlying port lands.
-const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[
-    // flush-sync-each-block (Svelte 5.55.2): two combined failures —
-    //   1) client: `import "./Inner.svelte"` (no semicolon) merges into the
-    //      following `let count = 1` because the script raw-emission path
-    //      strips line breaks.
-    //   2) server: legacy `let count` is not lowered to `$.mutable_source(...)`.
-    "flush-sync-each-block",
-];
+const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[];
 
 /// hydration fixtures still failing. All HtmlTag is_controlled fixtures now pass
 /// post-port (Svelte 5.53.8 upstream `0206a2019`).

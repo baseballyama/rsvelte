@@ -1040,11 +1040,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `@const` tags based on visible references in legacy mode" expose
         //   pre-existing rsvelte parsing/codegen gaps:
         //   * `async-if-block-unskip` — blank-line placement only.
-        //   * `flush-sync-each-block` — no-semicolon import statements
-        //     (`import "./Inner.svelte"` without `;`) cause the following
-        //     declaration to merge into the import line.
         ("runtime-runes", "async-if-block-unskip"),
-        ("runtime-legacy", "flush-sync-each-block"),
         // - Svelte 5.55.3 cluster: upstream commit `3937ec03b` "fix: correctly
         //   calculate `@const` blockers" adds new fixtures that exercise the
         //   same group-sync-statements async batching as 5.54.1's

@@ -1993,6 +1993,7 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
             let trimmed = line.trim();
             if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
                 if trimmed.contains(';')
+                    || is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
                         && (trimmed.ends_with('\'')
                             || trimmed.ends_with('"')
@@ -2023,6 +2024,43 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
     } else {
         (imports, rest)
     }
+}
+
+/// Check whether `trimmed` is a complete *side-effect* import statement —
+/// `import "module"` or `import 'module'` with no `from` clause and no
+/// terminating semicolon. Mirrors the helper in `transform/client/mod.rs`.
+fn is_complete_side_effect_import(trimmed: &str) -> bool {
+    let after_import = if let Some(rest) = trimmed.strip_prefix("import ") {
+        rest.trim_start()
+    } else {
+        return false;
+    };
+
+    let bytes = after_import.as_bytes();
+    let quote = match bytes.first() {
+        Some(&b'"') => b'"',
+        Some(&b'\'') => b'\'',
+        _ => return false,
+    };
+
+    let mut i = 1;
+    let mut closed = false;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' if i + 1 < bytes.len() => i += 2,
+            c if c == quote => {
+                closed = true;
+                i += 1;
+                break;
+            }
+            _ => i += 1,
+        }
+    }
+    if !closed {
+        return false;
+    }
+
+    after_import[i..].trim().is_empty()
 }
 
 /// Strip `export { ... }` statements from script content.
