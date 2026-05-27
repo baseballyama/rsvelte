@@ -930,32 +930,72 @@ impl Parser<'_> {
         Ok(attributes)
     }
 
+    /// Try to consume a `//` line comment or `/* */` block comment.
+    ///
+    /// Returns `true` if a comment was consumed (and pushed onto
+    /// `root_comments`), `false` otherwise. Mirrors `read_comment()` in the
+    /// official Svelte compiler (5.53+).
+    fn read_attr_comment(&mut self) -> bool {
+        let start = self.index;
+        if self.match_str("//") {
+            self.advance_by(2); // consume '//'
+            let value_start = self.index;
+            if let Some(pos) = memchr(b'\n', &self.bytes[self.index..]) {
+                self.index += pos;
+            } else {
+                self.index = self.bytes.len();
+            }
+            let value_end = self.index;
+            let end = self.index;
+            let value = compact_str::CompactString::from(&self.source[value_start..value_end]);
+            let loc = self.create_name_loc(start, end);
+            self.root_comments
+                .borrow_mut()
+                .push(crate::ast::template::JsComment {
+                    kind: crate::ast::template::JsCommentKind::Line,
+                    start: start as u32,
+                    end: end as u32,
+                    value,
+                    loc,
+                });
+            true
+        } else if self.match_str("/*") {
+            self.advance_by(2); // consume '/*'
+            let value_start = self.index;
+            let value_end;
+            if let Some(pos) = memmem::find(&self.bytes[self.index..], b"*/") {
+                value_end = self.index + pos;
+                self.index += pos + 2; // skip past '*/'
+            } else {
+                value_end = self.bytes.len();
+                self.index = self.bytes.len();
+            }
+            let end = self.index;
+            let value = compact_str::CompactString::from(&self.source[value_start..value_end]);
+            let loc = self.create_name_loc(start, end);
+            self.root_comments
+                .borrow_mut()
+                .push(crate::ast::template::JsComment {
+                    kind: crate::ast::template::JsCommentKind::Block,
+                    start: start as u32,
+                    end: end as u32,
+                    value,
+                    loc,
+                });
+            true
+        } else {
+            false
+        }
+    }
+
     /// Parse a single attribute.
     pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute>> {
-        // Skip JS-style comments (// and /* */) before attribute parsing.
-        // Corresponds to read_comment() in the official Svelte compiler (5.53+).
-        loop {
-            if self.match_str("//") {
-                // Line comment: skip until newline using SIMD-accelerated search
-                self.advance_by(2); // consume '//'
-                if let Some(pos) = memchr(b'\n', &self.bytes[self.index..]) {
-                    self.index += pos;
-                } else {
-                    self.index = self.bytes.len();
-                }
-                self.skip_whitespace();
-            } else if self.match_str("/*") {
-                // Block comment: skip until */
-                self.advance_by(2); // consume '/*'
-                if let Some(pos) = memmem::find(&self.bytes[self.index..], b"*/") {
-                    self.index += pos + 2; // skip past '*/'
-                } else {
-                    self.index = self.bytes.len();
-                }
-                self.skip_whitespace();
-            } else {
-                break;
-            }
+        // Capture JS-style comments (// and /* */) before attribute parsing
+        // and record them in `root.comments`. Corresponds to `read_comment()`
+        // in the official Svelte compiler (5.53+) — see
+        // `submodules/svelte/packages/svelte/src/compiler/phases/1-parse/state/element.js`.
+        while self.read_attr_comment() {
+            self.skip_whitespace();
         }
 
         let start = self.index;

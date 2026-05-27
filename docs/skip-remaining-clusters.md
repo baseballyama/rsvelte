@@ -73,41 +73,17 @@ trailing tokens still take the existing code paths.
 
 ---
 
-## 3. Comments-in-tags (4 fixtures, **parser feature**)
+## 3. Comments-in-tags (✅ landed — 3 fixtures unblocked)
 
-`parser-legacy/javascript-comments` (separate — see cluster 7),
-`parser-legacy/script-comment-only`, `parser-modern/comment-in-tag`,
-`parser-modern/parens`.
+Landed: upstream commit `92e2fc120` "feat: allow comments in tags"
+(Svelte 5.53.0) is now ported. The parser captures `//` and `/* */`
+between element-opener attributes and surfaces them — along with all JS
+parser comments — on `Root.comments` (modern AST) and `_comments`
+(legacy AST). Newly passing fixtures: `parser-legacy/script-comment-only`,
+`parser-modern/comment-in-tag`, `parser-modern/parens`.
 
-Upstream commit `92e2fc120` "feat: allow comments in tags" (Svelte
-5.53.0) accepts `//` and `/* */` between attributes inside an element
-opener:
-
-```svelte
-<div
-    data-one="1"
-    // line comment
-    data-two="2"
-    /* block
-       comment */
-    data-three="3"
-></div>
-
-<span /* inline */ data-one="1"></span>
-```
-
-### What needs to change
-
-- `src/compiler/phases/1_parse/` element opener parser: skip comments
-  between attributes and the `>` / `/>` terminator.
-- Surface a top-level `comments` array on the modern AST (`Root.comments`).
-- Surface a `_comments` field on the legacy AST (`ast.convert_to_legacy`).
-- Output JSON must include `start`/`end` for each comment to match the
-  fixture's expected structure.
-
-`parser-modern/parens` exercises `{(/**/ 42)}` — same comments-in-tags
-feature applied inside a template expression, so it falls out of the
-parser fix above.
+`parser-legacy/javascript-comments` remains skipped (cluster 7, WONTFIX
+— OXC drops standalone comment statements that acorn surfaces).
 
 ---
 

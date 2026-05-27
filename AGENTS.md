@@ -119,8 +119,8 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
-| Parser Modern | 22/24 | 2 skipped (`comment-in-tag`, `parens` — comments-in-tags Svelte 5.53.0) |
-| Parser Legacy | 81/83 | 2 skipped (`javascript-comments` OXC vs acorn comment attachment; `script-comment-only` same cluster) |
+| Parser Modern | 24/24 | |
+| Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC drops standalone comments that acorn surfaces) |
 | Compiler Errors | 144/144 | |
 | Compiler Snapshot | 20/20 | |
 | CSS | 180/181 | 1 skipped (`css-prune-edge-cases` — Svelte 5.53.7) |
@@ -136,7 +136,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 | svelte2tsx | 245/247 | Wave 1 of the ecosystem port. 2 skipped (`expected.error.json` error fixtures). Driven by `tests/common/svelte2tsx.rs` |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3424/3424 in-scope-run passing — every executed fixture in every in-scope category passes. 52 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
+**Compatibility report total: 3427/3427 in-scope-run passing — every executed fixture in every in-scope category passes. 49 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
@@ -145,7 +145,8 @@ Source: `pnpm run compatibility-report` (generated 2026-05-26, Svelte commit `b6
 - **`<option>` synthetic-value via `transform_store_refs`** (Svelte 5.53.6 `e3d277b00`) — `select_element.rs` now routes the synthetic value expression through `transform_store_refs` so `$label` becomes `$.store_get(...)`. Unblocked `select-option-store-implicit-value`.
 - **Bare-derived `$derived(visible)` collapse** (Svelte 5.55.5 `b771df3`) — `transform_script.rs::unthunk_bare_derived_arg` rewrites `$.derived(() => visible())` back to `$.derived(visible)` when the inner is a known derived. Unblocked `derived-dep-set-while-rendering`.
 - **SSR attribute `$.stringify` elide** (Svelte 5.55.9 `a5df6616e`, partial) — `eval_attr_expr_json` handles `ConditionalExpression` and string-concat `BinaryExpression`. Class, style-directive, and class-attribute (no-directive) emission paths route through it; the no-class-directive path also falls back to a static `class="..."` attribute when every interpolation inlines. Unblocked `attribute-dynamic-multiple`, `globals-not-overwritten-by-bindings`, `attribute-parts`, `head-raw-elements-content`, `innerhtml-interpolated-literal`. Multi-line `let` extraction remains pending.
-- **ASI-aware side-effect import detection** (Svelte 5.55.2 cluster, this PR) — `extract_imports` in `src/compiler/phases/3_transform/{client/mod.rs,server/helpers.rs}` now recognises `import "module"` / `import 'module'` (no `from`, no `;`) as a complete one-line side-effect import via `is_complete_side_effect_import`. Previously the line-by-line splitter only treated an import as complete when it contained `;` or matched `... from "…"`, so the side-effect form merged into the next statement (e.g. `let count = 1;`), breaking legacy `$.mutable_source` lowering. Unblocked `flush-sync-each-block`.
+- **ASI-aware side-effect import detection** (Svelte 5.55.2 cluster) — `extract_imports` in `src/compiler/phases/3_transform/{client/mod.rs,server/helpers.rs}` now recognises `import "module"` / `import 'module'` (no `from`, no `;`) as a complete one-line side-effect import via `is_complete_side_effect_import`. Previously the line-by-line splitter only treated an import as complete when it contained `;` or matched `... from "…"`, so the side-effect form merged into the next statement (e.g. `let count = 1;`), breaking legacy `$.mutable_source` lowering. Unblocked `flush-sync-each-block`.
+- **Comments in element openers and `Root.comments`** (Svelte 5.53.0 `92e2fc120`) — `parse_attribute` in `1_parse/state/element.rs` consumes `// …` / `/* … */` between attributes and pushes a `JsComment` onto `Root.comments`. The JS parser pipeline (`parse_expression` / `parse_program`) also forwards every OXC-discovered comment via a per-thread sink. Legacy AST surfaces the same data as `_comments`. Unblocked `parser-modern/comment-in-tag`, `parser-modern/parens`, `parser-legacy/script-comment-only`.
 
 ### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
 
