@@ -41,6 +41,26 @@ use compact_str::CompactString;
 // memory chunks for reuse.
 thread_local! {
     static OXC_ALLOCATOR: RefCell<Allocator> = RefCell::new(Allocator::default());
+    /// Per-thread sink for JS comments discovered by OXC during the current
+    /// expression / script parse. Each `Parser::root_comments` push from
+    /// expression code routes through this and is then drained by the
+    /// `Parser` after the parse_* call returns. Mirrors upstream's
+    /// `parser.root.comments` which is shared between the Svelte parser
+    /// and acorn's `onComment` handler.
+    static EXPR_COMMENT_SINK: RefCell<Vec<crate::ast::template::JsComment>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Push a comment to the per-thread expression-comment sink. Called from
+/// the OXC expression / script parse pathways so the Parser can later move
+/// the comments into `Root.comments`.
+pub(crate) fn push_expr_comment(comment: crate::ast::template::JsComment) {
+    EXPR_COMMENT_SINK.with(|sink| sink.borrow_mut().push(comment));
+}
+
+/// Drain the per-thread expression-comment sink. Returns all comments
+/// collected since the last drain.
+pub(crate) fn take_expr_comments() -> Vec<crate::ast::template::JsComment> {
+    EXPR_COMMENT_SINK.with(|sink| std::mem::take(&mut *sink.borrow_mut()))
 }
 
 /// Execute a closure with a freshly-reset thread-local OXC allocator.
@@ -143,6 +163,55 @@ fn create_comment_object(
         comment_type: CompactString::from(comment_type),
         value: CompactString::from(value),
     }
+}
+
+/// Compute `{line, column, character}` from a byte offset using line offsets.
+fn line_column_for(offset: usize, line_offsets: &[usize]) -> crate::ast::span::LineColumn {
+    if line_offsets.is_empty() {
+        return crate::ast::span::LineColumn {
+            line: 1,
+            column: 0,
+            character: offset as u32,
+        };
+    }
+    let line = line_offsets
+        .partition_point(|&o| o <= offset)
+        .saturating_sub(1);
+    let line_start = line_offsets.get(line).copied().unwrap_or(0);
+    crate::ast::span::LineColumn {
+        line: (line + 1) as u32,
+        column: (offset - line_start) as u32,
+        character: offset as u32,
+    }
+}
+
+/// Push a JS comment captured by OXC onto the per-thread expression-comment
+/// sink. The caller has already converted positions to document-absolute and
+/// stripped delimiters from the value.
+fn record_oxc_comment(
+    kind: oxc_ast::ast::CommentKind,
+    value: String,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) {
+    let comment_kind = match kind {
+        oxc_ast::ast::CommentKind::Line => crate::ast::template::JsCommentKind::Line,
+        oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
+            crate::ast::template::JsCommentKind::Block
+        }
+    };
+    let loc = crate::ast::span::SourceLocation {
+        start: line_column_for(start, line_offsets),
+        end: line_column_for(end, line_offsets),
+    };
+    push_expr_comment(crate::ast::template::JsComment {
+        kind: comment_kind,
+        start: start as u32,
+        end: end as u32,
+        value: compact_str::CompactString::from(value),
+        loc,
+    });
 }
 
 /// Extract comment value from raw comment text.
@@ -1632,6 +1701,34 @@ fn parse_expression_with_typescript(
                 let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
                 let expr_start = inner_expr.span().start;
                 let expr_end = inner_expr.span().end;
+
+                // Mirror upstream `parser.root.comments`: every comment seen
+                // by acorn is pushed there in source order, *in addition* to
+                // being attached as leading/trailing on the inner node.
+                for comment in result.program.comments.iter() {
+                    let comment_start = offset + comment.span.start as usize - 1;
+                    let comment_end = offset + comment.span.end as usize - 1;
+                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                    let mut value = extract_comment_value(raw, comment.kind);
+                    if matches!(
+                        comment.kind,
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock
+                    ) {
+                        value = normalize_block_comment_indentation(
+                            &value,
+                            content,
+                            comment.span.start as usize - 1,
+                        );
+                    }
+                    record_oxc_comment(
+                        comment.kind,
+                        value,
+                        comment_start,
+                        comment_end,
+                        line_offsets,
+                    );
+                }
 
                 // Collect leading comments (before the expression)
                 let leading_comments: Vec<Value> = result
@@ -5338,6 +5435,37 @@ pub fn parse_program(
         // OXC stores all comments at the program level, so we distribute them here.
         let all_comments: Vec<_> = result.program.comments.iter().collect();
         let has_comments = !all_comments.is_empty();
+
+        // Mirror upstream `parser.root.comments`: forward every comment seen
+        // by the script parser so it lands in `Root.comments`.
+        for comment in all_comments.iter() {
+            let comment_start = offset + comment.span.start as usize;
+            let comment_end = offset + comment.span.end as usize;
+            let raw_text = if comment.span.end as usize <= content.len() {
+                &content[comment.span.start as usize..comment.span.end as usize]
+            } else {
+                ""
+            };
+            let mut value = extract_comment_value(raw_text, comment.kind);
+            if matches!(
+                comment.kind,
+                oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock
+            ) {
+                value = normalize_block_comment_indentation(
+                    &value,
+                    content,
+                    comment.span.start as usize,
+                );
+            }
+            record_oxc_comment(
+                comment.kind,
+                value,
+                comment_start,
+                comment_end,
+                line_offsets,
+            );
+        }
 
         // Build body as Vec<JsNode> (typed, no Value conversion needed for common case).
         let body: Vec<JsNode> = if has_comments {

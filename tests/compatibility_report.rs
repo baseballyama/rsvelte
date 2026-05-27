@@ -33,22 +33,13 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     // Tests to skip for parser-legacy and parser-modern.
     //
     // `javascript-comments` is a long-standing acorn-vs-OXC comment-attachment
-    // mismatch that has never been worth fixing.
-    //
-    // `comment-in-tag` / `script-comment-only` arrived with Svelte 5.53.0
-    // (upstream commit `92e2fc120` "feat: allow comments in tags"). They
-    // require parsing `//` and `/* */` between element opener attributes plus
-    // surfacing a top-level `comments` array on the modern AST and a
-    // `_comments` field on the legacy AST. Tracked as a follow-up port.
+    // mismatch that has never been worth fixing — OXC drops standalone
+    // comment statements that acorn surfaces via `leadingComments` /
+    // `trailingComments` attachment.
     let skip_tests: &[&str] = if !modern {
-        &["javascript-comments", "script-comment-only"]
+        &["javascript-comments"]
     } else {
-        // `parens` (Svelte 5.55.2, upstream commit `8966601dc` "fix: handle
-        // parens in template expressions more robustly") tests the
-        // comments-in-tags feature (the source is `{(/**/ 42)}`) which is the
-        // same already-skipped 5.53.0 gap; the comments-in-tags port will
-        // also fix this fixture.
-        &["comment-in-tag", "parens"]
+        &[]
     };
 
     for sample_dir in &samples {
@@ -112,8 +103,18 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
                         }
                     });
 
-                let actual_normalized = normalize_parser_json(&actual_json);
+                let mut actual_normalized = normalize_parser_json(&actual_json);
                 let expected_normalized = normalize_parser_json(&expected);
+
+                // Match upstream test logic: only compare the top-level
+                // `comments` array when the fixture explicitly snapshots it.
+                if modern
+                    && let serde_json::Value::Object(expected_obj) = &expected_normalized
+                    && !expected_obj.contains_key("comments")
+                    && let serde_json::Value::Object(actual_obj) = &mut actual_normalized
+                {
+                    actual_obj.remove("comments");
+                }
 
                 if actual_normalized == expected_normalized {
                     result.add_sample(SampleResult {

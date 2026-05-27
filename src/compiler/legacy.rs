@@ -259,6 +259,19 @@ fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
         result.insert("css".to_string(), convert_css(&css));
     }
 
+    // Emit `_comments` mirroring upstream `legacy.js`. The legacy AST uses
+    // `_comments` (not `comments`) because the prettier plugin sniffs for
+    // a top-level `comments` field. See upstream commit `92e2fc120`.
+    if !ast.comments.is_empty() {
+        let comments_value: Vec<Value> = ast
+            .comments
+            .iter()
+            .map(serde_json::to_value)
+            .collect::<Result<_, _>>()
+            .unwrap_or_default();
+        result.insert("_comments".to_string(), Value::Array(comments_value));
+    }
+
     // Convert all positions from UTF-8 to UTF-16
     let pos_conv = Utf8ToUtf16::new(source);
     let mut final_result = Value::Object(result);

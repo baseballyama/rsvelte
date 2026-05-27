@@ -194,6 +194,19 @@ impl Parser<'_> {
             node_type: RootType::Root,
             fragment,
             options: self.svelte_options.take().map(Box::new),
+            comments: {
+                // Drain any acorn/OXC-side comments collected during the
+                // parse and merge with the Svelte-side attribute comments.
+                // Both streams record positions in source order, so a sort
+                // by `start` yields the upstream `parser.root.comments`
+                // ordering.
+                let oxc_comments =
+                    crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
+                let mut svelte_comments = std::mem::take(&mut *self.root_comments.borrow_mut());
+                svelte_comments.extend(oxc_comments);
+                svelte_comments.sort_by_key(|c| c.start);
+                svelte_comments
+            },
             instance: self.instance_script.take().map(Box::new),
             module: self.module_script.take().map(Box::new),
             parse_warnings: std::mem::take(&mut self.parse_warnings),

@@ -105,26 +105,10 @@ const LEGACY_SKIP_TESTS: &[&str] = &[
     // OXC does not attach comments to AST nodes in ESTree format (leadingComments/trailingComments).
     // The official Svelte compiler uses acorn which provides this functionality.
     "javascript-comments",
-    // Same comment-attachment limitation — the expected AST records standalone
-    // comment statements that OXC drops. Started failing on main after the
-    // Svelte submodule upgrades in #322 / #335. Unrelated to the rsvelte
-    // codegen pipeline; tracked alongside the existing javascript-comments
-    // limitation rather than blocking ecosystem-ci progress.
-    "script-comment-only",
 ];
 
 /// Same as `LEGACY_SKIP_TESTS` but for parser-modern fixtures.
-const MODERN_SKIP_TESTS: &[&str] = &[
-    // Comment-attachment limitation surfaced by the Svelte submodule upgrade
-    // in #322. See `LEGACY_SKIP_TESTS` for context.
-    "comment-in-tag",
-    // `parens` (Svelte 5.55.2, upstream commit `8966601dc` "fix: handle
-    // parens in template expressions more robustly") exercises the
-    // comments-in-tags feature (source is `{(/**/ 42)}`) — same as the
-    // 5.53.0 gap already covered by `comment-in-tag`. Also skipped in
-    // compatibility_report.
-    "parens",
-];
+const MODERN_SKIP_TESTS: &[&str] = &[];
 
 /// Run a single fixture test.
 fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Option<TestResult> {
@@ -161,8 +145,20 @@ fn run_fixture_test(sample_dir: &Path, modern: bool, skip_tests: &[&str]) -> Opt
                 let legacy_ast = convert_to_legacy(&input, ast);
                 serde_json::to_string_pretty(&legacy_ast).unwrap()
             };
-            let actual_normalized = normalize_json(&actual_json);
+            let mut actual_normalized = normalize_json(&actual_json);
             let expected_normalized = normalize_json(&expected);
+
+            // Mirror upstream test logic: if the expected fixture does not
+            // declare a top-level `comments` field, drop it from actual.
+            // Many pre-existing fixtures were written before Svelte 5.53
+            // surfaced the field and have no `comments` snapshot.
+            if modern
+                && let serde_json::Value::Object(expected_obj) = &expected_normalized
+                && !expected_obj.contains_key("comments")
+                && let serde_json::Value::Object(actual_obj) = &mut actual_normalized
+            {
+                actual_obj.remove("comments");
+            }
 
             if actual_normalized == expected_normalized {
                 Some(TestResult {
