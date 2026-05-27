@@ -3,6 +3,14 @@
 //! This module provides Node.js native addon bindings via napi-rs,
 //! allowing the Rust Svelte compiler to be used from JavaScript/TypeScript.
 
+// napi 3 moved the legacy `JsBuffer` / `JsObject` / `Env::execute_tokio_future`
+// / `Env::create_buffer_with_borrowed_data` surface behind the `compat-mode`
+// feature and emits deprecation warnings against the new `Buffer` / `Object` /
+// `Env::spawn_future` / `BufferSlice::from_external` replacements. Suppress
+// those here — the surface is fully covered by `compat-mode` and migrating to
+// the new API surface is out of scope for the dep bump.
+#![allow(deprecated)]
+
 // Jemalloc is installed here (rather than at the lib root) so that the
 // rlib doesn't carry a `#[global_allocator]` symbol — which collides with
 // the cdylib's copy on Linux + fat LTO when a downstream bin links against
@@ -563,8 +571,9 @@ mod preprocess_bridge {
         PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
         PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
     };
+    use napi::Status;
     use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
-    use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction};
+    use napi::threadsafe_function::ThreadsafeFunction;
     use rustc_hash::FxHashMap;
     use serde_json::Value;
 
@@ -584,12 +593,12 @@ mod preprocess_bridge {
     // matters in practice the moment any user preprocessor in the chain
     // happens to be synchronous (e.g. an inline `vitePreprocess`-style
     // markup filter that just returns `{ code }` without an `async`).
-    pub(super) enum MaybePromise<T: FromNapiValue> {
+    pub(super) enum MaybePromise<T: FromNapiValue + 'static> {
         Promise(Promise<T>),
         Value(T),
     }
 
-    impl<T: FromNapiValue> FromNapiValue for MaybePromise<T> {
+    impl<T: FromNapiValue + 'static> FromNapiValue for MaybePromise<T> {
         unsafe fn from_napi_value(
             env: napi::sys::napi_env,
             napi_val: napi::sys::napi_value,
@@ -611,10 +620,13 @@ mod preprocess_bridge {
 
     // Fatal strategy: the user-supplied JS callback receives the options
     // object as its sole argument — matching the upstream Svelte
-    // preprocessor contract `(opts) => Processed | undefined`. Using
-    // CalleeHandled would inject an `err` as the first argument, breaking
-    // every preprocessor that destructures `{ content, filename }`.
-    pub(super) type Tsfn = ThreadsafeFunction<Value, ErrorStrategy::Fatal>;
+    // preprocessor contract `(opts) => Processed | undefined`. The
+    // `CalleeHandled = false` const generic suppresses the legacy
+    // err-as-first-arg shape that would otherwise break every preprocessor
+    // that destructures `{ content, filename }`.
+    pub(super) type Tsfn =
+        ThreadsafeFunction<Value, MaybePromise<Option<Value>>, Value, Status, false, false, 0>;
+    pub(super) type ArcTsfn = std::sync::Arc<Tsfn>;
 
     pub(super) struct Extracted {
         pub name: Option<String>,
@@ -628,10 +640,10 @@ mod preprocess_bridge {
             .into_iter()
             .map(|obj| {
                 Ok(Extracted {
-                    name: obj.get::<_, String>("name")?,
-                    markup: obj.get::<_, Tsfn>("markup")?,
-                    script: obj.get::<_, Tsfn>("script")?,
-                    style: obj.get::<_, Tsfn>("style")?,
+                    name: obj.get::<String>("name")?,
+                    markup: obj.get::<Tsfn>("markup")?,
+                    script: obj.get::<Tsfn>("script")?,
+                    style: obj.get::<Tsfn>("style")?,
                 })
             })
             .collect()
@@ -642,17 +654,17 @@ mod preprocess_bridge {
             .into_iter()
             .map(|g| PreprocessorGroup {
                 name: g.name,
-                markup: g.markup.map(make_markup_bridge),
-                script: g.script.map(|t| make_tag_bridge(t, "script")),
-                style: g.style.map(|t| make_tag_bridge(t, "style")),
+                markup: g.markup.map(|t| make_markup_bridge(ArcTsfn::new(t))),
+                script: g.script.map(|t| make_tag_bridge(ArcTsfn::new(t), "script")),
+                style: g.style.map(|t| make_tag_bridge(ArcTsfn::new(t), "style")),
             })
             .collect()
     }
 
-    fn make_markup_bridge(tsfn: Tsfn) -> MarkupPreprocessorFn {
+    fn make_markup_bridge(tsfn: ArcTsfn) -> MarkupPreprocessorFn {
         Box::new(
             move |opts: MarkupPreprocessorOptions| -> PreprocessorResult {
-                let tsfn = tsfn.clone();
+                let tsfn = ArcTsfn::clone(&tsfn);
                 Box::pin(async move {
                     let arg = serde_json::json!({
                         "content": opts.content,
@@ -665,9 +677,9 @@ mod preprocess_bridge {
         )
     }
 
-    fn make_tag_bridge(tsfn: Tsfn, _kind: &'static str) -> PreprocessorFn {
+    fn make_tag_bridge(tsfn: ArcTsfn, _kind: &'static str) -> PreprocessorFn {
         Box::new(move |opts: PreprocessorOptions| -> PreprocessorResult {
-            let tsfn = tsfn.clone();
+            let tsfn = ArcTsfn::clone(&tsfn);
             Box::pin(async move {
                 let arg = serde_json::json!({
                     "content": opts.content,
@@ -690,7 +702,7 @@ mod preprocess_bridge {
         // `napi_fatal_error`, surfacing as `threadsafe_function.rs:749 Failed
         // to convert return value … Failed to call then method`). The outer
         // `Option` collapses `undefined`/`null` to `None` on both paths.
-        match tsfn.call_async::<MaybePromise<Option<Value>>>(arg).await {
+        match tsfn.call_async(arg).await {
             Ok(MaybePromise::Promise(promise)) => match promise.await {
                 Ok(Some(v)) => Ok(v),
                 Ok(None) => Ok(Value::Null),
@@ -1129,7 +1141,7 @@ pub fn napi_compile_envelope_zero_copy(
             ptr,
             len,
             bump_ptr,
-            |bump_ptr: *mut bumpalo::Bump, _env| {
+            |_env, bump_ptr: *mut bumpalo::Bump| {
                 // SAFETY: `bump_ptr` is the same pointer we leaked above,
                 // never aliased, and the finalizer fires at most once.
                 let _bump: Box<bumpalo::Bump> = Box::from_raw(bump_ptr);
@@ -1172,7 +1184,7 @@ pub fn napi_compile_module_envelope_zero_copy(
             ptr,
             len,
             bump_ptr,
-            |bump_ptr: *mut bumpalo::Bump, _env| {
+            |_env, bump_ptr: *mut bumpalo::Bump| {
                 // SAFETY: same pointer as Box::into_raw above, fired once.
                 let _bump: Box<bumpalo::Bump> = Box::from_raw(bump_ptr);
             },
