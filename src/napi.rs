@@ -624,15 +624,8 @@ mod preprocess_bridge {
     // `CalleeHandled = false` const generic suppresses the legacy
     // err-as-first-arg shape that would otherwise break every preprocessor
     // that destructures `{ content, filename }`.
-    pub(super) type Tsfn = ThreadsafeFunction<
-        Value,
-        MaybePromise<Option<Value>>,
-        Value,
-        Status,
-        false,
-        false,
-        0,
-    >;
+    pub(super) type Tsfn =
+        ThreadsafeFunction<Value, MaybePromise<Option<Value>>, Value, Status, false, false, 0>;
     pub(super) type ArcTsfn = std::sync::Arc<Tsfn>;
 
     pub(super) struct Extracted {
@@ -662,9 +655,7 @@ mod preprocess_bridge {
             .map(|g| PreprocessorGroup {
                 name: g.name,
                 markup: g.markup.map(|t| make_markup_bridge(ArcTsfn::new(t))),
-                script: g
-                    .script
-                    .map(|t| make_tag_bridge(ArcTsfn::new(t), "script")),
+                script: g.script.map(|t| make_tag_bridge(ArcTsfn::new(t), "script")),
                 style: g.style.map(|t| make_tag_bridge(ArcTsfn::new(t), "style")),
             })
             .collect()
