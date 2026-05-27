@@ -158,10 +158,6 @@ fn should_write_actual_output() -> bool {
 /// separately so the runtime suite stops blocking unrelated work; remove an
 /// entry as soon as the upstream behaviour is matched.
 const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
-    // `$derived(await promise)` reads — the SSR output rsvelte emits matches
-    // the official compiler structurally, but the live comparison harness
-    // diverges. Last 3 main CI runs failed this same fixture.
-    "async-derived-title-update",
     // Async boundary / async-if-else fixtures added in Svelte 5.53.4 that
     // exercise async-blocker plumbing rsvelte doesn't yet emit. Also
     // skipped in compatibility_report.

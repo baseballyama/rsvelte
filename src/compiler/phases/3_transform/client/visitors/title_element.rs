@@ -8,6 +8,7 @@
 use crate::ast::template::{TemplateNode, TitleElement};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_ids_from_expr;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     apply_transforms_to_expression, expression_has_await, expression_has_reactive_state,
 };
@@ -41,6 +42,13 @@ struct MemoEntry {
 pub fn title_element(node: &TitleElement, context: &mut ComponentContext) {
     // Build the value expression from the fragment content, using the memoizer pattern
     let (value, has_state, memo_entries) = build_title_content(&node.fragment.nodes, context);
+
+    // Scan the value expression up front for identifiers used in blocker detection.
+    // Identifiers like `$.get(value)` may come from the value expression itself
+    // (when the template tag is a bare reactive read with no call/await) rather
+    // than the memo_entries list. We collect both below.
+    let mut value_ids: Vec<compact_str::CompactString> = Vec::new();
+    collect_ids_from_expr(&value, &context.arena, &mut value_ids);
 
     // Create the assignment: $.document.title = value
     let document_title = b::member(
@@ -94,13 +102,85 @@ pub fn title_element(node: &TitleElement, context: &mut ComponentContext) {
             ))
         };
 
-        // Build the deferred_template_effect call
+        // Compute blockers from the memoized expressions by scanning identifiers
+        // against the inherited blocker_map / const_blocker_map. This mirrors
+        // upstream Memoizer.blockers() which threads `$$promises[N]` through
+        // `$.deferred_template_effect(...)` so async-derived values inside
+        // `<svelte:head><title>` block on the right promises.
+        let blockers_expr: Option<JsExpr> = {
+            let map = context.state.blocker_map.borrow();
+            let const_map = context.state.const_blocker_map.borrow();
+            if map.is_empty() && const_map.is_empty() {
+                None
+            } else {
+                let mut all_names = value_ids;
+                for entry in &memo_entries {
+                    collect_ids_from_expr(&entry.expression, &context.arena, &mut all_names);
+                }
+
+                let mut indices: Vec<usize> = Vec::new();
+                for name in &all_names {
+                    if let Some(&idx) = map.get(name.as_str())
+                        && !indices.contains(&idx)
+                    {
+                        indices.push(idx);
+                    }
+                }
+                indices.sort();
+
+                let mut const_blocker_exprs: Vec<JsExpr> = Vec::new();
+                let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
+                for name in &all_names {
+                    if let Some(blocker_expr) = const_map.get(name.as_str()) {
+                        let ptr = blocker_expr as *const JsExpr;
+                        if !seen_ptrs.contains(&ptr) {
+                            seen_ptrs.push(ptr);
+                            const_blocker_exprs.push(blocker_expr.clone());
+                        }
+                    }
+                }
+
+                let mut all_blocker_exprs: Vec<JsExpr> = indices
+                    .into_iter()
+                    .map(|idx| {
+                        b::member_computed(
+                            &context.arena,
+                            b::id("$$promises"),
+                            b::number(idx as f64),
+                        )
+                    })
+                    .collect();
+                all_blocker_exprs.extend(const_blocker_exprs);
+
+                if all_blocker_exprs.is_empty() {
+                    None
+                } else {
+                    Some(b::array(all_blocker_exprs))
+                }
+            }
+        };
+
+        // Build the deferred_template_effect call.
+        //
+        // The argument list is:
+        //   ($0, $1, ...) => { ... },   // callback (required)
+        //   sync_values,                // [() => expr, ...] or void 0
+        //   async_values,               // [thunk, ...] or void 0
+        //   blockers                    // [$$promises[N], ...] or void 0
+        //
+        // Trailing void 0 slots are emitted only when later positions are used.
         let mut args = vec![callback];
-        if async_values_opt.is_some() || !sync_entries.is_empty() {
+        let has_sync = !sync_entries.is_empty();
+        let has_async = async_values_opt.is_some();
+        let has_blockers = blockers_expr.is_some();
+        if has_sync || has_async || has_blockers {
             args.push(sync_values);
         }
-        if let Some(async_values) = async_values_opt {
-            args.push(async_values);
+        if has_async || has_blockers {
+            args.push(async_values_opt.unwrap_or_else(|| b::undefined(&context.arena)));
+        }
+        if has_blockers && let Some(blockers) = blockers_expr {
+            args.push(blockers);
         }
 
         let effect_call = b::stmt(

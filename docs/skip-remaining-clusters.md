@@ -17,7 +17,7 @@ cluster per PR — the audit binary shows you which fixtures flip from
 
 ---
 
-## 1. async-blocker / `@const` cluster (43 fixtures, **multi-day**)
+## 1. async-blocker / `@const` cluster (42 fixtures, **multi-day**)
 
 The single largest pile. Spans Svelte 5.53.0 → 5.55.9 and touches the
 client async transform end-to-end.
@@ -26,7 +26,6 @@ client async transform end-to-end.
 
 | Sub-cluster | Upstream commit | rsvelte gap |
 |---|---|---|
-| `async-derived-title-update` (5.53.0 `582e4443d`) | "ensure head effects are kept in the effect tree" | Thread the component's `$$promises` array through `$.deferred_template_effect` inside `$.head(...)` and the sibling `$.template_effect`. rsvelte never wires the async-derived `$$promises` ref through head effects. |
 | `async-eager-derived` (5.53.12 `965f2a0ac`) | "fix: handle async RHS in assignment_value_stale" | Reorder the `$$promises[…]` blockers array to latest-use order instead of declaration order. 1-line diff but the ordering walker must change. |
 | `async-inspect-build` (5.53.13/5.54.0 `b472171de`) | "ensure `$inspect` after top level await doesn't break builds" | Emit `$.run([test, () => void 0])` ordering after a top-level await — rsvelte's inspect-build pipeline doesn't produce it. |
 | 5.54.1 cluster — `async-derived-indirect`, `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`, `async-later-sync-overlaps`, `async-style-after-await` (7 fixtures) | `6b33dd2a1` "fix: group sync statements" | When multiple sync assignments share the same blocker set, group them into a single thunk callback (`() => { color = 'red'; width = $.state(...); }`) and reuse the same `$$promises[N]` blocker index. rsvelte still emits one callback per statement with sequential indices. |

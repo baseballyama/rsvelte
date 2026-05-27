@@ -382,7 +382,6 @@ fn audit_skipped_fixtures() {
     // execute as regular runs in the compatibility report rather than being
     // skipped — so they don't need to appear here.
     let runtime_skipped: &[(&str, &str)] = &[
-        ("runtime-runes", "async-derived-title-update"),
         ("runtime-runes", "async-eager-derived"),
         ("runtime-runes", "async-inspect-build"),
         ("runtime-runes", "async-derived-indirect"),
