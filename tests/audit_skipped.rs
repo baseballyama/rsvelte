@@ -407,7 +407,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-reactivity-loss-async-after-sync"),
         ("runtime-runes", "async-effect-pending-eager"),
         ("runtime-runes", "async-context-after-await-const"),
-        ("runtime-runes", "derived-dep-set-while-rendering"),
         ("runtime-runes", "async-flushsync-in-effect"),
         ("runtime-runes", "async-stale-derived-4"),
         ("runtime-runes", "async-eager-block"),
@@ -419,54 +418,17 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-debug-awaited-expression"),
         ("runtime-runes", "async-state-updates-microtask-separated"),
         ("runtime-runes", "dynamic-component-member"),
-        ("runtime-runes", "attribute-parts"),
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
-        ("runtime-legacy", "globals-not-overwritten-by-bindings"),
-        ("runtime-legacy", "attribute-dynamic-multiple"),
-        ("runtime-legacy", "attribute-url"),
-        ("runtime-legacy", "head-title-static-dynamic-element"),
-        (
-            "runtime-legacy",
-            "inline-style-directive-string-variable-kebab-case",
-        ),
-        ("runtime-legacy", "innerhtml-interpolated-literal"),
-        ("server-side-rendering", "head-raw-elements-content"),
-        ("runtime-runes", "derived-name-shadowed"),
-        ("runtime-runes", "derived-update-server"),
-        ("runtime-runes", "set-text-stable-coercion"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
-        ("runtime-legacy", "const-tag-each-arrow"),
-        ("runtime-legacy", "const-tag-each-duplicated-variable2"),
-        ("runtime-legacy", "const-tag-each-duplicated-variable3"),
-        ("runtime-legacy", "const-tag-each-function"),
-        ("runtime-legacy", "const-tag-each-const"),
-        ("runtime-legacy", "await-block-func-function"),
-        ("runtime-runes", "html-tag-contenteditable"),
-        ("runtime-runes", "await-html-hydration"),
-        ("runtime-runes", "event-global-hydration-error-cleanup"),
-        ("runtime-runes", "async-html-tag"),
-        ("runtime-legacy", "svg-html-tag3"),
-        ("runtime-legacy", "svg-html-tag4"),
-        ("runtime-legacy", "raw-mustaches-preserved"),
-        ("runtime-legacy", "raw-svg"),
-        ("runtime-legacy", "ignore-unchanged-raw"),
-        ("runtime-legacy", "raw-anchor-first-last-child"),
-        ("hydration", "raw-repair"),
-        ("hydration", "raw-empty"),
-        ("hydration", "raw-svg"),
-        (
-            "server-side-rendering",
-            "select-option-store-implicit-value",
-        ),
     ];
 
     let parser_legacy_skipped = &["javascript-comments", "script-comment-only"];
     let parser_modern_skipped = &["comment-in-tag", "parens"];
     let css_skipped = &["css-prune-edge-cases"];
-    let print_skipped = &["css-keyframes-percent", "style"];
+    let print_skipped = &["css-keyframes-percent"];
 
     let mut now_passing: Vec<(String, String)> = Vec::new();
     let mut still_failing: Vec<(String, String, String)> = Vec::new();
