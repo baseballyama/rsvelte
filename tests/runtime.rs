@@ -169,10 +169,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // calls; rsvelte's analysis doesn't surface the eager set yet. Also
     // skipped in compatibility_report.
     "async-eager-derived",
-    // async-inspect-build (Svelte 5.53.13/5.54.0): inspect-build pipeline
-    // expects new async helpers in client codegen. Also skipped in
-    // compatibility_report.
-    "async-inspect-build",
     // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. The expected
     // client output threads new `eager` / blocker arguments through
     // `$.derived(...)` and `$.template_effect(...)` calls; rsvelte's
