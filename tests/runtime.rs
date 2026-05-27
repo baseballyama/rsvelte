@@ -169,18 +169,15 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // calls; rsvelte's analysis doesn't surface the eager set yet. Also
     // skipped in compatibility_report.
     "async-eager-derived",
-    // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. The expected
-    // client output threads new `eager` / blocker arguments through
-    // `$.derived(...)` and `$.template_effect(...)` calls; rsvelte's
-    // async-analysis doesn't surface those yet. Also skipped in
-    // compatibility_report.
-    "async-binding-after-await",
+    // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. Sync-statement
+    // grouping (upstream `6b33dd2a1`, Svelte 5.54.1) unblocked
+    // `async-if-hydration`, `async-derived-with-effect-and-boundary`,
+    // `async-binding-after-await`, `async-transform-empty-statements`.
+    // The remaining three are still skipped here (and in compatibility_report)
+    // pending the SSR `$.save` predicate / blocker-list dedup follow-ups.
     "async-derived-indirect",
-    "async-derived-with-effect-and-boundary",
-    "async-if-hydration",
     "async-later-sync-overlaps",
     "async-style-after-await",
-    "async-transform-empty-statements",
     // async-overlap-multiple fixtures added in Svelte 5.55.1. Same async
     // codegen gap as the cluster above; also skipped in compatibility_report.
     "async-overlap-multiple-1",

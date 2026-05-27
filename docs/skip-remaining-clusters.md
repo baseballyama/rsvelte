@@ -6,9 +6,9 @@ lists live in `tests/compatibility_report.rs` (the `runtime_skip_tests`
 array + per-category `skip_*` arrays), `tests/runtime.rs`, `tests/ssr.rs`,
 `tests/print.rs`, and `tests/parser_fixtures.rs`.
 
-Current count: **48 in-scope skipped fixtures** (the 76 `migrate` fixtures
+Current count: **47 in-scope skipped fixtures** (the 76 `migrate` fixtures
 are intentionally out of scope and not counted here). Every executed
-in-scope fixture passes (3428/3428).
+in-scope fixture passes.
 
 Each cluster below lists the upstream commit, the rsvelte gap it exposes,
 the fixtures it blocks, and a rough difficulty estimate. Land them one
@@ -27,7 +27,7 @@ client async transform end-to-end.
 | Sub-cluster | Upstream commit | rsvelte gap |
 |---|---|---|
 | `async-eager-derived` (5.53.12 `965f2a0ac`) | "fix: handle async RHS in assignment_value_stale" | Reorder the `$$promises[…]` blockers array to latest-use order instead of declaration order. 1-line diff but the ordering walker must change. |
-| 5.54.1 cluster — `async-derived-indirect`, `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`, `async-later-sync-overlaps`, `async-style-after-await` (7 fixtures) | `6b33dd2a1` "fix: group sync statements" | When multiple sync assignments share the same blocker set, group them into a single thunk callback (`() => { color = 'red'; width = $.state(...); }`) and reuse the same `$$promises[N]` blocker index. rsvelte still emits one callback per statement with sequential indices. |
+| 5.54.1 cluster — `async-derived-indirect`, `async-later-sync-overlaps`, `async-style-after-await` (3 fixtures remaining) | `6b33dd2a1` "fix: group sync statements" | ✅ Sync-statement grouping ported (`SyncBlock(Vec<AsyncStmt>)` in `transform_async_body_inner`; mirrored in `compute_blocker_map`). Unblocked `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`. The three remaining fixtures still fail on orthogonal axes (`$.save` SSR wrap, `var <names>` comment preservation, per-template-effect blocker-list dedup) — same root causes as the 5.55.1 `async-overlap-multiple-*` cluster below. |
 | `async-overlap-multiple-1..7` (5.55.1 `5e8662fb2`, 7 fixtures) | "chore: lots of async tests" | Hoisted-function blank-line placement diverges + SSR emits `(await $.save(delay(x)))()` instead of `await delay(x)` for top-level template `await`. The trivial fix `has_save: false` regresses ~9 unrelated fixtures, so the predicate needs to be context-aware. |
 | `async-if-block-unskip` (5.55.2 `8966601dc` / `edcbb0e64`) | "handle parens" + "invalidate `@const` tags based on visible references" | Same blank-line placement + the `$.save` issue. |
 | 5.55.3 `@const` cluster — `async-const`, `async-const-wait`, `async-derived-const-blocker`, `async-reactivity-loss-no-false-positive-1..3`, `async-reactivity-loss-async-after-sync` (7 fixtures) | `3937ec03b` "fix: correctly calculate `@const` blockers" | Group `@const` assignments under the same group-sync-statements batching as 5.54.1. |

@@ -49,6 +49,20 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     let mut found_await = false;
     let mut blocker_map = rustc_hash::FxHashMap::default();
     let mut async_index: usize = 0;
+    // Mirrors upstream's `flush_sync_group` from `calculate_blockers`
+    // (Svelte 5.54.1 commit `6b33dd2a1`): consecutive analyzer-sync
+    // entries share a single `$$promises[N]` blocker index. While in a
+    // sync run, `sync_group_open` is true and `async_index` points at
+    // the slot every grouped entry shares. The first async entry (or
+    // end-of-body) closes the group and bumps `async_index`.
+    let mut sync_group_open = false;
+
+    let flush_sync_group = |open: &mut bool, idx: &mut usize| {
+        if *open {
+            *open = false;
+            *idx += 1;
+        }
+    };
 
     for stmt in &statements {
         let trimmed_stmt = stmt.trim();
@@ -85,18 +99,25 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
             continue;
         }
 
+        // For await entries, flush any pending sync run first so this entry
+        // claims its own index. For sync entries, open (or extend) a sync
+        // group that all participants share.
+        if has_await_in_stmt {
+            flush_sync_group(&mut sync_group_open, &mut async_index);
+        } else {
+            sync_group_open = true;
+        }
+        let current_async_index = async_index;
+
         if is_variable_declaration(trimmed_stmt) {
             let decls = extract_var_declarations(trimmed_stmt);
-            let current_async_index = async_index;
             for decl in &decls {
                 if decl.hoist_only {
                     continue;
                 }
-                // Each variable's blocker is its own thunk index.
-                // Templates reference $$promises[idx] which resolves when
-                // the thunk (and all prior thunks) complete.
-                blocker_map.insert(decl.name.clone(), async_index);
-                async_index += 1;
+                // Every declarator in this entry shares `current_async_index`.
+                // Within a sync group, multiple entries also share that index.
+                blocker_map.insert(decl.name.clone(), current_async_index);
             }
 
             // Also add referenced variables that are instance-scope declarations.
@@ -144,14 +165,16 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
             );
         } else {
             // Non-declaration async statement (e.g., bare expression with await)
-            let current_async_index = async_index;
-            async_index += 1;
-
             // Skip $effect calls for blocker tracking - the official compiler's
             // trace_references skips $effect calls because effects only run after
             // async work completes. But $effect.pre is NOT skipped.
             // After transformation: $effect -> $.user_effect, $effect.pre -> $.user_pre_effect
             if is_user_effect_call(trimmed_stmt) {
+                // For an async entry, we already advanced past the previous
+                // sync group; now consume this entry's own slot.
+                if has_await_in_stmt {
+                    async_index += 1;
+                }
                 continue;
             }
 
@@ -178,7 +201,18 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
                 current_async_index,
             );
         }
+
+        // Async entries claim their own slot; advance past it. Sync entries
+        // stay in the open group — index advances when the group flushes.
+        if has_await_in_stmt {
+            async_index += 1;
+        }
     }
+    // End of body: close any trailing sync group so subsequent passes (if any)
+    // see a consistent `async_index`. No more bindings get assigned so this
+    // doesn't affect the map, but it's a defense against future edits.
+    flush_sync_group(&mut sync_group_open, &mut async_index);
+    let _ = async_index;
 
     // Post-processing: add function names to the blocker_map if their bodies
     // transitively reference any blocked variable. This ensures that template
@@ -385,6 +419,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::Hole(args),
                     has_await: false,
+                    analyzer_has_await: false,
                 });
                 continue;
             }
@@ -395,6 +430,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::VoidNoop,
                     has_await: false,
+                    analyzer_has_await: false,
                 });
                 continue;
             }
@@ -418,6 +454,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::Noop,
                     has_await: false,
+                    analyzer_has_await: false,
                 });
                 continue;
             }
@@ -444,6 +481,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                     async_stmts.push(AsyncStmt {
                         kind: AsyncStmtKind::VarDecl(decl),
                         has_await: has_await_in_init,
+                        analyzer_has_await: has_await_in_init,
                     });
                 } else if active_decls.len() > 1 {
                     // Multiple declarators from same statement: group into a block thunk.
@@ -457,6 +495,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                     async_stmts.push(AsyncStmt {
                         kind: AsyncStmtKind::VarDeclGroup(active_decls),
                         has_await,
+                        analyzer_has_await: has_await,
                     });
                 }
             } else if is_expression_statement(trimmed_stmt) {
@@ -473,12 +512,16 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                         async_stmts.push(AsyncStmt {
                             kind: AsyncStmtKind::ExprAwait(expr.to_string()),
                             has_await: true,
+                            analyzer_has_await: true,
                         });
                     } else {
                         // unthunk optimization: async () => await <expr> -> () => <expr>
+                        // The analyzer still sees the original `await`, so the
+                        // entry must remain ungrouped (analyzer_has_await: true).
                         async_stmts.push(AsyncStmt {
                             kind: AsyncStmtKind::ExprSimple(inner.to_string()),
                             has_await: false,
+                            analyzer_has_await: true,
                         });
                     }
                 } else {
@@ -486,6 +529,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                     async_stmts.push(AsyncStmt {
                         kind: AsyncStmtKind::ExprVoid(expr.to_string()),
                         has_await,
+                        analyzer_has_await: has_await,
                     });
                 }
             } else {
@@ -493,6 +537,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::Block(trimmed_stmt.to_string()),
                     has_await,
+                    analyzer_has_await: has_await,
                 });
             }
         }
@@ -502,6 +547,12 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     if async_stmts.is_empty() {
         return None;
     }
+
+    // Post-process: merge consecutive analyzer-sync entries into a single
+    // SyncBlock so they share a thunk and a `$$promises[N]` blocker index.
+    // Mirrors upstream's `flush_sync_group` in `calculate_blockers` (Svelte
+    // 5.54.1 commit `6b33dd2a1`).
+    let async_stmts = group_sync_entries(async_stmts);
 
     // Collect all declared variable names from the entire script for reference tracking.
     let all_declared_vars = collect_all_declared_variables(&statements);
@@ -514,132 +565,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     let mut blocker_map = rustc_hash::FxHashMap::default();
 
     for (idx, stmt) in async_stmts.iter().enumerate() {
-        match &stmt.kind {
-            AsyncStmtKind::VarDecl(decl) => {
-                if decl.hoist_only {
-                    continue;
-                }
-                // Each variable's blocker is its own thunk index.
-                // Templates reference $$promises[idx] which resolves when
-                // the thunk (and all prior thunks) complete.
-                blocker_map.insert(decl.name.clone(), idx);
-
-                // Also add referenced variables that are instance-scope declarations.
-                // This mimics the official compiler's trace_references which walks
-                // CallExpressions with touch() and adds all referenced bindings to writes.
-                // Allow overwriting with higher indices.
-                if let Some(init) = &decl.init {
-                    let referenced_ids = extract_all_identifiers_from_statement(init);
-                    for ref_id in &referenced_ids {
-                        if all_declared_vars.contains(ref_id) {
-                            let should_update = match blocker_map.get(ref_id) {
-                                None => true,
-                                Some(&existing) => idx > existing,
-                            };
-                            if should_update {
-                                blocker_map.insert(ref_id.clone(), idx);
-                            }
-                        }
-                    }
-                    // Special case: if the init references $$props (from $props()
-                    // transformation), add $$props to the blocker_map. The template
-                    // transform accesses destructured props via $$props.name, so
-                    // $$props needs a blocker index for the template_effect to wait on.
-                    if memmem::find(init.as_bytes(), b"$$props").is_some() {
-                        let should_update = match blocker_map.get("$$props") {
-                            None => true,
-                            Some(&existing) => idx > existing,
-                        };
-                        if should_update {
-                            blocker_map.insert("$$props".to_string(), idx);
-                        }
-                    }
-                }
-            }
-            AsyncStmtKind::ExprAwait(expr)
-            | AsyncStmtKind::ExprSimple(expr)
-            | AsyncStmtKind::ExprVoid(expr) => {
-                // Skip $effect calls for blocker tracking (same as official compiler).
-                // $effect.pre is NOT skipped.
-                if is_user_effect_call(expr) {
-                    continue;
-                }
-                // Non-declaration async statements can still reference instance-scope
-                // variables, which should update their blocker indices.
-                let referenced_ids = extract_all_identifiers_from_statement(expr);
-                for ref_id in &referenced_ids {
-                    if all_declared_vars.contains(ref_id) {
-                        let should_update = match blocker_map.get(ref_id) {
-                            None => true,
-                            Some(&existing) => idx > existing,
-                        };
-                        if should_update {
-                            blocker_map.insert(ref_id.clone(), idx);
-                        }
-                    }
-                }
-            }
-            AsyncStmtKind::Block(block_text) => {
-                // Block statements can also reference variables
-                let referenced_ids = extract_all_identifiers_from_statement(block_text);
-                for ref_id in &referenced_ids {
-                    if all_declared_vars.contains(ref_id) {
-                        let should_update = match blocker_map.get(ref_id) {
-                            None => true,
-                            Some(&existing) => idx > existing,
-                        };
-                        if should_update {
-                            blocker_map.insert(ref_id.clone(), idx);
-                        }
-                    }
-                }
-            }
-            AsyncStmtKind::VarDeclGroup(decls) => {
-                // All variables in the group get the same blocker index
-                for decl in decls {
-                    if decl.hoist_only {
-                        continue;
-                    }
-                    blocker_map.insert(decl.name.clone(), idx);
-                    if let Some(init) = &decl.init {
-                        let referenced_ids = extract_all_identifiers_from_statement(init);
-                        for ref_id in &referenced_ids {
-                            if all_declared_vars.contains(ref_id) {
-                                let should_update = match blocker_map.get(ref_id) {
-                                    None => true,
-                                    Some(&existing) => idx > existing,
-                                };
-                                if should_update {
-                                    blocker_map.insert(ref_id.clone(), idx);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            AsyncStmtKind::Noop | AsyncStmtKind::VoidNoop => {
-                // Noop statements don't contribute to blocker_map
-            }
-            AsyncStmtKind::Hole(args) => {
-                // Hole statements track references from the removed $inspect() call.
-                // The args contain the original $inspect arguments (e.g., "data, x, y").
-                // Referenced variables should have their blocker updated to this index.
-                if !args.is_empty() {
-                    let referenced_ids = extract_all_identifiers_from_statement(args);
-                    for ref_id in &referenced_ids {
-                        if all_declared_vars.contains(ref_id) {
-                            let should_update = match blocker_map.get(ref_id) {
-                                None => true,
-                                Some(&existing) => idx > existing,
-                            };
-                            if should_update {
-                                blocker_map.insert(ref_id.clone(), idx);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        update_blocker_map_for_stmt(&stmt.kind, idx, &all_declared_vars, &mut blocker_map);
     }
 
     // Build output
@@ -654,30 +580,37 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         }
     }
 
-    // Hoisted var declarations
+    // Build thunks. After 5.54.1 (commit 6b33dd2a1) every entry produces a
+    // real thunk (no array holes), so we can simply count multi-line ones to
+    // decide formatting.
+    let thunks: Vec<String> = async_stmts.iter().map(|s| build_thunk(s, dev)).collect();
+    let has_multiline_thunk = thunks.iter().any(|t| t.contains('\n'));
+
+    // Hoisted var declarations. esrap separates declarations from the
+    // following `$$promises = run([...])` with a blank line only when the
+    // following array is multi-line — single-line `$$promises` packs
+    // directly under `var <names>;`.
     if !hoisted_vars.is_empty() {
         output.push_str("var ");
         output.push_str(&hoisted_vars.join(", "));
-        output.push_str(";\n\n");
+        // Match esrap's spacing: blank line before a multi-line
+        // `$$promises = run([...])`, no blank line before a single-line one.
+        if has_multiline_thunk {
+            output.push_str(";\n\n");
+        } else {
+            output.push_str(";\n");
+        }
     }
 
-    // Build thunks. `$inspect()`-shaped entries now emit a `() => void 0`
-    // thunk (upstream Svelte 5.53.13 `b472171de`) instead of producing a
-    // sparse-array hole, so every entry is a regular thunk string.
-    let thunk_entries: Vec<String> = async_stmts
-        .iter()
-        .map(|stmt| build_thunk(stmt, dev))
-        .collect();
-
-    let non_empty_count = thunk_entries.iter().filter(|t| !t.is_empty()).count();
-    let has_multiline_thunk = thunk_entries.iter().any(|t| t.contains('\n'));
-
     // Build $$promises = runner([thunks])
-    // Use single-line format when there's only one thunk and no multiline thunk.
-    if non_empty_count <= 1 && !has_multiline_thunk {
+    // Use single-line format when there's at most one thunk and no
+    // multi-line thunk (matches upstream's single-element/empty-array
+    // formatting). With sync-grouping, every entry is a real thunk
+    // (no array holes) so `thunks.len() <= 1` is the right test.
+    if thunks.len() <= 1 && !has_multiline_thunk {
         output.push_str(&format!("var $$promises = {}([", runner));
-        let total = thunk_entries.len();
-        for (i, thunk) in thunk_entries.iter().enumerate() {
+        let total = thunks.len();
+        for (i, thunk) in thunks.iter().enumerate() {
             output.push_str(thunk);
             if i + 1 < total {
                 output.push_str(", ");
@@ -686,15 +619,15 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         output.push_str("]);\n");
     } else {
         output.push_str(&format!("var $$promises = {}([\n", runner));
-        for (i, thunk) in thunk_entries.iter().enumerate() {
+        for (i, thunk) in thunks.iter().enumerate() {
             output.push_str(&format!("\t{}", thunk));
-            if i < thunk_entries.len() - 1 {
+            if i < thunks.len() - 1 {
                 output.push(',');
             }
             output.push('\n');
-            // Add blank line after multiline thunks (those with block bodies)
+            // Add blank line after multi-line thunks (those with block bodies)
             // to match the official compiler's formatting.
-            if thunk.contains('\n') && i < thunk_entries.len() - 1 {
+            if thunk.contains('\n') && i < thunks.len() - 1 {
                 output.push('\n');
             }
         }
@@ -743,11 +676,224 @@ enum AsyncStmtKind {
     /// Produces an empty slot in the thunk array (no thunk, just a comma).
     /// Contains the original args from the $inspect() call for blocker_map tracking.
     Hole(String),
+    /// Group of consecutive sync (non-await-from-analyzer) entries that share
+    /// a single thunk and a single `$$promises[N]` index.
+    /// Corresponds to upstream's `flush_sync_group` in `calculate_blockers`
+    /// (Svelte 5.54.1 commit `6b33dd2a1` "fix: group sync statements").
+    /// The contained entries individually carry their original kinds but are
+    /// rendered together into one combined `() => { ... }` thunk.
+    SyncBlock(Vec<AsyncStmt>),
 }
 
 struct AsyncStmt {
     kind: AsyncStmtKind,
+    /// Whether `build_thunk` should emit `async () => ...` (true) or `() => ...` (false).
     has_await: bool,
+    /// Whether the original (pre-unthunk) statement contained a top-level
+    /// `await`. This drives the sync-grouping decision: only entries with
+    /// `analyzer_has_await == false` are eligible to be merged into a
+    /// `SyncBlock`. Note this differs from `has_await` for `ExprSimple`,
+    /// where we unthunk `await N` (no nested await) into `() => N` (sync
+    /// for codegen, but the analyzer still sees the original `await`).
+    analyzer_has_await: bool,
+}
+
+/// Merge consecutive non-await entries into one SyncBlock entry, mirroring
+/// upstream's `flush_sync_group` in `calculate_blockers` (Svelte 5.54.1).
+///
+/// Each entry with `analyzer_has_await == true` stays on its own. Runs of
+/// entries with `analyzer_has_await == false` collapse into a single
+/// `SyncBlock` so they share one `$$promises[N]` blocker index.
+///
+/// A run of length 1 stays as-is to avoid unnecessary block wrapping
+/// (`SyncBlock([VarDecl])` would emit `() => { x = ...; }` instead of
+/// `() => x = ...`).
+fn group_sync_entries(stmts: Vec<AsyncStmt>) -> Vec<AsyncStmt> {
+    let mut out: Vec<AsyncStmt> = Vec::with_capacity(stmts.len());
+    let mut run: Vec<AsyncStmt> = Vec::new();
+
+    let flush = |run: &mut Vec<AsyncStmt>, out: &mut Vec<AsyncStmt>| {
+        if run.is_empty() {
+            return;
+        }
+        if run.len() == 1 {
+            out.push(run.remove(0));
+        } else {
+            let drained = std::mem::take(run);
+            out.push(AsyncStmt {
+                kind: AsyncStmtKind::SyncBlock(drained),
+                has_await: false,
+                analyzer_has_await: false,
+            });
+        }
+    };
+
+    for stmt in stmts {
+        if stmt.analyzer_has_await {
+            flush(&mut run, &mut out);
+            out.push(stmt);
+        } else {
+            run.push(stmt);
+        }
+    }
+    flush(&mut run, &mut out);
+    out
+}
+
+/// Walk an `AsyncStmtKind` and update `blocker_map` so that all variables
+/// declared or referenced by the statement share the same `idx`.
+///
+/// Recurses into `SyncBlock` so every variable inside a grouped run gets the
+/// same `$$promises[idx]` index — mirroring upstream's `flush_sync_group`
+/// which makes all bindings in a sync group share one promise slot.
+fn update_blocker_map_for_stmt(
+    kind: &AsyncStmtKind,
+    idx: usize,
+    all_declared_vars: &rustc_hash::FxHashSet<String>,
+    blocker_map: &mut rustc_hash::FxHashMap<String, usize>,
+) {
+    let update_refs = |source: &str, blocker_map: &mut rustc_hash::FxHashMap<String, usize>| {
+        let referenced_ids = extract_all_identifiers_from_statement(source);
+        for ref_id in &referenced_ids {
+            if all_declared_vars.contains(ref_id) {
+                let should_update = match blocker_map.get(ref_id) {
+                    None => true,
+                    Some(&existing) => idx > existing,
+                };
+                if should_update {
+                    blocker_map.insert(ref_id.clone(), idx);
+                }
+            }
+        }
+    };
+
+    match kind {
+        AsyncStmtKind::VarDecl(decl) => {
+            if decl.hoist_only {
+                return;
+            }
+            blocker_map.insert(decl.name.clone(), idx);
+            if let Some(init) = &decl.init {
+                update_refs(init, blocker_map);
+                if memmem::find(init.as_bytes(), b"$$props").is_some() {
+                    let should_update = match blocker_map.get("$$props") {
+                        None => true,
+                        Some(&existing) => idx > existing,
+                    };
+                    if should_update {
+                        blocker_map.insert("$$props".to_string(), idx);
+                    }
+                }
+            }
+        }
+        AsyncStmtKind::VarDeclGroup(decls) => {
+            for decl in decls {
+                if decl.hoist_only {
+                    continue;
+                }
+                blocker_map.insert(decl.name.clone(), idx);
+                if let Some(init) = &decl.init {
+                    update_refs(init, blocker_map);
+                }
+            }
+        }
+        AsyncStmtKind::ExprAwait(expr)
+        | AsyncStmtKind::ExprSimple(expr)
+        | AsyncStmtKind::ExprVoid(expr) => {
+            if is_user_effect_call(expr) {
+                return;
+            }
+            update_refs(expr, blocker_map);
+        }
+        AsyncStmtKind::Block(block_text) => {
+            update_refs(block_text, blocker_map);
+        }
+        AsyncStmtKind::Noop | AsyncStmtKind::VoidNoop => {
+            // No contribution.
+        }
+        AsyncStmtKind::Hole(args) => {
+            if !args.is_empty() {
+                update_refs(args, blocker_map);
+            }
+        }
+        AsyncStmtKind::SyncBlock(entries) => {
+            for entry in entries {
+                update_blocker_map_for_stmt(&entry.kind, idx, all_declared_vars, blocker_map);
+            }
+        }
+    }
+}
+
+/// Emit zero or more body statements for a single sub-entry of a SyncBlock.
+/// Mirrors upstream's `transform_async_node`: VarDecls become assignments
+/// (or `var` for intermediate `$$d`/`$$array`), expressions become
+/// `void (expr)`, and removed-rune placeholders (Hole/Noop/VoidNoop)
+/// contribute no statements.
+fn sync_block_body_lines(stmt: &AsyncStmt) -> Vec<String> {
+    match &stmt.kind {
+        AsyncStmtKind::VarDecl(decl) => {
+            if decl.hoist_only {
+                return Vec::new();
+            }
+            let init = decl.init.as_deref().unwrap_or("void 0");
+            if decl.is_destructure_assignment {
+                vec![format!("{};", init)]
+            } else if decl.name.starts_with("$$") {
+                vec![format!("var {} = {};", decl.name, init)]
+            } else {
+                vec![format!("{} = {};", decl.name, init)]
+            }
+        }
+        AsyncStmtKind::VarDeclGroup(decls) => {
+            let mut lines = Vec::new();
+            for decl in decls {
+                if decl.hoist_only {
+                    continue;
+                }
+                let init = decl.init.as_deref().unwrap_or("void 0");
+                if decl.is_destructure_assignment {
+                    lines.push(format!("{};", init));
+                } else if decl.name.starts_with("$$") {
+                    lines.push(format!("var {} = {};", decl.name, init));
+                } else {
+                    lines.push(format!("{} = {};", decl.name, init));
+                }
+            }
+            lines
+        }
+        AsyncStmtKind::ExprSimple(expr) => {
+            // An unthunked `await N` (no nested await) inside a sync group is
+            // currently impossible — analyzer_has_await is true for those
+            // entries, so they're never grouped. If we get here, the expr is
+            // a non-await expression that was classified ExprSimple by
+            // mistake; fall back to a void wrap to stay close to upstream.
+            vec![format!("void ({});", expr)]
+        }
+        AsyncStmtKind::ExprAwait(expr) => {
+            // Likewise should not happen — ExprAwait has analyzer_has_await=true.
+            vec![format!("{};", expr)]
+        }
+        AsyncStmtKind::ExprVoid(expr) => {
+            vec![format!("void ({});", expr)]
+        }
+        AsyncStmtKind::Block(block) => {
+            // Inline the block body. The block text was the original
+            // statement, e.g. `if (x) { ... }` — keep it as-is.
+            vec![block.clone()]
+        }
+        AsyncStmtKind::VoidNoop => {
+            // Server-side `$effect(...)` whose CallExpression visitor returns
+            // `b.void0`. Wrapped by `transform_async_node` as `void (void 0);`
+            // = `void void 0;`. When a VoidNoop is grouped with other body
+            // lines, contribute this statement so the order is preserved.
+            vec!["void void 0;".to_string()]
+        }
+        AsyncStmtKind::Noop | AsyncStmtKind::Hole(_) => Vec::new(),
+        AsyncStmtKind::SyncBlock(_) => {
+            // Nested SyncBlocks shouldn't be constructed; flatten defensively.
+            Vec::new()
+        }
+    }
 }
 
 /// If `expr` is a bare zero-argument identifier call like `name()`, return the
@@ -873,15 +1019,52 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                 format!("() => {{\n\t\t{}\n\t}}", block)
             }
         }
-        AsyncStmtKind::Noop => "() => {}".to_string(),
-        AsyncStmtKind::VoidNoop => "() => void void 0".to_string(),
-        // `$inspect()` calls become empty statements after the rune-removal pass.
-        // Upstream (Svelte 5.53.13 / 5.54.0 `b472171de`) replaces those entries
-        // with a `() => void 0` thunk instead of a sparse-array hole so that
-        // `$.run([...])` / `$$renderer.run([...])` still receives a function at
-        // every index (the runtime expects callables and previously threw on
-        // `,, ` elisions).
+        // Upstream commit 6b33dd2a1 (Svelte 5.54.1) replaced the per-statement
+        // empty thunks (`() => {}` / array holes) with a single `() => void 0`
+        // emitted when a grouped entry's `entry_statements` is empty.
+        // `Noop` (from $props() that destructures to empty on the client) and
+        // `Hole` (from $inspect() removal) both fall in this case: their
+        // `transform_async_node` returns `[]`, so the thunk collapses to
+        // `() => void 0`.
+        AsyncStmtKind::Noop => "() => void 0".to_string(),
         AsyncStmtKind::Hole(_) => "() => void 0".to_string(),
+        // `VoidNoop` is the server-side `$effect(...)` marker: the
+        // CallExpression visitor returns `b.void0` and the wrapper produces
+        // `void (void 0);`. When this entry stands alone, upstream's
+        // "single ExpressionStatement → expression thunk" path emits
+        // `() => void void 0`.
+        AsyncStmtKind::VoidNoop => "() => void void 0".to_string(),
+        AsyncStmtKind::SyncBlock(entries) => {
+            // Flatten each sub-entry's body lines; if everything elides,
+            // emit `() => void 0` (mirrors upstream's "all entry_statements
+            // empty -> b.thunk(b.void0, false)" branch).
+            let mut body_lines: Vec<String> = Vec::new();
+            for entry in entries {
+                body_lines.extend(sync_block_body_lines(entry));
+            }
+            if body_lines.is_empty() {
+                return "() => void 0".to_string();
+            }
+            if body_lines.len() == 1 {
+                // Single statement: emit as a one-expression thunk when
+                // possible. `x = expr;` -> `() => x = expr` (no block).
+                let only = body_lines.pop().unwrap();
+                // Drop trailing `;` to use the assignment as a bare expression.
+                let trimmed = only.trim_end_matches(';').trim_end().to_string();
+                // If the surviving content still contains an unparenthesized
+                // semicolon or starts with `var`, fall back to a block.
+                let needs_block = trimmed.starts_with("var ")
+                    || trimmed.starts_with("if ")
+                    || trimmed.starts_with("if(")
+                    || trimmed.contains('\n');
+                if needs_block {
+                    return format!("() => {{\n\t\t{}\n\t}}", only);
+                }
+                return format!("() => {}", trimmed);
+            }
+            let body = body_lines.join("\n\t\t");
+            format!("() => {{\n\t\t{}\n\t}}", body)
+        }
     }
 }
 
