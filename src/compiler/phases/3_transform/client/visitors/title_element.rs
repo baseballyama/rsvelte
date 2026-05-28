@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::template::sanitize_template_string;
 
 /// An entry in the memoizer - represents either a sync or async memoized value.
 struct MemoEntry {
@@ -378,7 +379,12 @@ fn build_title_content(
     let template_quasis: Vec<_> = quasis
         .iter()
         .enumerate()
-        .map(|(i, text)| b::quasi(text.as_str(), i == quasis.len() - 1))
+        .map(|(i, text)| {
+            b::quasi(
+                sanitize_template_string(text.as_str()),
+                i == quasis.len() - 1,
+            )
+        })
         .collect();
     let value = b::template(template_quasis, expressions);
     (value, has_state, memo_entries)
