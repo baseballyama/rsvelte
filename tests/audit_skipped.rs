@@ -407,7 +407,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-dont-rebase-new-batch-4"),
         ("runtime-runes", "async-debug-awaited-expression"),
         ("runtime-runes", "async-state-updates-microtask-separated"),
-        ("runtime-runes", "dynamic-component-member"),
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),

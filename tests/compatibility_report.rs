@@ -1064,9 +1064,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // - Svelte 5.55.6 cluster: upstream commits `e00944ffd`/`89b6a939f`/
         //   `4c96b469f`/`69b4c9f56`. New async-* fixtures exercise the same
         //   sync-grouping/`Promise.all`-save follow-up tracked since 5.54.1.
-        //   `dynamic-component-member` exposes an additional rsvelte gap
-        //   (`<svelte:component this={state.x.Y}>` doesn't wrap `state` in
-        //   `$.get(...)` for SSR/client). Tracked as a follow-up port.
+        //   `dynamic-component-member` was unblocked by porting `e00944ffd`
+        //   (member-id wrapping for both SSR `Component` and the
+        //   client-side `$.component(node, () => ...)` thunk).
         ("runtime-runes", "async-flushsync-in-effect"),
         ("runtime-runes", "async-stale-derived-4"),
         ("runtime-runes", "async-eager-block"),
@@ -1076,7 +1076,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-dont-rebase-new-batch-4"),
         ("runtime-runes", "async-debug-awaited-expression"),
         ("runtime-runes", "async-state-updates-microtask-separated"),
-        ("runtime-runes", "dynamic-component-member"),
         // - Svelte 5.55.9 cluster: upstream commits `a5df6616e` "fix: avoid
         //   unnecessary stringify in server attributes" (inlines static
         //   string interpolations into the literal HTML push instead of
