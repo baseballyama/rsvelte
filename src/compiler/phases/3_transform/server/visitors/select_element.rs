@@ -78,6 +78,12 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
         body_generator.uses_store_subs = self.uses_store_subs;
+        // `<select>` is a regular element — upstream uses `process_children`
+        // so the immediate template parent of any inner expression-tag is the
+        // element itself (not a Fragment). Toggle `in_block_body` off so an
+        // `{await ...}` inside this select gets `$.save(...)` wrapped to
+        // match upstream's `AwaitExpression.js` parent walk.
+        body_generator.in_block_body = false;
 
         // Process children
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -419,6 +425,11 @@ impl<'a> ServerCodeGenerator<'a> {
             // Textarea content should not have whitespace collapsed
             let saved_preserve = self.preserve_whitespace;
             self.preserve_whitespace = true;
+            // `<textarea>` is a regular element. See `generate_element` for
+            // the rationale: toggle `in_block_body` off for direct element
+            // children so expression-tag awaits get `$.save(...)` wrapped.
+            let saved_in_block_body = self.in_block_body;
+            self.in_block_body = false;
             for child in &element.fragment.nodes {
                 if matches!(child, TemplateNode::Comment(_)) {
                     continue;
@@ -426,6 +437,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.generate_node(child, false)?;
             }
             self.preserve_whitespace = saved_preserve;
+            self.in_block_body = saved_in_block_body;
         }
 
         self.output_parts
@@ -637,6 +649,12 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
         body_generator.uses_store_subs = self.uses_store_subs;
+        // `<select>` is a regular element — upstream uses `process_children`
+        // so the immediate template parent of any inner expression-tag is the
+        // element itself (not a Fragment). Toggle `in_block_body` off so an
+        // `{await ...}` inside this select gets `$.save(...)` wrapped to
+        // match upstream's `AwaitExpression.js` parent walk.
+        body_generator.in_block_body = false;
         body_generator.uses_store_subs = self.uses_store_subs;
 
         // Process children (skip leading/trailing whitespace)

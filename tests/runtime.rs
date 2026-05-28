@@ -158,56 +158,43 @@ fn should_write_actual_output() -> bool {
 /// separately so the runtime suite stops blocking unrelated work; remove an
 /// entry as soon as the upstream behaviour is matched.
 const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
-    // Async boundary / async-if-else fixtures added in Svelte 5.53.4 that
-    // exercise async-blocker plumbing rsvelte doesn't yet emit. Also
-    // skipped in compatibility_report.
+    // Async boundary fixture added in Svelte 5.53.4 — exercises async-blocker
+    // plumbing rsvelte doesn't yet emit. Also skipped in compatibility_report.
+    // `async-if-else` was unblocked by the SSR `$.save` predicate port that
+    // walks parents instead of using `!in_block_body` (matches upstream's
+    // `AwaitExpression.js`); see the comment in
+    // `src/compiler/phases/3_transform/server/visitors/expression_tag.rs`.
     "async-boundary-nav-race",
-    "async-if-else",
     // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. Sync-statement
     // grouping (upstream `6b33dd2a1`, Svelte 5.54.1) unblocked
     // `async-if-hydration`, `async-derived-with-effect-and-boundary`,
-    // `async-binding-after-await`, `async-transform-empty-statements`.
-    // The remaining three are still skipped here (and in compatibility_report)
-    // pending the SSR `$.save` predicate / blocker-list dedup follow-ups.
-    "async-derived-indirect",
-    "async-later-sync-overlaps",
+    // `async-binding-after-await`, `async-transform-empty-statements`. The
+    // SSR `$.save` predicate port (this PR) unblocks the
+    // `async-derived-indirect` and `async-later-sync-overlaps` follow-ups by
+    // walking parents (instead of using `!in_block_body`) so awaits inside
+    // root-Fragment / block-body Fragments no longer get wrapped in
+    // `$.save(...)`. `async-style-after-await` still fails on the client side
+    // (unrelated).
     "async-style-after-await",
-    // async-overlap-multiple fixtures added in Svelte 5.55.1. Same async
-    // codegen gap as the cluster above; also skipped in compatibility_report.
-    "async-overlap-multiple-1",
-    "async-overlap-multiple-2",
-    "async-overlap-multiple-3",
-    "async-overlap-multiple-4",
+    // async-overlap-multiple-5..7 still fail on the client side (the SSR
+    // `$.save` predicate port (this PR) unblocked -1..4). -5..7 use
+    // `let b = $derived(await delay(...))` in the instance script and hit a
+    // separate async-blocker cluster.
     "async-overlap-multiple-5",
     "async-overlap-multiple-6",
     "async-overlap-multiple-7",
-    // async-if-block-unskip (Svelte 5.55.2): also skipped in compatibility_report.
-    "async-if-block-unskip",
     // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). Most
     // surface as client/server mismatches because rsvelte's async-derived
     // const-blocker plumbing doesn't yet emit every new helper. Also skipped
-    // in compatibility_report. The 5.55.3 `@const` blocker port unblocked
-    // `async-const` and `async-const-wait`; the remaining fixtures need
-    // orthogonal fixes (e.g. if-else nesting under async, reactivity-loss
-    // context tracking).
+    // in compatibility_report.
     "async-derived-const-blocker",
-    // `async-effect-pending-eager` (Svelte 5.55.4 `273f1a85a`) is unblocked
-    // by routing `{#if test}` expressions through the SSR rune-call rewrite
-    // in the server IfBlock visitor — see compatibility_report.rs.
-    "async-reactivity-loss-async-after-sync",
-    "async-reactivity-loss-no-false-positive-1",
-    "async-reactivity-loss-no-false-positive-2",
-    "async-reactivity-loss-no-false-positive-3",
     // 5.55.6 async-codegen cluster: same gap as the previous async batches,
     // skipped in compatibility_report.
     "async-debug-awaited-expression",
     "async-dont-rebase-new-batch-1",
-    "async-dont-rebase-new-batch-2",
     "async-dont-rebase-new-batch-3",
     "async-dont-rebase-new-batch-4",
     "async-eager-block",
-    "async-flushsync-in-effect",
-    "async-stale-derived-4",
     "async-state-updates-microtask-separated",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path

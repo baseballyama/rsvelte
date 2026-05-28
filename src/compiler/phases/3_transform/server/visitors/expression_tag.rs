@@ -70,10 +70,26 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Check if the expression contains `await` - if so, use AsyncExpression
                     // so it gets rendered as a separate $$renderer.push(async () => ...) call
                     if self.use_async && super::super::helpers::expr_contains_await(&transformed) {
-                        // Use $.save() when NOT inside a block body (if or each).
-                        // Inside block bodies (child_block(async ...)), the block is already
-                        // async and regular `await` should be used instead of `$.save()`.
-                        // Reference: official compiler doesn't use $.save() inside child_block.
+                        // Mirror upstream's `AwaitExpression.js` parent walk:
+                        // `$.save(...)` only wraps when the path from the
+                        // `AwaitExpression` back up hits a metadata-bearing
+                        // non-Fragment / non-ExpressionTag parent — i.e. when
+                        // the immediate template parent of this ExpressionTag
+                        // is a RegularElement / TitleElement / SelectElement
+                        // (where upstream uses `process_children` inline,
+                        // keeping the element on top of the path). Every
+                        // Fragment-bodied parent (root component fragment,
+                        // IfBlock / EachBlock / KeyBlock / SnippetBlock /
+                        // AwaitBlock body, SvelteHead, SvelteElement,
+                        // SvelteBoundary, Component slot) goes through
+                        // Fragment first, so the top-of-path stays `Fragment`
+                        // and `save` is skipped — the surrounding async
+                        // child_block already wraps the await.
+                        //
+                        // The `in_block_body` flag tracks this precisely:
+                        // element visitors toggle it off for their direct
+                        // children iteration; everywhere else it stays at the
+                        // constructor default (`true` = "no save").
                         self.output_parts.push(OutputPart::AsyncExpression {
                             expr: transformed,
                             has_save: !self.in_block_body,

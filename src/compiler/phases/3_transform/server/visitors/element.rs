@@ -494,6 +494,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 let saved_preserve = self.preserve_whitespace;
                 self.preserve_whitespace = true;
 
+                // We are about to walk this element's children. Upstream's
+                // server `AwaitExpression` visitor wraps in `$.save(...)` when
+                // the parent walk lands on a metadata-bearing non-Fragment /
+                // non-ExpressionTag parent — i.e. when the immediate template
+                // parent is a RegularElement (process_children inlined under
+                // the element). Mirror that by toggling `in_block_body` off
+                // for the duration of the children iteration.
+                let saved_in_block_body = self.in_block_body;
+                self.in_block_body = false;
+
                 // If the first text node inside a <pre> is a single newline, discard it.
                 // This matches the official compiler's clean_nodes behavior (utils.js lines 253-262):
                 // browsers would strip it anyway, and keeping it would break hydration.
@@ -513,6 +523,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     self.generate_node(child, false)?;
                 }
                 self.preserve_whitespace = saved_preserve;
+                self.in_block_body = saved_in_block_body;
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
                 if self.dev {
@@ -556,6 +567,16 @@ impl<'a> ServerCodeGenerator<'a> {
             // two whitespace-only text nodes (matching clean_nodes which strips
             // comments before whitespace collapsing).
             let mut last_output_was_space = false;
+
+            // We are about to walk this element's children. Upstream's server
+            // `AwaitExpression` visitor wraps in `$.save(...)` only when the
+            // parent walk lands on a metadata-bearing non-Fragment /
+            // non-ExpressionTag parent — i.e. when the immediate template
+            // parent is a RegularElement (process_children inlined under the
+            // element). Mirror that by toggling `in_block_body` off for the
+            // duration of the children iteration.
+            let saved_in_block_body = self.in_block_body;
+            self.in_block_body = false;
 
             for (i, child) in children.iter().enumerate() {
                 // Skip comments
@@ -743,6 +764,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     last_output_was_space = false;
                 }
             }
+
+            self.in_block_body = saved_in_block_body;
 
             // For select/optgroup with Component/RenderTag/HtmlTag, add <!> marker before closing tag
             if (name == "select" || name == "optgroup")
@@ -1214,6 +1237,12 @@ impl<'a> ServerCodeGenerator<'a> {
             if preserve_children_whitespace {
                 let saved_preserve = self.preserve_whitespace;
                 self.preserve_whitespace = true;
+                // See `generate_element` for the rationale: toggle
+                // `in_block_body` off for direct element children so
+                // expression-tag awaits get `$.save(...)` wrapped (matching
+                // upstream's `AwaitExpression.js` parent walk).
+                let saved_in_block_body = self.in_block_body;
+                self.in_block_body = false;
 
                 // Strip first newline in <pre> (same logic as above)
                 let skip_first_newline = name == "pre"
@@ -1232,6 +1261,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     self.generate_node(child, false)?;
                 }
                 self.preserve_whitespace = saved_preserve;
+                self.in_block_body = saved_in_block_body;
                 self.output_parts
                     .push(OutputPart::Html(format!("</{}>", name)));
                 if self.dev {
@@ -1276,6 +1306,13 @@ impl<'a> ServerCodeGenerator<'a> {
                         | "colgroup"
                         | "datalist"
                 );
+
+            // See `generate_element` for the rationale: toggle `in_block_body`
+            // off for direct element children so expression-tag awaits get
+            // `$.save(...)` wrapped (matching upstream's `AwaitExpression.js`
+            // parent walk).
+            let saved_in_block_body = self.in_block_body;
+            self.in_block_body = false;
 
             for (i, child) in children.iter().enumerate() {
                 if let TemplateNode::Text(text) = *child {
@@ -1340,6 +1377,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     is_first_content = false;
                 }
             }
+
+            self.in_block_body = saved_in_block_body;
 
             // For select/optgroup with Component/RenderTag/HtmlTag, add <!> marker before closing tag
             if (name == "select" || name == "optgroup")

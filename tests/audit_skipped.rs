@@ -382,27 +382,13 @@ fn audit_skipped_fixtures() {
     // execute as regular runs in the compatibility report rather than being
     // skipped — so they don't need to appear here.
     let runtime_skipped: &[(&str, &str)] = &[
-        ("runtime-runes", "async-derived-indirect"),
-        ("runtime-runes", "async-later-sync-overlaps"),
         ("runtime-runes", "async-style-after-await"),
-        ("runtime-runes", "async-overlap-multiple-1"),
-        ("runtime-runes", "async-overlap-multiple-2"),
-        ("runtime-runes", "async-overlap-multiple-3"),
-        ("runtime-runes", "async-overlap-multiple-4"),
         ("runtime-runes", "async-overlap-multiple-5"),
         ("runtime-runes", "async-overlap-multiple-6"),
         ("runtime-runes", "async-overlap-multiple-7"),
-        ("runtime-runes", "async-if-block-unskip"),
         ("runtime-runes", "async-derived-const-blocker"),
-        ("runtime-runes", "async-reactivity-loss-no-false-positive-1"),
-        ("runtime-runes", "async-reactivity-loss-no-false-positive-2"),
-        ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
-        ("runtime-runes", "async-reactivity-loss-async-after-sync"),
-        ("runtime-runes", "async-flushsync-in-effect"),
-        ("runtime-runes", "async-stale-derived-4"),
         ("runtime-runes", "async-eager-block"),
         ("runtime-runes", "async-dont-rebase-new-batch-1"),
-        ("runtime-runes", "async-dont-rebase-new-batch-2"),
         ("runtime-runes", "async-dont-rebase-new-batch-3"),
         ("runtime-runes", "async-dont-rebase-new-batch-4"),
         ("runtime-runes", "async-debug-awaited-expression"),
@@ -410,7 +396,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-duplicate-dependencies"),
         ("runtime-runes", "async-boundary-nav-race"),
-        ("runtime-runes", "async-if-else"),
     ];
 
     let parser_legacy_skipped = &["javascript-comments"];
