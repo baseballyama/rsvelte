@@ -1755,6 +1755,8 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "UpdateExpression" => convert_update_expression(obj, context),
                 "SequenceExpression" => convert_sequence_expression(obj, context),
                 "ThisExpression" => JsExpr::This,
+                "Super" => JsExpr::Raw("super".into()),
+                "ClassExpression" => convert_class_expression(obj, context),
                 "NewExpression" => convert_new_expression(obj, context),
                 "AwaitExpression" => convert_await_expression(obj, context),
                 "YieldExpression" => convert_yield_expression(obj, context),
@@ -3348,6 +3350,127 @@ fn convert_function_expression(
         is_async,
         is_generator,
     })
+}
+
+/// Convert an ESTree `ClassExpression` into a `JsClassExpression`, including
+/// its body. Previously this node was unhandled and fell through to a
+/// `/* Unknown: ClassExpression */` comment placeholder (H-011).
+fn convert_class_expression(
+    obj: &serde_json::Map<String, Value>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    let id: Option<CompactString> = obj
+        .get("id")
+        .and_then(|i| i.as_object())
+        .and_then(|i| i.get("name"))
+        .and_then(|n| n.as_str())
+        .map(|n| n.into());
+
+    let super_class = obj.get("superClass").filter(|v| !v.is_null()).map(|sc| {
+        let expr = convert_json_value(sc, context);
+        context.arena.alloc_expr(expr)
+    });
+
+    let mut members = Vec::new();
+    if let Some(body_arr) = obj
+        .get("body")
+        .and_then(|b| b.as_object())
+        .and_then(|b| b.get("body"))
+        .and_then(|b| b.as_array())
+    {
+        for m in body_arr {
+            if let Some(member) = convert_class_member(m, context) {
+                members.push(member);
+            }
+        }
+    }
+
+    JsExpr::Class(JsClassExpression {
+        id,
+        super_class,
+        body: JsClassBody { body: members },
+    })
+}
+
+/// Convert a single class body member (`MethodDefinition` / `PropertyDefinition`
+/// / `StaticBlock`) into a `JsClassMember`.
+fn convert_class_member(member: &Value, context: &mut ComponentContext) -> Option<JsClassMember> {
+    let obj = member.as_object()?;
+    let member_type = obj.get("type").and_then(|t| t.as_str())?;
+    let computed = obj
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    let is_static = obj.get("static").and_then(|s| s.as_bool()).unwrap_or(false);
+
+    match member_type {
+        "MethodDefinition" => {
+            let key = convert_class_member_key(obj.get("key")?, computed, context);
+            let kind = match obj.get("kind").and_then(|k| k.as_str()).unwrap_or("method") {
+                "constructor" => JsMethodKind::Constructor,
+                "get" => JsMethodKind::Get,
+                "set" => JsMethodKind::Set,
+                _ => JsMethodKind::Method,
+            };
+            let value_obj = obj.get("value").and_then(|v| v.as_object())?;
+            let func = match convert_function_expression(value_obj, context) {
+                JsExpr::Function(f) => f,
+                _ => return None,
+            };
+            Some(JsClassMember::Method(JsMethodDefinition {
+                key,
+                value: func,
+                kind,
+                computed,
+                is_static,
+            }))
+        }
+        "PropertyDefinition" => {
+            let key = convert_class_member_key(obj.get("key")?, computed, context);
+            let value = obj.get("value").filter(|v| !v.is_null()).map(|v| {
+                let expr = convert_json_value(v, context);
+                context.arena.alloc_expr(expr)
+            });
+            Some(JsClassMember::Property(JsPropertyDefinition {
+                key,
+                value,
+                computed,
+                is_static,
+            }))
+        }
+        "StaticBlock" => Some(JsClassMember::StaticBlock(convert_block_statement(
+            obj, context,
+        ))),
+        _ => None,
+    }
+}
+
+/// Build a `JsPropertyKey` from a class member's `key` JSON node.
+fn convert_class_member_key(
+    key_val: &Value,
+    computed: bool,
+    context: &mut ComponentContext,
+) -> JsPropertyKey {
+    if !computed && let Some(obj) = key_val.as_object() {
+        match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+            "Identifier" => {
+                let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                return JsPropertyKey::Identifier(name.into());
+            }
+            "PrivateIdentifier" => {
+                let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                return JsPropertyKey::Identifier(format!("#{name}").into());
+            }
+            "Literal" => {
+                if let JsExpr::Literal(lit) = convert_json_value(key_val, context) {
+                    return JsPropertyKey::Literal(lit);
+                }
+            }
+            _ => {}
+        }
+    }
+    let key_expr = convert_json_value(key_val, context);
+    JsPropertyKey::Computed(context.arena.alloc_expr(key_expr))
 }
 
 /// Convert function parameters.
