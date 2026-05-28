@@ -1222,6 +1222,21 @@ impl<'a> ServerCodeGenerator<'a> {
                 } else {
                     hoisted_parts_wrapper
                 };
+                // Apply const-tag-level async wrapping so `{@const}` blockers
+                // (e.g. `{@const foo = bar}` where `bar` is a top-level
+                // `$$promises[N]` blocker) wrap dependent text expressions in
+                // `$$renderer.async(...)`. Mirrors the same call in the
+                // non-wrapper `build()` path (lines 817-822). Without this the
+                // wrapper path emits `$$renderer.push(`${$.escape(foo)}`)`
+                // instead of `$$renderer.async([promises[N]], ...)` for
+                // fixtures like runtime-runes/async-context-after-await-const.
+                let const_blocker_map = self.const_blocker_map.borrow();
+                let hoisted_parts_wrapper = if !const_blocker_map.is_empty() {
+                    Self::apply_const_async_wrapping(&hoisted_parts_wrapper, &const_blocker_map)
+                } else {
+                    hoisted_parts_wrapper
+                };
+                drop(const_blocker_map);
                 let inner_body = super::bridge::generate_inner_body_code_direct(
                     &hoisted_parts_wrapper,
                     &store_subs_ref,

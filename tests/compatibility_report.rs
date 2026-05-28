@@ -983,13 +983,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     //   in the compiled output. Skipping until the rsvelte analyzer's
     //   function-scope porosity matches upstream.
     let runtime_skip_tests: &[(&str, &str)] = &[
-        // - `async-eager-derived` (Svelte 5.53.12, upstream `965f2a0ac`
-        //   "fix: handle async RHS in assignment_value_stale"): rsvelte's
-        //   client transform emits the `$$promises[…]` blockers array in
-        //   declaration order; upstream emits them in latest-use order, so
-        //   the fixture diff is a 1-line array reordering. Same underlying
-        //   blocker-threading gap as `async-derived-title-update`.
-        ("runtime-runes", "async-eager-derived"),
         // - Svelte 5.54.1 cluster (upstream commit `6b33dd2a1` "fix: group
         //   sync statements"): porting the cluster (consecutive sync entries
         //   share one thunk + `$$promises[N]` blocker index) unblocked
@@ -1040,10 +1033,18 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
         ("runtime-runes", "async-reactivity-loss-async-after-sync"),
         // - Svelte 5.55.4 (upstream commit `0ed8c282f` "fix: reset context
-        //   after waiting on blockers of @const expressions"): two new
-        //   fixtures hit the same async-batching follow-up.
+        //   after waiting on blockers of @const expressions"): the
+        //   `apply_const_async_wrapping` pass now runs in the
+        //   `$$renderer.component(...)` wrapper path too (server `build.rs`),
+        //   so `{@const foo = bar}` where `bar` is a top-level
+        //   `$$promises[N]` blocker correctly wraps dependent text
+        //   expressions in `$$renderer.async([promises[M]], ...)`.
+        //   Unblocked `async-context-after-await-const`.
+        //   `async-effect-pending-eager` (added in upstream `273f1a85a`)
+        //   needs additional fixes — `$effect.pending()` rewrite for
+        //   `{#if}` test expressions and `<p>...</p>` trailing-whitespace
+        //   normalisation — tracked separately.
         ("runtime-runes", "async-effect-pending-eager"),
-        ("runtime-runes", "async-context-after-await-const"),
         // - `derived-dep-set-while-rendering` (Svelte 5.55.5, runtime-only
         //   commit `b771df3` adds a fixture): SSR `const x = $derived(visible)`
         //   where the arg is a bare identifier referring to another derived

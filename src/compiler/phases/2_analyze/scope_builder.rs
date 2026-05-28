@@ -299,9 +299,8 @@ impl<'a> ScopeBuilder<'a> {
         }
 
         // Clone the root scope (with all merged declarations) for backward compatibility.
-        // We use swap to take ownership of all_scopes[0] and replace it with a clone,
-        // avoiding an extra clone. The ScopeRoot.scope field needs its own copy since
-        // it's accessed separately from all_scopes.
+        // The ScopeRoot.scope field needs its own copy since it's accessed
+        // separately from all_scopes.
         let root_scope = if all_scopes.is_empty() {
             Scope::default()
         } else {
@@ -352,6 +351,24 @@ impl<'a> ScopeBuilder<'a> {
     /// Pop back to the parent scope.
     fn pop_scope(&mut self, old_scope: usize) {
         self.current_scope = old_scope;
+    }
+
+    /// The scope a `var` declaration hoists to: the nearest enclosing
+    /// function or script scope. `var` is function-scoped, not block-scoped, so
+    /// it bubbles up through porous (block) scopes — those whose `function_depth`
+    /// matches their parent's — until it reaches a non-porous boundary (a
+    /// function body) or the root. Mirrors the official compiler's
+    /// `declare(..., 'var')` delegating through porous scopes.
+    fn nearest_var_scope(&self) -> usize {
+        let mut idx = self.current_scope;
+        while let Some(parent) = self.scopes[idx].parent {
+            if self.scopes[idx].function_depth != self.scopes[parent].function_depth {
+                // Non-porous boundary (function body) — `var` stops here.
+                break;
+            }
+            idx = parent;
+        }
+        idx
     }
 
     /// Find a binding by name in the current scope chain.
@@ -466,12 +483,20 @@ impl<'a> ScopeBuilder<'a> {
         kind: BindingKind,
         declaration_kind: DeclarationKind,
     ) -> usize {
-        // Check for duplicate declaration in the current scope
+        // `var` is function-scoped: hoist its declaration to the nearest
+        // function/script scope rather than the current block scope.
+        let target_scope = if declaration_kind == DeclarationKind::Var {
+            self.nearest_var_scope()
+        } else {
+            self.current_scope
+        };
+
+        // Check for duplicate declaration in the target scope
         // Note: var redeclarations are allowed in JavaScript, so we only error
         // if neither the existing nor new declaration is a var.
         // Also allow function redeclarations (TypeScript overloads declare the same
         // function name multiple times).
-        if let Some(&existing_idx) = self.scopes[self.current_scope].declarations.get(&name) {
+        if let Some(&existing_idx) = self.scopes[target_scope].declarations.get(&name) {
             let existing_binding = &self.bindings[existing_idx];
             // Only error if neither declaration is a var and neither is a function
             // (function redeclarations are valid in JS/TS for overloads)
@@ -486,12 +511,8 @@ impl<'a> ScopeBuilder<'a> {
         }
 
         let idx = self.bindings.len();
-        let binding = Binding::with_declaration_kind(
-            name.clone(),
-            kind,
-            declaration_kind,
-            self.current_scope,
-        );
+        let binding =
+            Binding::with_declaration_kind(name.clone(), kind, declaration_kind, target_scope);
 
         // Validate identifier name (check for invalid $ prefixes)
         // In runes mode: validate without function_depth (all levels validated)
@@ -516,7 +537,7 @@ impl<'a> ScopeBuilder<'a> {
         }
 
         self.bindings.push(binding);
-        self.scopes[self.current_scope].declare(name, idx);
+        self.scopes[target_scope].declare(name, idx);
         idx
     }
 
@@ -842,13 +863,16 @@ impl<'a> ScopeBuilder<'a> {
                 finalizer,
                 ..
             } => {
-                // Process try block
+                // Process try block in its own lexical scope so `let`/`const`
+                // inside it don't leak to the enclosing scope.
                 let block_node = self.arena.get_js_node(*block);
                 if let JsNode::BlockStatement { body, .. } = block_node {
                     let body = *body;
+                    let old_scope = self.push_scope();
                     for stmt in self.arena.get_js_children(body) {
                         self.process_statement_typed(stmt);
                     }
+                    self.pop_scope(old_scope);
                 }
                 // Process catch clause if present
                 if let Some(handler_id) = handler {
@@ -879,14 +903,16 @@ impl<'a> ScopeBuilder<'a> {
                         self.pop_scope(old_scope);
                     }
                 }
-                // Process finally block if present
+                // Process finally block in its own lexical scope.
                 if let Some(finalizer_id) = finalizer {
                     let finalizer_node = self.arena.get_js_node(*finalizer_id);
                     if let JsNode::BlockStatement { body, .. } = finalizer_node {
                         let body = *body;
+                        let old_scope = self.push_scope();
                         for stmt in self.arena.get_js_children(body) {
                             self.process_statement_typed(stmt);
                         }
+                        self.pop_scope(old_scope);
                     }
                 }
             }
@@ -900,6 +926,10 @@ impl<'a> ScopeBuilder<'a> {
             } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*discriminant));
                 let cases = *cases;
+                // The switch block is a single lexical scope shared by all cases
+                // (mirrors the official compiler's `create_block_scope`), so
+                // `let`/`const` in a case body doesn't leak to the enclosing scope.
+                let old_scope = self.push_scope();
                 for case in self.arena.get_js_children(cases) {
                     if let JsNode::SwitchCase {
                         test, consequent, ..
@@ -914,6 +944,7 @@ impl<'a> ScopeBuilder<'a> {
                         }
                     }
                 }
+                self.pop_scope(old_scope);
             }
             JsNode::LabeledStatement { label, body, .. } => {
                 let label_id = *label;
@@ -2200,10 +2231,13 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             Statement::TryStatement(try_stmt) => {
-                // Process try block
+                // The try block is its own lexical scope; `let`/`const` inside it
+                // must not leak to the enclosing scope.
+                let old_scope = self.push_scope();
                 for stmt in &try_stmt.block.body {
                     self.process_statement(stmt);
                 }
+                self.pop_scope(old_scope);
                 // Process catch clause if present
                 if let Some(ref handler) = try_stmt.handler {
                     // Create a new scope for catch block (to handle catch parameter)
@@ -2217,11 +2251,13 @@ impl<'a> ScopeBuilder<'a> {
                     }
                     self.pop_scope(old_scope);
                 }
-                // Process finally block if present
+                // The finally block is also its own lexical scope.
                 if let Some(ref finalizer) = try_stmt.finalizer {
+                    let old_scope = self.push_scope();
                     for stmt in &finalizer.body {
                         self.process_statement(stmt);
                     }
+                    self.pop_scope(old_scope);
                 }
             }
             Statement::ThrowStatement(throw_stmt) => {
@@ -2229,6 +2265,10 @@ impl<'a> ScopeBuilder<'a> {
             }
             Statement::SwitchStatement(switch_stmt) => {
                 self.track_expression_updates(&switch_stmt.discriminant);
+                // The switch block is a single lexical scope shared by all cases
+                // (mirrors the official compiler's `create_block_scope`), so
+                // `let`/`const` in a case body doesn't leak to the enclosing scope.
+                let old_scope = self.push_scope();
                 for case in &switch_stmt.cases {
                     if let Some(ref test) = case.test {
                         self.track_expression_updates(test);
@@ -2237,6 +2277,7 @@ impl<'a> ScopeBuilder<'a> {
                         self.process_statement(stmt);
                     }
                 }
+                self.pop_scope(old_scope);
             }
             Statement::LabeledStatement(labeled_stmt) => {
                 // Check for `$:` reactive declarations in legacy mode

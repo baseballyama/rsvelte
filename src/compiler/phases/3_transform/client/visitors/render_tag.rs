@@ -61,6 +61,13 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     let mut any_has_await = false;
 
     let mut derived_decls: Vec<JsStatement> = Vec::new();
+    // Async placeholders (callback params `$0`, `$1`, …) and memoised-call
+    // placeholders (`let $0 = $.derived(…)`) share one `$N` namespace inside the
+    // generated render block, so they must draw from a SINGLE counter. Two
+    // independent counters (one per kind) would both start at 0 and emit a
+    // duplicate `$0` when a render tag has both an awaited arg and a call arg —
+    // the `let $0` would shadow the async callback param `$0` (H-099).
+    let mut placeholder_index: usize = 0;
     let args: Vec<JsExpr> = raw_args
         .iter()
         .enumerate()
@@ -78,8 +85,9 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
             if arg_has_await {
                 any_has_await = true;
-                // Generate async value id like $0, $1, etc.
-                let id_name = format!("${}", async_values.len());
+                // Generate async value id like $0, $1, etc. (shared counter)
+                let id_name = format!("${}", placeholder_index);
+                placeholder_index += 1;
                 // Strip the top-level await since $.async handles the awaiting
                 let stripped = b::strip_await(&context.arena, built);
                 // If the stripped expression still contains awaits, use async thunk
@@ -103,10 +111,11 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                 // If the argument expression has a call, we need to memoize it with $.derived()
                 let has_call_from_expr = render_tag_has_call(arg);
                 if template_metadata.has_call() || has_call_from_expr {
-                    // Use literal `$0`, `$1`, etc. as the identifier. Each derived
-                    // decl is wrapped in its own block scope, so these names do not
-                    // need to be globally unique across render tags.
-                    let id_name = format!("${}", derived_decls.len());
+                    // Draw from the same `$N` counter as async placeholders so a
+                    // memoised-call arg never collides with an async callback
+                    // param in the same render block (H-099).
+                    let id_name = format!("${}", placeholder_index);
+                    placeholder_index += 1;
                     derived_decls.push(b::let_decl(
                         &context.arena,
                         &id_name,

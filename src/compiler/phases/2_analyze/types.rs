@@ -1490,10 +1490,12 @@ pub struct ComponentAnalysis {
 impl ComponentAnalysis {
     /// Create a new component analysis.
     pub fn new(source: &str, options: &CompileOptions) -> Self {
+        // The explicit `name` option wins; otherwise derive from the filename
+        // (H-088). Previously `options.name` was accepted but ignored.
         let name = options
-            .filename
-            .as_ref()
-            .map(|f| derive_component_name(f))
+            .name
+            .clone()
+            .or_else(|| options.filename.as_ref().map(|f| derive_component_name(f)))
             .unwrap_or_else(|| "Component".to_string());
 
         // If runes is explicitly set in options, use that; otherwise default to false

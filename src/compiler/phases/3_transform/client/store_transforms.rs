@@ -58,15 +58,20 @@ pub(super) fn transform_store_assignments_client(
     );
     let mut result = after_assigns.unwrap_or_else(|| stage1.to_string());
 
-    // Member-expression mutations (`$store.prop = …`, `$store[0]++`,
-    // etc.) are still handled per-store via the dedicated AST helper
-    // — the prefix-form `$.store_mutate(store, $.untrack($store)…)`
-    // is the same shape regardless of how the underlying store is
-    // bound (regular / prop / state-var), so no caller-side
-    // store_access plumbing is needed.
+    // Member-expression mutations (`$store.prop = …`, `$store[0]++`, etc.)
+    // are handled per-store via the dedicated AST helper. The first
+    // `$.store_mutate(...)` argument is the store *source* read the same way
+    // any reference to its binding would be: a prop binding reads as the getter
+    // call `store()`, so prop-backed stores need that form rather than the bare
+    // name (other binding kinds keep the bare name).
     for store_sub in store_sub_vars {
-        let store_name = &store_sub[1..];
-        result = transform_store_member_mutations(&result, store_sub, store_name);
+        let store_name = store_sub[1..].to_string();
+        let prop_store_names: Vec<String> = if prop_vars.contains(&store_name) {
+            vec![store_name]
+        } else {
+            Vec::new()
+        };
+        result = transform_store_member_mutations(&result, store_sub, &prop_store_names);
     }
 
     result
@@ -492,11 +497,12 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
 pub(super) fn transform_store_member_mutations(
     line: &str,
     store_sub: &str,
-    _store_name: &str,
+    prop_store_names: &[String],
 ) -> String {
-    super::store_member_mutate_ast::transform_store_member_mutate_ast(
+    super::store_member_mutate_ast::transform_store_member_mutate_ast_with_props(
         line,
         std::slice::from_ref(&store_sub.to_string()),
+        prop_store_names,
     )
     .unwrap_or_else(|| line.to_string())
 }
