@@ -191,7 +191,9 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // orthogonal fixes (e.g. if-else nesting under async, reactivity-loss
     // context tracking).
     "async-derived-const-blocker",
-    "async-effect-pending-eager",
+    // `async-effect-pending-eager` (Svelte 5.55.4 `273f1a85a`) is unblocked
+    // by routing `{#if test}` expressions through the SSR rune-call rewrite
+    // in the server IfBlock visitor — see compatibility_report.rs.
     "async-reactivity-loss-async-after-sync",
     "async-reactivity-loss-no-false-positive-1",
     "async-reactivity-loss-no-false-positive-2",

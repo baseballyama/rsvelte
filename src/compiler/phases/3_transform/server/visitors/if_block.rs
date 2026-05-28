@@ -21,6 +21,14 @@ impl<'a> ServerCodeGenerator<'a> {
         let test_expr = self.transform_store_refs(&test_expr);
         // Transform special legacy variables ($$props -> $$sanitized_props)
         let test_expr = self.transform_special_vars(&test_expr);
+        // Collapse SSR-only rune calls (`$effect.pending()` → `0`,
+        // `$effect.tracking()` → `false`, `$state.snapshot(x)` → `$.snapshot(x)`,
+        // `$state.eager(x)` → `x`) in the test expression. Upstream's IfBlock
+        // visitor walks `node.test` through the per-`CallExpression` visitor,
+        // so `{#if $effect.pending() > 0}` becomes `if (0 > 0) { ... }`.
+        // rsvelte pulls the test as raw source, so we run the same AST-based
+        // pass here.
+        let test_expr = Self::transform_rune_in_template_expr(&test_expr);
 
         // Generate consequent body parts
         let consequent_body = self.generate_if_branch_body(&block.consequent)?;
@@ -83,6 +91,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
             let nested_test_expr = self.transform_store_refs(&nested_test_expr);
             let nested_test_expr = self.transform_special_vars(&nested_test_expr);
+            let nested_test_expr = Self::transform_rune_in_template_expr(&nested_test_expr);
 
             let nested_consequent = self.generate_if_branch_body(&nested_if.consequent)?;
             let nested_alternate = if let Some(ref alt) = nested_if.alternate {
