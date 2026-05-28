@@ -1040,11 +1040,20 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `$$promises[N]` blocker correctly wraps dependent text
         //   expressions in `$$renderer.async([promises[M]], ...)`.
         //   Unblocked `async-context-after-await-const`.
-        //   `async-effect-pending-eager` (added in upstream `273f1a85a`)
-        //   needs additional fixes — `$effect.pending()` rewrite for
-        //   `{#if}` test expressions and `<p>...</p>` trailing-whitespace
-        //   normalisation — tracked separately.
-        ("runtime-runes", "async-effect-pending-eager"),
+        //   Upstream `273f1a85a` "fix: keep flushing new eager effects" added
+        //   the `async-effect-pending-eager` fixture. The runtime-side eager
+        //   flush fix is JS-only (`batch.js` reordering of `eager_versions`
+        //   clear vs. `flushSync`) and therefore not applicable to rsvelte,
+        //   which doesn't ship the runtime. The fixture is unblocked
+        //   compile-side by porting the SSR `$effect.pending()` rewrite to
+        //   the `{#if}` test-expression path (server `IfBlock` visitor now
+        //   runs `transform_rune_in_template_expr` over `block.test`,
+        //   matching upstream's per-CallExpression rune rewrite that fires
+        //   whenever the IfBlock visitor recursively visits its test node).
+        //   `<p>` trailing-whitespace normalisation turned out to be a
+        //   non-issue: every remaining server-output divergence is pure
+        //   indentation that the OXC canonical comparator collapses to
+        //   MATCH.
         // - `derived-dep-set-while-rendering` (Svelte 5.55.5, runtime-only
         //   commit `b771df3` adds a fixture): SSR `const x = $derived(visible)`
         //   where the arg is a bare identifier referring to another derived
