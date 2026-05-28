@@ -64,12 +64,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     let name = node.name.as_str();
                     // CSS custom properties (e.g., --color="red") are handled separately
                     if name.starts_with("--") {
+                        // CSS custom-prop values must be normalised exactly like
+                        // ordinary component attribute values (H-108): store refs
+                        // routed through `transform_store_refs`, and static text
+                        // JS-escaped via `escape_js_string`.
                         let value = match &node.value {
                             AttributeValue::Expression(expr_tag) => {
                                 let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                                 if expr_end > expr_start && expr_end <= self.source.len() {
-                                    self.source[expr_start..expr_end].trim().to_string()
+                                    self.transform_store_refs(
+                                        self.source[expr_start..expr_end].trim(),
+                                    )
                                 } else {
                                     "''".to_string()
                                 }
@@ -94,10 +100,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                             if expr_end > expr_start
                                                 && expr_end <= self.source.len()
                                             {
-                                                value_str.push_str("${$.stringify(");
-                                                value_str.push_str(
+                                                let transformed = self.transform_store_refs(
                                                     self.source[expr_start..expr_end].trim(),
                                                 );
+                                                value_str.push_str("${$.stringify(");
+                                                value_str.push_str(&transformed);
                                                 value_str.push_str(")}");
                                             }
                                         }
@@ -106,7 +113,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if has_expression {
                                     format!("`{}`", value_str)
                                 } else {
-                                    format!("'{}'", value_str)
+                                    format!("'{}'", escape_js_string(&value_str))
                                 }
                             }
                             AttributeValue::True(_) => "true".to_string(),
