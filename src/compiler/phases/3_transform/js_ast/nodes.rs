@@ -223,13 +223,16 @@ pub enum JsForInit {
     Expression(ExprId),
 }
 
-/// For-of statement.
+/// For-of statement. Also represents `for...in` when `is_for_in` is set (the
+/// two share a structure; codegen emits ` in ` vs ` of ` accordingly).
 #[derive(Debug, Clone)]
 pub struct JsForOfStatement {
     pub left: JsForOfLeft,
     pub right: ExprId,
     pub body: StmtId,
     pub is_await: bool,
+    /// `true` for `for (… in …)`, `false` for `for (… of …)`.
+    pub is_for_in: bool,
 }
 
 /// Left side of for-of statement.

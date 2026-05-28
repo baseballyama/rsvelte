@@ -670,7 +670,8 @@ impl<'a> JsCodegen<'a> {
             }
             JsForOfLeft::Pattern(pattern) => self.emit_pattern(pattern),
         }
-        self.output.push_str(" of ");
+        self.output
+            .push_str(if for_of.is_for_in { " in " } else { " of " });
         self.emit_expression(self.arena.get_expr(for_of.right));
         self.output.push_str(") ");
         self.emit_statement_as_block(self.arena.get_stmt(for_of.body));
