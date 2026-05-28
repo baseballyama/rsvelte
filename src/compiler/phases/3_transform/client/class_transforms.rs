@@ -760,7 +760,18 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     }
 
     if fields.is_empty() {
-        return script.to_string();
+        // This class declares no `$state` / `$derived` fields. Preserve it
+        // verbatim and keep scanning the rest of the script for rune classes
+        // that follow it. Returning the whole script here would skip lowering
+        // for every later class — e.g. a plain `Helper` before an
+        // `export class Counter { count = $state(0) }`.
+        let before_and_current = &script[..class_body_end + 1];
+        let after_class_body = &script[class_body_end + 1..];
+        return format!(
+            "{}{}",
+            before_and_current,
+            transform_class_fields_client(after_class_body)
+        );
     }
 
     // Deconflict private backing names for public fields
@@ -1711,4 +1722,77 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::transform_class_fields_client;
+
+    const COUNTER: &str = "\
+export class Counter {
+\tcount = $state(0);
+\tinc() {
+\t\tthis.count += 1;
+\t}
+}
+";
+
+    #[test]
+    fn non_rune_class_before_rune_class_is_lowered() {
+        // Regression for C-007: a non-rune class (`Helper`) preceding a rune
+        // class (`Counter`) must not suppress lowering of the rune class.
+        let script = format!("class Helper {{\n\tvalue = 1;\n}}\n\n{COUNTER}");
+        let out = transform_class_fields_client(&script);
+
+        // The non-rune class is preserved verbatim.
+        assert!(
+            out.contains("class Helper") && out.contains("value = 1;"),
+            "Helper class should be preserved unchanged:\n{out}"
+        );
+
+        // The rune class is lowered: `count` becomes `$.state(0)` backing state
+        // with a getter/setter whose setter calls `$.set`.
+        assert!(
+            out.contains("$.state(0)"),
+            "count should be lowered to `$.state(0)`:\n{out}"
+        );
+        assert!(
+            out.contains("get count()") && out.contains("set count("),
+            "count should gain a getter/setter:\n{out}"
+        );
+        assert!(
+            out.contains("$.set(this.#count"),
+            "the generated setter should call `$.set`:\n{out}"
+        );
+        // The raw rune field text must not survive untransformed.
+        assert!(
+            !out.contains("count = $state(0)"),
+            "raw `count = $state(0)` field should not remain:\n{out}"
+        );
+
+        // The `Counter` class must be lowered exactly as if it stood alone —
+        // the preceding non-rune class must not change its output.
+        let standalone = transform_class_fields_client(COUNTER);
+        assert!(
+            out.ends_with(standalone.trim_end()) || out.contains(standalone.trim_end()),
+            "Counter lowering should match the standalone case.\nwith Helper:\n{out}\nstandalone:\n{standalone}"
+        );
+    }
+
+    #[test]
+    fn standalone_rune_class_still_lowers() {
+        // Existing behavior: a single rune class lowers as before.
+        let out = transform_class_fields_client(COUNTER);
+        assert!(out.contains("$.state(0)"), "expected lowering:\n{out}");
+        assert!(
+            !out.contains("count = $state(0)"),
+            "raw field remained:\n{out}"
+        );
+    }
+
+    #[test]
+    fn script_without_runes_is_unchanged() {
+        let script = "class Helper {\n\tvalue = 1;\n}\n";
+        assert_eq!(transform_class_fields_client(script), script);
+    }
 }
