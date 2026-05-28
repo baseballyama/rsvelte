@@ -7,6 +7,7 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::shared::{escape_attr, escape_js_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -494,12 +495,14 @@ impl<'a> ServerCodeGenerator<'a> {
                             } else {
                                 // Mixed or pure text - concatenate
                                 let mut value = String::new();
+                                let mut has_expression = false;
                                 for part in parts {
                                     match part {
                                         AttributeValuePart::Text(text) => {
                                             value.push_str(&text.data);
                                         }
                                         AttributeValuePart::ExpressionTag(expr_tag) => {
+                                            has_expression = true;
                                             let expr_start =
                                                 expr_tag.expression.start().unwrap_or(0) as usize;
                                             let expr_end =
@@ -518,7 +521,20 @@ impl<'a> ServerCodeGenerator<'a> {
                                         }
                                     }
                                 }
-                                attr_entries.push(format!("{}: '{}'", name, value));
+                                if has_expression {
+                                    // Interpolated value: emit a template literal.
+                                    attr_entries.push(format!("{}: `{}`", name, value));
+                                } else {
+                                    // Pure static text: HTML-escape the content then
+                                    // JS-escape the single-quoted literal so quotes /
+                                    // backslashes / newlines / `</script>` can't break
+                                    // or inject into the generated SSR module.
+                                    attr_entries.push(format!(
+                                        "{}: '{}'",
+                                        name,
+                                        escape_js_string(&escape_attr(&value))
+                                    ));
+                                }
                             }
                         }
                     }

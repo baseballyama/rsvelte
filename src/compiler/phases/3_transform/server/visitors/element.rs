@@ -12,7 +12,7 @@ use crate::ast::template::{
 };
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{
-    escape_attr, escape_html, is_void_element, sanitize_template_string,
+    escape_attr, escape_html, escape_js_string, is_void_element, sanitize_template_string,
 };
 use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
@@ -1462,7 +1462,15 @@ impl<'a> ServerCodeGenerator<'a> {
                 if has_expression {
                     Ok(format!("`{}`", value))
                 } else {
-                    Ok(format!("'{}'", value))
+                    // Static text value embedded in a single-quoted JS string
+                    // literal (e.g. `$.attributes({ value: '...' })`). Mirror
+                    // upstream `build_attribute_value`: HTML-escape the content
+                    // (`escape_html(data, /*is_attr*/ true)` == `escape_attr`),
+                    // then JS-escape so quotes / backslashes / newlines don't
+                    // produce invalid or injectable JS. Without this a value
+                    // like `a'b`, a backslash, a newline, or `</script>` broke
+                    // the generated SSR module.
+                    Ok(format!("'{}'", escape_js_string(&escape_attr(&value))))
                 }
             }
             AttributeValue::Expression(expr_tag) => {
