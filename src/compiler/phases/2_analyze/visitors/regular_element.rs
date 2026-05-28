@@ -313,6 +313,18 @@ fn get_disallowed_descendant(
     }
 }
 
+/// Whether a disallowed-children rule is `direct` (the child auto-closes its
+/// *immediate* parent) rather than `descendant` in the official
+/// `autoclosing_children` table. `direct` rules must only be checked against the
+/// direct parent — not every ancestor — otherwise a valid nested list like
+/// `<ul><li><ul><li>` falsely reports `<li>` as a descendant of `<li>` (H-082).
+fn is_direct_only_disallowed(ancestor_tag: &str) -> bool {
+    matches!(
+        ancestor_tag,
+        "li" | "thead" | "tbody" | "tfoot" | "tr" | "td" | "th"
+    )
+}
+
 /// Check if a tag is valid with an ancestor.
 /// Returns an error message if invalid, or None if valid.
 fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<String> {
@@ -871,6 +883,14 @@ pub fn visit(
             if let Some(disallowed) = get_disallowed_descendant(ancestor_name, &element.name)
                 && disallowed.contains(&element.name.as_str())
             {
+                // `direct`-only rules (e.g. `li`) apply only to the immediate
+                // parent, not every ancestor — `element_ancestors` is ordered
+                // outermost-first, so the direct parent is the last entry (H-082).
+                let is_direct_parent = i + 1 == context.element_ancestors.len();
+                if is_direct_only_disallowed(ancestor_name) && !is_direct_parent {
+                    continue;
+                }
+
                 let message = format!(
                     "`<{}>` cannot be a descendant of `<{}>`",
                     element.name, ancestor_name
