@@ -163,12 +163,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // skipped in compatibility_report.
     "async-boundary-nav-race",
     "async-if-else",
-    // async-eager-derived (Svelte 5.53.12, upstream `965f2a0ac` "fix:
-    // eagerly load deriveds when async work is started"): expected
-    // compiled output now threads `eager` promises through `$.derived(...)`
-    // calls; rsvelte's analysis doesn't surface the eager set yet. Also
-    // skipped in compatibility_report.
-    "async-eager-derived",
     // Async-codegen cluster added across Svelte 5.54.1 / 5.55.0. Sync-statement
     // grouping (upstream `6b33dd2a1`, Svelte 5.54.1) unblocked
     // `async-if-hydration`, `async-derived-with-effect-and-boundary`,
