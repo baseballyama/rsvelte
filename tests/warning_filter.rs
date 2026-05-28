@@ -4,10 +4,9 @@
 use std::sync::Arc;
 use svelte_compiler_rust::{CompileOptions, Warning, compile};
 
-fn warning_codes(
-    src: &str,
-    filter: Option<Arc<dyn Fn(&Warning) -> bool + Send + Sync>>,
-) -> Vec<String> {
+type WarningFilter = Option<Arc<dyn Fn(&Warning) -> bool + Send + Sync>>;
+
+fn warning_codes(src: &str, filter: WarningFilter) -> Vec<String> {
     compile(
         src,
         CompileOptions {
