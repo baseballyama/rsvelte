@@ -778,7 +778,15 @@ impl<'a> JsCodegen<'a> {
             JsExpr::This => self.output.push_str("this"),
             JsExpr::Await(inner_id) => {
                 self.output.push_str("await ");
-                self.emit_expression(self.arena.get_expr(*inner_id));
+                let arg = self.arena.get_expr(*inner_id);
+                let needs_parens = Self::unary_operand_needs_parens(arg);
+                if needs_parens {
+                    self.output.push('(');
+                }
+                self.emit_expression(arg);
+                if needs_parens {
+                    self.output.push(')');
+                }
             }
             JsExpr::Yield(yield_expr) => {
                 self.output.push_str("yield");
@@ -794,7 +802,15 @@ impl<'a> JsCodegen<'a> {
             JsExpr::Chain(chain) => self.emit_expression(self.arena.get_expr(chain.expression)),
             JsExpr::Void(inner_id) => {
                 self.output.push_str("void ");
-                self.emit_expression(self.arena.get_expr(*inner_id));
+                let arg = self.arena.get_expr(*inner_id);
+                let needs_parens = Self::unary_operand_needs_parens(arg);
+                if needs_parens {
+                    self.output.push('(');
+                }
+                self.emit_expression(arg);
+                if needs_parens {
+                    self.output.push(')');
+                }
             }
             JsExpr::Raw(code) => {
                 // Emit raw JavaScript code as-is
@@ -861,7 +877,31 @@ impl<'a> JsCodegen<'a> {
     }
 
     fn emit_tagged_template(&mut self, tagged: &JsTaggedTemplate) {
-        self.emit_expression(self.arena.get_expr(tagged.tag));
+        // The tag of a tagged template must be a member/call/primary expression.
+        // Lower-precedence tags need parentheses, e.g. `(x => x)`tpl``.
+        let tag = self.arena.get_expr(tagged.tag);
+        let needs_parens = matches!(
+            tag,
+            JsExpr::Arrow(_)
+                | JsExpr::Function(_)
+                | JsExpr::Conditional(_)
+                | JsExpr::Logical(_)
+                | JsExpr::Binary(_)
+                | JsExpr::Unary(_)
+                | JsExpr::Assignment(_)
+                | JsExpr::Sequence(_)
+                | JsExpr::Await(_)
+                | JsExpr::Yield(_)
+                | JsExpr::Object(_)
+                | JsExpr::Class(_)
+        );
+        if needs_parens {
+            self.output.push('(');
+        }
+        self.emit_expression(tag);
+        if needs_parens {
+            self.output.push(')');
+        }
         self.emit_template_literal(&tagged.quasi);
     }
 
@@ -1011,6 +1051,24 @@ impl<'a> JsCodegen<'a> {
                     JsPropertyKind::Init => {}
                 }
 
+                // For method shorthand the `async`/`*` markers precede the key
+                // (`async load()`, `*gen()`, `async *both()`). The key is emitted
+                // just below, so these have to come first.
+                let is_shorthand_method = prop.method
+                    || (!prop.computed
+                        && matches!(prop.kind, JsPropertyKind::Init)
+                        && matches!(self.arena.get_expr(prop.value), JsExpr::Function(_)));
+                if is_shorthand_method
+                    && let JsExpr::Function(func) = self.arena.get_expr(prop.value)
+                {
+                    if func.is_async {
+                        self.output.push_str("async ");
+                    }
+                    if func.is_generator {
+                        self.output.push('*');
+                    }
+                }
+
                 if prop.computed {
                     self.output.push('[');
                 }
@@ -1158,7 +1216,22 @@ impl<'a> JsCodegen<'a> {
     fn emit_new_expression(&mut self, new_expr: &JsNewExpression) {
         self.output.push_str("new ");
         let callee = self.arena.get_expr(new_expr.callee);
-        let needs_parens = matches!(callee, JsExpr::Class(_));
+        // `new` binds tighter than most operators, so any lower-precedence
+        // callee must be parenthesised: `new (a ? B : C)()`, `new (await f())()`.
+        let needs_parens = matches!(
+            callee,
+            JsExpr::Class(_)
+                | JsExpr::Conditional(_)
+                | JsExpr::Logical(_)
+                | JsExpr::Binary(_)
+                | JsExpr::Unary(_)
+                | JsExpr::Arrow(_)
+                | JsExpr::Function(_)
+                | JsExpr::Await(_)
+                | JsExpr::Assignment(_)
+                | JsExpr::Sequence(_)
+                | JsExpr::Yield(_)
+        );
         if needs_parens {
             self.output.push('(');
         }
@@ -1185,6 +1258,11 @@ impl<'a> JsCodegen<'a> {
                 | JsExpr::Sequence(_)
                 | JsExpr::Logical(_)
                 | JsExpr::Await(_)
+                | JsExpr::Arrow(_)
+                | JsExpr::Function(_)
+                | JsExpr::Object(_)
+                | JsExpr::Class(_)
+                | JsExpr::Yield(_)
         );
         if needs_parens {
             self.output.push('(');
@@ -1355,7 +1433,22 @@ impl<'a> JsCodegen<'a> {
         }
     }
 
+    /// Whether `expr`, used as the operand of a prefix unary keyword
+    /// (`!`, `typeof`, `void`, `delete`, `await`), must be parenthesised to
+    /// preserve precedence. All of these bind looser than a unary operator, so
+    /// `await (a + b)` must keep its parens or it reparses as `(await a) + b`.
     #[inline]
+    fn unary_operand_needs_parens(expr: &JsExpr) -> bool {
+        matches!(
+            expr,
+            JsExpr::Binary(_)
+                | JsExpr::Logical(_)
+                | JsExpr::Assignment(_)
+                | JsExpr::Conditional(_)
+                | JsExpr::Sequence(_)
+        )
+    }
+
     fn emit_unary_expression(&mut self, unary: &JsUnaryExpression) {
         let op_str = unary.operator.as_str();
         if unary.prefix {
@@ -1367,14 +1460,7 @@ impl<'a> JsCodegen<'a> {
                 self.output.push(' ');
             }
             let arg = self.arena.get_expr(unary.argument);
-            let needs_parens = matches!(
-                arg,
-                JsExpr::Binary(_)
-                    | JsExpr::Logical(_)
-                    | JsExpr::Assignment(_)
-                    | JsExpr::Conditional(_)
-                    | JsExpr::Sequence(_)
-            );
+            let needs_parens = Self::unary_operand_needs_parens(arg);
             if needs_parens {
                 self.output.push('(');
             }
@@ -1435,11 +1521,92 @@ impl<'a> JsCodegen<'a> {
         }
         if let Some(super_id) = class.super_class {
             self.output.push_str(" extends ");
-            self.emit_expression(self.arena.get_expr(super_id));
+            let sup = self.arena.get_expr(super_id);
+            let needs_parens = matches!(
+                sup,
+                JsExpr::Binary(_)
+                    | JsExpr::Logical(_)
+                    | JsExpr::Conditional(_)
+                    | JsExpr::Assignment(_)
+                    | JsExpr::Sequence(_)
+                    | JsExpr::Arrow(_)
+                    | JsExpr::Await(_)
+            );
+            if needs_parens {
+                self.output.push('(');
+            }
+            self.emit_expression(sup);
+            if needs_parens {
+                self.output.push(')');
+            }
+        }
+        if class.body.body.is_empty() {
+            self.output.push_str(" {}");
+            return;
         }
         self.output.push_str(" {");
-        // TODO: emit class body
+        self.indent_level += 1;
+        for member in &class.body.body {
+            self.newline();
+            self.emit_class_member(member);
+        }
+        self.indent_level -= 1;
+        self.newline();
         self.output.push('}');
+    }
+
+    fn emit_class_member(&mut self, member: &JsClassMember) {
+        match member {
+            JsClassMember::Method(method) => {
+                if method.is_static {
+                    self.output.push_str("static ");
+                }
+                let func = &method.value;
+                if func.is_async {
+                    self.output.push_str("async ");
+                }
+                if func.is_generator {
+                    self.output.push('*');
+                }
+                match method.kind {
+                    JsMethodKind::Get => self.output.push_str("get "),
+                    JsMethodKind::Set => self.output.push_str("set "),
+                    JsMethodKind::Constructor | JsMethodKind::Method => {}
+                }
+                if method.computed {
+                    self.output.push('[');
+                }
+                self.emit_property_key(&method.key);
+                if method.computed {
+                    self.output.push(']');
+                }
+                self.output.push('(');
+                self.emit_params(&func.params);
+                self.output.push_str(") ");
+                self.emit_block_inline(&func.body);
+            }
+            JsClassMember::Property(prop) => {
+                if prop.is_static {
+                    self.output.push_str("static ");
+                }
+                if prop.computed {
+                    self.output.push('[');
+                }
+                self.emit_property_key(&prop.key);
+                if prop.computed {
+                    self.output.push(']');
+                }
+                if let Some(value_id) = prop.value {
+                    self.output.push_str(" = ");
+                    self.emit_expression(self.arena.get_expr(value_id));
+                }
+                self.output.push(';');
+            }
+            JsClassMember::StaticBlock(block) => {
+                self.output.push_str("static ");
+                self.emit_block_inline(block);
+            }
+        }
     }
 
     fn emit_params(&mut self, params: &[JsPattern]) {
@@ -2948,5 +3115,127 @@ mod tests {
             "Logical OR inside binary should be wrapped in parens: {}",
             code
         );
+    }
+
+    // H-007: `await`/`void` must parenthesise low-precedence operands.
+    #[test]
+    fn test_await_parenthesises_binary_operand() {
+        let arena = JsArena::new();
+        let await_e = await_expr(&arena, binary(&arena, JsBinaryOp::Add, id("a"), id("b")));
+        let code = generate_expr(&await_e, &arena);
+        assert_eq!(code, "await (a + b)", "got: {code}");
+    }
+
+    #[test]
+    fn test_void_parenthesises_binary_operand() {
+        let arena = JsArena::new();
+        let inner = arena.alloc_expr(binary(&arena, JsBinaryOp::Add, id("a"), id("b")));
+        let code = generate_expr(&JsExpr::Void(inner), &arena);
+        assert_eq!(code, "void (a + b)", "got: {code}");
+    }
+
+    // H-008: object-method shorthand keeps `async` / generator markers.
+    #[test]
+    fn test_method_shorthand_preserves_async_and_generator() {
+        let arena = JsArena::new();
+        let async_fn = JsExpr::Function(JsFunctionExpression {
+            id: None,
+            params: smallvec::smallvec![],
+            body: JsBlockStatement::with_body(vec![]),
+            is_async: true,
+            is_generator: false,
+        });
+        let gen_fn = JsExpr::Function(JsFunctionExpression {
+            id: None,
+            params: smallvec::smallvec![],
+            body: JsBlockStatement::with_body(vec![]),
+            is_async: false,
+            is_generator: true,
+        });
+        let obj = JsExpr::Object(JsObjectExpression {
+            properties: vec![
+                JsObjectMember::Property(JsProperty {
+                    key: JsPropertyKey::Identifier("load".into()),
+                    value: arena.alloc_expr(async_fn),
+                    kind: JsPropertyKind::Init,
+                    computed: false,
+                    shorthand: false,
+                    method: true,
+                }),
+                JsObjectMember::Property(JsProperty {
+                    key: JsPropertyKey::Identifier("gen".into()),
+                    value: arena.alloc_expr(gen_fn),
+                    kind: JsPropertyKind::Init,
+                    computed: false,
+                    shorthand: false,
+                    method: true,
+                }),
+            ],
+        });
+        let code = generate_expr(&obj, &arena);
+        assert!(code.contains("async load("), "got: {code}");
+        assert!(code.contains("*gen("), "got: {code}");
+    }
+
+    // H-009: `new` / member object parenthesisation for low-precedence forms.
+    #[test]
+    fn test_new_parenthesises_conditional_callee() {
+        let arena = JsArena::new();
+        let new_e = new_expr(
+            &arena,
+            conditional(&arena, id("a"), id("B"), id("C")),
+            vec![],
+        );
+        let code = generate_expr(&new_e, &arena);
+        assert_eq!(code, "new (a ? B : C)()", "got: {code}");
+    }
+
+    #[test]
+    fn test_member_parenthesises_arrow_object() {
+        let arena = JsArena::new();
+        let m = member(
+            &arena,
+            arrow(&arena, vec![id_pattern("x")], id("x")),
+            "prop",
+        );
+        let code = generate_expr(&m, &arena);
+        assert_eq!(code, "((x) => x).prop", "got: {code}");
+    }
+
+    // H-010: class expression emits its body, not an empty `{}`.
+    #[test]
+    fn test_class_expression_emits_body() {
+        let arena = JsArena::new();
+        let method = JsClassMember::Method(JsMethodDefinition {
+            key: JsPropertyKey::Identifier("foo".into()),
+            value: JsFunctionExpression {
+                id: None,
+                params: smallvec::smallvec![],
+                body: JsBlockStatement::with_body(vec![]),
+                is_async: false,
+                is_generator: false,
+            },
+            kind: JsMethodKind::Method,
+            computed: false,
+            is_static: false,
+        });
+        let field = JsClassMember::Property(JsPropertyDefinition {
+            key: JsPropertyKey::Identifier("count".into()),
+            value: Some(arena.alloc_expr(number(0.0))),
+            computed: false,
+            is_static: true,
+        });
+        let class = JsExpr::Class(JsClassExpression {
+            id: Some("Thing".into()),
+            super_class: None,
+            body: JsClassBody {
+                body: vec![method, field],
+            },
+        });
+        let code = generate_expr(&class, &arena);
+        assert!(code.contains("class Thing {"), "got: {code}");
+        assert!(code.contains("foo()"), "got: {code}");
+        assert!(code.contains("static count = 0;"), "got: {code}");
+        assert!(!code.contains("class Thing {}"), "body dropped: {code}");
     }
 }
