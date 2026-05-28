@@ -196,7 +196,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // `async-const` and `async-const-wait`; the remaining fixtures need
     // orthogonal fixes (e.g. if-else nesting under async, reactivity-loss
     // context tracking).
-    "async-context-after-await-const",
     "async-derived-const-blocker",
     "async-effect-pending-eager",
     "async-reactivity-loss-async-after-sync",

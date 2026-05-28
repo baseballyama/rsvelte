@@ -1040,10 +1040,18 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
         ("runtime-runes", "async-reactivity-loss-async-after-sync"),
         // - Svelte 5.55.4 (upstream commit `0ed8c282f` "fix: reset context
-        //   after waiting on blockers of @const expressions"): two new
-        //   fixtures hit the same async-batching follow-up.
+        //   after waiting on blockers of @const expressions"): the
+        //   `apply_const_async_wrapping` pass now runs in the
+        //   `$$renderer.component(...)` wrapper path too (server `build.rs`),
+        //   so `{@const foo = bar}` where `bar` is a top-level
+        //   `$$promises[N]` blocker correctly wraps dependent text
+        //   expressions in `$$renderer.async([promises[M]], ...)`.
+        //   Unblocked `async-context-after-await-const`.
+        //   `async-effect-pending-eager` (added in upstream `273f1a85a`)
+        //   needs additional fixes — `$effect.pending()` rewrite for
+        //   `{#if}` test expressions and `<p>...</p>` trailing-whitespace
+        //   normalisation — tracked separately.
         ("runtime-runes", "async-effect-pending-eager"),
-        ("runtime-runes", "async-context-after-await-const"),
         // - `derived-dep-set-while-rendering` (Svelte 5.55.5, runtime-only
         //   commit `b771df3` adds a fixture): SSR `const x = $derived(visible)`
         //   where the arg is a bare identifier referring to another derived
