@@ -11,14 +11,6 @@ use rustc_hash::FxHashMap;
 
 use super::super::parser::Parser;
 
-/// Returns `usize::MAX` if `num` is negative, else `num` as usize.
-///
-/// Corresponds to JS `Infinity` when negative.
-#[inline]
-fn infinity_if_negative(num: i32) -> usize {
-    if num < 0 { usize::MAX } else { num as usize }
-}
-
 /// Find the end of a string expression.
 ///
 /// # Arguments
@@ -202,20 +194,22 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                 let next_char = bytes[i + 1] as char;
 
                 if next_char == '/' {
-                    // Line comment
-                    let newline_pos = memchr(b'\n', &template.as_bytes()[i + 1..])
-                        .map(|p| i + 1 + p)
-                        .unwrap_or(-1i32 as usize);
-                    i = infinity_if_negative(newline_pos as i32) + "\n".len();
+                    // Line comment. An unterminated `//` (no trailing newline)
+                    // bails to EOF so the outer loop terminates and returns None.
+                    i = match memchr(b'\n', &bytes[i + 1..]) {
+                        Some(p) => i + 1 + p + "\n".len(),
+                        None => template.len(),
+                    };
                     continue;
                 }
 
                 if next_char == '*' {
-                    // Block comment
-                    let end_pos = memmem::find(&template.as_bytes()[i + 1..], b"*/")
-                        .map(|p| i + 1 + p)
-                        .unwrap_or(-1i32 as usize);
-                    i = infinity_if_negative(end_pos as i32) + "*/".len();
+                    // Block comment. An unterminated `/*` (no closing `*/`)
+                    // bails to EOF so the outer loop terminates and returns None.
+                    i = match memmem::find(&bytes[i + 1..], b"*/") {
+                        Some(p) => i + 1 + p + "*/".len(),
+                        None => template.len(),
+                    };
                     continue;
                 }
 
@@ -398,13 +392,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_infinity_if_negative() {
-        assert_eq!(infinity_if_negative(-1), usize::MAX);
-        assert_eq!(infinity_if_negative(0), 0);
-        assert_eq!(infinity_if_negative(10), 10);
-    }
-
-    #[test]
     fn test_count_leading_backslashes() {
         assert_eq!(count_leading_backslashes(r"\\\foo", 2), 3);
         assert_eq!(count_leading_backslashes(r"\\foo", 1), 2);
@@ -438,6 +425,31 @@ mod tests {
     fn test_find_matching_bracket_with_comments() {
         assert_eq!(find_matching_bracket("{a // }\n}", 1, '{'), Some(8));
         assert_eq!(find_matching_bracket("{a /* } */}", 1, '{'), Some(10));
+    }
+
+    #[test]
+    fn test_find_matching_bracket_unterminated_comment() {
+        // Unterminated `//` and `/*` must not panic (debug) or livelock (release);
+        // the scan bails to EOF and reports no matching bracket. Covers expression
+        // tags, attribute values, and block headers since all route through here.
+
+        // Expression tag: `{foo // unterminated`
+        assert_eq!(find_matching_bracket("{foo // unterminated", 1, '{'), None);
+        // Attribute value: `class={foo /* unterminated}>` — the `/*` swallows the
+        // closing `}` because no `*/` ever follows.
+        assert_eq!(
+            find_matching_bracket("{foo /* unterminated}>", 1, '{'),
+            None
+        );
+        // `{#if}` header: `{#if foo // unterminated`
+        assert_eq!(find_matching_bracket("{#if foo // bar", 1, '{'), None);
+        // `{#each}` / `{#await}` header with unterminated block comment.
+        assert_eq!(find_matching_bracket("{#each items /* x", 1, '{'), None);
+        assert_eq!(find_matching_bracket("{#await p /* x", 1, '{'), None);
+
+        // Terminated comments still resolve correctly (no behavior change).
+        assert_eq!(find_matching_bracket("{foo // ok\n}", 1, '{'), Some(11));
+        assert_eq!(find_matching_bracket("{foo /* ok */}", 1, '{'), Some(13));
     }
 
     #[test]
