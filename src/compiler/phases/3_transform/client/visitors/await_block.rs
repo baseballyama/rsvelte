@@ -157,7 +157,16 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
         add_svelte_meta(&context.arena, await_call)
     };
 
-    if has_blockers {
+    // Svelte 5.55.9 upstream `000c594e0` "fix: `{#await await ...}` and async
+    // dependencies fixes": also wrap in `$.async(...)` when the promise
+    // expression itself contains `await`, even if there are no blockers. The
+    // outer `$.async(...)` receives an empty blockers array — `{#await await
+    // ...}` is special insofar that the await should not be waited on; the
+    // wrapper is still emitted so the async batching / hydration story matches
+    // the runtime.
+    let has_await = node.metadata.expression.has_await();
+
+    if has_blockers || has_await {
         // Wrap in $.async()
         let blockers = b::array(blocker_exprs);
 

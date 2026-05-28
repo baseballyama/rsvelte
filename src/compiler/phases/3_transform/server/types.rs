@@ -356,6 +356,14 @@ pub(crate) enum OutputPart {
         catch_param: String,
         /// Catch body - populated by the visitor but not used in server-side output
         catch_body: Vec<OutputPart>,
+        /// True when the promise expression itself contains an `await`
+        /// (`{#await await ...}`). Mirrors `node.metadata.expression.has_await`
+        /// in the upstream visitor. When set, the AwaitBlock should be wrapped
+        /// in `$$renderer.child_block(async ($$renderer) => { ... })` (per
+        /// Svelte 5.55.9 upstream `000c594e0`) and the promise expression
+        /// itself is wrapped in `(async () => <expr>)()` so that the result
+        /// is a promise instead of being awaited eagerly.
+        has_await: bool,
     },
     /// svelte:boundary - async error boundary
     SvelteBoundary {

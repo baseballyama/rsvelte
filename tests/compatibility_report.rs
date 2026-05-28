@@ -1082,11 +1082,11 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   wrapping them in `$.attr_style(\`…${$.stringify(x)}…\`)`) and
         //   `000c594e0` "fix: `{#await await ...}` and async dependencies
         //   fixes" (refines the async-batching / await-merge codegen).
-        //   rsvelte still emits the `$.stringify` form for the former and
-        //   the un-grouped sync-statement form for the latter. Tracked as
-        //   follow-up ports.
+        //   `async-await` is unblocked by the 5.55.9 `000c594e0` port; the
+        //   remaining two still fail on orthogonal axes (`$derived(await
+        //   ...)` lowering, `wrap_derived_reads` shadowing in `then` body
+        //   args, etc.). Tracked as follow-up ports.
         ("runtime-runes", "async-await-block-2"),
-        ("runtime-runes", "async-await"),
         ("runtime-runes", "async-duplicate-dependencies"),
         ("runtime-runes", "async-boundary-nav-race"),
         ("runtime-runes", "async-if-else"),
