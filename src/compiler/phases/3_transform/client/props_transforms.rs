@@ -1654,6 +1654,10 @@ pub(super) fn transform_props_destructuring(
     read_only_props: &[(String, String)],
     dev: bool,
 ) -> Option<String> {
+    // Canonicalise spacing in the `$props()` call (`= $props ()` → `= $props()`)
+    // so the byte matchers below recognise whitespace variants. The AST detector
+    // that gates this helper already confirmed it is a `$props()` rune call.
+    let line = crate::compiler::phases::phase3_transform::utils::canonicalize_props_call(line);
     let trimmed = line.trim();
 
     // Determine the original declaration keyword (let or const) to preserve it
