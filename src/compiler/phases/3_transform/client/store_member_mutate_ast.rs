@@ -48,7 +48,20 @@ const MAX_FIXED_POINT_ITERS: usize = 16;
 /// AST-based rewrite of `$store.prop = x` / `$store[i]++` etc. for
 /// the bindings in `store_subs`. Returns `None` when there's
 /// nothing to rewrite or the source fails to parse.
-pub fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) -> Option<String> {
+///
+/// `prop_store_names` lists the underlying store source names (without the
+/// `$` prefix) that are bound to a **prop**. For those, the first
+/// `$.store_mutate(...)` argument is the prop getter call (`store()`) rather
+/// than the bare name, matching the official compiler's `get_store()` (=
+/// `context.visit(b.id(name.slice(1)))`): reading a prop binding yields a
+/// getter call, so the store source must be read the same way. Without this
+/// a `$prop.x = …` mutation passed the subscription view instead of the
+/// prop's current value. Pass `&[]` for the non-prop case.
+pub fn transform_store_member_mutate_ast_with_props(
+    source: &str,
+    store_subs: &[String],
+    prop_store_names: &[String],
+) -> Option<String> {
     if store_subs.is_empty() {
         return None;
     }
@@ -62,7 +75,7 @@ pub fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) ->
     let mut current = source.to_string();
     let mut any_changed = false;
     for _ in 0..MAX_FIXED_POINT_ITERS {
-        match single_pass(&current, store_subs) {
+        match single_pass(&current, store_subs, prop_store_names) {
             Some(next) => {
                 current = next;
                 any_changed = true;
@@ -74,7 +87,7 @@ pub fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) ->
     if any_changed { Some(current) } else { None }
 }
 
-fn single_pass(source: &str, store_subs: &[String]) -> Option<String> {
+fn single_pass(source: &str, store_subs: &[String], prop_store_names: &[String]) -> Option<String> {
     MODULE_STORE_MEMBER_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
@@ -86,6 +99,7 @@ fn single_pass(source: &str, store_subs: &[String]) -> Option<String> {
         let mut collector = MemberMutateCollector {
             source,
             store_subs,
+            prop_store_names,
             replacements: Vec::new(),
         };
         collector.visit_program(&parser_ret.program);
@@ -125,6 +139,7 @@ fn single_pass(source: &str, store_subs: &[String]) -> Option<String> {
 struct MemberMutateCollector<'a> {
     source: &'a str,
     store_subs: &'a [String],
+    prop_store_names: &'a [String],
     replacements: Vec<(u32, u32, String)>,
 }
 
@@ -171,6 +186,14 @@ impl<'a> MemberMutateCollector<'a> {
         }
         let store_sub = root_name;
         let store_name = &root_name[1..];
+        // The store source is read like any other reference to its binding.
+        // For a prop binding that means the getter call `store()`; for plain /
+        // state / reactive-import stores the bare name is correct.
+        let store_access = if self.prop_store_names.iter().any(|n| n == store_name) {
+            format!("{}()", store_name)
+        } else {
+            store_name.to_string()
+        };
 
         let outer_text = &self.source[outer_span.start as usize..outer_span.end as usize];
         let rs = (root_span.start - outer_span.start) as usize;
@@ -185,7 +208,7 @@ impl<'a> MemberMutateCollector<'a> {
 
         let rewrite = format!(
             "$.store_mutate({}, {}, $.untrack({}))",
-            store_name, wrapped, store_sub
+            store_access, wrapped, store_sub
         );
         self.replacements
             .push((outer_span.start, outer_span.end, rewrite));
@@ -216,6 +239,11 @@ mod tests {
         names.iter().map(|s| s.to_string()).collect()
     }
 
+    /// Test helper: the non-prop case (no prop-backed store sources).
+    fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) -> Option<String> {
+        transform_store_member_mutate_ast_with_props(source, store_subs, &[])
+    }
+
     #[test]
     fn postfix_inc_static_member() {
         let out = transform_store_member_mutate_ast("$store.prop++;", &ssv(&["$store"])).unwrap();
@@ -231,6 +259,22 @@ mod tests {
         assert_eq!(
             out,
             "$.store_mutate(store, ++$.untrack($store).prop, $.untrack($store));"
+        );
+    }
+
+    #[test]
+    fn prop_backed_store_uses_getter_for_source() {
+        // When the store source is a prop, the first `$.store_mutate(...)`
+        // argument is the prop getter call `store()`, not the bare name.
+        let out = transform_store_member_mutate_ast_with_props(
+            "$store.prop = 5;",
+            &ssv(&["$store"]),
+            &ssv(&["store"]),
+        )
+        .unwrap();
+        assert_eq!(
+            out,
+            "$.store_mutate(store(), $.untrack($store).prop = 5, $.untrack($store));"
         );
     }
 

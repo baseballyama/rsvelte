@@ -1626,11 +1626,14 @@ fn transform_client_with_visitors(
         }));
     }
 
-    // Add disclose-version import (always first)
-    body.push(JsStatement::Import(JsImportDeclaration {
-        specifiers: vec![],
-        source: "svelte/internal/disclose-version".into(),
-    }));
+    // Add disclose-version import (first), unless the public `disclose_version`
+    // option opts out of it (H-087). Defaults to true.
+    if options.disclose_version {
+        body.push(JsStatement::Import(JsImportDeclaration {
+            specifiers: vec![],
+            source: "svelte/internal/disclose-version".into(),
+        }));
+    }
 
     // Add feature flag imports
     if !analysis.runes {

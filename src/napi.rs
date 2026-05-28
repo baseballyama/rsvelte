@@ -41,6 +41,47 @@ use crate::svelte2tsx::{
 };
 
 /// Compile a Svelte component.
+/// Serialise compiler warnings into the JSON shape the official
+/// `svelte/compiler` output uses (`code`, `message`, `filename`, `start`, `end`,
+/// `position`, `frame`).
+fn warnings_to_json(warnings: &[crate::compiler::Warning]) -> Vec<Value> {
+    warnings
+        .iter()
+        .map(|w| {
+            let mut map = serde_json::Map::new();
+            map.insert("code".to_string(), Value::String(w.code.clone()));
+            map.insert("message".to_string(), Value::String(w.message.clone()));
+            if let Some(ref filename) = w.filename {
+                map.insert("filename".to_string(), Value::String(filename.clone()));
+            }
+            if let Some(ref start) = w.start {
+                let mut s = serde_json::Map::new();
+                s.insert("line".to_string(), serde_json::json!(start.line));
+                s.insert("column".to_string(), serde_json::json!(start.column));
+                s.insert("character".to_string(), serde_json::json!(start.character));
+                map.insert("start".to_string(), Value::Object(s));
+            }
+            if let Some(ref end) = w.end {
+                let mut e = serde_json::Map::new();
+                e.insert("line".to_string(), serde_json::json!(end.line));
+                e.insert("column".to_string(), serde_json::json!(end.column));
+                e.insert("character".to_string(), serde_json::json!(end.character));
+                map.insert("end".to_string(), Value::Object(e));
+            }
+            if let (Some(start), Some(end)) = (&w.start, &w.end) {
+                map.insert(
+                    "position".to_string(),
+                    serde_json::json!([start.character, end.character]),
+                );
+            }
+            if let Some(ref frame) = w.frame {
+                map.insert("frame".to_string(), Value::String(frame.clone()));
+            }
+            Value::Object(map)
+        })
+        .collect()
+}
+
 ///
 /// Takes source code and an options object, returns a result object
 /// matching the official `svelte/compiler` output shape.
@@ -63,44 +104,7 @@ pub fn napi_compile(source: String, options: Option<NapiCompileOptions>) -> napi
                 })
             });
 
-            let warnings: Vec<Value> = result
-                .warnings
-                .iter()
-                .map(|w| {
-                    // Build warning object with keys in the same order as official Svelte:
-                    // code, message, filename, start, end, position, frame
-                    let mut map = serde_json::Map::new();
-                    map.insert("code".to_string(), Value::String(w.code.clone()));
-                    map.insert("message".to_string(), Value::String(w.message.clone()));
-                    if let Some(ref filename) = w.filename {
-                        map.insert("filename".to_string(), Value::String(filename.clone()));
-                    }
-                    if let Some(ref start) = w.start {
-                        let mut s = serde_json::Map::new();
-                        s.insert("line".to_string(), serde_json::json!(start.line));
-                        s.insert("column".to_string(), serde_json::json!(start.column));
-                        s.insert("character".to_string(), serde_json::json!(start.character));
-                        map.insert("start".to_string(), Value::Object(s));
-                    }
-                    if let Some(ref end) = w.end {
-                        let mut e = serde_json::Map::new();
-                        e.insert("line".to_string(), serde_json::json!(end.line));
-                        e.insert("column".to_string(), serde_json::json!(end.column));
-                        e.insert("character".to_string(), serde_json::json!(end.character));
-                        map.insert("end".to_string(), Value::Object(e));
-                    }
-                    if let (Some(start), Some(end)) = (&w.start, &w.end) {
-                        map.insert(
-                            "position".to_string(),
-                            serde_json::json!([start.character, end.character]),
-                        );
-                    }
-                    if let Some(ref frame) = w.frame {
-                        map.insert("frame".to_string(), Value::String(frame.clone()));
-                    }
-                    Value::Object(map)
-                })
-                .collect();
+            let warnings: Vec<Value> = warnings_to_json(&result.warnings);
 
             let output = serde_json::json!({
                 "js": js_obj,
@@ -371,7 +375,8 @@ pub fn napi_compile_module(
             let output = serde_json::json!({
                 "js": js_obj,
                 "css": Value::Null,
-                "warnings": [],
+                // Forward module-compilation warnings instead of dropping them (H-084).
+                "warnings": warnings_to_json(&result.warnings),
                 "metadata": {
                     "runes": true,
                 },

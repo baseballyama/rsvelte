@@ -197,7 +197,7 @@ pub fn unified_build_bind_this(
         ) {
             if let JsExpr::Member(member) = expr {
                 member.optional = true;
-                let mut inner = arena.take_expr(member.object);
+                let mut inner = unsafe { arena.take_expr(member.object) };
                 make_optional(arena, &mut inner);
                 member.object = arena.alloc_expr(inner);
             }

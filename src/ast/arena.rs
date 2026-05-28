@@ -1,22 +1,23 @@
 //! Arena allocator for parse-phase AST nodes.
 //!
-//! Replaces individual `Box<JsNode>` heap allocations with contiguous `Vec`
-//! storage, referenced by `JsNodeId` indices. This gives:
+//! Replaces repeated AST ownership plumbing with arena-owned storage referenced
+//! by `JsNodeId` indices. This gives:
 //!
-//! - **Cache-friendly layout** (nodes are contiguous in memory)
 //! - **Zero-cost reads** (`arena.get_js_node(id)` is a single array index)
-//! - **Cheaper allocation** (Vec push vs global allocator)
+//! - **Stable shared references** (pushing more handles cannot move nodes)
 //!
 //! Follows the proven `JsArena` pattern from
 //! `src/compiler/phases/3_transform/js_ast/arena.rs`.
 //!
 //! # Safety
 //!
-//! The arena is single-threaded (not `Sync`) and append-only.
+//! The arena is single-threaded (not `Sync`) and append-only for safe APIs.
 //! `UnsafeCell` is safe because:
-//! - Allocation only appends (never moves existing elements)
-//! - Builders return owned values, not references into the Vec
-//! - `get_*` methods return references only when no allocation is in progress
+//! - Safe allocation stores nodes/slices behind `Box`, so `Vec` reallocation
+//!   cannot move values referenced by previously returned shared references
+//! - Builders return handles, not mutable references into arena storage
+//! - Mutable/destructive access is `unsafe` and requires callers to prove no
+//!   aliases exist
 
 use std::cell::UnsafeCell;
 
@@ -48,16 +49,29 @@ impl IdRange {
     }
 }
 
+#[derive(Clone)]
+struct ChildRange {
+    start: u32,
+    len: u32,
+    nodes: Box<[JsNode]>,
+}
+
 /// Arena that owns all `JsNode` instances for a single parse unit.
 ///
 /// Allocation takes `&self` (not `&mut self`) so that builder functions
 /// can nest calls without borrow-checker conflicts.
 pub struct ParseArena {
     /// All standalone JsNode instances (referenced by JsNodeId).
-    js_nodes: UnsafeCell<Vec<JsNode>>,
+    #[allow(clippy::vec_box)] // Box keeps node addresses stable across handle Vec growth.
+    js_nodes: UnsafeCell<Vec<Box<JsNode>>>,
     /// JsNode children for `Vec<JsNode>` fields (arguments, body, properties, etc.).
-    /// Referenced by IdRange.
-    js_children: UnsafeCell<Vec<JsNode>>,
+    /// `IdRange` stores logical offsets; each range owns one boxed slice so
+    /// returned child slices remain stable if this table grows.
+    js_children: UnsafeCell<Vec<ChildRange>>,
+    /// Maps each logical child start offset to the index in `js_children` that
+    /// owns that range. Non-start offsets are left as `u32::MAX`.
+    js_child_range_by_start: UnsafeCell<Vec<u32>>,
+    next_js_child_start: UnsafeCell<u32>,
     /// Bump arena reserved for subsequent migration phases (see
     /// `docs/bumpalo-migration-plan.md`). Currently unused — Phase 0 adds it
     /// to ParseArena without changing public APIs so that Phase 1+ have a
@@ -68,7 +82,7 @@ pub struct ParseArena {
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
 // Send is fine since we can move it between threads.
 //
-// SAFETY: ParseArena owns its `UnsafeCell<Vec<JsNode>>` storage. Moving it
+// SAFETY: ParseArena owns its `UnsafeCell` storage. Moving it
 // between threads is sound because no shared references exist when ownership
 // transfers, and all internal mutation happens through `&self` methods that
 // are documented as single-threaded (UnsafeCell is `!Sync`, so the type
@@ -84,6 +98,8 @@ impl ParseArena {
         Self {
             js_nodes: UnsafeCell::new(Vec::new()),
             js_children: UnsafeCell::new(Vec::new()),
+            js_child_range_by_start: UnsafeCell::new(Vec::new()),
+            next_js_child_start: UnsafeCell::new(0),
             bump: Bump::new(),
         }
     }
@@ -102,15 +118,12 @@ impl ParseArena {
     #[inline(always)]
     pub fn alloc_js_node(&self, node: JsNode) -> JsNodeId {
         // SAFETY: ParseArena is `!Sync` (single-threaded). `UnsafeCell` is used
-        // so allocation can take `&self`. Append-only `Vec::push` never invalidates
-        // existing references because we do not return any reference here — only
-        // an owned `JsNodeId` index. No outstanding `&` or `&mut` to the Vec exist
-        // at this point because all `get_*` methods only borrow during a single
-        // call.
+        // so allocation can take `&self`. Values are stored behind `Box`, so
+        // growing the handle Vec cannot move nodes referenced by earlier reads.
         unsafe {
             let vec = &mut *self.js_nodes.get();
             let id = JsNodeId(vec.len() as u32);
-            vec.push(node);
+            vec.push(Box::new(node));
             id
         }
     }
@@ -118,14 +131,9 @@ impl ParseArena {
     /// Get a shared reference to a JsNode by handle.
     #[inline(always)]
     pub fn get_js_node(&self, id: JsNodeId) -> &JsNode {
-        // SAFETY: Single-threaded, append-only Vec — once an element is pushed
-        // its address remains stable for the Vec's lifetime, so the returned
-        // shared reference cannot be invalidated by subsequent `alloc_js_node`
-        // calls (push only grows; reallocation moves elements but `&self` borrow
-        // tied to the returned `&JsNode` prevents concurrent allocation per the
-        // borrow checker — the caller cannot call `alloc_js_node` while the
-        // returned reference is alive). Out-of-range IDs return a static fallback
-        // rather than panicking.
+        // SAFETY: Single-threaded read. The returned reference points into a
+        // `Box<JsNode>`, not into the handle Vec allocation, so later safe
+        // appends cannot invalidate it.
         unsafe {
             let vec = &*self.js_nodes.get();
             if (id.0 as usize) >= vec.len() {
@@ -138,55 +146,26 @@ impl ParseArena {
                 static NULL_NODE: JsNode = JsNode::Null;
                 return &NULL_NODE;
             }
-            &vec[id.0 as usize]
+            vec[id.0 as usize].as_ref()
         }
     }
 
     /// Get a mutable reference to a JsNode by handle.
+    ///
+    /// # Safety
+    /// The caller must ensure no shared or mutable references to the same node
+    /// are live for the duration of the returned borrow.
     #[inline(always)]
     #[allow(clippy::mut_from_ref)]
-    pub fn get_js_node_mut(&self, id: JsNodeId) -> &mut JsNode {
-        // SAFETY: Single-threaded. Caller is responsible for ensuring no other
-        // outstanding reference exists for the same `id` (the borrow checker
-        // cannot enforce this through `&self`, which is why this method uses
-        // `#[allow(clippy::mut_from_ref)]`). Used only by mutation passes that
-        // are aware of arena aliasing — see `crate::compiler::phases::phase2_analyze`.
+    pub unsafe fn get_js_node_mut(&self, id: JsNodeId) -> &mut JsNode {
+        // SAFETY: Enforced by the caller's contract above.
         unsafe {
             let vec = &mut *self.js_nodes.get();
-            &mut vec[id.0 as usize]
+            vec[id.0 as usize].as_mut()
         }
     }
 
     // -- JsNode children (for Vec<JsNode> fields) ----------------------------
-
-    /// Get the current child count (used to record IdRange start).
-    #[inline(always)]
-    pub fn js_children_count(&self) -> u32 {
-        // SAFETY: Single-threaded, immutable read of `Vec::len`. `len()` does not
-        // take a reference into the Vec, so no aliasing concern.
-        unsafe { (*self.js_children.get()).len() as u32 }
-    }
-
-    /// Allocate a JsNode child (for `Vec<JsNode>` fields like arguments, body).
-    #[inline(always)]
-    pub fn alloc_js_child(&self, node: JsNode) {
-        // SAFETY: Same as `alloc_js_node` — single-threaded append-only push,
-        // no reference returned to the caller.
-        unsafe {
-            let vec = &mut *self.js_children.get();
-            vec.push(node);
-        }
-    }
-
-    /// Build an IdRange from children allocated since `start`.
-    #[inline(always)]
-    pub fn children_range_since(&self, start: u32) -> IdRange {
-        let end = self.js_children_count();
-        IdRange {
-            start,
-            len: end - start,
-        }
-    }
 
     /// Get a slice of JsNode children by range.
     #[inline(always)]
@@ -194,41 +173,57 @@ impl ParseArena {
         if range.is_empty() {
             return &[];
         }
-        // SAFETY: Single-threaded read. Append-only Vec means `range.start`
-        // through `range.start + range.len` was valid at the time the IdRange
-        // was minted; subsequent `alloc_js_child` calls only extend past `end`.
-        // The borrow checker prevents concurrent allocation while this `&[JsNode]`
-        // borrow is alive (the borrow ties to `&self`).
+        // SAFETY: Single-threaded read. Matching ranges own boxed slices, so
+        // later safe allocation cannot move returned child slices.
         unsafe {
-            let vec = &*self.js_children.get();
-            let end = (range.start + range.len) as usize;
-            if end > vec.len() {
+            let ranges = &*self.js_children.get();
+            let by_start = &*self.js_child_range_by_start.get();
+            if let Some(&range_index) = by_start.get(range.start as usize)
+                && range_index != u32::MAX
+            {
+                let entry = &ranges[range_index as usize];
+                if entry.start == range.start && entry.len == range.len {
+                    return entry.nodes.as_ref();
+                }
+            }
+
+            #[cfg(debug_assertions)]
+            {
+                let child_count = *self.next_js_child_start.get();
                 #[cfg(debug_assertions)]
                 eprintln!(
                     "ARENA CHILDREN MISMATCH: range({},{}) but arena has {} children",
-                    range.start,
-                    range.len,
-                    vec.len()
+                    range.start, range.len, child_count
                 );
-                return &[];
             }
-            &vec[range.start as usize..end]
+            &[]
         }
     }
 
     /// Get a mutable slice of JsNode children by range.
+    ///
+    /// # Safety
+    /// The caller must ensure no shared or mutable references to the same child
+    /// range are live for the duration of the returned borrow.
     #[inline(always)]
     #[allow(clippy::mut_from_ref)]
-    pub fn get_js_children_mut(&self, range: IdRange) -> &mut [JsNode] {
+    pub unsafe fn get_js_children_mut(&self, range: IdRange) -> &mut [JsNode] {
         if range.is_empty() {
             return &mut [];
         }
-        // SAFETY: Single-threaded. Caller is responsible for non-aliasing —
-        // see notes on `get_js_node_mut`. Used by transform passes that
-        // mutate children in place.
+        // SAFETY: Enforced by the caller's contract above.
         unsafe {
-            let vec = &mut *self.js_children.get();
-            &mut vec[range.start as usize..(range.start + range.len) as usize]
+            let ranges = &mut *self.js_children.get();
+            let by_start = &*self.js_child_range_by_start.get();
+            let range_index = by_start
+                .get(range.start as usize)
+                .copied()
+                .filter(|idx| *idx != u32::MAX)
+                .expect("arena child range not found");
+            let entry = &mut ranges[range_index as usize];
+            assert_eq!(entry.start, range.start, "arena child range start mismatch");
+            assert_eq!(entry.len, range.len, "arena child range len mismatch");
+            entry.nodes.as_mut()
         }
     }
 
@@ -239,14 +234,35 @@ impl ParseArena {
         if nodes.is_empty() {
             return IdRange::empty();
         }
-        let start = self.js_children_count();
-        // SAFETY: Same as `alloc_js_child` — single-threaded append-only extend,
-        // no reference returned to the caller.
+        // SAFETY: Single-threaded counter update.
+        let start = unsafe {
+            let next = &mut *self.next_js_child_start.get();
+            let start = *next;
+            *next += nodes.len() as u32;
+            start
+        };
+        let len = nodes.len();
+        // SAFETY: Single-threaded append. Children are kept in a boxed slice, so
+        // returned slices remain stable even if the range table reallocates.
         unsafe {
-            let vec = &mut *self.js_children.get();
-            vec.extend(nodes);
+            let ranges = &mut *self.js_children.get();
+            let range_index = ranges.len() as u32;
+            ranges.push(ChildRange {
+                start,
+                len: len as u32,
+                nodes: nodes.into_boxed_slice(),
+            });
+            let by_start = &mut *self.js_child_range_by_start.get();
+            let required_len = start as usize + len;
+            if by_start.len() < required_len {
+                by_start.resize(required_len, u32::MAX);
+            }
+            by_start[start as usize] = range_index;
         }
-        self.children_range_since(start)
+        IdRange {
+            start,
+            len: len as u32,
+        }
     }
 }
 
@@ -258,9 +274,9 @@ impl Default for ParseArena {
 
 impl Clone for ParseArena {
     fn clone(&self) -> Self {
-        // SAFETY: Single-threaded `Clone` — we read both Vecs and clone their
-        // contents. No outstanding mutable borrow on `self` during clone (the
-        // `&self` parameter prevents concurrent mutation per the borrow checker).
+        // SAFETY: Single-threaded `Clone` — we read the arena tables and clone
+        // their contents. Callers must not clone while unsafe mutable/destructive
+        // arena operations are active.
         //
         // The `bump` field gets a fresh empty `Bump` on clone (Bump isn't
         // Clone). This matches the not-yet-used status — Phase 1+ will need
@@ -269,6 +285,10 @@ impl Clone for ParseArena {
             Self {
                 js_nodes: UnsafeCell::new((*self.js_nodes.get()).clone()),
                 js_children: UnsafeCell::new((*self.js_children.get()).clone()),
+                js_child_range_by_start: UnsafeCell::new(
+                    (*self.js_child_range_by_start.get()).clone(),
+                ),
+                next_js_child_start: UnsafeCell::new(*self.next_js_child_start.get()),
                 bump: Bump::new(),
             }
         }
@@ -282,9 +302,61 @@ impl std::fmt::Debug for ParseArena {
         unsafe {
             f.debug_struct("ParseArena")
                 .field("js_nodes_count", &(*self.js_nodes.get()).len())
-                .field("js_children_count", &(*self.js_children.get()).len())
+                .field("js_children_count", &*self.next_js_child_start.get())
                 .finish()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use compact_str::CompactString;
+
+    fn ident(name: &str) -> JsNode {
+        JsNode::Identifier {
+            start: 0,
+            end: 0,
+            loc: None,
+            name: CompactString::new(name),
+        }
+    }
+
+    #[test]
+    fn js_node_refs_survive_later_allocations() {
+        let arena = ParseArena::new();
+        let id = arena.alloc_js_node(ident("first"));
+        let node = arena.get_js_node(id);
+
+        for i in 0..10_000 {
+            arena.alloc_js_node(ident(&format!("n{i}")));
+        }
+
+        assert!(matches!(node, JsNode::Identifier { name, .. } if name == "first"));
+    }
+
+    #[test]
+    fn js_child_slices_survive_later_allocations() {
+        let arena = ParseArena::new();
+        let range = arena.alloc_js_children(vec![ident("first")]);
+        let children = arena.get_js_children(range);
+
+        for i in 0..10_000 {
+            arena.alloc_js_children(vec![ident(&format!("n{i}"))]);
+        }
+
+        assert!(matches!(&children[0], JsNode::Identifier { name, .. } if name == "first"));
+    }
+
+    #[test]
+    fn js_child_lookup_uses_start_index() {
+        let arena = ParseArena::new();
+        let ranges: Vec<_> = (0..10_000)
+            .map(|i| arena.alloc_js_children(vec![ident(&format!("n{i}"))]))
+            .collect();
+
+        let children = arena.get_js_children(ranges[9_999]);
+        assert!(matches!(&children[0], JsNode::Identifier { name, .. } if name == "n9999"));
     }
 }
 
@@ -303,10 +375,9 @@ thread_local! {
 /// Restoring (rather than clearing to `None`) is critical: nested
 /// callers — e.g. `JsNode::to_value` falling back to `DESER_ARENA` while
 /// a `compile()` already installed its own arena — would otherwise wipe
-/// the outer scope's pointer and leave the caller's later
-/// `resolve_js_node_for_serialize` calls reading from the wrong (or no)
-/// arena, surfacing as cross-talk between concurrent compilations on
-/// the same thread.
+/// the outer scope's pointer and leave later serialization reads without
+/// the correct arena, surfacing as cross-talk between compilations on the
+/// same thread.
 pub struct SerializeArenaGuard {
     prev: Option<*const ParseArena>,
 }
@@ -356,17 +427,22 @@ pub unsafe fn set_serialize_arena(arena: *const ParseArena) {
     });
 }
 
-/// Try to get the current serialize arena for allocation (used by deserialization).
-/// Returns None if no arena is set.
+/// Run `f` with the current serialize arena if one is installed.
 #[inline]
-pub fn try_get_serialize_arena() -> Option<&'static ParseArena> {
-    // SAFETY: The pointer is set only via `with_serialize_arena` (which scopes
-    // the pointer's validity to a single function call) or via the explicitly
-    // `unsafe` `set_serialize_arena` (whose contract is documented). The
-    // `'static` lifetime is fictional but bounded by the discipline that callers
-    // never retain the returned reference past `clear_serialize_arena()` /
-    // `with_serialize_arena` scope.
-    SERIALIZE_ARENA.with(|cell| cell.get().map(|ptr| unsafe { &*ptr }))
+pub fn try_with_current_serialize_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> Option<R> {
+    SERIALIZE_ARENA.with(|cell| {
+        let ptr = cell.get()?;
+        // SAFETY: The returned reference is scoped to this closure call. The
+        // pointer is installed by `with_serialize_arena` or by the unsafe
+        // `set_serialize_arena` API, whose caller must keep the arena alive.
+        Some(f(unsafe { &*ptr }))
+    })
+}
+
+/// Run `f` with the current serialize arena. Panics if no arena is set.
+#[inline]
+pub fn with_current_serialize_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> R {
+    try_with_current_serialize_arena(f).expect("serialize arena not set")
 }
 
 /// Clear the thread-local serialize arena.
@@ -380,33 +456,4 @@ pub fn clear_serialize_arena() {
 #[inline(always)]
 pub fn has_serialize_arena() -> bool {
     SERIALIZE_ARENA.with(|cell| cell.get().is_some())
-}
-
-/// Resolve a JsNodeId during serialization. Panics if no arena is set.
-#[inline(always)]
-pub fn resolve_js_node_for_serialize(id: JsNodeId) -> &'static JsNode {
-    // SAFETY: The thread-local pointer is dereferenced inside the closure
-    // passed to `SERIALIZE_ARENA.with`, which holds the cell read-only for the
-    // duration of the call. The transmute extends the borrow to `'static` —
-    // this is sound only because callers must invoke this function inside
-    // `with_serialize_arena` (or explicitly between `set_serialize_arena` and
-    // `clear_serialize_arena`), guaranteeing the arena outlives the returned
-    // reference. Misuse outside of that scope would dangle, but the public
-    // API contract documents this.
-    SERIALIZE_ARENA.with(|cell| unsafe {
-        let arena = &*cell.get().expect("serialize arena not set");
-        std::mem::transmute::<&JsNode, &'static JsNode>(arena.get_js_node(id))
-    })
-}
-
-/// Resolve an IdRange of JsNode children during serialization.
-#[inline(always)]
-pub fn resolve_js_children_for_serialize(range: IdRange) -> &'static [JsNode] {
-    // SAFETY: Same lifetime contract as `resolve_js_node_for_serialize` — the
-    // arena must outlive the returned slice, which is guaranteed when the
-    // caller is inside `with_serialize_arena`.
-    SERIALIZE_ARENA.with(|cell| unsafe {
-        let arena = &*cell.get().expect("serialize arena not set");
-        std::mem::transmute::<&[JsNode], &'static [JsNode]>(arena.get_js_children(range))
-    })
 }

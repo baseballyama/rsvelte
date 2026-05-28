@@ -442,29 +442,28 @@ fn post_process_for_server(source: &str) -> String {
         }
     }
 
-    // Replace $.update_pre(x) with ++x for server modules
-    // IMPORTANT: Process $.update_pre BEFORE $.update to avoid prefix matching issues
+    // Replace $.update_pre(x) with ++x for server modules.
+    // IMPORTANT: Process $.update_pre BEFORE $.update to avoid prefix matching issues.
+    // A second argument (`$.update_pre(x, -1)`) is the decrement form (`--x`); any
+    // other delta `d` maps to `x += d` (H-031 — previously the raw `x, -1` content
+    // was prefixed with `++`, producing invalid `++x, -1`).
     while let Some(pos) = finder_update_pre.find(result.as_bytes()) {
         let call_start = pos + 13;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end].trim();
-            let mut replacement = String::with_capacity(content.len() + 2);
-            replacement.push_str("++");
-            replacement.push_str(content);
+            let replacement = build_update_replacement(content, true);
             result = splice!(result, pos, &replacement, call_start + content_end + 1);
         } else {
             break;
         }
     }
 
-    // Replace $.update(x) with x++ for server modules
+    // Replace $.update(x) with x++ for server modules (and $.update(x, -1) with x--).
     while let Some(pos) = finder_update.find(result.as_bytes()) {
         let call_start = pos + 9;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let content = result[call_start..call_start + content_end].trim();
-            let mut replacement = String::with_capacity(content.len() + 2);
-            replacement.push_str(content);
-            replacement.push_str("++");
+            let replacement = build_update_replacement(content, false);
             result = splice!(result, pos, &replacement, call_start + content_end + 1);
         } else {
             break;
@@ -584,18 +583,109 @@ fn collect_derived_names(source: &str) -> std::collections::HashSet<String> {
     names
 }
 
-/// Find the position of the first comma at depth 0 in a string.
+/// Find the byte position of the first comma at bracket-depth 0, skipping
+/// commas inside string / template literals and `//` / `/*` comments (H-032).
+/// Without this, `$.set(name, 'Ada, Lovelace')` splits the value at the comma
+/// inside the string literal.
 fn find_first_comma(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
     let mut depth = 0i32;
-    for (i, c) in s.char_indices() {
-        match c {
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth -= 1,
-            ',' if depth == 0 => return Some(i),
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                i = skip_string_literal(bytes, i);
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => return Some(i),
             _ => {}
         }
+        i += 1;
     }
     None
+}
+
+/// Build the server replacement for a `$.update(...)` / `$.update_pre(...)` call
+/// body. `prefix` selects `++x`/`--x` (update_pre) vs `x++`/`x--` (update).
+///
+/// - `signal`            -> `signal++` / `++signal`
+/// - `signal, -1`        -> `signal--` / `--signal`
+/// - `signal, d`         -> `signal += d` (return value is unused in SSR)
+///
+/// The args are split on a string/comment-aware comma so the signal expression
+/// is never truncated (H-031).
+fn build_update_replacement(content: &str, prefix: bool) -> String {
+    let (signal, delta) = match find_first_comma(content) {
+        Some(comma) => (content[..comma].trim(), Some(content[comma + 1..].trim())),
+        None => (content, None),
+    };
+    match delta {
+        None => {
+            if prefix {
+                format!("++{signal}")
+            } else {
+                format!("{signal}++")
+            }
+        }
+        Some("-1") => {
+            if prefix {
+                format!("--{signal}")
+            } else {
+                format!("{signal}--")
+            }
+        }
+        Some(d) => format!("{signal} += {d}"),
+    }
+}
+
+/// Skip a string / template literal whose opening quote byte is at
+/// `bytes[start]`. Returns the index just past the closing quote, handling
+/// backslash escapes and (for template literals) balanced `${ … }`
+/// interpolations.
+fn skip_string_literal(bytes: &[u8], start: usize) -> usize {
+    let quote = bytes[start];
+    let mut i = start + 1;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if c == b'\\' {
+            i += 2;
+            continue;
+        }
+        if quote == b'`' && c == b'$' && bytes.get(i + 1) == Some(&b'{') {
+            i += 2;
+            let mut brace_depth = 1u32;
+            while i < bytes.len() && brace_depth > 0 {
+                match bytes[i] {
+                    b'{' => brace_depth += 1,
+                    b'}' => brace_depth -= 1,
+                    _ => {}
+                }
+                i += 1;
+            }
+            continue;
+        }
+        i += 1;
+        if c == quote {
+            break;
+        }
+    }
+    i
 }
 
 /// Server-side code generator.
@@ -1647,5 +1737,32 @@ impl<'a> ServerCodeGenerator<'a> {
             self.generate_node(node, true)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_update_replacement, find_first_comma};
+
+    #[test]
+    fn find_first_comma_skips_string_literals() {
+        // H-032: a comma inside a string/template literal is not a separator.
+        assert_eq!(find_first_comma("name, 'Ada, Lovelace'"), Some(4));
+        assert_eq!(find_first_comma("'Ada, Lovelace'"), None);
+        assert_eq!(find_first_comma("`a, ${b}`, c"), Some(9));
+        assert_eq!(find_first_comma("f(a, b), c"), Some(7));
+        // Comment commas are ignored too.
+        assert_eq!(find_first_comma("x /* a, b */, y"), Some(12));
+    }
+
+    #[test]
+    fn update_replacement_handles_increment_decrement_and_delta() {
+        // H-031: `$.update(count, -1)` must not become `count, -1++`.
+        assert_eq!(build_update_replacement("count", false), "count++");
+        assert_eq!(build_update_replacement("count", true), "++count");
+        assert_eq!(build_update_replacement("count, -1", false), "count--");
+        assert_eq!(build_update_replacement("count, -1", true), "--count");
+        // A non-(-1) delta falls back to compound assignment.
+        assert_eq!(build_update_replacement("count, 2", false), "count += 2");
     }
 }
