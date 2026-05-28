@@ -66,7 +66,7 @@ pub(super) fn transform_store_assignments_client(
     // name (other binding kinds keep the bare name).
     for store_sub in store_sub_vars {
         let store_name = store_sub[1..].to_string();
-        let prop_store_names: Vec<String> = if prop_vars.iter().any(|p| *p == store_name) {
+        let prop_store_names: Vec<String> = if prop_vars.contains(&store_name) {
             vec![store_name]
         } else {
             Vec::new()

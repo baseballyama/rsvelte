@@ -48,18 +48,15 @@ const MAX_FIXED_POINT_ITERS: usize = 16;
 /// AST-based rewrite of `$store.prop = x` / `$store[i]++` etc. for
 /// the bindings in `store_subs`. Returns `None` when there's
 /// nothing to rewrite or the source fails to parse.
-pub fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) -> Option<String> {
-    transform_store_member_mutate_ast_with_props(source, store_subs, &[])
-}
-
-/// Like [`transform_store_member_mutate_ast`], but `prop_store_names` lists the
-/// underlying store source names (without the `$` prefix) that are bound to a
-/// **prop**. For those, the first `$.store_mutate(...)` argument is the prop
-/// getter call (`store()`) rather than the bare name, matching the official
-/// compiler's `get_store()` (= `context.visit(b.id(name.slice(1)))`): reading a
-/// prop binding yields a getter call, so the store source must be read the same
-/// way. Without this a `$prop.x = …` mutation passed the subscription view
-/// instead of the prop's current value.
+///
+/// `prop_store_names` lists the underlying store source names (without the
+/// `$` prefix) that are bound to a **prop**. For those, the first
+/// `$.store_mutate(...)` argument is the prop getter call (`store()`) rather
+/// than the bare name, matching the official compiler's `get_store()` (=
+/// `context.visit(b.id(name.slice(1)))`): reading a prop binding yields a
+/// getter call, so the store source must be read the same way. Without this
+/// a `$prop.x = …` mutation passed the subscription view instead of the
+/// prop's current value. Pass `&[]` for the non-prop case.
 pub fn transform_store_member_mutate_ast_with_props(
     source: &str,
     store_subs: &[String],
@@ -240,6 +237,11 @@ mod tests {
 
     fn ssv(names: &[&str]) -> Vec<String> {
         names.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Test helper: the non-prop case (no prop-backed store sources).
+    fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) -> Option<String> {
+        transform_store_member_mutate_ast_with_props(source, store_subs, &[])
     }
 
     #[test]
