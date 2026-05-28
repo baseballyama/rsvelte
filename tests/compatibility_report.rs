@@ -988,50 +988,31 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   share one thunk + `$$promises[N]` blocker index) unblocked
         //   `async-if-hydration`, `async-derived-with-effect-and-boundary`,
         //   `async-binding-after-await`, `async-transform-empty-statements`.
-        //
-        //   The remaining three (`async-derived-indirect`,
-        //   `async-later-sync-overlaps`, `async-style-after-await`) still
-        //   fail on orthogonal axes — SSR `(await $.save(...))()`
-        //   wrap, comment preservation inside `var <names>;`, and per-template-
-        //   effect blocker-list deduplication — tracked under the 5.55.1
-        //   `async-overlap-multiple-*` cluster comment below.
-        ("runtime-runes", "async-derived-indirect"),
-        ("runtime-runes", "async-later-sync-overlaps"),
+        //   The SSR `$.save` predicate port (this PR) unblocks
+        //   `async-derived-indirect` and `async-later-sync-overlaps` by
+        //   walking parents (instead of using `!in_block_body`) so awaits
+        //   inside root-Fragment / block-body Fragments no longer get
+        //   wrapped in `$.save(...)`. `async-style-after-await` still fails
+        //   on the client side (unrelated cluster).
         ("runtime-runes", "async-style-after-await"),
         // - `async-overlap-multiple-1..7` (Svelte 5.55.1, upstream chore
-        //   `5e8662fb2` "chore: lots of async tests"): brand-new
-        //   async-overlap fixtures whose compiled `client.js` differs from
-        //   ours only in blank-line placement around hoisted function decls
-        //   (`function delay(value) { ... }`). The semantic output is
-        //   identical but the literal diff is non-zero, so the test fails.
-        //   Tracked as a follow-up port (likely a canonicalize_js or hoisting
-        //   tweak).
-        ("runtime-runes", "async-overlap-multiple-1"),
-        ("runtime-runes", "async-overlap-multiple-2"),
-        ("runtime-runes", "async-overlap-multiple-3"),
-        ("runtime-runes", "async-overlap-multiple-4"),
+        //   `5e8662fb2` "chore: lots of async tests"). The SSR `$.save`
+        //   predicate port (this PR) unblocks -1..4. -5..7 use
+        //   `let b = $derived(await delay(...))` in the instance script and
+        //   hit a separate async-blocker cluster (still client-side failure).
         ("runtime-runes", "async-overlap-multiple-5"),
         ("runtime-runes", "async-overlap-multiple-6"),
         ("runtime-runes", "async-overlap-multiple-7"),
         // - Svelte 5.55.2 cluster: upstream commits `8966601dc` "handle parens
         //   in template expressions more robustly" + `edcbb0e64` "invalidate
-        //   `@const` tags based on visible references in legacy mode" expose
-        //   pre-existing rsvelte parsing/codegen gaps:
-        //   * `async-if-block-unskip` — blank-line placement only.
-        ("runtime-runes", "async-if-block-unskip"),
+        //   `@const` tags based on visible references in legacy mode".
+        //   `async-if-block-unskip` was unblocked by the SSR `$.save`
+        //   predicate port (this PR).
         // - Svelte 5.55.3 cluster: upstream commit `3937ec03b` "fix: correctly
         //   calculate `@const` blockers". The 5.55.3 port (this PR) flipped
-        //   `async-const` and `async-const-wait` by switching the server
-        //   `@const` thunks to expression-bodied arrows and adding a
-        //   top-level `$$promises` blocker fallback to the server
-        //   `const_tag` visitor. The remaining fixtures fall into the
-        //   reactivity-loss-context cluster (Svelte 5.55.4 follow-up,
-        //   tracked separately).
+        //   `async-const` and `async-const-wait`. The remaining fixtures
+        //   below need orthogonal fixes.
         ("runtime-runes", "async-derived-const-blocker"),
-        ("runtime-runes", "async-reactivity-loss-no-false-positive-1"),
-        ("runtime-runes", "async-reactivity-loss-no-false-positive-2"),
-        ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
-        ("runtime-runes", "async-reactivity-loss-async-after-sync"),
         // - Svelte 5.55.4 (upstream commit `0ed8c282f` "fix: reset context
         //   after waiting on blockers of @const expressions"): the
         //   `apply_const_async_wrapping` pass now runs in the
@@ -1040,20 +1021,10 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `$$promises[N]` blocker correctly wraps dependent text
         //   expressions in `$$renderer.async([promises[M]], ...)`.
         //   Unblocked `async-context-after-await-const`.
-        //   Upstream `273f1a85a` "fix: keep flushing new eager effects" added
-        //   the `async-effect-pending-eager` fixture. The runtime-side eager
-        //   flush fix is JS-only (`batch.js` reordering of `eager_versions`
-        //   clear vs. `flushSync`) and therefore not applicable to rsvelte,
-        //   which doesn't ship the runtime. The fixture is unblocked
-        //   compile-side by porting the SSR `$effect.pending()` rewrite to
-        //   the `{#if}` test-expression path (server `IfBlock` visitor now
-        //   runs `transform_rune_in_template_expr` over `block.test`,
-        //   matching upstream's per-CallExpression rune rewrite that fires
-        //   whenever the IfBlock visitor recursively visits its test node).
-        //   `<p>` trailing-whitespace normalisation turned out to be a
-        //   non-issue: every remaining server-output divergence is pure
-        //   indentation that the OXC canonical comparator collapses to
-        //   MATCH.
+        //   `async-effect-pending-eager` (added in upstream `273f1a85a`)
+        //   needs additional fixes — `$effect.pending()` rewrite for
+        //   `{#if}` test expressions and `<p>...</p>` trailing-whitespace
+        //   normalisation — tracked separately.
         // - `derived-dep-set-while-rendering` (Svelte 5.55.5, runtime-only
         //   commit `b771df3` adds a fixture): SSR `const x = $derived(visible)`
         //   where the arg is a bare identifier referring to another derived
@@ -1064,14 +1035,11 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // - Svelte 5.55.6 cluster: upstream commits `e00944ffd`/`89b6a939f`/
         //   `4c96b469f`/`69b4c9f56`. New async-* fixtures exercise the same
         //   sync-grouping/`Promise.all`-save follow-up tracked since 5.54.1.
-        //   `dynamic-component-member` was unblocked by porting `e00944ffd`
-        //   (member-id wrapping for both SSR `Component` and the
-        //   client-side `$.component(node, () => ...)` thunk).
-        ("runtime-runes", "async-flushsync-in-effect"),
-        ("runtime-runes", "async-stale-derived-4"),
+        //   `dynamic-component-member` exposes an additional rsvelte gap
+        //   (`<svelte:component this={state.x.Y}>` doesn't wrap `state` in
+        //   `$.get(...)` for SSR/client). Tracked as a follow-up port.
         ("runtime-runes", "async-eager-block"),
         ("runtime-runes", "async-dont-rebase-new-batch-1"),
-        ("runtime-runes", "async-dont-rebase-new-batch-2"),
         ("runtime-runes", "async-dont-rebase-new-batch-3"),
         ("runtime-runes", "async-dont-rebase-new-batch-4"),
         ("runtime-runes", "async-debug-awaited-expression"),
@@ -1089,7 +1057,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-await-block-2"),
         ("runtime-runes", "async-duplicate-dependencies"),
         ("runtime-runes", "async-boundary-nav-race"),
-        ("runtime-runes", "async-if-else"),
         // The hydration `boundary-pending-attribute` fixture (Svelte 5.54.x)
         // is now unblocked by the 5.55.3 `@const` blocker port (this PR),
         // which switches the server `@const` assignment thunks from

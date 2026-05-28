@@ -25,6 +25,12 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
         body_generator.uses_store_subs = self.uses_store_subs;
+        // <title> is element-like (upstream uses `process_children`, not
+        // `visit(fragment)`), so the immediate template parent of any
+        // expression-tag inside it is `TitleElement`, not a `Fragment`. That
+        // is exactly the path-walk case where upstream's `AwaitExpression.js`
+        // applies `$.save(...)`. Toggle `in_block_body` off accordingly.
+        body_generator.in_block_body = false;
 
         // Add <title> tag
         body_generator

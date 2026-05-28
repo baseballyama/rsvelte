@@ -1018,7 +1018,19 @@ impl<'a> ServerCodeGenerator<'a> {
             hmr: false,
             component_api_v4: false,
             filename: None,
-            in_block_body: false,
+            // Default to `true` so async expression tags emit a plain `await`
+            // (no `$.save(...)` wrap). Element-like visitors (RegularElement,
+            // TitleElement, SelectElement, the `<textarea>` path) set this to
+            // `false` for their direct children iteration, which is the only
+            // template position where upstream's `AwaitExpression.js` walks the
+            // path and lands on a metadata-bearing non-Fragment / non-ExpressionTag
+            // parent — i.e. the only template context that actually wraps the
+            // argument in `$.save(...)`. Every Fragment-bodied parent
+            // (root component fragment, IfBlock / EachBlock / KeyBlock /
+            // SnippetBlock / AwaitBlock body, SvelteHead, SvelteElement,
+            // SvelteBoundary, Component slot) goes through Fragment first,
+            // so its top-of-path stays `Fragment` and the predicate stays "no save".
+            in_block_body: true,
             in_if_body: false,
             const_promises_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             const_blocker_map: std::rc::Rc::new(std::cell::RefCell::new(
