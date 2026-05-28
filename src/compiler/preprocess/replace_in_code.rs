@@ -261,15 +261,25 @@ impl MappedCode {
             self.map.names = names;
         }
 
-        // Update source/name indices in m2's mappings
+        // Update source/name indices in m2's mappings. Bounds-check the lookup
+        // tables: a malformed input map can carry a source/name index that is
+        // out of range for its declared `sources` / `names` arrays, which would
+        // otherwise panic the whole compile (H-142). Leave such a segment's index
+        // unchanged rather than crashing.
         let mut m2_mappings = m2.mappings;
         for line in &mut m2_mappings {
             for segment in line {
-                if segment.len() >= 2 && segment[1] >= 0 {
-                    segment[1] = new_source_idx[segment[1] as usize] as i64;
+                if segment.len() >= 2
+                    && segment[1] >= 0
+                    && let Some(&mapped) = new_source_idx.get(segment[1] as usize)
+                {
+                    segment[1] = mapped as i64;
                 }
-                if segment.len() >= 5 && segment[4] >= 0 {
-                    segment[4] = new_name_idx[segment[4] as usize] as i64;
+                if segment.len() >= 5
+                    && segment[4] >= 0
+                    && let Some(&mapped) = new_name_idx.get(segment[4] as usize)
+                {
+                    segment[4] = mapped as i64;
                 }
             }
         }
@@ -399,5 +409,37 @@ mod tests {
         assert_eq!(merged, vec!["a", "b", "c", "d"]);
         assert_eq!(idx_map, vec![1, 3]); // "b" maps to 1, "d" maps to 3
         assert!(changed);
+    }
+
+    fn mapped(string: &str, sources: Vec<String>, mappings: Vec<Vec<Vec<i64>>>) -> MappedCode {
+        MappedCode {
+            string: string.to_string(),
+            map: SimpleDecodedMap {
+                version: Some(3),
+                file: None,
+                sources,
+                sources_content: None,
+                names: vec![],
+                mappings,
+                source_root: None,
+            },
+        }
+    }
+
+    // H-142: an input map whose mapping segment carries a source/name index that
+    // is out of range for its `sources`/`names` arrays must not panic `concat`.
+    #[test]
+    fn concat_does_not_panic_on_out_of_range_indices() {
+        let m1 = mapped("a", vec!["a.svelte".into()], vec![vec![vec![0, 0, 0, 0]]]);
+        // segment source index 5 and name index 9 are both out of range for the
+        // single-entry sources / empty names of m2.
+        let m2 = mapped(
+            "b",
+            vec!["b.svelte".into()],
+            vec![vec![vec![0, 5, 0, 0, 9]]],
+        );
+        let combined = m1.concat(m2);
+        // The out-of-range indices are left unchanged rather than crashing.
+        assert!(!combined.map.mappings.is_empty());
     }
 }
