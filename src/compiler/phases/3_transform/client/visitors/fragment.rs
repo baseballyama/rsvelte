@@ -540,7 +540,16 @@ pub fn fragment(
                         indices.push(idx);
                     }
                 }
-                indices.sort();
+                // NOTE: Do not sort. Insertion order matches upstream Svelte's
+                // `Memoizer.#blockers = new Set()` which iterates in insertion
+                // order. The order of `all_names` follows the order identifiers
+                // are visited in the template (similar to upstream's
+                // `check_blockers` invocation order). Sorting here would lose
+                // that signal and emit declaration-order blockers like
+                // `[$$promises[0], $$promises[1]]` for `async-eager-derived`,
+                // whereas upstream emits the latest-use order
+                // `[$$promises[1], $$promises[0]]`. Mirrors Svelte 5.53.12
+                // upstream commit `965f2a0ac`.
 
                 // Collect const-tag-level blocker expressions from const_blocker_map.
                 // Use pointer identity to deduplicate (same source pointer = same expression).

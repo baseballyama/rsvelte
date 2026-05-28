@@ -849,29 +849,22 @@ impl<'a> Parser<'a> {
         self.skip_whitespace();
     }
 
-    /// Scan forward from the current position to find the matching closing brace,
-    /// tracking nested brace depth. Returns the position of the closing `}`.
-    /// Uses byte-level scanning for maximum speed.
+    /// Scan forward from the current position to find the matching closing brace.
+    /// Returns the position of the closing `}` (or EOF if unbalanced).
     /// Does NOT advance past the closing brace - caller must do that.
+    ///
+    /// Uses the JS-lexical-aware `utils::find_matching_bracket` so that braces
+    /// inside strings, template literals, comments, and regex literals in a
+    /// directive / attribute expression are not miscounted (e.g.
+    /// `on:click={() => x("}")}`).
     #[inline]
     pub fn scan_to_closing_brace(&mut self) -> usize {
-        let mut depth: u32 = 1;
-        while self.index < self.bytes.len() && depth > 0 {
-            match self.bytes[self.index] {
-                b'{' => {
-                    depth += 1;
-                    self.index += 1;
-                }
-                b'}' => {
-                    depth -= 1;
-                    if depth > 0 {
-                        self.index += 1;
-                    }
-                }
-                b if b < 0x80 => self.index += 1,
-                _ => self.advance(),
-            }
-        }
+        self.index = crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            self.source,
+            self.index,
+            '{',
+        )
+        .unwrap_or(self.bytes.len());
         self.index
     }
 }

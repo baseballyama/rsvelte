@@ -176,7 +176,9 @@ impl Parser<'_> {
                         css = Some(CssOption::Injected);
                     }
                     "customElement" => {
-                        custom_element = Some(parse_custom_element_option(attr_node)?);
+                        // `parse_custom_element_option` returns `None` for
+                        // `customElement={null}` so the pipeline stays off (H-115).
+                        custom_element = parse_custom_element_option(attr_node)?;
                     }
                     _ => {}
                 }
@@ -289,42 +291,38 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<
 /// - `customElement={null}` - disable custom element (for backwards compat)
 fn parse_custom_element_option(
     attr: &crate::ast::template::AttributeNode,
-) -> ParseResult<CustomElementOptions> {
+) -> ParseResult<Option<CustomElementOptions>> {
     match &attr.value {
         AttributeValue::Sequence(parts) => {
             // Check if this is a text value
             if let Some(AttributeValuePart::Text(text)) = parts.first() {
                 let tag = text.data.to_string();
                 validate_tag_name(&tag, attr)?;
-                return Ok(CustomElementOptions {
+                return Ok(Some(CustomElementOptions {
                     tag: Some(tag.into()),
                     shadow: None,
                     props: None,
                     extend: None,
-                });
+                }));
             }
 
             // Expression value
             if let Some(AttributeValuePart::ExpressionTag(expr)) = parts.first() {
                 let expr_json = expr.expression.as_json();
 
-                // Check for null value (backwards compat - disable custom element)
+                // Check for null value (backwards compat - disable custom element).
+                // Return None so the custom-element pipeline stays off (H-115); a
+                // `Some(default)` here would (wrongly) enable it.
                 if expr_json.get("type") == Some(&JsonValue::String("Literal".to_string()))
                     && let Some(JsonValue::Null) = expr_json.get("value")
                 {
-                    // customElement={null} - skip
-                    return Ok(CustomElementOptions {
-                        tag: None,
-                        shadow: None,
-                        props: None,
-                        extend: None,
-                    });
+                    return Ok(None);
                 }
 
                 // Object expression: customElement={{tag: "...", ...}}
                 if expr_json.get("type") == Some(&JsonValue::String("ObjectExpression".to_string()))
                 {
-                    return parse_custom_element_object(expr_json, attr);
+                    return parse_custom_element_object(expr_json, attr).map(Some);
                 }
             }
         }
@@ -338,22 +336,17 @@ fn parse_custom_element_option(
         AttributeValue::Expression(expr) => {
             let expr_json = expr.expression.as_json();
 
-            // Check for null value (backwards compat - disable custom element)
+            // Check for null value (backwards compat - disable custom element).
+            // Return None so the pipeline stays off (H-115).
             if expr_json.get("type") == Some(&JsonValue::String("Literal".to_string()))
                 && let Some(JsonValue::Null) = expr_json.get("value")
             {
-                // customElement={null} - skip
-                return Ok(CustomElementOptions {
-                    tag: None,
-                    shadow: None,
-                    props: None,
-                    extend: None,
-                });
+                return Ok(None);
             }
 
             // Object expression: customElement={{tag: "...", ...}}
             if expr_json.get("type") == Some(&JsonValue::String("ObjectExpression".to_string())) {
-                return parse_custom_element_object(expr_json, attr);
+                return parse_custom_element_object(expr_json, attr).map(Some);
             }
         }
     }

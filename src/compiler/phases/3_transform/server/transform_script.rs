@@ -2149,6 +2149,58 @@ fn wrap_derived_reads_in_script_inner(
                 }
             }
             let name = &script[start..i];
+            // Special-case `$state.eager(<arg>)`: upstream's server visitor
+            // for CallExpression returns `node.arguments[0]` WITHOUT visiting
+            // it, so identifiers inside the eager call don't go through
+            // `build_getter` and therefore don't get the `()` derived-read
+            // wrap. We mirror that here by emitting the entire
+            // `$state.eager(...)` text unchanged so the later
+            // `transform_template_rune_ast` unwrap pass can strip the
+            // wrapper, leaving the bare identifier intact.
+            //
+            // Without this, `$state.eager(derivedCount) !== derivedCount`
+            // would emit `derivedCount() !== derivedCount()` (both wrapped)
+            // instead of upstream's `derivedCount !== derivedCount()` (only
+            // the bare read wrapped). Mirrors the SSR side of the
+            // `runtime-runes/async-eager-derived` fixture.
+            if name == "$state" && script[i..].starts_with(".eager(") {
+                let eager_start = start;
+                let body_start = i + ".eager(".len();
+                let mut depth: i32 = 1;
+                let mut j = body_start;
+                while j < len && depth > 0 {
+                    let c = bytes[j];
+                    if c == b'"' || c == b'\'' || c == b'`' {
+                        let quote = c;
+                        j += 1;
+                        while j < len {
+                            if bytes[j] == b'\\' && j + 1 < len {
+                                j += 2;
+                                continue;
+                            }
+                            if bytes[j] == quote {
+                                j += 1;
+                                break;
+                            }
+                            j += 1;
+                        }
+                        continue;
+                    }
+                    if c == b'(' {
+                        depth += 1;
+                    } else if c == b')' {
+                        depth -= 1;
+                        if depth == 0 {
+                            j += 1;
+                            break;
+                        }
+                    }
+                    j += 1;
+                }
+                out.push_str(&script[eager_start..j]);
+                i = j;
+                continue;
+            }
             if derived_names.contains(name) && is_derived_read_position(bytes, start, i) {
                 if is_object_shorthand_position(bytes, start, i) {
                     out.push_str(name);

@@ -679,6 +679,14 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
                         frame,
                     }
                 })
+                // Apply the public `warning_filter` (keep the warning when the
+                // filter returns true, or when no filter is set) — H-083.
+                .filter(|w| {
+                    options
+                        .warning_filter
+                        .as_ref()
+                        .is_none_or(|filter| filter(w))
+                })
                 .collect()
         },
         metadata: CompileMetadata { runes: runes_mode },
@@ -941,6 +949,13 @@ pub fn compile_module(
                     end: end_pos,
                     frame,
                 }
+            })
+            // Apply the public `warning_filter` for module compilation too (H-083).
+            .filter(|w| {
+                options
+                    .warning_filter
+                    .as_ref()
+                    .is_none_or(|filter| filter(w))
             })
             .collect(),
         metadata: CompileMetadata { runes: true },

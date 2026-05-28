@@ -265,6 +265,38 @@ impl Parser<'_> {
         }
     }
 
+    /// Skip a string or template literal whose opening quote byte (`'`, `"`, or
+    /// `` ` ``) is at `self.index`. Advances `self.index` past the closing quote.
+    /// Handles backslash escapes and, for template literals, balanced `${ … }`
+    /// interpolations so their braces aren't miscounted by header scanners.
+    fn skip_header_string(&mut self, quote: u8) {
+        self.index += 1; // consume the opening quote
+        while self.index < self.bytes.len() {
+            let c = self.bytes[self.index];
+            if c == b'\\' {
+                self.index += 2;
+                continue;
+            }
+            if quote == b'`' && c == b'$' && self.bytes.get(self.index + 1) == Some(&b'{') {
+                self.index += 2;
+                let mut brace_depth = 1u32;
+                while self.index < self.bytes.len() && brace_depth > 0 {
+                    match self.bytes[self.index] {
+                        b'{' => brace_depth += 1,
+                        b'}' => brace_depth -= 1,
+                        _ => {}
+                    }
+                    self.index += 1;
+                }
+                continue;
+            }
+            self.index += 1;
+            if c == quote {
+                break;
+            }
+        }
+    }
+
     /// Parse {#each} block.
     /// Syntax: {#each expression as context}...{:else}...{/each}
     /// Or: {#each expression as context, index}...{/each}
@@ -287,6 +319,33 @@ impl Parser<'_> {
         let mut depth: i32 = 0;
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
+
+            // Skip string / template literals and comments so a ` as `, brace,
+            // or bracket inside them isn't treated as structure (H-018). e.g.
+            // `{#each " as ".split(x) as item}` must split at the second ` as `.
+            match b {
+                b'\'' | b'"' | b'`' => {
+                    self.skip_header_string(b);
+                    continue;
+                }
+                b'/' if self.bytes.get(self.index + 1) == Some(&b'/') => {
+                    while self.index < self.bytes.len() && self.bytes[self.index] != b'\n' {
+                        self.index += 1;
+                    }
+                    continue;
+                }
+                b'/' if self.bytes.get(self.index + 1) == Some(&b'*') => {
+                    self.index += 2;
+                    while self.index + 1 < self.bytes.len()
+                        && !(self.bytes[self.index] == b'*' && self.bytes[self.index + 1] == b'/')
+                    {
+                        self.index += 1;
+                    }
+                    self.index = (self.index + 2).min(self.bytes.len());
+                    continue;
+                }
+                _ => {}
+            }
 
             // Track brace depth
             match b {
@@ -602,18 +661,11 @@ impl Parser<'_> {
         if self.eat_optional("(") {
             self.skip_whitespace();
             let key_start = self.index;
-            let mut key_depth = 1;
-            while !self.is_eof() && key_depth > 0 {
-                let c = self.current_char();
-                if c == '(' {
-                    key_depth += 1;
-                } else if c == ')' {
-                    key_depth -= 1;
-                }
-                if key_depth > 0 {
-                    self.advance();
-                }
-            }
+            // Find the matching ')' with JS-lexical awareness so a `)` inside a
+            // string / comment / regex in the key expression (e.g.
+            // `{#each items as item (item.name + ")")}`) doesn't close it early.
+            self.index =
+                find_matching_bracket(self.source, key_start, '(').unwrap_or(self.bytes.len());
             let key_content = self.source[key_start..self.index].trim();
             // Use opening_token = '(' for key expressions (corresponds to Svelte's read_expression(parser, '('))
             key = Some(self.parse_js_expression_internal(key_content, key_start, false, '('));
