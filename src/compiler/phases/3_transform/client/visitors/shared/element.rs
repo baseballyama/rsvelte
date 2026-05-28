@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
     JsExpr, JsObjectMember, JsPattern, JsStatement, JsTemplateLiteral,
 };
+use crate::compiler::phases::phase3_transform::shared::template::sanitize_template_string;
 
 use super::utils::build_expression;
 
@@ -217,7 +218,7 @@ where
                 }
 
                 // Cannot fold - push the accumulated text as a quasi
-                quasis.push(b::quasi(&current_text, false));
+                quasis.push(b::quasi(sanitize_template_string(&current_text), false));
                 current_text.clear();
 
                 // Build the expression using full context-aware conversion
@@ -277,7 +278,7 @@ where
     }
 
     // Push the final text
-    quasis.push(b::quasi(&current_text, true));
+    quasis.push(b::quasi(sanitize_template_string(&current_text), true));
 
     // If no expressions remain (all were folded), return a simple string
     if expressions.is_empty() {
@@ -1201,7 +1202,7 @@ fn build_style_attribute_value_with_memoization(
                         }
 
                         // Push accumulated text as quasi
-                        quasis.push(b::quasi(&current_text, false));
+                        quasis.push(b::quasi(sanitize_template_string(&current_text), false));
                         current_text.clear();
 
                         // Convert and build the expression
@@ -1273,7 +1274,7 @@ fn build_style_attribute_value_with_memoization(
             }
 
             // Push final quasi
-            quasis.push(b::quasi(&current_text, true));
+            quasis.push(b::quasi(sanitize_template_string(&current_text), true));
 
             let value = JsExpr::TemplateLiteral(JsTemplateLiteral {
                 quasis,
