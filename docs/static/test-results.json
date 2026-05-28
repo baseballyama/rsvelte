@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-27T23:30:58.699819+00:00",
+  "generated_at": "2026-05-28T09:09:56.824251+00:00",
   "commit_sha": "b65a3f3fc5e1",
   "summary": {
     "total": 3562,
-    "passed": 3443,
+    "passed": 3447,
     "failed": 0,
-    "skipped": 119,
+    "skipped": 115,
     "percentage": 100
   },
   "categories": [
@@ -464,9 +464,9 @@
       "id": "snapshot",
       "name": "Compiler Snapshot",
       "total": 29,
-      "passed": 27,
+      "passed": 28,
       "failed": 0,
-      "skipped": 2,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -524,8 +524,7 @@
         },
         {
           "name": "async-const",
-          "status": "skip",
-          "skip_reason": "SSR static-attr inlining (Svelte 5.55.9) not yet ported"
+          "status": "pass"
         },
         {
           "name": "hello-world",
@@ -3227,9 +3226,9 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 979,
-      "passed": 942,
+      "passed": 944,
       "failed": 0,
-      "skipped": 37,
+      "skipped": 35,
       "percentage": 100,
       "tests": [
         {
@@ -4875,8 +4874,7 @@
         },
         {
           "name": "async-const-wait",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "accessors-props",
@@ -5017,8 +5015,7 @@
         },
         {
           "name": "async-const",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "deferred-events-consistency",
@@ -12161,9 +12158,9 @@
       "id": "hydration",
       "name": "Hydration",
       "total": 79,
-      "passed": 78,
+      "passed": 79,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 0,
       "percentage": 100,
       "tests": [
         {
@@ -12332,8 +12329,7 @@
         },
         {
           "name": "boundary-pending-attribute",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "script",

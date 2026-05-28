@@ -189,12 +189,13 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-overlap-multiple-7",
     // async-if-block-unskip (Svelte 5.55.2): also skipped in compatibility_report.
     "async-if-block-unskip",
-    // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). All
+    // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). Most
     // surface as client/server mismatches because rsvelte's async-derived
-    // const-blocker plumbing doesn't yet emit the new helpers. Also skipped
-    // in compatibility_report.
-    "async-const",
-    "async-const-wait",
+    // const-blocker plumbing doesn't yet emit every new helper. Also skipped
+    // in compatibility_report. The 5.55.3 `@const` blocker port unblocked
+    // `async-const` and `async-const-wait`; the remaining fixtures need
+    // orthogonal fixes (e.g. if-else nesting under async, reactivity-loss
+    // context tracking).
     "async-context-after-await-const",
     "async-derived-const-blocker",
     "async-effect-pending-eager",
