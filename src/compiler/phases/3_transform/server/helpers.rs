@@ -471,6 +471,34 @@ pub(crate) fn replace_identifier_in_expr(expr: &str, from: &str, to: &str) -> St
 ///
 /// This is needed because snippet parameters in `.svelte` files with `lang="ts"`
 /// may include TypeScript type annotations that must not appear in the generated JavaScript.
+/// Extract the default-value expression from the text following a destructured
+/// snippet parameter pattern, i.e. the `…` in `: Type = …` or `= …`. Returns
+/// `None` when there's no default. Tracks bracket / angle depth so a `=` inside
+/// a generic type argument (`Map<K = string>`) isn't mistaken for the default
+/// separator, and ignores `==` / `=>` / `>=` / `<=` / `!=`.
+fn extract_param_default(rest: &str) -> Option<String> {
+    let bytes = rest.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' | b'<' => depth += 1,
+            b')' | b']' | b'}' | b'>' => depth -= 1,
+            b'=' if depth == 0 => {
+                let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                let next = bytes.get(i + 1).copied().unwrap_or(0);
+                if !matches!(prev, b'=' | b'!' | b'<' | b'>') && !matches!(next, b'=' | b'>') {
+                    let default = rest[i + 1..].trim();
+                    return (!default.is_empty()).then(|| default.to_string());
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
     let trimmed = param.trim();
 
@@ -494,8 +522,15 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
             }
         }
         if let Some(pos) = close_pos {
-            // Return everything up to and including the closing bracket
-            return trimmed[..=pos].to_string();
+            let pattern = &trimmed[..=pos];
+            // After the destructured pattern there may be `: Type`, `= default`,
+            // or `: Type = default`. Preserve the default value (M-024) — only
+            // the type annotation should be stripped.
+            let rest = trimmed[pos + 1..].trim_start();
+            if let Some(default) = extract_param_default(rest) {
+                return format!("{pattern} = {default}");
+            }
+            return pattern.to_string();
         }
     }
 
@@ -2985,4 +3020,32 @@ fn find_rest_element_index(inner: &str) -> Option<usize> {
         i += 1;
     }
     None
+}
+
+#[cfg(test)]
+mod ts_strip_tests {
+    use super::strip_ts_type_annotation;
+
+    #[test]
+    fn destructured_param_default_is_preserved() {
+        // M-024: the trailing `= default` after a destructured TS snippet param
+        // must survive type stripping.
+        assert_eq!(strip_ts_type_annotation("{ a, b }: Props"), "{ a, b }");
+        assert_eq!(
+            strip_ts_type_annotation("{ a, b }: Props = {}"),
+            "{ a, b } = {}"
+        );
+        assert_eq!(strip_ts_type_annotation("{ a, b } = {}"), "{ a, b } = {}");
+        assert_eq!(
+            strip_ts_type_annotation("{ a, b }: Map<string, number> = new Map()"),
+            "{ a, b } = new Map()"
+        );
+        // A `=` inside a generic type arg is not the default separator.
+        assert_eq!(strip_ts_type_annotation("{ a }: Foo<T = string>"), "{ a }");
+        // Array pattern with default.
+        assert_eq!(
+            strip_ts_type_annotation("[a, b]: number[] = []"),
+            "[a, b] = []"
+        );
+    }
 }
