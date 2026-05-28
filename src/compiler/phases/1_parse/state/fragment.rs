@@ -119,6 +119,22 @@ impl Parser<'_> {
             }
         }
 
+        // A stray block close tag at root (e.g. `{/if}`) has no matching open
+        // block. `parse_fragment` stops on `{/...}` without consuming it, so any
+        // leftover close marker here is an error in strict mode. (Comments
+        // `{/*`, `{//` are not close markers.)
+        if !self.options.loose
+            && self.match_str("{/")
+            && !self.match_str("{/*")
+            && !self.match_str("{//")
+        {
+            return Err(crate::error::ParseError::svelte(
+                "block_unexpected_close",
+                "Unexpected block closing tag",
+                (self.index, self.index + 1),
+            ));
+        }
+
         // Determine the end position of script/style tags
         let script_end = self
             .instance_script
