@@ -1,5 +1,5 @@
 # Development environment for svelte-compiler-rust
-FROM rust:1.95-bookworm
+FROM rust:1.96-bookworm
 
 # Install Node.js 22.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
