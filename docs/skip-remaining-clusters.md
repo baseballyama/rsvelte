@@ -6,7 +6,7 @@ lists live in `tests/compatibility_report.rs` (the `runtime_skip_tests`
 array + per-category `skip_*` arrays), `tests/runtime.rs`, `tests/ssr.rs`,
 `tests/print.rs`, and `tests/parser_fixtures.rs`.
 
-Current count: **47 in-scope skipped fixtures** (the 76 `migrate` fixtures
+Current count: **39 in-scope skipped fixtures** (the 76 `migrate` fixtures
 are intentionally out of scope and not counted here). Every executed
 in-scope fixture passes.
 
@@ -17,7 +17,7 @@ cluster per PR — the audit binary shows you which fixtures flip from
 
 ---
 
-## 1. async-blocker / `@const` cluster (42 fixtures, **multi-day**)
+## 1. async-blocker / `@const` cluster (38 fixtures, **multi-day**)
 
 The single largest pile. Spans Svelte 5.53.0 → 5.55.9 and touches the
 client async transform end-to-end.
@@ -30,7 +30,7 @@ client async transform end-to-end.
 | 5.54.1 cluster — `async-derived-indirect`, `async-later-sync-overlaps`, `async-style-after-await` (3 fixtures remaining) | `6b33dd2a1` "fix: group sync statements" | ✅ Sync-statement grouping ported (`SyncBlock(Vec<AsyncStmt>)` in `transform_async_body_inner`; mirrored in `compute_blocker_map`). Unblocked `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`. The three remaining fixtures still fail on orthogonal axes (`$.save` SSR wrap, `var <names>` comment preservation, per-template-effect blocker-list dedup) — same root causes as the 5.55.1 `async-overlap-multiple-*` cluster below. |
 | `async-overlap-multiple-1..7` (5.55.1 `5e8662fb2`, 7 fixtures) | "chore: lots of async tests" | Hoisted-function blank-line placement diverges + SSR emits `(await $.save(delay(x)))()` instead of `await delay(x)` for top-level template `await`. The trivial fix `has_save: false` regresses ~9 unrelated fixtures, so the predicate needs to be context-aware. |
 | `async-if-block-unskip` (5.55.2 `8966601dc` / `edcbb0e64`) | "handle parens" + "invalidate `@const` tags based on visible references" | Same blank-line placement + the `$.save` issue. |
-| 5.55.3 `@const` cluster — `async-const`, `async-const-wait`, `async-derived-const-blocker`, `async-reactivity-loss-no-false-positive-1..3`, `async-reactivity-loss-async-after-sync` (7 fixtures) | `3937ec03b` "fix: correctly calculate `@const` blockers" | Group `@const` assignments under the same group-sync-statements batching as 5.54.1. |
+| 5.55.3 `@const` cluster — `async-derived-const-blocker`, `async-reactivity-loss-no-false-positive-1..3`, `async-reactivity-loss-async-after-sync` (5 fixtures remaining) | `3937ec03b` "fix: correctly calculate `@const` blockers" | ✅ Per-const-tag blocker port landed: `3_transform/server/visitors/const_tag.rs` now emits expression-bodied assignment thunks (`async () => x = (await $.save(rhs))()` / `() => x = rhs`) and the server `ServerCodeGenerator.top_level_blocker_map` lets the const-tag visitor look up instance-level `$$promises[N]` blockers (e.g. `let d = $derived(await ...)`). Client `add_const_declaration` got the same `state.blocker_map` fallback. Unblocked `runtime-runes/async-const`, `runtime-runes/async-const-wait`, `hydration/boundary-pending-attribute`, `snapshot/async-const`. The remaining fixtures fail on orthogonal axes (if-else nesting under async, reactivity-loss context tracking — tracked under the 5.55.4 row below). |
 | 5.55.4 `@const` context — `async-effect-pending-eager`, `async-context-after-await-const` (2 fixtures) | `0ed8c282f` "fix: reset context after waiting on blockers of @const expressions" | Reset reactive context after the blocker await of an `@const` expression so subsequent code sees the right scope. |
 | 5.55.6 cluster — `async-flushsync-in-effect`, `async-stale-derived-4`, `async-eager-block`, `async-eager-each-block`, `async-dont-rebase-new-batch-1..4`, `async-debug-awaited-expression`, `async-state-updates-microtask-separated`, `dynamic-component-member` (11 fixtures) | `e00944ffd` / `89b6a939f` / `4c96b469f` / `69b4c9f56` | Same sync-grouping/`Promise.all`-save follow-up + `<svelte:component this={state.x.Y}>` needs `$.get(state)` wrapping in SSR/client. |
 | 5.55.9 cluster — `async-await-block-2`, `async-await`, `async-duplicate-dependencies` (3 fixtures) | `000c594e0` "fix: `{#await await ...}` and async dependencies fixes" | Refine async-batching / await-merge codegen for `{#await await ...}`. |

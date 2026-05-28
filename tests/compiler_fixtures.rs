@@ -242,9 +242,9 @@ fn test_compiler_snapshot_fixtures() {
     // Fixtures intentionally skipped here — they exercise codegen clusters
     // tracked separately in tests/compatibility_report.rs and
     // tests/runtime.rs. Running them as snapshot tests would surface
-    // already-known divergences (e.g. `@const` blocker indices for
-    // `async-in-derived`, `async-const`).
-    let skip_snapshot: &[&str] = &["async-in-derived", "async-const"];
+    // already-known divergences (e.g. nested async-grouping inside
+    // `$derived` for `async-in-derived`).
+    let skip_snapshot: &[&str] = &["async-in-derived"];
 
     let fixtures: Vec<SnapshotFixture> = samples
         .iter()

@@ -122,13 +122,13 @@ Source: `pnpm run compatibility-report` (generated 2026-05-28, Svelte commit `b6
 | Parser Modern | 24/24 | |
 | Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC drops standalone comments that acorn surfaces) |
 | Compiler Errors | 144/144 | |
-| Compiler Snapshot | 27/29 | 2 skipped (`async-in-derived`, `async-const` — `@const` blocker cluster, Svelte 5.55.3) |
+| Compiler Snapshot | 28/29 | 1 skipped (`async-in-derived` — nested `$derived(await ...)` plus per-block `@const` grouping; runtime-side derived grouping pass tracked separately). `async-const` unblocked by the 5.55.3 `@const` blocker port. |
 | CSS | 181/181 | Deep descendant-chain pruning + `:where(...)` inner scoping ported (Svelte 5.53.7 `0965028d3`). |
 | Validator | 324/325 | 1 skipped (`error-mode-warn` — opted out via `_config.js`) |
 | SSR | 97/97 | HtmlTag SSR class-hash inlining + synthetic `<option value>` ported (Svelte 5.53.6, 5.55.9). |
-| Hydration | 78/79 | 1 skipped (`boundary-pending-attribute` — `@const` blocker block-form thunk, Svelte 5.55.3 follow-up) |
+| Hydration | 79/79 | All executed fixtures pass — `boundary-pending-attribute` unblocked by the 5.55.3 `@const` blocker port (expression-bodied assignment thunks). |
 | Runtime Legacy | 1205/1205 | All executed fixtures pass — `flush-sync-each-block` unblocked by ASI-aware side-effect import detection (Svelte 5.55.2). |
-| Runtime Runes | 942/979 | 37 skipped — async-blocker / `@const` clusters (Svelte 5.54.1–5.55.9). HtmlTag `is_controlled` + derived-update-server + derived-dep-set-while-rendering + derived-name-shadowed + set-text-stable-coercion + attribute-parts + async-derived-title-update + async-inspect-build + sync-statement grouping ported. |
+| Runtime Runes | 944/979 | 35 skipped — async-blocker / `@const` clusters (Svelte 5.54.1–5.55.9). HtmlTag `is_controlled` + derived-update-server + derived-dep-set-while-rendering + derived-name-shadowed + set-text-stable-coercion + attribute-parts + async-derived-title-update + async-inspect-build + sync-statement grouping + per-const-tag `@const` blocker (Svelte 5.55.3) ported. |
 | Runtime Browser | 32/32 | |
 | Print | 41/42 | 1 skipped (`css-keyframes-percent` — upstream fixture inconsistency, see docs) |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
@@ -136,7 +136,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-28, Svelte commit `b6
 | svelte2tsx | 247/247 | Wave 1 of the ecosystem port — error fixtures now compared via `expected.error.json` start/end offsets. Driven by `tests/common/svelte2tsx.rs`. |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3443/3443 in-scope-run passing — every executed fixture in every in-scope category passes. 43 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
+**Compatibility report total: 3447/3447 in-scope-run passing — every executed fixture in every in-scope category passes. 39 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
@@ -151,6 +151,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-28, Svelte commit `b6
 - **Head-effect blocker threading** (Svelte 5.53.0 `582e4443d`) — `client/visitors/title_element.rs` now scans the title value + memo expressions against `state.blocker_map` and emits a `[$$promises[N], ...]` blockers array as the 4th arg of `$.deferred_template_effect(...)`. `server/build.rs::apply_async_wrapping` now recurses into `SvelteHead` / `TitleElement` bodies so reactive expressions inside `<svelte:head><title>` get wrapped in `$$renderer.async([$$promises[N]], ...)`. Unblocked `async-derived-title-update`.
 - **`$inspect` empty-statement thunk after top-level `await`** (Svelte 5.53.13 `b472171de`) — `async_body.rs::build_thunk` now emits `() => void 0` for `Hole(...)` entries (previously a sparse-array elision `,,`) and the array writer treats every entry as a real thunk. A new local `unthunk_bare_call` helper collapses `() => name()` to `name` in `ExprSimple` thunks to match upstream's `b.thunk` → `unthunk` pipeline. Unblocked `async-inspect-build`.
 - **Sync-statement grouping in async-body transform** (Svelte 5.54.1 `6b33dd2a1`) — `async_body.rs` now flushes runs of analyzer-sync statements after the first top-level `await` into a single `SyncBlock` entry so they share one `$$promises[N]` blocker index and a combined `() => { ... }` thunk (mirroring upstream's `flush_sync_group`). `transform_async_body_inner` collects per-entry `analyzer_has_await` and `group_sync_entries` merges adjacent non-await runs; `build_thunk` flattens each `SyncBlock` via `sync_block_body_lines`. `compute_blocker_map` applies the same grouping so blocker indices line up between Phase 2 and Phase 3. Unblocked `async-if-hydration`, `async-derived-with-effect-and-boundary`, `async-binding-after-await`, `async-transform-empty-statements`.
+- **Per-const-tag `@const` blocker** (Svelte 5.55.3 `3937ec03b`, partial) — `3_transform/server/visitors/const_tag.rs` now emits an **expression-bodied** assignment thunk (`async () => x = (await $.save(rhs))()` / `() => x = rhs`) instead of upstream's now-replaced block-bodied form, matching the final HEAD shape (commit `0ed8c282f` re-split the blocker wait into a separate thunk). The server `ServerCodeGenerator` also carries a precomputed `top_level_blocker_map` (from `compute_blocker_map(raw_script)`) so the const-tag visitor can look up instance-level `$$promises[N]` blockers (e.g. `let d = $derived(await ...)`) and emit `() => $$promises[N]` wait thunks for `{@const … = d}` declarations. The client `add_const_declaration` gained the same fallback for `state.blocker_map`. Unblocked `runtime-runes/async-const`, `runtime-runes/async-const-wait`, `hydration/boundary-pending-attribute`, `snapshot/async-const`.
 
 ### Ecosystem port (`docs/ecosystem-implementation-plan.md`)
 
