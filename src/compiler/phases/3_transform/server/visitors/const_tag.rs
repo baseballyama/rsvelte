@@ -452,24 +452,30 @@ impl<'a> ServerCodeGenerator<'a> {
 /// Find the index of the assignment `=` in a const tag declaration.
 /// Skips past destructuring patterns (handles `{a, b} = expr` and `[a, b] = expr`).
 fn find_assignment_eq(decl: &str) -> Option<usize> {
-    let chars: Vec<char> = decl.chars().collect();
+    // Scan bytes (not chars) and return a BYTE index: the result is used to slice
+    // the UTF-8 string, so a `Vec<char>` index would corrupt a `{@const}` whose
+    // LHS contains a multi-byte character (H-131). All tokens matched here
+    // (`{[(}])`, `=`, `!`, `<`, `>`) are ASCII, so byte scanning is exact.
+    let bytes = decl.as_bytes();
     let mut depth = 0i32;
-    for (i, &c) in chars.iter().enumerate() {
-        match c {
-            '{' | '[' | '(' => depth += 1,
-            '}' | ']' | ')' => depth -= 1,
-            '=' if depth == 0 => {
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            b'=' if depth == 0 => {
                 // Make sure it's not `==` or `=>`
-                let next = chars.get(i + 1).copied().unwrap_or('\0');
-                if next != '=' && next != '>' {
-                    let prev = if i > 0 { chars[i - 1] } else { '\0' };
-                    if prev != '!' && prev != '<' && prev != '>' {
+                let next = bytes.get(i + 1).copied().unwrap_or(0);
+                if next != b'=' && next != b'>' {
+                    let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                    if prev != b'!' && prev != b'<' && prev != b'>' {
                         return Some(i);
                     }
                 }
             }
             _ => {}
         }
+        i += 1;
     }
     None
 }
