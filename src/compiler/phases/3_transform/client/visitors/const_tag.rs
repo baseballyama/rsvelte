@@ -547,6 +547,7 @@ fn add_const_declaration(
     // that collect_identifiers_from_expr won't cross.
     let blockers = {
         let const_blocker_map = context.state.const_blocker_map.borrow();
+        let top_level_blocker_map = context.state.blocker_map.borrow();
         let current_async_consts_id =
             context
                 .state
@@ -560,6 +561,7 @@ fn add_const_declaration(
         let mut blocker_list: Vec<JsExpr> = Vec::new();
         // Deduplicate by pointer identity from the map (same map entry = same expression).
         let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
+        let mut seen_top_level: Vec<usize> = Vec::new();
 
         for name in init_refs {
             if let Some(blocker_expr) = const_blocker_map.get(name) {
@@ -583,6 +585,21 @@ fn add_const_declaration(
                     seen_ptrs.push(ptr);
                     blocker_list.push(blocker_expr.clone());
                 }
+            } else if let Some(&idx) = top_level_blocker_map.get(name) {
+                // Top-level $$promises blocker (binding declared in the
+                // instance script body, e.g. `let d = $derived(await ...)`).
+                // Mirrors upstream's `dep.blocker` lookup on `Binding.blocker`,
+                // which for instance-level bindings is set to `$$promises[N]`
+                // by the async-body grouping pass.
+                if seen_top_level.contains(&idx) {
+                    continue;
+                }
+                seen_top_level.push(idx);
+                let blocker_expr =
+                    b::member_computed(&context.arena, b::id("$$promises"), b::number(idx as f64));
+                // Top-level $$promises is never the current async_consts group
+                // id, so we include unconditionally.
+                blocker_list.push(blocker_expr);
             }
         }
         blocker_list

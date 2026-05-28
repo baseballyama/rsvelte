@@ -160,6 +160,17 @@ function parseConfigText(configPath) {
       config.compileOptions = { hmr: hmrMatch[1] === 'true' };
     }
 
+    // Propagate `compileOptions.experimental.async`. New snapshot fixtures
+    // (e.g. async-top-level-group-sync-run) opt into top-level await via
+    // `experimental: { async: true }` and would otherwise fail to compile.
+    const asyncMatch = text.match(/experimental\s*:\s*\{[^}]*\basync\s*:\s*(true|false)\b/);
+    if (asyncMatch) {
+      config.compileOptions = {
+        ...(config.compileOptions ?? {}),
+        experimental: { async: asyncMatch[1] === 'true' },
+      };
+    }
+
     return config;
   } catch {
     return {};
