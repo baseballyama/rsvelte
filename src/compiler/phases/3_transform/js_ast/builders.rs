@@ -1303,6 +1303,7 @@ pub fn for_of(
         right: arena.alloc_expr(right),
         body: arena.alloc_stmt(body),
         is_await,
+        is_for_in: false,
     })
 }
 

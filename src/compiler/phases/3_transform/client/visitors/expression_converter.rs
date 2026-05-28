@@ -3733,12 +3733,13 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
             let handler = obj.get("handler").and_then(|h| {
                 let h_obj = h.as_object()?;
+                // Route the catch parameter through the full pattern converter so
+                // destructuring catch params (`catch ({ message }) {}`) are
+                // preserved, not just bare identifiers (H-112).
                 let param = h_obj
                     .get("param")
-                    .and_then(|p| p.as_object())
-                    .and_then(|p| p.get("name"))
-                    .and_then(|n| n.as_str())
-                    .map(|n| JsPattern::Identifier(n.into()));
+                    .filter(|p| !p.is_null())
+                    .and_then(|p| convert_param_pattern(p, context));
                 let body = h_obj
                     .get("body")
                     .and_then(|b| b.as_object())
@@ -3962,23 +3963,16 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }
 
             let is_await = obj.get("await").and_then(|a| a.as_bool()).unwrap_or(false);
-            if is_for_of {
-                Some(JsStatement::ForOf(JsForOfStatement {
-                    left,
-                    right,
-                    body,
-                    is_await,
-                }))
-            } else {
-                // For-in uses the same JsForOfStatement with a different codegen
-                // path. Since we don't have a ForIn variant, emit as raw block for now.
-                Some(JsStatement::ForOf(JsForOfStatement {
-                    left,
-                    right,
-                    body,
-                    is_await: false,
-                }))
-            }
+            // `for...in` and `for...of` share `JsForOfStatement`; the `is_for_in`
+            // flag drives codegen to emit ` in ` vs ` of ` (H-110). `for await`
+            // only applies to `for...of`.
+            Some(JsStatement::ForOf(JsForOfStatement {
+                left,
+                right,
+                body,
+                is_await: is_for_of && is_await,
+                is_for_in: !is_for_of,
+            }))
         }
         "WhileStatement" => {
             let test = obj

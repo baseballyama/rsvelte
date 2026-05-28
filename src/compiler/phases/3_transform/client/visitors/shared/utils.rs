@@ -1841,6 +1841,7 @@ fn apply_transforms_to_statement_with_shadowed(
                 right: transformed_right,
                 body: transformed_body,
                 is_await: for_of.is_await,
+                is_for_in: for_of.is_for_in,
             })
         }
 
