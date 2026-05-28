@@ -532,6 +532,20 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                         analyzer_has_await: has_await,
                     });
                 }
+            } else if let Some(class_name) = extract_class_decl_name(trimmed_stmt) {
+                // A class declaration after `await` must be hoisted like a
+                // variable so it is visible to other thunks. Mirror upstream:
+                // hoist the name to the outer `var` and rewrite
+                // `class Thing {…}` → `Thing = class Thing {…}` inside the thunk.
+                // Without this the class is scoped to a single thunk and
+                // invisible to subsequent statements.
+                hoisted_vars.push(class_name.clone());
+                let class_expr = trimmed_stmt.trim_end_matches(';').trim_end();
+                async_stmts.push(AsyncStmt {
+                    kind: AsyncStmtKind::Block(format!("{} = {};", class_name, class_expr)),
+                    has_await,
+                    analyzer_has_await: has_await,
+                });
             } else {
                 // Other statements (throw, if, etc.) - wrap in block
                 async_stmts.push(AsyncStmt {
@@ -1114,6 +1128,16 @@ fn has_await_at_depth(s: &str, skip_functions: bool) -> bool {
             continue;
         }
 
+        // Skip regex literals so `await` inside `/await/` is not a false
+        // positive top-level-await detection.
+        if ch == b'/' && regex_allowed_before(bytes, i) {
+            let next = skip_regex(bytes, i);
+            if next > i + 1 {
+                i = next;
+                continue;
+            }
+        }
+
         // Track nesting
         if ch == b'(' {
             _paren_depth += 1;
@@ -1316,6 +1340,55 @@ fn skip_string(bytes: &[u8], start: usize) -> usize {
     i
 }
 
+/// Heuristic: a `/` that is not `//` or `/*` starts a regex literal (rather
+/// than a division operator) unless the previous significant byte ends an
+/// expression. Mirrors the parser's bracket-matcher rule: after an identifier
+/// char, `)`, or `]`, a `/` is division; otherwise it begins a regex.
+fn regex_allowed_before(bytes: &[u8], slash: usize) -> bool {
+    let mut j = slash;
+    while j > 0 {
+        j -= 1;
+        let c = bytes[j];
+        if c == b' ' || c == b'\t' || c == b'\n' || c == b'\r' {
+            continue;
+        }
+        return !(c.is_ascii_alphanumeric() || c == b'_' || c == b'$' || c == b')' || c == b']');
+    }
+    true
+}
+
+/// Skip a regex literal starting at `bytes[start] == b'/'`. Returns the index
+/// just past the closing `/` and any flags. Handles escapes and `[...]`
+/// character classes (where `/` is literal). On an unterminated / newline
+/// regex (i.e. the `/` was actually division) returns `start + 1` so the
+/// caller treats the `/` as an ordinary byte.
+fn skip_regex(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut i = start + 1;
+    let mut in_class = false;
+    while i < len {
+        match bytes[i] {
+            b'\\' => {
+                i += 2;
+                continue;
+            }
+            b'[' => in_class = true,
+            b']' => in_class = false,
+            b'\n' => return start + 1,
+            b'/' if !in_class => {
+                i += 1;
+                while i < len && bytes[i].is_ascii_alphabetic() {
+                    i += 1;
+                }
+                return i;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    start + 1
+}
+
 /// Split a script into top-level statements.
 /// This handles semicolons, braces, and multi-line statements.
 fn split_top_level_statements(script: &str) -> Vec<String> {
@@ -1355,6 +1428,16 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
             }
             i += 2;
             continue;
+        }
+
+        // Skip regex literals so a `;` or `}` inside `/;/` doesn't split a
+        // statement mid-regex.
+        if ch == b'/' && regex_allowed_before(bytes, i) {
+            let next = skip_regex(bytes, i);
+            if next > i + 1 {
+                i = next;
+                continue;
+            }
         }
 
         // Track nesting
@@ -1427,7 +1510,18 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
                             || rest_after.starts_with("finally ")
                             || rest_after.starts_with("finally{")
                             || rest_after.starts_with("finally\n");
-                        if !is_try_continuation {
+                        // An `else` (or `else if`) following the closing brace of
+                        // an `if` consequent continues the same statement — it
+                        // must not be split off, or it becomes an orphan `else`
+                        // block wrapped as `void (else { ... })` (invalid JS).
+                        let is_else_continuation =
+                            rest_after.strip_prefix("else").is_some_and(|after| {
+                                after.is_empty()
+                                    || after.starts_with(|c: char| {
+                                        !c.is_alphanumeric() && c != '_' && c != '$'
+                                    })
+                            });
+                        if !is_try_continuation && !is_else_continuation {
                             let stmt = stmt_so_far.to_string();
                             if !stmt.is_empty() {
                                 statements.push(stmt);
@@ -2062,10 +2156,7 @@ fn extract_identifiers_from_pattern(pattern: &str) -> Vec<String> {
                 // - Property: `key: value` or `key: value = default`
                 // - Rest: `...rest`
                 // - Nested: `{ nested }` or `[nested]`
-                let ident = extract_ident_from_item(item);
-                if !ident.is_empty() {
-                    names.push(ident);
-                }
+                collect_leaf_idents_from_item(item, &mut names);
             }
             item_start = i + 1;
         } else {
@@ -2355,33 +2446,49 @@ fn collect_all_declared_variables(statements: &[String]) -> rustc_hash::FxHashSe
     vars
 }
 
-/// Extract the identifier name from a destructuring item.
-fn extract_ident_from_item(item: &str) -> String {
+/// Collect the **leaf** identifier names bound by a destructuring item into
+/// `out`, recursing into nested object / array patterns. For `a: { b }` this
+/// yields `b` (not the nested pattern `{ b }`), and `a: [c, d]` yields `c, d`.
+/// Returning a nested pattern would produce invalid hoists like `var { b };`.
+fn collect_leaf_idents_from_item(item: &str, out: &mut Vec<String>) {
     let item = item.trim();
+    if item.is_empty() {
+        return;
+    }
 
     // Rest element: `...rest`
     if let Some(rest) = item.strip_prefix("...") {
-        return rest.trim().to_string();
+        collect_leaf_idents_from_item(rest, out);
+        return;
     }
 
-    // Property pattern: `key: value`
+    // Property pattern: `key: value` (value may itself be a nested pattern).
     if let Some(colon_pos) = item.find(':') {
-        // Check it's not nested
         let before_colon = &item[..colon_pos];
         if !before_colon.contains('{') && !before_colon.contains('[') {
-            let value_part = item[colon_pos + 1..].trim();
-            // Value might have a default: `value = default`
-            return extract_ident_from_item(value_part);
+            collect_leaf_idents_from_item(item[colon_pos + 1..].trim(), out);
+            return;
         }
     }
 
-    // With default: `x = default`
+    // Default value: `binding = default` — only the binding side is declared.
     if let Some(eq_pos) = find_assignment_in_str(item) {
-        return item[..eq_pos].trim().to_string();
+        collect_leaf_idents_from_item(item[..eq_pos].trim(), out);
+        return;
     }
 
-    // Simple identifier
-    item.to_string()
+    // Nested object / array pattern: recurse into each element.
+    if (item.starts_with('{') && item.ends_with('}'))
+        || (item.starts_with('[') && item.ends_with(']'))
+    {
+        for name in extract_identifiers_from_pattern(item) {
+            out.push(name);
+        }
+        return;
+    }
+
+    // Simple identifier.
+    out.push(item.to_string());
 }
 
 /// Collect function bodies indexed by function name.
@@ -2430,6 +2537,31 @@ fn extract_function_decl_name(s: &str) -> Option<String> {
         i += 1;
     }
     if i > 0 {
+        Some(rest[..i].to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract the class name from a top-level `class Foo {…}` /
+/// `class Foo extends Bar {…}` declaration. Returns `None` for class
+/// *expressions* (`const C = class {…}`) since those are already handled by
+/// the variable-declaration path.
+fn extract_class_decl_name(s: &str) -> Option<String> {
+    let rest = s.trim().strip_prefix("class ")?;
+    let rest = rest.trim_start();
+    let bytes = rest.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() && is_ident_char(bytes[i]) {
+        i += 1;
+    }
+    if i == 0 {
+        return None;
+    }
+    // The name must be followed by `{`, whitespace, or `extends` — otherwise
+    // this isn't a class declaration we can hoist.
+    let after = rest[i..].trim_start();
+    if after.starts_with('{') || after.starts_with("extends") {
         Some(rest[..i].to_string())
     } else {
         None
