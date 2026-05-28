@@ -1639,8 +1639,12 @@ impl<'a> ComponentContext<'a> {
                         let mut event_name = &event_attr.name[2..];
                         let mut capture = false;
 
-                        // Check if this is a capture event (e.g., "clickcapture")
-                        if event_name.ends_with("capture") && event_name.len() > 7 {
+                        // Check if this is a capture event (e.g., "clickcapture").
+                        // Use the shared helper so `gotpointercapture` /
+                        // `lostpointercapture` are correctly excluded — they end
+                        // in "capture" but are real event names, not capture
+                        // variants (H-053).
+                        if crate::compiler::utils::is_capture_event(event_name) {
                             event_name = &event_name[..event_name.len() - 7];
                             capture = true;
                         }
