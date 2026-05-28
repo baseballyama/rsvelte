@@ -407,7 +407,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-reactivity-loss-no-false-positive-3"),
         ("runtime-runes", "async-reactivity-loss-async-after-sync"),
         ("runtime-runes", "async-effect-pending-eager"),
-        ("runtime-runes", "async-context-after-await-const"),
         ("runtime-runes", "async-flushsync-in-effect"),
         ("runtime-runes", "async-stale-derived-4"),
         ("runtime-runes", "async-eager-block"),
