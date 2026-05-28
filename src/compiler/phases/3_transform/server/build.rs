@@ -935,6 +935,15 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 raw_script
             };
+            // Canonicalise `$props ()` → `$props()` so every downstream byte
+            // matcher (props detection here, destructure lowering in helpers.rs,
+            // `$props()` → `$$props` in transform_script) recognises the call
+            // regardless of user spacing.
+            let raw_script =
+                crate::compiler::phases::phase3_transform::utils::canonicalize_props_call(
+                    &raw_script,
+                )
+                .into_owned();
             let raw_script = remove_effect_blocks(&raw_script, self.use_async, self.dev);
             let has_bindable_props = self.analysis.is_some_and(|a| {
                 a.root.bindings.iter().any(|b| {

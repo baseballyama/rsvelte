@@ -63,11 +63,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          key: release-capi-${{ matrix.target }}
-
       # Resolve the release version from the trigger:
       #   - push of capi-vX.Y.Z → strip the `capi-v` prefix
       #   - workflow_dispatch   → use the `version` input
