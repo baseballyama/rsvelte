@@ -21,8 +21,11 @@ use std::sync::LazyLock;
 
 // Regex patterns
 static REGEX_HEADING_TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^h[1-6]$").unwrap());
+// Mirrors upstream `regex_js_prefix = /^\W*javascript:/i`: case-insensitive and
+// tolerant of leading non-word characters (whitespace / control chars), so
+// `JavaScript:` and ` javascript:` are caught too (H-081).
 static REGEX_JS_PREFIX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(javascript|data|vbscript):").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)^\W*javascript:").unwrap());
 static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S").unwrap());
 static REGEX_REDUNDANT_IMG_ALT: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\b(image|picture|photo)\b").unwrap());
