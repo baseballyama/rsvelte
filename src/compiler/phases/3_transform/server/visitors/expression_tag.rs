@@ -43,11 +43,22 @@ impl<'a> ServerCodeGenerator<'a> {
                     let transformed = self.transform_store_refs(&expr_source);
                     // Transform special legacy variables ($$props -> $$sanitized_props)
                     let transformed = self.transform_special_vars(&transformed);
-                    // Transform rune calls that need server-side handling
-                    let transformed = Self::transform_rune_in_template_expr(&transformed);
                     // Svelte 5.52+: rewrite bare reads of `$derived` bindings
                     // to calls (e.g. `count` -> `count()`).
+                    //
+                    // NOTE: This runs BEFORE `transform_rune_in_template_expr` so
+                    // that `wrap_derived_reads_in_script_inner` can see
+                    // `$state.eager(<arg>)` in its original form and skip
+                    // identifier-wrapping inside the eager call. Upstream's
+                    // server visitor for `$state.eager` returns
+                    // `node.arguments[0]` WITHOUT visiting it, so identifiers
+                    // inside the eager call don't get the `()` derived-read
+                    // wrap. The rune transform then unwraps the
+                    // `$state.eager(...)` afterwards, leaving the unwrapped
+                    // argument with its original identifiers.
                     let transformed = self.wrap_derived_reads(&transformed);
+                    // Transform rune calls that need server-side handling
+                    let transformed = Self::transform_rune_in_template_expr(&transformed);
                     // If this is a sequence (comma) expression at the top level, wrap in parens
                     // so that $.escape(x, '') doesn't misinterpret as two arguments.
                     let transformed = if has_top_level_comma(&transformed) {
