@@ -110,6 +110,10 @@ pub fn analyze_component(
     if let Some(ref svelte_options) = ast.options {
         if let Some(runes) = svelte_options.runes {
             analysis.runes = runes;
+            // Record that runes mode was set explicitly so the later
+            // auto-detection passes (extract_scripts / create_scopes) don't
+            // flip an explicit `<svelte:options runes={false} />` back on (H-114).
+            analysis.runes_explicitly_set = Some(runes);
         }
         // Handle <svelte:options accessors />
         if let Some(accessors) = svelte_options.accessors {
@@ -185,10 +189,12 @@ pub fn analyze_component(
     // 1. Auto-detecting runes mode (await or rune references imply runes)
     // 2. Marking the component as needing async function wrapper
     //
-    // When runes mode is already explicitly set (options.runes == Some(true) or
-    // <svelte:options runes />), we only need to detect await expressions, not
-    // rune references. This avoids expensive JSON walks for rune detection.
-    let needs_rune_detection = options.runes.is_none() && !analysis.runes;
+    // When runes mode is already explicitly set (options.runes == Some(true/false)
+    // or <svelte:options runes={…} />), we only need to detect await expressions,
+    // not rune references. Use `runes_explicitly_set` (which now also captures
+    // `<svelte:options runes={false} />`) rather than `options.runes` so an
+    // explicit `runes={false}` isn't undone by auto-detection (H-114).
+    let needs_rune_detection = analysis.runes_explicitly_set.is_none() && !analysis.runes;
 
     // We collect store subscription names to exclude them from rune detection.
     // Store auto-subscriptions ($store) look like rune references (dollar prefix)
