@@ -853,9 +853,10 @@ impl<'a> Parser<'a> {
     /// Returns the position of the closing `}` (or EOF if unbalanced).
     /// Does NOT advance past the closing brace - caller must do that.
     ///
-    /// Uses the JS-lexical-aware [`find_matching_bracket`] so that braces inside
-    /// strings, template literals, comments, and regex literals in a directive /
-    /// attribute expression are not miscounted (e.g. `on:click={() => x("}")}`).
+    /// Uses the JS-lexical-aware `utils::find_matching_bracket` so that braces
+    /// inside strings, template literals, comments, and regex literals in a
+    /// directive / attribute expression are not miscounted (e.g.
+    /// `on:click={() => x("}")}`).
     #[inline]
     pub fn scan_to_closing_brace(&mut self) -> usize {
         self.index = crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
