@@ -50,11 +50,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          key: svelte-check-${{ matrix.target }}
-
       - name: Build svelte-check
         shell: bash
         env:
@@ -115,11 +110,6 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          key: vps-native-${{ matrix.target }}
-
       - name: Build NAPI cdylib
         shell: bash
         env:
@@ -177,9 +167,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
