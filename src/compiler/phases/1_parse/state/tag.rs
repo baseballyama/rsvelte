@@ -100,6 +100,45 @@ impl Parser<'_> {
         }
     }
 
+    /// Consume the matching `{/keyword}` close tag for the current block.
+    ///
+    /// Mirrors upstream `close()` in `state/tag.js`: the block keyword and the
+    /// trailing `}` are required (a mismatched keyword such as `{#if}` closed by
+    /// `{/each}` is a hard `expected_token` error in strict mode), while loose
+    /// mode tolerates a mismatch for best-effort recovery. Precondition:
+    /// `parse_fragment` has stopped on a `{/...}` close marker, so the parser is
+    /// positioned at the `{`.
+    ///
+    /// Returns `Ok(true)` when the matching close tag was consumed. Returns
+    /// `Ok(false)` when no matching close was consumed: at EOF (no close marker
+    /// present) or, in loose mode, when a `{/other}` marker does not match this
+    /// block — in which case the marker is left intact for an outer block to
+    /// consume (best-effort recovery).
+    fn expect_block_close(&mut self, keyword: &str) -> ParseResult<bool> {
+        // No close marker present (e.g. EOF): nothing to consume.
+        if !self.match_str("{/") {
+            return Ok(false);
+        }
+        let checkpoint = self.index;
+        self.advance_by(2); // consume '{/'
+
+        // Require the exact block keyword. `eat(keyword, true, false)` errors in
+        // strict mode on a mismatch and returns false (without erroring) in
+        // loose mode.
+        if !self.eat_required_strict(keyword)? {
+            // Loose mode only (strict mode errored above): the close marker
+            // belongs to an outer block. Backtrack so it is left intact.
+            self.index = checkpoint;
+            return Ok(false);
+        }
+
+        self.skip_whitespace();
+        // Require the closing `}` (in both strict and loose mode, matching
+        // upstream `parser.eat('}', true)`).
+        self.eat("}", true, true)?;
+        Ok(true)
+    }
+
     /// Parse {#if} block.
     pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.skip_whitespace();
@@ -126,14 +165,7 @@ impl Parser<'_> {
         let mut alternate = self.parse_if_alternate()?;
 
         // Handle closing {/if} if not already consumed
-        let mut found_closing = false;
-        if self.match_str("{/") {
-            self.advance_by(2);
-            self.eat_optional("if");
-            self.skip_whitespace();
-            self.eat_optional("}");
-            found_closing = true;
-        }
+        let found_closing = self.expect_block_close("if")?;
 
         // Pop from stack only if we found the closing tag
         // If we reached EOF without closing, leave on stack for error reporting
@@ -404,17 +436,11 @@ impl Parser<'_> {
                 }
             }
 
-            // Handle {/each}
-            if self.match_str("{/each}") {
-                self.advance_by(7);
-            } else if self.match_str("{/") {
-                self.advance_by(2);
-                self.eat_optional("each");
-                self.skip_whitespace();
-                self.eat_optional("}");
-            }
+            // Handle {/each}. A mismatched close (e.g. `{/if}`) errors in strict
+            // mode; in loose mode it is left for an outer block.
+            self.expect_block_close("each")?;
 
-            // Pop from stack
+            // Pop from stack (matched close, or EOF / loose-mode recovery).
             if !self.stack.is_empty() {
                 self.stack.pop();
             }
@@ -625,15 +651,11 @@ impl Parser<'_> {
             }
         }
 
-        // Handle closing {/each}
-        if self.match_str("{/") {
-            self.advance_by(2);
-            self.eat_optional("each");
-            self.skip_whitespace();
-            self.eat_optional("}");
-        }
+        // Handle closing {/each}. A mismatched close (e.g. `{/if}`) errors in
+        // strict mode; in loose mode it is left for an outer block.
+        self.expect_block_close("each")?;
 
-        // Pop from stack
+        // Pop from stack (matched close, or EOF / loose-mode recovery).
         if !self.stack.is_empty() {
             self.stack.pop();
         }
@@ -976,13 +998,15 @@ impl Parser<'_> {
             }
         }
 
-        // Handle closing {/await}
-        if self.match_str("{/await}") {
-            self.advance_by(8);
-        }
+        // Handle closing {/await}. A mismatched close (e.g. `{#await}` closed by
+        // `{/if}`) errors in strict mode; in loose mode it is left for an outer
+        // block.
+        self.expect_block_close("await")?;
 
-        // Pop the stack
-        self.stack.pop();
+        // Pop the stack (matched close, or EOF / loose-mode recovery).
+        if !self.stack.is_empty() {
+            self.stack.pop();
+        }
 
         Ok(Some(TemplateNode::AwaitBlock(Box::new(AwaitBlock {
             start: start as u32,
@@ -1019,15 +1043,11 @@ impl Parser<'_> {
         // Parse body
         let fragment = self.parse_fragment()?;
 
-        // Handle closing {/key} if present (but NOT other closing tags like {/if})
-        if self.match_str("{/key") {
-            self.advance_by(2); // consume '{/'
-            self.eat_optional("key");
-            self.skip_whitespace();
-            self.eat_optional("}");
-        }
+        // Handle closing {/key}. A mismatched close (e.g. `{/if}`) errors in
+        // strict mode; in loose mode it is left for an outer block.
+        self.expect_block_close("key")?;
 
-        // Pop from stack
+        // Pop from stack (matched close, or EOF / loose-mode recovery).
         if !self.stack.is_empty() {
             self.stack.pop();
         }
@@ -1196,15 +1216,11 @@ impl Parser<'_> {
         // Parse body
         let body = self.parse_fragment()?;
 
-        // Handle closing {/snippet}
-        if self.match_str("{/") {
-            self.advance_by(2);
-            self.eat_optional("snippet");
-            self.skip_whitespace();
-            self.eat_optional("}");
-        }
+        // Handle closing {/snippet}. A mismatched close (e.g. `{/if}`) errors in
+        // strict mode; in loose mode it is left for an outer block.
+        self.expect_block_close("snippet")?;
 
-        // Pop from stack
+        // Pop from stack (matched close, or EOF / loose-mode recovery).
         if !self.stack.is_empty() {
             self.stack.pop();
         }

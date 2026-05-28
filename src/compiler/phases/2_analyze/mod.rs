@@ -1150,31 +1150,15 @@ fn check_reactive_declaration_cycles(
             continue;
         };
 
-        // Extract assigned variable names and dependency variable names
+        // Extract assigned variable names and dependency variable names.
+        // A single walker handles every body shape — `$: a = b`,
+        // `$: { a = b }`, `$: if (c) a = b`, `$: for (…) a = b`, etc. — so
+        // assignment targets nested inside block / if / for / sequence bodies
+        // are registered as `assignments` (not merely `dependencies`) and the
+        // statement still participates in cycle detection.
         let mut assignments: Vec<String> = Vec::new();
         let mut dependencies: Vec<String> = Vec::new();
-
-        // Check if body is ExpressionStatement with AssignmentExpression
-        if body_node.get("type").and_then(|v| v.as_str()) == Some("ExpressionStatement") {
-            if let Some(expr) = body_node.get("expression") {
-                if expr.get("type").and_then(|v| v.as_str()) == Some("AssignmentExpression") {
-                    // LHS: extract assigned identifiers
-                    if let Some(left) = expr.get("left") {
-                        cycle_extract_pattern_ids(left, &mut assignments);
-                    }
-                    // RHS: extract dependency identifiers
-                    if let Some(right) = expr.get("right") {
-                        cycle_collect_js_ids(right, &mut dependencies);
-                    }
-                } else {
-                    // Not an assignment - all identifiers are dependencies
-                    cycle_collect_js_ids(expr, &mut dependencies);
-                }
-            }
-        } else {
-            // Block statement or other - collect all identifiers as dependencies
-            cycle_collect_js_ids(body_node, &mut dependencies);
-        }
+        cycle_collect_assignments_and_deps(body_node, &mut assignments, &mut dependencies);
 
         // Filter: only include variables that are declared in the instance scope
         // (not global variables like console, Math, etc.)
@@ -1270,69 +1254,85 @@ fn cycle_extract_pattern_ids(node: &serde_json::Value, out: &mut Vec<String>) {
     }
 }
 
-/// Recursively collect all identifier references from a JS AST node for reactive cycle detection.
-fn cycle_collect_js_ids(node: &serde_json::Value, out: &mut Vec<String>) {
-    if let Some(node_type) = node.get("type").and_then(|v| v.as_str()) {
-        if node_type == "Identifier" {
+/// Walk a reactive `$:` statement body of any shape, routing assignment /
+/// update targets into `assignments` and every other read identifier into
+/// `dependencies`. Recurses like a generic identifier collector for the read
+/// case, but recognises `AssignmentExpression` / `UpdateExpression` so targets
+/// nested in
+/// block / if / for / sequence bodies (`$: { a = b + 1; }`) are recorded as
+/// assignments rather than dependencies — otherwise such statements collect an
+/// empty assignment set and get dropped from the cycle graph entirely.
+fn cycle_collect_assignments_and_deps(
+    node: &serde_json::Value,
+    assignments: &mut Vec<String>,
+    dependencies: &mut Vec<String>,
+) {
+    match node.get("type").and_then(|v| v.as_str()) {
+        Some("Identifier") => {
             if let Some(name) = node.get("name").and_then(|v| v.as_str())
-                && !out.iter().any(|s| s == name)
+                && !dependencies.iter().any(|s| s == name)
             {
-                out.push(name.to_string());
+                dependencies.push(name.to_string());
             }
-            return;
         }
-        // Skip function bodies - they create their own scope
-        if matches!(
-            node_type,
-            "FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration"
-        ) {
-            return;
-        }
-        // For Property nodes, only recurse into value (not key, unless computed)
-        // This avoids treating object literal property names like `{ details: null }`
-        // as identifier references to variables named `details`.
-        if node_type == "Property" {
-            let is_computed = node
-                .get("computed")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            if is_computed && let Some(key) = node.get("key") {
-                cycle_collect_js_ids(key, out);
+        Some("AssignmentExpression") => {
+            // LHS targets are assignments; the RHS (and any nested
+            // assignments within it) is walked for dependencies.
+            if let Some(left) = node.get("left") {
+                cycle_extract_pattern_ids(left, assignments);
             }
-            if let Some(value) = node.get("value") {
-                cycle_collect_js_ids(value, out);
+            if let Some(right) = node.get("right") {
+                cycle_collect_assignments_and_deps(right, assignments, dependencies);
             }
-            return;
         }
-        // For MemberExpression, only recurse into object (not property, unless computed)
-        // `obj.prop` should only reference `obj`, not `prop`.
-        if node_type == "MemberExpression" {
+        Some("UpdateExpression") => {
+            // `x++` / `--x` assigns its argument.
+            if let Some(argument) = node.get("argument") {
+                cycle_extract_pattern_ids(argument, assignments);
+            }
+        }
+        // Function bodies create their own scope.
+        Some("FunctionExpression")
+        | Some("ArrowFunctionExpression")
+        | Some("FunctionDeclaration") => {}
+        Some("MemberExpression") => {
             if let Some(object) = node.get("object") {
-                cycle_collect_js_ids(object, out);
+                cycle_collect_assignments_and_deps(object, assignments, dependencies);
             }
             let is_computed = node
                 .get("computed")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
             if is_computed && let Some(property) = node.get("property") {
-                cycle_collect_js_ids(property, out);
+                cycle_collect_assignments_and_deps(property, assignments, dependencies);
             }
-            return;
         }
-    }
-    // Recurse into all object/array children
-    if let Some(obj) = node.as_object() {
-        for (key, value) in obj {
-            // Skip metadata keys
-            if key == "type" || key == "start" || key == "end" || key == "loc" {
-                continue;
+        Some("Property") => {
+            let is_computed = node
+                .get("computed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if is_computed && let Some(key) = node.get("key") {
+                cycle_collect_assignments_and_deps(key, assignments, dependencies);
             }
-            if value.is_object() {
-                cycle_collect_js_ids(value, out);
-            } else if let Some(arr) = value.as_array() {
-                for item in arr {
-                    if item.is_object() {
-                        cycle_collect_js_ids(item, out);
+            if let Some(value) = node.get("value") {
+                cycle_collect_assignments_and_deps(value, assignments, dependencies);
+            }
+        }
+        _ => {
+            if let Some(obj) = node.as_object() {
+                for (key, value) in obj {
+                    if key == "type" || key == "start" || key == "end" || key == "loc" {
+                        continue;
+                    }
+                    if value.is_object() {
+                        cycle_collect_assignments_and_deps(value, assignments, dependencies);
+                    } else if let Some(arr) = value.as_array() {
+                        for item in arr {
+                            if item.is_object() {
+                                cycle_collect_assignments_and_deps(item, assignments, dependencies);
+                            }
+                        }
                     }
                 }
             }

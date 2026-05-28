@@ -1054,9 +1054,49 @@ pub fn determine_namespace_for_children(node: &RegularElement, _namespace: &str)
     }
 }
 
+/// Canonicalises a `$props()` rune assignment written with non-standard
+/// whitespace — `= $props ()`, `=$props()`, `= $props( )` — to the exact
+/// `= $props()` form expected by the text-level props matchers in both the
+/// client and server transforms.
+///
+/// The AST-level `$props()` detector accepts any spacing, so without this
+/// normalisation a spaced `$props ()` call is detected but never lowered and
+/// survives into the generated output as a reference to the undefined global
+/// `$props`. `$props` is a compiler rune (not a user value when unshadowed),
+/// so collapsing the call whitespace is always semantics-preserving.
+pub(crate) fn canonicalize_props_call(s: &str) -> Cow<'_, str> {
+    static REGEX_PROPS_ASSIGN: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"=\s*\$props\s*\(\s*\)").unwrap());
+    // `$$` is the regex-crate escape for a literal `$` in the replacement
+    // string (a bare `$props` would be read as a capture-group reference).
+    REGEX_PROPS_ASSIGN.replace_all(s, "= $$props()")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canonicalize_props_call_collapses_whitespace() {
+        assert_eq!(
+            canonicalize_props_call("let p = $props ()"),
+            "let p = $props()"
+        );
+        assert_eq!(
+            canonicalize_props_call("let p =$props()"),
+            "let p = $props()"
+        );
+        assert_eq!(
+            canonicalize_props_call("let { x } = $props( )"),
+            "let { x } = $props()"
+        );
+        // Unrelated `=` and defaults are untouched.
+        assert_eq!(
+            canonicalize_props_call("let { x = 1 } = $props()"),
+            "let { x = 1 } = $props()"
+        );
+        assert_eq!(canonicalize_props_call("let y = 5"), "let y = 5");
+    }
 
     #[test]
     fn test_clean_nodes_empty() {
