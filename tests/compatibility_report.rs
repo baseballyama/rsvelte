@@ -1038,7 +1038,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   `dynamic-component-member` exposes an additional rsvelte gap
         //   (`<svelte:component this={state.x.Y}>` doesn't wrap `state` in
         //   `$.get(...)` for SSR/client). Tracked as a follow-up port.
-        ("runtime-runes", "async-eager-block"),
         ("runtime-runes", "async-dont-rebase-new-batch-1"),
         ("runtime-runes", "async-dont-rebase-new-batch-3"),
         ("runtime-runes", "async-dont-rebase-new-batch-4"),
