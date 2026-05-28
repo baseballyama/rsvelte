@@ -4,7 +4,14 @@ use memchr::memmem;
 
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
-use super::find_matching_paren;
+use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+
+/// JS-lexical-aware replacement for `find_matching_paren`: given `s` positioned
+/// just after an opening `(`, return the byte offset of the matching `)`,
+/// skipping `)` inside strings / template literals / regex / comments (H-058).
+fn find_matching_paren_lexical(s: &str) -> Option<usize> {
+    find_matching_bracket(s, 0, '(')
+}
 
 /// Represents a class field with $state or $derived rune.
 #[derive(Debug, Clone)]
@@ -434,24 +441,12 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
 
     let class_header = &after_class[..brace_pos + 1];
 
-    // Find matching closing brace
+    // Find the matching closing brace with JS-lexical awareness so a `}` inside
+    // a string / template / regex / comment (e.g. `return "}"`) doesn't truncate
+    // the class body (H-057).
     let class_body_start = class_pos + brace_pos + 1;
-    let mut brace_depth = 1;
-    let mut class_body_end = class_body_start;
-
-    for (i, c) in script[class_body_start..].char_indices() {
-        match c {
-            '{' => brace_depth += 1,
-            '}' => {
-                brace_depth -= 1;
-                if brace_depth == 0 {
-                    class_body_end = class_body_start + i;
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
+    let class_body_end =
+        find_matching_bracket(script, class_body_start, '{').unwrap_or(class_body_start);
 
     let class_body = &script[class_body_start..class_body_end];
 
@@ -468,21 +463,9 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         let mut params_end_in_after: Option<usize> = None;
         if let Some(paren_start) = after_ctor.find('(') {
             let params_start = paren_start + 1;
-            let mut depth = 1;
-            let mut params_end = params_start;
-            for (i, c) in after_ctor[params_start..].char_indices() {
-                match c {
-                    '(' => depth += 1,
-                    ')' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            params_end = params_start + i;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
+            let params_end = find_matching_paren_lexical(&after_ctor[params_start..])
+                .map(|rel| params_start + rel)
+                .unwrap_or(params_start);
             constructor_params = after_ctor[params_start..params_end].to_string();
             params_end_in_after = Some(params_end);
         }
@@ -498,22 +481,9 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
         if let Some(brace_rel) = after_ctor[brace_search_start..].find('{') {
             let brace_pos_inner = brace_search_start + brace_rel;
             let ctor_body_start = ctor_pos + brace_pos_inner + 1;
-            let mut depth = 1;
-            let mut ctor_body_end = ctor_body_start;
-
-            for (i, c) in class_body[ctor_body_start..].char_indices() {
-                match c {
-                    '{' => depth += 1,
-                    '}' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            ctor_body_end = ctor_body_start + i;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
+            // JS-lexical-aware matching brace (H-057).
+            let ctor_body_end =
+                find_matching_bracket(class_body, ctor_body_start, '{').unwrap_or(ctor_body_start);
 
             constructor_start = Some(ctor_pos);
             constructor_content = class_body[ctor_body_start..ctor_body_end].to_string();
@@ -859,13 +829,24 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
     let is_new_class = before_trimmed.ends_with("new");
 
     if is_new_class {
-        // Trim "new" from before_class and wrap the class in (...)()
+        // Trim "new" from before_class and wrap the class in (...).
         let new_pos = memmem::rfind(before_class.as_bytes(), b"new").unwrap();
         let before_new = &before_class[..new_pos];
-        format!(
-            "{}new ({}\n{}\t}})(){}",
-            before_new, class_header, new_class_body, after_class_transformed
-        )
+        // If the source already has a `(args)` after the class body, those are
+        // the constructor arguments — keep them rather than injecting an extra
+        // `()`, which would turn `new class {}(args)` into the (wrong)
+        // `new (class {})()(args)` (H-059).
+        if after_class_transformed.trim_start().starts_with('(') {
+            format!(
+                "{}new ({}\n{}\t}}){}",
+                before_new, class_header, new_class_body, after_class_transformed
+            )
+        } else {
+            format!(
+                "{}new ({}\n{}\t}})(){}",
+                before_new, class_header, new_class_body, after_class_transformed
+            )
+        }
     } else {
         format!(
             "{}{}\n{}\t}}{}",
@@ -947,7 +928,7 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
 
     // Find matching closing paren
     let after_paren = &trimmed[value_start..];
-    let value_end = find_matching_paren(after_paren)?;
+    let value_end = find_matching_paren_lexical(after_paren)?;
     let value = after_paren[..value_end].to_string();
 
     // Strip quotes from name for private backing name generation
@@ -1011,19 +992,19 @@ pub(super) fn parse_constructor_state_assignment(
         return None;
     }
     let (rune_type, value) = if let Some(rest) = rhs.strip_prefix("$state.raw(") {
-        let end = find_matching_paren(rest)?;
+        let end = find_matching_paren_lexical(rest)?;
         ("$state.raw", rest[..end].to_string())
     } else if let Some(rest) = rhs.strip_prefix("$state.frozen(") {
-        let end = find_matching_paren(rest)?;
+        let end = find_matching_paren_lexical(rest)?;
         ("$state.frozen", rest[..end].to_string())
     } else if let Some(rest) = rhs.strip_prefix("$state(") {
-        let end = find_matching_paren(rest)?;
+        let end = find_matching_paren_lexical(rest)?;
         ("$state", rest[..end].to_string())
     } else if let Some(rest) = rhs.strip_prefix("$derived.by(") {
-        let end = find_matching_paren(rest)?;
+        let end = find_matching_paren_lexical(rest)?;
         ("$derived.by", rest[..end].to_string())
     } else if let Some(rest) = rhs.strip_prefix("$derived(") {
-        let end = find_matching_paren(rest)?;
+        let end = find_matching_paren_lexical(rest)?;
         ("$derived", rest[..end].to_string())
     } else {
         return None;
@@ -1548,7 +1529,7 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
             if matched && let Some(rune_call_start) = result.find(pattern) {
                 let value_start = rune_call_start + pattern.len();
                 let after_paren = &result[value_start..];
-                if let Some(value_end) = find_matching_paren(after_paren) {
+                if let Some(value_end) = find_matching_paren_lexical(after_paren) {
                     let value = after_paren[..value_end].to_string();
                     let private_name = format!("this.#{}", field.private_backing_name);
                     let transformed_rhs = match *rune_type {
