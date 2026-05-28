@@ -265,7 +265,11 @@ fn collect_read_only_props(script_content: &str) -> Vec<String> {
     let mut props = Vec::new();
 
     for line in script_content.lines() {
-        let trimmed = line.trim();
+        // Canonicalise spacing in the `$props()` call so `let { x } = $props ()`
+        // is recognised the same as `= $props()`.
+        let trimmed =
+            crate::compiler::phases::phase3_transform::utils::canonicalize_props_call(line.trim());
+        let trimmed = trimmed.as_ref();
 
         // Match patterns like: let { prop1, prop2 } = $props()
         if memmem::find(trimmed.as_bytes(), b"$props()").is_some()
