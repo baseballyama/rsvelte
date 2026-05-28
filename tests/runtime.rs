@@ -194,7 +194,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-dont-rebase-new-batch-1",
     "async-dont-rebase-new-batch-3",
     "async-dont-rebase-new-batch-4",
-    "async-eager-block",
     "async-state-updates-microtask-separated",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path
