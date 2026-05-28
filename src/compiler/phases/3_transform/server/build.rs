@@ -1986,6 +1986,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     then_body,
                     catch_param,
                     catch_body,
+                    has_await,
                 } => {
                     let blockers = super::helpers::find_expression_blockers(promise, blocker_map);
                     if !blockers.is_empty() {
@@ -1998,6 +1999,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 then_body: then_body.clone(),
                                 catch_param: catch_param.clone(),
                                 catch_body: catch_body.clone(),
+                                has_await: *has_await,
                             }],
                         });
                     } else {
@@ -4986,12 +4988,31 @@ impl<'a> ServerCodeGenerator<'a> {
                     then_body,
                     catch_param: _,
                     catch_body: _,
+                    has_await,
                 } => {
                     // Flush current HTML before await block
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
+                    }
+
+                    // Svelte 5.55.9 upstream `000c594e0`: when the expression has
+                    // `await` (`{#await await ...}`), wrap the $.await(...) call
+                    // in `$$renderer.child_block(async ($$renderer) => { ... })`
+                    // so the SSR/hydration markup matches the client wrapper.
+                    let needs_child_block = *has_await;
+                    let (await_indent_level, await_indent) = if needs_child_block {
+                        let l = indent_level + 1;
+                        (l, "\t".repeat(l))
+                    } else {
+                        (indent_level, indent.clone())
+                    };
+                    if needs_child_block {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            indent
+                        ));
                     }
 
                     // Generate $.await call with proper callbacks
@@ -5011,56 +5032,64 @@ impl<'a> ServerCodeGenerator<'a> {
                         };
                         body_code.push_str(&format!(
                             "{}$.await($$renderer, {}, () => {{}}, {});\n",
-                            indent, promise, then_fn
+                            await_indent, promise, then_fn
                         ));
                     } else {
                         // Multi-line format
-                        body_code.push_str(&format!("{}$.await(\n", indent));
-                        body_code.push_str(&format!("{}\t$$renderer,\n", indent));
-                        body_code.push_str(&format!("{}\t{},\n", indent, promise));
+                        body_code.push_str(&format!("{}$.await(\n", await_indent));
+                        body_code.push_str(&format!("{}\t$$renderer,\n", await_indent));
+                        body_code.push_str(&format!("{}\t{},\n", await_indent, promise));
 
                         // Pending callback
                         if pending_is_empty {
-                            body_code.push_str(&format!("{}\t() => {{}},\n", indent));
+                            body_code.push_str(&format!("{}\t() => {{}},\n", await_indent));
                         } else {
-                            body_code.push_str(&format!("{}\t() => {{\n", indent));
+                            body_code.push_str(&format!("{}\t() => {{\n", await_indent));
                             let pending_code = Self::build_parts_with_store_subs(
                                 pending_body,
-                                indent_level + 2,
+                                await_indent_level + 2,
                                 each_counter,
                                 store_subs,
                             );
                             body_code.push_str(&pending_code);
-                            body_code.push_str(&format!("{}\t}},\n", indent));
+                            body_code.push_str(&format!("{}\t}},\n", await_indent));
                         }
 
                         // Then callback (last argument - no catch callback on server)
                         if then_is_empty {
                             if then_param.is_empty() {
-                                body_code.push_str(&format!("{}\t() => {{}}", indent));
+                                body_code.push_str(&format!("{}\t() => {{}}", await_indent));
                             } else {
-                                body_code
-                                    .push_str(&format!("{}\t({}) => {{}}", indent, then_param));
+                                body_code.push_str(&format!(
+                                    "{}\t({}) => {{}}",
+                                    await_indent, then_param
+                                ));
                             }
                         } else {
                             if then_param.is_empty() {
-                                body_code.push_str(&format!("{}\t() => {{\n", indent));
+                                body_code.push_str(&format!("{}\t() => {{\n", await_indent));
                             } else {
-                                body_code
-                                    .push_str(&format!("{}\t({}) => {{\n", indent, then_param));
+                                body_code.push_str(&format!(
+                                    "{}\t({}) => {{\n",
+                                    await_indent, then_param
+                                ));
                             }
                             let then_code = Self::build_parts_with_store_subs(
                                 then_body,
-                                indent_level + 2,
+                                await_indent_level + 2,
                                 each_counter,
                                 store_subs,
                             );
                             body_code.push_str(&then_code);
-                            body_code.push_str(&format!("{}\t}}", indent));
+                            body_code.push_str(&format!("{}\t}}", await_indent));
                         }
 
                         body_code.push('\n');
-                        body_code.push_str(&format!("{});\n", indent));
+                        body_code.push_str(&format!("{});\n", await_indent));
+                    }
+
+                    if needs_child_block {
+                        body_code.push_str(&format!("{}}});\n", indent));
                     }
 
                     // Add closing marker to the next push

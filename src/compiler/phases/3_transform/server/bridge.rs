@@ -691,6 +691,7 @@ fn convert_part_to_item(
             then_param,
             pending_body,
             then_body,
+            has_await,
             ..
         } => {
             convert_await_block(
@@ -698,6 +699,7 @@ fn convert_part_to_item(
                 then_param,
                 pending_body,
                 then_body,
+                *has_await,
                 items,
                 store_subs,
                 each_counter,
@@ -2065,11 +2067,13 @@ fn convert_svelte_boundary_with_pending(
 ///
 /// Generates `$.await($$renderer, promise, pending_fn, then_fn);` followed
 /// by `<!--]-->` as an expression for coalescing.
+#[allow(clippy::too_many_arguments)]
 fn convert_await_block(
     promise: &str,
     then_param: &str,
     pending_body: &[OutputPart],
     then_body: &[OutputPart],
+    has_await: bool,
     items: &mut Vec<TemplateItem>,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
@@ -2079,6 +2083,18 @@ fn convert_await_block(
 
     let mut code = String::new();
 
+    // Svelte 5.55.9 upstream `000c594e0` "fix: `{#await await ...}` and async
+    // dependencies fixes": when the promise expression itself contains
+    // `await` (`{#await await ...}`), wrap the entire `$.await(...)` call in
+    // `$$renderer.child_block(async ($$renderer) => { ... })` so the SSR /
+    // hydration markup matches the client `$.async(...)` wrapper. The
+    // promise expression has already been wrapped in an IIFE in the visitor.
+    let inner_indent = if has_await { "\t" } else { "" };
+
+    if has_await {
+        code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
+    }
+
     if pending_is_empty && then_is_empty {
         let then_fn = if then_param.is_empty() {
             "() => {}".to_string()
@@ -2086,43 +2102,58 @@ fn convert_await_block(
             format!("({}) => {{}}", then_param)
         };
         code.push_str(&format!(
-            "$.await($$renderer, {}, () => {{}}, {});",
-            promise, then_fn
+            "{}$.await($$renderer, {}, () => {{}}, {});",
+            inner_indent, promise, then_fn
         ));
     } else {
-        code.push_str("$.await(\n");
-        code.push_str("\t$$renderer,\n");
-        code.push_str(&format!("\t{},\n", promise));
+        let nested_indent_level = if has_await { 3 } else { 2 };
+
+        code.push_str(&format!("{}$.await(\n", inner_indent));
+        code.push_str(&format!("{}\t$$renderer,\n", inner_indent));
+        code.push_str(&format!("{}\t{},\n", inner_indent, promise));
 
         if pending_is_empty {
-            code.push_str("\t() => {},\n");
+            code.push_str(&format!("{}\t() => {{}},\n", inner_indent));
         } else {
-            code.push_str("\t() => {\n");
-            let pending_code =
-                generate_inner_body_code_direct(pending_body, store_subs, each_counter, 2);
+            code.push_str(&format!("{}\t() => {{\n", inner_indent));
+            let pending_code = generate_inner_body_code_direct(
+                pending_body,
+                store_subs,
+                each_counter,
+                nested_indent_level,
+            );
             code.push_str(&pending_code);
-            code.push_str("\t},\n");
+            code.push_str(&format!("{}\t}},\n", inner_indent));
         }
 
         if then_is_empty {
             if then_param.is_empty() {
-                code.push_str("\t() => {}");
+                code.push_str(&format!("{}\t() => {{}}", inner_indent));
             } else {
-                code.push_str(&format!("\t({}) => {{}}", then_param));
+                code.push_str(&format!("{}\t({}) => {{}}", inner_indent, then_param));
             }
         } else {
             if then_param.is_empty() {
-                code.push_str("\t() => {\n");
+                code.push_str(&format!("{}\t() => {{\n", inner_indent));
             } else {
-                code.push_str(&format!("\t({}) => {{\n", then_param));
+                code.push_str(&format!("{}\t({}) => {{\n", inner_indent, then_param));
             }
-            let then_code = generate_inner_body_code_direct(then_body, store_subs, each_counter, 2);
+            let then_code = generate_inner_body_code_direct(
+                then_body,
+                store_subs,
+                each_counter,
+                nested_indent_level,
+            );
             code.push_str(&then_code);
-            code.push_str("\t}");
+            code.push_str(&format!("{}\t}}", inner_indent));
         }
 
         code.push('\n');
-        code.push_str(");");
+        code.push_str(&format!("{});", inner_indent));
+    }
+
+    if has_await {
+        code.push_str("\n});");
     }
 
     let trimmed = code.trim();

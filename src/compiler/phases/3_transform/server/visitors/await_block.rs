@@ -26,6 +26,23 @@ impl<'a> ServerCodeGenerator<'a> {
         // Svelte 5.52+: derived reads in template expressions become calls.
         let promise_expr = self.wrap_derived_reads(&promise_expr);
 
+        // Svelte 5.55.9 upstream `000c594e0` "fix: `{#await await ...}` and async
+        // dependencies fixes": when the promise expression itself contains
+        // `await`, the expression should NOT be awaited eagerly on the server
+        // (the SSR/hydration markup would otherwise diverge from the client).
+        // Instead, transform the inner `await` into `(await $.save(...))()` and
+        // wrap the whole expression in an immediately-invoked `async () => ...`
+        // so the result is a promise that `$.await(...)` can consume. The outer
+        // `$$renderer.child_block(...)` wrapper is added later by
+        // `convert_await_block` in `bridge.rs`.
+        let has_await = block.metadata.expression.has_await();
+        let promise_expr = if has_await {
+            let inner = super::super::helpers::transform_await_to_save(&promise_expr);
+            format!("(async () => {})()", inner)
+        } else {
+            promise_expr
+        };
+
         // Get the then value variable name if present
         let then_param = if let Some(ref value) = block.value {
             let start = value.start().unwrap_or(0) as usize;
@@ -129,6 +146,7 @@ impl<'a> ServerCodeGenerator<'a> {
             then_body,
             catch_param,
             catch_body,
+            has_await,
         });
 
         Ok(())
