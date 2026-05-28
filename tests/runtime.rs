@@ -214,7 +214,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-flushsync-in-effect",
     "async-stale-derived-4",
     "async-state-updates-microtask-separated",
-    "dynamic-component-member",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path
     // is handled; the runes fixtures below also hit code paths that aren't
