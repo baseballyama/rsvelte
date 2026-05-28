@@ -821,7 +821,7 @@ fn try_parse_arrow_function(
 
     // Parse params between ( and )
     let params_str = content[1..close_paren].trim();
-    let params_start = arena.js_children_count();
+    let mut params_nodes = Vec::new();
 
     if !params_str.is_empty() {
         for param in params_str.split(',') {
@@ -836,7 +836,7 @@ fn try_parse_arrow_function(
             if !p_bytes.iter().all(|&b| is_ident_continue_byte(b)) {
                 return None; // Has type annotations or defaults — too complex
             }
-            arena.alloc_js_child(JsNode::Identifier {
+            params_nodes.push(JsNode::Identifier {
                 start: 0, // Approximate — exact positions not critical for compilation
                 end: 0,
                 loc: None,
@@ -844,7 +844,7 @@ fn try_parse_arrow_function(
             });
         }
     }
-    let params = arena.children_range_since(params_start);
+    let params = arena.alloc_js_children(params_nodes);
 
     let total_end = offset + content.len();
     Some(Expression::from_node(JsNode::ArrowFunctionExpression {

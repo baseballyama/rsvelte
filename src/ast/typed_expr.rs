@@ -646,7 +646,9 @@ macro_rules! ser_loc {
 /// Helper: serialize a JsNodeId field by resolving through the arena.
 macro_rules! ser_node {
     ($map:ident, $key:expr, $id:expr) => {
-        $map.serialize_entry($key, crate::ast::arena::resolve_js_node_for_serialize(*$id))?
+        crate::ast::arena::with_current_serialize_arena(|arena| {
+            $map.serialize_entry($key, arena.get_js_node(*$id))
+        })?
     };
 }
 
@@ -654,9 +656,9 @@ macro_rules! ser_node {
 macro_rules! ser_opt_node {
     ($map:ident, $key:expr, $opt:expr) => {
         match $opt {
-            Some(id) => {
-                $map.serialize_entry($key, crate::ast::arena::resolve_js_node_for_serialize(*id))?
-            }
+            Some(id) => crate::ast::arena::with_current_serialize_arena(|arena| {
+                $map.serialize_entry($key, arena.get_js_node(*id))
+            })?,
             None => $map.serialize_entry($key, &Value::Null)?,
         }
     };
@@ -665,10 +667,9 @@ macro_rules! ser_opt_node {
 /// Helper: serialize an IdRange field as a JSON array by resolving children through the arena.
 macro_rules! ser_children {
     ($map:ident, $key:expr, $range:expr) => {
-        $map.serialize_entry(
-            $key,
-            &crate::ast::arena::resolve_js_children_for_serialize(*$range),
-        )?
+        crate::ast::arena::with_current_serialize_arena(|arena| {
+            $map.serialize_entry($key, arena.get_js_children(*$range))
+        })?
     };
 }
 
@@ -1961,9 +1962,8 @@ thread_local! {
 /// fallback DESER_ARENA (tests / standalone). The two `deser_alloc_*` helpers
 /// below are thin wrappers around this combinator.
 fn with_deser_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> R {
-    use crate::ast::arena::try_get_serialize_arena;
-    if let Some(arena) = try_get_serialize_arena() {
-        f(arena)
+    if crate::ast::arena::has_serialize_arena() {
+        crate::ast::arena::with_current_serialize_arena(f)
     } else {
         DESER_ARENA.with(|a| f(&a.borrow()))
     }
