@@ -206,7 +206,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-dont-rebase-new-batch-3",
     "async-dont-rebase-new-batch-4",
     "async-eager-block",
-    "async-eager-each-block",
     "async-flushsync-in-effect",
     "async-stale-derived-4",
     "async-state-updates-microtask-separated",
