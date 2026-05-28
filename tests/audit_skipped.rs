@@ -382,12 +382,7 @@ fn audit_skipped_fixtures() {
     // execute as regular runs in the compatibility report rather than being
     // skipped — so they don't need to appear here.
     let runtime_skipped: &[(&str, &str)] = &[
-        ("runtime-runes", "async-inspect-build"),
         ("runtime-runes", "async-derived-indirect"),
-        ("runtime-runes", "async-if-hydration"),
-        ("runtime-runes", "async-derived-with-effect-and-boundary"),
-        ("runtime-runes", "async-binding-after-await"),
-        ("runtime-runes", "async-transform-empty-statements"),
         ("runtime-runes", "async-later-sync-overlaps"),
         ("runtime-runes", "async-style-after-await"),
         ("runtime-runes", "async-overlap-multiple-1"),
@@ -398,8 +393,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-overlap-multiple-6"),
         ("runtime-runes", "async-overlap-multiple-7"),
         ("runtime-runes", "async-if-block-unskip"),
-        ("runtime-runes", "async-const"),
-        ("runtime-runes", "async-const-wait"),
         ("runtime-runes", "async-derived-const-blocker"),
         ("runtime-runes", "async-reactivity-loss-no-false-positive-1"),
         ("runtime-runes", "async-reactivity-loss-no-false-positive-2"),
@@ -408,7 +401,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-flushsync-in-effect"),
         ("runtime-runes", "async-stale-derived-4"),
         ("runtime-runes", "async-eager-block"),
-        ("runtime-runes", "async-eager-each-block"),
         ("runtime-runes", "async-dont-rebase-new-batch-1"),
         ("runtime-runes", "async-dont-rebase-new-batch-2"),
         ("runtime-runes", "async-dont-rebase-new-batch-3"),
@@ -423,8 +415,8 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-if-else"),
     ];
 
-    let parser_legacy_skipped = &["javascript-comments", "script-comment-only"];
-    let parser_modern_skipped = &["comment-in-tag", "parens"];
+    let parser_legacy_skipped = &["javascript-comments"];
+    let parser_modern_skipped: &[&str] = &[];
     let css_skipped: &[&str] = &[];
     let print_skipped = &["css-keyframes-percent"];
 

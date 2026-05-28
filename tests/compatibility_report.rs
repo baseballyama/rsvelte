@@ -1070,7 +1070,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-flushsync-in-effect"),
         ("runtime-runes", "async-stale-derived-4"),
         ("runtime-runes", "async-eager-block"),
-        ("runtime-runes", "async-eager-each-block"),
         ("runtime-runes", "async-dont-rebase-new-batch-1"),
         ("runtime-runes", "async-dont-rebase-new-batch-2"),
         ("runtime-runes", "async-dont-rebase-new-batch-3"),
