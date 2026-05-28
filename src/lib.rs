@@ -52,10 +52,10 @@ pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
 #[cfg(feature = "native")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
-    ModuleCompileOptions, compile, compile_batch, compile_module,
+    ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_batch, compile_module,
 };
 #[cfg(not(feature = "native"))]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, ExperimentalOptions, GenerateMode,
-    ModuleCompileOptions, compile, compile_module,
+    ModuleCompileOptions, Warning, WarningFilterFn, compile, compile_module,
 };

@@ -90,7 +90,14 @@ fn write_machine(
             .display()
             .to_string()
     };
-    let escaped = diag.message.replace('"', "\\\"");
+    // The machine format is line-oriented (one diagnostic per line), so a
+    // message carrying newlines must be encoded or it splits into several
+    // un-parseable lines (H-098). Escape quotes and CR/LF.
+    let escaped = diag
+        .message
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n");
     let _ = writeln!(
         out,
         "{} {}:{}:{} \"{}\" {}",
@@ -244,5 +251,25 @@ mod tests {
     fn github_actions_escapes_special_chars() {
         let escaped = escape_workflow_command("100% match\nnext line\rthird");
         assert_eq!(escaped, "100%25 match%0Anext line%0Dthird");
+    }
+
+    #[test]
+    fn machine_output_is_single_line_for_multiline_message() {
+        // H-098: a diagnostic message with newlines must not split the
+        // line-oriented machine output into several un-parseable lines.
+        let ws = Path::new("/work");
+        let mut d = diag(DiagnosticSeverity::Error, "/work/A.svelte", 1, 1);
+        d.message = "line one\nline two\rthird".into();
+        let mut out = String::new();
+        write_diagnostic(&mut out, &d, ws, OutputFormat::Machine);
+        assert_eq!(
+            out.matches('\n').count(),
+            1,
+            "machine output split across lines: {out:?}"
+        );
+        assert!(
+            out.contains("line one\\nline two\\rthird"),
+            "newlines not encoded: {out:?}"
+        );
     }
 }
