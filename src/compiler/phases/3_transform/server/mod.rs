@@ -658,6 +658,12 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// are visible in inner boundaries.
     pub(crate) const_blocker_map:
         std::rc::Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, String>>>,
+    /// Top-level `$$promises` blocker map computed from the instance script.
+    /// Maps each identifier declared in (or reassigned by) an async-grouped
+    /// thunk to its `$$promises` index. The const-tag visitor reads this so
+    /// that `{@const}` declarations whose init references an async instance
+    /// binding get an `$$renderer.run()` wait thunk (Svelte 5.55.3 cluster).
+    pub(crate) top_level_blocker_map: rustc_hash::FxHashMap<String, usize>,
     /// Accumulator for async const tag grouping.
     /// When an async const tag is encountered, subsequent const tags in the same fragment
     /// are accumulated into this group. Flushed by the fragment visitor after processing all nodes.
@@ -833,6 +839,8 @@ impl<'a> ServerCodeGenerator<'a> {
         // blocker_map from constant_vars. These variables are assigned asynchronously
         // in $$promises thunks and should NOT be constant-folded, because they need to
         // be rendered via $$renderer.async() wrappers.
+        let mut top_level_blocker_map: rustc_hash::FxHashMap<String, usize> =
+            rustc_hash::FxHashMap::default();
         if use_async && let Some(script) = instance_script {
             let start = script.content.start().unwrap_or(0) as usize;
             let end = script.content.end().unwrap_or(0) as usize;
@@ -842,6 +850,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 for name in blocker_map.keys() {
                     constant_vars.remove(name);
                 }
+                top_level_blocker_map = blocker_map;
             }
         }
 
@@ -925,6 +934,7 @@ impl<'a> ServerCodeGenerator<'a> {
             const_blocker_map: std::rc::Rc::new(std::cell::RefCell::new(
                 rustc_hash::FxHashMap::default(),
             )),
+            top_level_blocker_map,
             async_consts: None,
             derived_names,
             derived_var_names,
@@ -958,6 +968,7 @@ impl<'a> ServerCodeGenerator<'a> {
             in_if_body: self.in_if_body,
             const_promises_counter: self.const_promises_counter.clone(),
             const_blocker_map: self.const_blocker_map.clone(),
+            top_level_blocker_map: self.top_level_blocker_map.clone(),
             async_consts: None,
             derived_names: self.derived_names.clone(),
             derived_var_names: self.derived_var_names.clone(),

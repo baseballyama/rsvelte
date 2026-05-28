@@ -252,6 +252,15 @@ impl<'a> ServerCodeGenerator<'a> {
                         if !blist.contains(blocker_expr) {
                             blist.push(blocker_expr.clone());
                         }
+                    } else if let Some(&idx) = self.top_level_blocker_map.get(name) {
+                        // Top-level `$$promises[N]` blocker (instance-script
+                        // binding assigned inside the async-body grouping).
+                        // Mirrors upstream's `dep.blocker` lookup on
+                        // `Binding.blocker` for instance-level bindings.
+                        let blocker_expr = format!("$$promises[{}]", idx);
+                        if !blist.contains(&blocker_expr) {
+                            blist.push(blocker_expr);
+                        }
                     }
                 }
                 blist
@@ -327,20 +336,26 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                     result
                 };
+                // Match the official Svelte compiler (5.55.3+): emit an
+                // expression-bodied arrow function for the assignment thunk
+                // (e.g. `async () => x = (await $.save(rhs))()` or
+                // `() => x = rhs`) instead of a block-bodied one. The wait
+                // thunk for blockers (if any) is a separate entry in
+                // `run.thunks` and was already pushed before this point.
                 let thunk_code = if has_await {
                     let save_wrapped = super::super::helpers::transform_await_to_save(&rhs);
                     let save_wrapped = normalize_rhs(&save_wrapped);
                     if is_destructuring {
-                        format!("async () => {{\n\t\t({} = {});\n\t}}", lhs, save_wrapped)
+                        format!("async () => ({} = {})", lhs, save_wrapped)
                     } else {
-                        format!("async () => {{\n\t\t{} = {};\n\t}}", lhs, save_wrapped)
+                        format!("async () => {} = {}", lhs, save_wrapped)
                     }
                 } else if is_destructuring {
                     let normalized_rhs = normalize_rhs(&rhs);
-                    format!("() => {{\n\t\t({} = {});\n\t}}", lhs, normalized_rhs)
+                    format!("() => ({} = {})", lhs, normalized_rhs)
                 } else {
                     let normalized_rhs = normalize_rhs(&rhs);
-                    format!("() => {{\n\t\t{} = {};\n\t}}", lhs, normalized_rhs)
+                    format!("() => {} = {}", lhs, normalized_rhs)
                 };
                 let thunk_index = group.thunks.len();
                 group.thunks.push((thunk_code, has_await));
