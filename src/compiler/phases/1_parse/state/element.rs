@@ -1774,19 +1774,29 @@ impl Parser<'_> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         // Determine type and extract name with modifiers
-        let (transition_name, intro, outro, modifiers) =
+        let (directive_label, transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                (name, true, true, mods)
+                ("transition:", name, true, true, mods)
             } else if let Some(stripped) = full_name.strip_prefix("in:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                (name, true, false, mods)
+                ("in:", name, true, false, mods)
             } else if let Some(stripped) = full_name.strip_prefix("out:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                (name, false, true, mods)
+                ("out:", name, false, true, mods)
             } else {
                 return Ok(None);
             };
+
+        // An empty name (`transition:`, `in:|global`, …) is a parse error —
+        // it would otherwise lower to an empty JS identifier. H-146 / M-040.
+        if transition_name.is_empty() {
+            return Err(crate::error::ParseError::svelte(
+                "directive_missing_name",
+                format!("`{directive_label}` name cannot be empty"),
+                (start, name_end),
+            ));
+        }
 
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
