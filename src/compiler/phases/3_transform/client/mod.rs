@@ -4358,12 +4358,18 @@ fn transform_instance_script_for_visitors(
             continue;
         }
 
-        // Skip $props.id() declarations - they will be added as const declarations in the component body
-        if (memmem::find(trimmed.as_bytes(), b"= $props.id()").is_some()
-            || memmem::find(trimmed.as_bytes(), b"= $.props_id()").is_some())
-            && (trimmed.starts_with("let ")
-                || trimmed.starts_with("const ")
-                || trimmed.starts_with("var "))
+        // Skip $props.id() declarations - they will be added as const declarations
+        // in the component body. Match on the initializer being exactly
+        // `$props.id()` / `$.props_id()` (whitespace-tolerant) rather than the
+        // literal `= $props.id()` substring, so `let id=$props.id()` (no spaces)
+        // is also skipped instead of surviving alongside the generated const. H-060.
+        if (trimmed.starts_with("let ")
+            || trimmed.starts_with("const ")
+            || trimmed.starts_with("var "))
+            && trimmed
+                .find('=')
+                .map(|eq| trimmed[eq + 1..].trim().trim_end_matches(';').trim())
+                .is_some_and(|rhs| rhs == "$props.id()" || rhs == "$.props_id()")
         {
             line_idx += 1;
             continue;

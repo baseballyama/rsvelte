@@ -1574,6 +1574,16 @@ pub(super) fn make_lazy_prop_arg(value: &str) -> String {
     }
 }
 
+/// If `s` is a `$bindable( … )` call, return the inner argument text (the raw
+/// slice between the parentheses, untrimmed). Tolerates whitespace between the
+/// `$bindable` rune and the opening `(` (`$bindable (x)`), which upstream's
+/// AST-based unwrap handles but a `starts_with("$bindable(")` text check
+/// missed. Returns `None` when `s` is not a `$bindable(...)` wrapper. H-061.
+fn strip_bindable_wrapper(s: &str) -> Option<&str> {
+    let rest = s.strip_prefix("$bindable")?.trim_start();
+    rest.strip_prefix('(')?.strip_suffix(')')
+}
+
 /// Split declarators by comma, handling nested braces, brackets, parens, and
 /// string / template literals.
 ///
@@ -1818,10 +1828,11 @@ pub(super) fn transform_props_destructuring(
 
             // Strip $bindable() wrapper: $bindable(value) -> value
             // Reference: VariableDeclaration.js - unwrap_bindable()
-            let was_bindable =
-                raw_default_value.starts_with("$bindable(") && raw_default_value.ends_with(')');
-            let default_value = if was_bindable {
-                let inner = &raw_default_value[10..raw_default_value.len() - 1];
+            // Tolerate whitespace between the rune and the `(` (`$bindable (x)`
+            // is valid JS that upstream's AST handles). H-061.
+            let bindable_inner = strip_bindable_wrapper(raw_default_value);
+            let was_bindable = bindable_inner.is_some();
+            let default_value = if let Some(inner) = bindable_inner {
                 if inner.is_empty() {
                     // $bindable() with no args - no default value
                     // Check if this binding is actually a prop source.
