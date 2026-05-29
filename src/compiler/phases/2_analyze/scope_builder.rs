@@ -497,14 +497,31 @@ impl<'a> ScopeBuilder<'a> {
         // Also allow function redeclarations (TypeScript overloads declare the same
         // function name multiple times).
         if let Some(&existing_idx) = self.scopes[target_scope].declarations.get(&name) {
-            let existing_binding = &self.bindings[existing_idx];
-            // Only error if neither declaration is a var and neither is a function
-            // (function redeclarations are valid in JS/TS for overloads)
-            if existing_binding.declaration_kind != DeclarationKind::Var
+            let existing_kind = self.bindings[existing_idx].declaration_kind;
+            // Original rule: error when neither side is hoistable (`var`) or a
+            // function — function redeclarations stay valid for TS overloads.
+            let both_non_hoistable = existing_kind != DeclarationKind::Var
                 && declaration_kind != DeclarationKind::Var
-                && existing_binding.declaration_kind != DeclarationKind::Function
-                && declaration_kind != DeclarationKind::Function
-            {
+                && existing_kind != DeclarationKind::Function
+                && declaration_kind != DeclarationKind::Function;
+            // A block-lexical binding (`let` / `const` / `using`) cannot share
+            // its name with anything else in the same scope — including a
+            // function declaration (`let x; function x() {}`), which the
+            // function-redeclaration allowance above previously suppressed. L-002.
+            let is_block_lexical = |k: DeclarationKind| {
+                matches!(
+                    k,
+                    DeclarationKind::Let
+                        | DeclarationKind::Const
+                        | DeclarationKind::Using
+                        | DeclarationKind::AwaitUsing
+                )
+            };
+            let lexical_vs_function = (is_block_lexical(existing_kind)
+                && declaration_kind == DeclarationKind::Function)
+                || (existing_kind == DeclarationKind::Function
+                    && is_block_lexical(declaration_kind));
+            if both_non_hoistable || lexical_vs_function {
                 self.validation_errors
                     .push(errors::declaration_duplicate(&name));
             }
