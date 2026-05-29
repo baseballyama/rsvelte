@@ -1406,17 +1406,22 @@ fn process_bind_directive(
         let get = seq.expressions[0].clone();
         let set = seq.expressions[1].clone();
 
-        let get_id = b::id(context.state.memoizer.generate_id("bind_get"));
-        let set_id = b::id(context.state.memoizer.generate_id("bind_set"));
+        // The getter/setter helpers are declared AND called by the same
+        // conflict-resolved name. Previously the declarations hard-coded
+        // `bind_get`/`bind_set` while the calls used the unique generated id
+        // (`bind_get_1`, …), so a second getter/setter binding produced a call
+        // to an undeclared variable. H-044.
+        let get_name = context.state.memoizer.generate_id("bind_get");
+        let set_name = context.state.memoizer.generate_id("bind_set");
 
         context
             .state
             .init
-            .push(b::var_decl(&context.arena, "bind_get", Some(get)));
+            .push(b::var_decl(&context.arena, get_name.clone(), Some(get)));
         context
             .state
             .init
-            .push(b::var_decl(&context.arena, "bind_set", Some(set)));
+            .push(b::var_decl(&context.arena, set_name.clone(), Some(set)));
 
         // Add getter
         delayed_props.push(DelayedProp {
@@ -1425,7 +1430,7 @@ fn process_bind_directive(
                 bind.name.as_str(),
                 vec![b::return_value(
                     &context.arena,
-                    b::call(&context.arena, get_id.clone(), vec![]),
+                    b::call(&context.arena, b::id(get_name), vec![]),
                 )],
             ),
         });
@@ -1438,7 +1443,7 @@ fn process_bind_directive(
                 "$$value",
                 vec![b::stmt(
                     &context.arena,
-                    b::call(&context.arena, set_id, vec![b::id("$$value")]),
+                    b::call(&context.arena, b::id(set_name), vec![b::id("$$value")]),
                 )],
             ),
         });
