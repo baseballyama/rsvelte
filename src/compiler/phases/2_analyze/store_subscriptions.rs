@@ -636,8 +636,19 @@ fn collect_dollar_identifiers_from_js_with_context(
     let chars: Vec<char> = js.chars().collect();
     // Byte offset of each character, so a `StoreRef.position` (consumed
     // downstream as a byte index into the source) stays correct when multi-byte
-    // characters precede the reference (M-005).
-    let char_byte_offsets: Vec<usize> = js.char_indices().map(|(b, _)| b).collect();
+    // characters precede the reference (M-005). For ASCII-only scripts (the
+    // overwhelmingly common case for component instance/module scripts), char
+    // index == byte index and the `char_byte_offsets` Vec is never read — skip
+    // building it. Each `collect_dollar_identifiers_from_js_with_context` call
+    // would otherwise allocate an O(N) `Vec<usize>` per script just so the
+    // single use site (the `StoreRef.position` assignment below) can look up
+    // a value identical to the index it's already holding.
+    let js_is_ascii = js.is_ascii();
+    let char_byte_offsets: Vec<usize> = if js_is_ascii {
+        Vec::new()
+    } else {
+        js.char_indices().map(|(b, _)| b).collect()
+    };
     let len = chars.len();
     let mut i = 0;
     let mut in_string: Option<char> = None; // track if inside a string literal
@@ -784,10 +795,14 @@ fn collect_dollar_identifiers_from_js_with_context(
                         refs.push(StoreRef {
                             name: ident,
                             position: base_offset
-                                + char_byte_offsets
-                                    .get(ident_start)
-                                    .copied()
-                                    .unwrap_or(js.len()),
+                                + if js_is_ascii {
+                                    ident_start.min(js.len())
+                                } else {
+                                    char_byte_offsets
+                                        .get(ident_start)
+                                        .copied()
+                                        .unwrap_or(js.len())
+                                },
                             in_module,
                         });
                     }
