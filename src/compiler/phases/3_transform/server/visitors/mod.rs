@@ -88,7 +88,14 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate server-side code for {@debug} tag.
-    /// Emits `console.log({ ...identifiers }); debugger;`
+    ///
+    /// Emits `console.log({ ...identifiers }); debugger;` and, when any of the
+    /// referenced identifiers is bound to an async-blocked value, wraps the
+    /// emitted statements in `$$renderer.async_block([<blockers>], ($$renderer) => { ... })`.
+    /// Mirrors upstream Svelte 5.55.6 `4c96b469f` which routes `{@debug}` output
+    /// through `create_child_block(..., b.array(blockers), false)` so a
+    /// `{@debug d}` for an `await`-derived `d` waits on the right
+    /// `$$promises[N]` / `promises[M]` before logging.
     fn generate_debug_tag(&mut self, tag: &DebugTag) -> Result<(), TransformError> {
         // Build identifier list from source
         let mut ident_names = Vec::new();
@@ -101,16 +108,58 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        if ident_names.is_empty() {
+        // Compute blockers from the identifier list. Match upstream's
+        // `scope.get(name)?.blocker` lookup using our two blocker maps:
+        //   - `top_level_blocker_map` (`name → $$promises[N]` for async-grouped
+        //     instance-script bindings, e.g. `let d = $derived(await ...)`)
+        //   - `const_blocker_map` (`name → promises_K[M]` for `@const` declarations
+        //     resolved inside a `$$renderer.run()` group, e.g.
+        //     `{@const data = await Promise.resolve(...)}`).
+        let blocker_strs: Vec<String> = {
+            let const_map = self.const_blocker_map.borrow();
+            let mut out: Vec<String> = Vec::new();
+            for name in &ident_names {
+                // Strip trailing `()` left over from derived-name source slicing
+                // so we look up the bare binding name.
+                let key = name.trim_end_matches("()");
+                if let Some(blocker_expr) = const_map.get(key) {
+                    if !out.iter().any(|b| b == blocker_expr) {
+                        out.push(blocker_expr.clone());
+                    }
+                } else if let Some(&idx) = self.top_level_blocker_map.get(key) {
+                    let expr = format!("$$promises[{}]", idx);
+                    if !out.iter().any(|b| b == &expr) {
+                        out.push(expr);
+                    }
+                }
+            }
+            out
+        };
+
+        let body = if ident_names.is_empty() {
             // {@debug} with no identifiers - just emit debugger
-            self.output_parts
-                .push(OutputPart::RawStatement("debugger;".to_string()));
+            "debugger;".to_string()
         } else {
             // {@debug expr1, expr2} - emit console.log({ expr1, expr2 }); debugger;
             let obj_entries = ident_names.join(", ");
+            format!("console.log({{ {} }});\ndebugger;", obj_entries)
+        };
+
+        if blocker_strs.is_empty() {
+            self.output_parts.push(OutputPart::RawStatement(body));
+        } else {
+            // Wrap in $$renderer.async_block([blockers], ($$renderer) => { ... }).
+            // Each body line is indented one level inside the arrow body so the
+            // emitted code matches the indented-by-codegen pretty-printed shape.
+            let inner_lines = body
+                .lines()
+                .map(|l| format!("\t{}", l))
+                .collect::<Vec<_>>()
+                .join("\n");
             self.output_parts.push(OutputPart::RawStatement(format!(
-                "console.log({{ {} }});\ndebugger;",
-                obj_entries
+                "$$renderer.async_block([{}], ($$renderer) => {{\n{}\n}});",
+                blocker_strs.join(", "),
+                inner_lines
             )));
         }
 
