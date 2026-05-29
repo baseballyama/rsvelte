@@ -1205,6 +1205,9 @@ fn collect_render_sites_in_node(
         TemplateNode::SvelteHead(head) => {
             collect_render_sites_in_fragment(&head.fragment, ancestors, map);
         }
+        TemplateNode::SvelteBoundary(boundary) => {
+            collect_render_sites_in_fragment(&boundary.fragment, ancestors, map);
+        }
         TemplateNode::SlotElement(slot) => {
             collect_render_sites_in_fragment(&slot.fragment, ancestors, map);
         }
@@ -1444,6 +1447,11 @@ fn process_node_scoping(
         }
         TemplateNode::SvelteHead(head) => {
             for child in &mut head.fragment.nodes {
+                process_node_scoping(child, css_selectors, ancestors, snippet_ancestors);
+            }
+        }
+        TemplateNode::SvelteBoundary(boundary) => {
+            for child in &mut boundary.fragment.nodes {
                 process_node_scoping(child, css_selectors, ancestors, snippet_ancestors);
             }
         }
@@ -2187,6 +2195,9 @@ fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &FxHashSet<(u
             TemplateNode::SvelteHead(head) => {
                 apply_scoping_marks(&mut head.fragment, elements_to_scope);
             }
+            TemplateNode::SvelteBoundary(boundary) => {
+                apply_scoping_marks(&mut boundary.fragment, elements_to_scope);
+            }
             TemplateNode::SlotElement(slot) => {
                 apply_scoping_marks(&mut slot.fragment, elements_to_scope);
             }
@@ -2348,6 +2359,15 @@ fn recurse_sibling_processing(
             TemplateNode::SvelteHead(head) => {
                 process_sibling_selectors(
                     &mut head.fragment,
+                    css_selectors,
+                    sibling_selectors,
+                    ancestors,
+                    snippet_ancestors,
+                );
+            }
+            TemplateNode::SvelteBoundary(boundary) => {
+                process_sibling_selectors(
+                    &mut boundary.fragment,
                     css_selectors,
                     sibling_selectors,
                     ancestors,
@@ -2749,6 +2769,14 @@ fn propagate_ancestor_scoping(
             TemplateNode::SvelteHead(head) => {
                 propagate_ancestor_scoping(
                     &mut head.fragment,
+                    css_selectors,
+                    ancestors,
+                    snippet_ancestors,
+                );
+            }
+            TemplateNode::SvelteBoundary(boundary) => {
+                propagate_ancestor_scoping(
+                    &mut boundary.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
