@@ -1039,12 +1039,14 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   wrapping them in `$.attr_style(\`…${$.stringify(x)}…\`)`) and
         //   `000c594e0` "fix: `{#await await ...}` and async dependencies
         //   fixes" (refines the async-batching / await-merge codegen).
-        //   `async-await` is unblocked by the 5.55.9 `000c594e0` port; the
-        //   remaining two still fail on orthogonal axes (`$derived(await
-        //   ...)` lowering, `wrap_derived_reads` shadowing in `then` body
-        //   args, etc.). Tracked as follow-up ports.
-        ("runtime-runes", "async-await-block-2"),
-        ("runtime-runes", "async-duplicate-dependencies"),
+        //   `async-await` is unblocked by the 5.55.9 `000c594e0` port;
+        //   `async-await-block-2` and `async-duplicate-dependencies` are
+        //   unblocked by the follow-up port: `$derived(await ...)` inside a
+        //   nested instance-script function now lowers to
+        //   `(await $.save($.async_derived(...)))()`, and the server
+        //   await-block `then`/`catch` parameter shadowing of outer derived
+        //   reads (so `(result) => $.escape(result)` is emitted instead of
+        //   `$.escape(result())`).
         ("runtime-runes", "async-boundary-nav-race"),
         // The hydration `boundary-pending-attribute` fixture (Svelte 5.54.x)
         // is now unblocked by the 5.55.3 `@const` blocker port (this PR),

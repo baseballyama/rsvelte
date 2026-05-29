@@ -419,7 +419,7 @@ impl<'a> ServerCodeGenerator<'a> {
 /// Extract variable names from a destructuring pattern string.
 /// Handles: simple identifiers, object destructuring `{a, b}`, array destructuring `[a, b]`,
 /// and nested patterns. Also handles renaming like `{method: m}`.
-fn extract_pattern_names(pattern: &str) -> Vec<String> {
+pub(crate) fn extract_pattern_names(pattern: &str) -> Vec<String> {
     let mut names = Vec::new();
     let trimmed = pattern.trim();
 

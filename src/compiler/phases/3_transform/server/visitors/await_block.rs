@@ -107,6 +107,30 @@ impl<'a> ServerCodeGenerator<'a> {
             then_generator.is_typescript = self.is_typescript;
             then_generator.dev = self.dev;
             then_generator.uses_store_subs = self.uses_store_subs;
+            // Await `then` parameter bindings shadow any outer derived
+            // bindings of the same name. Drop those names from the body
+            // generator so reads of the parameter inside the then body
+            // are emitted as bare identifiers (e.g. `$.escape(result)`)
+            // rather than derived-call wraps (`$.escape(result())`).
+            // Mirrors the upstream `Scope` shadowing that `build_getter`
+            // observes when the then-body walk hits an identifier whose
+            // binding is the local then parameter, not the outer
+            // `const result = $derived(await ...)`.
+            // This matches the same handling for snippet parameters in
+            // `snippet_block.rs` and the each-block context pattern in
+            // `each_block.rs::extract_pattern_names`.
+            if !then_param.is_empty() {
+                let names = super::each_block::extract_pattern_names(&then_param);
+                let bare = if names.is_empty() {
+                    vec![then_param.clone()]
+                } else {
+                    names
+                };
+                for n in &bare {
+                    then_generator.derived_names.remove(n);
+                    then_generator.derived_var_names.remove(n);
+                }
+            }
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
             }
@@ -130,6 +154,19 @@ impl<'a> ServerCodeGenerator<'a> {
             catch_generator.is_typescript = self.is_typescript;
             catch_generator.dev = self.dev;
             catch_generator.uses_store_subs = self.uses_store_subs;
+            // Same shadowing for `catch` parameter as for `then` above.
+            if !catch_param.is_empty() {
+                let names = super::each_block::extract_pattern_names(&catch_param);
+                let bare = if names.is_empty() {
+                    vec![catch_param.clone()]
+                } else {
+                    names
+                };
+                for n in &bare {
+                    catch_generator.derived_names.remove(n);
+                    catch_generator.derived_var_names.remove(n);
+                }
+            }
             for node in &catch.nodes {
                 catch_generator.generate_node(node, false)?;
             }

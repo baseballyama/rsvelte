@@ -387,8 +387,6 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-overlap-multiple-6"),
         ("runtime-runes", "async-overlap-multiple-7"),
         ("runtime-runes", "async-derived-const-blocker"),
-        ("runtime-runes", "async-await-block-2"),
-        ("runtime-runes", "async-duplicate-dependencies"),
         ("runtime-runes", "async-boundary-nav-race"),
     ];
 
