@@ -324,6 +324,7 @@ impl<'a> JsCodegen<'a> {
             JsStatement::ForOf(for_of) => self.emit_for_of_statement(for_of),
             JsStatement::While(while_stmt) => self.emit_while_statement(while_stmt),
             JsStatement::DoWhile(do_while) => self.emit_do_while_statement(do_while),
+            JsStatement::Switch(sw) => self.emit_switch_statement(sw),
             JsStatement::Block(block) => self.emit_block_statement(block),
             JsStatement::Empty => self.needs_semicolon = true,
             JsStatement::Debugger => {
@@ -701,6 +702,49 @@ impl<'a> JsCodegen<'a> {
         self.indent_level -= 1;
         self.indent();
         self.output.push('}');
+    }
+
+    fn emit_switch_statement(&mut self, sw: &JsSwitchStatement) {
+        self.output.push_str("switch (");
+        self.emit_expression(self.arena.get_expr(sw.discriminant));
+        self.output.push_str(") {");
+        // Cases sit one level in; their bodies a further level in. A `newline()`
+        // before each case is a plain line break for the first case (after `{`)
+        // and a blank-line separator for the rest (the previous non-empty case
+        // body ends in a newline), matching esrap's blank line between cases.
+        self.indent_level += 1;
+        for case in &sw.cases {
+            self.newline();
+            self.indent();
+            match &case.test {
+                Some(test) => {
+                    self.output.push_str("case ");
+                    self.emit_expression(self.arena.get_expr(*test));
+                    self.output.push(':');
+                }
+                None => self.output.push_str("default:"),
+            }
+            if !case.consequent.is_empty() {
+                self.indent_level += 1;
+                self.newline();
+                // Emit each statement tightly (no inter-statement blank lines —
+                // unlike `emit_body`, which adds them between differing top-level
+                // statement types; esrap keeps a case body compact).
+                for stmt in &case.consequent {
+                    self.emit_statement(stmt);
+                }
+                self.indent_level -= 1;
+            }
+        }
+        self.indent_level -= 1;
+        // A non-empty final case body already ends in a newline; an empty final
+        // case (or no cases) does not, so add one before the closing brace.
+        if !self.output.ends_with('\n') {
+            self.newline();
+        }
+        self.indent();
+        self.output.push('}');
+        self.needs_semicolon = false;
     }
 
     fn emit_block_inline(&mut self, block: &JsBlockStatement) {
@@ -1693,6 +1737,7 @@ impl<'a> JsCodegen<'a> {
             | JsStatement::While(_)
             | JsStatement::DoWhile(_)
             | JsStatement::Try(_)
+            | JsStatement::Switch(_)
             | JsStatement::ExportDefault(_) => true,
             // Block is multiline if it has any statements
             JsStatement::Block(block) => !block.body.is_empty(),
@@ -2054,6 +2099,7 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
         JsStatement::ForOf(_) => "ForOfStatement",
         JsStatement::While(_) => "WhileStatement",
         JsStatement::DoWhile(_) => "DoWhileStatement",
+        JsStatement::Switch(_) => "SwitchStatement",
         JsStatement::Block(_) => "BlockStatement",
         JsStatement::Empty => "EmptyStatement",
         JsStatement::Debugger => "DebuggerStatement",

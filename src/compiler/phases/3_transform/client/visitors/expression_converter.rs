@@ -4171,22 +4171,40 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             Some(JsStatement::Continue(label))
         }
         "SwitchStatement" => {
-            let mut stmts = Vec::new();
-            if let Some(cases) = obj.get("cases").and_then(|c| c.as_array()) {
-                for case in cases {
-                    if let Some(case_obj) = case.as_object()
-                        && let Some(consequent) =
-                            case_obj.get("consequent").and_then(|c| c.as_array())
-                    {
-                        for s in consequent {
+            // Build a real switch (discriminant + cases), not a flat block —
+            // flattening dropped the discriminant and merged every case body,
+            // destroying the `case` matching. H-109.
+            let discriminant = {
+                let d = obj.get("discriminant")?;
+                let expr = convert_json_value(d, context);
+                context.arena.alloc_expr(expr)
+            };
+            let mut cases = Vec::new();
+            if let Some(cs) = obj.get("cases").and_then(|c| c.as_array()) {
+                for case in cs {
+                    let Some(case_obj) = case.as_object() else {
+                        continue;
+                    };
+                    // `test` is `null` for the `default:` clause.
+                    let test = case_obj.get("test").filter(|t| !t.is_null()).map(|t| {
+                        let expr = convert_json_value(t, context);
+                        context.arena.alloc_expr(expr)
+                    });
+                    let mut consequent = Vec::new();
+                    if let Some(stmts) = case_obj.get("consequent").and_then(|c| c.as_array()) {
+                        for s in stmts {
                             if let Some(converted) = convert_statement(s, context) {
-                                stmts.push(converted);
+                                consequent.push(converted);
                             }
                         }
                     }
+                    cases.push(JsSwitchCase { test, consequent });
                 }
             }
-            Some(JsStatement::Block(JsBlockStatement { body: stmts }))
+            Some(JsStatement::Switch(JsSwitchStatement {
+                discriminant,
+                cases,
+            }))
         }
         "FunctionDeclaration" => {
             let id: Option<CompactString> = obj

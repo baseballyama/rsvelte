@@ -61,6 +61,8 @@ pub enum JsStatement {
     While(JsWhileStatement),
     /// Do-while statement
     DoWhile(JsDoWhileStatement),
+    /// Switch statement
+    Switch(JsSwitchStatement),
     /// Block statement
     Block(JsBlockStatement),
     /// Empty statement
@@ -295,6 +297,21 @@ pub struct JsTryStatement {
     pub block: JsBlockStatement,
     pub handler: Option<JsCatchClause>,
     pub finalizer: Option<JsBlockStatement>,
+}
+
+/// Switch statement.
+#[derive(Debug, Clone)]
+pub struct JsSwitchStatement {
+    pub discriminant: ExprId,
+    pub cases: Vec<JsSwitchCase>,
+}
+
+/// A single `case` / `default` clause of a switch statement.
+#[derive(Debug, Clone)]
+pub struct JsSwitchCase {
+    /// The case test expression, or `None` for the `default:` clause.
+    pub test: Option<ExprId>,
+    pub consequent: Vec<JsStatement>,
 }
 
 /// Catch clause.
