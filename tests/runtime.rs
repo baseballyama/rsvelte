@@ -176,13 +176,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // `$.save(...)`. `async-style-after-await` still fails on the client side
     // (unrelated).
     "async-style-after-await",
-    // async-overlap-multiple-5..7 still fail on the client side (the SSR
-    // `$.save` predicate port (this PR) unblocked -1..4). -5..7 use
-    // `let b = $derived(await delay(...))` in the instance script and hit a
-    // separate async-blocker cluster.
-    "async-overlap-multiple-5",
-    "async-overlap-multiple-6",
-    "async-overlap-multiple-7",
     // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). Most
     // surface as client/server mismatches because rsvelte's async-derived
     // const-blocker plumbing doesn't yet emit every new helper. Also skipped

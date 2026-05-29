@@ -46,6 +46,14 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     // mutations through function calls via its AST-based dependency analysis).
     let function_bodies = collect_function_bodies(&statements);
 
+    // Collect variable initializer expressions by binding name. Mirrors the
+    // upstream `touch` walk through `binding.assignments`: when a later async
+    // statement reads a binding `x`, the assignments of `x` are also touched,
+    // which transitively pulls in every identifier referenced by `x`'s init
+    // (e.g. `let b = $derived(await delay(a * 2))` makes `a` reachable from
+    // anywhere that reads `b`). Used by `apply_blocker_with_transitive`.
+    let var_init_map = collect_var_init_map(&statements);
+
     let mut found_await = false;
     let mut blocker_map = rustc_hash::FxHashMap::default();
     let mut async_index: usize = 0;
@@ -120,24 +128,19 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
                 blocker_map.insert(decl.name.clone(), current_async_index);
             }
 
-            // Also add referenced variables that are instance-scope declarations.
-            // This mimics the official compiler's trace_references which walks
-            // CallExpressions with touch() and adds all referenced bindings to writes.
-            // Allow overwriting existing entries with higher indices - the official
-            // compiler overwrites binding.blocker when a later statement references
-            // the same variable.
-            let referenced_ids = extract_all_identifiers_from_statement(trimmed_stmt);
-            for ref_id in &referenced_ids {
-                if all_declared_vars.contains(ref_id) {
-                    let should_update = match blocker_map.get(ref_id) {
-                        None => true,
-                        Some(&existing) => current_async_index > existing,
-                    };
-                    if should_update {
-                        blocker_map.insert(ref_id.clone(), current_async_index);
-                    }
-                }
-            }
+            // Also add referenced variables that are instance-scope declarations,
+            // walking transitively through plain `let/var/const` initializers so
+            // that e.g. `let b = $derived(await delay(a * 2))` and then
+            // `let d = $derived(await delay(b + c))` upgrades `a`'s blocker to
+            // the index of `d`'s async group (mirrors upstream's `touch` walk
+            // through `binding.assignments`).
+            apply_blocker_with_transitive(
+                trimmed_stmt,
+                &var_init_map,
+                &all_declared_vars,
+                &mut blocker_map,
+                current_async_index,
+            );
 
             // Special case: if the statement references $$props (from $props()
             // transformation), add it to the blocker_map. The template transform
@@ -181,18 +184,13 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
             // For non-$effect statements, trace all referenced identifiers and
             // update their blocker indices. Allow overwriting with higher indices
             // to match the official compiler's behavior.
-            let referenced_ids = extract_all_identifiers_from_statement(trimmed_stmt);
-            for ref_id in &referenced_ids {
-                if all_declared_vars.contains(ref_id) {
-                    let should_update = match blocker_map.get(ref_id) {
-                        None => true,
-                        Some(&existing) => current_async_index > existing,
-                    };
-                    if should_update {
-                        blocker_map.insert(ref_id.clone(), current_async_index);
-                    }
-                }
-            }
+            apply_blocker_with_transitive(
+                trimmed_stmt,
+                &var_init_map,
+                &all_declared_vars,
+                &mut blocker_map,
+                current_async_index,
+            );
             resolve_transitive_function_deps(
                 trimmed_stmt,
                 &function_bodies,
@@ -570,6 +568,9 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
 
     // Collect all declared variable names from the entire script for reference tracking.
     let all_declared_vars = collect_all_declared_variables(&statements);
+    // Collect variable initializer expressions for transitive `touch` walks
+    // through `binding.assignments` (see `apply_blocker_with_transitive`).
+    let var_init_map = collect_var_init_map(&statements);
 
     // Build blocker_map: variable name -> promise index
     // Each async statement gets a promise index (its position in the $.run() array).
@@ -579,7 +580,13 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     let mut blocker_map = rustc_hash::FxHashMap::default();
 
     for (idx, stmt) in async_stmts.iter().enumerate() {
-        update_blocker_map_for_stmt(&stmt.kind, idx, &all_declared_vars, &mut blocker_map);
+        update_blocker_map_for_stmt(
+            &stmt.kind,
+            idx,
+            &all_declared_vars,
+            &var_init_map,
+            &mut blocker_map,
+        );
     }
 
     // Build output
@@ -764,21 +771,13 @@ fn update_blocker_map_for_stmt(
     kind: &AsyncStmtKind,
     idx: usize,
     all_declared_vars: &rustc_hash::FxHashSet<String>,
+    var_init_map: &rustc_hash::FxHashMap<String, String>,
     blocker_map: &mut rustc_hash::FxHashMap<String, usize>,
 ) {
     let update_refs = |source: &str, blocker_map: &mut rustc_hash::FxHashMap<String, usize>| {
-        let referenced_ids = extract_all_identifiers_from_statement(source);
-        for ref_id in &referenced_ids {
-            if all_declared_vars.contains(ref_id) {
-                let should_update = match blocker_map.get(ref_id) {
-                    None => true,
-                    Some(&existing) => idx > existing,
-                };
-                if should_update {
-                    blocker_map.insert(ref_id.clone(), idx);
-                }
-            }
-        }
+        // Walks instance-scope refs in `source` AND transitively through their
+        // initializers (see `apply_blocker_with_transitive`).
+        apply_blocker_with_transitive(source, var_init_map, all_declared_vars, blocker_map, idx);
     };
 
     match kind {
@@ -832,7 +831,13 @@ fn update_blocker_map_for_stmt(
         }
         AsyncStmtKind::SyncBlock(entries) => {
             for entry in entries {
-                update_blocker_map_for_stmt(&entry.kind, idx, all_declared_vars, blocker_map);
+                update_blocker_map_for_stmt(
+                    &entry.kind,
+                    idx,
+                    all_declared_vars,
+                    var_init_map,
+                    blocker_map,
+                );
             }
         }
     }
@@ -2491,6 +2496,56 @@ fn collect_leaf_idents_from_item(item: &str, out: &mut Vec<String>) {
     out.push(item.to_string());
 }
 
+/// Collect variable initializer expressions by binding name.
+///
+/// Mirrors the upstream `touch` walk through `binding.assignments`:
+/// when a later async statement reads a binding `x`, the compiler also walks
+/// the initializer that defines `x` and treats any identifier it references as
+/// being touched (and therefore written-to) by the later statement. That is
+/// what causes `a` in
+///
+/// ```text
+/// let a = $state(0);
+/// let b = $derived(await delay(a * 2));
+/// let d = $derived(await delay(b + c));
+/// ```
+///
+/// to receive the **higher** blocker index of `d`'s async group, even though
+/// `a` is not literally written anywhere in `d`'s statement.
+///
+/// This collector returns a `name → init_source` map for plain variable
+/// declarations only. Function declarations (`function foo() {…}`) and
+/// function-valued variables (`let foo = () => …`) are intentionally excluded
+/// — those are handled by `collect_function_bodies` /
+/// `resolve_transitive_function_deps`, which already mirrors the
+/// `touch`-through-call-expressions path.
+fn collect_var_init_map(statements: &[String]) -> rustc_hash::FxHashMap<String, String> {
+    let mut map = rustc_hash::FxHashMap::default();
+
+    for stmt in statements {
+        let trimmed = stmt.trim();
+        if !is_variable_declaration(trimmed) {
+            continue;
+        }
+        // Function-valued variables are intentionally skipped — those are
+        // covered by `collect_function_bodies` which feeds the existing
+        // `resolve_transitive_function_deps` path.
+        if is_function_var_declaration(trimmed) {
+            continue;
+        }
+        for decl in extract_var_declarations(trimmed) {
+            if decl.hoist_only {
+                continue;
+            }
+            if let Some(init) = decl.init {
+                map.insert(decl.name, init);
+            }
+        }
+    }
+
+    map
+}
+
 /// Collect function bodies indexed by function name.
 /// This includes both `function foo() { ... }` declarations and
 /// `let foo = function() { ... }` / `let foo = (...) => { ... }` declarations.
@@ -2595,6 +2650,63 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
 /// When a function `foo` is called in an async thunk, all instance-scope variables
 /// referenced in `foo`'s body should be added to the blocker_map.
 /// This mimics the official compiler's trace_references behavior.
+/// Apply `blocker_index` to every instance-scope binding referenced by
+/// `source`, walking transitively through plain `let/var/const` initializers
+/// in `var_init_map` (mirrors upstream's `touch` following
+/// `binding.assignments`).
+///
+/// Concretely, for each identifier `r` referenced in `source`:
+/// 1. If `r` is an instance-scope binding (`all_declared_vars.contains(r)`),
+///    upgrade `blocker_map[r]` to `blocker_index` when it's higher than what's
+///    already there (matches the upstream `binding.blocker = blocker` rewrite
+///    which always wins for later, larger indices).
+/// 2. If `r` has an initializer in `var_init_map`, queue every identifier in
+///    that initializer for the same treatment. This is how `a` reaches the
+///    higher blocker via `b`'s init in the test pattern:
+///    `let b = $derived(await delay(a*2)); let d = $derived(await delay(b+c));`.
+///
+/// Function-call transitivity (`r` is a function name → walk its body) is
+/// intentionally NOT done here — that path stays in
+/// `resolve_transitive_function_deps`, which is called separately and is
+/// load-bearing for unrelated fixtures.
+fn apply_blocker_with_transitive(
+    source: &str,
+    var_init_map: &rustc_hash::FxHashMap<String, String>,
+    all_declared_vars: &rustc_hash::FxHashSet<String>,
+    blocker_map: &mut rustc_hash::FxHashMap<String, usize>,
+    blocker_index: usize,
+) {
+    let mut visited: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    let mut queue: Vec<String> = extract_all_identifiers_from_statement(source);
+
+    while let Some(id) = queue.pop() {
+        if !visited.insert(id.clone()) {
+            continue;
+        }
+
+        if all_declared_vars.contains(&id) {
+            let should_update = match blocker_map.get(&id) {
+                None => true,
+                Some(&existing) => blocker_index > existing,
+            };
+            if should_update {
+                blocker_map.insert(id.clone(), blocker_index);
+            }
+        }
+
+        // Follow plain variable initializers. Function-valued variables are
+        // not in this map (see `collect_var_init_map`), so we won't
+        // accidentally re-enter function bodies through this path.
+        if let Some(init) = var_init_map.get(&id) {
+            for next in extract_all_identifiers_from_statement(init) {
+                if !visited.contains(&next) {
+                    queue.push(next);
+                }
+            }
+        }
+    }
+}
+
 fn resolve_transitive_function_deps(
     stmt: &str,
     function_bodies: &rustc_hash::FxHashMap<String, String>,
