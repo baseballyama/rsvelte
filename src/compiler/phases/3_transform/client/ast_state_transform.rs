@@ -217,6 +217,20 @@ struct StateVarCollector<'a, 's> {
     /// Original `prop_source_vars` slice (the AST visitor stores a set
     /// for O(1) lookups; the text helper takes a slice).
     prop_source_vars_slice: &'a [String],
+
+    /// Nesting depth of enclosing function declarations / expressions /
+    /// arrow functions. The top-level instance script body is depth 0;
+    /// entering any `function`/`async function`/`() => …` increments this.
+    ///
+    /// Mirrors the upstream `context.state.scope.function_depth > 1` check
+    /// used by `VariableDeclaration.js` to decide whether
+    /// `$derived(await …)` should lower to `(await $.save($.async_derived(…)))()`
+    /// (depth > 1, instance script) versus the plain `await $.async_derived(…)`
+    /// shape used at the instance script root and in module scripts.
+    /// rsvelte's instance-script visitor sits at the equivalent of upstream's
+    /// component-function body (depth 1), so we trigger the `$.save(...)`
+    /// wrap when our `function_depth >= 1`.
+    function_depth: u32,
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
@@ -280,6 +294,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             analysis,
             exported_names,
             prop_source_vars_slice: prop_source_vars,
+            function_depth: 0,
         }
     }
 
@@ -1539,21 +1554,42 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let inner_expr = strip_top_level_await_from_expr(walked_for_emit);
             let inner_trimmed = inner_expr.trim();
             let inner_has_nested_await = contains_direct_await_in_expression(inner_trimmed);
-            let replacement = if inner_has_nested_await {
+            // Upstream (Svelte 5.55.9 `000c594e0`) lowers `$derived(await ...)`
+            // inside a *nested* instance-script function to
+            //   (await $.save($.async_derived(...)))()
+            // instead of the bare `await $.async_derived(...)` form used at
+            // the instance-script root and in module scripts. The decision is
+            // `is_instance && function_depth > 1`. rsvelte's instance-script
+            // visitor walks the user's script *contents* (the surrounding
+            // component function body is supplied later by the wrap pass),
+            // so its `function_depth == 0` corresponds to upstream's
+            // `function_depth == 1` (instance script root) and any nested
+            // function/arrow within the instance script bumps us to
+            // `function_depth >= 1`, matching upstream's `> 1`.
+            let should_save = self.function_depth >= 1;
+            let async_derived_call = if inner_has_nested_await {
                 let is_obj = walked_for_emit.starts_with('{');
                 if is_obj {
-                    format!("await $.async_derived(async () => ({}))", walked_for_emit)
+                    format!("$.async_derived(async () => ({}))", walked_for_emit)
                 } else {
-                    format!("await $.async_derived(async () => {})", walked_for_emit)
+                    format!("$.async_derived(async () => {})", walked_for_emit)
                 }
             } else {
                 let inner_is_object = inner_trimmed.starts_with('{');
                 if inner_is_object {
-                    format!("await $.async_derived(() => ({}))", inner_expr)
+                    format!("$.async_derived(() => ({}))", inner_expr)
                 } else {
                     let thunk_arg = unthunk_string(&inner_expr);
-                    format!("await $.async_derived({})", thunk_arg)
+                    format!("$.async_derived({})", thunk_arg)
                 }
+            };
+            let replacement = if should_save {
+                // `save(call)` in upstream `utils/ast.js` returns
+                // `b.call(b.await(b.call('$.save', call)))` — i.e.
+                // `(await $.save(<async_derived_call>))()`.
+                format!("(await $.save({}))()", async_derived_call)
+            } else {
+                format!("await {}", async_derived_call)
             };
             self.add_replacement(call.span.start, call.span.end, replacement);
             return true;
@@ -2025,6 +2061,23 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         if !self.try_rewrite_inspect_trace_function_body(body) {
             walk::walk_function_body(self, body);
         }
+    }
+
+    fn visit_function(&mut self, it: &Function<'ast>, flags: ScopeFlags) {
+        // Track enclosing function depth so the `$derived(await …)`
+        // declarator handler can choose between `await $.async_derived(…)`
+        // (top-level instance script, depth 0) and
+        // `(await $.save($.async_derived(…)))()` (nested function, depth ≥ 1)
+        // — mirrors upstream `context.state.scope.function_depth > 1`.
+        self.function_depth += 1;
+        walk::walk_function(self, it, flags);
+        self.function_depth -= 1;
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &ArrowFunctionExpression<'ast>) {
+        self.function_depth += 1;
+        walk::walk_arrow_function_expression(self, it);
+        self.function_depth -= 1;
     }
 
     fn visit_binary_expression(&mut self, expr: &BinaryExpression<'ast>) {

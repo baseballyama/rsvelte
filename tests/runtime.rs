@@ -183,16 +183,15 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-derived-const-blocker",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path
-    // is handled; the runes fixtures below also hit code paths that aren't
-    // ported yet (attribute parts, async-await codegen). Mirrors the
-    // entries in `tests/compatibility_report.rs`.
+    // is handled; the remaining runes fixtures hit code paths that aren't
+    // ported yet (attribute parts, async-await codegen).
     //
     // `async-await` was unblocked by the 5.55.9 `000c594e0` `{#await await
-    // ...}` async-batching port; the remaining two still fail on orthogonal
-    // axes ($derived(await ...) → `(await $.save($.async_derived(...)))()`
-    // lowering, etc.).
-    "async-await-block-2",
-    "async-duplicate-dependencies",
+    // ...}` async-batching port; `async-await-block-2` and
+    // `async-duplicate-dependencies` are unblocked by the follow-up port of
+    // `(await $.save($.async_derived(...)))()` lowering for nested
+    // instance-script functions plus await-block `then`/`catch` parameter
+    // shadowing of outer derived-name reads.
 ];
 
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is

@@ -384,8 +384,6 @@ fn audit_skipped_fixtures() {
     let runtime_skipped: &[(&str, &str)] = &[
         ("runtime-runes", "async-style-after-await"),
         ("runtime-runes", "async-derived-const-blocker"),
-        ("runtime-runes", "async-await-block-2"),
-        ("runtime-runes", "async-duplicate-dependencies"),
         ("runtime-runes", "async-boundary-nav-race"),
     ];
 
