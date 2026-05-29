@@ -137,21 +137,59 @@ impl SourceMap {
 }
 
 /// Wrap a string value in double-quotes with JSON escaping.
+///
+/// Byte-scan implementation: every byte that doesn't need an escape is
+/// safe to bulk-copy as part of the surrounding UTF-8 sequence (the
+/// escape predicate only inspects single-byte ASCII codes — control
+/// chars 0x00..0x20 plus `"` and `\`). For the long base64 `mappings`
+/// string emitted by sourcemap codegen this turns the whole function
+/// into one big `push_str`, instead of `chars()` + match-per-char.
 fn json_escape(s: &str) -> String {
+    let bytes = s.as_bytes();
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
-            }
-            c => out.push(c),
+    let mut start = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        // Hot path: safe byte — keep accumulating. Covers ASCII printable
+        // (sans `"`/`\`) and every UTF-8 continuation / lead byte (>= 0x80).
+        if b >= 0x20 && b != b'"' && b != b'\\' {
+            i += 1;
+            continue;
         }
+        // Flush the accumulated safe range as a single bulk copy.
+        if start < i {
+            // SAFETY: `bytes[start..i]` is a sub-slice of the original
+            // `&str` and ends on a non-multi-byte boundary, because we
+            // only stop on bytes < 0x80 (escape candidates are all ASCII).
+            out.push_str(unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) });
+        }
+        match b {
+            b'"' => out.push_str("\\\""),
+            b'\\' => out.push_str("\\\\"),
+            b'\n' => out.push_str("\\n"),
+            b'\r' => out.push_str("\\r"),
+            b'\t' => out.push_str("\\t"),
+            _ => {
+                // Other control char (0x00..0x20). Hand-format the
+                // 4-digit hex without going through `format!()`'s
+                // intermediate `String`.
+                let hi = (b >> 4) & 0xF;
+                let lo = b & 0xF;
+                const HEX: &[u8; 16] = b"0123456789abcdef";
+                let buf = [b'\\', b'u', b'0', b'0', HEX[hi as usize], HEX[lo as usize]];
+                // SAFETY: every byte we just wrote is ASCII.
+                out.push_str(unsafe { std::str::from_utf8_unchecked(&buf) });
+            }
+        }
+        i += 1;
+        start = i;
+    }
+    if start < bytes.len() {
+        // SAFETY: same justification as above — the suffix is a full
+        // UTF-8 sub-slice of `&str`.
+        out.push_str(unsafe { std::str::from_utf8_unchecked(&bytes[start..]) });
     }
     out.push('"');
     out
