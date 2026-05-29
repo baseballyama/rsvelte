@@ -997,12 +997,15 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         ("runtime-runes", "async-style-after-await"),
         // - `async-overlap-multiple-1..7` (Svelte 5.55.1, upstream chore
         //   `5e8662fb2` "chore: lots of async tests"). The SSR `$.save`
-        //   predicate port (this PR) unblocks -1..4. -5..7 use
-        //   `let b = $derived(await delay(...))` in the instance script and
-        //   hit a separate async-blocker cluster (still client-side failure).
-        ("runtime-runes", "async-overlap-multiple-5"),
-        ("runtime-runes", "async-overlap-multiple-6"),
-        ("runtime-runes", "async-overlap-multiple-7"),
+        //   predicate port unblocked -1..4. Fixtures -5..7 (which use
+        //   `let b = $derived(await ...)` chained into `let d = $derived(
+        //   await delay(b + c))` in the instance script) were unblocked by
+        //   the transitive-`touch` walk through `binding.assignments` in
+        //   `compute_blocker_map` — mirrors upstream's
+        //   `calculate_blockers` → `touch` → `assignment.value` recursion so
+        //   `a`'s blocker upgrades from the first async group's index to
+        //   the chained derived's higher index, collapsing the template
+        //   `$$promises[…]` array to a single entry.
         // - Svelte 5.55.2 cluster: upstream commits `8966601dc` "handle parens
         //   in template expressions more robustly" + `edcbb0e64` "invalidate
         //   `@const` tags based on visible references in legacy mode".

@@ -383,9 +383,6 @@ fn audit_skipped_fixtures() {
     // skipped — so they don't need to appear here.
     let runtime_skipped: &[(&str, &str)] = &[
         ("runtime-runes", "async-style-after-await"),
-        ("runtime-runes", "async-overlap-multiple-5"),
-        ("runtime-runes", "async-overlap-multiple-6"),
-        ("runtime-runes", "async-overlap-multiple-7"),
         ("runtime-runes", "async-derived-const-blocker"),
         ("runtime-runes", "async-eager-block"),
         ("runtime-runes", "async-dont-rebase-new-batch-1"),
