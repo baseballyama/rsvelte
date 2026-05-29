@@ -129,20 +129,21 @@ fn write_github_actions(out: &mut String, diag: &Diagnostic, workspace_root: &st
         message = format!("{message} [{code}]");
     }
     let escaped = escape_workflow_command(&message);
+    // `file=` is a command *property*; its value needs the stricter property
+    // escaping (`:` and `,` on top of `%` / CR / LF), otherwise a path
+    // containing those characters (e.g. a Windows drive `C:` or a comma) would
+    // break the `key=value,key=value` parsing. line/col are integers. M-066.
+    let file = escape_workflow_property(&rel.display().to_string());
     let _ = writeln!(
         out,
         "::{} file={},line={},col={}::{}",
-        level,
-        rel.display(),
-        line,
-        col,
-        escaped
+        level, file, line, col, escaped
     );
 }
 
-/// Escape characters with special meaning in GitHub Actions
-/// workflow-command values per
-/// <https://docs.github.com/actions/learn-github-actions/workflow-commands-for-github-actions>.
+/// Escape a GitHub Actions workflow-command **message** (the data after `::`).
+/// Mirrors `@actions/core`'s `escapeData`.
+/// <https://docs.github.com/actions/learn-github-actions/workflow-commands-for-github-actions>
 fn escape_workflow_command(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for c in value.chars() {
@@ -150,6 +151,24 @@ fn escape_workflow_command(value: &str) -> String {
             '%' => out.push_str("%25"),
             '\r' => out.push_str("%0D"),
             '\n' => out.push_str("%0A"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Escape a GitHub Actions workflow-command **property** value. Mirrors
+/// `@actions/core`'s `escapeProperty`, which escapes `:` and `,` on top of the
+/// message escapes so they can't terminate the property / property list.
+fn escape_workflow_property(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '%' => out.push_str("%25"),
+            '\r' => out.push_str("%0D"),
+            '\n' => out.push_str("%0A"),
+            ':' => out.push_str("%3A"),
+            ',' => out.push_str("%2C"),
             _ => out.push(c),
         }
     }
@@ -251,6 +270,26 @@ mod tests {
     fn github_actions_escapes_special_chars() {
         let escaped = escape_workflow_command("100% match\nnext line\rthird");
         assert_eq!(escaped, "100%25 match%0Anext line%0Dthird");
+    }
+
+    #[test]
+    fn github_actions_property_escapes_colon_and_comma() {
+        // M-066: property values additionally escape `:` and `,` (matching
+        // `@actions/core`'s escapeProperty) so they can't terminate the list.
+        assert_eq!(escape_workflow_property("a,b:c%\r\n"), "a%2Cb%3Ac%25%0D%0A");
+    }
+
+    #[test]
+    fn github_actions_escapes_comma_in_file_path() {
+        let ws = Path::new("/work");
+        // A path with a comma must not break the `file=...,line=...` parsing.
+        let d = diag(DiagnosticSeverity::Error, "/work/sub,dir/Foo.svelte", 1, 2);
+        let mut out = String::new();
+        write_diagnostic(&mut out, &d, ws, OutputFormat::GithubActions);
+        assert!(
+            out.starts_with("::error file=sub%2Cdir/Foo.svelte,line=1,col=2::"),
+            "comma in path not escaped: {out}"
+        );
     }
 
     #[test]
