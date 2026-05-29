@@ -68,11 +68,11 @@ pub fn hmr_diff(prev: &str, curr: &str) -> HmrDiff {
     }
 }
 
-/// Lexically pull out the body of `<script>` (when `module=false`) or
-/// `<script context="module">` (when `module=true`). Returns `None`
-/// when the requested script tag is absent.
+/// Lexically pull out the body of `<script>` (when `module=false`) or the
+/// module script — both the Svelte 5 bare `<script module>` and the legacy
+/// `<script context="module">` (when `module=true`). Returns `None` when the
+/// requested script tag is absent.
 fn extract_script(source: &str, module: bool) -> Option<String> {
-    let needle = if module { "context=\"module\"" } else { "" };
     let bytes = source.as_bytes();
     let mut i = 0;
     while let Some(open) = source[i..].find("<script") {
@@ -84,9 +84,7 @@ fn extract_script(source: &str, module: bool) -> Option<String> {
             None => return None,
         };
         let tag_attrs = &source[after_open..close_attrs];
-        let is_module = tag_attrs.contains("context=\"module\"")
-            || tag_attrs.contains("context='module'")
-            || tag_attrs.contains("context=module");
+        let is_module = is_module_script_attrs(tag_attrs);
         let body_start = close_attrs + 1;
         // Find the closing `</script>`.
         let body_end = match source[body_start..].find("</script>") {
@@ -99,15 +97,43 @@ fn extract_script(source: &str, module: bool) -> Option<String> {
             return Some(source[body_start..body_end].to_string());
         }
         i = next_i;
-        if needle.is_empty() {
-            // Caller wanted instance-script; don't loop forever if we
-            // somehow stay at the same position.
-            if i <= abs_open {
-                break;
-            }
+        // Don't loop forever if we somehow stay at the same position.
+        if i <= abs_open {
+            break;
         }
     }
     None
+}
+
+/// Decide whether a `<script …>` opening tag's attribute text marks a module
+/// script. Recognises the legacy `context="module"` forms and the Svelte 5
+/// bare `module` attribute (H-094). The bare form is matched as a standalone
+/// token so it isn't confused with `module` appearing inside another
+/// attribute's quoted value.
+fn is_module_script_attrs(tag_attrs: &str) -> bool {
+    if tag_attrs.contains("context=\"module\"")
+        || tag_attrs.contains("context='module'")
+        || tag_attrs.contains("context=module")
+    {
+        return true;
+    }
+    let bytes = tag_attrs.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = tag_attrs[from..].find("module") {
+        let start = from + rel;
+        let end = start + "module".len();
+        let prev_ok = start == 0 || bytes[start - 1].is_ascii_whitespace();
+        let next_ok = end >= bytes.len()
+            || matches!(
+                bytes[end],
+                b' ' | b'\t' | b'\n' | b'\r' | b'=' | b'/' | b'>'
+            );
+        if prev_ok && next_ok {
+            return true;
+        }
+        from = end;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -157,5 +183,36 @@ mod tests {
         let d = hmr_diff(prev, curr);
         assert!(d.instance_changed);
         assert!(!d.module_changed);
+    }
+
+    #[test]
+    fn recognises_bare_module_attribute() {
+        // H-094: Svelte 5 `<script module>` must be classified as the module
+        // script, not the instance script.
+        assert!(is_module_script_attrs(" module"));
+        assert!(is_module_script_attrs(" lang=\"ts\" module"));
+        assert!(is_module_script_attrs(" module lang=\"ts\""));
+        assert!(is_module_script_attrs(" context=\"module\""));
+        // Not a module script:
+        assert!(!is_module_script_attrs(""));
+        assert!(!is_module_script_attrs(" lang=\"ts\""));
+        assert!(!is_module_script_attrs(" generics=\"T extends Module\""));
+    }
+
+    #[test]
+    fn bare_module_script_separated_from_instance() {
+        let src = "<script module>let A = 1;</script><script>let B = 1;</script><p />";
+        assert_eq!(extract_script(src, true).as_deref(), Some("let A = 1;"));
+        assert_eq!(extract_script(src, false).as_deref(), Some("let B = 1;"));
+    }
+
+    #[test]
+    fn bare_module_script_change_forces_full_reload() {
+        let prev = "<script module>let MOD = 1;</script><div>x</div>";
+        let curr = "<script module>let MOD = 2;</script><div>x</div>";
+        let d = hmr_diff(prev, curr);
+        assert_eq!(d.change, HmrChange::FullReload);
+        assert!(d.module_changed);
+        assert!(!d.instance_changed);
     }
 }

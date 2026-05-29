@@ -29,18 +29,39 @@ pub struct ResolveResult {
 /// bare specifiers or anything that doesn't exist on disk; the JS shim
 /// falls back to Vite's resolver for those cases.
 pub fn resolve_id(opts: ResolveOptions<'_>) -> Option<ResolveResult> {
-    if !is_relative(opts.specifier) {
+    // Split off any `?query` / `#hash` suffix before touching the filesystem.
+    // Vite passes specifiers like `./Foo.svelte?raw` / `./styles.css?url`; the
+    // suffix is not part of the filename, so it must be stripped for the path
+    // lookup and re-appended to the resolved id. M-062.
+    let (bare, suffix) = split_query_hash(opts.specifier);
+    if !is_relative(bare) {
         return None;
     }
     let importer_dir = opts.importer.and_then(|p| p.parent())?;
-    let combined = combine(importer_dir, opts.specifier);
+    let combined = combine(importer_dir, bare);
     let normalised = normalise(&combined);
     if let Some(found) = first_existing(&normalised, &candidate_extensions()) {
         return Some(ResolveResult {
-            resolved: to_posix_string(&found),
+            resolved: format!("{}{}", to_posix_string(&found), suffix),
         });
     }
     None
+}
+
+/// Split `spec` into its path part and any trailing `?query` / `#hash`
+/// (returned verbatim, including the leading `?` / `#`). Whichever delimiter
+/// appears first begins the suffix.
+fn split_query_hash(spec: &str) -> (&str, &str) {
+    let cut = match (spec.find('?'), spec.find('#')) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    };
+    match cut {
+        Some(i) => (&spec[..i], &spec[i..]),
+        None => (spec, ""),
+    }
 }
 
 fn is_relative(spec: &str) -> bool {
@@ -152,6 +173,58 @@ mod tests {
         })
         .expect("implicit extension");
         assert!(r2.resolved.ends_with("/src/Foo.svelte"), "{}", r2.resolved);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn split_query_hash_cases() {
+        assert_eq!(split_query_hash("./a.svelte"), ("./a.svelte", ""));
+        assert_eq!(split_query_hash("./a.svelte?raw"), ("./a.svelte", "?raw"));
+        assert_eq!(split_query_hash("./a.svelte#frag"), ("./a.svelte", "#frag"));
+        // Whichever delimiter is first starts the suffix.
+        assert_eq!(split_query_hash("./a.svelte?x#y"), ("./a.svelte", "?x#y"));
+        assert_eq!(split_query_hash("./a.svelte#y?x"), ("./a.svelte", "#y?x"));
+    }
+
+    #[test]
+    fn resolves_relative_import_with_query_suffix() {
+        let tmp = std::env::temp_dir().join(format!("vps_resolver_q_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::File::create(tmp.join("src/Foo.svelte"))
+            .unwrap()
+            .write_all(b"<div />")
+            .unwrap();
+        let importer = tmp.join("src/App.svelte");
+        fs::File::create(&importer)
+            .unwrap()
+            .write_all(b"<div />")
+            .unwrap();
+
+        // `?raw` suffix: resolve the base file, keep the query on the result.
+        let r = resolve_id(ResolveOptions {
+            importer: Some(&importer),
+            specifier: "./Foo.svelte?raw",
+        })
+        .expect("relative .svelte?raw resolves");
+        assert!(
+            r.resolved.ends_with("/src/Foo.svelte?raw"),
+            "{}",
+            r.resolved
+        );
+
+        // Implicit extension + query.
+        let r2 = resolve_id(ResolveOptions {
+            importer: Some(&importer),
+            specifier: "./Foo?url",
+        })
+        .expect("implicit extension with query");
+        assert!(
+            r2.resolved.ends_with("/src/Foo.svelte?url"),
+            "{}",
+            r2.resolved
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
