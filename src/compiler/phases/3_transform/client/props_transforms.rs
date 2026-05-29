@@ -1574,16 +1574,35 @@ pub(super) fn make_lazy_prop_arg(value: &str) -> String {
     }
 }
 
-/// Split declarators by comma, handling nested braces, brackets, and parens.
+/// Split declarators by comma, handling nested braces, brackets, parens, and
+/// string / template literals.
 ///
-/// For example: "a, b = {x: 1}, c" -> ["a", "b = {x: 1}", "c"]
+/// For example: `a, b = {x: 1}, c` -> `["a", "b = {x: 1}", "c"]`, and a comma
+/// inside a string default (`a = "x,y", b`) does not split the list.
 pub(super) fn split_declarators(s: &str) -> Vec<&str> {
     let mut result = Vec::new();
     let mut depth: usize = 0;
     let mut start = 0;
+    // Track the open quote of the current string/template literal so commas and
+    // brackets inside it are ignored. `${}` interpolation inside a template is
+    // not descended into — a top-level comma there can't terminate a `$props()`
+    // declarator anyway.
+    let mut string_char: Option<char> = None;
+    let mut escaped = false;
 
     for (i, c) in s.char_indices() {
+        if let Some(quote) = string_char {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == quote {
+                string_char = None;
+            }
+            continue;
+        }
         match c {
+            '"' | '\'' | '`' => string_char = Some(c),
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth = depth.saturating_sub(1),
             ',' if depth == 0 => {
@@ -2742,4 +2761,44 @@ pub(super) fn split_top_level_args(s: &str) -> Vec<String> {
     }
 
     parts
+}
+
+#[cfg(test)]
+mod split_declarators_tests {
+    use super::split_declarators;
+
+    #[test]
+    fn splits_top_level_commas() {
+        assert_eq!(split_declarators("a, b, c"), vec!["a", " b", " c"]);
+    }
+
+    #[test]
+    fn ignores_commas_inside_brackets() {
+        assert_eq!(
+            split_declarators("a, b = {x: 1, y: 2}, c"),
+            vec!["a", " b = {x: 1, y: 2}", " c"]
+        );
+    }
+
+    #[test]
+    fn ignores_commas_inside_strings() {
+        // M-045: a comma inside a string default must not split the list.
+        assert_eq!(
+            split_declarators(r#"a = "x,y", b"#),
+            vec![r#"a = "x,y""#, " b"]
+        );
+        assert_eq!(split_declarators("a = 'x,y', b"), vec!["a = 'x,y'", " b"]);
+        assert_eq!(
+            split_declarators("a = `x,${y},z`, b"),
+            vec!["a = `x,${y},z`", " b"]
+        );
+    }
+
+    #[test]
+    fn honours_escaped_quote_in_string() {
+        assert_eq!(
+            split_declarators(r#"a = "x\",y", b"#),
+            vec![r#"a = "x\",y""#, " b"]
+        );
+    }
 }

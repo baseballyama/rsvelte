@@ -14,6 +14,9 @@
 //! | `$count &&= expr`| `$.store_set(<access>, $count() && expr)`    |
 //! | `$count \|\|= expr`| `$.store_set(<access>, $count() \|\| expr)` |
 //!
+//! The bitwise / shift compound operators (`**= <<= >>= >>>= &= \|= ^=`) lower
+//! the same way and were previously dropped (H-026).
+//!
 //! `<access>` follows the same three-way classification used by
 //! `store_update_ast` (prop getter / reactive-state read / plain
 //! identifier).
@@ -46,6 +49,33 @@ thread_local! {
 }
 
 const MAX_FIXED_POINT_ITERS: usize = 16;
+
+/// Map a compound assignment operator to the binary operator it expands to for
+/// `$.store_set(access, $sub() <op> rhs)` lowering. Returns `None` only for the
+/// plain `=` operator, which the caller handles separately. Covers the full set
+/// (`+ - * / % ** << >> >>> | ^ & || && ??`) so bitwise / shift store
+/// compound-assignments are no longer dropped (matches upstream).
+fn compound_store_op(op: AssignmentOperator) -> Option<&'static str> {
+    use AssignmentOperator::*;
+    Some(match op {
+        Addition => "+",
+        Subtraction => "-",
+        Multiplication => "*",
+        Division => "/",
+        Remainder => "%",
+        Exponential => "**",
+        ShiftLeft => "<<",
+        ShiftRight => ">>",
+        ShiftRightZeroFill => ">>>",
+        BitwiseOR => "|",
+        BitwiseXOR => "^",
+        BitwiseAnd => "&",
+        LogicalOr => "||",
+        LogicalAnd => "&&",
+        LogicalNullish => "??",
+        Assign => return None,
+    })
+}
 
 /// AST-based rewrite of `$count = expr` / `$count <op>= expr` for
 /// the bindings listed in `store_sub_vars`. The underlying
@@ -190,62 +220,20 @@ impl<'a, 'ast> Visit<'ast> for StoreAssignCollector<'a> {
         let rhs_span = expr.right.span();
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
 
-        let rewrite = match expr.operator {
-            AssignmentOperator::Assign => {
-                format!("$.store_set({}, {})", store_access, rhs_text)
-            }
-            AssignmentOperator::Addition => {
-                format!(
-                    "$.store_set({}, {}() + {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::Subtraction => {
-                format!(
-                    "$.store_set({}, {}() - {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::Multiplication => {
-                format!(
-                    "$.store_set({}, {}() * {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::Division => {
-                format!(
-                    "$.store_set({}, {}() / {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::Remainder => {
-                format!(
-                    "$.store_set({}, {}() % {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::LogicalNullish => {
-                format!(
-                    "$.store_set({}, {}() ?? {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::LogicalAnd => {
-                format!(
-                    "$.store_set({}, {}() && {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            AssignmentOperator::LogicalOr => {
-                format!(
-                    "$.store_set({}, {}() || {})",
-                    store_access, store_sub, rhs_text
-                )
-            }
-            // Other operators (**=, <<=, >>=, >>>=, &=, |=, ^=) are
-            // not in the text version's allowlist — leave them
-            // untouched and the existing text path (if any) handles.
-            _ => return,
+        let rewrite = if expr.operator == AssignmentOperator::Assign {
+            format!("$.store_set({}, {})", store_access, rhs_text)
+        } else {
+            // Every compound operator lowers to `$.store_set(access, $sub() <op> rhs)`.
+            // (RHS grouping for lower-precedence expressions is a separate, broader
+            // fix — the shared parens helper is precedence-incomplete and also
+            // affects the state path; see H-025 deferral.)
+            let Some(op_str) = compound_store_op(expr.operator) else {
+                return;
+            };
+            format!(
+                "$.store_set({}, {}() {} {})",
+                store_access, store_sub, op_str, rhs_text
+            )
         };
 
         self.replacements
@@ -348,6 +336,23 @@ mod tests {
         let out =
             transform_store_assign_ast("$count ||= 5;", &ssv(&["$count"]), &[], &[], &[]).unwrap();
         assert_eq!(out, "$.store_set(count, $count() || 5);");
+    }
+
+    #[test]
+    fn compound_bitwise_and_shift_ops() {
+        // H-026: bitwise / shift compound operators were previously dropped.
+        for (src, expected) in [
+            ("$count &= 3;", "$.store_set(count, $count() & 3);"),
+            ("$count |= 3;", "$.store_set(count, $count() | 3);"),
+            ("$count ^= 3;", "$.store_set(count, $count() ^ 3);"),
+            ("$count <<= 2;", "$.store_set(count, $count() << 2);"),
+            ("$count >>= 2;", "$.store_set(count, $count() >> 2);"),
+            ("$count >>>= 2;", "$.store_set(count, $count() >>> 2);"),
+            ("$count **= 2;", "$.store_set(count, $count() ** 2);"),
+        ] {
+            let out = transform_store_assign_ast(src, &ssv(&["$count"]), &[], &[], &[]).unwrap();
+            assert_eq!(out, expected, "for {src}");
+        }
     }
 
     #[test]
@@ -482,18 +487,6 @@ mod tests {
     fn no_op_without_prefix_dollar() {
         assert!(
             transform_store_assign_ast("let x = 1;", &ssv(&["$count"]), &[], &[], &[]).is_none()
-        );
-    }
-
-    #[test]
-    fn leaves_unsupported_operator_alone() {
-        // `**=`, `<<=`, `>>=`, `>>>=`, `&=`, `|=`, `^=` not in the
-        // text version's allowlist either.
-        assert!(
-            transform_store_assign_ast("$count **= 2;", &ssv(&["$count"]), &[], &[], &[]).is_none()
-        );
-        assert!(
-            transform_store_assign_ast("$count &= 7;", &ssv(&["$count"]), &[], &[], &[]).is_none()
         );
     }
 }
