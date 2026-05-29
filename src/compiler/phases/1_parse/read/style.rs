@@ -1045,16 +1045,28 @@ impl<'a> CssParser<'a> {
         base_offset: usize,
     ) -> Vec<(&'b str, usize)> {
         let mut result = Vec::new();
-        let mut depth = 0;
+        let mut depth = 0; // `(` … `)` nesting (`:is(.a, .b)` etc.)
+        let mut bracket_depth = 0; // `[` … `]` nesting (attribute selectors)
         let mut last_start = 0;
         let mut in_comment = false;
+        let mut string_char: Option<u8> = None; // open quote of the current string
 
         let bytes = text.as_bytes();
         let mut i = 0;
         while i < bytes.len() {
-            // Handle escaped characters
+            // Handle escaped characters (also handles `\"` inside a string).
             if bytes[i] == b'\\' && i + 1 < bytes.len() {
                 i += 2; // Skip backslash and next char
+                continue;
+            }
+
+            // Inside a string only the matching close-quote ends it — commas,
+            // brackets and `/*` are literal content (e.g. `[x=",("]`).
+            if let Some(quote) = string_char {
+                if bytes[i] == quote {
+                    string_char = None;
+                }
+                i += 1;
                 continue;
             }
 
@@ -1074,15 +1086,18 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
-            let c = bytes[i] as char;
-            if c == '(' {
-                depth += 1;
-            } else if c == ')' {
-                depth -= 1;
-            } else if c == ',' && depth == 0 {
-                let selector = &text[last_start..i];
-                result.push((selector, base_offset + last_start));
-                last_start = i + 1;
+            match bytes[i] {
+                b'"' | b'\'' => string_char = Some(bytes[i]),
+                b'(' => depth += 1,
+                b')' => depth -= 1,
+                b'[' => bracket_depth += 1,
+                b']' => bracket_depth -= 1,
+                b',' if depth == 0 && bracket_depth == 0 => {
+                    let selector = &text[last_start..i];
+                    result.push((selector, base_offset + last_start));
+                    last_start = i + 1;
+                }
+                _ => {}
             }
             i += 1;
         }
