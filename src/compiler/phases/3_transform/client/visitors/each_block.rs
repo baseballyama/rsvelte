@@ -54,6 +54,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 use rustc_hash::FxHashMap;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -1293,7 +1294,7 @@ fn _extract_destructured_paths(
                                         && !computed
                                         && let Some(name) = key.get("name").and_then(|n| n.as_str())
                                     {
-                                        excluded_keys.push(format!("'{}'", name));
+                                        excluded_keys.push(format!("'{}'", escape_js_string(name)));
                                     } else if key_type == Some("Literal") {
                                         // Match official compiler: b.literal(String(p.key.value))
                                         if let Some(val) = key.get("value") {
@@ -1320,7 +1321,8 @@ fn _extract_destructured_paths(
                                                 serde_json::Value::Bool(b) => b.to_string(),
                                                 _ => format!("{}", val),
                                             };
-                                            excluded_keys.push(format!("'{}'", val_str));
+                                            excluded_keys
+                                                .push(format!("'{}'", escape_js_string(&val_str)));
                                         }
                                     } else if computed {
                                         // Match official compiler: b.call('String', p.key)
