@@ -62,7 +62,12 @@ pub fn title_element(node: &TitleElement, context: &mut ComponentContext) {
         b::assign(&context.arena, document_title, value),
     );
 
-    if has_state {
+    // Use the memoised `deferred_template_effect` form whenever the title has
+    // reactive state OR a memoised call/await value. Previously this branched on
+    // `has_state` alone, so a call-only title (`<title>{foo()}</title>`) fell
+    // through to the plain `$.effect` form below while its value still
+    // referenced the memo parameter `$0` — emitting an unbound `$0`. H-157.
+    if has_state || !memo_entries.is_empty() {
         // Separate memo entries into sync and async
         let sync_entries: Vec<&MemoEntry> = memo_entries.iter().filter(|e| !e.is_async).collect();
         let async_entries: Vec<&MemoEntry> = memo_entries.iter().filter(|e| e.is_async).collect();
@@ -86,7 +91,11 @@ pub fn title_element(node: &TitleElement, context: &mut ComponentContext) {
             b::array(
                 sync_entries
                     .iter()
-                    .map(|e| b::thunk(&context.arena, e.expression.clone()))
+                    // Explicit `() => expr` thunks — NOT `b::thunk` (which would
+                    // unthunk `() => foo()` to `foo`). Upstream keeps the thunk
+                    // in the `deferred_template_effect` deps array
+                    // (`[() => foo()]`). H-157.
+                    .map(|e| b::arrow(&context.arena, vec![], e.expression.clone()))
                     .collect(),
             )
         };
