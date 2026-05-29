@@ -600,10 +600,14 @@ fn build_fallback_args(
     context: &mut ComponentContext,
 ) -> Vec<JsExpr> {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
 
     if is_simple_expression_json(default_value) {
-        // Simple default: $.fallback(arg?.(), default)
+        // Simple default: $.fallback(arg?.(), default). Apply reactive-read
+        // transforms so a default like `x = count` becomes `$.get(count)`
+        // (the default expression was previously emitted untransformed). M-068.
         let default_expr = convert_expression(&Expression::Value(default_value.clone()), context);
+        let default_expr = apply_transforms_to_expression(&default_expr, context);
         vec![default_expr]
     } else {
         // Complex default - check for the unthunk optimization:
@@ -625,9 +629,11 @@ fn build_fallback_args(
             );
             vec![callee_expr, JsExpr::Literal(JsLiteral::Boolean(true))]
         } else {
-            // General case: thunk the expression
+            // General case: thunk the (transformed) expression so reactive reads
+            // inside a complex default (`x = a + b`) are wrapped. M-068.
             let default_expr =
                 convert_expression(&Expression::Value(default_value.clone()), context);
+            let default_expr = apply_transforms_to_expression(&default_expr, context);
             vec![
                 b::thunk(&context.arena, default_expr),
                 JsExpr::Literal(JsLiteral::Boolean(true)),
