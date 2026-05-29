@@ -3762,6 +3762,20 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let rune_name = &prefix[..prefix.len() - 1]; // e.g., "$derived(" -> "$derived"
     let shadow_ranges = find_rune_shadow_ranges(script, rune_name);
 
+    // Fast path: when the script is pure ASCII (the overwhelmingly common case
+    // for component scripts containing only `$rune(...)` syntax + business
+    // logic), `script.chars().nth(i)` and `script.as_bytes()[i]` agree on
+    // every position. Drop the upfront `Vec<char>` allocation and scan bytes
+    // directly. The `find_rune_shadow_ranges` output is still positional
+    // and agrees with byte indices under the ASCII invariant.
+    if script.is_ascii() {
+        return transform_rune_call_multiline_ascii_fast(
+            script,
+            prefix,
+            &shadow_ranges,
+        );
+    }
+
     let mut result = String::new();
     let chars: Vec<char> = script.chars().collect();
     let prefix_chars: Vec<char> = prefix.chars().collect();
@@ -3913,6 +3927,144 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
         }
 
         result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
+/// ASCII-only fast path for `transform_rune_call_multiline`.
+///
+/// Walks `script.as_bytes()` directly, skipping the upfront
+/// `Vec<char>` materialization. The substring extraction for the
+/// rune argument (`inner`) is just a byte-slice of the original
+/// `script` (`&script[start..end]`) — no `String::from_iter::<&char>`
+/// allocation. Caller must guarantee `script.is_ascii() == true`;
+/// every position is then a valid `&str` boundary.
+fn transform_rune_call_multiline_ascii_fast(
+    script: &str,
+    prefix: &str,
+    shadow_ranges: &[(usize, usize)],
+) -> String {
+    let bytes = script.as_bytes();
+    let prefix_bytes = prefix.as_bytes();
+    let prefix_len = prefix_bytes.len();
+    let len = bytes.len();
+
+    let is_derived_by = prefix == "$derived.by(";
+    let is_derived = prefix == "$derived(";
+
+    // Preallocate at source size — the transformed script is normally within
+    // a small factor of the input, and growing the buffer per-byte was a
+    // contributor to memmove traffic in the rune-transform path.
+    let mut result = String::with_capacity(len);
+    let mut i = 0;
+    while i < len {
+        if i + prefix_len <= len && &bytes[i..i + prefix_len] == prefix_bytes {
+            let is_shadowed = shadow_ranges
+                .iter()
+                .any(|&(s, e)| i >= s && i < e);
+            if is_shadowed {
+                result.push_str(prefix);
+                i += prefix_len;
+                continue;
+            }
+
+            let mut depth = 1;
+            let start = i + prefix_len;
+            let mut end = start;
+            let mut in_string = false;
+            let mut string_char: u8 = 0;
+            while end < len && depth > 0 {
+                let c = bytes[end];
+                if (c == b'"' || c == b'\'' || c == b'`')
+                    && (end == 0 || bytes[end - 1] != b'\\')
+                {
+                    if !in_string {
+                        in_string = true;
+                        string_char = c;
+                    } else if c == string_char {
+                        in_string = false;
+                    }
+                }
+                if !in_string {
+                    match c {
+                        b'(' => depth += 1,
+                        b')' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if depth > 0 {
+                    end += 1;
+                }
+            }
+
+            // ASCII fast-path invariant: `start` and `end` are valid byte
+            // positions inside an all-ASCII `&str`, so slicing is safe.
+            let inner = &script[start..end];
+            let trimmed_inner = inner.trim();
+
+            if trimmed_inner.is_empty() {
+                if is_derived {
+                    result.push_str("$.derived(() => void 0)");
+                } else if is_derived_by {
+                    result.push_str("$.derived(void 0)");
+                } else {
+                    result.push_str("void 0");
+                }
+            } else if is_derived_by {
+                let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+                result.push_str("$.derived(");
+                result.push_str(cleaned);
+                result.push(')');
+            } else if is_derived {
+                let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+                if super::helpers::expr_contains_await(cleaned) {
+                    let stripped = strip_top_level_await_from_expr(cleaned);
+                    let nested_await = super::helpers::expr_contains_await(&stripped);
+                    let needs_paren = stripped.trim_start().starts_with('{');
+                    if nested_await {
+                        result.push_str("await $.async_derived(async () => ");
+                    } else {
+                        result.push_str("await $.async_derived(() => ");
+                    }
+                    if needs_paren {
+                        result.push('(');
+                        result.push_str(&stripped);
+                        result.push(')');
+                    } else {
+                        result.push_str(&stripped);
+                    }
+                    result.push(')');
+                } else if let Some(ident) = unthunk_no_arg_ident_call(cleaned) {
+                    result.push_str("$.derived(");
+                    result.push_str(ident);
+                    result.push(')');
+                } else {
+                    let needs_paren = cleaned.trim_start().starts_with('{');
+                    result.push_str("$.derived(() => ");
+                    if needs_paren {
+                        result.push('(');
+                        result.push_str(cleaned);
+                        result.push(')');
+                    } else {
+                        result.push_str(cleaned);
+                    }
+                    result.push(')');
+                }
+            } else {
+                let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+                result.push_str(cleaned);
+            }
+
+            i = end + 1;
+            continue;
+        }
+
+        // No prefix match at this position — emit one ASCII byte. (Caller
+        // guarantees the script is all ASCII, so a single byte == single
+        // char.)
+        result.push(bytes[i] as char);
         i += 1;
     }
 
@@ -5294,7 +5446,165 @@ fn remove_rune_statement_with_noop(script: &str, rune_prefix: &str) -> String {
     result
 }
 
+/// ASCII-only fast path for `remove_rune_statement`. Avoids the upfront
+/// `Vec<char>` materialization — every position is a valid byte index
+/// into the original `&str`. The `.with(...)` chain detection and the
+/// trailing `;` / whitespace / newline cleanup are kept byte-level so the
+/// behaviour matches the char-based slow path on ASCII input.
+fn remove_rune_statement_ascii_fast(script: &str, rune_prefix: &str) -> String {
+    let bytes = script.as_bytes();
+    let prefix_bytes = rune_prefix.as_bytes();
+    let prefix_len = prefix_bytes.len();
+    let len = bytes.len();
+    let mut result = String::with_capacity(len);
+    let mut i = 0;
+
+    while i < len {
+        if i + prefix_len <= len && &bytes[i..i + prefix_len] == prefix_bytes {
+            let is_statement = is_statement_start(&result);
+
+            if !is_statement && rune_prefix == "$effect.root(" {
+                let start = i + prefix_len;
+                let mut depth = 1;
+                let mut end = start;
+                let mut in_string = false;
+                let mut string_char: u8 = 0;
+
+                while end < len && depth > 0 {
+                    let c = bytes[end];
+                    if (c == b'"' || c == b'\'' || c == b'`')
+                        && (end == 0 || bytes[end - 1] != b'\\')
+                    {
+                        if !in_string {
+                            in_string = true;
+                            string_char = c;
+                        } else if c == string_char {
+                            in_string = false;
+                        }
+                    }
+                    if !in_string {
+                        match c {
+                            b'(' => depth += 1,
+                            b')' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    if depth > 0 {
+                        end += 1;
+                    }
+                }
+                end += 1;
+
+                result.push_str("() => {}");
+                i = end;
+                continue;
+            }
+
+            if is_statement {
+                let start = i + prefix_len;
+                let mut depth = 1;
+                let mut end = start;
+                let mut in_string = false;
+                let mut string_char: u8 = 0;
+
+                while end < len && depth > 0 {
+                    let c = bytes[end];
+                    if (c == b'"' || c == b'\'' || c == b'`')
+                        && (end == 0 || bytes[end - 1] != b'\\')
+                    {
+                        if !in_string {
+                            in_string = true;
+                            string_char = c;
+                        } else if c == string_char {
+                            in_string = false;
+                        }
+                    }
+                    if !in_string {
+                        match c {
+                            b'(' => depth += 1,
+                            b')' => depth -= 1,
+                            _ => {}
+                        }
+                    }
+                    if depth > 0 {
+                        end += 1;
+                    }
+                }
+                end += 1;
+
+                // Handle method chaining like $inspect(...).with(...)
+                if end + 5 <= len && &bytes[end..end + 5] == b".with" {
+                    end += 5;
+                    while end < len && (bytes[end] == b' ' || bytes[end] == b'\t') {
+                        end += 1;
+                    }
+                    if end < len && bytes[end] == b'(' {
+                        end += 1;
+                        let mut with_depth = 1;
+                        let mut with_in_string = false;
+                        let mut with_string_char: u8 = 0;
+
+                        while end < len && with_depth > 0 {
+                            let c = bytes[end];
+                            if (c == b'"' || c == b'\'' || c == b'`')
+                                && (end == 0 || bytes[end - 1] != b'\\')
+                            {
+                                if !with_in_string {
+                                    with_in_string = true;
+                                    with_string_char = c;
+                                } else if c == with_string_char {
+                                    with_in_string = false;
+                                }
+                            }
+                            if !with_in_string {
+                                match c {
+                                    b'(' => with_depth += 1,
+                                    b')' => with_depth -= 1,
+                                    _ => {}
+                                }
+                            }
+                            if with_depth > 0 {
+                                end += 1;
+                            }
+                        }
+                        end += 1;
+                    }
+                }
+
+                while end < len && (bytes[end] == b';' || bytes[end] == b' ') {
+                    end += 1;
+                }
+
+                if end < len && bytes[end] == b'\n' {
+                    end += 1;
+                }
+
+                if rune_prefix.starts_with("$inspect")
+                    && !rune_prefix.starts_with("$inspect.trace")
+                {
+                    result.push_str("/* $$async_hole */;\n");
+                } else if !rune_prefix.starts_with("$inspect") {
+                    while result.ends_with(' ') || result.ends_with('\t') {
+                        result.pop();
+                    }
+                }
+
+                i = end;
+                continue;
+            }
+        }
+
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+
+    result
+}
+
 fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
+    if script.is_ascii() {
+        return remove_rune_statement_ascii_fast(script, rune_prefix);
+    }
     let mut result = String::new();
     let chars: Vec<char> = script.chars().collect();
     let prefix_chars: Vec<char> = rune_prefix.chars().collect();
