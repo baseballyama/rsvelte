@@ -3773,8 +3773,14 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
 
     while i < chars.len() {
         if i + prefix_len <= chars.len() {
-            let potential: String = chars[i..i + prefix_len].iter().collect();
-            if potential == prefix {
+            // Slice equality on `&[char]` is `&[u32]` comparison — no heap
+            // allocation, vs. the previous `chars[i..].iter().collect::<String>()`
+            // which built a fresh `String` on every iteration of an O(script.len())
+            // scan. On the SSR transform path this function is called once per
+            // rune (`$derived(`, `$derived.by(`, `$effect(`, ...) per component,
+            // so each script's worth of `from_iter::<&char>` was contributing the
+            // single largest sample bucket in `compile-server` (335 / 2124).
+            if chars[i..i + prefix_len] == prefix_chars[..] {
                 // Check if this occurrence is inside a shadowed scope
                 let is_shadowed = shadow_ranges
                     .iter()
@@ -3782,7 +3788,7 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
 
                 if is_shadowed {
                     // Don't transform - keep the original text
-                    result.push_str(&potential);
+                    result.push_str(prefix);
                     i += prefix_len;
                     continue;
                 }
