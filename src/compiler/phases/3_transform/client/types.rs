@@ -2028,6 +2028,23 @@ pub struct ComponentClientTransformState<'a> {
     /// Uses `Rc<RefCell<...>>` for shared ownership across nested states.
     pub blocker_map: Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, usize>>>,
 
+    /// Set of upstream-primary binding names per blocker index (i.e., names
+    /// that upstream would assign `binding.blocker` to via declarator
+    /// extraction or `trace_references` writes — NOT bindings that only read
+    /// from an async expression). Used by the Fragment visitor to mirror
+    /// upstream's `Memoizer.#blockers = new Set<Expression>` dedup-by-binding:
+    /// for each blocker index referenced by an expression, count how many of
+    /// the expression's referenced names are primary bindings at that slot
+    /// (those are the bindings with their own `binding.blocker` Expression in
+    /// upstream). That count becomes the number of array entries emitted for
+    /// the slot. Non-primary names (pre-await sync state referenced by a later
+    /// async expression) collapse into the primary binding's entry instead of
+    /// producing a phantom duplicate (see `async-pending-batch`,
+    /// `async-eager-derived`).
+    /// Uses `Rc<RefCell<...>>` for shared ownership across nested states.
+    pub blocker_map_primary_names:
+        Rc<std::cell::RefCell<rustc_hash::FxHashMap<usize, rustc_hash::FxHashSet<String>>>>,
+
     /// Extra blocker indices accumulated from expressions that were evaluated to
     /// literals at compile time but still reference variables in the blocker_map.
     /// These are merged into the blocker detection in Fragment visitor.
@@ -2185,6 +2202,9 @@ impl<'a> ComponentClientTransformState<'a> {
             hidden_let_bindings: FxHashSet::default(),
             shadowed_prop_names: im::HashSet::new(),
             blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
+            blocker_map_primary_names: Rc::new(std::cell::RefCell::new(
+                rustc_hash::FxHashMap::default(),
+            )),
             extra_blocker_indices: Vec::new(),
             is_standalone: false,
             const_blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
