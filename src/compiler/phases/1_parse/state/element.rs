@@ -1135,6 +1135,20 @@ impl Parser<'_> {
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim().to_string();
 
+            // Attribute shorthand must be a bare identifier (`{foo}`). Upstream
+            // reads a single identifier and then expects `}`, so `{a.b}`,
+            // `{a + b}`, `{a()}` are `expected_token` errors at the first
+            // non-identifier character (not valid attribute names). H-153.
+            if !self.options.loose
+                && let Some(bad) = shorthand_first_invalid_offset(&name)
+            {
+                let leading_ws = expr_content.len() - expr_content.trim_start().len();
+                return Err(crate::error::ParseError::expected_token(
+                    "}",
+                    expr_start + leading_ws + bad,
+                ));
+            }
+
             // Check for reserved words in shorthand attributes
             // In the official Svelte, read_identifier() checks is_reserved(name)
             // Reference: svelte/packages/svelte/src/compiler/phases/1-parse/index.js L248
@@ -2495,4 +2509,20 @@ fn is_identifier_continue(c: char) -> bool {
 /// Check if a character is valid in a component name (after the first char).
 fn is_component_name_char(c: char) -> bool {
     is_identifier_continue(c) || c == '.'
+}
+
+/// Returns the byte offset within `name` of the first character that prevents
+/// it from being a bare JS identifier — the attribute-shorthand grammar accepts
+/// only a single identifier (`{foo}`), so `{a.b}` / `{a + b}` / `{a()}` are
+/// rejected at the offending character. Returns `None` when `name` is a valid
+/// identifier. An empty `name` returns `Some(0)`. H-153.
+fn shorthand_first_invalid_offset(name: &str) -> Option<usize> {
+    let mut iter = name.char_indices();
+    match iter.next() {
+        None => Some(0),
+        Some((_, c)) if !is_identifier_start(c) => Some(0),
+        _ => iter
+            .find(|(_, c)| !is_identifier_continue(*c))
+            .map(|(i, _)| i),
+    }
 }
