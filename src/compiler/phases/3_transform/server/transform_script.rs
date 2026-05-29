@@ -3926,6 +3926,7 @@ fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)>
     let chars: Vec<char> = script.chars().collect();
     let len = chars.len();
     let fn_keyword = "function";
+    let fn_keyword_chars: Vec<char> = fn_keyword.chars().collect();
     let fn_len = fn_keyword.len();
     let arrow_params_pattern = rune_name;
 
@@ -3944,10 +3945,11 @@ fn find_rune_shadow_ranges(script: &str, rune_name: &str) -> Vec<(usize, usize)>
             continue;
         }
 
-        // Check for `function` keyword
-        if i + fn_len <= len {
-            let word: String = chars[i..i + fn_len].iter().collect();
-            if word == fn_keyword {
+        // Check for `function` keyword via slice equality — same per-iteration
+        // `chars[..].iter().collect::<String>()` antipattern as the rune-scan
+        // loop above (which `transform_rune_call_multiline` calls into).
+        if i + fn_len <= len && chars[i..i + fn_len] == fn_keyword_chars[..] {
+            {
                 // Make sure it's not part of a larger identifier
                 let before_ok = i == 0
                     || !chars[i - 1].is_alphanumeric()
