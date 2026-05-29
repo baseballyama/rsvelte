@@ -75,6 +75,29 @@ const WARN_HAS_START: u8 = 1 << 1;
 const WARN_HAS_END: u8 = 1 << 2;
 const WARN_HAS_FRAME: u8 = 1 << 3;
 
+/// Largest envelope that can address its own fields. Every header
+/// offset/length is a `u32` (little-endian), so an envelope whose total
+/// size exceeds this can't encode its own offsets without truncating
+/// them — the JS decoder would then read garbage. Only reachable for
+/// more than 4 GiB of generated output. Callers at the NAPI boundary
+/// must reject oversized results via [`check_envelope_size`] rather than
+/// letting the internal `usize as u32` casts silently wrap (M-012).
+pub const MAX_ENVELOPE_SIZE: usize = u32::MAX as usize;
+
+/// Returns `Err(size)` when an envelope of `size` bytes would overflow
+/// the `u32` header fields. Call this at the NAPI boundary before any
+/// `encode_*`; once it returns `Ok`, every offset/length in the
+/// envelope is `<= size <= u32::MAX` and so every internal `as u32`
+/// cast in [`encode_into`] is lossless.
+#[inline]
+pub fn check_envelope_size(size: usize) -> Result<(), usize> {
+    if size > MAX_ENVELOPE_SIZE {
+        Err(size)
+    } else {
+        Ok(())
+    }
+}
+
 /// Trait abstracting over the backing buffer. Step 2 implements this
 /// for `Vec<u8>`; Step 3 implements it for a bumpalo arena handle.
 pub trait Writer {
@@ -684,5 +707,16 @@ mod tests {
         assert_eq!(buf.len(), BATCH_HEADER_LEN);
         let read_u32 = |o: usize| u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]);
         assert_eq!(read_u32(12), 0, "empty batch count is 0");
+    }
+
+    #[test]
+    fn size_guard_accepts_in_range_and_rejects_overflow() {
+        assert!(check_envelope_size(0).is_ok());
+        assert!(check_envelope_size(HEADER_LEN).is_ok());
+        assert!(check_envelope_size(MAX_ENVELOPE_SIZE).is_ok());
+        assert_eq!(
+            check_envelope_size(MAX_ENVELOPE_SIZE + 1),
+            Err(MAX_ENVELOPE_SIZE + 1)
+        );
     }
 }

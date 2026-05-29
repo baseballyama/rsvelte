@@ -1062,6 +1062,22 @@ fn position_to_napi(p: crate::compiler::Position) -> NapiPosition {
 // same envelope: the buffer becomes a view into arena memory rather
 // than an owned `Vec<u8>`.
 
+/// Reject an envelope whose total size would overflow the `u32` header
+/// offsets (only reachable for more than 4 GiB of generated output).
+/// Surfaces the overflow as a `napi::Error` instead of letting `encode_*`
+/// silently truncate the offsets and hand the JS decoder a corrupt
+/// buffer (M-012).
+#[inline]
+fn ensure_envelope_size(size: usize) -> napi::Result<()> {
+    crate::napi_raw::check_envelope_size(size).map_err(|size| {
+        napi::Error::from_reason(format!(
+            "rsvelte: compiled output is {size} bytes, exceeding the \
+             {max}-byte envelope limit (header offsets are u32)",
+            max = crate::napi_raw::MAX_ENVELOPE_SIZE
+        ))
+    })
+}
+
 /// `compile()` returning a single packed envelope buffer.
 /// See `crate::napi_raw` for the byte-level format.
 #[napi(js_name = "compileEnvelope")]
@@ -1071,7 +1087,10 @@ pub fn napi_compile_envelope(
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(options);
     match rust_compile(&source, opts) {
-        Ok(result) => Ok(Buffer::from(crate::napi_raw::encode_to_vec(&result))),
+        Ok(result) => {
+            ensure_envelope_size(crate::napi_raw::estimate_size(&result))?;
+            Ok(Buffer::from(crate::napi_raw::encode_to_vec(&result)))
+        }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
 }
@@ -1126,9 +1145,9 @@ pub fn napi_compile_envelope_zero_copy(
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
     };
-    let bump = Box::new(bumpalo::Bump::with_capacity(
-        crate::napi_raw::estimate_size(&result),
-    ));
+    let size = crate::napi_raw::estimate_size(&result);
+    ensure_envelope_size(size)?;
+    let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
 
     // RAII guard: if we return early (e.g. `create_buffer_with_borrowed_data`
@@ -1196,9 +1215,9 @@ pub fn napi_compile_module_envelope_zero_copy(
         metadata: crate::compiler::CompileMetadata { runes: true },
         ast: None,
     };
-    let bump = Box::new(bumpalo::Bump::with_capacity(
-        crate::napi_raw::estimate_size(&cr),
-    ));
+    let size = crate::napi_raw::estimate_size(&cr);
+    ensure_envelope_size(size)?;
+    let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
     let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
     let slice = crate::napi_raw::encode_into_bump(bump_ref, &cr);
@@ -1240,6 +1259,7 @@ pub fn napi_compile_module_envelope(
                 metadata: crate::compiler::CompileMetadata { runes: true },
                 ast: None,
             };
+            ensure_envelope_size(crate::napi_raw::estimate_size(&cr))?;
             Ok(Buffer::from(crate::napi_raw::encode_to_vec(&cr)))
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -1311,6 +1331,7 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
         })
         .collect();
 
+    ensure_envelope_size(crate::napi_raw::estimate_batch_size(&entries))?;
     Ok(Buffer::from(crate::napi_raw::encode_batch_to_vec(&entries)))
 }
 
@@ -1352,6 +1373,7 @@ impl Task for CompileEnvelopeTask {
         // small and we only pay it once per call.
         let result = rust_compile(&self.source, self.options.clone())
             .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
+        ensure_envelope_size(crate::napi_raw::estimate_size(&result))?;
         Ok(crate::napi_raw::encode_to_vec(&result))
     }
 
@@ -1406,6 +1428,7 @@ impl Task for CompileBatchTask {
                 Err(_) => crate::napi_raw::BatchEntry::Err(e.as_deref().unwrap_or("unknown error")),
             })
             .collect();
+        ensure_envelope_size(crate::napi_raw::estimate_batch_size(&entries))?;
         Ok(crate::napi_raw::encode_batch_to_vec(&entries))
     }
 

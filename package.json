@@ -32,6 +32,7 @@
     "stage-svelte-check": "node scripts/stage-svelte-check-binaries.mjs",
     "stage-vps-native": "node scripts/stage-vps-binaries.mjs",
     "publish-platform-binaries": "node scripts/publish-platform-binaries.mjs",
+    "test:envelope": "node scripts/test-envelope-validation.mjs",
     "test:vps-shim": "node scripts/test-vps-shim.mjs",
     "test:vps-fixture": "node scripts/test-vps-vite-fixture.mjs",
     "test:vps": "node scripts/test-vps-shim.mjs && node scripts/test-vps-vite-fixture.mjs",
