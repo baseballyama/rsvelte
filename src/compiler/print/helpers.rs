@@ -248,9 +248,11 @@ impl EstreeGenerator {
         }
 
         if computed {
-            if !optional {
-                self.output.push('[');
-            }
+            // Optional computed access prints as `obj?.[key]`: the `?.` above
+            // plus a full `[ … ]`. The opening bracket must always be emitted
+            // (previously it was skipped when `optional`, yielding the invalid
+            // `obj?.key]`). M-037.
+            self.output.push('[');
             if let Some(property) = node.get("property") {
                 self.generate_node(property);
             }
@@ -1343,6 +1345,25 @@ mod tests {
         assert_eq!(escape_html("hello"), "hello");
         assert_eq!(escape_html("a<b>c"), "a&lt;b&gt;c");
         assert_eq!(escape_html("a&b"), "a&amp;b");
+    }
+
+    #[test]
+    fn test_member_expression_optional_computed() {
+        // M-037: `obj?.[key]` must keep its opening bracket (was printing the
+        // invalid `obj?.key]`).
+        let member = |optional: bool, computed: bool| {
+            serde_json::json!({
+                "type": "MemberExpression",
+                "object": { "type": "Identifier", "name": "obj" },
+                "property": { "type": "Identifier", "name": "key" },
+                "optional": optional,
+                "computed": computed,
+            })
+        };
+        assert_eq!(estree_to_string(&member(true, true)), "obj?.[key]");
+        assert_eq!(estree_to_string(&member(false, true)), "obj[key]");
+        assert_eq!(estree_to_string(&member(true, false)), "obj?.key");
+        assert_eq!(estree_to_string(&member(false, false)), "obj.key");
     }
 
     #[test]
