@@ -988,9 +988,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   predicate port (this PR) unblocks -1..4. -5..7 use
         //   `let b = $derived(await delay(...))` in the instance script and
         //   hit a separate async-blocker cluster (still client-side failure).
-        ("runtime-runes", "async-overlap-multiple-5"),
-        ("runtime-runes", "async-overlap-multiple-6"),
-        ("runtime-runes", "async-overlap-multiple-7"),
         // - Svelte 5.55.2 cluster: upstream commits `8966601dc` "handle parens
         //   in template expressions more robustly" + `edcbb0e64` "invalidate
         //   `@const` tags based on visible references in legacy mode".
@@ -1029,8 +1026,6 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   remaining two still fail on orthogonal axes (`$derived(await
         //   ...)` lowering, `wrap_derived_reads` shadowing in `then` body
         //   args, etc.). Tracked as follow-up ports.
-        ("runtime-runes", "async-await-block-2"),
-        ("runtime-runes", "async-duplicate-dependencies"),
         // The hydration `boundary-pending-attribute` fixture (Svelte 5.54.x)
         // is now unblocked by the 5.55.3 `@const` blocker port (this PR),
         // which switches the server `@const` assignment thunks from

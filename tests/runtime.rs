@@ -162,9 +162,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // `$.save` predicate port (this PR) unblocked -1..4). -5..7 use
     // `let b = $derived(await delay(...))` in the instance script and hit a
     // separate async-blocker cluster.
-    "async-overlap-multiple-5",
-    "async-overlap-multiple-6",
-    "async-overlap-multiple-7",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path
     // is handled; the runes fixtures below also hit code paths that aren't
@@ -175,8 +172,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // ...}` async-batching port; the remaining two still fail on orthogonal
     // axes ($derived(await ...) → `(await $.save($.async_derived(...)))()`
     // lowering, etc.).
-    "async-await-block-2",
-    "async-duplicate-dependencies",
 ];
 
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is
