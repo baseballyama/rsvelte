@@ -6319,7 +6319,13 @@ fn convert_statement_for_program(
                 oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) => {
                     convert_variable_declaration_as_node(arena, vd, offset, line_offsets)
                 }
-                _ => JsNode::Null,
+                // Assignment-target left (`for (x of arr)`, `for ([a,b] of arr)`,
+                // `for (obj.p of arr)`): preserve it instead of dropping it to
+                // `Null` (which made the whole loop vanish downstream). H-127.
+                other => other
+                    .as_assignment_target()
+                    .map(|t| convert_assignment_target_for_program(arena, t, offset, line_offsets))
+                    .unwrap_or(JsNode::Null),
             };
 
             let right = expr_to_node(convert_expression_for_program(
@@ -6352,7 +6358,12 @@ fn convert_statement_for_program(
                 oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) => {
                     convert_variable_declaration_as_node(arena, vd, offset, line_offsets)
                 }
-                _ => JsNode::Null,
+                // Assignment-target left (`for (x in obj)`, `for (a.b in obj)`):
+                // preserve it instead of dropping it to `Null`. H-127.
+                other => other
+                    .as_assignment_target()
+                    .map(|t| convert_assignment_target_for_program(arena, t, offset, line_offsets))
+                    .unwrap_or(JsNode::Null),
             };
 
             let right = expr_to_node(convert_expression_for_program(
