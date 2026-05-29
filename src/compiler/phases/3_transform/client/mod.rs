@@ -2089,6 +2089,22 @@ fn is_complete_side_effect_import(trimmed: &str) -> bool {
     after_import[i..].trim().is_empty()
 }
 
+/// True when `trimmed` begins an `export { ... }` specifier statement,
+/// tolerating any whitespace between `export` and `{` — including none, since
+/// `export{a}` is valid JavaScript (M-021). Guards against matching longer
+/// identifiers (`exporter`) or other export forms (`export default`,
+/// `export function`, `export const`).
+fn starts_export_specifier(trimmed: &str) -> bool {
+    let Some(rest) = trimmed.strip_prefix("export") else {
+        return false;
+    };
+    match rest.chars().next() {
+        Some('{') => true,
+        Some(c) if c.is_whitespace() => rest.trim_start().starts_with('{'),
+        _ => false,
+    }
+}
+
 /// Clean up an import statement after TypeScript stripping.
 /// Removes empty specifier slots (trailing commas, double commas) that result from
 /// type-only specifier removal. Normalizes `import { A,  , C,  } from 'x'` to
@@ -3963,7 +3979,7 @@ fn transform_instance_script_for_visitors(
         // not ES module export syntax. `export { a, b as c }` statements are only
         // used by the analysis phase to mark bindings as BindableProp/exports.
         // The actual declarations (let a, let b) remain and get transformed to $.prop() calls.
-        if first_line_trimmed.starts_with("export {") {
+        if starts_export_specifier(first_line_trimmed) {
             return;
         }
 
@@ -4329,7 +4345,7 @@ fn transform_instance_script_for_visitors(
         }
 
         // Skip export { ... } statements (will be handled via $$exports object)
-        if trimmed.starts_with("export {") {
+        if starts_export_specifier(trimmed) {
             in_export_block = !trimmed.contains('}');
             line_idx += 1;
             continue;
@@ -5098,6 +5114,22 @@ fn transform_local_assignment(line: &str, var_name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_starts_export_specifier() {
+        // M-021: recognise `export { ... }` regardless of whitespace before `{`.
+        assert!(starts_export_specifier("export { a, b }"));
+        assert!(starts_export_specifier("export {a}"));
+        assert!(starts_export_specifier("export{a}"));
+        assert!(starts_export_specifier("export  {a}"));
+        assert!(starts_export_specifier("export\t{ a }"));
+        // Must not match other export forms or longer identifiers.
+        assert!(!starts_export_specifier("export default x"));
+        assert!(!starts_export_specifier("export function f() {}"));
+        assert!(!starts_export_specifier("export const x = 1"));
+        assert!(!starts_export_specifier("exporter({a})"));
+        assert!(!starts_export_specifier("let x = 1"));
+    }
 
     // Tests for comma-separated variable declarations on client side.
     // These verify that destructured patterns ($state, $derived, $props) produce

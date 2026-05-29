@@ -2525,10 +2525,38 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                             rhs_trimmed.to_string()
                         };
 
-                        let replacement = format!(
-                            "$.set({}, {}({}) {} {})",
-                            name, getter, name, op_str, rhs_str
+                        // Non-coercive logical compound operators (`||=`, `&&=`,
+                        // `??=`) can store the RHS value as-is, so — like a plain
+                        // `=` — the assigned value must be proxied when proxiable.
+                        // Coercive operators (`+=`, `*=`, …) always coerce to a
+                        // primitive, so never proxy. Mirrors upstream's
+                        // `is_non_coercive_operator` gate on `should_proxy` in
+                        // AssignmentExpression.js / build_assignment_value.
+                        let is_logical = matches!(
+                            op,
+                            AssignmentOperator::LogicalOr
+                                | AssignmentOperator::LogicalAnd
+                                | AssignmentOperator::LogicalNullish
                         );
+                        let is_raw = self.raw_state_vars.contains(name);
+                        let is_derived = self.derived_vars.contains(name);
+                        let needs_proxy = is_logical
+                            && self.is_runes
+                            && !is_raw
+                            && !is_derived
+                            && should_proxy_ast(&expr.right, self.non_proxy_vars);
+
+                        let replacement = if needs_proxy {
+                            format!(
+                                "$.set({}, {}({}) {} {}, true)",
+                                name, getter, name, op_str, rhs_str
+                            )
+                        } else {
+                            format!(
+                                "$.set({}, {}({}) {} {})",
+                                name, getter, name, op_str, rhs_str
+                            )
+                        };
                         self.add_replacement(full_start, full_end, replacement);
                     }
                     _ => unreachable!(),
@@ -3855,9 +3883,11 @@ mod tests {
 
     #[test]
     fn test_compound_nullish() {
+        // Non-coercive logical operators proxy the assigned value (`, true`),
+        // matching upstream `is_non_coercive_operator` + `should_proxy`.
         assert_eq!(
             transform("count ??= fallback", &["count"]),
-            "$.set(count, $.get(count) ?? fallback)"
+            "$.set(count, $.get(count) ?? fallback, true)"
         );
     }
 
@@ -3866,7 +3896,41 @@ mod tests {
         // When the RHS is also a state var, it should get $.get() wrapping
         assert_eq!(
             transform("count ??= fallback", &["count", "fallback"]),
-            "$.set(count, $.get(count) ?? $.get(fallback))"
+            "$.set(count, $.get(count) ?? $.get(fallback), true)"
+        );
+    }
+
+    #[test]
+    fn test_compound_logical_or_proxies() {
+        assert_eq!(
+            transform("count ||= other", &["count"]),
+            "$.set(count, $.get(count) || other, true)"
+        );
+    }
+
+    #[test]
+    fn test_compound_logical_and_proxies() {
+        assert_eq!(
+            transform("count &&= other", &["count"]),
+            "$.set(count, $.get(count) && other, true)"
+        );
+    }
+
+    #[test]
+    fn test_compound_addition_does_not_proxy() {
+        // Coercive operators always produce a primitive — no proxy flag.
+        assert_eq!(
+            transform("count += other", &["count"]),
+            "$.set(count, $.get(count) + other)"
+        );
+    }
+
+    #[test]
+    fn test_compound_nullish_literal_rhs_no_proxy() {
+        // A primitive literal RHS is never proxied even for logical operators.
+        assert_eq!(
+            transform("count ??= 5", &["count"]),
+            "$.set(count, $.get(count) ?? 5)"
         );
     }
 
