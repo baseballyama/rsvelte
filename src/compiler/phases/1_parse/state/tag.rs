@@ -151,7 +151,7 @@ impl Parser<'_> {
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
-        let test = self.parse_js_expression(expr_content.trim(), expr_start);
+        let test = self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
 
         // Push block to stack
         self.stack.push(StackEntry::IfBlock {
@@ -232,7 +232,8 @@ impl Parser<'_> {
             let alt_expr_content = &self.source[alt_expr_start..self.index];
             self.advance(); // consume '}'
 
-            let alt_test = self.parse_js_expression(alt_expr_content.trim(), alt_expr_start);
+            let alt_test =
+                self.parse_head_expression(alt_expr_content.trim(), alt_expr_start, false, '}')?;
             let alt_consequent = self.parse_fragment()?;
 
             // Recursively check for another else/else-if
@@ -385,7 +386,7 @@ impl Parser<'_> {
         let expr_content = &self.source[expr_start..expr_end].trim();
         // Use disallow_loose = true to prevent patterns like `as { y = z }` from being parsed as expressions
         // (corresponds to Svelte's read_expression(parser, undefined, true))
-        let expression = self.parse_js_expression_internal(expr_content, expr_start, true, '{');
+        let expression = self.parse_head_expression(expr_content, expr_start, true, '}')?;
 
         if !found_as {
             // No "as" found - check for ", identifier" index syntax
@@ -668,7 +669,7 @@ impl Parser<'_> {
                 find_matching_bracket(self.source, key_start, '(').unwrap_or(self.bytes.len());
             let key_content = self.source[key_start..self.index].trim();
             // Use opening_token = '(' for key expressions (corresponds to Svelte's read_expression(parser, '('))
-            key = Some(self.parse_js_expression_internal(key_content, key_start, false, '('));
+            key = Some(self.parse_head_expression(key_content, key_start, false, ')')?);
             self.eat_optional(")"); // consume closing paren
         }
 
@@ -1085,7 +1086,7 @@ impl Parser<'_> {
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+        let expression = self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
 
         // Push block to stack
         self.stack.push(StackEntry::KeyBlock {
@@ -1455,7 +1456,8 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
 
-                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+                let expression =
+                    self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
 
                 Ok(Some(TemplateNode::HtmlTag(Box::new(HtmlTag {
                     start: start as u32,
@@ -1887,6 +1889,77 @@ impl Parser<'_> {
     /// and `opening_token = '{'`.
     pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
         self.parse_js_expression_internal(content, offset, false, '{')
+    }
+
+    /// Parse a block / directive head expression that, in strict (non-loose)
+    /// mode, must be a single complete JS expression terminated by `close_char`
+    /// (`'}'` or `')'`). Mirrors upstream Svelte, which parses one expression
+    /// with acorn and then `eat(close_char, true)`:
+    ///
+    /// - trailing tokens *after* a complete expression (`{#if a b c}`) surface
+    ///   as `expected_token`,
+    /// - an incomplete / invalid expression (`{#if a +}`) surfaces as
+    ///   `js_parse_error`.
+    ///
+    /// In loose / editor mode this stays lenient (placeholder identifier),
+    /// matching the previous swallowing behaviour of `parse_js_expression`.
+    /// (issue #445, H-002)
+    pub fn parse_head_expression(
+        &self,
+        content: &str,
+        offset: usize,
+        disallow_loose: bool,
+        close_char: char,
+    ) -> crate::error::ParseResult<Expression> {
+        let leading_ws = content.len() - content.trim_start().len();
+        let trimmed = content.trim();
+        let trimmed_offset = offset + leading_ws;
+        let opening_token = if close_char == ')' { '(' } else { '{' };
+
+        match super::super::read::expression::parse_expression(
+            &self.arena,
+            trimmed,
+            trimmed_offset,
+            self.expression_line_offsets(),
+            self.source,
+            self.options.loose,
+            disallow_loose,
+            opening_token,
+            self.ts,
+        ) {
+            Ok(expr) => Ok(expr),
+            Err((msg, _)) => {
+                // Loose / editor mode: stay lenient with a placeholder, matching
+                // the previous `unwrap_or_else` swallow.
+                if self.options.loose {
+                    return Ok(super::super::read::expression::create_empty_identifier(
+                        "",
+                        trimmed_offset,
+                        trimmed_offset + trimmed.len(),
+                    ));
+                }
+                // Strict mode: classify the failure the way upstream does. A
+                // complete leading expression followed by leftover input is an
+                // `expected_token` (missing `close_char`); anything else is a
+                // `js_parse_error` at the point acorn/OXC stopped.
+                if let Some(pos) = super::super::read::expression::trailing_token_offset(trimmed) {
+                    return Err(crate::error::ParseError::expected_token(
+                        &close_char.to_string(),
+                        trimmed_offset + pos,
+                    ));
+                }
+                let abs_pos =
+                    super::super::read::expression::check_js_parse_error_with_pos(trimmed)
+                        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
+                            trimmed_offset + pos
+                        });
+                Err(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    msg,
+                    (abs_pos, abs_pos),
+                ))
+            }
+        }
     }
 }
 

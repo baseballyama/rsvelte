@@ -1634,6 +1634,50 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     js_result.or(ts_result)
 }
 
+/// For an *invalid* expression string, determine whether the failure is caused
+/// by **trailing tokens after an otherwise-complete expression** (e.g. `a b c`)
+/// rather than an incomplete / malformed expression (e.g. `a +`).
+///
+/// Returns `Some(offset)` — the byte offset (within `content`) of the first
+/// trailing non-whitespace character — when a complete leading expression is
+/// followed by more input. Returns `None` when the expression itself is
+/// incomplete or otherwise invalid.
+///
+/// This mirrors upstream Svelte's `read_expression` + `eat(close, true)` flow:
+/// acorn parses one maximal expression, and any leftover surfaces as
+/// `expected_token` while a broken expression surfaces as `js_parse_error`.
+pub fn trailing_token_offset(content: &str) -> Option<usize> {
+    // Wrap in parens so a *complete* leading expression is consumed greedily and
+    // the first error label lands on the first leftover token. (Parsing the bare
+    // string as a program is unreliable: OXC's statement-level error recovery
+    // folds trailing tokens into one recovered node, hiding the boundary.)
+    let mut wrapped = String::with_capacity(content.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    wrapped.push(')');
+
+    let probe = |source_type: SourceType| -> Option<usize> {
+        with_oxc_allocator(|allocator| {
+            let result = OxcParser::new(allocator, &wrapped, source_type).parse();
+            let first_error = result.errors.first()?;
+            let label = first_error.labels.as_ref()?.first()?;
+            // Map the label's *start* back into `content` (strip the leading `(`).
+            let start = label.offset();
+            if start == 0 {
+                return None;
+            }
+            let content_pos = start - 1;
+            // A trailing-token error has leftover input *before* the synthetic
+            // closing `)`; an incomplete expression errors at/after the end.
+            if content_pos >= content.len() {
+                return None;
+            }
+            Some(content_pos)
+        })
+    };
+    probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
+}
+
 /// Create an identifier for invalid expressions
 fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) -> Expression {
     // Note: Similar to get_loose_identifier, invalid identifiers don't include 'loc'

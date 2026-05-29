@@ -1033,7 +1033,8 @@ impl Parser<'_> {
                 }
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
-                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+                let expression =
+                    self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
                 return Ok(Some(crate::ast::Attribute::SpreadAttribute(
                     crate::ast::template::SpreadAttribute {
                         start: start as u32,
@@ -1300,7 +1301,7 @@ impl Parser<'_> {
                         self.advance();
                     }
                     (
-                        Some(self.parse_js_expression(expr_content, expr_start)),
+                        Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
                         self.index,
                     )
                 } else {
@@ -1319,7 +1320,7 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 (
-                    Some(self.parse_js_expression(expr_content, expr_start)),
+                    Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
                     self.index,
                 )
             } else {
@@ -1383,7 +1384,7 @@ impl Parser<'_> {
                         self.advance();
                     }
                     (
-                        self.parse_js_expression(expr_content, expr_start),
+                        self.parse_head_expression(expr_content, expr_start, false, '}')?,
                         self.index,
                     )
                 } else {
@@ -1411,7 +1412,7 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 (
-                    self.parse_js_expression(expr_content, expr_start),
+                    self.parse_head_expression(expr_content, expr_start, false, '}')?,
                     self.index,
                 )
             } else {
@@ -1493,7 +1494,7 @@ impl Parser<'_> {
                         self.advance();
                     }
                     (
-                        Some(self.parse_js_expression(expr_content, expr_start)),
+                        Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
                         self.index,
                     )
                 } else {
@@ -1514,7 +1515,7 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
                 (
-                    Some(self.parse_js_expression(expr_content, expr_start)),
+                    Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
                     self.index,
                 )
             } else {
@@ -1577,7 +1578,7 @@ impl Parser<'_> {
                 if quote.is_some() {
                     self.advance(); // consume closing quote
                 }
-                self.parse_js_expression(expr_content, expr_start)
+                self.parse_head_expression(expr_content, expr_start, false, '}')?
             } else {
                 if quote.is_some() {
                     self.index -= 1; // revert quote consumption
@@ -1645,7 +1646,7 @@ impl Parser<'_> {
                 AttributeValue::Expression(ExpressionTag {
                     start: (expr_start - 1) as u32, // include the '{'
                     end: self.index as u32,
-                    expression: self.parse_js_expression(expr_content, expr_start),
+                    expression: self.parse_head_expression(expr_content, expr_start, false, '}')?,
                     metadata: Default::default(),
                 })
             } else if self.eat_optional("\"") || self.eat_optional("'") {
@@ -1832,7 +1833,7 @@ impl Parser<'_> {
                         self.advance();
                     }
                     (
-                        Some(self.parse_js_expression(expr_content, expr_start)),
+                        Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
                         self.index,
                     )
                 } else {
@@ -1851,7 +1852,7 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 (
-                    Some(self.parse_js_expression(expr_content, expr_start)),
+                    Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
                     self.index,
                 )
             } else {
@@ -1921,7 +1922,7 @@ impl Parser<'_> {
                 if quote.is_some() {
                     self.advance(); // consume closing quote
                 }
-                Some(self.parse_js_expression(expr_content, expr_start))
+                Some(self.parse_head_expression(expr_content, expr_start, false, '}')?)
             } else {
                 if quote.is_some() {
                     self.index -= 1; // revert quote consumption
@@ -1975,7 +1976,7 @@ impl Parser<'_> {
                 if quote.is_some() {
                     self.advance(); // consume closing quote
                 }
-                Some(self.parse_js_expression(expr_content, expr_start))
+                Some(self.parse_head_expression(expr_content, expr_start, false, '}')?)
             } else {
                 if quote.is_some() {
                     self.index -= 1; // revert quote consumption
@@ -2011,7 +2012,7 @@ impl Parser<'_> {
         let expr_content = &self.source[expr_start..expr_end];
         self.advance(); // consume closing '}'
 
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+        let expression = self.parse_head_expression(expr_content.trim(), expr_start, false, '}')?;
 
         Ok(Some(crate::ast::Attribute::AttachTag(
             crate::ast::template::AttachTag {
