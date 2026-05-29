@@ -1581,43 +1581,51 @@ impl Parser<'_> {
 
                 // Simple check: if there's a comma at top level (outside parentheses/brackets),
                 // and not part of a single assignment, it's invalid
-                let mut depth = 0;
+                // Scan bytes (not a `Vec<char>`): `first_equals` is later used as
+                // a byte index to slice `trimmed`, so a character index would
+                // corrupt a `{@const}` whose LHS has a multi-byte character
+                // (H-131). Every token examined here is ASCII.
+                let mut depth = 0i32;
                 let mut in_string = false;
-                let mut string_char = '\0';
-                let chars: Vec<char> = trimmed.chars().collect();
-                let mut first_equals = None;
+                let mut string_char = 0u8;
+                let bytes = trimmed.as_bytes();
+                let mut first_equals: Option<usize> = None;
 
-                for (i, &c) in chars.iter().enumerate() {
+                let mut i = 0;
+                while i < bytes.len() {
+                    let c = bytes[i];
                     if in_string {
-                        if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                        if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
                             in_string = false;
                         }
+                        i += 1;
                         continue;
                     }
 
-                    if c == '"' || c == '\'' || c == '`' {
+                    if c == b'"' || c == b'\'' || c == b'`' {
                         in_string = true;
                         string_char = c;
+                        i += 1;
                         continue;
                     }
 
-                    if c == '(' || c == '[' || c == '{' {
+                    if c == b'(' || c == b'[' || c == b'{' {
                         depth += 1;
-                    } else if c == ')' || c == ']' || c == '}' {
+                    } else if c == b')' || c == b']' || c == b'}' {
                         depth -= 1;
-                    } else if c == '=' && first_equals.is_none() && depth == 0 {
+                    } else if c == b'=' && first_equals.is_none() && depth == 0 {
                         // Check it's not ==, ===, !=, !==, <=, >=, =>
-                        if i + 1 < chars.len()
-                            && chars[i + 1] != '='
-                            && chars[i + 1] != '>'
-                            && (i == 0
-                                || (chars[i - 1] != '!'
-                                    && chars[i - 1] != '<'
-                                    && chars[i - 1] != '>'))
+                        let next = bytes.get(i + 1).copied().unwrap_or(0);
+                        let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                        if next != b'='
+                            && next != b'>'
+                            && prev != b'!'
+                            && prev != b'<'
+                            && prev != b'>'
                         {
                             first_equals = Some(i);
                         }
-                    } else if c == ',' && depth == 0 {
+                    } else if c == b',' && depth == 0 {
                         // Found top-level comma after the first assignment - this is a sequence expression
                         if first_equals.is_some() {
                             return Err(crate::error::ParseError::svelte(
@@ -1627,6 +1635,7 @@ impl Parser<'_> {
                             ));
                         }
                     }
+                    i += 1;
                 }
 
                 // Build a proper VariableDeclaration node, matching the official
