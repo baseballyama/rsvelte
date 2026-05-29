@@ -1130,6 +1130,23 @@ pub fn napi_compile_envelope_zero_copy(
         crate::napi_raw::estimate_size(&result),
     ));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
+
+    // RAII guard: if we return early (e.g. `create_buffer_with_borrowed_data`
+    // errors) or unwind before ownership is handed to V8's finalizer, free the
+    // leaked arena instead of abandoning it (H-015). On success we disarm it so
+    // only the finalizer frees the arena.
+    struct BumpGuard(*mut bumpalo::Bump);
+    impl Drop for BumpGuard {
+        fn drop(&mut self) {
+            if !self.0.is_null() {
+                // SAFETY: the pointer came from `Box::into_raw`, has not been
+                // handed to the finalizer, and is not aliased.
+                unsafe { drop(Box::from_raw(self.0)) };
+            }
+        }
+    }
+    let mut guard = BumpGuard(bump_ptr);
+
     // SAFETY: bump_ptr is freshly leaked from Box::into_raw and not
     // aliased; we re-acquire ownership via Box::from_raw inside the
     // finalizer below.
@@ -1154,6 +1171,9 @@ pub fn napi_compile_envelope_zero_copy(
             },
         )?
     };
+    // The finalizer now owns the arena; disarm the guard so it doesn't
+    // double-free.
+    guard.0 = std::ptr::null_mut();
     Ok(js_buf_value.into_raw())
 }
 
