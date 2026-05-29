@@ -3,7 +3,7 @@ members = ["crates/rsvelte_capi"]
 
 [package]
 name = "svelte-compiler-rust"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.90"
 description = "A high-performance Rust implementation of the Svelte compiler"
