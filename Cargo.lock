@@ -2061,7 +2061,7 @@ checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
 
 [[package]]
 name = "svelte-compiler-rust"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "bumpalo",
  "chrono",

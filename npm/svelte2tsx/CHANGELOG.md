@@ -1,5 +1,13 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.5
+
+### Patch Changes
+
+- 6ac76c2: Pick up the bundled `@rsvelte/compiler` correctness work and support `expected.error.json` start/end-offset comparison in the svelte2tsx error fixtures.
+- Updated dependencies [6ac76c2]
+  - @rsvelte/compiler@0.6.0
+
 ## 0.1.4
 
 ### Patch Changes
