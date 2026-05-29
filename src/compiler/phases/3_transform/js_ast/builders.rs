@@ -522,8 +522,21 @@ fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
             .is_some_and(|a| has_await_expression_arena(arena, arena.get_expr(*a))),
         JsExpr::Spread(e) => has_await_expression_arena(arena, arena.get_expr(*e)),
         JsExpr::Void(e) => has_await_expression_arena(arena, arena.get_expr(*e)),
-        // Leaf nodes: Identifier, Literal, This, Raw, Class, Chain
-        _ => false,
+        // Optional-chaining wrapper — recurse into the chained expression so
+        // `a?.b(await x)` / `a?.[await x]` are detected. H-069.
+        JsExpr::Chain(chain) => has_await_expression_arena(arena, arena.get_expr(chain.expression)),
+        // Span wrapper carries an inner expression for source maps — recurse so
+        // wrapping an awaiting expression doesn't hide the await. H-069.
+        JsExpr::Spanned(inner, _, _) => has_await_expression_arena(arena, arena.get_expr(*inner)),
+        // Genuine leaves with no sub-expression to traverse. Class bodies are
+        // function-boundary / non-async scopes, so they can't surface a
+        // top-level await. The match is exhaustive (no `_`) so a future
+        // `JsExpr` variant fails to compile until it is handled here.
+        JsExpr::Identifier(_)
+        | JsExpr::Literal(_)
+        | JsExpr::This
+        | JsExpr::Raw(_)
+        | JsExpr::Class(_) => false,
     }
 }
 
@@ -2012,4 +2025,43 @@ pub fn raw(code: impl Into<CompactString>) -> JsExpr {
 /// Alias for `number` to match JavaScript builder API.
 pub fn literal_number(value: f64) -> JsExpr {
     number(value)
+}
+
+#[cfg(test)]
+mod await_walker_tests {
+    use super::*;
+
+    fn awaited(arena: &JsArena, name: &str) -> JsExpr {
+        JsExpr::Await(arena.alloc_expr(id(name)))
+    }
+
+    #[test]
+    fn detects_await_inside_optional_chain() {
+        // `b(await x)` wrapped in a Chain (optional-chaining) node. H-069: the
+        // walker previously treated Chain as a leaf and missed the await.
+        let arena = JsArena::new();
+        let inner_call = call(&arena, id("b"), vec![awaited(&arena, "x")]);
+        let chain = JsExpr::Chain(JsChainExpression {
+            expression: arena.alloc_expr(inner_call),
+        });
+        assert!(js_expr_has_await(&arena, &chain));
+    }
+
+    #[test]
+    fn detects_await_inside_spanned_wrapper() {
+        // A Spanned wrapper (source-map carrier) must not hide an inner await.
+        let arena = JsArena::new();
+        let spanned = JsExpr::Spanned(arena.alloc_expr(awaited(&arena, "x")), 0, 7);
+        assert!(js_expr_has_await(&arena, &spanned));
+    }
+
+    #[test]
+    fn chain_without_await_is_false() {
+        let arena = JsArena::new();
+        let inner_call = call(&arena, id("b"), vec![id("x")]);
+        let chain = JsExpr::Chain(JsChainExpression {
+            expression: arena.alloc_expr(inner_call),
+        });
+        assert!(!js_expr_has_await(&arena, &chain));
+    }
 }
