@@ -904,7 +904,12 @@ fn visit_await_block(context: &mut Context, await_block: &crate::ast::AwaitBlock
         if let Some(ref pending) = await_block.pending {
             block(context, pending, false);
         }
-        context.write("{:");
+        // The `{:` only opens the next clause (`{:then}` / `{:catch}`). A
+        // pending-only `{#await expr}…{/await}` has neither, so emitting `{:`
+        // here produced an invalid dangling `{:{/await}`. H-052.
+        if await_block.then.is_some() || await_block.catch.is_some() {
+            context.write("{:");
+        }
     } else {
         context.write(" ");
     }
