@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte-check-darwin-x64",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Prebuilt svelte-check binary for darwin-x64",
   "license": "MIT",
   "repository": {

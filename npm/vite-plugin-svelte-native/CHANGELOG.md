@@ -1,5 +1,12 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.1.4
+
+### Patch Changes
+
+- 6ac76c2: - `resolve_id` now preserves `?query` / `#hash` suffixes and handles bare `<script module>` HMR.
+  - Rebuild against the bundled `@rsvelte/compiler` correctness work.
+
 ## 0.1.3
 
 ### Patch Changes

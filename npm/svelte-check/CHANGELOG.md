@@ -1,5 +1,13 @@
 # @rsvelte/svelte-check
 
+## 0.1.4
+
+### Patch Changes
+
+- 6ac76c2: - Escape GitHub Actions command property values in `--output machine`/GH-format diagnostics.
+  - Apply `warning_filter`, forward module-level warnings, and make machine output line-safe.
+  - Rebuild against the bundled `@rsvelte/compiler` correctness work.
+
 ## 0.1.3
 
 ### Patch Changes
