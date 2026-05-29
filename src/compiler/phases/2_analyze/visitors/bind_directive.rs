@@ -622,8 +622,10 @@ fn validate_input_binding(
             }
         }
     } else {
-        // No type attribute - validate bindings that require specific types
-        // Default input type is "text", so checked, files, and indeterminate are invalid
+        // No type attribute (default `text`). Upstream only type-validates
+        // `checked` and `files` here — `indeterminate` / `group` are never
+        // type-checked, so binding them to a type-less input is accepted
+        // (matches `BindDirective.js`). H-036.
         if binding_name == "checked" {
             return Err(errors::bind_invalid_target(
                 binding_name,
@@ -635,13 +637,6 @@ fn validate_input_binding(
             return Err(errors::bind_invalid_target(
                 binding_name,
                 "`<input type=\"file\">`",
-            ));
-        }
-
-        if binding_name == "indeterminate" {
-            return Err(errors::bind_invalid_target(
-                binding_name,
-                "`<input type=\"checkbox\">`",
             ));
         }
     }
