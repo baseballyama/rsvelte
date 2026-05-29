@@ -356,8 +356,15 @@ async fn process_tag(
                     deps.extend_from_slice(&processed.dependencies);
                 }
 
-                // Check if anything changed
-                if processed.map.is_none() && processed.code == content {
+                // Check if anything changed. An attribute-only change (same code,
+                // no map, but returned `attributes`) must still be treated as a
+                // real diff so the tag is re-emitted with the new attributes —
+                // otherwise the original tag with stale attributes is returned
+                // (H-139).
+                if processed.map.is_none()
+                    && processed.code == content
+                    && processed.attributes.is_none()
+                {
                     return Ok(MappedCode::from_source(&slice_source(
                         tag_with_content.to_string(),
                         tag_offset,
@@ -365,11 +372,14 @@ async fn process_tag(
                     )));
                 }
 
-                let generated_attributes = stringify_tag_attributes(&processed.attributes);
-                let final_attributes = if generated_attributes.is_empty() {
-                    attributes.to_string()
-                } else {
-                    generated_attributes
+                // `Some(attrs)` returned by the preprocessor replaces the original
+                // attributes — including `Some({})`, which intentionally clears
+                // them. Only `None` ("unchanged") falls back to the originals
+                // (H-140); previously an empty generated string also fell back,
+                // so a deliberate clear was impossible.
+                let final_attributes = match &processed.attributes {
+                    Some(_) => stringify_tag_attributes(&processed.attributes),
+                    None => attributes.to_string(),
                 };
 
                 Ok(processed_tag_to_code(
