@@ -4135,7 +4135,23 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
             Some(JsStatement::DoWhile(JsDoWhileStatement { test, body }))
         }
-        "LabeledStatement" => obj.get("body").and_then(|b| convert_statement(b, context)),
+        "LabeledStatement" => {
+            // Preserve the label, not just the body — otherwise a surviving
+            // `break label;` / `continue label;` references a label that no
+            // longer exists (ReferenceError at runtime). H-111.
+            let label = obj
+                .get("label")
+                .and_then(|l| l.get("name"))
+                .and_then(|n| n.as_str())?;
+            let body = obj
+                .get("body")
+                .and_then(|b| convert_statement(b, context))?;
+            let body_id = context.arena.alloc_stmt(body);
+            Some(JsStatement::Labeled(JsLabeledStatement {
+                label: label.into(),
+                body: body_id,
+            }))
+        }
         "BreakStatement" => {
             let label = obj
                 .get("label")
