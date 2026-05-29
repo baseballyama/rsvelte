@@ -215,22 +215,69 @@ fn strip_empty_statements(code: &str) -> String {
     result.join("\n")
 }
 
+/// Find the next occurrence of `needle` in `haystack` at or after `from` that
+/// lies in JS code, skipping over string and template literals and over line
+/// and block comments. Returns the byte index of the match start.
+///
+/// The byte-pattern scanners below operate on raw source, so without this guard
+/// a rune-call-shaped substring inside a string or comment such as
+/// `const a = "$effect.root()"` would be matched and rewritten, corrupting the
+/// literal (issue #447, H-029).
+fn next_code_match(haystack: &str, needle: &str, from: usize) -> Option<usize> {
+    let bytes = haystack.as_bytes();
+    let nb = needle.as_bytes();
+    let n = bytes.len();
+    if nb.is_empty() {
+        return None;
+    }
+    let mut i = 0usize;
+    while i < n {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                // Skip the whole string / template (incl. ${} interpolations).
+                i = skip_string_literal(bytes, i);
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
+                i += 2;
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(n);
+                continue;
+            }
+            _ => {}
+        }
+        if i >= from && i + nb.len() <= n && &bytes[i..i + nb.len()] == nb {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Strip $effect and $effect.root blocks from source code.
 /// In SSR, effects don't run, so they should be removed or replaced with no-ops.
 /// - `$effect.root(() => { ... })` -> `() => {}` (returns a no-op cleanup function)
 /// - `$effect(() => { ... })` -> removed entirely (statement-level only)
 /// - `$effect.pre(() => { ... })` -> removed entirely (statement-level only)
+///
+/// Matching is JS-lexical-aware via [`next_code_match`], so effect-call-shaped
+/// text inside string literals or comments is left untouched (issue #447, H-029).
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
-    let finder_root = memmem::Finder::new(b"$effect.root(");
-    let finder_pre = memmem::Finder::new(b"$effect.pre(");
-    let finder_effect = memmem::Finder::new(b"$effect(");
-
     // Replace $effect.root(() => { ... }) with () => {} (a no-op cleanup function)
     // $effect.root returns a cleanup function, so we need to provide one.
-    while let Some(pos) = finder_root.find(result.as_bytes()) {
+    while let Some(pos) = next_code_match(&result, "$effect.root(", 0) {
         let call_start = pos + 13; // after "$effect.root("
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1; // after closing paren
@@ -245,7 +292,7 @@ fn strip_effects_from_source(source: &str) -> String {
     }
 
     // Strip $effect.pre(() => { ... }) blocks
-    while let Some(pos) = finder_pre.find(result.as_bytes()) {
+    while let Some(pos) = next_code_match(&result, "$effect.pre(", 0) {
         let call_start = pos + 12;
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1;
@@ -266,7 +313,7 @@ fn strip_effects_from_source(source: &str) -> String {
     }
 
     // Strip $effect(() => { ... }) blocks (but not $effect.root/$effect.pre which were already handled)
-    while let Some(pos) = finder_effect.find(result.as_bytes()) {
+    while let Some(pos) = next_code_match(&result, "$effect(", 0) {
         // Make sure this is not $effect.something (should already be handled above)
         if pos + 8 < result.len() && result.as_bytes()[pos + 7] == b'.' {
             break; // shouldn't happen since $effect.root and $effect.pre are already handled
