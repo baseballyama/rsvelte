@@ -998,9 +998,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   predicate port (this PR).
         // - Svelte 5.55.3 cluster: upstream commit `3937ec03b` "fix: correctly
         //   calculate `@const` blockers". The 5.55.3 port (this PR) flipped
-        //   `async-const` and `async-const-wait`. The remaining fixtures
-        //   below need orthogonal fixes.
-        ("runtime-runes", "async-derived-const-blocker"),
+        //   `async-const`, `async-const-wait`, and `async-derived-const-blocker`.
         // - Svelte 5.55.4 (upstream commit `0ed8c282f` "fix: reset context
         //   after waiting on blockers of @const expressions"): the
         //   `apply_const_async_wrapping` pass now runs in the

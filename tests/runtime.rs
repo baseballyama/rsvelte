@@ -165,11 +165,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     "async-overlap-multiple-5",
     "async-overlap-multiple-6",
     "async-overlap-multiple-7",
-    // Async const + reactivity-loss cluster (Svelte 5.55.3 / 5.55.4). Most
-    // surface as client/server mismatches because rsvelte's async-derived
-    // const-blocker plumbing doesn't yet emit every new helper. Also skipped
-    // in compatibility_report.
-    "async-derived-const-blocker",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path
     // is handled; the runes fixtures below also hit code paths that aren't
