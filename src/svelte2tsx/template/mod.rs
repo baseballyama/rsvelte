@@ -3306,8 +3306,15 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        // Escape backtick characters in the text
-                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        // Escape backslash first (so a Windows path like
+                        // `C:\new\test` doesn't turn `\n` / `\t` into control
+                        // characters inside the template literal), then backtick
+                        // and `$`. H-091.
+                        let escaped = text
+                            .raw
+                            .replace('\\', "\\\\")
+                            .replace('`', "\\`")
+                            .replace('$', "\\$");
                         value_parts.push(escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
@@ -3377,7 +3384,13 @@ fn format_attribute_node_segments(node: &AttributeNode, source: &str) -> Option<
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        // Escape backslash first so `\n` / `\t` in raw text
+                        // (e.g. a Windows path) stay literal. H-091.
+                        let escaped = text
+                            .raw
+                            .replace('\\', "\\\\")
+                            .replace('`', "\\`")
+                            .replace('$', "\\$");
                         segs_push_lit(&mut out, &escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
@@ -3482,7 +3495,13 @@ fn format_style_directive_segments(style: &StyleDirective, source: &str) -> Vec<
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        // Escape backslash first so `\n` / `\t` in raw text
+                        // (e.g. a Windows path) stay literal. H-091.
+                        let escaped = text
+                            .raw
+                            .replace('\\', "\\\\")
+                            .replace('`', "\\`")
+                            .replace('$', "\\$");
                         segs_push_lit(&mut out, &escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
@@ -3541,7 +3560,13 @@ fn format_slot_prop_node(node: &AttributeNode, source: &str) -> Option<String> {
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        // Escape backslash first so `\n` / `\t` in raw text
+                        // (e.g. a Windows path) stay literal. H-091.
+                        let escaped = text
+                            .raw
+                            .replace('\\', "\\\\")
+                            .replace('`', "\\`")
+                            .replace('$', "\\$");
                         value_parts.push(escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
@@ -3736,7 +3761,13 @@ fn format_style_directive(style: &StyleDirective, source: &str) -> String {
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        let escaped = text.raw.replace('`', "\\`").replace('$', "\\$");
+                        // Escape backslash first so `\n` / `\t` in raw text
+                        // (e.g. a Windows path) stay literal. H-091.
+                        let escaped = text
+                            .raw
+                            .replace('\\', "\\\\")
+                            .replace('`', "\\`")
+                            .replace('$', "\\$");
                         value_parts.push(escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
