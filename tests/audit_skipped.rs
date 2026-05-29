@@ -381,11 +381,7 @@ fn audit_skipped_fixtures() {
     // fixtures are now driven by `tests/common/svelte2tsx.rs` directly — they
     // execute as regular runs in the compatibility report rather than being
     // skipped — so they don't need to appear here.
-    let runtime_skipped: &[(&str, &str)] = &[
-        ("runtime-runes", "async-style-after-await"),
-        ("runtime-runes", "async-derived-const-blocker"),
-        ("runtime-runes", "async-boundary-nav-race"),
-    ];
+    let runtime_skipped: &[(&str, &str)] = &[("runtime-runes", "async-derived-const-blocker")];
 
     let parser_legacy_skipped = &["javascript-comments"];
     let parser_modern_skipped: &[&str] = &[];

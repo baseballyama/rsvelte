@@ -505,10 +505,23 @@ fn transform_client_with_visitors(
             if !blocker_map.is_empty() {
                 *context.state.blocker_map.borrow_mut() = blocker_map;
             }
+            // Track per-slot primary binding NAMES so the Fragment visitor can
+            // mirror upstream's dedup-by-Expression behavior for
+            // template_effect blockers arrays.
+            let primary_names =
+                super::shared::async_body::compute_blocker_primary_names(transformed);
+            if !primary_names.is_empty() {
+                *context.state.blocker_map_primary_names.borrow_mut() = primary_names;
+            }
         } else {
             let pre_blocker_map = super::shared::async_body::compute_blocker_map(transformed);
             if !pre_blocker_map.is_empty() {
                 *context.state.blocker_map.borrow_mut() = pre_blocker_map;
+            }
+            let primary_names =
+                super::shared::async_body::compute_blocker_primary_names(transformed);
+            if !primary_names.is_empty() {
+                *context.state.blocker_map_primary_names.borrow_mut() = primary_names;
             }
         }
     }

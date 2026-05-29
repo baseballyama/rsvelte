@@ -983,29 +983,14 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
     //   in the compiled output. Skipping until the rsvelte analyzer's
     //   function-scope porosity matches upstream.
     let runtime_skip_tests: &[(&str, &str)] = &[
-        // - Svelte 5.54.1 cluster (upstream commit `6b33dd2a1` "fix: group
-        //   sync statements"): porting the cluster (consecutive sync entries
-        //   share one thunk + `$$promises[N]` blocker index) unblocked
-        //   `async-if-hydration`, `async-derived-with-effect-and-boundary`,
-        //   `async-binding-after-await`, `async-transform-empty-statements`.
-        //   The SSR `$.save` predicate port (this PR) unblocks
-        //   `async-derived-indirect` and `async-later-sync-overlaps` by
-        //   walking parents (instead of using `!in_block_body`) so awaits
-        //   inside root-Fragment / block-body Fragments no longer get
-        //   wrapped in `$.save(...)`. `async-style-after-await` still fails
-        //   on the client side (unrelated cluster).
-        ("runtime-runes", "async-style-after-await"),
         // - `async-overlap-multiple-1..7` (Svelte 5.55.1, upstream chore
         //   `5e8662fb2` "chore: lots of async tests"). The SSR `$.save`
-        //   predicate port unblocked -1..4. Fixtures -5..7 (which use
-        //   `let b = $derived(await ...)` chained into `let d = $derived(
-        //   await delay(b + c))` in the instance script) were unblocked by
-        //   the transitive-`touch` walk through `binding.assignments` in
-        //   `compute_blocker_map` — mirrors upstream's
-        //   `calculate_blockers` → `touch` → `assignment.value` recursion so
-        //   `a`'s blocker upgrades from the first async group's index to
-        //   the chained derived's higher index, collapsing the template
-        //   `$$promises[…]` array to a single entry.
+        //   predicate port (this PR) unblocks -1..4. -5..7 use
+        //   `let b = $derived(await delay(...))` in the instance script and
+        //   hit a separate async-blocker cluster (still client-side failure).
+        ("runtime-runes", "async-overlap-multiple-5"),
+        ("runtime-runes", "async-overlap-multiple-6"),
+        ("runtime-runes", "async-overlap-multiple-7"),
         // - Svelte 5.55.2 cluster: upstream commits `8966601dc` "handle parens
         //   in template expressions more robustly" + `edcbb0e64` "invalidate
         //   `@const` tags based on visible references in legacy mode".
@@ -1042,15 +1027,12 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         //   wrapping them in `$.attr_style(\`…${$.stringify(x)}…\`)`) and
         //   `000c594e0` "fix: `{#await await ...}` and async dependencies
         //   fixes" (refines the async-batching / await-merge codegen).
-        //   `async-await` is unblocked by the 5.55.9 `000c594e0` port;
-        //   `async-await-block-2` and `async-duplicate-dependencies` are
-        //   unblocked by the follow-up port: `$derived(await ...)` inside a
-        //   nested instance-script function now lowers to
-        //   `(await $.save($.async_derived(...)))()`, and the server
-        //   await-block `then`/`catch` parameter shadowing of outer derived
-        //   reads (so `(result) => $.escape(result)` is emitted instead of
-        //   `$.escape(result())`).
-        ("runtime-runes", "async-boundary-nav-race"),
+        //   `async-await` is unblocked by the 5.55.9 `000c594e0` port; the
+        //   remaining two still fail on orthogonal axes (`$derived(await
+        //   ...)` lowering, `wrap_derived_reads` shadowing in `then` body
+        //   args, etc.). Tracked as follow-up ports.
+        ("runtime-runes", "async-await-block-2"),
+        ("runtime-runes", "async-duplicate-dependencies"),
         // The hydration `boundary-pending-attribute` fixture (Svelte 5.54.x)
         // is now unblocked by the 5.55.3 `@const` blocker port (this PR),
         // which switches the server `@const` assignment thunks from

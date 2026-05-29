@@ -237,6 +237,99 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     blocker_map
 }
 
+/// Map each blocker index to the set of upstream-primary binding names at
+/// that slot — i.e., names that would receive `binding.blocker = ...` in the
+/// official compiler (`phases/2-analyze/index.js` ~line 1165). These are
+/// exactly the names extracted from declarators in async-slot statements,
+/// NOT pure references.
+///
+/// The Fragment visitor uses this to mirror upstream's
+/// `Memoizer.#blockers = new Set<Expression>` dedup-by-binding-Expression:
+/// for each blocker index referenced by an expression, the number of array
+/// entries emitted is the count of expression-referenced names that are
+/// **primary** at that slot. So two declarators sharing a sync group
+/// (`color`, `width` after a top-level await) yield
+/// `[$$promises[1], $$promises[1]]`, while a pre-await `selectedId`
+/// referenced inside an async-slot `$derived(selectedId ? await selectedId :
+/// null)` doesn't inflate the count (`selectedId` isn't primary).
+pub fn compute_blocker_primary_names(
+    raw_script: &str,
+) -> rustc_hash::FxHashMap<usize, rustc_hash::FxHashSet<String>> {
+    let mut names: rustc_hash::FxHashMap<usize, rustc_hash::FxHashSet<String>> =
+        rustc_hash::FxHashMap::default();
+
+    let trimmed = raw_script.trim();
+    if trimmed.is_empty() || !has_top_level_await(trimmed) {
+        return names;
+    }
+
+    let statements = split_top_level_statements(trimmed);
+
+    let mut found_await = false;
+    let mut async_index: usize = 0;
+    let mut sync_group_open = false;
+    let flush_sync_group = |open: &mut bool, idx: &mut usize| {
+        if *open {
+            *open = false;
+            *idx += 1;
+        }
+    };
+
+    for stmt in &statements {
+        let trimmed_stmt = stmt.trim();
+        if trimmed_stmt.is_empty() || trimmed_stmt.starts_with("//") {
+            continue;
+        }
+
+        let has_await_in_stmt = has_top_level_await_in_statement(trimmed_stmt);
+
+        // Function declarations / function-typed declarations are hoisted to sync
+        if is_function_declaration(trimmed_stmt) || is_function_var_declaration(trimmed_stmt) {
+            continue;
+        }
+
+        if !found_await && !has_await_in_stmt {
+            continue;
+        }
+        found_await = true;
+
+        if is_variable_declaration(trimmed_stmt) && is_props_id_declaration(trimmed_stmt) {
+            continue;
+        }
+
+        if has_await_in_stmt {
+            flush_sync_group(&mut sync_group_open, &mut async_index);
+        } else {
+            sync_group_open = true;
+        }
+        let current_async_index = async_index;
+
+        if is_variable_declaration(trimmed_stmt) {
+            let decls = extract_var_declarations(trimmed_stmt);
+            for decl in &decls {
+                if decl.hoist_only {
+                    continue;
+                }
+                names
+                    .entry(current_async_index)
+                    .or_default()
+                    .insert(decl.name.clone());
+            }
+        }
+        // Non-declaration async statements don't add primary bindings; only
+        // their writes (mutations to existing bindings) would in upstream,
+        // and those bindings were already declared in an earlier slot.
+
+        if has_await_in_stmt {
+            async_index += 1;
+        }
+    }
+    flush_sync_group(&mut sync_group_open, &mut async_index);
+    let _ = async_index;
+
+    names
+}
+
 /// Enrich the blocker_map with transitive function dependencies.
 ///
 /// After `transform_async_body` produces a blocker_map mapping variable names to

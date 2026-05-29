@@ -743,6 +743,78 @@ fn check_hoistable(
                 }
             }
 
+            // ConstTag - check every initializer of `{@const x = expr}` (parsed as a
+            // VariableDeclaration with one declarator). The pattern names are not
+            // added to `param_names` since the const itself shouldn't be
+            // hoistable if it depends on instance-level state — mirrors the
+            // official compiler's `scope.references` walk: a
+            // `{@const _a = await gate('a')}` references `gate`, so the snippet
+            // must not be hoisted.
+            TemplateNode::ConstTag(tag) => {
+                let json = tag.declaration.as_json();
+                if let Some(obj) = json.as_object()
+                    && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                    && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+                {
+                    for d in decls {
+                        if let Some(init) = d.get("init")
+                            && !init.is_null()
+                            && !expression_only_uses_params(init, param_names, context)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            // RenderTag — already handled above when the expression check fails.
+            // The non-guarded fall-through here ensures a render tag without
+            // instance-level references is treated as safe.
+
+            // <svelte:boundary>, <svelte:fragment>, <svelte:head>, <svelte:body>,
+            // <svelte:document>, <svelte:window> — recurse into attributes and
+            // body. (<svelte:self>, <svelte:element>, <svelte:component> already
+            // bail out above because they have dynamic targets.)
+            TemplateNode::SvelteBoundary(elem)
+            | TemplateNode::SvelteFragment(elem)
+            | TemplateNode::SvelteHead(elem)
+            | TemplateNode::SvelteBody(elem)
+            | TemplateNode::SvelteDocument(elem)
+            | TemplateNode::SvelteWindow(elem) => {
+                for attr in &elem.attributes {
+                    if !check_attribute_hoistable(attr, param_names, context) {
+                        return false;
+                    }
+                }
+                if !check_hoistable(&elem.fragment.nodes, param_names, context) {
+                    return false;
+                }
+            }
+
+            // <title> — recurse into attributes and body
+            TemplateNode::TitleElement(elem) => {
+                for attr in &elem.attributes {
+                    if !check_attribute_hoistable(attr, param_names, context) {
+                        return false;
+                    }
+                }
+                if !check_hoistable(&elem.fragment.nodes, param_names, context) {
+                    return false;
+                }
+            }
+
+            // <slot> — recurse into attributes and body
+            TemplateNode::SlotElement(elem) => {
+                for attr in &elem.attributes {
+                    if !check_attribute_hoistable(attr, param_names, context) {
+                        return false;
+                    }
+                }
+                if !check_hoistable(&elem.fragment.nodes, param_names, context) {
+                    return false;
+                }
+            }
+
             // Other nodes - assume safe to hoist
             _ => {}
         }

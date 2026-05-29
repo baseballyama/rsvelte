@@ -192,6 +192,7 @@ pub fn fragment(
         hidden_let_bindings: context.state.hidden_let_bindings.clone(),
         shadowed_prop_names: context.state.shadowed_prop_names.clone(),
         blocker_map: context.state.blocker_map.clone(),
+        blocker_map_primary_names: context.state.blocker_map_primary_names.clone(),
         extra_blocker_indices: Vec::new(),
         is_standalone: false,
         const_blocker_map: context.state.const_blocker_map.clone(),
@@ -524,17 +525,72 @@ pub fn fragment(
                     collect_ids_from_expr(&memo_expr, &context.arena, &mut all_names);
                 }
 
-                // Collect instance-level blocker indices from blocker_map
-                let mut indices: Vec<usize> = Vec::new();
+                // Collect instance-level blocker indices from blocker_map.
+                //
+                // Dedup behavior matches upstream's `Memoizer.#blockers = new
+                // Set<Expression>` (see `phases/3-transform/client/visitors/
+                // shared/utils.js`): each `binding.blocker` is a fresh
+                // `b.member($$promises, b.literal(N))` Expression assigned per
+                // declarator (`phases/2-analyze/index.js` ~line 1165). Two
+                // distinct bindings whose blockers happen to print as
+                // `$$promises[N]` still emit two array entries because the
+                // Set keys on Expression reference identity, not value.
+                //
+                // To mirror that, we dedup the contributing identifiers by
+                // NAME — each unique binding name contributes one entry — but
+                // only count names that upstream would consider PRIMARY at the
+                // slot (i.e., names assigned `binding.blocker` via declarator
+                // extraction in `phases/2-analyze/index.js`). Pure references
+                // — bindings declared in a different (earlier, sync) slot but
+                // read inside an async-slot expression — get a `binding.blocker`
+                // in upstream only when traced through a write; pure reads do
+                // not. Our `compute_blocker_map` (`shared/async_body.rs`) is
+                // broader and folds pure reads into the slot as well. Filtering
+                // by `blocker_map_primary_names` here restores upstream's
+                // behavior so e.g. `async-pending-batch`'s pre-await
+                // `selectedId` (read by an async derived) doesn't add a phantom
+                // duplicate of `$$promises[0]` alongside `selectedOption`'s.
+                let primary_names = state.blocker_map_primary_names.borrow();
+                let mut per_idx_names: rustc_hash::FxHashMap<usize, Vec<String>> =
+                    rustc_hash::FxHashMap::default();
+                let mut idx_first_seen: Vec<usize> = Vec::new();
+                let mut seen_names: rustc_hash::FxHashSet<String> =
+                    rustc_hash::FxHashSet::default();
                 for name in &all_names {
-                    if let Some(&idx) = map.get(name.as_str())
-                        && !indices.contains(&idx)
-                    {
-                        indices.push(idx);
+                    let name_str = name.to_string();
+                    if !seen_names.insert(name_str.clone()) {
+                        continue;
+                    }
+                    if let Some(&idx) = map.get(name.as_str()) {
+                        if !per_idx_names.contains_key(&idx) {
+                            idx_first_seen.push(idx);
+                        }
+                        per_idx_names.entry(idx).or_default().push(name_str);
                     }
                 }
+                let mut indices: Vec<usize> = Vec::new();
+                for idx in &idx_first_seen {
+                    let names_at_idx = per_idx_names.get(idx).unwrap();
+                    let primary_at_idx = primary_names.get(idx);
+                    let primary_count = match primary_at_idx {
+                        Some(set) => names_at_idx.iter().filter(|n| set.contains(*n)).count(),
+                        None => names_at_idx.len(),
+                    };
+                    // Fall back to "at least one" so that an index reached
+                    // purely via the broad-reference logic in
+                    // `compute_blocker_map` (no primary name at that slot in
+                    // `compute_blocker_primary_names`) still contributes one
+                    // entry. This preserves the historical dedup-by-index
+                    // behavior for cases without explicit primary tracking.
+                    let count = primary_count.max(1);
+                    for _ in 0..count {
+                        indices.push(*idx);
+                    }
+                }
+                drop(primary_names);
                 // Include extra blocker indices from expressions that were evaluated
                 // to literals at compile time but still reference blocker_map variables.
+                // These don't correspond to a specific named binding, so dedupe by index.
                 for &idx in &state.extra_blocker_indices {
                     if !indices.contains(&idx) {
                         indices.push(idx);
