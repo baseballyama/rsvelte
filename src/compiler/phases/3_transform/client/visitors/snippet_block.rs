@@ -317,202 +317,302 @@ fn process_parameter(
     }
 }
 
-/// Process a destructured pattern (ObjectPattern or ArrayPattern).
-///
-/// This is a simplified version. The full implementation would use
-/// extract_paths to handle all cases including rest elements and default values.
+/// Process a destructured pattern (ObjectPattern / ArrayPattern / AssignmentPattern)
+/// by walking it with `extract_snippet_paths` from the base `$$argN?.()`.
 fn process_destructured_pattern(
     obj: &serde_json::Map<String, serde_json::Value>,
     arg_alias: &str,
     context: &mut ComponentContext,
 ) -> Vec<JsStatement> {
     let mut declarations = Vec::new();
+    let base = b::optional_call(&context.arena, b::id(arg_alias), vec![]);
+    extract_snippet_paths(
+        &serde_json::Value::Object(obj.clone()),
+        base,
+        false,
+        &mut declarations,
+        context,
+    );
+    declarations
+}
 
-    let param_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+/// Emit a leaf binding `let name = needs_derived ? $.derived_safe_equal(() => access)
+/// : () => access`, wire up the read transform, and (in dev) eagerly read it.
+/// Mirrors the per-path emission in upstream `SnippetBlock.js`.
+fn emit_snippet_path(
+    name: &str,
+    access: JsExpr,
+    needs_derived: bool,
+    declarations: &mut Vec<JsStatement>,
+    context: &mut ComponentContext,
+) {
+    let fn_expr = b::thunk(&context.arena, access);
+    let decl = if needs_derived {
+        b::let_decl(
+            &context.arena,
+            name,
+            Some(b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.derived_safe_equal"),
+                vec![fn_expr],
+            )),
+        )
+    } else {
+        b::let_decl(&context.arena, name, Some(fn_expr))
+    };
+    declarations.push(decl);
 
-    match param_type {
-        "ObjectPattern" => {
-            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
-                for prop in props {
-                    if let Some(prop_obj) = prop.as_object() {
-                        let prop_type = prop_obj.get("type").and_then(|v| v.as_str());
+    let transform = if needs_derived {
+        create_get_value_transform()
+    } else {
+        create_call_transform()
+    };
+    context.state.transform.insert(name.to_string(), transform);
+    context.state.transform_deep_read.remove(name);
 
-                        if prop_type == Some("Property") {
-                            if let Some(key) = prop_obj.get("key").and_then(|k| k.as_object())
-                                && let Some(key_name) = key.get("name").and_then(|n| n.as_str())
-                            {
-                                let has_default = prop_obj.get("value").and_then(|v| {
-                                    v.as_object()
-                                        .and_then(|o| o.get("type"))
-                                        .and_then(|t| t.as_str())
-                                        .map(|t| t == "AssignmentPattern")
-                                });
+    if context.state.dev {
+        let read_call = if needs_derived {
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.get"),
+                vec![b::id(name)],
+            )
+        } else {
+            b::call(&context.arena, b::id(name), vec![])
+        };
+        declarations.push(b::stmt(&context.arena, read_call));
+    }
+}
 
-                                let needs_derived = has_default.unwrap_or(false);
-
-                                // Create: let key = needs_derived ? $.derived_safe_equal(...) : () => $$arg?.().key
-                                // The snippet parameter is passed as a thunk, so we need to call it first
-                                let call_expr =
-                                    b::optional_call(&context.arena, b::id(arg_alias), vec![]);
-                                let access_expr = b::member(&context.arena, call_expr, key_name);
-                                let fn_expr = b::thunk(&context.arena, access_expr);
-
-                                let decl = if needs_derived {
-                                    // For default values, use $.derived_safe_equal
-                                    b::let_decl(
-                                        &context.arena,
-                                        key_name,
-                                        Some(b::call(
-                                            &context.arena,
-                                            b::member_path(&context.arena, "$.derived_safe_equal"),
-                                            vec![fn_expr],
-                                        )),
-                                    )
-                                } else {
-                                    b::let_decl(&context.arena, key_name, Some(fn_expr))
-                                };
-
-                                declarations.push(decl);
-
-                                // Set up transform
-                                let transform = if needs_derived {
-                                    create_get_value_transform()
-                                } else {
-                                    create_call_transform()
-                                };
-                                context
-                                    .state
-                                    .transform
-                                    .insert(key_name.to_string(), transform);
-                                context.state.transform_deep_read.remove(key_name);
-
-                                // In dev mode, eagerly evaluate to catch initialization errors
-                                if context.state.dev {
-                                    let read_call = if needs_derived {
-                                        b::call(
-                                            &context.arena,
-                                            b::member_path(&context.arena, "$.get"),
-                                            vec![b::id(key_name)],
-                                        )
-                                    } else {
-                                        b::call(&context.arena, b::id(key_name), vec![])
-                                    };
-                                    declarations.push(b::stmt(&context.arena, read_call));
-                                }
-                            }
-                        } else if prop_type == Some("RestElement") {
-                            // Handle rest element: { ...rest }
-                            if let Some(arg) = prop_obj.get("argument").and_then(|a| a.as_object())
-                                && let Some(name) = arg.get("name").and_then(|n| n.as_str())
-                            {
-                                // For rest elements, we'd need to use $.exclude_from_object
-                                // Simplified version: just pass through
-                                let access_expr = b::id(arg_alias);
-                                declarations.push(b::let_decl(
-                                    &context.arena,
-                                    name,
-                                    Some(b::thunk(&context.arena, access_expr)),
-                                ));
-                                context
-                                    .state
-                                    .transform
-                                    .insert(name.to_string(), create_call_transform());
-                                context.state.transform_deep_read.remove(name);
-                            }
+/// Recursive port of upstream `extract_paths` for snippet parameters.
+///
+/// Walks a destructuring `pattern` (JSON), threading the access expression
+/// `base` (the AST that reads the current sub-value). Array patterns push an
+/// intermediate `var $$array = $.derived(() => $.to_array(base, len?))` and read
+/// elements as `$.get($$array)[i]`; object rest emits
+/// `$.exclude_from_object(base, [keys])`; defaults wrap the access in
+/// `$.fallback(...)`; the whole path collapses to `$.derived_safe_equal(...)`
+/// when any default is involved. (issue #446, H-100..H-103)
+fn extract_snippet_paths(
+    pattern: &serde_json::Value,
+    base: JsExpr,
+    has_default: bool,
+    declarations: &mut Vec<JsStatement>,
+    context: &mut ComponentContext,
+) {
+    let obj = match pattern.as_object() {
+        Some(o) => o,
+        None => return,
+    };
+    match obj.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                emit_snippet_path(name, base, has_default, declarations, context);
+            }
+        }
+        Some("ObjectPattern") => {
+            let props = match obj.get("properties").and_then(|p| p.as_array()) {
+                Some(p) => p,
+                None => return,
+            };
+            for prop in props {
+                let prop_obj = match prop.as_object() {
+                    Some(o) => o,
+                    None => continue,
+                };
+                match prop_obj.get("type").and_then(|t| t.as_str()) {
+                    Some("RestElement") => {
+                        // `$.exclude_from_object(base, ['k1', 'k2', ...])`
+                        let keys: Vec<JsExpr> = props
+                            .iter()
+                            .filter_map(|p| p.as_object())
+                            .filter(|p| p.get("type").and_then(|t| t.as_str()) == Some("Property"))
+                            .filter_map(|p| object_pattern_key_literal(p, context))
+                            .collect();
+                        let rest_expr = b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.exclude_from_object"),
+                            vec![base.clone(), b::array(keys)],
+                        );
+                        if let Some(arg) = prop_obj.get("argument") {
+                            extract_snippet_paths(
+                                arg,
+                                rest_expr,
+                                has_default,
+                                declarations,
+                                context,
+                            );
                         }
                     }
+                    Some("Property") => {
+                        let access =
+                            object_pattern_property_access(prop_obj, base.clone(), context);
+                        if let Some(value) = prop_obj.get("value") {
+                            extract_snippet_paths(
+                                value,
+                                access,
+                                has_default,
+                                declarations,
+                                context,
+                            );
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
-        "ArrayPattern" => {
-            // For array patterns, we need to use $.to_array first
-            if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
-                // Generate array variable
-                let array_name = context.state.memoizer.generate_id("$$array");
+        Some("ArrayPattern") => {
+            let elements = match obj.get("elements").and_then(|e| e.as_array()) {
+                Some(e) => e,
+                None => return,
+            };
+            let array_name = context.state.memoizer.generate_id("$$array");
+            let has_rest = elements
+                .last()
+                .and_then(|e| e.as_object())
+                .and_then(|o| o.get("type"))
+                .and_then(|t| t.as_str())
+                == Some("RestElement");
 
-                // Check if last element is a RestElement
-                let has_rest = elements
-                    .last()
-                    .and_then(|e| e.as_object())
-                    .and_then(|o| o.get("type"))
-                    .and_then(|t| t.as_str())
-                    == Some("RestElement");
-
-                // Create: var $$array = $.derived(() => $.to_array($$arg?.(), length))
-                // The length argument is only added when there's no rest element
-                let arg_call = b::call(
+            // var $$array = $.derived(() => $.to_array(base, len?))
+            let mut to_array_args = vec![base];
+            if !has_rest {
+                to_array_args.push(b::number(elements.len() as f64));
+            }
+            let to_array_call = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.to_array"),
+                to_array_args,
+            );
+            declarations.push(b::var_decl(
+                &context.arena,
+                &array_name,
+                Some(b::call(
                     &context.arena,
-                    b::member_path(&context.arena, &format!("{}?.", arg_alias)),
-                    vec![],
-                );
-                let mut to_array_args = vec![arg_call];
-                if !has_rest {
-                    to_array_args.push(b::number(elements.len() as f64));
+                    b::member_path(&context.arena, "$.derived"),
+                    vec![b::thunk(&context.arena, to_array_call)],
+                )),
+            ));
+            context
+                .state
+                .transform
+                .insert(array_name.clone(), create_get_value_transform());
+
+            for (i, elem) in elements.iter().enumerate() {
+                if elem.is_null() {
+                    continue;
                 }
-                let to_array_call = b::call(
-                    &context.arena,
-                    b::member_path(&context.arena, "$.to_array"),
-                    to_array_args,
-                );
-
-                declarations.push(b::var_decl(
-                    &context.arena,
-                    &array_name,
-                    Some(b::call(
+                let elem_obj = match elem.as_object() {
+                    Some(o) => o,
+                    None => continue,
+                };
+                // `$.get($$array)`
+                let array_get = || {
+                    b::call(
                         &context.arena,
-                        b::member_path(&context.arena, "$.derived"),
-                        vec![b::thunk(&context.arena, to_array_call)],
-                    )),
-                ));
-
-                context
-                    .state
-                    .transform
-                    .insert(array_name.clone(), create_get_value_transform());
-
-                // Process each element
-                for (i, elem) in elements.iter().enumerate() {
-                    if elem.is_null() {
-                        continue;
+                        b::member_path(&context.arena, "$.get"),
+                        vec![b::id(&array_name)],
+                    )
+                };
+                if elem_obj.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                    // `$.get($$array).slice(i)`
+                    let slice_expr = b::call(
+                        &context.arena,
+                        b::member(&context.arena, array_get(), "slice"),
+                        vec![b::number(i as f64)],
+                    );
+                    if let Some(arg) = elem_obj.get("argument") {
+                        extract_snippet_paths(arg, slice_expr, has_default, declarations, context);
                     }
-
-                    if let Some(elem_obj) = elem.as_object() {
-                        let elem_type = elem_obj.get("type").and_then(|t| t.as_str());
-
-                        if elem_type == Some("Identifier")
-                            && let Some(name) = elem_obj.get("name").and_then(|n| n.as_str())
-                        {
-                            // Create: let name = () => $.get($$array)[i]
-                            let access = b::member_computed(
-                                &context.arena,
-                                b::call(
-                                    &context.arena,
-                                    b::member_path(&context.arena, "$.get"),
-                                    vec![b::id(&array_name)],
-                                ),
-                                b::number(i as f64),
-                            );
-
-                            declarations.push(b::let_decl(
-                                &context.arena,
-                                name,
-                                Some(b::thunk(&context.arena, access)),
-                            ));
-                            context
-                                .state
-                                .transform
-                                .insert(name.to_string(), create_call_transform());
-                            context.state.transform_deep_read.remove(name);
-                        }
-                        // RestElement handling would go here
-                    }
+                } else {
+                    // `$.get($$array)[i]`
+                    let access =
+                        b::member_computed(&context.arena, array_get(), b::number(i as f64));
+                    extract_snippet_paths(elem, access, has_default, declarations, context);
                 }
+            }
+        }
+        Some("AssignmentPattern") => {
+            // `$.fallback(base, default[, true])`, then recurse the left with has_default.
+            if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                let mut fallback_args = vec![base];
+                fallback_args.extend(build_fallback_args(right, context));
+                let fallback_call = b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.fallback"),
+                    fallback_args,
+                );
+                extract_snippet_paths(left, fallback_call, true, declarations, context);
             }
         }
         _ => {}
     }
+}
 
-    declarations
+/// Build the access expression for an object-pattern `Property`: `base.key` for a
+/// plain identifier key, `base[key]` when computed or a non-identifier key.
+fn object_pattern_property_access(
+    prop: &serde_json::Map<String, serde_json::Value>,
+    base: JsExpr,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    let computed = prop
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    let key = prop.get("key").and_then(|k| k.as_object());
+    let key_type = key
+        .and_then(|k| k.get("type"))
+        .and_then(|t| t.as_str())
+        .unwrap_or("");
+    if !computed
+        && key_type == "Identifier"
+        && let Some(name) = key.and_then(|k| k.get("name")).and_then(|n| n.as_str())
+    {
+        return b::member(&context.arena, base, name);
+    }
+    // Computed or literal/expression key: `base[<key>]`.
+    if let Some(key_obj) = key {
+        let key_expr = convert_snippet_expr(&serde_json::Value::Object(key_obj.clone()), context);
+        return b::member_computed(&context.arena, base, key_expr);
+    }
+    base
+}
+
+/// Produce the string literal used in `$.exclude_from_object(base, [...])` for a
+/// non-rest object-pattern property key (mirrors upstream's key collection).
+fn object_pattern_key_literal(
+    prop: &serde_json::Map<String, serde_json::Value>,
+    context: &mut ComponentContext,
+) -> Option<JsExpr> {
+    let computed = prop
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    let key = prop.get("key").and_then(|k| k.as_object())?;
+    let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    if key_type == "Identifier" && !computed {
+        let name = key.get("name").and_then(|n| n.as_str())?;
+        Some(b::string(name))
+    } else if key_type == "Literal" {
+        let val = key.get("value")?;
+        let s = match val {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        };
+        Some(b::string(s))
+    } else {
+        // `String(<key>)`
+        let key_expr = convert_snippet_expr(&serde_json::Value::Object(key.clone()), context);
+        Some(b::call(&context.arena, b::id("String"), vec![key_expr]))
+    }
+}
+
+/// Convert a JSON expression to a transformed `JsExpr` for use inside snippet
+/// parameter access expressions.
+fn convert_snippet_expr(value: &serde_json::Value, context: &mut ComponentContext) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+    convert_expression(&Expression::Value(value.clone()), context)
 }
 
 /// Process an AssignmentPattern parameter (parameter with default value).
@@ -577,11 +677,30 @@ fn process_assignment_pattern(
         });
     }
 
-    // For destructured patterns with defaults (e.g., {a, b} = defaultObj),
-    // fall back to the destructured pattern handler with an arg alias
+    // Destructured pattern with a whole-parameter default (e.g.
+    // `{#snippet foo({ a } = defaultObj)}`): build the fallback over `$$argN?.()`
+    // and walk the destructured left with `has_default = true` so each leaf
+    // collapses to `$.derived_safe_equal(...)`. (H-103)
     let arg_alias = format!("$$arg{}", index);
     let pattern = b::id_pattern(&arg_alias);
-    let declarations = process_destructured_pattern(left, &arg_alias, context);
+
+    let arg_call = b::optional_call(&context.arena, b::id(&arg_alias), vec![]);
+    let mut fallback_args = vec![arg_call];
+    fallback_args.extend(build_fallback_args(right, context));
+    let fallback_call = b::call(
+        &context.arena,
+        b::member_path(&context.arena, "$.fallback"),
+        fallback_args,
+    );
+
+    let mut declarations = Vec::new();
+    extract_snippet_paths(
+        &serde_json::Value::Object(left.clone()),
+        fallback_call,
+        true,
+        &mut declarations,
+        context,
+    );
 
     Some(ParameterInfo {
         pattern,
