@@ -7,6 +7,50 @@ use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
+    /// Compute the set of blocker "identity" strings for a test expression.
+    ///
+    /// Walks identifiers in the test expression and looks them up in
+    /// `top_level_blocker_map` (`$$promises[N]`) and `const_blocker_map`
+    /// (`promises[N]` / `promises_K[N]`). The returned set is used to compare
+    /// blocker sets between adjacent `{:else if}` branches when deciding
+    /// whether to flatten them. Mirrors upstream's
+    /// `ExpressionMetadata.has_more_blockers_than` (Svelte 5.55.3 `3937ec03b`).
+    pub(crate) fn collect_blocker_identity_set(
+        &self,
+        test_expr: &str,
+    ) -> std::collections::BTreeSet<String> {
+        let mut set = std::collections::BTreeSet::new();
+        let top_level = &self.top_level_blocker_map;
+        let const_map = self.const_blocker_map.borrow();
+        let bytes = test_expr.as_bytes();
+        let len = bytes.len();
+        let mut i = 0;
+        while i < len {
+            let ch = bytes[i];
+            if ch.is_ascii_alphabetic() || ch == b'_' || ch == b'$' {
+                let start = i;
+                while i < len
+                    && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+                {
+                    i += 1;
+                }
+                let ident = &test_expr[start..i];
+                if start > 0 && bytes[start - 1] == b'.' {
+                    continue;
+                }
+                if let Some(&idx) = top_level.get(ident) {
+                    set.insert(format!("$$promises[{}]", idx));
+                }
+                if let Some(blocker_str) = const_map.get(ident) {
+                    set.insert(blocker_str.clone());
+                }
+                continue;
+            }
+            i += 1;
+        }
+        set
+    }
+
     pub(crate) fn generate_if_block(&mut self, block: &IfBlock) -> Result<(), TransformError> {
         // Get the test expression from the source
         let start = block.test.start().unwrap_or(0) as usize;
@@ -31,11 +75,16 @@ impl<'a> ServerCodeGenerator<'a> {
         let test_expr = Self::transform_rune_in_template_expr(&test_expr);
 
         // Generate consequent body parts
-        let consequent_body = self.generate_if_branch_body(&block.consequent)?;
+        let consequent_body = self.generate_if_branch_body(&block.consequent, None)?;
+
+        // Compute blocker identity set for this test so the alternate-branch
+        // visitor can suppress flattening of an `{:else if}` whose test has
+        // blockers not in our set.
+        let parent_blockers = self.collect_blocker_identity_set(&test_expr);
 
         // Generate alternate body parts if present
         let alternate_body = if let Some(ref alternate) = block.alternate {
-            Some(self.generate_if_branch_body(alternate)?)
+            Some(self.generate_if_branch_body(alternate, Some(&parent_blockers))?)
         } else {
             None
         };
@@ -51,9 +100,18 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate body parts for an if/else branch, handling nested IfBlocks for else-if chains.
+    ///
+    /// `parent_blockers`, when `Some`, is the blocker-identity set of the
+    /// enclosing IfBlock's test. If a candidate `{:else if}` has blockers
+    /// (`top_level_blocker_map` / `const_blocker_map`) that the parent does
+    /// not have, we refuse to flatten so the else-if becomes its own IfBlock
+    /// and gets its own `async_block(...)` wrapper. Mirrors upstream's
+    /// `has_more_blockers_than` check in `2-analyze/visitors/IfBlock.js`
+    /// (Svelte 5.55.3 `3937ec03b`).
     pub(crate) fn generate_if_branch_body(
         &mut self,
         fragment: &Fragment,
+        parent_blockers: Option<&std::collections::BTreeSet<String>>,
     ) -> Result<Vec<OutputPart>, TransformError> {
         // Check if this fragment contains only a single IfBlock (else-if case)
         let nodes: Vec<_> = fragment.nodes.iter().collect();
@@ -69,6 +127,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             })
             .collect();
+
+        // Whether we suppressed elseif-flattening due to a blocker mismatch.
+        // When true, we fall through to the standard child-node processing but
+        // mark the resulting top-level IfBlock with `is_elseif: false` so the
+        // codegen layer (`build_parts_with_store_subs`) does not re-flatten
+        // it. Mirrors upstream `has_more_blockers_than` (Svelte 5.55.3
+        // `3937ec03b`): an `{:else if}` whose test introduces blockers the
+        // outer doesn't share becomes its own IfBlock so
+        // `apply_async_wrapping` / `apply_const_async_wrapping` can give it
+        // its own `async_block(...)` shell.
+        let mut suppress_elseif_flag_on_output = false;
 
         // If there's exactly one node and it's an IfBlock with elseif=true, this is an else-if chain.
         // When elseif=false, it's a separate {#if} block nested inside {:else}, not a chain.
@@ -93,19 +162,34 @@ impl<'a> ServerCodeGenerator<'a> {
             let nested_test_expr = self.transform_special_vars(&nested_test_expr);
             let nested_test_expr = Self::transform_rune_in_template_expr(&nested_test_expr);
 
-            let nested_consequent = self.generate_if_branch_body(&nested_if.consequent)?;
-            let nested_alternate = if let Some(ref alt) = nested_if.alternate {
-                Some(self.generate_if_branch_body(alt)?)
+            // Don't flatten when the else-if's test introduces blockers the
+            // parent doesn't share — fall through to the standard path which
+            // will visit the nested IfBlock as a regular child node, letting
+            // `apply_async_wrapping` give it its own `async_block(...)` shell.
+            let nested_blockers = self.collect_blocker_identity_set(&nested_test_expr);
+            let parent_has_all = parent_blockers
+                .map(|p| nested_blockers.iter().all(|b| p.contains(b)))
+                .unwrap_or(true);
+            if !parent_has_all {
+                suppress_elseif_flag_on_output = true;
+                // Fall through to standard processing.
             } else {
-                None
-            };
+                let nested_consequent =
+                    self.generate_if_branch_body(&nested_if.consequent, None)?;
+                let parent_for_nested = self.collect_blocker_identity_set(&nested_test_expr);
+                let nested_alternate = if let Some(ref alt) = nested_if.alternate {
+                    Some(self.generate_if_branch_body(alt, Some(&parent_for_nested))?)
+                } else {
+                    None
+                };
 
-            return Ok(vec![OutputPart::IfBlock {
-                test_expr: nested_test_expr,
-                consequent_body: nested_consequent,
-                alternate_body: nested_alternate,
-                is_elseif: true,
-            }]);
+                return Ok(vec![OutputPart::IfBlock {
+                    test_expr: nested_test_expr,
+                    consequent_body: nested_consequent,
+                    alternate_body: nested_alternate,
+                    is_elseif: true,
+                }]);
+            }
         }
 
         // Standard case: generate body parts for the branch
@@ -342,6 +426,22 @@ impl<'a> ServerCodeGenerator<'a> {
                 body: snippet.body_parts,
                 dev: self.dev,
             });
+        }
+
+        // If we suppressed elseif-flattening (blocker-mismatch), rewrite the
+        // single top-level IfBlock's `is_elseif` to false so the codegen
+        // flattener (build_parts_with_store_subs) does not re-flatten it.
+        if suppress_elseif_flag_on_output {
+            // Find the first IfBlock in `parts` and clear its `is_elseif`.
+            // The body_generator emits at most one IfBlock here because the
+            // input fragment had a single elseif IfBlock as the only
+            // meaningful child.
+            for part in parts.iter_mut() {
+                if let OutputPart::IfBlock { is_elseif, .. } = part {
+                    *is_elseif = false;
+                    break;
+                }
+            }
         }
 
         Ok(parts)

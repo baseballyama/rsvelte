@@ -50,9 +50,35 @@ fn get_elseif_block(fragment: &crate::ast::template::Fragment) -> Option<&IfBloc
     found
 }
 
-fn collect_branches(node: &IfBlock) -> Vec<&IfBlock> {
+/// Compute the blocker expression string-set for an `IfBlock`'s test, using
+/// `context.state.get_all_blockers_for_expr`. Used to decide whether two
+/// adjacent `{#if}` / `{:else if}` branches should be flattened. Mirrors
+/// upstream's `has_more_blockers_than` check in `2-analyze/visitors/IfBlock.js`.
+fn collect_branch_blocker_strings(branch: &IfBlock, context: &mut ComponentContext) -> Vec<String> {
+    let converted = convert_expression(&branch.test, context);
+    let meta = ExpressionMetadata::from_template_metadata(&branch.metadata.expression);
+    let expr = build_expression(context, &converted, &meta);
+    let exprs = context
+        .state
+        .get_all_blockers_for_expr(&expr, &context.arena);
+    let mut strings: Vec<String> = exprs
+        .into_iter()
+        .map(|e| {
+            crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                &e,
+                &context.arena,
+            )
+        })
+        .collect();
+    strings.sort();
+    strings.dedup();
+    strings
+}
+
+fn collect_branches<'a>(node: &'a IfBlock, context: &mut ComponentContext) -> Vec<&'a IfBlock> {
     let mut branches: Vec<&IfBlock> = vec![node];
     let mut current = node;
+    let mut current_blockers = collect_branch_blocker_strings(node, context);
     while let Some(fragment) = &current.alternate {
         if let Some(inner) = get_elseif_block(fragment) {
             // Don't flatten if this else-if has an await expression.
@@ -63,8 +89,18 @@ fn collect_branches(node: &IfBlock) -> Vec<&IfBlock> {
             if inner.metadata.expression.has_await() {
                 break;
             }
+            // Don't flatten if the else-if has blockers not in the outer's set.
+            // Mirrors upstream `has_more_blockers_than` (Svelte 5.55.3 `3937ec03b`)
+            // — `{:else if x}` whose test has a blocker the outer doesn't share
+            // becomes its own `$.async(...)` block (e.g. const-tag blocker vs
+            // instance-script `$$promises[N]` blocker).
+            let inner_blockers = collect_branch_blocker_strings(inner, context);
+            if inner_blockers.iter().any(|b| !current_blockers.contains(b)) {
+                break;
+            }
             branches.push(inner);
             current = inner;
+            current_blockers = inner_blockers;
         } else {
             break;
         }
@@ -118,8 +154,10 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         .get_all_blockers_for_expr(&expression, &context.arena);
     let has_blockers = !blocker_exprs.is_empty();
 
-    // Collect all flattened if/elseif branches
-    let branches = collect_branches(node);
+    // Collect all flattened if/elseif branches (flattening is suppressed when
+    // an else-if's test has blockers not in the outer's set — see
+    // `collect_branch_blocker_strings`).
+    let branches = collect_branches(node, context);
 
     // For each branch, build:
     // - var consequent_n = ($$anchor) => { ... }

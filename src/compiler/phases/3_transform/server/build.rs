@@ -2329,6 +2329,36 @@ impl<'a> ServerCodeGenerator<'a> {
                         });
                     }
                 }
+                OutputPart::AsyncBlock {
+                    blocker_indices,
+                    inner,
+                } => {
+                    // Recurse into AsyncBlock contents so const-tag blockers
+                    // declared inside instance-level async wrappers (e.g.
+                    // `{@const}` inside `{#if d}` where `d` is a top-level
+                    // `$$promises[N]` blocker) still get wrapped per
+                    // `apply_const_async_wrapping`. Mirrors the recursion
+                    // pattern in `apply_async_wrapping`. AsyncBlock uses
+                    // instance blockers (`$$promises[N]`) which don't appear
+                    // in the const_blocker_map (which uses
+                    // `promises[N]`/`promises_K[N]` strings), so we don't
+                    // need to filter — the inner const wraps live in a
+                    // different namespace.
+                    let wrapped_inner = Self::apply_const_async_wrapping(inner, &local_map);
+                    result.push(OutputPart::AsyncBlock {
+                        blocker_indices: blocker_indices.clone(),
+                        inner: wrapped_inner,
+                    });
+                }
+                // NOTE: We intentionally do NOT recurse into AsyncBlockCustom
+                // here. AsyncBlockCustom wrappers are produced by THIS
+                // function in the same pass (from the IfBlock / EachBlock
+                // cases), so re-walking their inner would either re-wrap on
+                // the same blockers (double wrap) or, with a naive filter,
+                // miss legitimate inner wraps. Inner-fragment wrapping for
+                // const blockers is handled at the time those wrappers are
+                // constructed via the inline `apply_const_async_wrapping`
+                // recursion in the IfBlock / EachBlock arms.
                 _ => {
                     result.push(part.clone());
                 }
