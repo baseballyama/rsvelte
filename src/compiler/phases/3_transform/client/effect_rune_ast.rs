@@ -17,7 +17,7 @@
 //! | `$effect.pre(fn)`     | `$.user_pre_effect(fn)`    |
 //! | `$effect.root(fn)`    | `$.effect_root(fn)`        |
 //! | `$effect.tracking()`  | `$.effect_tracking()`      |
-//! | `$effect.pending()`   | `$.eager($.pending)` (whole-call swap) |
+//! | `$effect.pending()`   | `$.eager(() => $.pending())` (whole-call swap) |
 
 use std::cell::RefCell;
 
@@ -121,13 +121,13 @@ impl<'a> Visit<'a> for EffectRuneCollector {
                     )),
                     "pending" => {
                         // Whole-call swap: `$effect.pending()` →
-                        // `$.eager($.pending)`. The original takes no
-                        // args; we discard the `()` and emit a fresh
-                        // call shape.
+                        // `$.eager(() => $.pending())`, matching upstream exactly
+                        // (`$.eager` receives a thunk that calls `$.pending()`).
+                        // The original takes no args; any are discarded.
                         self.replacements.push((
                             call.span.start,
                             call.span.end,
-                            "$.eager($.pending)".to_string(),
+                            "$.eager(() => $.pending())".to_string(),
                         ));
                     }
                     _ => {}
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn rewrites_effect_pending() {
         let out = apply_effect_rune_transforms_ast("let p = $effect.pending();", false).unwrap();
-        assert_eq!(out, "let p = $.eager($.pending);");
+        assert_eq!(out, "let p = $.eager(() => $.pending());");
     }
 
     #[test]

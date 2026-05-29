@@ -2619,22 +2619,22 @@ fn transform_rune_call(
         }
 
         "$effect.pending" => {
-            // $effect.pending() -> $.eager($.pending)
-            JsExpr::Call(JsCallExpression {
-                callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
-                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
-                    property: JsMemberProperty::Identifier("eager".into()),
-                    computed: false,
-                    optional: false,
-                })),
-                arguments: vec![JsExpr::Member(JsMemberExpression {
-                    object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
-                    property: JsMemberProperty::Identifier("pending".into()),
-                    computed: false,
-                    optional: false,
-                })],
-                optional: false,
-            })
+            // $effect.pending() -> $.eager(() => $.pending())
+            // Mirror upstream exactly: `$.eager` receives a thunk that *calls*
+            // `$.pending()`, not a bare reference to `$.pending`. Any arguments
+            // are ignored, matching upstream (which performs no arity check).
+            use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+            let pending_call = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.pending"),
+                vec![],
+            );
+            let thunk = b::thunk(&context.arena, pending_call);
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.eager"),
+                vec![thunk],
+            )
         }
 
         "$state.eager" => {
