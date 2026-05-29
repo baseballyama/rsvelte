@@ -634,6 +634,10 @@ fn collect_dollar_identifiers_from_js_with_context(
     // Simple regex-like scanning for $xxx identifiers
     // We look for $ followed by valid identifier characters
     let chars: Vec<char> = js.chars().collect();
+    // Byte offset of each character, so a `StoreRef.position` (consumed
+    // downstream as a byte index into the source) stays correct when multi-byte
+    // characters precede the reference (M-005).
+    let char_byte_offsets: Vec<usize> = js.char_indices().map(|(b, _)| b).collect();
     let len = chars.len();
     let mut i = 0;
     let mut in_string: Option<char> = None; // track if inside a string literal
@@ -779,7 +783,11 @@ fn collect_dollar_identifiers_from_js_with_context(
                     {
                         refs.push(StoreRef {
                             name: ident,
-                            position: base_offset + ident_start,
+                            position: base_offset
+                                + char_byte_offsets
+                                    .get(ident_start)
+                                    .copied()
+                                    .unwrap_or(js.len()),
                             in_module,
                         });
                     }
