@@ -275,6 +275,15 @@ pub fn analyze_component(
     // (unless it's a custom element). This overrides any options passed by the user.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
     if analysis.runes {
+        // `<svelte:options immutable>` is deprecated in runes mode (it has no
+        // effect there). Mirror upstream's analyze-phase warning, which fires
+        // when the `immutable` option attribute is present and runes is on
+        // (2-analyze/index.js). M-061.
+        if ast.options.as_ref().is_some_and(|o| o.immutable.is_some()) {
+            analysis
+                .warnings
+                .push(warnings::options_deprecated_immutable());
+        }
         analysis.immutable = true;
         if analysis.custom_element.is_none() {
             analysis.accessors = false;
