@@ -188,13 +188,6 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // const-blocker plumbing doesn't yet emit every new helper. Also skipped
     // in compatibility_report.
     "async-derived-const-blocker",
-    // 5.55.6 async-codegen cluster: same gap as the previous async batches,
-    // skipped in compatibility_report.
-    "async-debug-awaited-expression",
-    "async-dont-rebase-new-batch-1",
-    "async-dont-rebase-new-batch-3",
-    "async-dont-rebase-new-batch-4",
-    "async-state-updates-microtask-separated",
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
     // stringify in server attributes"). The `<div title=...>` snapshot path
     // is handled; the runes fixtures below also hit code paths that aren't

@@ -179,6 +179,67 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Drop interior Comment nodes (unless preserveComments is set) so they
+        // don't show up between expression tags and break whitespace collapsing.
+        // Mirrors the first pass of upstream's `clean_nodes` (utils.js line 149)
+        // which filters comments before applying the whitespace logic.
+        if !self.preserve_comments {
+            trimmed_nodes.retain(|n| !matches!(n, TemplateNode::Comment(_)));
+        }
+
+        // Mirror upstream `clean_nodes`'s second pass (utils.js lines 222-249):
+        // for each Text node, replace its leading/trailing whitespace runs unless
+        // the adjacent sibling is an ExpressionTag, then drop nodes whose data
+        // ended up empty. Without this, two `{expr}` separated by `\n\t<comment>\n\t`
+        // would bake two literal spaces into the output template literal.
+        //
+        // Upstream mutates `node.data` in place during the same pass so a
+        // later Text sees the modified data of `regular[i - 1]` even when the
+        // previous Text ended up empty (and was therefore dropped from the
+        // final `trimmed` array). We do the same: mutate in place first, then
+        // drop empties in a second pass.
+        if !trimmed_nodes.is_empty() {
+            use crate::compiler::phases::phase3_transform::utils::{
+                replace_leading_whitespace, replace_trailing_whitespace,
+            };
+
+            let len = trimmed_nodes.len();
+            for i in 0..len {
+                let (left, right) = trimmed_nodes.split_at_mut(i);
+                let (cur_slice, right_rest) = right.split_first_mut().expect("i < len");
+                let prev = left.last();
+                let next = right_rest.first();
+                if let TemplateNode::Text(text) = cur_slice {
+                    let prev_is_expr = matches!(prev, Some(TemplateNode::ExpressionTag(_)));
+                    let next_is_expr = matches!(next, Some(TemplateNode::ExpressionTag(_)));
+
+                    let mut data = text.data.to_string();
+                    if !prev_is_expr {
+                        let prev_is_text_ending_with_ws = if let Some(TemplateNode::Text(pt)) = prev
+                        {
+                            pt.data.as_str().ends_with([' ', '\t', '\r', '\n'])
+                        } else {
+                            false
+                        };
+                        let replacement = if prev_is_text_ending_with_ws { "" } else { " " };
+                        data = replace_leading_whitespace(&data, replacement);
+                    }
+                    if !next_is_expr {
+                        data = replace_trailing_whitespace(&data, " ");
+                    }
+
+                    text.data = data.into();
+                }
+            }
+
+            // Drop Text nodes whose data is now empty (matches upstream's
+            // `if (node.data && (...)) trimmed.push(node)` filter).
+            trimmed_nodes.retain(|n| match n {
+                TemplateNode::Text(t) => !t.data.is_empty(),
+                _ => true,
+            });
+        }
+
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
         trimmed_nodes = self.sort_const_tags_owned(trimmed_nodes);
 
@@ -191,8 +252,15 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.in_block_body = true;
         body_generator.in_if_body = true;
 
+        // Helper: is this node "transparent" for prev/next detection?
+        // Mirrors how upstream's clean_nodes loop ignores already-filtered comments
+        // and how SnippetBlock/ConstTag are hoisted out of the rendered sequence.
+        let is_transparent = |n: &TemplateNode| -> bool {
+            matches!(n, TemplateNode::ConstTag(_)) || matches!(n, TemplateNode::SnippetBlock(_))
+        };
+
         let mut seen_real_content = false;
-        for node in &trimmed_nodes {
+        for (idx, node) in trimmed_nodes.iter().enumerate() {
             // Skip whitespace-only text nodes before any real content.
             // This prevents whitespace between const tags from triggering a
             // flush_async_consts, which would split consecutive const tags
@@ -213,6 +281,50 @@ impl<'a> ServerCodeGenerator<'a> {
             if !is_hoisted {
                 seen_real_content = true;
             }
+
+            // For Text nodes, route through generate_text_with_expr_context so
+            // whitespace between two ExpressionTags collapses to a single space
+            // (mirroring upstream's clean_nodes whitespace pass + process_children
+            // flush). Without this, raw `\n\t` between `{expr}` and `{expr}` ends
+            // up baked into the template literal as multiple spaces.
+            if let TemplateNode::Text(text) = node {
+                let prev_is_expression = {
+                    let mut pi = idx;
+                    let mut found = false;
+                    while pi > 0 {
+                        pi -= 1;
+                        let pn = &trimmed_nodes[pi];
+                        if is_transparent(pn) {
+                            continue;
+                        }
+                        found = matches!(pn, TemplateNode::ExpressionTag(_));
+                        break;
+                    }
+                    found
+                };
+                let next_is_expression = {
+                    let mut ni = idx + 1;
+                    let mut found = false;
+                    while ni < trimmed_nodes.len() {
+                        let nn = &trimmed_nodes[ni];
+                        if is_transparent(nn) {
+                            ni += 1;
+                            continue;
+                        }
+                        found = matches!(nn, TemplateNode::ExpressionTag(_));
+                        break;
+                    }
+                    found
+                };
+
+                body_generator.generate_text_with_expr_context(
+                    text,
+                    prev_is_expression,
+                    next_is_expression,
+                )?;
+                continue;
+            }
+
             body_generator.generate_node(node, false)?;
         }
 
