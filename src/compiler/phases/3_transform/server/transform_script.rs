@@ -5106,9 +5106,8 @@ fn transform_inspect_to_console_log(script: &str) -> String {
     let mut i = 0;
 
     while i < chars.len() {
-        if i + prefix_len <= chars.len() {
-            let potential: String = chars[i..i + prefix_len].iter().collect();
-            if potential == prefix {
+        if i + prefix_len <= chars.len() && chars[i..i + prefix_len] == prefix_chars[..] {
+            {
                 let is_statement = is_statement_start(&result);
 
                 if is_statement {
@@ -5236,9 +5235,8 @@ fn remove_rune_statement_with_noop(script: &str, rune_prefix: &str) -> String {
     let mut i = 0;
 
     while i < chars.len() {
-        if i + prefix_len <= chars.len() {
-            let potential: String = chars[i..i + prefix_len].iter().collect();
-            if potential == rune_prefix {
+        if i + prefix_len <= chars.len() && chars[i..i + prefix_len] == prefix_chars[..] {
+            {
                 let is_statement = is_statement_start(&result);
                 if is_statement {
                     // Find the end of this rune call
@@ -5304,9 +5302,8 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
     let mut i = 0;
 
     while i < chars.len() {
-        if i + prefix_len <= chars.len() {
-            let potential: String = chars[i..i + prefix_len].iter().collect();
-            if potential == rune_prefix {
+        if i + prefix_len <= chars.len() && chars[i..i + prefix_len] == prefix_chars[..] {
+            {
                 let is_statement = is_statement_start(&result);
 
                 if !is_statement && rune_prefix == "$effect.root(" {
