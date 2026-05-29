@@ -2130,7 +2130,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         //   $effect.pre(fn)        -> $.user_pre_effect(fn)
         //   $effect.root(fn)       -> $.effect_root(fn)
         //   $effect.tracking()     -> $.effect_tracking()
-        //   $effect.pending()      -> $.eager($.pending)        (whole-call rewrite)
+        //   $effect.pending()      -> $.eager(() => $.pending())  (whole-call rewrite)
         //
         // The visitor's `scoped_vars` already tracks function/catch parameters
         // and let/const/var declarations, so `is_shadowed("$effect")` is the
@@ -2180,13 +2180,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                             }
                             "pending" if expr.arguments.is_empty() => {
                                 // Whole-call rewrite: `$effect.pending()` becomes
-                                // `$.eager($.pending)`. The empty-arg call is
-                                // restructured into a different call shape, so we
-                                // replace the entire CallExpression span.
+                                // `$.eager(() => $.pending())`, matching upstream
+                                // (`$.eager` receives a thunk that calls
+                                // `$.pending()`). The entire CallExpression span is
+                                // replaced.
                                 self.add_replacement(
                                     expr.span.start,
                                     expr.span.end,
-                                    "$.eager($.pending)".to_string(),
+                                    "$.eager(() => $.pending())".to_string(),
                                 );
                                 return;
                             }
