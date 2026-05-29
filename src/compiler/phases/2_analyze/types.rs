@@ -130,8 +130,16 @@ impl ScriptContent {
 /// - `$$props` (reserved identifier, `$props` is a substring)
 /// - Property names like `foo.$state`
 fn has_rune_text(raw: &str, rune_name: &str) -> bool {
+    // Build the SIMD finder once per call. `str::find` would otherwise
+    // construct a fresh `StrSearcher` on every loop iteration —
+    // `StrSearcher::new` is the #11 self-time hotspot on compile-client
+    // (49 / 2124 ≈ 2.3%) and `has_rune_text` is one of its top callers
+    // (called 4× per component: `$state`, `$derived`, `$effect`, `$props`).
+    let needle = rune_name.as_bytes();
+    let finder = memchr::memmem::Finder::new(needle);
+    let raw_bytes = raw.as_bytes();
     let mut start = 0;
-    while let Some(pos) = raw[start..].find(rune_name) {
+    while let Some(pos) = finder.find(&raw_bytes[start..]) {
         let abs_pos = start + pos;
 
         // Check character before: must not be `$` or an identifier char
