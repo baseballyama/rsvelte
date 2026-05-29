@@ -450,10 +450,9 @@ fn visit_identifier_inner(
         let binding = &context.analysis.root.bindings[binding_idx];
         // Check if binding is in module scope (scope_index == 0) and is reassigned
         if binding.scope_index == 0 && binding.reassigned {
-            context
-                .analysis
-                .warnings
-                .push(warnings::reactive_declaration_module_script_dependency());
+            // Route through emit_warning so a `svelte-ignore` in scope can
+            // suppress it (H-118); a direct push bypasses the ignore stack.
+            context.emit_warning(warnings::reactive_declaration_module_script_dependency());
         }
     }
 

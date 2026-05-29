@@ -107,11 +107,13 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                                                 });
 
                                             if is_default_import {
-                                                // Emit the warning
-                                                context
-                                                    .analysis
-                                                    .warnings
-                                                    .push(warnings::legacy_component_creation());
+                                                // Route through emit_warning so a
+                                                // `svelte-ignore` in scope can suppress
+                                                // it (H-118); a direct push bypasses
+                                                // the ignore stack.
+                                                context.emit_warning(
+                                                    warnings::legacy_component_creation(),
+                                                );
                                             }
                                         }
                                     }
@@ -242,10 +244,9 @@ fn check_legacy_component_creation(expression: &Value, context: &mut VisitorCont
                 });
 
             if is_default_import {
-                context
-                    .analysis
-                    .warnings
-                    .push(warnings::legacy_component_creation());
+                // Route through emit_warning so a `svelte-ignore` in scope can
+                // suppress it (H-118).
+                context.emit_warning(warnings::legacy_component_creation());
             }
         }
     }
