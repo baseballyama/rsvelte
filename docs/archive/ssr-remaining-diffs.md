@@ -28,7 +28,8 @@ JsProgram { Import, FunctionDecl { Raw(script), [JsStatements] }, ExportDefault 
 
 ### カテゴリ 1: $props destructure が1行にまとまる（~8件）
 
-**症状**: 
+**症状**:
+
 ```
 // 期待 (公式 Svelte/esrap)
 let {
@@ -50,6 +51,7 @@ let { cursor, showNavigation = true, withStacked = false } = $$props;
 ### カテゴリ 2: Component 呼び出しのインデントずれ（~5件）
 
 **症状**:
+
 ```
 // 期待
         Block($$renderer, {
@@ -71,6 +73,7 @@ let { cursor, showNavigation = true, withStacked = false } = $$props;
 ### カテゴリ 3: Blank line 不足（~10件）
 
 **症状**:
+
 ```
 // 期待 — 異なる文タイプの間に blank line
 let x = 0;
@@ -84,7 +87,8 @@ function foo() { ... }
 
 **原因**: OXC codegen は blank line を挿入しない。旧 `add_esrap_blank_lines()` (mod.rs から削除済み) はサーバー固有のロジックで raw 出力に blank line を挿入していた。client の `add_esrap_blank_lines()` は OXC 出力に対して設計されており、SSR のスクリプトコンテキスト（component wrapper 内の indented コード）にそのまま適用すると一部のケースで余計な blank line を挿入する。
 
-**修正方針**: 
+**修正方針**:
+
 1. client の `add_esrap_blank_lines()` を `normalize_script_with_oxc()` 内の OXC slow path で適用（OXC 出力は unindented なので正しく動作するはず）
 2. ただし `} = $$props;` のような行が `}` で始まるため、前の行との間に不要な blank line が挿入される可能性。`split_long_destructures` で分割された行の `}` は特別扱いが必要。
 
@@ -93,6 +97,7 @@ function foo() { ... }
 ### カテゴリ 4: OXC のコード変換差異（~3件）
 
 **症状**:
+
 - `1000` → `1e3` (OXC が数値リテラルを変��)
 - `if (x) y; else z;` → `if (x) y;\nelse z;` (OXC が改行を挿入)
 - Object shorthand の展開/折り畳みが esrap と異なる
@@ -127,7 +132,6 @@ function foo() { ... }
 ### 中期（根本解決）
 
 4. **visitor の TemplateItem 直接生成**: visitors を `OutputPart` ではなく `TemplateItem` を直接生成するように書き換え。これにより bridge.rs が不要になり、`build_parts_with_store_subs` を完全削除できる。
-
    - `visitors/shared/utils.rs` の `process_children()`, `build_template()`, `build_attribute_value()` が既に存在
    - `visitors/shared/component.rs` の `build_inline_component()` が既に存在
    - `visitors/shared/element.rs` の `build_element_attributes()` が既に存在

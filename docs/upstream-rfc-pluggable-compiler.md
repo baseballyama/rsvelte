@@ -21,7 +21,7 @@ wrappers, test mocks) can stop forking the plugin.
 
 ## Body (paste verbatim into Discussion / Issue)
 
-```markdown
+````markdown
 ## Summary
 
 Allow `@sveltejs/vite-plugin-svelte` to import its compiler module
@@ -59,16 +59,17 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import * as rsvelte from '@rsvelte/compiler';
 
 export default {
-  plugins: [
-    svelte({
-      // Option 1: pre-imported module
-      compiler: rsvelte,
-      // Option 2: module specifier (resolved via Vite's resolver)
-      // compiler: '@rsvelte/compiler',
-    })
-  ]
+	plugins: [
+		svelte({
+			// Option 1: pre-imported module
+			compiler: rsvelte
+			// Option 2: module specifier (resolved via Vite's resolver)
+			// compiler: '@rsvelte/compiler',
+		})
+	]
 };
 ```
+````
 
 The compiler module must export the same surface as `svelte/compiler`:
 
@@ -146,6 +147,7 @@ typical fork already touches.
 ## Willingness to contribute
 
 Happy to prepare the PR if the direction is agreeable.
+
 ```
 
 ---
@@ -163,3 +165,4 @@ Happy to prepare the PR if the direction is agreeable.
   N-API load in build tools that don't need it), we may also need
   `compiler: () => Promise<Compiler>` as a third accepted form.
   Mention only if asked — keep the initial proposal small.
+```
