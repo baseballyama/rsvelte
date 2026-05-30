@@ -113,10 +113,19 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     warnings.push(w::a11y_hidden(&node.name));
                 }
 
-                // aria-proptypes validation
+                // aria-proptypes validation. A *bare* ARIA attribute (no value)
+                // must NOT be silently accepted as `true` for boolean / tristate
+                // / number / token / id properties — upstream reports a
+                // type-specific `a11y_incorrect_aria_attribute_type` warning
+                // because the attribute presence alone is not a valid value.
+                // (issue #454, H-078)
                 let value = get_static_value(attribute);
+                let is_bare = matches!(
+                    attribute,
+                    AttributeNode::Attribute(a) if matches!(a.value, AttributeValue::True(_))
+                );
                 if let Some(schema) = ARIA_PROPERTY_DEFINITIONS.get(name.as_str()) {
-                    validate_aria_attribute_value(&mut warnings, &name, schema, value);
+                    validate_aria_attribute_value(&mut warnings, &name, schema, value, is_bare);
                 }
 
                 // aria-activedescendant-has-tabindex
@@ -1051,19 +1060,62 @@ fn validate_aria_attribute_value(
     name: &str,
     schema: &AriaPropertyDefinition,
     value: Option<&str>,
+    is_bare: bool,
 ) {
-    // If value is None (dynamic), skip validation
+    // A bare ARIA attribute (no value) is *not* a valid value for any
+    // typed property — upstream emits the type-specific
+    // `a11y_incorrect_aria_attribute_type[_<kind>]` warning. (#454, H-078)
+    if is_bare {
+        match schema.property_type {
+            AriaPropertyType::Boolean => {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_boolean(name));
+            }
+            AriaPropertyType::Tristate => {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_tristate(name));
+            }
+            AriaPropertyType::Integer => {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_integer(name));
+            }
+            AriaPropertyType::Number => {
+                warnings.push(w::a11y_incorrect_aria_attribute_type(name, "number"));
+            }
+            AriaPropertyType::Id | AriaPropertyType::String => {
+                warnings.push(w::a11y_incorrect_aria_attribute_type(
+                    name,
+                    "non-empty string",
+                ));
+            }
+            AriaPropertyType::IdList => {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_idlist(name));
+            }
+            AriaPropertyType::Token => {
+                if let Some(valid_values) = schema.values {
+                    let values_list: Vec<String> =
+                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
+                    warnings.push(w::a11y_incorrect_aria_attribute_type_token(
+                        name,
+                        &values_list.join(", "),
+                    ));
+                }
+            }
+            AriaPropertyType::TokenList => {
+                if let Some(valid_values) = schema.values {
+                    let values_list: Vec<String> =
+                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
+                    warnings.push(w::a11y_incorrect_aria_attribute_type_tokenlist(
+                        name,
+                        &values_list.join(", "),
+                    ));
+                }
+            }
+        }
+        return;
+    }
+
+    // If value is None (dynamic, e.g. `aria-hidden={x}`), skip validation.
     let value = match value {
         None => return,
-        Some(v) => {
-            // If it was a boolean attribute (true), treat as empty string
-            if v == "true" && matches!(schema.property_type, AriaPropertyType::Boolean) {
-                // For aria-props, "true" (the string) is valid for boolean
-                // The issue is when attribute is present with no value or wrong value
-                return;
-            }
-            v
-        }
+        Some(v) => v,
     };
 
     match schema.property_type {
