@@ -42,6 +42,7 @@ mod snippet_block;
 mod attach_tag;
 mod const_tag;
 mod debug_tag;
+mod declaration_tag;
 mod expression_tag;
 mod html_tag;
 mod render_tag;
@@ -671,6 +672,7 @@ pub fn visit_node(
         TemplateNode::ExpressionTag(tag) => expression_tag::visit(tag, context),
         TemplateNode::HtmlTag(tag) => html_tag::visit(tag, context),
         TemplateNode::ConstTag(tag) => const_tag::visit(tag, context),
+        TemplateNode::DeclarationTag(tag) => declaration_tag::visit(tag, context),
         TemplateNode::DebugTag(tag) => debug_tag::visit(tag, context),
         TemplateNode::RenderTag(tag) => render_tag::visit(tag, context),
         TemplateNode::AttachTag(tag) => attach_tag::visit(tag, context),

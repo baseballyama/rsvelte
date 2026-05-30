@@ -367,6 +367,7 @@ fn convert_node(source: &str, node: &TemplateNode, path: &[&str]) -> Value {
         TemplateNode::ExpressionTag(expr_tag) => convert_expression_tag(expr_tag, path),
         TemplateNode::HtmlTag(html_tag) => convert_html_tag(html_tag),
         TemplateNode::ConstTag(const_tag) => convert_const_tag(const_tag),
+        TemplateNode::DeclarationTag(decl_tag) => convert_declaration_tag(decl_tag),
         TemplateNode::DebugTag(debug_tag) => convert_debug_tag(debug_tag),
         TemplateNode::RenderTag(render_tag) => convert_render_tag(render_tag),
         TemplateNode::AttachTag(attach_tag) => convert_attach_tag(attach_tag),
@@ -519,6 +520,25 @@ fn convert_const_tag(const_tag: &ConstTag) -> Value {
         "end": const_tag.end,
         "expression": const_tag.declaration.as_json()
     })
+}
+
+/// Convert a `DeclarationTag` (`{let x = …}` / `{const x = …}`, Svelte 5.56.0
+/// #18282) to legacy AST shape. The legacy AST mirrors the modern AST 1:1 for
+/// this node (`type: "DeclarationTag"`, with the parsed `VariableDeclaration`
+/// preserved under `declaration`); the `{@const}`-style synthesized
+/// `AssignmentExpression` is intentionally NOT emitted because legacy
+/// consumers (svelte2tsx, etc.) expect the declaration kind (`let` / `const`)
+/// and may have multiple declarators.
+fn convert_declaration_tag(decl_tag: &crate::ast::template::DeclarationTag) -> Value {
+    let mut result = Map::new();
+    result.insert("type".to_string(), json!("DeclarationTag"));
+    result.insert("start".to_string(), json!(decl_tag.start));
+    result.insert("end".to_string(), json!(decl_tag.end));
+    result.insert(
+        "declaration".to_string(),
+        decl_tag.declaration.as_json().clone(),
+    );
+    Value::Object(result)
 }
 
 fn convert_debug_tag(debug_tag: &DebugTag) -> Value {
@@ -1649,6 +1669,7 @@ fn get_node_start(node: &TemplateNode) -> u32 {
         TemplateNode::ExpressionTag(n) => n.start,
         TemplateNode::HtmlTag(n) => n.start,
         TemplateNode::ConstTag(n) => n.start,
+        TemplateNode::DeclarationTag(n) => n.start,
         TemplateNode::DebugTag(n) => n.start,
         TemplateNode::RenderTag(n) => n.start,
         TemplateNode::AttachTag(n) => n.start,
@@ -1681,6 +1702,7 @@ fn get_node_end(node: &TemplateNode) -> u32 {
         TemplateNode::ExpressionTag(n) => n.end,
         TemplateNode::HtmlTag(n) => n.end,
         TemplateNode::ConstTag(n) => n.end,
+        TemplateNode::DeclarationTag(n) => n.end,
         TemplateNode::DebugTag(n) => n.end,
         TemplateNode::RenderTag(n) => n.end,
         TemplateNode::AttachTag(n) => n.end,

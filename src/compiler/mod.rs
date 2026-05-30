@@ -1089,6 +1089,9 @@ fn strip_ts_from_template_node(
         TemplateNode::ConstTag(tag) => {
             strip_ts_from_expression(&mut tag.declaration)?;
         }
+        TemplateNode::DeclarationTag(tag) => {
+            strip_ts_from_expression(&mut tag.declaration)?;
+        }
         TemplateNode::DebugTag(tag) => {
             for expr in &mut tag.identifiers {
                 strip_ts_from_expression(expr)?;

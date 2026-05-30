@@ -118,10 +118,11 @@ pub fn fragment(
             TemplateNode::SvelteFragment(_) | TemplateNode::TitleElement(_)
         );
 
-    // Generate unique template name
-    // TODO: Use scope.root.unique() when available - for now use memoizer
-    // Generate unique template name (will be "root" if no conflicts)
-    let template_name = context.state.memoizer.generate_id("root");
+    // Note: the hoisted template identifier is now allocated lazily inside
+    // `transform_template` (post-Svelte 5.56.0 #18320). We only reserve a name
+    // when we actually emit a `var <id> = $.from_html(...)` declaration, so
+    // standalone fragments that need no template don't burn the "root" slot
+    // ahead of nested fragments.
 
     // Initialize result containers
     let mut body: Vec<JsStatement> = Vec::new();
@@ -197,6 +198,7 @@ pub fn fragment(
         is_standalone: false,
         const_blocker_map: context.state.const_blocker_map.clone(),
         needs_mutation_validation: context.state.needs_mutation_validation.clone(),
+        templates: Rc::clone(&context.state.templates),
     };
 
     // Swap context.state with our local state so that process_children uses it
@@ -227,27 +229,26 @@ pub fn fragment(
                 None
             };
 
-            // Transform template
-            let template_expr = transform_template(
+            // Transform template — `transform_template` allocates a unique id
+            // for the hoisted `var root[_N] = $.from_X(...)` declaration, dedups
+            // identical templates across the component, and returns the
+            // identifier expression to call.
+            let template_id_expr = transform_template(
                 &context.arena,
                 &mut context.state,
+                "root",
                 parse_namespace(&namespace),
                 flags,
                 None,
             );
-            context.state.hoisted.push(b::var_decl(
-                &context.arena,
-                &template_name,
-                Some(template_expr),
-            ));
 
-            // Initialize element
+            // Initialize element: `var <id_name> = root();`
             context.state.init.insert(
                 0,
                 b::var_decl(
                     &context.arena,
                     &id_name,
-                    Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                    Some(b::call(&context.arena, template_id_expr, vec![])),
                 ),
             );
 
@@ -412,24 +413,20 @@ pub fn fragment(
                 );
             } else {
                 // Standard template case
-                let template_expr = transform_template(
+                let template_id_expr = transform_template(
                     &context.arena,
                     &mut context.state,
+                    "root",
                     parse_namespace(&namespace),
                     Some(flags),
                     None,
                 );
-                context.state.hoisted.push(b::var_decl(
-                    &context.arena,
-                    &template_name,
-                    Some(template_expr),
-                ));
                 context.state.init.insert(
                     0,
                     b::var_decl(
                         &context.arena,
                         &id_name,
-                        Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                        Some(b::call(&context.arena, template_id_expr, vec![])),
                     ),
                 );
             }
@@ -451,12 +448,7 @@ pub fn fragment(
     // Build the final body
     // Add snippets, let_directives, and consts (matches official Fragment.js line 154)
     body.extend(state.snippets);
-    body.extend(
-        state
-            .let_directives
-            .into_iter()
-            .map(JsStatement::Expression),
-    );
+    body.extend(state.let_directives);
     body.extend(state.consts);
 
     // Handle async_consts

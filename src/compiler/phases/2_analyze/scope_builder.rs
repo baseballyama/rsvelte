@@ -3079,6 +3079,7 @@ impl<'a> ScopeBuilder<'a> {
                 self.pop_scope(old_scope);
             }
             TemplateNode::ConstTag(tag) => self.visit_const_tag(tag),
+            TemplateNode::DeclarationTag(tag) => self.visit_declaration_tag(tag),
             // SvelteBoundary gets its own scope so that {@const} declarations
             // inside separate <svelte:boundary> blocks don't conflict.
             TemplateNode::SvelteBoundary(elem) => {
@@ -4663,6 +4664,178 @@ impl<'a> ScopeBuilder<'a> {
     /// Visit a const tag.
     ///
     /// {@const} tags declare a constant binding in the current scope.
+    /// Register bindings from a `{let x = …}` / `{const x = …}` declaration
+    /// tag (Svelte 5.56.0 #18282). Mirrors how `{@const}` registers the
+    /// declarator's identifiers; the binding kind upgrade for `$state` /
+    /// `$derived` initializers is performed by a separate pass that walks
+    /// instance-script-style declarators (the rune call already triggers
+    /// `analysis.runes = true` via `fragment_check_features`, and the
+    /// `process_binding_pattern_from_node` default of `Template` is what the
+    /// rest of the compiler treats reactive const-tag-like bindings as).
+    fn visit_declaration_tag(&mut self, tag: &crate::ast::template::DeclarationTag) {
+        use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
+
+        let node = tag.declaration.as_node();
+        let (declarators_typed, declarators_json, decl_kind) = match &*node {
+            JsNode::VariableDeclaration {
+                declarations, kind, ..
+            } => {
+                let dk = match kind.as_str() {
+                    "const" => DeclarationKind::Const,
+                    "var" => DeclarationKind::Var,
+                    _ => DeclarationKind::Let,
+                };
+                (Some(self.arena.get_js_children(*declarations)), None, dk)
+            }
+            JsNode::Raw(v) => {
+                let kind_str = v.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+                let dk = match kind_str {
+                    "const" => DeclarationKind::Const,
+                    "var" => DeclarationKind::Var,
+                    _ => DeclarationKind::Let,
+                };
+                let arr = v
+                    .get("declarations")
+                    .and_then(|d| d.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+                (None, Some(arr), dk)
+            }
+            _ => return,
+        };
+
+        if let Some(declarators) = declarators_typed {
+            for decl in declarators {
+                let Some(id_id) = decl.id() else { continue };
+                let id_node = self.arena.get_js_node(id_id);
+                let init_node = decl.init().map(|i| self.arena.get_js_node(i));
+                let binding_kind = init_node
+                    .map(|n| binding_kind_from_init_node(n, self.arena))
+                    .unwrap_or(BindingKind::Template);
+                self.declare_decl_tag_bindings_node(id_node, decl_kind, binding_kind);
+                if let Some(init) = init_node {
+                    self.set_const_tag_initial_typed(id_node, init);
+                }
+            }
+        } else if let Some(declarators) = declarators_json {
+            for declaration in declarators {
+                if let Some(id) = declaration.get("id") {
+                    let binding_kind = declaration
+                        .get("init")
+                        .filter(|i| !i.is_null())
+                        .map(binding_kind_from_init_json)
+                        .unwrap_or(BindingKind::Template);
+                    self.declare_decl_tag_bindings_json(id, decl_kind, binding_kind);
+                    if let Some(init) = declaration.get("init") {
+                        self.set_const_tag_initial(id, init);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Declare DeclarationTag pattern bindings with `BindingKind::Template`
+    /// (so the rest of the template-scope analysis treats them like
+    /// `{@const}` bindings) but carry the user-supplied `let` / `const` /
+    /// `var` keyword through as the `DeclarationKind`. The default
+    /// `process_binding_pattern_from_node` always emits `DeclarationKind::Const`,
+    /// which rejects subsequent `count += 1` assignments via the
+    /// `constant_assignment` validator.
+    fn declare_decl_tag_bindings_node(
+        &mut self,
+        pattern: &JsNode,
+        decl_kind: crate::compiler::phases::phase2_analyze::scope::DeclarationKind,
+        binding_kind: crate::compiler::phases::phase2_analyze::scope::BindingKind,
+    ) {
+        match pattern {
+            JsNode::Identifier { name, .. } => {
+                self.declare_binding(name.to_string(), binding_kind, decl_kind);
+            }
+            JsNode::ObjectPattern { properties, .. }
+            | JsNode::ObjectExpression { properties, .. } => {
+                for prop in self.arena.get_js_children(*properties) {
+                    if let Some(value_id) = prop.value_node() {
+                        self.declare_decl_tag_bindings_node(
+                            self.arena.get_js_node(value_id),
+                            decl_kind,
+                            binding_kind,
+                        );
+                    }
+                }
+            }
+            JsNode::ArrayPattern { elements, .. } | JsNode::ArrayExpression { elements, .. } => {
+                for elem in elements.iter().flatten() {
+                    self.declare_decl_tag_bindings_node(elem, decl_kind, binding_kind);
+                }
+            }
+            JsNode::AssignmentPattern { left, .. } => {
+                self.declare_decl_tag_bindings_node(
+                    self.arena.get_js_node(*left),
+                    decl_kind,
+                    binding_kind,
+                );
+            }
+            JsNode::RestElement { argument, .. } => {
+                self.declare_decl_tag_bindings_node(
+                    self.arena.get_js_node(*argument),
+                    decl_kind,
+                    binding_kind,
+                );
+            }
+            JsNode::Raw(v) => {
+                self.declare_decl_tag_bindings_json(v, decl_kind, binding_kind);
+            }
+            _ => {}
+        }
+    }
+
+    fn declare_decl_tag_bindings_json(
+        &mut self,
+        pattern: &serde_json::Value,
+        decl_kind: crate::compiler::phases::phase2_analyze::scope::DeclarationKind,
+        binding_kind: crate::compiler::phases::phase2_analyze::scope::BindingKind,
+    ) {
+        let Some(node_type) = pattern.get("type").and_then(|t| t.as_str()) else {
+            return;
+        };
+        match node_type {
+            "Identifier" => {
+                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    self.declare_binding(name.to_string(), binding_kind, decl_kind);
+                }
+            }
+            "ObjectPattern" => {
+                if let Some(props) = pattern.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        if let Some(value) = prop.get("value") {
+                            self.declare_decl_tag_bindings_json(value, decl_kind, binding_kind);
+                        }
+                    }
+                }
+            }
+            "ArrayPattern" => {
+                if let Some(elems) = pattern.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elems {
+                        if !elem.is_null() {
+                            self.declare_decl_tag_bindings_json(elem, decl_kind, binding_kind);
+                        }
+                    }
+                }
+            }
+            "AssignmentPattern" => {
+                if let Some(left) = pattern.get("left") {
+                    self.declare_decl_tag_bindings_json(left, decl_kind, binding_kind);
+                }
+            }
+            "RestElement" => {
+                if let Some(argument) = pattern.get("argument") {
+                    self.declare_decl_tag_bindings_json(argument, decl_kind, binding_kind);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn visit_const_tag(&mut self, tag: &ConstTag) {
         // Get the declaration from the const tag
         // The declaration can be either:
@@ -4878,6 +5051,103 @@ impl<'a> ScopeBuilder<'a> {
 ///
 /// Used by `promote_each_collection_bindings_if_updated` to extract identifiers
 /// from a collection expression so their bindings can be promoted to State kind.
+/// Decide the binding kind for a `{let x = <init>}` / `{const x = <init>}`
+/// declaration tag from its typed init AST. Mirrors the OXC-side
+/// `detect_binding_kind_from_expr` for the rune-call recognition path: a
+/// bare `$state(...)` / `$state.raw(...)` / `$derived(...)` /
+/// `$derived.by(...)` call upgrades the binding kind to State / RawState /
+/// Derived so the rest of the analyze + transform pipeline knows to wrap
+/// reads with `$.get(...)` and writes with `$.set(...)`.
+fn binding_kind_from_init_node(
+    node: &JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> crate::compiler::phases::phase2_analyze::scope::BindingKind {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+    if let JsNode::CallExpression { callee, .. } = node {
+        let callee_node = arena.get_js_node(*callee);
+        match callee_node {
+            JsNode::Identifier { name, .. } => match name.as_str() {
+                "$state" => return BindingKind::State,
+                "$derived" => return BindingKind::Derived,
+                _ => {}
+            },
+            JsNode::MemberExpression {
+                object,
+                property,
+                computed: false,
+                ..
+            } => {
+                let obj_node = arena.get_js_node(*object);
+                let prop_node = arena.get_js_node(*property);
+                if let (
+                    JsNode::Identifier { name: obj_name, .. },
+                    JsNode::Identifier {
+                        name: prop_name, ..
+                    },
+                ) = (obj_node, prop_node)
+                {
+                    match (obj_name.as_str(), prop_name.as_str()) {
+                        ("$state", "raw") => return BindingKind::RawState,
+                        ("$derived", "by") => return BindingKind::Derived,
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    BindingKind::Template
+}
+
+/// JSON-shape fallback of `binding_kind_from_init_node`.
+fn binding_kind_from_init_json(
+    init: &serde_json::Value,
+) -> crate::compiler::phases::phase2_analyze::scope::BindingKind {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+    if init.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
+        return BindingKind::Template;
+    }
+    let Some(callee) = init.get("callee") else {
+        return BindingKind::Template;
+    };
+    match callee.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => match callee.get("name").and_then(|n| n.as_str()) {
+            Some("$state") => BindingKind::State,
+            Some("$derived") => BindingKind::Derived,
+            _ => BindingKind::Template,
+        },
+        Some("MemberExpression") => {
+            let computed = callee
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed {
+                return BindingKind::Template;
+            }
+            let obj = callee.get("object").and_then(|o| {
+                if o.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    o.get("name").and_then(|n| n.as_str())
+                } else {
+                    None
+                }
+            });
+            let prop = callee.get("property").and_then(|p| {
+                if p.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    p.get("name").and_then(|n| n.as_str())
+                } else {
+                    None
+                }
+            });
+            match (obj, prop) {
+                (Some("$state"), Some("raw")) => BindingKind::RawState,
+                (Some("$derived"), Some("by")) => BindingKind::Derived,
+                _ => BindingKind::Template,
+            }
+        }
+        _ => BindingKind::Template,
+    }
+}
+
 fn collect_identifiers_from_json(val: &serde_json::Value, result: &mut Vec<String>) {
     match val {
         serde_json::Value::Object(obj) => {

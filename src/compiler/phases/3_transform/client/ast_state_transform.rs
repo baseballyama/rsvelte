@@ -1554,19 +1554,15 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let inner_expr = strip_top_level_await_from_expr(walked_for_emit);
             let inner_trimmed = inner_expr.trim();
             let inner_has_nested_await = contains_direct_await_in_expression(inner_trimmed);
-            // Upstream (Svelte 5.55.9 `000c594e0`) lowers `$derived(await ...)`
-            // inside a *nested* instance-script function to
-            //   (await $.save($.async_derived(...)))()
-            // instead of the bare `await $.async_derived(...)` form used at
-            // the instance-script root and in module scripts. The decision is
-            // `is_instance && function_depth > 1`. rsvelte's instance-script
-            // visitor walks the user's script *contents* (the surrounding
-            // component function body is supplied later by the wrap pass),
-            // so its `function_depth == 0` corresponds to upstream's
-            // `function_depth == 1` (instance script root) and any nested
-            // function/arrow within the instance script bumps us to
-            // `function_depth >= 1`, matching upstream's `> 1`.
-            let should_save = self.function_depth >= 1;
+            // Svelte 5.56.0 (#18299 commit `0da9f9e2a` "fix: disallow effect
+            // creation after `await`") removed the `should_save` branch from
+            // VariableDeclaration.js entirely — every `$derived(await ...)`
+            // now lowers to a plain `await $.async_derived(...)` regardless of
+            // function depth. The old `(await $.save($.async_derived(...)))()`
+            // wrap (5.55.9-era) is gone; effects scheduled after an await
+            // boundary inside a deriver are now an error rather than a
+            // silently-restored context. Keep `should_save = false` for parity.
+            let should_save = false;
             let async_derived_call = if inner_has_nested_await {
                 let is_obj = walked_for_emit.starts_with('{');
                 if is_obj {
@@ -1584,9 +1580,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 }
             };
             let replacement = if should_save {
-                // `save(call)` in upstream `utils/ast.js` returns
-                // `b.call(b.await(b.call('$.save', call)))` — i.e.
-                // `(await $.save(<async_derived_call>))()`.
+                // Unreachable post-5.56.0; kept inert to mirror the upstream
+                // structure of `should_save ? save(call) : b.await(call)`.
                 format!("(await $.save({}))()", async_derived_call)
             } else {
                 format!("await {}", async_derived_call)

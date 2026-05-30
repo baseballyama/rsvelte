@@ -9,7 +9,7 @@ use crate::compiler::phases::phase3_transform::client::types::{
 };
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsTemplateLiteral};
 
 // Constants from svelte/packages/svelte/src/constants.js
 const TEMPLATE_USE_SVG: u32 = 1 << 2;
@@ -71,15 +71,25 @@ fn build_locations(nodes: &[Node], locator: &Locator) -> JsExpr {
 
 /// Transform template to client-side code.
 ///
+/// Mirrors `transform_template` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-template/index.js`
+/// (post-#18320). The hoisted `var <id> = $.from_html(...)` declaration is now
+/// pushed onto `state.hoisted` here, and identical templates within the same
+/// component are shared via `state.templates`. The returned identifier is what
+/// callers wrap in `<id>()` to instantiate the template.
+///
 /// # Arguments
 ///
+/// * `arena` - JS AST arena
 /// * `state` - Component client transform state
+/// * `base_name` - Preferred base for the hoisted identifier (typically `"root"`)
 /// * `namespace` - Element namespace (html, svg, mathml)
 /// * `flags` - Optional flags for template creation
 /// * `locator` - Optional locator function for dev mode
 pub fn transform_template<'a>(
     arena: &JsArena,
     state: &mut ComponentClientTransformState<'a>,
+    base_name: &str,
     namespace: Namespace,
     flags: Option<u32>,
     locator: Option<&Locator>,
@@ -100,6 +110,23 @@ pub fn transform_template<'a>(
         if namespace == Namespace::Mathml {
             current_flags |= TEMPLATE_USE_MATHML;
         }
+    }
+
+    // Dedup key for non-tree, non-dev templates. Tree-mode templates can
+    // contain object expressions that are not safe to compare as strings, and
+    // dev-mode templates are wrapped in per-call-site `$.add_locations`.
+    // Skipped when `contains_script_tag` is set so the `$.with_script` wrap is
+    // preserved per-template rather than reused across non-script call sites.
+    let key = if tree || state.options.dev || state.template.contains_script_tag {
+        None
+    } else {
+        get_template_key(&expression, namespace, current_flags)
+    };
+
+    if let Some(ref k) = key
+        && let Some(existing) = state.templates.borrow().get(k)
+    {
+        return b::id(existing);
     }
 
     let function_name = if tree {
@@ -166,7 +193,33 @@ pub fn transform_template<'a>(
         );
     }
 
-    call
+    let id_name = state.memoizer.generate_id(base_name);
+    state.hoisted.push(b::var_decl(arena, &id_name, Some(call)));
+
+    if let Some(k) = key {
+        state.templates.borrow_mut().insert(k, id_name.clone());
+    }
+
+    b::id(&id_name)
+}
+
+/// Returns a stable key for templates that are safe to deduplicate — plain
+/// `$.from_html`/`$.from_svg`/`$.from_mathml` factories with a single literal
+/// template quasi — or `None` for anything else.
+fn get_template_key(expression: &JsExpr, namespace: Namespace, flags: u32) -> Option<String> {
+    let template: &JsTemplateLiteral = match expression {
+        JsExpr::TemplateLiteral(t) => t,
+        _ => return None,
+    };
+    if !template.expressions.is_empty() || template.quasis.len() != 1 {
+        return None;
+    }
+    Some(format!(
+        "{} {} {}",
+        namespace.as_str(),
+        flags,
+        template.quasis[0].raw
+    ))
 }
 
 #[cfg(test)]

@@ -1962,17 +1962,187 @@ fn transform_client_with_visitors(
     let _codegen_start = super::profile::timer_start();
     if options.enable_sourcemap {
         let r = generate_with_sourcemap(&program, source, &context.arena)
-            .map_err(TransformError::CodeGen);
+            .map_err(TransformError::CodeGen)
+            .map(|mut result| {
+                result.code = hoist_rest_excludes(&result.code);
+                result
+            });
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         r
     } else {
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
-            code,
+            code: hoist_rest_excludes(&code),
             mappings: vec![],
         })
     }
+}
+
+/// Hoist `$.rest_props($$props, [...])` inline exclude arrays to module-scope
+/// `var rest_excludes_N = new Set([...])` declarations and replace the inline
+/// arrays with identifier references. Mirrors Svelte 5.56.0 #18252.
+///
+/// Operates as a post-process pass on the generated source because the
+/// `transform_props_destructuring` text helper emits its `$.rest_props(...)`
+/// shape lazily inside the AST visitor, so the existing AST-level
+/// `state.hoisted` channel is not available at that emission site. Legacy
+/// `$.legacy_rest_props($$sanitized_props, [...])` calls are intentionally
+/// left untouched — that runtime mutates the exclude list in its
+/// `deleteProperty` trap and so cannot share a hoisted Set across instances
+/// (matches the upstream commit's explicit carve-out).
+fn hoist_rest_excludes(code: &str) -> String {
+    let needle = "$.rest_props($$props, [";
+    if !code.contains(needle) {
+        return code.to_string();
+    }
+
+    let bytes = code.as_bytes();
+    let mut hoists: Vec<String> = Vec::new();
+    let mut replacements: Vec<(usize, usize, String)> = Vec::new();
+    let mut search_start = 0usize;
+    let mut counter: usize = 0;
+    // Pre-seed conflicts with any existing `rest_excludes` identifier in the
+    // source so we don't collide with user code or future emission sites.
+    let mut taken: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
+    {
+        let mut i = 0usize;
+        while let Some(pos) = code[i..].find("rest_excludes") {
+            let abs = i + pos;
+            let after = abs + "rest_excludes".len();
+            // Capture optional `_N` suffix.
+            let mut end = after;
+            if end < bytes.len() && bytes[end] == b'_' {
+                end += 1;
+                while end < bytes.len() && bytes[end].is_ascii_digit() {
+                    end += 1;
+                }
+            }
+            // Only collect when preceded by a non-identifier boundary.
+            let prev_ok = abs == 0 || !is_ident_char(bytes[abs - 1]);
+            if prev_ok {
+                taken.insert(code[abs..end].to_string());
+            }
+            i = end;
+        }
+    }
+
+    while let Some(rel) = code[search_start..].find(needle) {
+        let call_start = search_start + rel;
+        let array_open = call_start + needle.len() - 1; // points at '['
+        let Some(array_close_rel) = code[array_open + 1..].find(']') else {
+            break;
+        };
+        let array_close = array_open + 1 + array_close_rel;
+        // Ensure the very next char after ']' is ')' so we know the array is
+        // the second argument and there are no further parts.
+        if bytes.get(array_close + 1).copied() != Some(b')') {
+            search_start = array_close + 1;
+            continue;
+        }
+        let array_text = &code[array_open..=array_close]; // includes [ ... ]
+
+        // Allocate a unique `rest_excludes[_N]` name.
+        let id = loop {
+            let candidate = if counter == 0 {
+                "rest_excludes".to_string()
+            } else {
+                format!("rest_excludes_{}", counter)
+            };
+            counter += 1;
+            if !taken.contains(&candidate) {
+                taken.insert(candidate.clone());
+                break candidate;
+            }
+        };
+
+        hoists.push(format!("var {} = new Set({});", id, array_text));
+        // Replace the inline `[...]` with the identifier inside the call.
+        replacements.push((array_open, array_close + 1, id));
+        search_start = array_close + 2; // skip past `])`
+    }
+
+    if hoists.is_empty() {
+        return code.to_string();
+    }
+
+    // Apply replacements right-to-left to preserve indices.
+    let mut out = code.to_string();
+    for (start, end, id) in replacements.into_iter().rev() {
+        out.replace_range(start..end, &id);
+    }
+
+    // Inject hoists at module scope, just before the first non-import line.
+    // Upstream lays them out as: imports, then a blank line, then each `var`
+    // on its own line followed by a blank line, then the component function.
+    let injection_point = find_module_scope_injection_point(&out);
+    let mut injection = String::new();
+    for h in &hoists {
+        injection.push_str(h);
+        injection.push_str("\n\n");
+    }
+    out.insert_str(injection_point, &injection);
+    out
+}
+
+fn is_ident_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Find the byte offset at which to inject module-scope hoists. The hoisted
+/// `var rest_excludes = new Set(...)` declarations belong inside the
+/// `state.hoisted` region of the assembled module — after any
+/// custom-element IIFE and module-script preamble, but immediately before the
+/// first `$.from_html` / `$.from_svg` / `$.from_mathml` / `$.from_tree`
+/// template factory declaration so the layout matches upstream's
+/// `state.hoisted.push(...)` ordering.
+///
+/// Search order:
+/// 1. First `var <id> = $.from_html(` / `$.from_svg(` / `$.from_mathml(` /
+///    `$.from_tree(` line at module scope (start of line indentation), insert
+///    before it.
+/// 2. Fall back to start of the line containing the first `export default`.
+/// 3. Final fallback: end of source.
+fn find_module_scope_injection_point(code: &str) -> usize {
+    const FACTORY_NEEDLES: &[&str] = &[
+        "= $.from_html(",
+        "= $.from_svg(",
+        "= $.from_mathml(",
+        "= $.from_tree(",
+    ];
+
+    let mut best: Option<usize> = None;
+    for needle in FACTORY_NEEDLES {
+        if let Some(pos) = code.find(needle)
+            && let Some(line_start) = line_start_of(code, pos)
+            && best.map_or(true, |b| line_start < b)
+        {
+            best = Some(line_start);
+        }
+    }
+    if let Some(p) = best {
+        return p;
+    }
+
+    if let Some(pos) = code.find("\nexport default ") {
+        return pos + 1;
+    }
+    if code.starts_with("export default ") {
+        return 0;
+    }
+    code.len()
+}
+
+fn line_start_of(code: &str, pos: usize) -> Option<usize> {
+    let bytes = code.as_bytes();
+    if pos > bytes.len() {
+        return None;
+    }
+    let mut i = pos;
+    while i > 0 && bytes[i - 1] != b'\n' {
+        i -= 1;
+    }
+    Some(i)
 }
 
 // ============================================================================
@@ -3065,6 +3235,21 @@ fn transform_destructured_state_assignments(
 
 /// Transform instance script content for the visitor-based code generation.
 /// Handles $state, $derived, $effect, $props transformations.
+/// Public wrapper around the instance-script rune-rewrite pipeline. Used by
+/// the `DeclarationTag` template-tag visitor to lower a single inline
+/// `{let x = $state(1)}` / `{const x = $derived(…)}` declaration through the
+/// same `$state` / `$derived` / reactive-identifier rewrites the instance
+/// script gets, so the synchronous form lands the same `$.state(...)` /
+/// `$.derived(() => …)` / `$.get(...)` output upstream produces.
+pub(crate) fn transform_instance_script_for_visitors_pub(
+    script: &str,
+    analysis: &ComponentAnalysis,
+    dev: bool,
+    reactive_import_names: &[String],
+) -> String {
+    transform_instance_script_for_visitors(script, analysis, dev, reactive_import_names)
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,

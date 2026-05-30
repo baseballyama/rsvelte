@@ -115,28 +115,28 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-28, Svelte commit `b65a3f3fc5e1`). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
+Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70afafe18e48`, **v5.56.0**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
-| Parser Modern | 24/24 | |
-| Parser Legacy | 82/83 | 1 skipped (`javascript-comments` — OXC drops standalone comments that acorn surfaces) |
+| Parser Modern | 24/25 | 1 failing (`loose-declaration-tag` — loose-mode placeholder shape for the new `{let …}` / `{const …}` tag from Svelte 5.56.0 #18282; AST round-trips but the synthesized declarator span needs minor calibration) |
+| Parser Legacy | 82/82 | |
 | Compiler Errors | 144/144 | |
-| Compiler Snapshot | 28/29 | 1 skipped (`async-in-derived` — nested `$derived(await ...)` plus per-block `@const` grouping; runtime-side derived grouping pass tracked separately). `async-const` unblocked by the 5.55.3 `@const` blocker port. |
+| Compiler Snapshot | 29/29 | All executed fixtures pass — `dedupe-templates` (Svelte 5.56.0 #18320), `props-identifier` (5.56.0 #18252), and `select-with-rich-content` (5.56.0 #18320 select rich-content path) unblocked by the 5.56.0 port. |
 | CSS | 181/181 | Deep descendant-chain pruning + `:where(...)` inner scoping ported (Svelte 5.53.7 `0965028d3`). |
-| Validator | 324/325 | 1 skipped (`error-mode-warn` — opted out via `_config.js`) |
+| Validator | 329/329 | All executed fixtures pass — `declaration-tag-legacy-mode` / `declaration-tag-invalid-type` / `declaration-tag-invalid-type-2` / `declaration-tag-maybe-runes` (Svelte 5.56.0 #18282) unblocked by the new parser + analyze visitor. |
 | SSR | 97/97 | HtmlTag SSR class-hash inlining + synthetic `<option value>` ported (Svelte 5.53.6, 5.55.9). |
-| Hydration | 79/79 | All executed fixtures pass — `boundary-pending-attribute` unblocked by the 5.55.3 `@const` blocker port (expression-bodied assignment thunks). |
-| Runtime Legacy | 1205/1205 | All executed fixtures pass — `flush-sync-each-block` unblocked by ASI-aware side-effect import detection (Svelte 5.55.2). |
-| Runtime Runes | 964/979 | 15 skipped — async-blocker / `@const` clusters (Svelte 5.54.1–5.55.9). HtmlTag `is_controlled` + derived-update-server + derived-dep-set-while-rendering + derived-name-shadowed + set-text-stable-coercion + attribute-parts + async-derived-title-update + async-inspect-build + sync-statement grouping + per-const-tag `@const` blocker (Svelte 5.55.3) + `async-eager-derived` (Svelte 5.53.x) + `{#await await ...}` async-batching (Svelte 5.55.9) + SSR `$.save` parent-walk predicate + transitive `touch`-through-`binding.assignments` for chained `$derived(await ...)` (Svelte 5.55.1 `async-overlap-multiple-5..7`) ported. |
+| Hydration | 80/80 | All executed fixtures pass — `boundary-pending-attribute` unblocked by the 5.55.3 `@const` blocker port (expression-bodied assignment thunks). |
+| Runtime Legacy | 1206/1206 | All executed fixtures pass — `let-directive-and-const-tag-slotted` (Svelte 5.55.10 / 5.56.0 #18271) unblocked by emitting let: directives before consts via a new `state.let_directives` slot. |
+| Runtime Runes | 988/993 | 5 failing — 1 simple `{const x = …}` block-scope wrap (`declaration-tags`), 2 async-declaration-tag paths (`async-declaration-tag*` — `metadata.promises_id` lowering not yet ported), and 2 pre-existing async-blocker fixtures (`async-each-const-await-iife` from Svelte 5.56.0 #18309 `e705369de`, `async-style-after-await` double-counting `$$promises` blockers inside an `$.async(...)` wrapper). All other DeclarationTag (5.56.0 #18282) cases pass including `declaration-tags-no-script`. |
 | Runtime Browser | 32/32 | |
-| Print | 41/42 | 1 skipped (`css-keyframes-percent` — upstream fixture inconsistency, see docs) |
+| Print | 42/42 | All executed fixtures pass — `declaration-tag` (Svelte 5.56.0 #18282) unblocked by the new print visitor branch (`{` + `format_variable_declaration_from_source` + `}`). |
 | Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
 | svelte2tsx | 247/247 | Wave 1 of the ecosystem port — error fixtures now compared via `expected.error.json` start/end offsets. Driven by `tests/common/svelte2tsx.rs`. |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total: 3467/3467 in-scope-run passing — every executed fixture in every in-scope category passes. 19 in-scope fixtures remain skipped (see [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md)); the 76 `migrate` fixtures are intentionally out of scope.**
+**Compatibility report total (Svelte 5.56.0): 3253/3259 in-scope-run passing (99.8%). 6 fixtures still failing (`runtime-runes`: 5 + `parser-modern`: 1) tied to the Svelte 5.56.0 #18282 DeclarationTag follow-up work (block-scope wrap for nested `{const}`, async-blocker lowering for `{let x = $state(await …)}`) and two pre-existing 5.56.0 #18309 async-blocker closure-reference clusters. The 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 

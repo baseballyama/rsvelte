@@ -893,6 +893,9 @@ fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut F
         TemplateNode::ConstTag(tag) => {
             collect_dollar_refs_from_expression(&tag.declaration, source, refs);
         }
+        TemplateNode::DeclarationTag(tag) => {
+            collect_dollar_refs_from_expression(&tag.declaration, source, refs);
+        }
         TemplateNode::DebugTag(tag) => {
             for ident in &tag.identifiers {
                 collect_dollar_refs_from_expression(ident, source, refs);

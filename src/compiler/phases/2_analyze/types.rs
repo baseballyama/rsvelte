@@ -1427,6 +1427,12 @@ pub struct ComponentAnalysis {
     /// Whether the component might use runes
     pub maybe_runes: bool,
 
+    /// Pre-computed result of `instance_has_legacy_patterns(ast)` — set
+    /// during analyze BEFORE template visitors run so visitors like
+    /// `DeclarationTag` (Svelte 5.56.0 #18282) can make a maybe_runes
+    /// decision without waiting for the post-walk reconciliation.
+    pub instance_has_legacy_patterns: bool,
+
     /// Whether the component uses $$props
     pub uses_props: bool,
 
@@ -1631,6 +1637,7 @@ impl ComponentAnalysis {
             experimental_async: options.experimental.r#async,
             has_await: false,
             maybe_runes: false,
+            instance_has_legacy_patterns: false,
             uses_props: false,
             uses_rest_props: false,
             uses_slots: false,

@@ -174,6 +174,7 @@ impl Parser<'_> {
                 TemplateNode::ExpressionTag(e) => e.end,
                 TemplateNode::HtmlTag(h) => h.end,
                 TemplateNode::ConstTag(c) => c.end,
+                TemplateNode::DeclarationTag(d) => d.end,
                 TemplateNode::DebugTag(d) => d.end,
                 TemplateNode::RenderTag(r) => r.end,
                 TemplateNode::AttachTag(a) => a.end,

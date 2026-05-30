@@ -163,6 +163,7 @@ fn node_type_string(node: &TemplateNode) -> String {
         TemplateNode::ExpressionTag(_) => "ExpressionTag".to_string(),
         TemplateNode::HtmlTag(_) => "HtmlTag".to_string(),
         TemplateNode::ConstTag(_) => "ConstTag".to_string(),
+        TemplateNode::DeclarationTag(_) => "DeclarationTag".to_string(),
         TemplateNode::DebugTag(_) => "DebugTag".to_string(),
         TemplateNode::RenderTag(_) => "RenderTag".to_string(),
         TemplateNode::AttachTag(_) => "AttachTag".to_string(),

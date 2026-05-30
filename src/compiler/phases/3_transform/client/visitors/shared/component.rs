@@ -2190,6 +2190,7 @@ fn visit_slot_children(
     let saved_node = context.state.node.clone();
     let saved_hoisted = std::mem::take(&mut context.state.hoisted);
     let saved_consts = std::mem::take(&mut context.state.consts);
+    let saved_let_directives = std::mem::take(&mut context.state.let_directives);
     let saved_async_consts = context.state.async_consts.take();
     let saved_is_standalone = context.state.is_standalone;
     context.state.is_standalone = false;
@@ -2217,11 +2218,10 @@ fn visit_slot_children(
     // per Fragment.js order: init -> update -> after_update -> close
     let mut close_statement: Option<JsStatement> = None;
 
-    // Reserve a template name BEFORE processing children, matching the official
-    // compiler's Fragment.js line 55: `const template_name = context.state.scope.root.unique('root')`
-    // This ensures the numbering is consistent even when the template isn't used
-    // (e.g., text-only slots still consume a root_N name).
-    let template_name = context.state.memoizer.generate_id("root");
+    // Post-Svelte 5.56.0 (#18320): the hoisted template identifier is now
+    // allocated lazily inside `transform_template`, so we don't reserve a
+    // "root" slot speculatively here. Slots that need no template don't burn a
+    // name, and identical templates across siblings share one hoisted factory.
 
     // Check if single element (mirrors Fragment.js line 47)
     let is_single_element = cleaned.trimmed.len() == 1
@@ -2257,27 +2257,24 @@ fn visit_slot_children(
             };
 
             // Build the template expression using transform_template
-            // which handles dev mode $.add_locations wrapping
-            let template_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+            // which handles dev mode $.add_locations wrapping, lazy id naming
+            // and template dedup (Svelte 5.56.0 #18320).
+            let template_id_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
                 &context.arena,
                 &mut context.state,
+                "root",
                 namespace,
                 None,
                 None,
             );
-            context.state.hoisted.push(b::var_decl(
-                &context.arena,
-                &template_name,
-                Some(template_expr),
-            ));
 
-            // Add: var id = template_name();
+            // Add: var <id_name> = root();
             context.state.init.insert(
                 0,
                 b::var_decl(
                     &context.arena,
                     &id_name,
-                    Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                    Some(b::call(&context.arena, template_id_expr, vec![])),
                 ),
             );
 
@@ -2521,25 +2518,21 @@ fn visit_slot_children(
                     flags |= 2; // TEMPLATE_USE_IMPORT_NODE
                 }
 
-                let template_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+                let template_id_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
                     &context.arena,
                     &mut context.state,
+                    "root",
                     namespace,
                     Some(flags),
                     None,
                 );
-                context.state.hoisted.push(b::var_decl(
-                    &context.arena,
-                    &template_name,
-                    Some(template_expr),
-                ));
 
                 context.state.init.insert(
                     0,
                     b::var_decl(
                         &context.arena,
                         &fragment_id_name,
-                        Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                        Some(b::call(&context.arena, template_id_expr, vec![])),
                     ),
                 );
             }
@@ -2580,6 +2573,14 @@ fn visit_slot_children(
     // body.push(close);
 
     let mut result: Vec<JsStatement> = Vec::new();
+
+    // Emit `let:` directive declarations BEFORE `{@const}` declarations so
+    // `{@const}` bodies can reference let: bindings on slotted elements.
+    // Mirrors Svelte 5.55.10 / 5.56.0 #18271 fix (Fragment.js ordering:
+    // `body.push(...state.snippets, ...state.let_directives, ...state.consts)`).
+    let slot_let_directives =
+        std::mem::replace(&mut context.state.let_directives, saved_let_directives);
+    result.extend(slot_let_directives);
 
     // Add consts (from ConstTag declarations) before init
     // This mirrors Fragment.js line 159: body.push(...state.consts)

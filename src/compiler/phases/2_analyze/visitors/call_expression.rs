@@ -734,6 +734,18 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
 /// }
 /// ```
 fn is_state_or_derived_valid_placement(context: &VisitorContext) -> bool {
+    // DeclarationTag (`{let x = $state(...)}` / `{const x = $derived(...)}`,
+    // Svelte 5.56.0 #18282) is a valid placement regardless of the immediate
+    // JS-AST parent shape: the analyze visitor walks the init expression
+    // directly via `walk_js_expression_node`, so `get_parent` may not surface
+    // the synthesized VariableDeclarator. Checking the template path here
+    // covers both the modern (typed-AST) and JSON-fallback walk paths.
+    for node in &context.path {
+        if matches!(node, crate::ast::template::TemplateNode::DeclarationTag(_)) {
+            return true;
+        }
+    }
+
     let parent = match get_parent(context, 1) {
         Some(p) => p,
         None => return false,
@@ -743,7 +755,12 @@ fn is_state_or_derived_valid_placement(context: &VisitorContext) -> bool {
 
     match parent_type {
         Some("VariableDeclarator") => {
-            // Check not in ConstTag
+            // `{@const x = $state(...)}` is rejected — `{@const}` declarations
+            // hold an `AssignmentExpression`, not a `VariableDeclarator`, but
+            // visitors that synthesize a declarator (`build_const_variable_declaration`)
+            // can land us here. `{let x = $state(...)}` / `{const x = $state(...)}`
+            // (DeclarationTag, Svelte 5.56.0 #18282) are explicitly allowed —
+            // they're the canonical template-side declaration form.
             for node in &context.path {
                 if matches!(node, crate::ast::template::TemplateNode::ConstTag(_)) {
                     return false;

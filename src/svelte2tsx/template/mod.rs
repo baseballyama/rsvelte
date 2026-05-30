@@ -64,6 +64,7 @@ impl TemplateNodeExt for TemplateNode {
             TemplateNode::ExpressionTag(n) => n.start,
             TemplateNode::HtmlTag(n) => n.start,
             TemplateNode::ConstTag(n) => n.start,
+            TemplateNode::DeclarationTag(n) => n.start,
             TemplateNode::DebugTag(n) => n.start,
             TemplateNode::RenderTag(n) => n.start,
             TemplateNode::AttachTag(n) => n.start,
@@ -96,6 +97,7 @@ impl TemplateNodeExt for TemplateNode {
             TemplateNode::ExpressionTag(n) => n.end,
             TemplateNode::HtmlTag(n) => n.end,
             TemplateNode::ConstTag(n) => n.end,
+            TemplateNode::DeclarationTag(n) => n.end,
             TemplateNode::DebugTag(n) => n.end,
             TemplateNode::RenderTag(n) => n.end,
             TemplateNode::AttachTag(n) => n.end,
@@ -546,6 +548,7 @@ fn process_node_inplace(
         TemplateNode::ExpressionTag(expr) => handle_expression_tag(expr, source, str),
         TemplateNode::HtmlTag(html) => handle_html_tag(html, source, str),
         TemplateNode::ConstTag(tag) => handle_const_tag(tag, source, str),
+        TemplateNode::DeclarationTag(tag) => handle_declaration_tag(tag, source, str),
         TemplateNode::DebugTag(tag) => handle_debug_tag(tag, source, str),
         TemplateNode::RenderTag(tag) => handle_render_tag(tag, source, str),
         TemplateNode::AttachTag(tag) => handle_attach_tag(tag, str),
@@ -688,6 +691,38 @@ fn handle_const_tag(tag: &ConstTag, _source: &str, str: &mut MagicString) {
             str.overwrite(tag.start, decl_start, "const ");
         }
         // Overwrite closing `}` with `;`
+        if decl_end < tag.end {
+            str.overwrite(decl_end, tag.end, ";");
+        }
+    } else {
+        str.overwrite(tag.start, tag.end, " ");
+    }
+}
+
+/// Handle a declaration tag: `{let x = expr}` / `{const x = expr}`
+/// (Svelte 5.56.0 #18282).
+///
+/// In TSX output the declaration is emitted as a regular `let` / `const`
+/// statement, mirroring `{@const}` handling. The leading `{` becomes the
+/// declaration kind keyword and a trailing space, and the closing `}` becomes
+/// `;` so the resulting code is parseable TS at the spot where the user wrote
+/// the tag.
+fn handle_declaration_tag(
+    tag: &crate::ast::template::DeclarationTag,
+    _source: &str,
+    str: &mut MagicString,
+) {
+    if tag.start >= tag.end {
+        return;
+    }
+    if let Some((decl_start, decl_end)) = get_expression_range(&tag.declaration) {
+        // Overwrite the opening `{` (and any whitespace before the kind
+        // keyword) with no leading prefix — the source already contains the
+        // `let ` / `const ` keyword. Just drop the `{`.
+        if tag.start < decl_start {
+            str.overwrite(tag.start, decl_start, "");
+        }
+        // Overwrite closing `}` with `;`.
         if decl_end < tag.end {
             str.overwrite(decl_end, tag.end, ";");
         }

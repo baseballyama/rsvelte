@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-05-28T09:09:56.824251+00:00",
-  "commit_sha": "b65a3f3fc5e1",
+  "generated_at": "2026-05-30T12:34:51.325883502+00:00",
+  "commit_sha": "70afafe18e48",
   "summary": {
-    "total": 3562,
-    "passed": 3447,
-    "failed": 0,
-    "skipped": 115,
-    "percentage": 100
+    "total": 3339,
+    "passed": 3253,
+    "failed": 6,
+    "skipped": 80,
+    "percentage": 99.81589444614912
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
-      "total": 24,
+      "total": 25,
       "passed": 24,
-      "failed": 0,
+      "failed": 1,
       "skipped": 0,
-      "percentage": 100,
+      "percentage": 96,
       "tests": [
         {
           "name": "snippets",
@@ -113,6 +113,11 @@
         {
           "name": "if-block-elseif",
           "status": "pass"
+        },
+        {
+          "name": "loose-declaration-tag",
+          "status": "fail",
+          "error_message": "AST mismatch"
         }
       ]
     },
@@ -463,8 +468,8 @@
     {
       "id": "snapshot",
       "name": "Compiler Snapshot",
-      "total": 29,
-      "passed": 28,
+      "total": 30,
+      "passed": 29,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -580,6 +585,10 @@
         },
         {
           "name": "props-identifier",
+          "status": "pass"
+        },
+        {
+          "name": "dedupe-templates",
           "status": "pass"
         },
         {
@@ -1326,8 +1335,8 @@
     {
       "id": "validator",
       "name": "Validator",
-      "total": 325,
-      "passed": 324,
+      "total": 330,
+      "passed": 329,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -1613,6 +1622,10 @@
           "status": "pass"
         },
         {
+          "name": "declaration-tag-legacy-mode",
+          "status": "pass"
+        },
+        {
           "name": "ignore-warnings-stacked",
           "status": "pass"
         },
@@ -1739,6 +1752,10 @@
         },
         {
           "name": "component-slotted-custom-element-2",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-invalid-function",
           "status": "pass"
         },
         {
@@ -1903,6 +1920,10 @@
         },
         {
           "name": "a11y-autocomplete-valid",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-invalid-type",
           "status": "pass"
         },
         {
@@ -2259,6 +2280,10 @@
         },
         {
           "name": "transition-on-component",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-maybe-runes",
           "status": "pass"
         },
         {
@@ -2619,6 +2644,10 @@
         },
         {
           "name": "assignment-to-const-4",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-invalid-type-2",
           "status": "pass"
         },
         {
@@ -3225,11 +3254,11 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 979,
-      "passed": 944,
-      "failed": 0,
-      "skipped": 35,
-      "percentage": 100,
+      "total": 993,
+      "passed": 988,
+      "failed": 5,
+      "skipped": 0,
+      "percentage": 99.49647532729104,
       "tests": [
         {
           "name": "directives",
@@ -3265,8 +3294,7 @@
         },
         {
           "name": "async-flushsync-in-effect",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "img-loading-lazy-no-static",
@@ -3298,8 +3326,7 @@
         },
         {
           "name": "async-derived-indirect",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "snippet-hoisting-4",
@@ -3479,8 +3506,7 @@
         },
         {
           "name": "async-stale-derived-4",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "form-default-value",
@@ -3743,9 +3769,12 @@
           "status": "pass"
         },
         {
+          "name": "async-branch-merge-obsolete",
+          "status": "pass"
+        },
+        {
           "name": "async-overlap-multiple-6",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "snippet-select",
@@ -3793,8 +3822,7 @@
         },
         {
           "name": "async-overlap-multiple-1",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "event-handler-async-delegated",
@@ -3998,8 +4026,7 @@
         },
         {
           "name": "async-await-block-2",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "class-private-state-proxy",
@@ -4015,8 +4042,7 @@
         },
         {
           "name": "async-eager-block",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "attachment-spread-stable",
@@ -4079,6 +4105,10 @@
           "status": "pass"
         },
         {
+          "name": "async-later-promise-fails-first",
+          "status": "pass"
+        },
+        {
           "name": "dynamic-component-transition",
           "status": "pass"
         },
@@ -4088,8 +4118,7 @@
         },
         {
           "name": "async-overlap-multiple-7",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "fork-derived-class-instance",
@@ -4172,6 +4201,10 @@
           "status": "pass"
         },
         {
+          "name": "async-batch-merge-effect",
+          "status": "pass"
+        },
+        {
           "name": "async-inner-after-outer",
           "status": "pass"
         },
@@ -4208,6 +4241,10 @@
           "status": "pass"
         },
         {
+          "name": "async-disconnected-effect-root",
+          "status": "pass"
+        },
+        {
           "name": "derived-unowned-4",
           "status": "pass"
         },
@@ -4225,8 +4262,7 @@
         },
         {
           "name": "async-eager-each-block",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "nullish-operator",
@@ -4294,8 +4330,7 @@
         },
         {
           "name": "async-reactivity-loss-no-false-positive-2",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-settled-after-dom",
@@ -4407,8 +4442,7 @@
         },
         {
           "name": "async-dont-rebase-new-batch-4",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "hydratable-script-escape",
@@ -4436,8 +4470,7 @@
         },
         {
           "name": "async-dont-rebase-new-batch-3",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "await-html-hydration",
@@ -4469,8 +4502,7 @@
         },
         {
           "name": "async-effect-pending-eager",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "svelte-meta-parent",
@@ -4522,8 +4554,7 @@
         },
         {
           "name": "async-reactivity-loss-no-false-positive-3",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "proxy-cyclical",
@@ -4599,8 +4630,7 @@
         },
         {
           "name": "async-dont-rebase-new-batch-2",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "invalidate-effect",
@@ -4656,8 +4686,7 @@
         },
         {
           "name": "async-debug-awaited-expression",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "await-non-promise",
@@ -4714,6 +4743,11 @@
         {
           "name": "snippet-invalid-call",
           "status": "pass"
+        },
+        {
+          "name": "declaration-tags",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "transition-each-4",
@@ -4857,8 +4891,7 @@
         },
         {
           "name": "async-eager-derived",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "snippet-complicated-defaults",
@@ -4890,8 +4923,7 @@
         },
         {
           "name": "async-await",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-boundary-reset",
@@ -5082,6 +5114,11 @@
           "status": "pass"
         },
         {
+          "name": "async-declaration-tag-2",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "async-each-await-item",
           "status": "pass"
         },
@@ -5195,8 +5232,7 @@
         },
         {
           "name": "async-duplicate-dependencies",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "derived-fn",
@@ -5339,6 +5375,10 @@
           "status": "pass"
         },
         {
+          "name": "async-branch-reintro",
+          "status": "pass"
+        },
+        {
           "name": "bind-current-time-remove-listener",
           "status": "pass"
         },
@@ -5372,8 +5412,7 @@
         },
         {
           "name": "async-later-sync-overlaps",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "snippet-whitespace",
@@ -5468,6 +5507,10 @@
           "status": "pass"
         },
         {
+          "name": "declaration-tags-no-script",
+          "status": "pass"
+        },
+        {
           "name": "clsx",
           "status": "pass"
         },
@@ -5481,8 +5524,7 @@
         },
         {
           "name": "async-boundary-nav-race",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-effect-conservative",
@@ -5902,8 +5944,7 @@
         },
         {
           "name": "dynamic-component-member",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "class-private-state-increment",
@@ -5911,8 +5952,7 @@
         },
         {
           "name": "async-overlap-multiple-2",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-state-new-branch-2",
@@ -5956,8 +5996,7 @@
         },
         {
           "name": "async-overlap-multiple-5",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "each-mutation-2",
@@ -6237,8 +6276,7 @@
         },
         {
           "name": "async-overlap-multiple-4",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "effect-loop",
@@ -6262,8 +6300,7 @@
         },
         {
           "name": "async-overlap-multiple-3",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "style-directive-mutations",
@@ -6279,6 +6316,10 @@
         },
         {
           "name": "event-listener-spread",
+          "status": "pass"
+        },
+        {
+          "name": "async-derived-same-value",
           "status": "pass"
         },
         {
@@ -6395,8 +6436,7 @@
         },
         {
           "name": "async-state-updates-microtask-separated",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "props-quoted",
@@ -6416,8 +6456,7 @@
         },
         {
           "name": "async-reactivity-loss-no-false-positive-1",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "legacy-recursive-reactive-block",
@@ -6445,8 +6484,7 @@
         },
         {
           "name": "async-derived-const-blocker",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "derived-destructure",
@@ -6541,6 +6579,10 @@
           "status": "pass"
         },
         {
+          "name": "async-effect-mount-timing",
+          "status": "pass"
+        },
+        {
           "name": "state-snapshot-date",
           "status": "pass"
         },
@@ -6554,8 +6596,12 @@
         },
         {
           "name": "async-dont-rebase-new-batch-1",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
+        },
+        {
+          "name": "async-each-const-await-iife",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "async-await-store-mutate",
@@ -6583,6 +6629,10 @@
         },
         {
           "name": "attribute-boolean-case-insensitivity",
+          "status": "pass"
+        },
+        {
+          "name": "async-settled-discard",
           "status": "pass"
         },
         {
@@ -6659,8 +6709,7 @@
         },
         {
           "name": "async-context-after-await-const",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "bind-value-input-type-dynamic",
@@ -6680,6 +6729,10 @@
         },
         {
           "name": "dynamic-component",
+          "status": "pass"
+        },
+        {
+          "name": "async-effect-orphan",
           "status": "pass"
         },
         {
@@ -6772,8 +6825,8 @@
         },
         {
           "name": "async-style-after-await",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "global-variable-assignment",
@@ -6928,6 +6981,11 @@
           "status": "pass"
         },
         {
+          "name": "async-declaration-tag",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "async-ondestroy-ordering",
           "status": "pass"
         },
@@ -7017,8 +7075,7 @@
         },
         {
           "name": "async-if-else",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "effect-root-4",
@@ -7106,8 +7163,7 @@
         },
         {
           "name": "async-if-block-unskip",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "async-attribute",
@@ -7155,8 +7211,7 @@
         },
         {
           "name": "async-reactivity-loss-async-after-sync",
-          "status": "skip",
-          "skip_reason": "Async-derived $$promises blockers not yet threaded through template effects (introduced in Svelte 5.53.0)"
+          "status": "pass"
         },
         {
           "name": "form-default-value-from-spread",
@@ -7187,8 +7242,8 @@
     {
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
-      "total": 1205,
-      "passed": 1205,
+      "total": 1206,
+      "passed": 1206,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -11762,6 +11817,10 @@
           "status": "pass"
         },
         {
+          "name": "let-directive-and-const-tag-slotted",
+          "status": "pass"
+        },
+        {
           "name": "inline-style-directive-null-style",
           "status": "pass"
         },
@@ -12157,8 +12216,8 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 79,
-      "passed": 79,
+      "total": 80,
+      "passed": 80,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12317,6 +12376,10 @@
         },
         {
           "name": "component",
+          "status": "pass"
+        },
+        {
+          "name": "svelte-head-dynamic-style",
           "status": "pass"
         },
         {
@@ -12980,8 +13043,8 @@
     {
       "id": "print",
       "name": "Print",
-      "total": 42,
-      "passed": 41,
+      "total": 43,
+      "passed": 42,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -13137,6 +13200,10 @@
         },
         {
           "name": "html-tag",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag",
           "status": "pass"
         },
         {
@@ -13545,1005 +13612,6 @@
           "name": "script-context-module",
           "status": "skip",
           "skip_reason": "Migrate (Svelte 4 → 5 migrator) is out of scope for rsvelte"
-        }
-      ]
-    },
-    {
-      "id": "svelte2tsx",
-      "name": "svelte2tsx",
-      "total": 247,
-      "passed": 247,
-      "failed": 0,
-      "skipped": 0,
-      "percentage": 100,
-      "tests": [
-        {
-          "name": "$store-as-directive",
-          "status": "pass"
-        },
-        {
-          "name": "$store-assign",
-          "status": "pass"
-        },
-        {
-          "name": "$store-export-type",
-          "status": "pass"
-        },
-        {
-          "name": "$store-index",
-          "status": "pass"
-        },
-        {
-          "name": "$store-inside-block-without-braces",
-          "status": "pass"
-        },
-        {
-          "name": "$store-nested-declaration",
-          "status": "pass"
-        },
-        {
-          "name": "$store-no-instance-only-module-script",
-          "status": "pass"
-        },
-        {
-          "name": "$store-prop-init",
-          "status": "pass"
-        },
-        {
-          "name": "accessors-config",
-          "status": "pass"
-        },
-        {
-          "name": "accessors-config-attr-false",
-          "status": "pass"
-        },
-        {
-          "name": "array-binding-export",
-          "status": "pass"
-        },
-        {
-          "name": "ast-offset-none",
-          "status": "pass"
-        },
-        {
-          "name": "ast-offset-some",
-          "status": "pass"
-        },
-        {
-          "name": "attributes-foreign-ns",
-          "status": "pass"
-        },
-        {
-          "name": "await-with-$store",
-          "status": "pass"
-        },
-        {
-          "name": "await.v5",
-          "status": "pass"
-        },
-        {
-          "name": "binding-assignment-$store",
-          "status": "pass"
-        },
-        {
-          "name": "binding-group-store",
-          "status": "pass"
-        },
-        {
-          "name": "circle-drawer-example",
-          "status": "pass"
-        },
-        {
-          "name": "commented-out-script",
-          "status": "pass"
-        },
-        {
-          "name": "comments-in-attributes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "component-default-slot",
-          "status": "pass"
-        },
-        {
-          "name": "component-events-interface",
-          "status": "pass"
-        },
-        {
-          "name": "component-events-interface-constant",
-          "status": "pass"
-        },
-        {
-          "name": "component-events-interface-dispatcher",
-          "status": "pass"
-        },
-        {
-          "name": "component-events-interface-string-literals",
-          "status": "pass"
-        },
-        {
-          "name": "component-events-strictEvents",
-          "status": "pass"
-        },
-        {
-          "name": "component-events-type",
-          "status": "pass"
-        },
-        {
-          "name": "component-multiple-slots",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-$$slot-interface",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-$$slot-type",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-crazy-attributes",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-fallback",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-forward-with-props",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-inside-await",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-inside-each",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-let-forward",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-let-forward-named-slot",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-nest-scope",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-no-space",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-object-key",
-          "status": "pass"
-        },
-        {
-          "name": "component-slot-var-shadowing",
-          "status": "pass"
-        },
-        {
-          "name": "component-with-documentation",
-          "status": "pass"
-        },
-        {
-          "name": "component-with-indented-multiline-documentation",
-          "status": "pass"
-        },
-        {
-          "name": "component-with-multiline-documentation",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-await-then",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-await-then-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-component",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-each",
-          "status": "pass"
-        },
-        {
-          "name": "const-tag-each-destructure",
-          "status": "pass"
-        },
-        {
-          "name": "creates-dts",
-          "status": "pass"
-        },
-        {
-          "name": "creates-no-script-dts",
-          "status": "pass"
-        },
-        {
-          "name": "custom-css-properties-with-$store",
-          "status": "pass"
-        },
-        {
-          "name": "debug-block",
-          "status": "pass"
-        },
-        {
-          "name": "doctype-script",
-          "status": "pass"
-        },
-        {
-          "name": "editing-mustache",
-          "status": "pass"
-        },
-        {
-          "name": "empty-source",
-          "status": "pass"
-        },
-        {
-          "name": "event-and-forwarded-event",
-          "status": "pass"
-        },
-        {
-          "name": "event-bubble-component",
-          "status": "pass"
-        },
-        {
-          "name": "event-bubble-component-multi",
-          "status": "pass"
-        },
-        {
-          "name": "event-bubble-component-with-props",
-          "status": "pass"
-        },
-        {
-          "name": "event-bubble-element",
-          "status": "pass"
-        },
-        {
-          "name": "event-bubble-svelte-element",
-          "status": "pass"
-        },
-        {
-          "name": "event-dispatcher-events",
-          "status": "pass"
-        },
-        {
-          "name": "event-dispatcher-events-alias",
-          "status": "pass"
-        },
-        {
-          "name": "event-dispatchers",
-          "status": "pass"
-        },
-        {
-          "name": "export-class",
-          "status": "pass"
-        },
-        {
-          "name": "export-const-array-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "export-const-object-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "export-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "export-doc",
-          "status": "pass"
-        },
-        {
-          "name": "export-js-required-props",
-          "status": "pass"
-        },
-        {
-          "name": "export-list",
-          "status": "pass"
-        },
-        {
-          "name": "export-list-runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "export-references-local",
-          "status": "pass"
-        },
-        {
-          "name": "export-with-default-multi",
-          "status": "pass"
-        },
-        {
-          "name": "filename-is-invalid-identifier",
-          "status": "pass"
-        },
-        {
-          "name": "filename-is-invalid-identifiers-only",
-          "status": "pass"
-        },
-        {
-          "name": "function-scope",
-          "status": "pass"
-        },
-        {
-          "name": "generics-attribute.v5",
-          "status": "pass"
-        },
-        {
-          "name": "import-equal",
-          "status": "pass"
-        },
-        {
-          "name": "import-leading-comment",
-          "status": "pass"
-        },
-        {
-          "name": "import-single-quote",
-          "status": "pass"
-        },
-        {
-          "name": "imports",
-          "status": "pass"
-        },
-        {
-          "name": "imports-module-instance",
-          "status": "pass"
-        },
-        {
-          "name": "js-jsdoc-before-first-import",
-          "status": "pass"
-        },
-        {
-          "name": "jsdoc-runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "jsdoc-sveltekit-autotypes-runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "jsdoc-sveltekit-autotypes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "jsdoc-various.v5",
-          "status": "pass"
-        },
-        {
-          "name": "module-script-and-script",
-          "status": "pass"
-        },
-        {
-          "name": "module-script-and-script-in-line",
-          "status": "pass"
-        },
-        {
-          "name": "module-script-and-script-in-line2",
-          "status": "pass"
-        },
-        {
-          "name": "module-script-and-script2",
-          "status": "pass"
-        },
-        {
-          "name": "module-script-and-script3.v5",
-          "status": "pass"
-        },
-        {
-          "name": "nested-$-variables-script",
-          "status": "pass"
-        },
-        {
-          "name": "nested-$-variables-template",
-          "status": "pass"
-        },
-        {
-          "name": "object-binding-export",
-          "status": "pass"
-        },
-        {
-          "name": "props-variable-and-$props.id-destructured.v5",
-          "status": "pass"
-        },
-        {
-          "name": "props-variable-and-$props.id-not-$props-init.v5",
-          "status": "pass"
-        },
-        {
-          "name": "props-variable-and-$props.id-spread.v5",
-          "status": "pass"
-        },
-        {
-          "name": "props-variable-and-$props.id.v5",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-$store-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-assignment-type-cast",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-block",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-break-$",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-declare",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-declare-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-declare-express-starts-with-object",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-declare-object",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-declare-same-name-as-function-parameter",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-declare-same-name-as-import",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-statements-store",
-          "status": "pass"
-        },
-        {
-          "name": "reactive-store-set",
-          "status": "pass"
-        },
-        {
-          "name": "renamed-exports",
-          "status": "pass"
-        },
-        {
-          "name": "renamed-exports-runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "rewrite-imports",
-          "status": "pass"
-        },
-        {
-          "name": "runes-best-effort-types.v5",
-          "status": "pass"
-        },
-        {
-          "name": "runes-bindable.v5",
-          "status": "pass"
-        },
-        {
-          "name": "runes-looking-like-stores.v5",
-          "status": "pass"
-        },
-        {
-          "name": "runes-only-export.v5",
-          "status": "pass"
-        },
-        {
-          "name": "runes-with-slots.v5",
-          "status": "pass"
-        },
-        {
-          "name": "runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "script-and-module-script",
-          "status": "pass"
-        },
-        {
-          "name": "script-in-rawhtml",
-          "status": "pass"
-        },
-        {
-          "name": "script-inside-head-after-toplevel-script",
-          "status": "pass"
-        },
-        {
-          "name": "script-on-bottom",
-          "status": "pass"
-        },
-        {
-          "name": "script-style-like-component",
-          "status": "pass"
-        },
-        {
-          "name": "script-with-src",
-          "status": "pass"
-        },
-        {
-          "name": "self-closing-component",
-          "status": "pass"
-        },
-        {
-          "name": "single-element",
-          "status": "pass"
-        },
-        {
-          "name": "single-export",
-          "status": "pass"
-        },
-        {
-          "name": "slot-bind-this",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-generics.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-instance-script.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-1.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-2.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-3.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-4.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-5.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-6.v5",
-          "status": "pass"
-        },
-        {
-          "name": "snippet-module-hoist-7.v5",
-          "status": "pass"
-        },
-        {
-          "name": "store-derived-import",
-          "status": "pass"
-        },
-        {
-          "name": "store-destructuring",
-          "status": "pass"
-        },
-        {
-          "name": "store-from-module",
-          "status": "pass"
-        },
-        {
-          "name": "store-from-reactive-assignment",
-          "status": "pass"
-        },
-        {
-          "name": "store-import",
-          "status": "pass"
-        },
-        {
-          "name": "store-property-access",
-          "status": "pass"
-        },
-        {
-          "name": "stores-looking-like-runes",
-          "status": "pass"
-        },
-        {
-          "name": "stores-mustache",
-          "status": "pass"
-        },
-        {
-          "name": "style",
-          "status": "pass"
-        },
-        {
-          "name": "style-after-selfclosing-iframe",
-          "status": "pass"
-        },
-        {
-          "name": "style-attribute",
-          "status": "pass"
-        },
-        {
-          "name": "style-attribute-bare",
-          "status": "pass"
-        },
-        {
-          "name": "style-in-script",
-          "status": "pass"
-        },
-        {
-          "name": "svelte-element",
-          "status": "pass"
-        },
-        {
-          "name": "svelte-self-forward-event",
-          "status": "pass"
-        },
-        {
-          "name": "sveltekit-autotypes",
-          "status": "pass"
-        },
-        {
-          "name": "sveltekit-autotypes-$props-rune-no-changes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "sveltekit-autotypes-$props-rune.v5",
-          "status": "pass"
-        },
-        {
-          "name": "transforms-interfaces-dts",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$Props-interface",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$Props-interface-only-props",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$Props-type",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$Props-with-$$props",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$generics",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$generics-accessor",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$generics-accessor-dts",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$generics-dts",
-          "status": "pass"
-        },
-        {
-          "name": "ts-$$generics-interface-references",
-          "status": "pass"
-        },
-        {
-          "name": "ts-await-generics.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-creates-dts",
-          "status": "pass"
-        },
-        {
-          "name": "ts-event-dispatcher-typed",
-          "status": "pass"
-        },
-        {
-          "name": "ts-event-dispatcher-typed-non-literal",
-          "status": "pass"
-        },
-        {
-          "name": "ts-event-dispatchers",
-          "status": "pass"
-        },
-        {
-          "name": "ts-event-dispatchers-same-event",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-arrow-function",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-boolean",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-const",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-doc",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-doc-typedef",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-has-initializer",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-has-type",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-interface",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-list",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-list-runes-false",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-list-runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-export-required-props",
-          "status": "pass"
-        },
-        {
-          "name": "ts-function-type-scope",
-          "status": "pass"
-        },
-        {
-          "name": "ts-generic-attribute-const-modifier",
-          "status": "pass"
-        },
-        {
-          "name": "ts-generics-attribute1",
-          "status": "pass"
-        },
-        {
-          "name": "ts-generics-attribute2",
-          "status": "pass"
-        },
-        {
-          "name": "ts-multiple-export",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-best-effort-types.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-bindable.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-generics.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-1.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-2.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-4.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-5.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-6.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-1.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-10.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-11.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-12.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-13.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-14.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-15.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-2.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-3.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-4.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-5.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-6.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-7.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-8.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-hoistable-props-false-9.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes-with-slot.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-runes.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-script-tag-generics",
-          "status": "pass"
-        },
-        {
-          "name": "ts-style-and-script",
-          "status": "pass"
-        },
-        {
-          "name": "ts-sveltekit-autotypes-$props-rune-unchanged.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-sveltekit-autotypes-$props-rune.v5",
-          "status": "pass"
-        },
-        {
-          "name": "ts-type-assertion",
-          "status": "pass"
-        },
-        {
-          "name": "ts-typed-export-with-default",
-          "status": "pass"
-        },
-        {
-          "name": "ts-uses-$$props",
-          "status": "pass"
-        },
-        {
-          "name": "typeof-$store",
-          "status": "pass"
-        },
-        {
-          "name": "unclosed-tag-containing-tag.v5",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$$props",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$$props-script",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$$restProps",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$$restProps-script",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$$slots",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$$slots-script",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$property",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$store",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$store-in-event-binding",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$store-multiple-variable-declaration",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$store-with-assignment-operators",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$store-with-increments",
-          "status": "pass"
-        },
-        {
-          "name": "uses-$store-with-unary-operators",
-          "status": "pass"
-        },
-        {
-          "name": "uses-accessors-attr-not-present",
-          "status": "pass"
-        },
-        {
-          "name": "uses-accessors-attr-present",
-          "status": "pass"
-        },
-        {
-          "name": "uses-accessors-mustachetag-false",
-          "status": "pass"
-        },
-        {
-          "name": "uses-accessors-mustachetag-true",
-          "status": "pass"
-        },
-        {
-          "name": "uses-accessors-no-svelte-options",
-          "status": "pass"
-        },
-        {
-          "name": "uses-svelte-components",
-          "status": "pass"
-        },
-        {
-          "name": "uses-svelte-components-let-forward",
-          "status": "pass"
         }
       ]
     }

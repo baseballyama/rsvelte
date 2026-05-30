@@ -158,6 +158,7 @@ pub enum TemplateNode {
     ExpressionTag(Box<ExpressionTag>),
     HtmlTag(Box<HtmlTag>),
     ConstTag(Box<ConstTag>),
+    DeclarationTag(Box<DeclarationTag>),
     DebugTag(Box<DebugTag>),
     RenderTag(Box<RenderTag>),
     AttachTag(Box<AttachTag>),
@@ -254,6 +255,25 @@ pub struct ConstTag {
     pub end: u32,
     pub declaration: Expression,
     /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: TagMetadata,
+}
+
+/// A declaration tag: `{let x = expr}` / `{const x = expr}` (Svelte 5.56.0 #18282).
+///
+/// Similar to `{@const …}` but uses the `let` / `const` keyword as the tag
+/// opener and supports mutable bindings (`let`). The `declaration` field stores
+/// the parsed `VariableDeclaration` as an `Expression` for symmetry with the
+/// rest of the AST.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeclarationTag {
+    pub start: u32,
+    pub end: u32,
+    /// The `VariableDeclaration` parsed from the tag body. Represented as an
+    /// `Expression` for AST-walker uniformity; downstream visitors narrow to
+    /// `VariableDeclaration` shape via `node_type()`.
+    pub declaration: Expression,
+    /// Metadata (not serialized).
     #[serde(skip)]
     pub metadata: TagMetadata,
 }

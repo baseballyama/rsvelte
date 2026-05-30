@@ -396,6 +396,24 @@ pub fn const_tag_invalid_placement() -> AnalysisError {
     )
 }
 
+/// Declaration tags (`{let …}` / `{const …}`) are not allowed in legacy mode.
+/// Svelte 5.56.0 (#18282).
+pub fn declaration_tag_no_legacy_mode() -> AnalysisError {
+    error(
+        "declaration_tag_no_legacy_mode",
+        "Declaration tags cannot be used in legacy mode\nhttps://svelte.dev/e/declaration_tag_no_legacy_mode",
+    )
+}
+
+/// A declaration tag must contain a plain `let` or `const` VariableDeclaration.
+/// Svelte 5.56.0 (#18282).
+pub fn declaration_tag_invalid_type() -> AnalysisError {
+    error(
+        "declaration_tag_invalid_type",
+        "Declaration tags can only contain `let` or `const` variable declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+    )
+}
+
 /// Block must start with expected character
 pub fn block_unexpected_character(expected: &str) -> AnalysisError {
     error(

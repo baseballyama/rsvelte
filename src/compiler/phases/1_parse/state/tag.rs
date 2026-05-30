@@ -13,8 +13,8 @@ use compact_str::CompactString;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
-    AwaitBlock, ConstTag, DebugTag, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag,
-    IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
+    AwaitBlock, ConstTag, DebugTag, DeclarationTag, EachBlock, ExpressionTag, Fragment,
+    FragmentType, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::error::ParseResult;
@@ -22,6 +22,286 @@ use crate::error::ParseResult;
 use super::super::parser::{Parser, StackEntry};
 
 impl Parser<'_> {
+    /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
+    /// Svelte 5.56.0 #18282). Returns `Ok(None)` when the source at
+    /// `self.index` does not begin with a `let` / `const` keyword followed by
+    /// whitespace, leaving the parser position unchanged so the regular
+    /// expression-tag fallback can run.
+    ///
+    /// On a match, finds the matching `}`, splits the body at the first
+    /// top-level `=`, parses the pattern + init, and returns a
+    /// `TemplateNode::DeclarationTag` whose `declaration` field is a
+    /// `VariableDeclaration` JSON node with the matching `kind`.
+    pub(crate) fn try_parse_declaration_tag(
+        &mut self,
+        start: usize,
+    ) -> ParseResult<Option<TemplateNode>> {
+        // The `parse_mustache` caller has already consumed `{` and skipped
+        // whitespace. Peek at the next bytes to detect `let ` / `const `;
+        // require a trailing whitespace / line-ending byte so we don't
+        // accidentally swallow `{letter}` or `{constant}` expressions.
+        fn is_kw_terminator(b: u8) -> bool {
+            matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+        }
+
+        // Reject `var`/`interface`/`enum` declarations and certain `type`
+        // forms outright with `declaration_tag_invalid_type` (mirrors the
+        // upstream `regex_unsupported_declaration` check in #18282 +
+        // #18321). The bare `{type}` expression and other operator-prefixed
+        // `type …` patterns continue to fall through to the expression-tag
+        // parser.
+        let kw_terminator_at = |off: usize| {
+            self.bytes
+                .get(self.index + off)
+                .copied()
+                .is_some_and(is_kw_terminator)
+        };
+        if (self.match_str("var") && kw_terminator_at(3))
+            || (self.match_str("interface") && kw_terminator_at(9))
+            || (self.match_str("enum") && kw_terminator_at(4))
+            || (self.match_str("type") && kw_terminator_at(4) && {
+                // Skip past `type` + whitespace and peek at the next
+                // non-whitespace byte. If it's a "type expression
+                // starter" character (identifier / `{` / `[` / `"` /
+                // `'`), this looks like a TS-style `type Foo = ...`
+                // declaration and we should emit the error. Operator-
+                // prefixed `type ?…` / `type .x` / `type ()` / etc.
+                // fall through to the regular expression-tag parser.
+                let mut p = self.index + 4;
+                while self.bytes.get(p).copied().is_some_and(is_kw_terminator) {
+                    p += 1;
+                }
+                let next = self.bytes.get(p).copied();
+                matches!(
+                    next,
+                    Some(b) if b.is_ascii_alphabetic() || b == b'_' || b == b'$'
+                )
+            })
+        {
+            // Find end of the unsupported keyword for the error span.
+            let kw_len = if self.match_str("var") {
+                3
+            } else if self.match_str("enum") || self.match_str("type") {
+                4
+            } else {
+                9
+            };
+            let kw_end = self.index + kw_len;
+            return Err(crate::error::ParseError::svelte(
+                "declaration_tag_invalid_type",
+                "Declaration tags must be `let` or `const` declarations",
+                (self.index, kw_end),
+            ));
+        }
+
+        let (kind, kw_len) = if self.match_str("let") && kw_terminator_at(3) {
+            ("let", 3usize)
+        } else if self.match_str("const") && kw_terminator_at(5) {
+            ("const", 5usize)
+        } else {
+            return Ok(None);
+        };
+
+        let decl_start = self.index;
+        self.index += kw_len;
+        self.skip_whitespace();
+        let body_start = self.index;
+
+        // Scan to the matching closing `}` of the tag, respecting nested
+        // braces inside object patterns / template literals / strings —
+        // mirrors the brace-walk used by the `{@const}` reader above.
+        let mut brace_depth = 0i32;
+        let mut in_string = false;
+        let mut string_char = '\0';
+        let mut prev_char = '\0';
+        while !self.is_eof() {
+            let c = self.current_char();
+            if in_string {
+                if c == string_char && prev_char != '\\' {
+                    in_string = false;
+                }
+                prev_char = c;
+                self.advance();
+                continue;
+            }
+            if c == '"' || c == '\'' || c == '`' {
+                in_string = true;
+                string_char = c;
+                prev_char = c;
+                self.advance();
+                continue;
+            }
+            if c == '{' {
+                brace_depth += 1;
+            } else if c == '}' {
+                if brace_depth == 0 {
+                    break;
+                }
+                brace_depth -= 1;
+            }
+            prev_char = c;
+            self.advance();
+        }
+
+        let body_end = self.index;
+        let body_text = self.source[body_start..body_end].trim_end();
+        self.advance(); // consume `}`
+
+        // Split at the first top-level `=` (skipping `==`, `===`, `!=`,
+        // `!==`, `<=`, `>=`, `=>`) — same ASCII-byte walk as the
+        // `{@const}` reader so destructuring patterns are handled
+        // correctly.
+        let mut depth = 0i32;
+        let mut in_string_b = false;
+        let mut string_b = 0u8;
+        let mut first_equals: Option<usize> = None;
+        let bytes = body_text.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            let c = bytes[i];
+            if in_string_b {
+                if c == string_b && (i == 0 || bytes[i - 1] != b'\\') {
+                    in_string_b = false;
+                }
+                i += 1;
+                continue;
+            }
+            if c == b'"' || c == b'\'' || c == b'`' {
+                in_string_b = true;
+                string_b = c;
+                i += 1;
+                continue;
+            }
+            if c == b'(' || c == b'[' || c == b'{' {
+                depth += 1;
+            } else if c == b')' || c == b']' || c == b'}' {
+                depth -= 1;
+            } else if c == b'=' && first_equals.is_none() && depth == 0 {
+                let next = bytes.get(i + 1).copied().unwrap_or(0);
+                let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                if next != b'=' && next != b'>' && prev != b'!' && prev != b'<' && prev != b'>' {
+                    first_equals = Some(i);
+                }
+            }
+            i += 1;
+        }
+
+        // The body must contain an assignment with an initializer — upstream
+        // emits `declaration_tag_invalid_type` in strict mode, and falls back
+        // to a placeholder VariableDeclaration with an empty-name identifier
+        // in loose mode so editor tooling sees a continuous AST shape.
+        let eq_idx = match first_equals {
+            Some(i) => i,
+            None => {
+                if !self.options.loose {
+                    return Err(crate::error::ParseError::svelte(
+                        "declaration_tag_invalid_type",
+                        "Declaration tags can only contain `let` or `const` variable declarations",
+                        (decl_start, body_end),
+                    ));
+                }
+                // Loose mode: synthesize an empty-name declarator located at
+                // the end of the body so the surrounding AST keeps its
+                // shape. Mirrors upstream's `loose` fallback in
+                // `read_declaration`.
+                let empty_pos = body_end as u32;
+                let mut declarator = serde_json::Map::new();
+                declarator.insert(
+                    "type".to_string(),
+                    serde_json::Value::String("VariableDeclarator".to_string()),
+                );
+                let id = serde_json::json!({
+                    "type": "Identifier",
+                    "name": "",
+                    "start": empty_pos,
+                    "end": empty_pos,
+                });
+                declarator.insert("id".to_string(), id);
+                declarator.insert("init".to_string(), serde_json::Value::Null);
+                declarator.insert(
+                    "start".to_string(),
+                    serde_json::Value::Number(empty_pos.into()),
+                );
+                declarator.insert(
+                    "end".to_string(),
+                    serde_json::Value::Number(empty_pos.into()),
+                );
+                let mut declaration = serde_json::Map::new();
+                declaration.insert(
+                    "type".to_string(),
+                    serde_json::Value::String("VariableDeclaration".to_string()),
+                );
+                declaration.insert(
+                    "kind".to_string(),
+                    serde_json::Value::String(kind.to_string()),
+                );
+                declaration.insert(
+                    "declarations".to_string(),
+                    serde_json::Value::Array(vec![serde_json::Value::Object(declarator)]),
+                );
+                declaration.insert(
+                    "start".to_string(),
+                    serde_json::Value::Number((decl_start as u32).into()),
+                );
+                declaration.insert(
+                    "end".to_string(),
+                    serde_json::Value::Number(empty_pos.into()),
+                );
+                let declaration_expr = Expression::Value(serde_json::Value::Object(declaration));
+                return Ok(Some(TemplateNode::DeclarationTag(Box::new(
+                    DeclarationTag {
+                        start: start as u32,
+                        end: self.index as u32,
+                        declaration: declaration_expr,
+                        metadata: Default::default(),
+                    },
+                ))));
+            }
+        };
+
+        let pattern_str = body_text[..eq_idx].trim();
+        let init_str = body_text[eq_idx + 1..].trim();
+
+        // Strip a TS type annotation (`x: number`, `{x, y}: Point`).
+        let pattern_clean = strip_type_annotation(pattern_str);
+
+        let pattern_expr = if pattern_clean.starts_with('{') || pattern_clean.starts_with('[') {
+            super::super::read::expression::parse_destructuring_pattern(
+                &self.arena,
+                &pattern_clean,
+                body_start,
+                self.expression_line_offsets(),
+            )
+            .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, body_start))
+        } else {
+            self.parse_js_expression(&pattern_clean, body_start)
+        };
+
+        let init_offset = body_start
+            + eq_idx
+            + 1
+            + (body_text[eq_idx + 1..].len() - body_text[eq_idx + 1..].trim_start().len());
+        let init_expr = self.parse_js_expression(init_str, init_offset);
+
+        let declaration = build_kind_variable_declaration(
+            &self.arena,
+            &pattern_expr,
+            &init_expr,
+            decl_start,
+            body_end,
+            kind,
+        );
+
+        Ok(Some(TemplateNode::DeclarationTag(Box::new(
+            DeclarationTag {
+                start: start as u32,
+                end: self.index as u32,
+                declaration,
+                metadata: Default::default(),
+            },
+        ))))
+    }
+
     /// Parse a mustache expression.
     pub fn parse_mustache(&mut self) -> ParseResult<Option<TemplateNode>> {
         let start = self.index;
@@ -50,6 +330,13 @@ impl Parser<'_> {
 
         if self.match_byte(b'@') {
             return self.parse_special_tag(start);
+        }
+
+        // Declaration tag: `{let x = expr}` or `{const x = expr}` (Svelte 5.56.0 #18282).
+        // The opener is a `let` / `const` keyword followed by whitespace; if neither
+        // matches we fall through to the regular expression tag.
+        if let Some(node) = self.try_parse_declaration_tag(start)? {
+            return Ok(Some(node));
         }
 
         // Regular expression tag
@@ -2006,6 +2293,61 @@ fn strip_type_annotation(pattern: &str) -> String {
 ///   }]
 /// }
 /// ```
+/// Build a `VariableDeclaration` JSON node with a caller-supplied kind
+/// (`let` / `const` / `var`). Mirrors `build_const_variable_declaration`
+/// (which is locked to `const`) and powers both `{@const}` and the new
+/// `{let x = …}` / `{const x = …}` declaration-tag emit paths.
+fn build_kind_variable_declaration(
+    arena: &crate::ast::arena::ParseArena,
+    pattern: &Expression,
+    init: &Expression,
+    decl_start: usize,
+    decl_end: usize,
+    kind: &str,
+) -> Expression {
+    use serde_json::{Map, Value};
+
+    let pattern_value = crate::ast::arena::with_serialize_arena(arena, || pattern.as_json());
+    let init_value = crate::ast::arena::with_serialize_arena(arena, || init.as_json());
+
+    let id_start = pattern_value
+        .get("start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(decl_start as u64);
+    let init_end = init_value
+        .get("end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(decl_end as u64);
+
+    let mut declarator = Map::new();
+    declarator.insert(
+        "type".to_string(),
+        Value::String("VariableDeclarator".to_string()),
+    );
+    declarator.insert("id".to_string(), pattern_value.clone());
+    declarator.insert("init".to_string(), init_value.clone());
+    declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
+    declarator.insert("end".to_string(), Value::Number((init_end as i64).into()));
+
+    let mut declaration = Map::new();
+    declaration.insert(
+        "type".to_string(),
+        Value::String("VariableDeclaration".to_string()),
+    );
+    declaration.insert("kind".to_string(), Value::String(kind.to_string()));
+    declaration.insert(
+        "declarations".to_string(),
+        Value::Array(vec![Value::Object(declarator)]),
+    );
+    declaration.insert(
+        "start".to_string(),
+        Value::Number((decl_start as i64).into()),
+    );
+    declaration.insert("end".to_string(), Value::Number((decl_end as i64).into()));
+
+    Expression::Value(Value::Object(declaration))
+}
+
 fn build_const_variable_declaration(
     arena: &crate::ast::arena::ParseArena,
     pattern: &Expression,
