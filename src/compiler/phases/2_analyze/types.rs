@@ -620,6 +620,64 @@ fn remove_keyword_from_source(
     }
 }
 
+/// Peel any `TSAsExpression` / `TSSatisfiesExpression` / `TSNonNullExpression`
+/// / `TSTypeAssertion` / `TSInstantiationExpression` layers and return the
+/// underlying expression. Used by the parenthesis-stripping path to decide
+/// whether the parens around a TS wrapper are safe to drop. (issue #457, H-125)
+fn peel_ts_wrappers<'a>(
+    mut expr: &'a oxc_ast::ast::Expression<'a>,
+) -> &'a oxc_ast::ast::Expression<'a> {
+    use oxc_ast::ast::Expression as E;
+    loop {
+        match expr {
+            E::TSAsExpression(inner) => expr = &inner.expression,
+            E::TSSatisfiesExpression(inner) => expr = &inner.expression,
+            E::TSNonNullExpression(inner) => expr = &inner.expression,
+            E::TSTypeAssertion(inner) => expr = &inner.expression,
+            E::TSInstantiationExpression(inner) => expr = &inner.expression,
+            _ => return expr,
+        }
+    }
+}
+
+/// `true` when `expr` is a "simple" expression form whose precedence is high
+/// enough that wrapping parens never matter — bare identifiers, literals,
+/// member / call / `new` expressions, parenthesised sub-expressions, etc.
+/// Returns `false` for unary / binary / logical / conditional / assignment /
+/// arrow / sequence expressions, where dropping the parens can silently change
+/// what the surrounding code means (e.g. `-n ** 2` is a JS syntax error,
+/// `a + b * c` reassociates a `+`). (issue #457, H-125)
+fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::Expression as E;
+    matches!(
+        expr,
+        E::Identifier(_)
+            | E::BooleanLiteral(_)
+            | E::NullLiteral(_)
+            | E::NumericLiteral(_)
+            | E::StringLiteral(_)
+            | E::BigIntLiteral(_)
+            | E::RegExpLiteral(_)
+            | E::TemplateLiteral(_)
+            | E::TaggedTemplateExpression(_)
+            | E::ThisExpression(_)
+            | E::Super(_)
+            | E::ArrayExpression(_)
+            | E::ObjectExpression(_)
+            | E::FunctionExpression(_)
+            | E::ClassExpression(_)
+            | E::ParenthesizedExpression(_)
+            | E::CallExpression(_)
+            | E::NewExpression(_)
+            | E::ChainExpression(_)
+            | E::ComputedMemberExpression(_)
+            | E::StaticMemberExpression(_)
+            | E::PrivateFieldExpression(_)
+            | E::MetaProperty(_)
+            | E::ImportExpression(_)
+    )
+}
+
 /// Collect TS removals from an expression.
 fn collect_ts_removals_from_expression(
     expr: &oxc_ast::ast::Expression,
@@ -796,7 +854,13 @@ fn collect_ts_removals_from_expression(
             // the type annotation is stripped. Collapse them together so that
             // `((expr)?.filter(x) as T[])[0]` becomes `(expr)?.filter(x)[0]`,
             // matching esrap/astring output. We only drop the outer parens when
-            // the inner expression is one of the single-value TS wrappers.
+            // the inner expression is one of the single-value TS wrappers AND
+            // peeling the wrapper exposes a "simple" expression — one whose
+            // precedence never requires the surrounding parens. For a unary /
+            // binary / logical / conditional / etc. expression we keep the
+            // parens because removing them can silently change the meaning
+            // (e.g. `(-n as number) ** 2` → `-n ** 2` is a JS syntax error;
+            // `(a + b as T) * c` → `a + b * c` reassociates). (issue #457, H-125)
             let inner = &paren.expression;
             let is_ts_wrapper = matches!(
                 inner,
@@ -807,9 +871,12 @@ fn collect_ts_removals_from_expression(
                     | E::TSInstantiationExpression(_)
             );
             if is_ts_wrapper {
-                // Remove `(` and `)` surrounding the TS wrapper.
-                removals.push((paren.span.start, inner.span().start));
-                removals.push((inner.span().end, paren.span.end));
+                let unwrapped = peel_ts_wrappers(inner);
+                if is_paren_safe_to_drop(unwrapped) {
+                    // Remove `(` and `)` surrounding the TS wrapper.
+                    removals.push((paren.span.start, inner.span().start));
+                    removals.push((inner.span().end, paren.span.end));
+                }
             }
             collect_ts_removals_from_expression(inner, source, removals);
         }
