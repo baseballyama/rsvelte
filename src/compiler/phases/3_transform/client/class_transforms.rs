@@ -908,6 +908,29 @@ pub(super) fn strip_field_quotes(name: &str) -> String {
 }
 
 /// Parse a state field definition.
+/// `true` when `name` (the text we extracted as the left-hand side of `= $state(...)`)
+/// is actually a valid class-field name shape: a plain identifier, a quoted
+/// string key (`"foo-bar"` / `'foo-bar'`), or a computed key (`[expr]`).
+/// Anything else — text carrying parens, braces, or whitespace, like the start
+/// of a method body — is rejected. (issue #452, H-057)
+fn is_valid_class_field_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let bytes = name.as_bytes();
+    let first = bytes[0];
+    let last = bytes[bytes.len() - 1];
+    if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+        return true;
+    }
+    if first == b'[' && last == b']' {
+        return true;
+    }
+    !name
+        .chars()
+        .any(|c| c.is_whitespace() || matches!(c, '(' | ')' | '{' | '}' | ';' | ','))
+}
+
 pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     let trimmed = line.trim().trim_end_matches(';');
 
@@ -920,6 +943,15 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
         .trim()
         .trim_start_matches('#')
         .to_string();
+
+    // Reject text that is clearly not a class-field name. Without this guard a
+    // method body like `m(){ let x = $state(0); return "}"; }` matches the rune
+    // pattern and gets parsed as a field named `m(){ let x` — the sanitiser
+    // would then emit `#m____let_x = $.state(0)` and a quoted accessor with the
+    // same shape, corrupting the class. (issue #452, H-057)
+    if !is_valid_class_field_name(&name) {
+        return None;
+    }
 
     // Find the rune call
     let rune_pattern = format!("{}(", rune_type);
