@@ -6,9 +6,7 @@ import { defineConfig } from 'vite';
 // compiles every .svelte / .svelte.{js,ts} in this site via rsvelte instead of
 // the upstream JS compiler. The shim re-exports the four APIs vite-plugin-svelte
 // actually uses (compile, compileModule, preprocess, VERSION).
-const rsvelteCompilerShim = fileURLToPath(
-	new URL('./rsvelte-shim/compiler.mjs', import.meta.url)
-);
+const rsvelteCompilerShim = fileURLToPath(new URL('./rsvelte-shim/compiler.mjs', import.meta.url));
 
 export default defineConfig({
 	plugins: [sveltekit()],

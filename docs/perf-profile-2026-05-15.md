@@ -70,12 +70,12 @@ visitors are **~86%**.
 
 **Measured perf headroom in Analyze**:
 
-| Sub-step | Measured cost | Headroom |
-|---|---|---|
-| `ensure_script_parsed` (OXC) | ~12% of analyze (5.8% of total) | Limited — already small, and OXC is upstream-tuned. |
-| Visitors (our code) | ~86% of analyze (42% of total) | Real and large — these are not yet AST-migrated like the transform-side handlers. |
-| `resolve_lazy_expressions` | ~3% of analyze (1.3% of total) | Negligible. |
-| Symbol-table / scope build | (within "Visitors") | Real — `FxHashMap` lookups in tight loops. |
+| Sub-step                     | Measured cost                   | Headroom                                                                          |
+| ---------------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
+| `ensure_script_parsed` (OXC) | ~12% of analyze (5.8% of total) | Limited — already small, and OXC is upstream-tuned.                               |
+| Visitors (our code)          | ~86% of analyze (42% of total)  | Real and large — these are not yet AST-migrated like the transform-side handlers. |
+| `resolve_lazy_expressions`   | ~3% of analyze (1.3% of total)  | Negligible.                                                                       |
+| Symbol-table / scope build   | (within "Visitors")             | Real — `FxHashMap` lookups in tight loops.                                        |
 
 ### Phase 3 — Transform (48.0%)
 
@@ -272,7 +272,7 @@ Steady-state (mean of 3 consecutive runs after warm-up):
   (sum)                                       ~172ms
 ```
 
-Buckets are *inclusive* of recursive descent into child nodes, but
+Buckets are _inclusive_ of recursive descent into child nodes, but
 the sum (~172ms) covers ~90% of "Visitors (rest)" (~190ms), so the
 attribution is meaningful even with that overlap.
 
@@ -288,7 +288,7 @@ attribution is meaningful even with that overlap.
 - **`VariableDeclarator` (16.8%, ~29ms / ~6% of total)** is the
   largest single per-visitor bucket. The `visit_typed` body has
   five `to_value().to_string()` callsites used to set
-  `binding.initial` for diagnostics and constant folding. *But*:
+  `binding.initial` for diagnostics and constant folding. _But_:
   `binding.initial` is consumed by 20+ downstream sites across
   `phase3_transform/` and `phase2_analyze/`, several of which
   explicitly parse the JSON representation (e.g. "Check for
@@ -345,8 +345,8 @@ In decreasing ROI:
 
 3. **Raw fallback elimination.** Parse-phase: model leadingComments
    off-tree so statements stay typed. ~16ms but cross-phase change.
-   *Doubles as a prerequisite for any further "JsNode pattern
-   matching" migration of analyze visitors* — as the
+   _Doubles as a prerequisite for any further "JsNode pattern
+   matching" migration of analyze visitors_ — as the
    ExportNamedDeclaration probe demonstrates, declarations and many
    other statements currently come through as `Raw(Value)`, so
    "migrate to typed" PRs that don't first address this are
@@ -376,7 +376,7 @@ In rough order of expected ROI (post-2026-05-15 measurements):
 2. ~~Samply-profile the analyze visitors.~~ **Done** via
    `analyze-perf-trace` instrumentation — see "Phase 2 visitor
    sub-breakdown" below. Two buckets dominate: `script_visit
-   (instance)` (35.6%) and `feature_detect` (28.1%).
+(instance)` (35.6%) and `feature_detect` (28.1%).
 3. ~~**Migrate `json_check_features` to a typed JsNode walker.**~~
    **Done in #112** — -5.3% on the visitor slice / -1.0% of total.
 4. **AST-migrate analyze visitors run from `visit_script_expr`.**
@@ -396,6 +396,7 @@ In rough order of expected ROI (post-2026-05-15 measurements):
 ## 2026-05-15 session log
 
 Landed perf PRs from this profile snapshot:
+
 - #112 — `json_check_features` → typed JsNode walker (-5.3% visitor / -1.0% total)
 - #113 — `walk_js_node_typed` per-variant breakdown (docs)
 - #114 — `ExportNamedDeclaration` Cow borrow (eliminates Raw clone)
@@ -424,6 +425,7 @@ Phase 3 (Transform):    223.67ms ( 49.4%)
 ```
 
 Findings:
+
 - **Pre-frag setup (65.77ms) is the largest Phase 3 bucket.** This is the
   residual of `transform_client_with_visitors` not covered by the other
   timers — `ComponentClientTransformState::new`, `add_state_transformers`,
@@ -442,6 +444,7 @@ Findings:
 - **CSS render (9.61ms) is small.**
 
 Implication for next steps:
+
 1. **Drill "Pre-frag setup" further** — split out
    `ComponentClientTransformState::new`, `add_state_transformers`,
    `extract_shadowed_state_names`, `reactive_import_names`. Likely contains
@@ -497,6 +500,7 @@ token+rune mappings are only retained where the codegen mapping does NOT
 already cover the position (via `dedup_by(line, col)`) — most are discarded.
 
 Optimization targets, in order:
+
 1. **Skip token+rune mapping generation when no preprocessor map is
    present.** Codegen mappings are already precise in that case. This is
    the single highest-ROI win identified in this session (~45ms).
@@ -531,6 +535,7 @@ TOTAL:                  420.44ms          <-- was 443.57ms (-5.2%)
 ```
 
 Net wins from PR #119:
+
 - Total compile time: -23.13ms (-5.2%)
 - Phase 3: -38.70ms (-17.4%)
 - Pre-frag setup: -43.92ms (-66.3%)
@@ -541,6 +546,7 @@ Compatibility report: 3341/3341 in-scope tests pass.
 ### Updated next-PR ranking
 
 With sourcemap-merge eliminated, the new top-3 buckets are:
+
 1. **Phase 2 Visitors (rest)** — 188.72ms (44.9%). Largest single bucket
    overall. Most documented easy wins are exhausted by #112-#116; further
    work needs a fresh sub-breakdown or samply-driven hot-visitor target.

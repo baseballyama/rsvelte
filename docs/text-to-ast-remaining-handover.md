@@ -10,11 +10,11 @@ If you're picking this up, start with the one that has the highest
 
 ## Status snapshot
 
-| Pass | Where it lives | Perf impact | Why deferred |
-|---|---|---|---|
-| Non-dev `$inspect(...)` statement removal | `rune_transforms.rs:184`–`260` | **cold** (dev-only feature) | Multiple edge cases (`$inspect.trace` vs `$inspect`, `.with(cb)` chain, async-hole markers); attempted once, abandoned per perf-loop rule 4. |
-| Per-statement `wrap_state_derived_with_tag` class-field branch | `rune_transforms.rs:wrap_state_derived_with_tag` (call sites at L116 + L401) | **medium** (dev-mode classes) | Class-field declaration (`#field = $.state(...)`) and `this.#field = $.state(...)` rewrites. Only runs in dev mode + when classes have state. |
-| `transform_module_script_runes` text passes | `mod.rs:transform_module_script_runes` | **medium** (every component with module script) | Separate code path from the per-component AST pass; has its own `transform_state_assignments`, `wrap_state_vars_in_expr`, `transform_strict_equals`, etc. |
+| Pass                                                           | Where it lives                                                               | Perf impact                                     | Why deferred                                                                                                                                              |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Non-dev `$inspect(...)` statement removal                      | `rune_transforms.rs:184`–`260`                                               | **cold** (dev-only feature)                     | Multiple edge cases (`$inspect.trace` vs `$inspect`, `.with(cb)` chain, async-hole markers); attempted once, abandoned per perf-loop rule 4.              |
+| Per-statement `wrap_state_derived_with_tag` class-field branch | `rune_transforms.rs:wrap_state_derived_with_tag` (call sites at L116 + L401) | **medium** (dev-mode classes)                   | Class-field declaration (`#field = $.state(...)`) and `this.#field = $.state(...)` rewrites. Only runs in dev mode + when classes have state.             |
+| `transform_module_script_runes` text passes                    | `mod.rs:transform_module_script_runes`                                       | **medium** (every component with module script) | Separate code path from the per-component AST pass; has its own `transform_state_assignments`, `wrap_state_vars_in_expr`, `transform_strict_equals`, etc. |
 
 The other text helpers (state / derived / derived.by / props
 destructuring, strict-equals, $.tag wrap, $inspect dev-mode) have
@@ -95,7 +95,7 @@ let has_inspect_calls = is_runes
 
 …and include `has_inspect_calls` in `has_transforms` and `has_any_match`.
 (Currently `$inspect` doesn't have its own gate; dev-mode `$inspect(...)`
-rewrites only run when *other* state/derived/props transforms are also
+rewrites only run when _other_ state/derived/props transforms are also
 present, which has been correct because non-dev `$inspect` was handled
 by the text loop. After this migration, the gate is required.)
 

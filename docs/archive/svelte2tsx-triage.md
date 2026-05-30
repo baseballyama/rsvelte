@@ -19,27 +19,27 @@ The runner is also wired into `pnpm run compatibility-report` as the
 
 ## Progress log
 
-| Date | Pass rate | PR | Cluster | Notes |
-|---|---|---|---|---|
-| 2026-05-03 | 200/245 (81.6%) | — | baseline | initial triage |
-| 2026-05-04 | 204/245 | #31, #32, #33 | J + A (partial) | type assertion in module script; comment scanner; bulk snippet hoist |
-| 2026-05-04 | 205/245 | #34 | G (snippet) | typeparams threading on `{#snippet}` |
-| 2026-05-04 | 207/245 | #35 | B (partial) | force-inside-render `$$ComponentProps` lands at `node.parent.pos` instead of $$render top |
-| 2026-05-04 | 208/245 | #37 | B (shadow) | force-inside-render also when props type mentions an instance-script type/interface name |
-| 2026-05-04 | 210/245 | #39 | E (rune path) | SvelteKit `+page` / `+layout` `data` / `form` / `params` autotype injection for `$props()` |
-| 2026-05-04 | 211/245 | #41 | E (snapshot) | `/** @type {Snapshot} */` injection on `export const snapshot` for SvelteKit route files |
-| 2026-05-04 | 213/245 | #42 | A (instance) | per-snippet module hoist for fixtures with both a module and an instance script |
-| 2026-05-04 | 216/245 | #43 | A (module-only) | per-snippet module hoist for module-only components + empty-body snippet emission fix; closes Cluster A |
-| 2026-05-05 | 219/245 | #46 | F (slot decl) | skip `__sveltets_createSlot` binding in dts mode (script branch) |
-| 2026-05-05 | 220/245 | #47 | F (slot decl) | skip `__sveltets_createSlot` in dts mode for module-only / template-only paths |
-| 2026-05-05 | 221/245 | #48 | F (interface→type) | rewrite `interface X { ... }` to `type X = ... & { ... }` in dts mode |
-| 2026-05-05 | 221/245 | #49 | J (each spacing) | per-binding prefix-spaces on `for(let ...)` headers; narrows await.v5 / ts-await-generics.v5 |
-| 2026-05-05 | 224/245 | #51 | B (hoist) | port HoistableInterfaces — top-level types/interfaces hoist out of `$$render` when their deps allow |
-| 2026-05-05 | 225/245 | #53 | E (V4 export let) | extend SvelteKit autotype injection to `export let data | form | params` for `+page` / `+layout` |
-| 2026-05-05 | 228/245 | #55 | B (hoist polish) | use `prepend_right` so `;` markers travel with moved chunks; capture leading JSDoc/comments via trivia walk-back |
-| 2026-05-05 | 228/245 | #57 | I (jsdoc) | snippet headers use `/** @returns */` in JSDoc mode; `<script generics>` becomes `/** @template */`; typedef uses single space |
-| 2026-05-05 | 229/245 | #59 | B (close) | no-imports shadow check excludes hoistable names; part_b prefix `\n` between hoisted chunk and synth `;type $$ComponentProps`; closes Cluster B |
-| 2026-05-05 | 230/245 | #61 | H (close) | slot let-forwarding for `<svelte:self>` and `<svelte:component>` — emits `{const {$$_$$, foo,} = $$_inst.$$slot_def.default;$$_$$;` blocks; closes Cluster H |
+| Date       | Pass rate       | PR            | Cluster            | Notes                                                                                                                                                        |
+| ---------- | --------------- | ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | --------------------------- |
+| 2026-05-03 | 200/245 (81.6%) | —             | baseline           | initial triage                                                                                                                                               |
+| 2026-05-04 | 204/245         | #31, #32, #33 | J + A (partial)    | type assertion in module script; comment scanner; bulk snippet hoist                                                                                         |
+| 2026-05-04 | 205/245         | #34           | G (snippet)        | typeparams threading on `{#snippet}`                                                                                                                         |
+| 2026-05-04 | 207/245         | #35           | B (partial)        | force-inside-render `$$ComponentProps` lands at `node.parent.pos` instead of $$render top                                                                    |
+| 2026-05-04 | 208/245         | #37           | B (shadow)         | force-inside-render also when props type mentions an instance-script type/interface name                                                                     |
+| 2026-05-04 | 210/245         | #39           | E (rune path)      | SvelteKit `+page` / `+layout` `data` / `form` / `params` autotype injection for `$props()`                                                                   |
+| 2026-05-04 | 211/245         | #41           | E (snapshot)       | `/** @type {Snapshot} */` injection on `export const snapshot` for SvelteKit route files                                                                     |
+| 2026-05-04 | 213/245         | #42           | A (instance)       | per-snippet module hoist for fixtures with both a module and an instance script                                                                              |
+| 2026-05-04 | 216/245         | #43           | A (module-only)    | per-snippet module hoist for module-only components + empty-body snippet emission fix; closes Cluster A                                                      |
+| 2026-05-05 | 219/245         | #46           | F (slot decl)      | skip `__sveltets_createSlot` binding in dts mode (script branch)                                                                                             |
+| 2026-05-05 | 220/245         | #47           | F (slot decl)      | skip `__sveltets_createSlot` in dts mode for module-only / template-only paths                                                                               |
+| 2026-05-05 | 221/245         | #48           | F (interface→type) | rewrite `interface X { ... }` to `type X = ... & { ... }` in dts mode                                                                                        |
+| 2026-05-05 | 221/245         | #49           | J (each spacing)   | per-binding prefix-spaces on `for(let ...)` headers; narrows await.v5 / ts-await-generics.v5                                                                 |
+| 2026-05-05 | 224/245         | #51           | B (hoist)          | port HoistableInterfaces — top-level types/interfaces hoist out of `$$render` when their deps allow                                                          |
+| 2026-05-05 | 225/245         | #53           | E (V4 export let)  | extend SvelteKit autotype injection to `export let data                                                                                                      | form | params`for`+page`/`+layout` |
+| 2026-05-05 | 228/245         | #55           | B (hoist polish)   | use `prepend_right` so `;` markers travel with moved chunks; capture leading JSDoc/comments via trivia walk-back                                             |
+| 2026-05-05 | 228/245         | #57           | I (jsdoc)          | snippet headers use `/** @returns */` in JSDoc mode; `<script generics>` becomes `/** @template */`; typedef uses single space                               |
+| 2026-05-05 | 229/245         | #59           | B (close)          | no-imports shadow check excludes hoistable names; part_b prefix `\n` between hoisted chunk and synth `;type $$ComponentProps`; closes Cluster B              |
+| 2026-05-05 | 230/245         | #61           | H (close)          | slot let-forwarding for `<svelte:self>` and `<svelte:component>` — emits `{const {$$_$$, foo,} = $$_inst.$$slot_def.default;$$_$$;` blocks; closes Cluster H |
 
 ## Compatibility-report dashboard wiring
 
@@ -78,9 +78,13 @@ Reference: `submodules/language-tools/packages/svelte2tsx/src/svelte2tsx/index.t
 Expected emission shape:
 
 ```tsx
-const hoistable1/*Ωignore_positionΩ*/ = ()/*Ωignore_startΩ*/: ReturnType<import('svelte').Snippet>/*Ωignore_endΩ*/ => {
-  async ()/*Ωignore_positionΩ*/ => { /* body */ };
-  return __sveltets_2_any(0)
+const hoistable1 /*Ωignore_positionΩ*/ = () /*Ωignore_startΩ*/ : ReturnType<
+	import('svelte').Snippet
+> /*Ωignore_endΩ*/ => {
+	async () /*Ωignore_positionΩ*/ => {
+		/* body */
+	};
+	return __sveltets_2_any(0);
 };
 ```
 
@@ -184,7 +188,7 @@ Reference: `submodules/language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/G
 
 Cosmetic / scope tracking issue: the spacing of attributes inside
 `__sveltets_createSlot("name", { a, })` differs from JS, AND the body of
-the synthesised slot consumer uses `;{...}` instead of ` { ... } ` (with
+the synthesised slot consumer uses `;{...}` instead of `{ ... }` (with
 surrounding spaces). The JS reference walks slot `let:` prop bindings and
 emits a destructure binding into the synthesised `$$_slot_def.default`
 fragment.
@@ -203,14 +207,14 @@ Reference: `submodules/language-tools/packages/svelte2tsx/src/svelte2tsx/utils/t
 
 ### Cluster J: One-off fixtures
 
-| Fixture | Symptom |
-|---|---|
-| `circle-drawer-example` | extra space after `{` in `createElement`'s attribute object — formatting only. Investigation note: the current heuristic in `src/svelte2tsx/template/mod.rs::handle_regular_element` uses `count_tag_to_attr_spaces(...) + 1`, which over-pads when the input is `<div class="x">` (single space) and under-pads when the input is `<button on:click="...">` (extra chars come from the `:` / `"` prefixes that the JS port emits via `MagicString.appendRight` instead of via the prefix string we currently use). Fixing this likely means replicating the JS port's per-attribute appendRight strategy in `magic_string.rs` rather than tweaking the formula. |
-| `await.v5` | `await` block body emitted in wrong order vs `let { ... } = $props()` |
-| `comments-in-attributes.v5` | template comments inside attribute lists not rewritten correctly |
-| `const-tag-component` | `{@const}` inside a component slot — `const $$_tnenopmoC0` declaration form mismatch |
-| `rewrite-imports` | path-rewrite of external imports (rare config) |
-| `ts-type-assertion` | `<X>e` → `e as X` rewrite happening in the wrong scope |
+| Fixture                     | Symptom                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `circle-drawer-example`     | extra space after `{` in `createElement`'s attribute object — formatting only. Investigation note: the current heuristic in `src/svelte2tsx/template/mod.rs::handle_regular_element` uses `count_tag_to_attr_spaces(...) + 1`, which over-pads when the input is `<div class="x">` (single space) and under-pads when the input is `<button on:click="...">` (extra chars come from the `:` / `"` prefixes that the JS port emits via `MagicString.appendRight` instead of via the prefix string we currently use). Fixing this likely means replicating the JS port's per-attribute appendRight strategy in `magic_string.rs` rather than tweaking the formula. |
+| `await.v5`                  | `await` block body emitted in wrong order vs `let { ... } = $props()`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `comments-in-attributes.v5` | template comments inside attribute lists not rewritten correctly                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `const-tag-component`       | `{@const}` inside a component slot — `const $$_tnenopmoC0` declaration form mismatch                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `rewrite-imports`           | path-rewrite of external imports (rare config)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `ts-type-assertion`         | `<X>e` → `e as X` rewrite happening in the wrong scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## Implementation plan
 
@@ -247,7 +251,7 @@ fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
   2. Treat instance-script `namespace X` as a value declaration (not a type), so `A.Abc` correctly blocks hoisting.
   3. Hardcode-skip `$$Props` (legacy alias).
   4. Distinguish object property keys (e.g. `data:` in `{ data: T }`) from real type-references — a token-only scan can't, AST visitor needed.
-  Until this is done, leave types in place inside `$$render`.
+     Until this is done, leave types in place inside `$$render`.
 - **Cluster C — V4 codegen (~17 fixtures, all non-`.v5`)**: V4 export path in `src/svelte2tsx/svelte2tsx.rs` is incomplete. Flipping the test runner to pick V4 for non-`.v5` regresses to 122/245. Save for last.
 - **Cluster D — `$store` template usage (5 fixtures)**: `__sveltets_2_ensureAction` / `__sveltets_2_cssProp` rewriting differs for store-prefixed identifiers. Requires `htmlxtojsx_v2/utils/node-utils.ts::store_subscriptions` port.
 - **Cluster E — SvelteKit autotypes (2 remaining; rune path landed in #39)**: `jsdoc-sveltekit-autotypes.v5` and `jsdoc-sveltekit-autotypes-runes.v5` still fail. The runes-JSDoc one is one line away — needs `/** @type {import('./$types.js').Snapshot} */` injected before `export const snapshot = {}` when the file is a Kit route file. The legacy `export let` JSDoc one needs the same plus per-prop `/** @type {...} */` injection on each `export let`. Both go through `handle_export_named_decl`, which doesn't currently know about the Kit basename. Plumb `basename` through and copy the `emitKitType` logic from `ExportedNames.ts`.
@@ -260,5 +264,5 @@ fixtures (`if sample_name.ends_with(".v5") { V5 } else { V4 }`) and expect
 ## Working tips
 
 - Always read the failing fixture's `input.svelte` and `expectedv2.ts` side-by-side. The diff line numbers in the runner output are good but the surrounding context matters.
-- The runner's `relaxed_compare` (in `tests/svelte2tsx_fixtures.rs`) chains many normalisation passes. If a fixture starts passing only after a normalisation, that means rsvelte's output is *still* drifting — investigate before relying on it.
+- The runner's `relaxed_compare` (in `tests/svelte2tsx_fixtures.rs`) chains many normalisation passes. If a fixture starts passing only after a normalisation, that means rsvelte's output is _still_ drifting — investigate before relying on it.
 - The JS reference uses `MagicString` (mutate-in-place); rsvelte's `src/svelte2tsx/magic_string.rs` mirrors it. When you find a "I need to insert text at offset X" gap, check `magic_string.rs` for the matching `insert_left` / `insert_right` / `overwrite` helper before writing a new one.

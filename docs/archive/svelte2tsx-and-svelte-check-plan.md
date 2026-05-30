@@ -16,12 +16,12 @@
 
 現在の language-tools は 4 つのパッケージで構成されている：
 
-| パッケージ | 役割 |
-|-----------|------|
-| **svelte2tsx** | `.svelte` → `.tsx` 変換 + ソースマップ生成 |
-| **svelte-language-server** | LSP サーバー（SveltePlugin / CSSPlugin / TypeScriptPlugin） |
-| **svelte-check** | CLI 型チェッカー（language-server を内部利用） |
-| **typescript-plugin** | TS Language Service Plugin（IDE 内で `.svelte` import を解決） |
+| パッケージ                 | 役割                                                           |
+| -------------------------- | -------------------------------------------------------------- |
+| **svelte2tsx**             | `.svelte` → `.tsx` 変換 + ソースマップ生成                     |
+| **svelte-language-server** | LSP サーバー（SveltePlugin / CSSPlugin / TypeScriptPlugin）    |
+| **svelte-check**           | CLI 型チェッカー（language-server を内部利用）                 |
+| **typescript-plugin**      | TS Language Service Plugin（IDE 内で `.svelte` import を解決） |
 
 ### 目的
 
@@ -71,25 +71,26 @@ rsvelte コンパイラを活用し、以下を実現する：
 
 テンプレート変換で使用されるハンドラ（`htmlxtojsx_v2/nodes/`）：
 
-| ハンドラ | 変換内容 |
-|---------|---------|
-| Element | HTML 要素 → `svelteHTML.createElement(...)` |
-| InlineComponent | Svelte コンポーネント → JSX |
-| IfElseBlock | `{#if}` → `if/else` ブロック |
-| EachBlock | `{#each}` → ループ |
-| AwaitPendingCatchBlock | `{#await}` → Promise ハンドリング |
-| SnippetBlock | Svelte 5 `{#snippet}` |
-| RenderTag | Svelte 5 `{@render}` |
-| Binding | `bind:` → 双方向バインディング型情報 |
-| EventHandler | `on:` → イベントリスナー型情報 |
-| Attribute | 属性 → JSX 属性 |
-| MustacheTag | `{expr}` → 式展開 |
-| Action / Animation / Transition | ディレクティブ |
-| Class / StyleDirective | スタイルディレクティブ |
+| ハンドラ                        | 変換内容                                    |
+| ------------------------------- | ------------------------------------------- |
+| Element                         | HTML 要素 → `svelteHTML.createElement(...)` |
+| InlineComponent                 | Svelte コンポーネント → JSX                 |
+| IfElseBlock                     | `{#if}` → `if/else` ブロック                |
+| EachBlock                       | `{#each}` → ループ                          |
+| AwaitPendingCatchBlock          | `{#await}` → Promise ハンドリング           |
+| SnippetBlock                    | Svelte 5 `{#snippet}`                       |
+| RenderTag                       | Svelte 5 `{@render}`                        |
+| Binding                         | `bind:` → 双方向バインディング型情報        |
+| EventHandler                    | `on:` → イベントリスナー型情報              |
+| Attribute                       | 属性 → JSX 属性                             |
+| MustacheTag                     | `{expr}` → 式展開                           |
+| Action / Animation / Transition | ディレクティブ                              |
+| Class / StyleDirective          | スタイルディレクティブ                      |
 
 ### 2.3 svelte-check の動作モード
 
 **Traditional モード（デフォルト）:**
+
 ```
 SvelteCheck → PluginHost → 3 つのプラグイン
 ├─ SveltePlugin: コンパイラ警告（A11y 等）
@@ -98,6 +99,7 @@ SvelteCheck → PluginHost → 3 つのプラグイン
 ```
 
 **Incremental モード（`--incremental` / `--tsgo`）:**
+
 ```
 1. emitSvelteFiles() — 変更ファイルのみ svelte2tsx → .tsx + .d.svelte.ts をディスクに書き出し
 2. writeOverlayTsconfig() — オーバーレイ tsconfig 生成
@@ -254,6 +256,7 @@ fn analyze_script(script_content: &str) -> ScriptAnalysis {
 ```
 
 **注意点:**
+
 - rsvelte は既に Phase 2 (analyze) で export やスコープ解析を行っている
 - この既存解析結果を最大限再利用し、svelte2tsx 固有の追加解析のみ実装する
 - 特に `ExportedNames`, `Stores`, `ImplicitTopLevelNames` は Phase 2 の `Scope` / `Binding` 情報から導出可能
@@ -298,10 +301,12 @@ const result = svelte2tsx(content, options);
 #### C-1. Incremental モードの改善
 
 現行の Incremental モードのボトルネック：
+
 1. ファイルごとに svelte2tsx を逐次実行
 2. ディスク I/O（`.tsx` / `.d.svelte.ts` の書き出し）
 
 Rust 化による改善：
+
 - **並列変換**: rayon で全 `.svelte` ファイルを並列に svelte2tsx 変換
 - **メモリ内キャッシュ**: ファイルシステムを介さずメモリ上で変換結果を保持
 - **差分検出**: ファイルハッシュベースの効率的なキャッシュ無効化
@@ -379,6 +384,7 @@ test/svelte2tsx/samples/sample-name/
 ```
 
 **テスト方針:**
+
 1. Rust 実装の出力を JS 版の期待出力と比較
 2. ソースマップの位置精度を検証
 3. 既存の svelte-check テストスイート（`test-success/`, `test-error/`）で E2E 検証
@@ -390,10 +396,10 @@ svelte2tsx の出力は language-server と typescript-plugin の両方が消費
 
 ```typescript
 interface SvelteCompiledToTsx {
-    code: string;           // 生成された TSX コード
-    map: SourceMap;         // v3 ソースマップ
-    exportedNames: IExportedNames;  // export 情報
-    events: ComponentEvents;        // イベント情報（deprecated）
+	code: string; // 生成された TSX コード
+	map: SourceMap; // v3 ソースマップ
+	exportedNames: IExportedNames; // export 情報
+	events: ComponentEvents; // イベント情報（deprecated）
 }
 ```
 
@@ -403,24 +409,24 @@ interface SvelteCompiledToTsx {
 
 ### 5.1 Rust 側の依存関係
 
-| 用途 | 現行 (JS) | Rust 代替 |
-|------|-----------|-----------|
-| Svelte パース | `svelte/compiler` | rsvelte（既存） |
-| TS パース | `typescript` compiler API | OXC parser（既存） |
-| ソースマップ | `magic-string` | 独自実装 or `sourcemap` crate |
-| AST 走査 | `estree-walker` | 独自 visitor（既存パターン） |
-| スコープ解析 | `periscopic` | rsvelte Phase 2（既存） |
-| NAPI | — | `napi-rs`（既存） |
+| 用途          | 現行 (JS)                 | Rust 代替                     |
+| ------------- | ------------------------- | ----------------------------- |
+| Svelte パース | `svelte/compiler`         | rsvelte（既存）               |
+| TS パース     | `typescript` compiler API | OXC parser（既存）            |
+| ソースマップ  | `magic-string`            | 独自実装 or `sourcemap` crate |
+| AST 走査      | `estree-walker`           | 独自 visitor（既存パターン）  |
+| スコープ解析  | `periscopic`              | rsvelte Phase 2（既存）       |
+| NAPI          | —                         | `napi-rs`（既存）             |
 
 ### 5.2 既存 rsvelte 資産の再利用
 
-| rsvelte モジュール | svelte2tsx での活用 |
-|-------------------|-------------------|
-| Phase 1 (parse) | Svelte AST 生成 |
-| Phase 2 (analyze) | スコープ解析、export 追跡、ストア検出、rune 検出 |
-| Phase 3 (transform) の一部 | コード生成パターンの参考 |
-| Validator | Svelte 診断（svelte-check 用） |
-| CSS 解析 | CSS 診断（svelte-check 用） |
+| rsvelte モジュール         | svelte2tsx での活用                              |
+| -------------------------- | ------------------------------------------------ |
+| Phase 1 (parse)            | Svelte AST 生成                                  |
+| Phase 2 (analyze)          | スコープ解析、export 追跡、ストア検出、rune 検出 |
+| Phase 3 (transform) の一部 | コード生成パターンの参考                         |
+| Validator                  | Svelte 診断（svelte-check 用）                   |
+| CSS 解析                   | CSS 診断（svelte-check 用）                      |
 
 ---
 
@@ -432,6 +438,7 @@ svelte2tsx が生成するコードは、以下の shim 型定義に依存して
 - `svelte-jsx-v4.d.ts` — DOM 要素の型マッピング（`svelteHTML` namespace）
 
 **方針:**
+
 - これらの `.d.ts` ファイルはそのまま維持する（TypeScript が消費するため）
 - Rust 側の TSX 生成コードがこれらの型と整合するようにする
 - 将来的に不要なヘルパー型を減らす最適化の余地はある
@@ -442,34 +449,34 @@ svelte2tsx が生成するコードは、以下の shim 型定義に依存して
 
 ### Phase A: svelte2tsx コア（推定工数: 大）
 
-| 優先度 | タスク | 根拠 |
-|--------|-------|------|
-| 1 | MagicString 相当の実装 | 全変換の基盤 |
-| 2 | テンプレート → TSX 変換（基本要素） | Element, MustacheTag, Text |
-| 3 | 制御構文の変換 | IfBlock, EachBlock, AwaitBlock |
-| 4 | コンポーネント関連 | InlineComponent, Slot, SnippetBlock |
-| 5 | ディレクティブ変換 | Binding, EventHandler, Action, Transition |
-| 6 | スクリプト解析（OXC ベース） | ExportedNames, Stores, Generics |
-| 7 | render 関数 + component export 生成 | 最終出力フォーマット |
-| 8 | ソースマップ生成 | 位置マッピング |
-| 9 | テスト互換性検証 | 300+ テストケースのパス |
+| 優先度 | タスク                              | 根拠                                      |
+| ------ | ----------------------------------- | ----------------------------------------- |
+| 1      | MagicString 相当の実装              | 全変換の基盤                              |
+| 2      | テンプレート → TSX 変換（基本要素） | Element, MustacheTag, Text                |
+| 3      | 制御構文の変換                      | IfBlock, EachBlock, AwaitBlock            |
+| 4      | コンポーネント関連                  | InlineComponent, Slot, SnippetBlock       |
+| 5      | ディレクティブ変換                  | Binding, EventHandler, Action, Transition |
+| 6      | スクリプト解析（OXC ベース）        | ExportedNames, Stores, Generics           |
+| 7      | render 関数 + component export 生成 | 最終出力フォーマット                      |
+| 8      | ソースマップ生成                    | 位置マッピング                            |
+| 9      | テスト互換性検証                    | 300+ テストケースのパス                   |
 
 ### Phase B: NAPI 統合（推定工数: 小）
 
-| 優先度 | タスク |
-|--------|-------|
-| 1 | `svelte2tsx()` NAPI 関数の公開 |
-| 2 | language-server での差し替え検証 |
-| 3 | typescript-plugin での差し替え検証 |
+| 優先度 | タスク                             |
+| ------ | ---------------------------------- |
+| 1      | `svelte2tsx()` NAPI 関数の公開     |
+| 2      | language-server での差し替え検証   |
+| 3      | typescript-plugin での差し替え検証 |
 
 ### Phase C: svelte-check 最適化（推定工数: 中）
 
-| 優先度 | タスク |
-|--------|-------|
-| 1 | バッチ並列変換の実装 |
-| 2 | Svelte 診断のネイティブ化 |
-| 3 | Incremental モードの最適化 |
-| 4 | ソースマップ逆引きの高速化 |
+| 優先度 | タスク                     |
+| ------ | -------------------------- |
+| 1      | バッチ並列変換の実装       |
+| 2      | Svelte 診断のネイティブ化  |
+| 3      | Incremental モードの最適化 |
+| 4      | ソースマップ逆引きの高速化 |
 
 ---
 
@@ -509,10 +516,10 @@ svelte2tsx が生成するコードは、以下の shim 型定義に依存して
 
 ## 9. 成功指標
 
-| 指標 | 目標 |
-|------|------|
-| svelte2tsx テスト互換性 | 300+ テストケースの 100% パス |
-| svelte-check E2E テスト | 既存テストスイートの 100% パス |
-| 変換速度（単一ファイル） | JS 版の 10x 以上 |
+| 指標                      | 目標                                                       |
+| ------------------------- | ---------------------------------------------------------- |
+| svelte2tsx テスト互換性   | 300+ テストケースの 100% パス                              |
+| svelte-check E2E テスト   | 既存テストスイートの 100% パス                             |
+| 変換速度（単一ファイル）  | JS 版の 10x 以上                                           |
 | svelte-check 全体実行時間 | JS 版の 3-5x 高速化（型チェックは tsc 依存のため上限あり） |
-| ソースマップ精度 | 全位置マッピングが JS 版と一致 |
+| ソースマップ精度          | 全位置マッピングが JS 版と一致                             |

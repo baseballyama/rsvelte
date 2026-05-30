@@ -324,9 +324,15 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 			[/\}/, { token: 'delimiter.curly', next: '@pop' }],
 			[/\/\*/, { token: 'comment.css', next: '@cssComment' }],
 			// nested rule: a selector followed by `{` (basic detection for `&:hover {` etc.)
-			[/(&[^;{}]*?)(\{)/, ['attribute.name.css.pseudo', { token: 'delimiter.curly', next: '@cssBlock' }]],
+			[
+				/(&[^;{}]*?)(\{)/,
+				['attribute.name.css.pseudo', { token: 'delimiter.curly', next: '@cssBlock' }]
+			],
 			// property name followed by colon → switch to value state
-			[/([\w-]+)(\s*)(:)/, ['attribute.name.css', 'white', { token: 'delimiter', next: '@cssValue' }]],
+			[
+				/([\w-]+)(\s*)(:)/,
+				['attribute.name.css', 'white', { token: 'delimiter', next: '@cssValue' }]
+			],
 			[/;/, 'delimiter'],
 			[/\s+/, 'white'],
 			[/./, '']

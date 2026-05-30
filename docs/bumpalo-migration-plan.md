@@ -17,6 +17,7 @@ The Svelte template AST already uses an **arena pattern**, just not bumpalo:
 - `Root.arena` owns one `ParseArena` per parse unit.
 
 This pattern gives:
+
 - ✅ Contiguous storage (cache-friendly)
 - ✅ Bulk deallocation on arena drop
 - ✅ Cheap allocation (Vec push)
@@ -37,11 +38,11 @@ just not for the Svelte template AST.
 
 Touching `JsNode` cascades widely. Current usage:
 
-| Symbol | Files | Notes |
-|---|---|---|
-| `JsNodeId` | 10 | Every consumer that reaches into a JsNode child |
-| `IdRange` | 12 | Every consumer that iterates over JsNode children |
-| `ParseArena` | 33 | Every site that allocates, queries, or threads the arena |
+| Symbol       | Files | Notes                                                    |
+| ------------ | ----- | -------------------------------------------------------- |
+| `JsNodeId`   | 10    | Every consumer that reaches into a JsNode child          |
+| `IdRange`    | 12    | Every consumer that iterates over JsNode children        |
+| `ParseArena` | 33    | Every site that allocates, queries, or threads the arena |
 
 Every consumer would need a `'a` lifetime parameter on its types and
 function signatures. Visitors, serializers, transforms, analysis —
@@ -172,14 +173,14 @@ indirection entirely.
 
 ## Estimate
 
-| Phase | Estimate | Cumulative perf delta |
-|---|---|---|
-| 0 (prep) | 0.5 day | 0% |
-| 1 (Loc) | 1–2 days | 0–5% |
-| 2 (Vec → bumpalo) | 2–3 days | 0–5% |
-| 3 (refs over IDs) | 3–5 days | +10–20% |
-| 4 (cleanup) | 0.5 day | (no change) |
-| **Total** | **7–10 days** | **+10–20%** |
+| Phase             | Estimate      | Cumulative perf delta |
+| ----------------- | ------------- | --------------------- |
+| 0 (prep)          | 0.5 day       | 0%                    |
+| 1 (Loc)           | 1–2 days      | 0–5%                  |
+| 2 (Vec → bumpalo) | 2–3 days      | 0–5%                  |
+| 3 (refs over IDs) | 3–5 days      | +10–20%               |
+| 4 (cleanup)       | 0.5 day       | (no change)           |
+| **Total**         | **7–10 days** | **+10–20%**           |
 
 These are calendar-day estimates assuming focused work and that each
 phase's bench-gate passes on the first try. Plan for ~50% buffer.

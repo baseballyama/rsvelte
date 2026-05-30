@@ -28,12 +28,12 @@ keeps the tsgo clone shallow.
 The work is sequenced into four waves so each wave delivers user-visible value
 on its own (no half-finished tools sitting in `main`).
 
-| Wave | Tool | Status | Estimated effort |
-|---|---|---|---|
-| 1 | svelte2tsx (complete remaining 18.4%) | ✅ 245/245 (100%) | — |
-| 2 | svelte-check (Rust + tsgo backend) | ✅ v1.0 (structured attribute bake) | — |
-| 3 | vite-plugin-svelte (NAPI shim) | 🟢 v1.0 — NAPI primitives + forked JS shim + 15-assertion smoke suite | bench pending |
-| 4 | svelte-language-server | ⛔ blocked on tsgo tsserver — CLI checking covered by Wave 2 | (deferred) |
+| Wave | Tool                                  | Status                                                                | Estimated effort |
+| ---- | ------------------------------------- | --------------------------------------------------------------------- | ---------------- |
+| 1    | svelte2tsx (complete remaining 18.4%) | ✅ 245/245 (100%)                                                     | —                |
+| 2    | svelte-check (Rust + tsgo backend)    | ✅ v1.0 (structured attribute bake)                                   | —                |
+| 3    | vite-plugin-svelte (NAPI shim)        | 🟢 v1.0 — NAPI primitives + forked JS shim + 15-assertion smoke suite | bench pending    |
+| 4    | svelte-language-server                | ⛔ blocked on tsgo tsserver — CLI checking covered by Wave 2          | (deferred)       |
 
 Out of scope: SvelteKit, eslint-plugin-svelte (route to oxlint),
 prettier-plugin-svelte (route to dprint/biome), svelte-preprocess (delegates
@@ -73,7 +73,7 @@ prints the first differing line). Expected clusters:
    missing `$$_svelteself0.$$slot_def.default` block; that's the JS shape
    we need to emit.
 3. **Generic component parameters** (medium: ~10 fixtures) — `<Comp
-   generic="T">{ ... }</Comp>`. Should already be parsed but the type-arg
+generic="T">{ ... }</Comp>`. Should already be parsed but the type-arg
    threading through `createRenderFunction` is incomplete.
 4. **TypeScript-specific syntax** (medium: ~10 fixtures) — `satisfies`,
    `const` type parameters, type-only imports inside `<script>`, `lang="ts"`
@@ -103,9 +103,9 @@ prints the first differing line). Expected clusters:
 
 ### Risk register
 
-| Risk | Mitigation |
-|---|---|
-| TS-specific syntax keeps growing as upstream evolves | Pin svelte2tsx submodule to a tagged release; bump explicitly. |
+| Risk                                                   | Mitigation                                                                 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| TS-specific syntax keeps growing as upstream evolves   | Pin svelte2tsx submodule to a tagged release; bump explicitly.             |
 | Sourcemap fixtures drift between magic-string versions | Adopt magic-string's encoder behaviour exactly; don't try to "improve" it. |
 
 ---
@@ -157,14 +157,14 @@ prints the first differing line). Expected clusters:
 
 ### Component breakdown
 
-| Module | Path | Responsibility | Reference |
-|---|---|---|---|
-| Project walker | `src/svelte_check/walker.rs` | Find files matching `**/*.{svelte,ts,js}` minus ignore list | `submodules/language-tools/packages/svelte-check/src/utils.ts` |
-| Overlay dir manager | `src/svelte_check/overlay.rs` | Materialise generated `.tsx` shadow files in a temp dir; write overlay `tsconfig.json` | `submodules/language-tools/packages/svelte-check/src/incremental.ts::writeOverlayTsconfig` |
-| tsgo runner | `src/svelte_check/tsgo.rs` | Spawn `tsgo --noEmit -p <overlay>`, parse JSON output, surface progress | `submodules/typescript-go/cmd/tsgo` (CLI flags), upstream JSON output format |
-| Diagnostic mapper | `src/svelte_check/mapper.rs` | Use the sourcemap from svelte2tsx to translate `.tsx` line/col → `.svelte` line/col | `submodules/language-tools/packages/svelte-check/src/incremental.ts::mapCliDiagnosticsToLsp` |
-| CLI orchestration | `src/bin/svelte_check.rs` | Argument parsing, watch mode, exit codes | `submodules/language-tools/packages/svelte-check/src/index.ts` |
-| Writers | `src/svelte_check/writers.rs` | Human-friendly + machine (JSON / GitHub Actions) output | `submodules/language-tools/packages/svelte-check/src/writers.ts` |
+| Module              | Path                          | Responsibility                                                                         | Reference                                                                                    |
+| ------------------- | ----------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Project walker      | `src/svelte_check/walker.rs`  | Find files matching `**/*.{svelte,ts,js}` minus ignore list                            | `submodules/language-tools/packages/svelte-check/src/utils.ts`                               |
+| Overlay dir manager | `src/svelte_check/overlay.rs` | Materialise generated `.tsx` shadow files in a temp dir; write overlay `tsconfig.json` | `submodules/language-tools/packages/svelte-check/src/incremental.ts::writeOverlayTsconfig`   |
+| tsgo runner         | `src/svelte_check/tsgo.rs`    | Spawn `tsgo --noEmit -p <overlay>`, parse JSON output, surface progress                | `submodules/typescript-go/cmd/tsgo` (CLI flags), upstream JSON output format                 |
+| Diagnostic mapper   | `src/svelte_check/mapper.rs`  | Use the sourcemap from svelte2tsx to translate `.tsx` line/col → `.svelte` line/col    | `submodules/language-tools/packages/svelte-check/src/incremental.ts::mapCliDiagnosticsToLsp` |
+| CLI orchestration   | `src/bin/svelte_check.rs`     | Argument parsing, watch mode, exit codes                                               | `submodules/language-tools/packages/svelte-check/src/index.ts`                               |
+| Writers             | `src/svelte_check/writers.rs` | Human-friendly + machine (JSON / GitHub Actions) output                                | `submodules/language-tools/packages/svelte-check/src/writers.ts`                             |
 
 ### tsgo integration details
 
@@ -259,13 +259,13 @@ vite.config.js
 
 ### Component breakdown
 
-| Module | Path | Responsibility | Reference |
-|---|---|---|---|
-| Compile dispatcher | re-uses `napi_compile` | Map Vite's `transform` hook input to rsvelte's `compile` | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/plugins/compile.js` |
-| Preprocess dispatcher | new `napi_preprocess` | Run preprocessor pipeline (already implemented in `src/compiler/preprocess/`) | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/plugins/preprocess.js` |
-| Path resolver | new `src/vps/resolver.rs` | Resolve `<script src="...">`, virtual modules, `.svelte` extensions | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/utils/id.js` |
-| HMR diff | new `src/vps/hmr.rs` | Detect template-only vs script-also changes; produce a minimal patch payload Vite can ship to the browser | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/plugins/hot-update.js` |
-| Stats counter | new `src/vps/stats.rs` | Wall-clock per phase, file count, cache hits | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/utils/vite-plugin-svelte-stats.js` |
+| Module                | Path                      | Responsibility                                                                                            | Reference                                                                                         |
+| --------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Compile dispatcher    | re-uses `napi_compile`    | Map Vite's `transform` hook input to rsvelte's `compile`                                                  | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/plugins/compile.js`                |
+| Preprocess dispatcher | new `napi_preprocess`     | Run preprocessor pipeline (already implemented in `src/compiler/preprocess/`)                             | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/plugins/preprocess.js`             |
+| Path resolver         | new `src/vps/resolver.rs` | Resolve `<script src="...">`, virtual modules, `.svelte` extensions                                       | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/utils/id.js`                       |
+| HMR diff              | new `src/vps/hmr.rs`      | Detect template-only vs script-also changes; produce a minimal patch payload Vite can ship to the browser | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/plugins/hot-update.js`             |
+| Stats counter         | new `src/vps/stats.rs`    | Wall-clock per phase, file count, cache hits                                                              | `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/utils/vite-plugin-svelte-stats.js` |
 
 ### JS shim design
 
@@ -277,31 +277,31 @@ JS modules with specific shape; we don't try to replace that.
 import { compile, preprocess, hotUpdateDiff } from '@rsvelte/vite-plugin-svelte-native';
 
 export function svelte(options = {}) {
-  // ... configure(), setupOptimizer(), … stay in JS
-  return [
-    {
-      name: 'vite-plugin-svelte:compile',
-      async transform(code, id) {
-        if (!id.endsWith('.svelte')) return null;
-        // 1 NAPI hop, no JS compiler.
-        return compile(code, { filename: id, ...options.compilerOptions });
-      },
-    },
-    // ...
-  ];
+	// ... configure(), setupOptimizer(), … stay in JS
+	return [
+		{
+			name: 'vite-plugin-svelte:compile',
+			async transform(code, id) {
+				if (!id.endsWith('.svelte')) return null;
+				// 1 NAPI hop, no JS compiler.
+				return compile(code, { filename: id, ...options.compilerOptions });
+			}
+		}
+		// ...
+	];
 }
 ```
 
 ### NAPI surface additions (from existing baseline)
 
-| Function | Already exists | Notes |
-|---|---|---|
-| `napi_compile` | ✅ | No changes |
-| `napi_compile_module` | ✅ | No changes |
-| `napi_svelte2tsx` | ✅ | Unchanged |
-| `napi_preprocess` | ❌ new | Async wrapper around `compiler::preprocess::preprocess` — needs a JS-callable preprocessor callback shape (or document that only Rust-native preprocessors are supported and JS preprocessors stay in JS) |
-| `napi_hmr_diff` | ❌ new | Input: previous + current `.svelte` content. Output: `{ kind: 'hot-update' \| 'full-reload', payload: ... }` |
-| `napi_resolve_id` | ❌ new | Input: importer + specifier. Output: resolved path or null |
+| Function              | Already exists | Notes                                                                                                                                                                                                     |
+| --------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `napi_compile`        | ✅             | No changes                                                                                                                                                                                                |
+| `napi_compile_module` | ✅             | No changes                                                                                                                                                                                                |
+| `napi_svelte2tsx`     | ✅             | Unchanged                                                                                                                                                                                                 |
+| `napi_preprocess`     | ❌ new         | Async wrapper around `compiler::preprocess::preprocess` — needs a JS-callable preprocessor callback shape (or document that only Rust-native preprocessors are supported and JS preprocessors stay in JS) |
+| `napi_hmr_diff`       | ❌ new         | Input: previous + current `.svelte` content. Output: `{ kind: 'hot-update' \| 'full-reload', payload: ... }`                                                                                              |
+| `napi_resolve_id`     | ❌ new         | Input: importer + specifier. Output: resolved path or null                                                                                                                                                |
 
 ### Tradeoffs
 
@@ -329,11 +329,11 @@ export function svelte(options = {}) {
 
 ### Risk register
 
-| Risk | Mitigation |
-|---|---|
-| Vite plugin lifecycle subtleties (e.g. `enforce: 'pre'` ordering) break | E2E tests cover this; we run them on every PR. |
+| Risk                                                                    | Mitigation                                                                    |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Vite plugin lifecycle subtleties (e.g. `enforce: 'pre'` ordering) break | E2E tests cover this; we run them on every PR.                                |
 | User has JS preprocessors that depend on Node APIs we can't NAPI-bridge | Keep JS preprocessor path. The Rust path is opt-in for "pure compiler users". |
-| NAPI call overhead exceeds the savings on tiny files | Batch `transform` calls if Vite invokes them in tight loops. |
+| NAPI call overhead exceeds the savings on tiny files                    | Batch `transform` calls if Vite invokes them in tight loops.                  |
 
 ---
 
@@ -347,7 +347,7 @@ shows up as latency in the editor.
 
 ### CLI-side checking is already covered
 
-The Wave 2 `svelte-check` CLI provides the *checking* half of the language
+The Wave 2 `svelte-check` CLI provides the _checking_ half of the language
 server today: `.svelte` + `.ts` diagnostics, watch mode, incremental cache,
 GitHub Actions / machine output, exact column mapping via the structured
 attribute bake. Users who only need "errors in CI / pre-commit" don't have
@@ -377,13 +377,13 @@ When tsgo ships a long-running language-services daemon (an analogue to
 
 ## Out of scope (delegate, don't port)
 
-| Tool | Why not | Where to contribute instead |
-|---|---|---|
-| eslint-plugin-svelte | ESLint itself is JS; oxlint is the Rust path forward | Add Svelte rules to oxlint upstream |
-| prettier-plugin-svelte | Prettier itself is JS | dprint plugin or biome's Svelte formatter |
-| svelte-preprocess | Wraps sass/postcss/ts (all JS-heavy) | Skip — wrapper, not core |
-| mdsvex | Built on unified/remark | Skip — markdown ecosystem is JS |
-| SvelteKit | Whole framework, deeply Vite/Rollup-coupled | Out of scope. Specific hot paths (e.g. SSR renderer) might be revisited individually later. |
+| Tool                   | Why not                                              | Where to contribute instead                                                                 |
+| ---------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| eslint-plugin-svelte   | ESLint itself is JS; oxlint is the Rust path forward | Add Svelte rules to oxlint upstream                                                         |
+| prettier-plugin-svelte | Prettier itself is JS                                | dprint plugin or biome's Svelte formatter                                                   |
+| svelte-preprocess      | Wraps sass/postcss/ts (all JS-heavy)                 | Skip — wrapper, not core                                                                    |
+| mdsvex                 | Built on unified/remark                              | Skip — markdown ecosystem is JS                                                             |
+| SvelteKit              | Whole framework, deeply Vite/Rollup-coupled          | Out of scope. Specific hot paths (e.g. SSR renderer) might be revisited individually later. |
 
 ---
 
