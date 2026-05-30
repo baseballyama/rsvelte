@@ -25,6 +25,7 @@
 //! - Block headers (`{#if EXPR}`, `{#each ...}`, ...)
 //! - Children fragments (recursed into separately by the caller)
 
+use oxc_formatter::JsFormatOptions;
 use svelte_compiler_rust::ast::js::Expression;
 use svelte_compiler_rust::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, Fragment, SpreadAttribute,
@@ -36,15 +37,17 @@ use crate::expression::format_expression_source;
 use crate::options::FormatOptions;
 
 /// Walk a `Fragment` recursively and append open-tag rewrite edits for
-/// every element with attributes.
+/// every element with attributes. `depth` is the indent level at which
+/// this fragment's elements render (the root call passes `0`).
 pub(crate) fn collect_open_tag_edits(
     source: &str,
     fragment: &Fragment,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     for node in &fragment.nodes {
-        collect_node_open_tag_edits(source, node, options, edits)?;
+        collect_node_open_tag_edits(source, node, depth, options, edits)?;
     }
     Ok(())
 }
@@ -52,6 +55,7 @@ pub(crate) fn collect_open_tag_edits(
 fn collect_node_open_tag_edits(
     source: &str,
     node: &TemplateNode,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -63,11 +67,12 @@ fn collect_node_open_tag_edits(
                 elem.name.as_str(),
                 &elem.attributes,
                 None,
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, elem.end, elem.name.as_str(), edits);
-            collect_open_tag_edits(source, &elem.fragment, options, edits)?;
+            collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::Component(c) => {
             push_open_tag(
@@ -76,11 +81,12 @@ fn collect_node_open_tag_edits(
                 c.name.as_str(),
                 &c.attributes,
                 None,
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, c.end, c.name.as_str(), edits);
-            collect_open_tag_edits(source, &c.fragment, options, edits)?;
+            collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
             push_open_tag(
@@ -89,11 +95,12 @@ fn collect_node_open_tag_edits(
                 t.name.as_str(),
                 &t.attributes,
                 None,
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, t.end, t.name.as_str(), edits);
-            collect_open_tag_edits(source, &t.fragment, options, edits)?;
+            collect_open_tag_edits(source, &t.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
             push_open_tag(
@@ -102,11 +109,12 @@ fn collect_node_open_tag_edits(
                 s.name.as_str(),
                 &s.attributes,
                 None,
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, s.end, s.name.as_str(), edits);
-            collect_open_tag_edits(source, &s.fragment, options, edits)?;
+            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteHead(s)
         | TemplateNode::SvelteBody(s)
@@ -122,11 +130,12 @@ fn collect_node_open_tag_edits(
                 s.name.as_str(),
                 &s.attributes,
                 None,
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, s.end, s.name.as_str(), edits);
-            collect_open_tag_edits(source, &s.fragment, options, edits)?;
+            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
             push_open_tag(
@@ -135,11 +144,12 @@ fn collect_node_open_tag_edits(
                 c.name.as_str(),
                 &c.attributes,
                 Some(&c.expression),
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, c.end, c.name.as_str(), edits);
-            collect_open_tag_edits(source, &c.fragment, options, edits)?;
+            collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
             push_open_tag(
@@ -148,41 +158,43 @@ fn collect_node_open_tag_edits(
                 e.name.as_str(),
                 &e.attributes,
                 Some(&e.tag),
+                depth,
                 options,
                 edits,
             )?;
             push_close_tag(source, e.end, e.name.as_str(), edits);
-            collect_open_tag_edits(source, &e.fragment, options, edits)?;
+            collect_open_tag_edits(source, &e.fragment, depth + 1, options, edits)?;
         }
         // Blocks have child fragments but no attributes themselves.
+        // Their bodies are conceptually one level deeper than the block.
         TemplateNode::IfBlock(blk) => {
-            collect_open_tag_edits(source, &blk.consequent, options, edits)?;
+            collect_open_tag_edits(source, &blk.consequent, depth + 1, options, edits)?;
             if let Some(alt) = &blk.alternate {
-                collect_open_tag_edits(source, alt, options, edits)?;
+                collect_open_tag_edits(source, alt, depth + 1, options, edits)?;
             }
         }
         TemplateNode::EachBlock(blk) => {
-            collect_open_tag_edits(source, &blk.body, options, edits)?;
+            collect_open_tag_edits(source, &blk.body, depth + 1, options, edits)?;
             if let Some(fb) = &blk.fallback {
-                collect_open_tag_edits(source, fb, options, edits)?;
+                collect_open_tag_edits(source, fb, depth + 1, options, edits)?;
             }
         }
         TemplateNode::AwaitBlock(blk) => {
             if let Some(frag) = &blk.pending {
-                collect_open_tag_edits(source, frag, options, edits)?;
+                collect_open_tag_edits(source, frag, depth + 1, options, edits)?;
             }
             if let Some(frag) = &blk.then {
-                collect_open_tag_edits(source, frag, options, edits)?;
+                collect_open_tag_edits(source, frag, depth + 1, options, edits)?;
             }
             if let Some(frag) = &blk.catch {
-                collect_open_tag_edits(source, frag, options, edits)?;
+                collect_open_tag_edits(source, frag, depth + 1, options, edits)?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
-            collect_open_tag_edits(source, &blk.fragment, options, edits)?;
+            collect_open_tag_edits(source, &blk.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
-            collect_open_tag_edits(source, &blk.body, options, edits)?;
+            collect_open_tag_edits(source, &blk.body, depth + 1, options, edits)?;
         }
         _ => {}
     }
@@ -228,12 +240,23 @@ fn find_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)> {
 /// `<svelte:element>` — emitted as the first attribute when present so
 /// the rendering is independent of where the parser placed it in the
 /// source.
+///
+/// Two rendering shapes are considered:
+/// - **One-line** — `<tag attr1 attr2 ...>` / `<tag attr1 .../>`. Used
+///   when the rendered tag plus the parent indent fits within
+///   `options.js.line_width`.
+/// - **Multi-line** — `<tag\n  attr1\n  attr2\n>` / `<tag\n  ...\n/>`.
+///   Each attribute on its own line at `depth + 1` indent, the closing
+///   `>` (or `/>`) on a new line at `depth` indent. Used when the
+///   one-liner would overflow.
+#[allow(clippy::too_many_arguments)]
 fn push_open_tag(
     source: &str,
     element_start: u32,
     tag_name: &str,
     attributes: &[Attribute],
     this_expression: Option<&Expression>,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -243,32 +266,100 @@ fn push_open_tag(
 
     let self_closing = is_self_closing(source, open_tag_end);
 
-    let mut rendered = String::with_capacity(tag_name.len() + 16);
-    rendered.push('<');
-    rendered.push_str(tag_name);
+    // Build the list of fully-rendered attribute strings once, so the
+    // one-line and multi-line shapes share the same content.
+    let mut rendered_attrs: Vec<String> = Vec::with_capacity(attributes.len() + 1);
 
     if let Some(expr) = this_expression
         && let Some(formatted) = format_expression_at(source, expr, options)?
     {
-        rendered.push(' ');
-        rendered.push_str("this={");
-        rendered.push_str(&formatted);
-        rendered.push('}');
+        rendered_attrs.push(format!("this={{{formatted}}}"));
     }
 
     for attr in attributes {
-        rendered.push(' ');
-        rendered.push_str(&render_attribute(attr, source, options)?);
+        rendered_attrs.push(render_attribute(attr, source, options)?);
     }
 
-    if self_closing {
-        rendered.push_str(" />");
+    let one_liner = render_one_line(tag_name, &rendered_attrs, self_closing);
+
+    let leading_indent_width = indent_visual_width(depth, &options.js);
+    let line_width = options.js.line_width.value() as usize;
+
+    let rendered = if rendered_attrs.is_empty()
+        || leading_indent_width + visual_width(&one_liner) <= line_width
+    {
+        one_liner
     } else {
-        rendered.push('>');
-    }
+        render_multi_line(tag_name, &rendered_attrs, self_closing, depth, &options.js)
+    };
 
     edits.push((element_start, open_tag_end, rendered));
     Ok(())
+}
+
+fn render_one_line(tag_name: &str, attrs: &[String], self_closing: bool) -> String {
+    let mut out = String::with_capacity(tag_name.len() + 16);
+    out.push('<');
+    out.push_str(tag_name);
+    for a in attrs {
+        out.push(' ');
+        out.push_str(a);
+    }
+    if self_closing {
+        out.push_str(" />");
+    } else {
+        out.push('>');
+    }
+    out
+}
+
+fn render_multi_line(
+    tag_name: &str,
+    attrs: &[String],
+    self_closing: bool,
+    depth: usize,
+    js_opts: &JsFormatOptions,
+) -> String {
+    let inner_indent = indent_str(depth + 1, js_opts);
+    let outer_indent = indent_str(depth, js_opts);
+    let mut out = String::with_capacity(tag_name.len() + attrs.len() * 16);
+    out.push('<');
+    out.push_str(tag_name);
+    for a in attrs {
+        out.push('\n');
+        out.push_str(&inner_indent);
+        out.push_str(a);
+    }
+    out.push('\n');
+    out.push_str(&outer_indent);
+    if self_closing {
+        out.push_str("/>");
+    } else {
+        out.push('>');
+    }
+    out
+}
+
+fn indent_str(level: usize, js_opts: &JsFormatOptions) -> String {
+    if js_opts.indent_style.is_tab() {
+        "\t".repeat(level)
+    } else {
+        " ".repeat(level * js_opts.indent_width.value() as usize)
+    }
+}
+
+/// Visual column width of an indent. For tabs, treat one tab as
+/// `indent_width` visual columns (matches how most editors display
+/// them).
+fn indent_visual_width(level: usize, js_opts: &JsFormatOptions) -> usize {
+    level * js_opts.indent_width.value() as usize
+}
+
+/// Visual width of a rendered string. Today we count chars (close
+/// enough for ASCII attribute names + values). A proper grapheme /
+/// wide-char-aware count can drop in later if needed.
+fn visual_width(s: &str) -> usize {
+    s.chars().count()
 }
 
 // ─── source-scan helpers ────────────────────────────────────────────────
