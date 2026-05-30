@@ -66,6 +66,7 @@ const ATTRVAL_SEQUENCE = 0x62;
 
 // Header flag bits — see napi_raw_parse::FLAG_*.
 const FLAG_JSNODE_NO_LOC = 1 << 0;
+const FLAG_CSS_STUB_ONLY = 1 << 1;
 
 const TAG_IF_BLOCK = 0x70;
 const TAG_EACH_BLOCK = 0x71;
@@ -221,6 +222,7 @@ function decodeParseEnvelope(buf) {
 	const rootOffset = view.getUint32(12, true);
 	const flags = view.getUint32(20, true);
 	const skipJsNodeLoc = (flags & FLAG_JSNODE_NO_LOC) !== 0;
+	const cssStubOnly = (flags & FLAG_CSS_STUB_ONLY) !== 0;
 	const bytes =
 		buf instanceof Uint8Array
 			? buf
@@ -230,7 +232,7 @@ function decodeParseEnvelope(buf) {
 	// `TextDecoder.decode(typedArray.subarray(start, end))` for the
 	// short ASCII strings that dominate an AST.
 	const isBuffer = hasBuffer && Buffer.isBuffer(bytes);
-	const ctx = { view, bytes, pos: rootOffset, isBuffer, skipJsNodeLoc };
+	const ctx = { view, bytes, pos: rootOffset, isBuffer, skipJsNodeLoc, cssStubOnly };
 	return readNode(ctx);
 }
 
@@ -1445,7 +1447,30 @@ function readJsComment_(ctx, start, end) {
 
 function readRoot(ctx, start, end) {
 	const root = { css: null, js: null, start, end, type: 'Root', fragment: null, options: null };
-	root.css = readU8(ctx) === 0 ? null : readJsonNodeWithPreamble(ctx);
+	if (readU8(ctx) === 0) {
+		root.css = null;
+	} else if (ctx.cssStubOnly) {
+		// `FLAG_CSS_STUB_ONLY` — the encoder wrote a TAG_JSON preamble
+		// with an empty payload; the only information that survives is
+		// the outer `start` / `end`. Rebuild the minimal StyleSheet
+		// shape consumers expect.
+		const tag = readU8(ctx);
+		const cssStart = readU32(ctx);
+		const cssEnd = readU32(ctx);
+		const len = readU32(ctx);
+		ctx.pos += len;
+		void tag;
+		root.css = {
+			type: 'StyleSheet',
+			start: cssStart,
+			end: cssEnd,
+			attributes: [],
+			children: [],
+			content: { start: cssStart, end: cssEnd, styles: '', comment: null },
+		};
+	} else {
+		root.css = readJsonNodeWithPreamble(ctx);
+	}
 	root.js = readJsonNodeWithPreamble(ctx);
 	root.fragment = readFragmentDirect(ctx);
 	root.options = readU8(ctx) === 0 ? null : readJsonNodeWithPreamble(ctx);

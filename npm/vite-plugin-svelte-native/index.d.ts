@@ -295,6 +295,16 @@ export interface ParseOptions {
 	 * binary buffer (with `parseEnvelope`).
 	 */
 	skipExpressionLoc?: boolean;
+	/**
+	 * Skip emitting the full CSS `StyleSheet` AST. The decoded `css`
+	 * field becomes a minimal stub
+	 * (`{ type: "StyleSheet", start, end, attributes: [], children: [], content: { start, end, styles: "", comment: null } }`).
+	 * Use when the downstream pipeline re-parses `<style>` blocks with
+	 * its own CSS parser (e.g. `svelte-eslint-parser` uses postcss).
+	 * Saves ~5–10 KB of buffer per component and skips the matching
+	 * JSON-parse step.
+	 */
+	skipCssAst?: boolean;
 }
 
 /**

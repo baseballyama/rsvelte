@@ -64,7 +64,15 @@ pub const HEADER_LEN: usize = 24;
 //   bit 0 — every JsNode in this envelope has `loc == None`. The decoder
 //           can skip the per-node loc-flag byte and reconstruct `loc`
 //           as absent without reading any payload.
+//   bit 1 — the CSS `StyleSheet` body has been omitted. The encoder
+//           writes only the outer `start` / `end` and the decoder
+//           reconstructs an empty stub: `{ type: "StyleSheet", start,
+//           end, attributes: [], children: [], content: { start, end,
+//           styles: "", comment: null } }`. Use when the downstream
+//           pipeline re-parses the `<style>` content with its own
+//           CSS parser (e.g. `svelte-eslint-parser` uses postcss).
 pub const FLAG_JSNODE_NO_LOC: u32 = 1 << 0;
+pub const FLAG_CSS_STUB_ONLY: u32 = 1 << 1;
 
 // ---------------------------------------------------------------------------
 // Tag identifiers
@@ -394,9 +402,17 @@ fn write_opt_expression<W: Writer>(
 // which guarantees every JsNode has `loc: None`.
 thread_local! {
     static SKIP_JSNODE_LOC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    // Emit only a stub for the `Root.css` payload. Mirrors
+    // `FLAG_CSS_STUB_ONLY` in the envelope header — set when the
+    // caller opts into `skip_css_ast`, which omits the full
+    // `StyleSheet` body from the wire.
+    static SKIP_CSS_AST: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 fn jsnode_loc_elided() -> bool {
     SKIP_JSNODE_LOC.with(|c| c.get())
+}
+fn css_stub_only() -> bool {
+    SKIP_CSS_AST.with(|c| c.get())
 }
 
 /// `typed_expr::Loc` — emits a flag byte + 6 u32s (with optional
@@ -1009,7 +1025,16 @@ fn write_root<W: Writer>(w: &mut W, root: &Root) -> std::io::Result<()> {
     match &root.css {
         Some(css) => {
             write_u8(w, 1);
-            write_json_node(w, u32::MAX, u32::MAX, &**css)?;
+            if css_stub_only() {
+                // Only the outer `start` / `end` cross the wire — the
+                // decoder fills in the rest of the StyleSheet stub.
+                // Skipped tag carries the positions so the buffer
+                // doesn't need a separate fast-path branch.
+                write_preamble(w, TAG_JSON, css.start, css.end);
+                write_u32(w, 0); // empty JSON payload
+            } else {
+                write_json_node(w, u32::MAX, u32::MAX, &**css)?;
+            }
         }
         None => write_u8(w, 0),
     }
@@ -1980,24 +2005,35 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
 
 /// Encode a parsed `Root` AST into a fresh `Vec<u8>` envelope.
 pub fn encode_root_to_vec(root: &Root, source: &str) -> Vec<u8> {
-    encode_root_to_vec_with_options(root, source, false)
+    encode_root_to_vec_with_flags(root, source, false, false)
 }
 
 /// Encode a parsed `Root` AST with caller-supplied envelope flags.
 ///
-/// `skip_jsnode_loc` should mirror the value of
-/// `ParseOptions::skip_expression_loc` used when parsing — it tells the
-/// encoder / decoder to elide the per-JsNode loc-flag byte, since every
-/// JsNode is guaranteed to have `loc == None`.
+/// - `skip_jsnode_loc` mirrors `ParseOptions::skip_expression_loc` —
+///   it tells the encoder/decoder to elide the per-JsNode loc-flag
+///   byte, since every JsNode is guaranteed to have `loc == None`.
+/// - `skip_css_ast` omits the CSS `StyleSheet` body from the wire; the
+///   decoder reconstructs a `{ type: "StyleSheet", start, end }` stub.
+pub fn encode_root_to_vec_with_flags(
+    root: &Root,
+    source: &str,
+    skip_jsnode_loc: bool,
+    skip_css_ast: bool,
+) -> Vec<u8> {
+    let cap = HEADER_LEN + source.len().saturating_mul(20).max(4096);
+    let mut buf: Vec<u8> = Vec::with_capacity(cap);
+    encode_root_into(&mut buf, root, source, skip_jsnode_loc, skip_css_ast);
+    buf
+}
+
+/// Backwards-compatible wrapper for the 3-argument variant.
 pub fn encode_root_to_vec_with_options(
     root: &Root,
     source: &str,
     skip_jsnode_loc: bool,
 ) -> Vec<u8> {
-    let cap = HEADER_LEN + source.len().saturating_mul(20).max(4096);
-    let mut buf: Vec<u8> = Vec::with_capacity(cap);
-    encode_root_into(&mut buf, root, source, skip_jsnode_loc);
-    buf
+    encode_root_to_vec_with_flags(root, source, skip_jsnode_loc, false)
 }
 
 /// Write the envelope into `writer`. The writer must start empty.
@@ -2006,6 +2042,7 @@ pub fn encode_root_into<W: Writer>(
     root: &Root,
     source: &str,
     skip_jsnode_loc: bool,
+    skip_css_ast: bool,
 ) {
     debug_assert_eq!(writer.position(), 0, "encoder expects an empty writer");
 
@@ -2018,22 +2055,29 @@ pub fn encode_root_into<W: Writer>(
     if skip_jsnode_loc {
         flags |= FLAG_JSNODE_NO_LOC;
     }
+    if skip_css_ast {
+        flags |= FLAG_CSS_STUB_ONLY;
+    }
     write_u32(writer, flags);
     debug_assert_eq!(writer.position(), HEADER_LEN);
 
     let root_off = writer.position() as u32;
     writer.patch_u32(12, root_off);
 
-    // RAII guard: ensure the per-encode `SKIP_JSNODE_LOC` thread-local
-    // is reset even if encoding panics.
-    struct Guard(bool);
+    // RAII guards: reset the per-encode thread-locals even on panic.
+    struct Guard {
+        prev_loc: bool,
+        prev_css: bool,
+    }
     impl Drop for Guard {
         fn drop(&mut self) {
-            SKIP_JSNODE_LOC.with(|c| c.set(self.0));
+            SKIP_JSNODE_LOC.with(|c| c.set(self.prev_loc));
+            SKIP_CSS_AST.with(|c| c.set(self.prev_css));
         }
     }
-    let prev = SKIP_JSNODE_LOC.with(|c| c.replace(skip_jsnode_loc));
-    let _guard = Guard(prev);
+    let prev_loc = SKIP_JSNODE_LOC.with(|c| c.replace(skip_jsnode_loc));
+    let prev_css = SKIP_CSS_AST.with(|c| c.replace(skip_css_ast));
+    let _guard = Guard { prev_loc, prev_css };
 
     let _ = crate::ast::arena::with_serialize_arena(&root.arena, || write_root(writer, root));
 

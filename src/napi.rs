@@ -92,6 +92,15 @@ pub struct NapiParseOptions {
     /// AST and a faster `JSON.parse` (or, when paired with
     /// `parseEnvelope`, a tighter binary buffer).
     pub skip_expression_loc: Option<bool>,
+    /// Skip emitting the full CSS `StyleSheet` AST — only the outer
+    /// `start`/`end` positions are kept. The decoded `css` field
+    /// becomes a minimal stub (`{ type: "StyleSheet", start, end,
+    /// attributes: [], children: [], content: { start, end,
+    /// styles: "", comment: null } }`). Use this when the downstream
+    /// pipeline re-parses style blocks with its own CSS parser (e.g.
+    /// `svelte-eslint-parser` uses postcss). Saves ~5–10 KB of buffer
+    /// and the matching JSON-parse cost on the JS side per component.
+    pub skip_css_ast: Option<bool>,
 }
 
 /// Parse a Svelte component and return the AST as a JSON string.
@@ -147,9 +156,20 @@ pub fn napi_parse_envelope(
         ..ParseOptions::default()
     };
     let skip_loc = parse_options.skip_expression_loc;
+    let skip_css = options
+        .as_ref()
+        .and_then(|o| o.skip_css_ast)
+        .unwrap_or(false);
     let ast = rust_parse(&source, parse_options)
         .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
-    let buf = crate::napi_raw_parse::encode_root_to_vec_with_options(&ast, &source, skip_loc);
+    // napi-rs's `Vec<u8> → Buffer` conversion is already zero-copy
+    // (V8 adopts the `Vec`'s allocation); a bumpalo-backed variant
+    // measured ~20% slower on representative inputs because the
+    // pre-sized arena + finalizer plumbing outweighs the saved
+    // `Vec::reserve` calls for envelopes that fit in a single growth
+    // step.
+    let buf =
+        crate::napi_raw_parse::encode_root_to_vec_with_flags(&ast, &source, skip_loc, skip_css);
     Ok(buf.into())
 }
 
