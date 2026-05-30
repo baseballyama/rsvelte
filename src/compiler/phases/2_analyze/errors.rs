@@ -274,6 +274,14 @@ pub fn svelte_element_duplicate_this() -> AnalysisError {
     )
 }
 
+/// `<svelte:component>` must have a `this` attribute (issue #453, H-046)
+pub fn svelte_component_missing_this() -> AnalysisError {
+    error(
+        "svelte_component_missing_this",
+        "`<svelte:component>` must have a 'this' attribute",
+    )
+}
+
 /// A component can only have one `<%name%>` element
 pub fn svelte_meta_duplicate(name: &str) -> AnalysisError {
     error(
