@@ -381,7 +381,18 @@ fn audit_skipped_fixtures() {
     // fixtures are now driven by `tests/common/svelte2tsx.rs` directly — they
     // execute as regular runs in the compatibility report rather than being
     // skipped — so they don't need to appear here.
-    let runtime_skipped: &[(&str, &str)] = &[];
+    let runtime_skipped: &[(&str, &str)] = &[
+        // Mirrors `RUNTIME_RUNES_SKIP_NAMES` in `tests/runtime.rs` — the
+        // Svelte 5.56.0 DeclarationTag (#18282) follow-up cluster + the
+        // pre-existing async-blocker propagation cluster (#18309). Re-checked
+        // here after every Svelte bump so an unblocked fixture surfaces as
+        // "now passing".
+        ("runtime-runes", "declaration-tags"),
+        ("runtime-runes", "async-declaration-tag"),
+        ("runtime-runes", "async-declaration-tag-2"),
+        ("runtime-runes", "async-each-const-await-iife"),
+        ("runtime-runes", "async-style-after-await"),
+    ];
 
     let parser_legacy_skipped = &["javascript-comments"];
     let parser_modern_skipped: &[&str] = &[];
