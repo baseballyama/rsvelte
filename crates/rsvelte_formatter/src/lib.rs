@@ -14,6 +14,7 @@
 
 mod error;
 mod expression;
+mod indent;
 mod markup;
 mod options;
 mod script;
@@ -45,11 +46,12 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         }
     }
 
-    // Open-tag rewrites first — they own the entire `<tag ...>` span
-    // including its attribute list. The expression pass below must skip
-    // anything inside an element opener so the two passes don't overlap.
+    // Open-tag and close-tag rewrites first — they own the element-tag
+    // spans including their attribute lists. The expression and indent
+    // passes below target spans outside those rewritten regions.
     markup::collect_open_tag_edits(source, &root.fragment, options, &mut edits)?;
     expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
+    indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
 
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));

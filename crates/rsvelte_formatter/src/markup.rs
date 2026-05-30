@@ -66,6 +66,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, elem.end, elem.name.as_str(), edits);
             collect_open_tag_edits(source, &elem.fragment, options, edits)?;
         }
         TemplateNode::Component(c) => {
@@ -78,6 +79,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, c.end, c.name.as_str(), edits);
             collect_open_tag_edits(source, &c.fragment, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
@@ -90,6 +92,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, t.end, t.name.as_str(), edits);
             collect_open_tag_edits(source, &t.fragment, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
@@ -102,6 +105,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, s.end, s.name.as_str(), edits);
             collect_open_tag_edits(source, &s.fragment, options, edits)?;
         }
         TemplateNode::SvelteHead(s)
@@ -121,6 +125,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, s.end, s.name.as_str(), edits);
             collect_open_tag_edits(source, &s.fragment, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
@@ -133,6 +138,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, c.end, c.name.as_str(), edits);
             collect_open_tag_edits(source, &c.fragment, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
@@ -145,6 +151,7 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
+            push_close_tag(source, e.end, e.name.as_str(), edits);
             collect_open_tag_edits(source, &e.fragment, options, edits)?;
         }
         // Blocks have child fragments but no attributes themselves.
@@ -180,6 +187,39 @@ fn collect_node_open_tag_edits(
         _ => {}
     }
     Ok(())
+}
+
+/// If the element isn't self-closing, normalize its closing tag to
+/// `</tagname>` (no internal whitespace).
+fn push_close_tag(
+    source: &str,
+    element_end: u32,
+    tag_name: &str,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    let Some((start, end)) = find_close_tag_span(source, element_end) else {
+        return;
+    };
+    edits.push((start, end, format!("</{tag_name}>")));
+}
+
+fn find_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)> {
+    let bytes = source.as_bytes();
+    let end = element_end as usize;
+    if end == 0 || bytes.get(end.checked_sub(1)?) != Some(&b'>') {
+        return None;
+    }
+    // Scan backward for "</".
+    let mut i = end.checked_sub(2)?;
+    loop {
+        if bytes.get(i) == Some(&b'<') && bytes.get(i + 1) == Some(&b'/') {
+            return Some((i as u32, end as u32));
+        }
+        if i == 0 {
+            return None;
+        }
+        i -= 1;
+    }
 }
 
 /// Push one edit covering the element's open tag span (from `<` to the
