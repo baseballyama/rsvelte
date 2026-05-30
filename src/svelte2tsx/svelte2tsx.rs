@@ -606,7 +606,7 @@ pub fn svelte2tsx(
         let slot_names = collect_slot_names_from_ast(&ast.fragment);
         let slots_obj: Vec<String> = slot_names
             .iter()
-            .map(|name| format!("'{}': ''", name))
+            .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
             .collect();
         dollar_decls.push_str(&format!(
             " let $$slots = __sveltets_2_slotsType({{{}}});",
@@ -1379,10 +1379,16 @@ pub fn svelte2tsx(
     } else {
         let mut slot_parts = Vec::new();
         for (name, props) in &template_info.slots {
+            let escaped_name = escape_js_single_quoted(name);
             if props.is_empty() {
-                slot_parts.push(format!("'{}': {{}}", name));
+                slot_parts.push(format!("'{}': {{}}", escaped_name));
             } else {
-                slot_parts.push(format!("'{}': {{{}}}", name, props.join(", ")));
+                // Slot prop keys (the `props` strings) may also carry hyphens /
+                // spaces / quotes when they come from arbitrary `slot="…"`
+                // attributes; keep them verbatim for now since they're produced
+                // upstream from validated bindings and don't reach this site
+                // with adversarial input in practice. (issue #455, H-092)
+                slot_parts.push(format!("'{}': {{{}}}", escaped_name, props.join(", ")));
             }
         }
         format!("{{{}}}", slot_parts.join(", "))
@@ -1668,6 +1674,28 @@ pub fn svelte2tsx(
         exported_names,
         events,
     })
+}
+
+/// Escape a string for use as the body of a single-quoted JS string literal.
+/// Used to interpolate slot names / slot prop keys into the generated TS output
+/// without producing invalid JS when a name carries `'`, `\\`, or control
+/// characters (issue #455, H-092).
+fn escape_js_single_quoted(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\'' => out.push_str("\\'"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                out.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// Collect slot names from the template AST.
