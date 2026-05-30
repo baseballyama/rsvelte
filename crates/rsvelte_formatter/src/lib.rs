@@ -24,7 +24,7 @@ pub use options::FormatOptions;
 
 // Re-exports so consumers don't need to depend on `oxc_formatter` directly.
 pub use oxc_formatter::JsFormatOptions;
-pub use oxc_formatter_core::{IndentStyle, IndentWidth};
+pub use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 
 use svelte_compiler_rust::{ParseOptions, parse};
 
@@ -49,7 +49,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // Open-tag and close-tag rewrites first — they own the element-tag
     // spans including their attribute lists. The expression and indent
     // passes below target spans outside those rewritten regions.
-    markup::collect_open_tag_edits(source, &root.fragment, options, &mut edits)?;
+    markup::collect_open_tag_edits(source, &root.fragment, 0, options, &mut edits)?;
     expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
 
