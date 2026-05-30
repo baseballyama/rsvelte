@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ecosystem-ci/state
-          node scripts/ecosystem-ci.mjs poll > changed.txt
+          node scripts/ecosystem/ecosystem-ci.mjs poll > changed.txt
           if [ -s changed.txt ]; then
             echo "Changed targets:"
             cat changed.txt

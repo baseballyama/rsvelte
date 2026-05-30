@@ -7,7 +7,7 @@
 //! - Entity data from WHATWG HTML specification (<https://html.spec.whatwg.org/entities.json>)
 //!
 //! The entity data in `entities_data.rs` is generated directly from Svelte's entities.js
-//! using `scripts/generate-entities-from-svelte.mjs`, ensuring 100% compatibility.
+//! using `scripts/fixtures/generate-entities-from-svelte.mjs`, ensuring 100% compatibility.
 //!
 //! ## Features
 //!

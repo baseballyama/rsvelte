@@ -123,7 +123,7 @@ fn load_expected_outputs() -> serde_json::Value {
 
     if !expected_path.exists() {
         eprintln!(
-            "Warning: expected-outputs.json not found. Run 'node scripts/generate-expected-outputs.mjs > docs/static/expected-outputs.json' first."
+            "Warning: expected-outputs.json not found. Run 'node scripts/fixtures/generate-expected-outputs.mjs > docs/static/expected-outputs.json' first."
         );
         return serde_json::Value::Null;
     }

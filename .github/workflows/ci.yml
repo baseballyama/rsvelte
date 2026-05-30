@@ -275,11 +275,11 @@ jobs:
           retention-days: 90
 
       - name: Check README is in sync with Svelte submodule
-        run: node scripts/update-docs.mjs --check
+        run: node scripts/dev/update-docs.mjs --check
 
       - name: Compare with main (PR only)
         if: github.event_name == 'pull_request'
-        run: node scripts/compare-compatibility-reports.mjs --pr-summary > pr-summary.md || echo "comparison unavailable" > pr-summary.md
+        run: node scripts/diff/compare-compatibility-reports.mjs --pr-summary > pr-summary.md || echo "comparison unavailable" > pr-summary.md
         continue-on-error: true
 
       - name: Comment on PR

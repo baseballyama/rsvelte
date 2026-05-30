@@ -196,7 +196,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70
 1. Check `submodules/svelte/packages/svelte/src/compiler/phases/{phase}/` for the reference implementation (requires `git submodule update --init`)
 2. Implement in the corresponding Rust module under `src/compiler/phases/`
 3. Run tests: `cargo test`
-4. Debug differences with `node scripts/compare-parsers.mjs`
+4. Debug differences with `node scripts/diff/compare-parsers.mjs`
 
 ### Documentation Updates
 
@@ -206,6 +206,6 @@ pnpm run test-and-update  # Updates README.md and docs dashboard
 
 ### Compatibility Report
 
-Default output path: `fixtures/{svelte-short-commit}/compatibility-report.json` (created on first run; the `fixtures/` directory is generated, not checked in). Override with `node scripts/update-docs.mjs --report <path>`.
+Default output path: `fixtures/{svelte-short-commit}/compatibility-report.json` (created on first run; the `fixtures/` directory is generated, not checked in). Override with `node scripts/dev/update-docs.mjs --report <path>`.
 
 Tracks test results over time for progress monitoring.

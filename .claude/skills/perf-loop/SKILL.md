@@ -238,9 +238,9 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 ```bash
 # ベースライン（必須）
-./scripts/bench.sh --quick      # JS vs Rust 単線比較
-./scripts/bench.sh --profile    # parse / analyze / transform 内訳
-./scripts/bench.sh --criterion  # 統計的マイクロベンチ
+./scripts/bench/bench.sh --quick      # JS vs Rust 単線比較
+./scripts/bench/bench.sh --profile    # parse / analyze / transform 内訳
+./scripts/bench/bench.sh --criterion  # 統計的マイクロベンチ
 
 # プロファイル（samply 推奨）
 cargo build --profile profiling --bin profiler

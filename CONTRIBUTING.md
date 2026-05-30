@@ -107,9 +107,9 @@ cargo test --test runtime -- --nocapture # with stdout
 target one sample directly. Use the helper:
 
 ```bash
-scripts/test-sample.sh runtime-runes await-block-state
-scripts/test-sample.sh ssr if-block
-scripts/test-sample.sh compiler-errors duplicate-prop
+scripts/dev/test-sample.sh runtime-runes await-block-state
+scripts/dev/test-sample.sh ssr if-block
+scripts/dev/test-sample.sh compiler-errors duplicate-prop
 ```
 
 The helper regenerates that one fixture, sets `DEBUG_TEST=<sample>` so the
@@ -142,7 +142,7 @@ Svelte test suite first. This keeps "compatibility" honest.
    ```bash
    pnpm run generate-fixtures -- --category=<suite> --sample=<your-sample> --force
    ```
-3. Iterate with `scripts/test-sample.sh <suite> <your-sample>`.
+3. Iterate with `scripts/dev/test-sample.sh <suite> <your-sample>`.
 4. Fix the Rust code under `src/compiler/...` until canonical output matches.
 5. Run the full suite once before pushing:
    ```bash
@@ -197,9 +197,9 @@ silently agree with broken output forever.
 See [`docs/perf-roadmap.md`](docs/perf-roadmap.md) for the long-running plan. Quick refs:
 
 ```bash
-scripts/bench.sh --quick          # ~30s comparison vs official compiler
-scripts/bench.sh --criterion      # full criterion run (HTML reports under target/criterion/)
-scripts/bench.sh --profile path/to/component.svelte
+scripts/bench/bench.sh --quick          # ~30s comparison vs official compiler
+scripts/bench/bench.sh --criterion      # full criterion run (HTML reports under target/criterion/)
+scripts/bench/bench.sh --profile path/to/component.svelte
 ```
 
 Benchmarks are not yet enforced in CI, so any performance-sensitive change

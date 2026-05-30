@@ -12,7 +12,7 @@
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
 		"generate-results": "cd .. && cargo run --release --bin test_reporter -- --output docs/static/test-results.json",
-		"generate-benchmark": "cd .. && node scripts/run-benchmark.mjs > docs/static/benchmark-results.json",
+		"generate-benchmark": "cd .. && node scripts/bench/run-benchmark.mjs > docs/static/benchmark-results.json",
 		"dev:progress": "npm run generate-results && npm run dev",
 		"dev:benchmark": "npm run generate-benchmark && npm run dev"
 	},
