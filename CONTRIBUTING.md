@@ -194,7 +194,7 @@ silently agree with broken output forever.
 
 ## Performance work
 
-See [`PERF_ROADMAP.md`](PERF_ROADMAP.md) for the long-running plan. Quick refs:
+See [`docs/perf-roadmap.md`](docs/perf-roadmap.md) for the long-running plan. Quick refs:
 
 ```bash
 scripts/bench.sh --quick          # ~30s comparison vs official compiler
