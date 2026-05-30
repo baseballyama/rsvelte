@@ -1,5 +1,5 @@
 {
-	"name": "svelte-compiler-rust-docs",
+	"name": "rsvelte-playground",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
@@ -7,12 +7,12 @@
 		"dev": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js dev",
 		"build": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js build",
 		"preview": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js preview",
-		"build:wasm": "cd .. && wasm-pack build --target web --no-default-features --features wasm",
+		"build:wasm": "cd ../.. && wasm-pack build --target web --no-default-features --features wasm",
 		"lint": "oxlint src/**/*.ts --deny-warnings",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
-		"generate-results": "cd .. && cargo run --release --bin test_reporter -- --output docs/static/test-results.json",
-		"generate-benchmark": "cd .. && node scripts/bench/run-benchmark.mjs > docs/static/benchmark-results.json",
+		"generate-results": "cd ../.. && cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json",
+		"generate-benchmark": "cd ../.. && node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json",
 		"dev:progress": "npm run generate-results && npm run dev",
 		"dev:benchmark": "npm run generate-benchmark && npm run dev"
 	},

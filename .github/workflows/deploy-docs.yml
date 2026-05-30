@@ -79,7 +79,7 @@ jobs:
       - name: Generate compatibility report
         # Writes `fixtures/{svelte-short-commit}/compatibility-report.json`,
         # which `scripts/dev/update-docs.mjs` then converts into
-        # `docs/static/test-results.json` for the progress dashboard.
+        # `apps/playground/static/test-results.json` for the progress dashboard.
         run: pnpm run compatibility-report
         timeout-minutes: 30
         env:
@@ -88,11 +88,11 @@ jobs:
       - name: Update docs test-results.json
         run: node scripts/dev/update-docs.mjs
 
-      # NOTE: docs/static/benchmark-results.json is *not* regenerated on
+      # NOTE: apps/playground/static/benchmark-results.json is *not* regenerated on
       # every deploy — running the JS-vs-Rust benchmark added ~30 minutes
       # to each Pages publish for numbers that don't move per push.
       # The committed JSON is the source of truth; refresh it locally by
-      # running `node scripts/bench/run-benchmark.mjs > docs/static/benchmark-results.json`
+      # running `node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json`
       # on a machine with enough cores to exercise the multi-thread path
       # (GitHub-hosted runners top out at low core counts, so they can't
       # show the parallelism gains we care about), then commit the file.
@@ -104,7 +104,7 @@ jobs:
         run: wasm-pack build --target web --no-default-features --features wasm
 
       - name: Build NAPI cdylib
-        # docs/rsvelte-shim/compiler.mjs loads
+        # apps/playground/rsvelte-shim/compiler.mjs loads
         # npm/vite-plugin-svelte-native-<triple>/rsvelte.node at build time so
         # vite-plugin-svelte compiles every .svelte through rsvelte. Ubuntu CI
         # is linux-x64-gnu; the cdylib is named libsvelte_compiler_rust.so.
@@ -116,22 +116,22 @@ jobs:
           cp target/release/libsvelte_compiler_rust.so \
              npm/vite-plugin-svelte-native-linux-x64-gnu/rsvelte.node
 
-      - name: Setup pnpm cache for docs
+      - name: Setup pnpm cache for playground
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24'
           cache: 'pnpm'
-          cache-dependency-path: docs/pnpm-lock.yaml
+          cache-dependency-path: apps/playground/pnpm-lock.yaml
 
-      - name: Install docs dependencies
+      - name: Install playground dependencies
         # `--ignore-workspace` because the repo root became a pnpm workspace
         # (npm/* publishing packages), and without this `pnpm install` walks
-        # up to the workspace root and skips installing docs/'s own deps.
-        working-directory: docs
+        # up to the workspace root and skips installing the playground's own deps.
+        working-directory: apps/playground
         run: pnpm install --frozen-lockfile --ignore-workspace
 
-      - name: Build docs
-        working-directory: docs
+      - name: Build playground
+        working-directory: apps/playground
         # NAPI-on-Linux gotcha: when node `dlopen`s a Rust cdylib with
         # thread_local!s after the process has already started, glibc can't
         # fit the .so's TLS into the static TLS block ("cannot allocate
@@ -148,7 +148,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: docs/build
+          path: apps/playground/build
 
   deploy:
     environment:

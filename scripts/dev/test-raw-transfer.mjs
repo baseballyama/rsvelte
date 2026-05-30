@@ -251,12 +251,12 @@ if (typeof global.gc !== 'function') {
 // the marshaling difference is more visible. We use the actual docs
 // homepage (~20KB) as a realistic upper bound.
 import { readFileSync } from 'node:fs';
-const BIG_PATH = join(repoRoot, 'docs/src/routes/+page.svelte');
+const BIG_PATH = join(repoRoot, 'apps/playground/src/routes/+page.svelte');
 let BIG_SOURCE;
 try {
 	BIG_SOURCE = readFileSync(BIG_PATH, 'utf8');
 } catch {
-	console.log('\n(skipping large-source benchmark — docs/src/routes/+page.svelte not present)');
+	console.log('\n(skipping large-source benchmark — apps/playground/src/routes/+page.svelte not present)');
 	BIG_SOURCE = null;
 }
 if (BIG_SOURCE) {

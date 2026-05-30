@@ -215,6 +215,6 @@ should be validated locally and the result mentioned in the PR description.
 - PRs to `main` go through CI: format, clippy, all-OS tests, compatibility
   report. The compatibility-report job posts a delta comment on the PR; if it
   shows regressions, treat that as a blocker.
-- Don't manually regenerate `docs/static/test-results.json` from a feature
+- Don't manually regenerate `apps/playground/static/test-results.json` from a feature
   branch — `pnpm run test-and-update` is for the maintainer who lands on
   `main` after a Svelte bump.

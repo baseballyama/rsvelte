@@ -49,7 +49,7 @@ if (!triple) {
 }
 
 // The repo layout keeps prebuilt `.node` artifacts in `<repo>/npm/<pkg>-<triple>/`.
-// `docs/rsvelte-shim/` is two levels under the repo root.
+// `apps/playground/rsvelte-shim/` is two levels under the repo root.
 const repoRoot = join(here, '..', '..');
 const nodePath = join(repoRoot, 'npm', `vite-plugin-svelte-native-${triple}`, 'rsvelte.node');
 const envelopePath = join(repoRoot, 'npm', 'vite-plugin-svelte-native', 'envelope.js');
