@@ -13,7 +13,7 @@
 //   node scripts/ecosystem/ecosystem-ci.mjs report
 //   node scripts/ecosystem/ecosystem-ci.mjs poll              # update state/, print targets whose upstream HEAD changed
 //
-// Target schema: see ecosystem-ci/README.md.
+// Target schema: see compat/ecosystem-ci/README.md.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '../..');
-const ECO_DIR = path.join(ROOT, 'ecosystem-ci');
+const ECO_DIR = path.join(ROOT, 'compat', 'ecosystem-ci');
 const TARGETS_DIR = path.join(ECO_DIR, 'targets');
 const CHECKOUT_DIR = path.join(ECO_DIR, 'checkout');
 const RESULTS_DIR = path.join(ECO_DIR, 'results');
@@ -172,7 +172,7 @@ function cloneOrUpdate(target) {
 		);
 	}
 	// Bound pnpm's upward workspace search at the target's checkout root.
-	// Without this, pnpm walking up from `ecosystem-ci/checkout/<name>/`
+	// Without this, pnpm walking up from `compat/ecosystem-ci/checkout/<name>/`
 	// finds rsvelte's own `pnpm-workspace.yaml` at the repo root and
 	// installs rsvelte's workspace members instead of the target's deps —
 	// "Scope: all 15 workspace projects" while the target's `node_modules`

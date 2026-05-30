@@ -16,7 +16,7 @@
 // get a summary comment on the PR (see `ecosystem-ci.yml::summary`), so we
 // skip them to keep the history issue signal-to-noise high.
 //
-// Reads result JSONs from `ecosystem-ci/results/` (downloaded by the
+// Reads result JSONs from `compat/ecosystem-ci/results/` (downloaded by the
 // `summary` job from per-target artifacts). Uses `gh` CLI for API calls so
 // no Node `@octokit` dependency is needed; `GH_TOKEN` must be in env.
 //
@@ -46,7 +46,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '../..');
-const RESULTS_DIR = path.join(ROOT, 'ecosystem-ci', 'results');
+const RESULTS_DIR = path.join(ROOT, 'compat', 'ecosystem-ci', 'results');
 
 const HISTORY_LABEL = 'ecosystem-ci-history';
 const FAILURE_LABEL = 'ecosystem-ci-failure';

@@ -33,7 +33,7 @@ jobs:
         id: state-restore
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ecosystem-ci/state
+          path: compat/ecosystem-ci/state
           key: ecosystem-ci-state-${{ github.run_id }}
           restore-keys: |
             ecosystem-ci-state-
@@ -44,7 +44,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p ecosystem-ci/state
+          mkdir -p compat/ecosystem-ci/state
           node scripts/ecosystem/ecosystem-ci.mjs poll > changed.txt
           if [ -s changed.txt ]; then
             echo "Changed targets:"
@@ -62,7 +62,7 @@ jobs:
         if: steps.poll.outputs.changed != ''
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: ecosystem-ci/state
+          path: compat/ecosystem-ci/state
           key: ecosystem-ci-state-${{ github.run_id }}
 
       - name: Dispatch ecosystem-ci runs

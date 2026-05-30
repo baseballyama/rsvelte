@@ -12,7 +12,7 @@ shipped in production, not just the fixtures vendored in `svelte/`.
 ## Layout
 
 ```
-ecosystem-ci/
+compat/ecosystem-ci/
 ├── README.md             # this file
 ├── targets/              # one JSON file per verified repo (tracked)
 │   └── shadcn-svelte.json
@@ -65,7 +65,7 @@ See `targets/shadcn-svelte.json` for a worked example. Required fields:
 ## How a run works
 
 1. Resolve the target JSON.
-2. Clone or fast-forward `ecosystem-ci/checkout/<name>/` to the latest commit on `branch`.
+2. Clone or fast-forward `compat/ecosystem-ci/checkout/<name>/` to the latest commit on `branch`.
 3. `pnpm install` (or whatever `commands.install` says).
 4. **Baseline**: run `commands.build` and/or `commands.test` against the unmodified target. Save log + exit code under `.cache/<name>-baseline.{log,json}`.
 5. Build rsvelte NAPI via `.claude/skills/verify-svelte-compat/scripts/build-rsvelte.sh`, drop the `.node` into `checkout/<name>/.rsvelte/`.
@@ -91,7 +91,7 @@ If baseline itself fails, the run is classified `baseline-failure` and does
 ## Adding a target
 
 1. Confirm the repo is MIT-licensed (or another license you explicitly accept).
-2. Create `ecosystem-ci/targets/<name>.json` following the schema above.
+2. Create `compat/ecosystem-ci/targets/<name>.json` following the schema above.
 3. Run it locally once: `node scripts/ecosystem/ecosystem-ci.mjs run <name>`.
 4. If it produces a green `results/<name>.json`, commit the target JSON.
 
