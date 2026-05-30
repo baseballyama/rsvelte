@@ -6,6 +6,8 @@ pub enum FormatError {
     Parse(String),
     #[error("script parse failed: {0}")]
     ScriptParse(String),
+    #[error("style formatter failed: {0}")]
+    StyleFormat(String),
 }
 
 impl FormatError {

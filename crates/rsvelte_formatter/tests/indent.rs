@@ -17,6 +17,7 @@ fn tab_indent_style_uses_tabs_for_outer_wrap() {
             indent_style: IndentStyle::Tab,
             ..JsFormatOptions::new()
         },
+        ..FormatOptions::default()
     };
 
     let src = "<script>let x=1</script>";
@@ -34,6 +35,7 @@ fn four_space_indent_uses_four_spaces() {
             indent_width: IndentWidth::try_from(4).expect("4 is valid"),
             ..JsFormatOptions::new()
         },
+        ..FormatOptions::default()
     };
 
     let src = "<script>let x=1</script>";

@@ -84,6 +84,7 @@ fn tab_style_uses_tabs_for_nesting() {
             indent_style: IndentStyle::Tab,
             ..JsFormatOptions::new()
         },
+        ..FormatOptions::default()
     };
     let out = fmt_with("<div>\n  <p>x</p>\n</div>", &opts);
     assert_eq!(out, "<div>\n\t<p>x</p>\n</div>");
@@ -96,6 +97,7 @@ fn four_space_indent_used() {
             indent_width: IndentWidth::try_from(4).expect("4 is valid"),
             ..JsFormatOptions::new()
         },
+        ..FormatOptions::default()
     };
     let out = fmt_with("<div>\n<p>x</p>\n</div>", &opts);
     assert_eq!(out, "<div>\n    <p>x</p>\n</div>");
