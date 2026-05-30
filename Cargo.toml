@@ -56,6 +56,9 @@ oxc_codegen = "0.133"
 oxc_syntax = "0.133"
 oxc_semantic = "0.133"
 
+# SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+
 # Error handling
 thiserror = "2.0"
 miette = "7.4"
@@ -185,3 +188,23 @@ panic = "abort"
 inherits = "release"
 debug = true
 panic = "unwind"  # Criterion requires unwind for catching panics
+
+# SPIKE: redirect every published oxc_* crate to the same git rev so
+# rsvelte's AST types unify with oxc_formatter's transitive deps
+# (avoids "two Program<'a> types from different source units" errors).
+[patch.crates-io]
+oxc_allocator         = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_parser            = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_ast               = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_ast_macros        = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_ast_visit         = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_span              = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_diagnostics       = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_codegen           = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_syntax            = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_semantic          = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_ecmascript        = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_estree            = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_str               = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_data_structures   = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
