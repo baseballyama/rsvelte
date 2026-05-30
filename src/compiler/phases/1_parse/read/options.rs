@@ -185,6 +185,20 @@ impl Parser<'_> {
             }
         }
 
+        // Only one `<svelte:options>` element is allowed per component. Upstream
+        // surfaces `svelte_meta_duplicate` from the analyzer because it emits a
+        // SvelteOptions AST node; rsvelte stores the result in parser state
+        // without emitting a node, so the analyzer never sees it. Detect the
+        // duplicate here at the parser layer so the diagnostic still fires.
+        // (issue #449, H-113)
+        if self.svelte_options.is_some() {
+            return Err(ParseError::svelte(
+                "svelte_meta_duplicate",
+                "A component can only have one `<svelte:options>` element\nhttps://svelte.dev/e/svelte_meta_duplicate",
+                (start, start),
+            ));
+        }
+
         // Store the options
         self.svelte_options = Some(SvelteOptions {
             start: start as u32,
