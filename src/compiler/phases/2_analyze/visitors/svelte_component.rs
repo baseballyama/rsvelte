@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/SvelteComponent.js`.
 
-use super::super::{AnalysisError, warnings};
+use super::super::{AnalysisError, errors, warnings};
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::validate_assignment_node;
@@ -20,6 +20,14 @@ pub fn visit(
     // In runes mode, <svelte:component> is deprecated because components are dynamic by default
     if context.analysis.runes {
         context.emit_warning(warnings::svelte_component_deprecated());
+    }
+
+    // `<svelte:component>` must have a `this` attribute — when missing, the
+    // parser leaves `component.expression` as a JSON-null expression with no
+    // node type. Mirror upstream's `svelte_component_missing_this` instead of
+    // silently accepting it. (issue #453, H-046)
+    if component.expression.node_type().is_none() {
+        return Err(errors::svelte_component_missing_this());
     }
 
     // svelte:component requires a `this` expression
@@ -62,7 +70,17 @@ pub fn visit(
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
-            _ => {}
+            Attribute::AttachTag(_) | Attribute::LetDirective(_) => {
+                // Allowed on components (matches the shared component validator)
+            }
+            _ => {
+                // `transition:` / `animate:` / `use:` / `class:` / `style:` are
+                // not valid on `<svelte:component>` — mirror the shared
+                // `validate_component_attributes` path so they raise
+                // `component_invalid_directive` instead of being silently
+                // accepted. (issue #453, H-047)
+                return Err(errors::component_invalid_directive());
+            }
         }
     }
 
