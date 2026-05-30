@@ -44,7 +44,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         }
     }
 
-    expression::collect_expression_tag_edits(source, &root.fragment, options, &mut edits)?;
+    expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
 
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
