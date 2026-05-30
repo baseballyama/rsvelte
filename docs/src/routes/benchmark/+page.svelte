@@ -152,7 +152,7 @@
 			<p class="lede">{data.error}</p>
 			<pre class="empty-code"><code><span class="c-cmt"># From the repo root</span>
 <span class="c-prompt">$</span> cargo build <span class="c-flag">--release</span>
-<span class="c-prompt">$</span> node scripts/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></pre>
+<span class="c-prompt">$</span> node scripts/bench/run-benchmark.mjs &gt; docs/static/benchmark-results.json</code></pre>
 		</section>
 	{:else if data.results}
 		{@const r = data.results}
@@ -279,7 +279,7 @@
 <span class="c-prompt">$</span> cargo build <span class="c-flag">--release</span>
 
 <span class="c-cmt"># 2. Run the corpus benchmark</span>
-<span class="c-prompt">$</span> node scripts/run-benchmark.mjs <span class="c-op">&gt;</span> docs/static/benchmark-results.json
+<span class="c-prompt">$</span> node scripts/bench/run-benchmark.mjs <span class="c-op">&gt;</span> docs/static/benchmark-results.json
 
 <span class="c-cmt"># 3. View the report locally</span>
 <span class="c-prompt">$</span> cd docs <span class="c-op">&amp;&amp;</span> pnpm dev</code></pre>

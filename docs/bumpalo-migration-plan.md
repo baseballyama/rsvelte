@@ -54,7 +54,7 @@ plumbing without realizing the indirection win.
 ## Phased plan
 
 Each phase is its own PR. Tests + compatibility report must stay at
-100% after every phase. Run `./scripts/bench.sh` after each phase and
+100% after every phase. Run `./scripts/bench/bench.sh` after each phase and
 log the delta in the PR description.
 
 ### Phase 0 — Preparation (no behavior change)

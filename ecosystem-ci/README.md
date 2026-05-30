@@ -29,16 +29,16 @@ ecosystem-ci/
 .claude/skills/verify-svelte-compat/scripts/build-rsvelte.sh
 
 # Run a single target end-to-end
-node scripts/ecosystem-ci.mjs run shadcn-svelte
+node scripts/ecosystem/ecosystem-ci.mjs run shadcn-svelte
 
 # Run every tracked target
-node scripts/ecosystem-ci.mjs run-all
+node scripts/ecosystem/ecosystem-ci.mjs run-all
 
 # Just list known targets
-node scripts/ecosystem-ci.mjs list
+node scripts/ecosystem/ecosystem-ci.mjs list
 
 # Aggregate the latest results/ into a markdown summary
-node scripts/ecosystem-ci.mjs report
+node scripts/ecosystem/ecosystem-ci.mjs report
 ```
 
 Use `--filter <tag>` with `run-all` to narrow to a tag (e.g. `ui-library`).
@@ -92,7 +92,7 @@ If baseline itself fails, the run is classified `baseline-failure` and does
 
 1. Confirm the repo is MIT-licensed (or another license you explicitly accept).
 2. Create `ecosystem-ci/targets/<name>.json` following the schema above.
-3. Run it locally once: `node scripts/ecosystem-ci.mjs run <name>`.
+3. Run it locally once: `node scripts/ecosystem/ecosystem-ci.mjs run <name>`.
 4. If it produces a green `results/<name>.json`, commit the target JSON.
 
 ## Triggers (CI)

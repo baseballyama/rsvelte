@@ -261,14 +261,14 @@ pnpm run compatibility-report
 docker exec svelte-compiler-rust-dev cargo test --release --test runtime
 
 # Benchmark
-./scripts/bench.sh --quick
+./scripts/bench/bench.sh --quick
 
 # Profile
-./scripts/bench.sh --profile
+./scripts/bench/bench.sh --profile
 cargo flamegraph --bin profiler -- --file submodules/svelte/packages/svelte/tests/runtime-runes/samples/form-default-value-spread/main.svelte --iterations 200 --warmup 20
 
 # E2E Rust↔JS boundary check (after NAPI changes)
-node --expose-gc scripts/test-raw-transfer.mjs
+node --expose-gc scripts/dev/test-raw-transfer.mjs
 ```
 
 ## Critical Lessons

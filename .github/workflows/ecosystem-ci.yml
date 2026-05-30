@@ -114,7 +114,7 @@ jobs:
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
       - name: Run ecosystem-ci
-        run: node scripts/ecosystem-ci.mjs run "${{ matrix.target }}"
+        run: node scripts/ecosystem/ecosystem-ci.mjs run "${{ matrix.target }}"
 
       - name: Upload result JSON
         if: always()
@@ -155,7 +155,7 @@ jobs:
           merge-multiple: true
 
       - name: Aggregate
-        run: node scripts/ecosystem-ci.mjs report | tee summary.md
+        run: node scripts/ecosystem/ecosystem-ci.mjs report | tee summary.md
 
       - name: Post summary to PR
         if: github.event_name == 'pull_request'
@@ -174,7 +174,7 @@ jobs:
       # Maintain a rolling history issue (label `ecosystem-ci-history`) and
       # open a new failure issue (label `ecosystem-ci-failure`) when this run
       # has any non-pass target. Skipped for pull_request runs — PRs already
-      # get an inline summary comment above. See scripts/ecosystem-ci-issues.mjs.
+      # get an inline summary comment above. See scripts/ecosystem/ecosystem-ci-issues.mjs.
       - name: Update history / failure issues
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
@@ -182,4 +182,4 @@ jobs:
           MATRIX_RESULT: ${{ needs.run.result }}
           DISPATCH_TARGET: ${{ github.event.inputs.target }}
           DISPATCH_TAG: ${{ github.event.inputs.tag }}
-        run: node scripts/ecosystem-ci-issues.mjs
+        run: node scripts/ecosystem/ecosystem-ci-issues.mjs

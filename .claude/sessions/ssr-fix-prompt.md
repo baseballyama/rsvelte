@@ -20,16 +20,16 @@
 docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && cargo build --release --features napi --lib 2>&1 | tail -3 && cp target/release/libsvelte_compiler_rust.so svelte/rsvelte.linux-arm64-gnu.node'
 
 # SSR 測定
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/measure-ssr.mjs 2>&1'
+docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/bench/measure-ssr.mjs 2>&1'
 
 # Client 測定（リグレッション確認用）
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/precise-semantic-diff.mjs 2>&1 | head -10'
+docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/precise-semantic-diff.mjs 2>&1 | head -10'
 
 # SSR カテゴリ分類
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/categorize-ssr-diffs.mjs 2>&1'
+docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/categorize-ssr-diffs.mjs 2>&1'
 
 # 1ファイルのSSR差分確認
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/ssr-diff-one.mjs <FILE_PATH> 2>&1'
+docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/ssr-diff-one.mjs <FILE_PATH> 2>&1'
 # → /tmp/ssr_js.js と /tmp/ssr_rs.js に書き出される
 
 # テスト
@@ -130,10 +130,10 @@ RS:     const flipOrdering = (ordering) => {
 
 ## 参考ファイル
 
-- SSR 測定スクリプト: `scripts/measure-ssr.mjs`
-- SSR カテゴリ分類: `scripts/categorize-ssr-diffs.mjs`
-- SSR 1ファイル差分: `scripts/ssr-diff-one.mjs`
-- Client 測定: `scripts/precise-semantic-diff.mjs`
+- SSR 測定スクリプト: `scripts/bench/measure-ssr.mjs`
+- SSR カテゴリ分類: `scripts/diff/categorize-ssr-diffs.mjs`
+- SSR 1ファイル差分: `scripts/diff/ssr-diff-one.mjs`
+- Client 測定: `scripts/diff/precise-semantic-diff.mjs`
 - SSR コード生成: `src/compiler/phases/3_transform/server/`
 - SSR ビルド: `src/compiler/phases/3_transform/server/build.rs`
 - SSR スクリプト変換: `src/compiler/phases/3_transform/server/transform_script.rs`

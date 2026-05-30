@@ -234,7 +234,7 @@ fn process(node: &Node) {
 
 ### 計測なき最適化は禁止
 
-「速くなりそう」と感じる変更でも、必ず `./scripts/bench.sh --quick` で計測する。
+「速くなりそう」と感じる変更でも、必ず `./scripts/bench/bench.sh --quick` で計測する。
 hot path に影響する PR には、変更前後のベンチマーク数値を PR 説明欄に記載するよう求める。
 
 ---
@@ -619,7 +619,7 @@ unsafe { *ptr }
 
 - [ ] cargo test --release
 - [ ] pnpm run compatibility-report（変更前後の pass 数）
-- [ ] ./scripts/bench.sh --quick（hot path への影響がある場合）
+- [ ] ./scripts/bench/bench.sh --quick（hot path への影響がある場合）
 - [ ] vitest（NAPI 経由の挙動に影響する場合）
 
 ## Performance impact (if applicable)

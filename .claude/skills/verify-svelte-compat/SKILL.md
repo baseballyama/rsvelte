@@ -445,7 +445,7 @@ diff "$BASELINE_LOG" "$RSVELTE_LOG" > "compat-targets/.cache/${NAME}-diff.log" |
 
 ### 4-B: アプリ型の検証
 
-アプリ型は「全 `.svelte` ファイルを公式 / rsvelte の両方でコンパイルし、出力を semantic に比較」する。既存の `scripts/test-real-world-semantic.mjs` のロジックを応用する。
+アプリ型は「全 `.svelte` ファイルを公式 / rsvelte の両方でコンパイルし、出力を semantic に比較」する。既存の `scripts/ecosystem/test-real-world-semantic.mjs` のロジックを応用する。
 
 #### Step 4-B-1: 全 `.svelte` ファイル列挙
 
@@ -528,7 +528,7 @@ tests/fixtures/{category}/<unique-name>/
   expected/            # 公式 Svelte の出力（参照）
 ```
 
-`scripts/generate-fixtures.mjs` を活用して expected を生成する。
+`scripts/fixtures/generate-fixtures.mjs` を活用して expected を生成する。
 
 ### Step 5.3: 自動修正
 

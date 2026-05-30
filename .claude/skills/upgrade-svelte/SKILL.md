@@ -39,7 +39,7 @@ Pick the latest stable tag (not `next` or `rc`). Confirm with the user if ambigu
 The existing script handles the mechanical upgrade:
 
 ```bash
-./scripts/upgrade-svelte.sh <VERSION>
+./scripts/dev/upgrade-svelte.sh <VERSION>
 ```
 
 This does:
@@ -255,7 +255,7 @@ Also update the test status table in `CLAUDE.md` if the numbers changed.
 ### Step 4.5: Run benchmarks
 
 ```bash
-./scripts/bench.sh --quick
+./scripts/bench/bench.sh --quick
 ```
 
 Update `README.md` performance tables if the numbers changed significantly.
@@ -284,7 +284,7 @@ cd svelte && git describe --tags --abbrev=0
 cd svelte && git fetch --tags && git tag -l 'svelte@*' --sort=-version:refname | head -1
 
 # Full upgrade (automated steps)
-./scripts/upgrade-svelte.sh <VERSION>
+./scripts/dev/upgrade-svelte.sh <VERSION>
 
 # Compatibility report
 npm run compatibility-report
@@ -314,7 +314,7 @@ cargo fmt && cargo clippy --all-targets --all-features -- -D warnings
 When the user invokes `/upgrade-svelte $ARGUMENTS`:
 
 1. Determine target version from `$ARGUMENTS` (or find latest if "latest" or empty)
-2. **Phase 1**: Run `./scripts/upgrade-svelte.sh <VERSION>`
+2. **Phase 1**: Run `./scripts/dev/upgrade-svelte.sh <VERSION>`
 3. **Phase 2**: Read compatibility report, list all failures with counts
 4. **Phase 3**: Fix failures one by one, committing each fix
    - Always read the Svelte reference implementation before fixing

@@ -191,9 +191,9 @@ pub fn transform_server(analysis, ast, source, options) -> Result<String, Transf
 - Docker コンテナ: `svelte-compiler-rust-dev`
 - ビルド: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && cargo build --release --features napi --lib && cp target/release/libsvelte_compiler_rust.so svelte/rsvelte.linux-arm64-gnu.node'`
 - テスト: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && cargo test --release --test runtime test_runtime_runes -- --nocapture'`
-- SSR 測定: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/measure-ssr.mjs'`
-- Client 測定: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/precise-semantic-diff.mjs'`
-- 1ファイル SSR 差分: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/ssr-diff-one.mjs ".real-world-tests/<PATH>"'`
+- SSR 測定: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/bench/measure-ssr.mjs'`
+- Client 測定: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/precise-semantic-diff.mjs'`
+- 1ファイル SSR 差分: `docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/ssr-diff-one.mjs ".real-world-tests/<PATH>"'`
 
 ## 現在の SSR 差分一覧 (30件)
 

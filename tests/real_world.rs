@@ -4,7 +4,7 @@
 //! with rsvelte and compare the output against the official Svelte compiler.
 //!
 //! To generate fixtures:
-//!   node scripts/generate-real-world-fixtures.mjs
+//!   node scripts/fixtures/generate-real-world-fixtures.mjs
 //!
 //! To run:
 //!   cargo test --release --test real_world
@@ -266,7 +266,7 @@ fn test_real_world_fixtures() {
         eprintln!(
             "\n\
             Skipping test_real_world_fixtures: no fixtures found.\n\
-            To enable: node scripts/generate-real-world-fixtures.mjs\n"
+            To enable: node scripts/fixtures/generate-real-world-fixtures.mjs\n"
         );
         return;
     }
