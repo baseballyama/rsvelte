@@ -1898,6 +1898,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_fmt"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "oxc_formatter",
+ "oxc_formatter_core",
+ "rayon",
+ "rsvelte_formatter",
+ "walkdir",
+]
+
+[[package]]
 name = "rsvelte_formatter"
 version = "0.1.0"
 dependencies = [
