@@ -64,14 +64,14 @@ language-tools
 # verify-svelte-compat: per-target ephemeral data. The whole directory
 # is regenerated on demand (each target is a clone of an external repo
 # the skill bisects against), so nothing inside it should be tracked.
-compat-targets/
+compat/verify-svelte-compat/
 
 # ecosystem-ci: per-target clones, logs, and per-run result JSON. Only
-# ecosystem-ci/targets/*.json and ecosystem-ci/README.md are tracked.
-/ecosystem-ci/checkout/
-/ecosystem-ci/results/
-/ecosystem-ci/.cache/
-/ecosystem-ci/state/
+# compat/ecosystem-ci/targets/*.json and compat/ecosystem-ci/README.md are tracked.
+/compat/ecosystem-ci/checkout/
+/compat/ecosystem-ci/results/
+/compat/ecosystem-ci/.cache/
+/compat/ecosystem-ci/state/
 
 # Tool / review scratch artefacts. None of these are inputs to a build;
 # they're outputs of local tooling (benchmarks, profilers, code-review

@@ -2,7 +2,7 @@ name: ecosystem-ci
 
 # Verifies rsvelte against real-world MIT-licensed Svelte projects by running
 # each target's own test/build suite under (1) the official svelte/compiler
-# (baseline) and (2) rsvelte (swap). See ecosystem-ci/README.md for design.
+# (baseline) and (2) rsvelte (swap). See compat/ecosystem-ci/README.md for design.
 #
 # Triggers:
 #   - workflow_dispatch: manual run, optional `target` input selects one target
@@ -58,7 +58,7 @@ jobs:
             # Skip targets marked `disabled: true` in the JSON. They stay
             # checked in for visibility (and re-enable via dispatch input).
             all=()
-            for f in $(find ecosystem-ci/targets -name '*.json' | sort); do
+            for f in $(find compat/ecosystem-ci/targets -name '*.json' | sort); do
               name=$(basename "$f" .json)
               if jq -e '.disabled == true' "$f" > /dev/null; then continue; fi
               all+=("$name")
@@ -66,7 +66,7 @@ jobs:
             if [ -n "$INPUT_TAG" ]; then
               filtered=()
               for t in "${all[@]}"; do
-                if jq -e --arg tag "$INPUT_TAG" '.tags | index($tag)' "ecosystem-ci/targets/${t}.json" > /dev/null; then
+                if jq -e --arg tag "$INPUT_TAG" '.tags | index($tag)' "compat/ecosystem-ci/targets/${t}.json" > /dev/null; then
                   filtered+=("$t")
                 fi
               done
@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: result-${{ matrix.target }}
-          path: ecosystem-ci/results/${{ matrix.target }}.json
+          path: compat/ecosystem-ci/results/${{ matrix.target }}.json
           if-no-files-found: warn
 
       - name: Upload phase logs
@@ -133,7 +133,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: logs-${{ matrix.target }}
-          path: ecosystem-ci/.cache/${{ matrix.target }}-*.log
+          path: compat/ecosystem-ci/.cache/${{ matrix.target }}-*.log
           if-no-files-found: warn
 
   summary:
@@ -150,7 +150,7 @@ jobs:
       - name: Download all result artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          path: ecosystem-ci/results
+          path: compat/ecosystem-ci/results
           pattern: result-*
           merge-multiple: true
 
