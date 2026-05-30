@@ -120,10 +120,12 @@ fn collect_node_edits(
         }
         TemplateNode::EachBlock(blk) => {
             push_bare_expression(source, &blk.expression, options, edits)?;
+            if let Some(ctx) = &blk.context {
+                push_pattern_at_span(source, ctx, options, edits)?;
+            }
             if let Some(key) = &blk.key {
                 push_brace_wrapped_expression(source, key, options, edits)?;
             }
-            // `context` is a destructuring pattern — defer.
             collect_template_edits(source, &blk.body, options, edits)?;
             if let Some(fb) = &blk.fallback {
                 collect_template_edits(source, fb, options, edits)?;
@@ -131,7 +133,12 @@ fn collect_node_edits(
         }
         TemplateNode::AwaitBlock(blk) => {
             push_bare_expression(source, &blk.expression, options, edits)?;
-            // `value` / `error` are patterns — defer.
+            if let Some(v) = &blk.value {
+                push_pattern_at_span(source, v, options, edits)?;
+            }
+            if let Some(e) = &blk.error {
+                push_pattern_at_span(source, e, options, edits)?;
+            }
             if let Some(frag) = &blk.pending {
                 collect_template_edits(source, frag, options, edits)?;
             }
@@ -148,6 +155,9 @@ fn collect_node_edits(
         }
         TemplateNode::SnippetBlock(blk) => {
             push_bare_expression(source, &blk.expression, options, edits)?;
+            for p in &blk.parameters {
+                push_pattern_at_span(source, p, options, edits)?;
+            }
             collect_template_edits(source, &blk.body, options, edits)?;
         }
         TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
@@ -360,6 +370,145 @@ pub(crate) fn format_expression_source(
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     Ok(strip_outer_parens(s).trim().to_string())
+}
+
+/// Splice a destructuring pattern's source span with its formatted
+/// version. Mirrors `push_bare_expression` but routes through
+/// `format_pattern_source` so default values and rest elements survive.
+fn push_pattern_at_span(
+    source: &str,
+    expr: &Expression,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
+        return Ok(());
+    };
+    let slice = source
+        .get(start as usize..end as usize)
+        .ok_or_else(|| FormatError::Parse("pattern span out of bounds".into()))?
+        .trim();
+    if slice.is_empty() {
+        return Ok(());
+    }
+    let formatted = format_pattern_source(slice, options)?;
+    edits.push((start, end, formatted));
+    Ok(())
+}
+
+/// Format a destructuring pattern. Patterns like `{a, b = 1}`,
+/// `[a, ...rest]`, or `{ a: { b } }` aren't valid as bare expressions
+/// (object literals can't carry default values), so we wrap them in a
+/// `let PATTERN = $$;` declaration and parse the whole thing as a
+/// Program. The formatted declaration is then sliced back down to just
+/// the pattern body.
+///
+/// We force `line_width` to its maximum so nested patterns stay on one
+/// line — multi-line patterns inside `{#each as ...}` would land
+/// across the block header, which Svelte's parser then can't re-read.
+pub(crate) fn format_pattern_source(
+    pattern_source: &str,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    const SENTINEL: &str = "__rsvelte_fmt_rhs__";
+    let allocator = Allocator::default();
+    let source_type = SourceType::default();
+
+    let wrapped = format!("let {pattern_source} = {SENTINEL};");
+    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.errors.is_empty() {
+        return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
+    }
+
+    // Build a single-line copy of JsFormatOptions for this pattern only.
+    // Setting `expand = Never` plus a very wide `line_width` keeps even
+    // deeply nested destructuring on one line — the multi-line form
+    // would land across a Svelte block header (`{#each as ...}`) and
+    // re-parse incorrectly.
+    let mut single_line = options.js.clone();
+    single_line.line_width =
+        oxc_formatter_core::LineWidth::try_from(u16::MAX).unwrap_or(single_line.line_width);
+    single_line.expand = oxc_formatter_core::Expand::Never;
+
+    let formatted = Formatter::new(&allocator, single_line).build(&parser_ret.program);
+
+    // Output shape: `let <pattern> = __rsvelte_fmt_rhs__;\n`. Strip the
+    // leading `let ` and the trailing ` = __rsvelte_fmt_rhs__;` so we
+    // are left with the formatted pattern.
+    let s = formatted.trim_end();
+    let stripped_prefix = s.strip_prefix("let ").unwrap_or(s);
+    let suffix = format!(" = {SENTINEL};");
+    let pattern = stripped_prefix
+        .strip_suffix(&suffix)
+        .unwrap_or(stripped_prefix);
+    let candidate = pattern.trim().to_string();
+
+    // Some patterns (deeply nested destructuring) get hard-wrapped by
+    // oxc_formatter regardless of `line_width` / `expand`. A multi-line
+    // pattern can't safely sit inside a Svelte block header
+    // (`{#each as ...}` re-reads the header as a single line), so
+    // fall back to a light source-normalization for those.
+    if candidate.contains('\n') {
+        return Ok(light_normalize_pattern(pattern_source));
+    }
+    Ok(candidate)
+}
+
+/// Conservative whitespace-only normalization used when the JS formatter
+/// produces a multi-line pattern.
+///
+/// Mirrors Prettier's destructuring spacing rules: braces (`{` / `}`)
+/// always carry one inner space when non-empty; brackets (`[` / `]`)
+/// and parens carry none; commas and colons are followed by exactly
+/// one space.
+fn light_normalize_pattern(src: &str) -> String {
+    let bytes = src.as_bytes();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        match b {
+            b' ' | b'\t' | b'\n' | b'\r' => {
+                // Drop existing whitespace; the rules below re-insert it.
+            }
+            b'{' => {
+                out.push('{');
+                // Peek past whitespace to see whether the brace is empty.
+                let mut j = i + 1;
+                while j < bytes.len() && matches!(bytes[j], b' ' | b'\t' | b'\n' | b'\r') {
+                    j += 1;
+                }
+                if j < bytes.len() && bytes[j] != b'}' {
+                    out.push(' ');
+                }
+            }
+            b'}' => {
+                if !out.ends_with('{') && !out.ends_with(' ') {
+                    out.push(' ');
+                }
+                out.push('}');
+            }
+            b',' | b':' => {
+                if out.ends_with(' ') {
+                    out.pop();
+                }
+                out.push(b as char);
+                // Lookahead for next non-whitespace.
+                let mut j = i + 1;
+                while j < bytes.len() && matches!(bytes[j], b' ' | b'\t' | b'\n' | b'\r') {
+                    j += 1;
+                }
+                if j < bytes.len() && !matches!(bytes[j], b'}' | b']' | b')') {
+                    out.push(' ');
+                }
+            }
+            other => out.push(other as char),
+        }
+        i += 1;
+    }
+    out
 }
 
 fn strip_outer_parens(s: &str) -> &str {

@@ -510,9 +510,8 @@ fn render_attribute(
             }
         }
         Attribute::LetDirective(d) => {
-            // `let:item` shorthand or `let:item={pattern}`.
-            // Pattern formatting is deferred — emit the raw source slice
-            // for the expression to avoid garbling destructuring.
+            // `let:item` (shorthand) or `let:item={pattern}` with a
+            // destructuring pattern as the value.
             if let Some(expr) = &d.expression {
                 let (Some(s), Some(e)) = (expr.start(), expr.end()) else {
                     return Ok(format!("let:{}", d.name));
@@ -521,7 +520,8 @@ fn render_attribute(
                 if raw.is_empty() || raw == d.name.as_str() {
                     Ok(format!("let:{}", d.name))
                 } else {
-                    Ok(format!("let:{}={{{raw}}}", d.name))
+                    let pattern = crate::expression::format_pattern_source(raw, options)?;
+                    Ok(format!("let:{}={{{pattern}}}", d.name))
                 }
             } else {
                 Ok(format!("let:{}", d.name))

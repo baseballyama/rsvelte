@@ -18,9 +18,10 @@ mod indent;
 mod markup;
 mod options;
 mod script;
+mod style;
 
 pub use error::FormatError;
-pub use options::FormatOptions;
+pub use options::{FormatOptions, StyleFormatter};
 
 // Re-exports so consumers don't need to depend on `oxc_formatter` directly.
 pub use oxc_formatter::JsFormatOptions;
@@ -52,6 +53,9 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     markup::collect_open_tag_edits(source, &root.fragment, 0, options, &mut edits)?;
     expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
+    if let Some(css) = &root.css {
+        style::collect_style_edit(css, options, &mut edits)?;
+    }
 
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));

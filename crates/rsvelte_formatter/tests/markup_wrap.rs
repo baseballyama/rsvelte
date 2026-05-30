@@ -11,6 +11,7 @@ fn fmt_at_width(src: &str, line_width: u16) -> String {
             line_width: LineWidth::try_from(line_width).expect("valid line width"),
             ..JsFormatOptions::new()
         },
+        ..FormatOptions::default()
     };
     format(src, &opts).expect("format ok")
 }
