@@ -3683,17 +3683,6 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
 
                             // Component call with true snippets as props
-                            body_code.push_str(&format!(
-                                "{}\t{}{}($$renderer, {{ ",
-                                indent, name, call_syntax
-                            ));
-
-                            // Collect all props including true snippet names
-                            let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
-                            for (snippet_name, _, _, _) in &true_snippets {
-                                all_props.push(snippet_name.to_string());
-                            }
-
                             // Build $$slots object with:
                             // - true snippets as `name: true`
                             // - slot children as inline functions (with destructured params if they have let directives)
@@ -3731,7 +3720,13 @@ impl<'a> ServerCodeGenerator<'a> {
                                 }
                             }
 
-                            // If we also have default children, add children callback and default: true to $$slots
+                            // Snippet names + (optional) children that go in the props object
+                            // alongside `$$slots`. These are the same in both the spread
+                            // and no-spread emission paths below.
+                            let mut props_after_spread: Vec<String> = Vec::new();
+                            for (snippet_name, _, _, _) in &true_snippets {
+                                props_after_spread.push(snippet_name.to_string());
+                            }
                             if let Some(children_parts) = children {
                                 slots_entries.push("default: true".to_string());
                                 let children_body = Self::build_parts_with_store_subs(
@@ -3740,7 +3735,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                     each_counter,
                                     store_subs,
                                 );
-                                all_props.push(format!(
+                                props_after_spread.push(format!(
                                     "children: ($$renderer) => {{\n{}{}\t}}",
                                     children_body, indent
                                 ));
@@ -3748,14 +3743,58 @@ impl<'a> ServerCodeGenerator<'a> {
 
                             let slots_str = slots_entries.join(", ");
 
-                            if all_props.is_empty() {
-                                body_code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
-                            } else {
+                            if component_has_spreads {
+                                // `<Child {...rest}>{#snippet …}…{/snippet}</Child>` must
+                                // not drop the `{...rest}`. Emit
+                                // `Child($$renderer, $.spread_props([…interleaved spreads/props…, { snippets, $$slots }]))`
+                                // mirroring the existing bindings + spread path. (issue #448, H-104/H-105)
                                 body_code.push_str(&format!(
-                                    "{}, $$slots: {{ {} }} }});\n",
-                                    all_props.join(", "),
-                                    slots_str
+                                    "{}\t{}{}($$renderer, $.spread_props([\n",
+                                    indent, name, call_syntax
                                 ));
+                                for item in props_and_spreads {
+                                    match item {
+                                        ComponentPropItem::Props(props) => {
+                                            body_code.push_str(&format!(
+                                                "{}\t\t{{ {} }},\n",
+                                                indent,
+                                                props.join(", ")
+                                            ));
+                                        }
+                                        ComponentPropItem::Spread(expr) => {
+                                            body_code
+                                                .push_str(&format!("{}\t\t{},\n", indent, expr));
+                                        }
+                                    }
+                                }
+                                let mut final_entries = props_after_spread.clone();
+                                final_entries.push(format!("$$slots: {{ {} }}", slots_str));
+                                body_code.push_str(&format!(
+                                    "{}\t\t{{ {} }}\n",
+                                    indent,
+                                    final_entries.join(", ")
+                                ));
+                                body_code.push_str(&format!("{}\t]));\n", indent));
+                            } else {
+                                // No spread: preserve the existing single-object emission
+                                // (`Child($$renderer, { …, $$slots: { … } })`).
+                                let mut all_props: Vec<String> =
+                                    collect_all_props(props_and_spreads);
+                                all_props.extend(props_after_spread);
+                                body_code.push_str(&format!(
+                                    "{}\t{}{}($$renderer, {{ ",
+                                    indent, name, call_syntax
+                                ));
+                                if all_props.is_empty() {
+                                    body_code
+                                        .push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
+                                } else {
+                                    body_code.push_str(&format!(
+                                        "{}, $$slots: {{ {} }} }});\n",
+                                        all_props.join(", "),
+                                        slots_str
+                                    ));
+                                }
                             }
 
                             // Close the block
@@ -6560,11 +6599,6 @@ impl<'a> ServerCodeGenerator<'a> {
                     code.push_str(&snippet_body);
                     code.push_str("\t}\n\n");
                 }
-                code.push_str(&format!("\t{}{}($$renderer, {{ ", name, call_syntax));
-                let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
-                for (snippet_name, _, _, _) in &true_snippets {
-                    all_props.push(snippet_name.to_string());
-                }
                 let mut slots_entries: Vec<String> = Vec::new();
                 for slot_name in slot_names {
                     let quoted_name = quote_prop_name(slot_name);
@@ -6594,6 +6628,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         slots_entries.push(format!("{}: true", quoted_name));
                     }
                 }
+                // Snippet names + (optional) children that go in the inner props object.
+                let mut props_after_spread: Vec<String> = Vec::new();
+                for (snippet_name, _, _, _) in &true_snippets {
+                    props_after_spread.push(snippet_name.to_string());
+                }
                 if let Some(children_parts) = children {
                     slots_entries.push("default: true".to_string());
                     let children_body = super::bridge::generate_inner_body_code_direct(
@@ -6602,35 +6641,59 @@ impl<'a> ServerCodeGenerator<'a> {
                         each_counter,
                         2,
                     );
-                    all_props.push(format!(
+                    props_after_spread.push(format!(
                         "children: ($$renderer) => {{\n{}\t}}",
                         children_body
                     ));
                 }
                 let slots_str = slots_entries.join(", ");
-                if all_props.is_empty() {
-                    code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
-                } else {
+
+                if component_has_spreads {
+                    // `<Child {...rest}>{#snippet …}…{/snippet}</Child>` must not
+                    // drop the `{...rest}`. Emit
+                    // `Child($$renderer, $.spread_props([…interleaved spreads/props…, { snippets, $$slots }]))`
+                    // (issue #448, H-104/H-105).
                     code.push_str(&format!(
-                        "{}, $$slots: {{ {} }} }});\n",
-                        all_props.join(", "),
-                        slots_str
+                        "\t{}{}($$renderer, $.spread_props([\n",
+                        name, call_syntax
                     ));
+                    for item in props_and_spreads {
+                        match item {
+                            ComponentPropItem::Props(props) => {
+                                code.push_str(&format!("\t\t{{ {} }},\n", props.join(", ")));
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                code.push_str(&format!("\t\t{},\n", expr));
+                            }
+                        }
+                    }
+                    let mut final_entries = props_after_spread.clone();
+                    final_entries.push(format!("$$slots: {{ {} }}", slots_str));
+                    code.push_str(&format!("\t\t{{ {} }}\n", final_entries.join(", ")));
+                    code.push_str("\t]));\n");
+                } else {
+                    let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
+                    all_props.extend(props_after_spread);
+                    code.push_str(&format!("\t{}{}($$renderer, {{ ", name, call_syntax));
+                    if all_props.is_empty() {
+                        code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
+                    } else {
+                        code.push_str(&format!(
+                            "{}, $$slots: {{ {} }} }});\n",
+                            all_props.join(", "),
+                            slots_str
+                        ));
+                    }
                 }
                 code.push_str("}\n");
             } else if has_slot_children && !has_children {
-                let all_props = collect_all_props(props_and_spreads);
                 let default_has_let_dirs = slot_children
                     .iter()
                     .any(|(n, params, _, _)| n == "default" && !params.is_empty());
-                code.push_str(&format!("{}{}($$renderer, {{\n", name, call_syntax));
-                for prop in &all_props {
-                    code.push_str(&format!("\t{},\n", prop));
-                }
-                if default_has_let_dirs {
-                    code.push_str("\tchildren: $.invalid_default_snippet,\n");
-                }
-                code.push_str("\t$$slots: {\n");
+                // Build the `$$slots: { … }` block once; it's identical between
+                // the no-spread and `$.spread_props([…])` paths.
+                let mut slots_block = String::new();
+                slots_block.push_str("$$slots: {\n");
                 for (slot_name, params, body_parts, _) in &slot_children {
                     let quoted_name = quote_prop_name(slot_name);
                     let fn_body = super::bridge::generate_inner_body_code_direct(
@@ -6640,21 +6703,59 @@ impl<'a> ServerCodeGenerator<'a> {
                         3,
                     );
                     if params.is_empty() {
-                        code.push_str(&format!(
+                        slots_block.push_str(&format!(
                             "\t\t{}: ($$renderer) => {{\n{}",
                             quoted_name, fn_body
                         ));
                     } else {
                         let params_str = format!("{{ {} }}", params.join(", "));
-                        code.push_str(&format!(
+                        slots_block.push_str(&format!(
                             "\t\t{}: ($$renderer, {}) => {{\n{}",
                             quoted_name, params_str, fn_body
                         ));
                     }
-                    code.push_str("\t\t},\n");
+                    slots_block.push_str("\t\t},\n");
                 }
-                code.push_str("\t}\n");
-                code.push_str("});\n");
+                slots_block.push_str("\t}");
+
+                if component_has_spreads {
+                    // `<Child {...rest}><div slot="x">…</div></Child>` must keep
+                    // `{...rest}`. Emit
+                    // `$.spread_props([…interleaved spreads/props…, { [children:…], $$slots: { … } }])`
+                    // (issue #448, H-105).
+                    code.push_str(&format!(
+                        "{}{}($$renderer, $.spread_props([\n",
+                        name, call_syntax
+                    ));
+                    for item in props_and_spreads {
+                        match item {
+                            ComponentPropItem::Props(props) => {
+                                code.push_str(&format!("\t{{ {} }},\n", props.join(", ")));
+                            }
+                            ComponentPropItem::Spread(expr) => {
+                                code.push_str(&format!("\t{},\n", expr));
+                            }
+                        }
+                    }
+                    code.push_str("\t{\n");
+                    if default_has_let_dirs {
+                        code.push_str("\t\tchildren: $.invalid_default_snippet,\n");
+                    }
+                    code.push_str(&format!("\t\t{}\n", slots_block));
+                    code.push_str("\t}\n");
+                    code.push_str("]));\n");
+                } else {
+                    let all_props = collect_all_props(props_and_spreads);
+                    code.push_str(&format!("{}{}($$renderer, {{\n", name, call_syntax));
+                    for prop in &all_props {
+                        code.push_str(&format!("\t{},\n", prop));
+                    }
+                    if default_has_let_dirs {
+                        code.push_str("\tchildren: $.invalid_default_snippet,\n");
+                    }
+                    code.push_str(&format!("\t{}\n", slots_block));
+                    code.push_str("});\n");
+                }
             } else if let Some(children_parts) = children {
                 let has_let_dirs = !let_directives.is_empty();
                 if component_has_spreads {
@@ -7169,42 +7270,171 @@ impl<'a> ServerCodeGenerator<'a> {
         let call_syntax = "";
 
         if has_spreads(props_and_spreads) {
+            // `<Child bind:value={v} {...rest}>kids</Child>` (and the
+            // snippet / named-slot variants) must keep the `kids` /
+            // snippets / slot children alongside the binding getter/setters
+            // — previously this branch only emitted the bindings, silently
+            // dropping everything else (issue #448, H-106).
+            #[allow(clippy::type_complexity)]
+            let (true_snippets, slot_children_binding): (
+                Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+                Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+            ) = snippets
+                .iter()
+                .partition(|(_, _, _, is_true_snippet)| *is_true_snippet);
+            let has_true_snippets = !true_snippets.is_empty();
+            let has_children = children.is_some();
+            let has_slot_children_binding = !slot_children_binding.is_empty();
+
+            // True snippets need hoisting via a wrapping `{ function … }` block.
+            if has_true_snippets {
+                code.push_str("{\n");
+                for (snippet_name, params, body_parts, _) in &true_snippets {
+                    let params_str = if params.is_empty() {
+                        "$$renderer".to_string()
+                    } else {
+                        format!("$$renderer, {}", params.join(", "))
+                    };
+                    code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
+                    let snippet_body = super::bridge::generate_inner_body_code_direct(
+                        body_parts,
+                        store_subs,
+                        each_counter,
+                        2,
+                    );
+                    code.push_str(&snippet_body);
+                    code.push_str("\t}\n\n");
+                }
+            }
+            let inner_indent = if has_true_snippets { "\t" } else { "" };
+
             code.push_str(&format!(
-                "{}{}($$renderer, $.spread_props([\n",
-                name, call_syntax
+                "{}{}{}($$renderer, $.spread_props([\n",
+                inner_indent, name, call_syntax
             ));
             for item in props_and_spreads {
                 match item {
                     ComponentPropItem::Props(props) => {
-                        code.push_str(&format!("\t{{ {} }},\n", props.join(", ")));
+                        code.push_str(&format!("{}\t{{ {} }},\n", inner_indent, props.join(", ")));
                     }
                     ComponentPropItem::Spread(expr) => {
-                        code.push_str(&format!("\t{},\n", expr));
+                        code.push_str(&format!("{}\t{},\n", inner_indent, expr));
                     }
                 }
             }
-            code.push_str("\t{\n");
+            code.push_str(&format!("{}\t{{\n", inner_indent));
+
             let binding_count = bindings.len();
+            let has_extras = has_true_snippets
+                || has_children
+                || !slot_names.is_empty()
+                || has_slot_children_binding;
             for (idx, binding) in bindings.iter().enumerate() {
                 let (prop_name, getter_expr, setter_expr) =
                     resolve_binding_exprs(binding, store_subs);
                 let is_seq = matches!(binding, ComponentBinding::SequenceExpression { .. });
-                code.push_str(&format!("\t\tget {}() {{\n", prop_name));
-                code.push_str(&format!("\t\t\treturn {};\n", getter_expr));
-                code.push_str("\t\t},\n\n");
-                code.push_str(&format!("\t\tset {}($$value) {{\n", prop_name));
-                code.push_str(&format!("\t\t\t{};\n", setter_expr));
+                code.push_str(&format!("{}\t\tget {}() {{\n", inner_indent, prop_name));
+                code.push_str(&format!("{}\t\t\treturn {};\n", inner_indent, getter_expr));
+                code.push_str(&format!("{}\t\t}},\n\n", inner_indent));
+                code.push_str(&format!(
+                    "{}\t\tset {}($$value) {{\n",
+                    inner_indent, prop_name
+                ));
+                code.push_str(&format!("{}\t\t\t{};\n", inner_indent, setter_expr));
                 if !is_seq {
-                    code.push_str("\t\t\t$$settled = false;\n");
+                    code.push_str(&format!("{}\t\t\t$$settled = false;\n", inner_indent));
                 }
-                if idx < binding_count - 1 {
-                    code.push_str("\t\t},\n\n");
+                let is_last_binding = idx == binding_count - 1;
+                if is_last_binding && !has_extras {
+                    code.push_str(&format!("{}\t\t}}\n", inner_indent));
                 } else {
-                    code.push_str("\t\t}\n");
+                    code.push_str(&format!("{}\t\t}},\n\n", inner_indent));
                 }
             }
-            code.push_str("\t}\n");
-            code.push_str("]));\n");
+
+            // True snippet names
+            for (snippet_name, _, _, _) in &true_snippets {
+                code.push_str(&format!("{}\t\t{},\n", inner_indent, snippet_name));
+            }
+
+            // Default `children` callback (separate from `$$slots`)
+            if let Some(children_parts) = children {
+                let children_code = super::bridge::generate_inner_body_code_direct(
+                    children_parts,
+                    store_subs,
+                    each_counter,
+                    if has_true_snippets { 3 } else { 2 },
+                );
+                if component_dev {
+                    code.push_str(&format!(
+                        "{}\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                        inner_indent
+                    ));
+                } else {
+                    code.push_str(&format!(
+                        "{}\t\tchildren: ($$renderer) => {{\n",
+                        inner_indent
+                    ));
+                }
+                code.push_str(&children_code);
+                if component_dev {
+                    code.push_str(&format!("{}\t\t}}),\n", inner_indent));
+                } else {
+                    code.push_str(&format!("{}\t\t}},\n", inner_indent));
+                }
+            }
+
+            // `$$slots: { … }` with named slot children + true-snippet markers
+            if !slot_names.is_empty()
+                || has_true_snippets
+                || has_slot_children_binding
+                || has_children
+            {
+                code.push_str(&format!("{}\t\t$$slots: {{\n", inner_indent));
+                for slot_name in slot_names {
+                    let quoted_name = quote_prop_name(slot_name);
+                    if let Some((_, params, body_parts, _)) = slot_children_binding
+                        .iter()
+                        .find(|(n, _, _, _)| n == slot_name)
+                    {
+                        let fn_body = super::bridge::generate_inner_body_code_direct(
+                            body_parts,
+                            store_subs,
+                            each_counter,
+                            if has_true_snippets { 4 } else { 3 },
+                        );
+                        if params.is_empty() {
+                            code.push_str(&format!(
+                                "{}\t\t\t{}: ($$renderer) => {{\n{}{}\t\t\t}},\n",
+                                inner_indent, quoted_name, fn_body, inner_indent
+                            ));
+                        } else {
+                            let params_str = format!("{{ {} }}", params.join(", "));
+                            code.push_str(&format!(
+                                "{}\t\t\t{}: ($$renderer, {}) => {{\n{}{}\t\t\t}},\n",
+                                inner_indent, quoted_name, params_str, fn_body, inner_indent
+                            ));
+                        }
+                    } else {
+                        code.push_str(&format!("{}\t\t\t{}: true,\n", inner_indent, quoted_name));
+                    }
+                }
+                for (snippet_name, _, _, _) in &true_snippets {
+                    if !slot_names.contains(snippet_name) {
+                        code.push_str(&format!("{}\t\t\t{}: true,\n", inner_indent, snippet_name));
+                    }
+                }
+                if has_children && !slot_names.contains(&"default".to_string()) {
+                    code.push_str(&format!("{}\t\t\tdefault: true,\n", inner_indent));
+                }
+                code.push_str(&format!("{}\t\t}}\n", inner_indent));
+            }
+
+            code.push_str(&format!("{}\t}}\n", inner_indent));
+            code.push_str(&format!("{}]));\n", inner_indent));
+            if has_true_snippets {
+                code.push_str("}\n");
+            }
         } else {
             let all_props = collect_all_props(props_and_spreads);
             #[allow(clippy::type_complexity)]
