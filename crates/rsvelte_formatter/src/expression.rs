@@ -3,9 +3,7 @@ use oxc_formatter::Formatter;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
 use svelte_compiler_rust::ast::js::Expression;
-use svelte_compiler_rust::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, ExpressionTag, Fragment, TemplateNode,
-};
+use svelte_compiler_rust::ast::template::{ExpressionTag, Fragment, TemplateNode};
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
@@ -81,20 +79,20 @@ fn collect_node_edits(
             // Statement-shaped tags (`{@const x = e}`, `{let x = e}`,
             // `{const x = e}`) — defer until statement formatting lands.
         }
+        // For every element type, attribute lists (and `this={X}` on
+        // `<svelte:component>` / `<svelte:element>`) are owned by the
+        // open-tag rewrite in `crate::markup`. Here we only recurse into
+        // the children.
         TemplateNode::RegularElement(elem) => {
-            collect_attribute_list_edits(source, &elem.attributes, options, edits)?;
             collect_template_edits(source, &elem.fragment, options, edits)?;
         }
         TemplateNode::Component(c) => {
-            collect_attribute_list_edits(source, &c.attributes, options, edits)?;
             collect_template_edits(source, &c.fragment, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
-            collect_attribute_list_edits(source, &t.attributes, options, edits)?;
             collect_template_edits(source, &t.fragment, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
-            collect_attribute_list_edits(source, &s.attributes, options, edits)?;
             collect_template_edits(source, &s.fragment, options, edits)?;
         }
         TemplateNode::SvelteHead(s)
@@ -105,17 +103,12 @@ fn collect_node_edits(
         | TemplateNode::SvelteOptions(s)
         | TemplateNode::SvelteSelf(s)
         | TemplateNode::SvelteWindow(s) => {
-            collect_attribute_list_edits(source, &s.attributes, options, edits)?;
             collect_template_edits(source, &s.fragment, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
-            collect_attribute_list_edits(source, &c.attributes, options, edits)?;
-            push_brace_wrapped_expression(source, &c.expression, options, edits)?;
             collect_template_edits(source, &c.fragment, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
-            collect_attribute_list_edits(source, &e.attributes, options, edits)?;
-            push_brace_wrapped_expression(source, &e.tag, options, edits)?;
             collect_template_edits(source, &e.fragment, options, edits)?;
         }
         TemplateNode::IfBlock(blk) => {
@@ -158,98 +151,6 @@ fn collect_node_edits(
             collect_template_edits(source, &blk.body, options, edits)?;
         }
         TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
-    }
-    Ok(())
-}
-
-fn collect_attribute_list_edits(
-    source: &str,
-    attributes: &[Attribute],
-    options: &FormatOptions,
-    edits: &mut Vec<(u32, u32, String)>,
-) -> Result<(), FormatError> {
-    for attr in attributes {
-        match attr {
-            Attribute::Attribute(node) => {
-                collect_attribute_value_edits(source, &node.value, options, edits)?;
-            }
-            Attribute::SpreadAttribute(spread) => {
-                push_spread_attribute(
-                    source,
-                    spread.start,
-                    spread.end,
-                    &spread.expression,
-                    options,
-                    edits,
-                )?;
-            }
-            Attribute::AttachTag(attach) => {
-                push_tag_form(
-                    source,
-                    attach.start,
-                    attach.end,
-                    "@attach",
-                    &attach.expression,
-                    options,
-                    edits,
-                )?;
-            }
-            Attribute::BindDirective(d) => {
-                push_brace_wrapped_expression(source, &d.expression, options, edits)?;
-            }
-            Attribute::ClassDirective(d) => {
-                push_brace_wrapped_expression(source, &d.expression, options, edits)?;
-            }
-            Attribute::OnDirective(d) => {
-                if let Some(expr) = &d.expression {
-                    push_brace_wrapped_expression(source, expr, options, edits)?;
-                }
-            }
-            Attribute::TransitionDirective(d) => {
-                if let Some(expr) = &d.expression {
-                    push_brace_wrapped_expression(source, expr, options, edits)?;
-                }
-            }
-            Attribute::AnimateDirective(d) => {
-                if let Some(expr) = &d.expression {
-                    push_brace_wrapped_expression(source, expr, options, edits)?;
-                }
-            }
-            Attribute::UseDirective(d) => {
-                if let Some(expr) = &d.expression {
-                    push_brace_wrapped_expression(source, expr, options, edits)?;
-                }
-            }
-            Attribute::StyleDirective(d) => {
-                collect_attribute_value_edits(source, &d.value, options, edits)?;
-            }
-            Attribute::LetDirective(_) => {
-                // `let:item={pattern}` — value side is a destructuring
-                // pattern. Defer until pattern formatting is in.
-            }
-        }
-    }
-    Ok(())
-}
-
-fn collect_attribute_value_edits(
-    source: &str,
-    value: &AttributeValue,
-    options: &FormatOptions,
-    edits: &mut Vec<(u32, u32, String)>,
-) -> Result<(), FormatError> {
-    match value {
-        AttributeValue::True(_) => {}
-        AttributeValue::Expression(tag) => {
-            push_expression_tag(source, tag, options, edits)?;
-        }
-        AttributeValue::Sequence(parts) => {
-            for part in parts {
-                if let AttributeValuePart::ExpressionTag(tag) = part {
-                    push_expression_tag(source, tag, options, edits)?;
-                }
-            }
-        }
     }
     Ok(())
 }
@@ -338,31 +239,6 @@ fn push_debug_tag(
     }
     let joined = parts.join(", ");
     edits.push((tag_start, tag_end, format!("{{@debug {joined}}}")));
-    Ok(())
-}
-
-/// Replace `{...EXPR}` (spread-attribute full span) with the formatted
-/// expression body prefixed by `...`.
-fn push_spread_attribute(
-    source: &str,
-    attr_start: u32,
-    attr_end: u32,
-    expr: &Expression,
-    options: &FormatOptions,
-    edits: &mut Vec<(u32, u32, String)>,
-) -> Result<(), FormatError> {
-    let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
-        return Ok(());
-    };
-    let slice = source
-        .get(start as usize..end as usize)
-        .ok_or_else(|| FormatError::Parse("spread expression span out of bounds".into()))?
-        .trim();
-    if slice.is_empty() {
-        return Ok(());
-    }
-    let formatted = format_expression_source(slice, options)?;
-    edits.push((attr_start, attr_end, format!("{{...{formatted}}}")));
     Ok(())
 }
 

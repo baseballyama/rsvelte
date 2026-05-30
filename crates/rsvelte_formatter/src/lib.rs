@@ -14,6 +14,7 @@
 
 mod error;
 mod expression;
+mod markup;
 mod options;
 mod script;
 
@@ -44,6 +45,10 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         }
     }
 
+    // Open-tag rewrites first — they own the entire `<tag ...>` span
+    // including its attribute list. The expression pass below must skip
+    // anything inside an element opener so the two passes don't overlap.
+    markup::collect_open_tag_edits(source, &root.fragment, options, &mut edits)?;
     expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
 
     // Apply edits from the back so earlier offsets remain valid.
