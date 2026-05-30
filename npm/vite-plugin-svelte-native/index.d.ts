@@ -282,6 +282,46 @@ export function compileModuleLegacy(
 ): CompileResult;
 
 // ---------------------------------------------------------------------------
+// parse
+// ---------------------------------------------------------------------------
+
+export interface ParseOptions {
+	/**
+	 * Skip emitting nested `loc: { start, end }` blocks on every embedded
+	 * JavaScript expression. Top-level `start` / `end` byte offsets are
+	 * still emitted. Callers that re-parse expression ranges with their
+	 * own parser (e.g. `svelte-eslint-parser`) get a smaller AST and a
+	 * meaningfully faster `JSON.parse` (with the JSON path) or a tighter
+	 * binary buffer (with `parseEnvelope`).
+	 */
+	skipExpressionLoc?: boolean;
+}
+
+/**
+ * Parse a Svelte component and return the AST as a JSON string. The
+ * caller is responsible for `JSON.parse` on the returned value.
+ *
+ * For the fastest path skip JSON entirely: use {@link parseEnvelope}
+ * with `decodeParseEnvelope` from
+ * `@rsvelte/vite-plugin-svelte-native/parse-envelope.js`.
+ */
+export function parse(source: string, options?: ParseOptions): string;
+
+/**
+ * Parse a Svelte component and return a raw-transfer envelope `Buffer`.
+ *
+ * The buffer is a compact binary encoding of the AST (all 26 template
+ * node types and all 74 estree node types are tagged; only a small
+ * number of leaf sub-trees — CSS, `SvelteOptions`, directive metadata —
+ * fall back to inline JSON behind `TAG_JSON`). Pair with
+ * `decodeParseEnvelope` exported from
+ * `@rsvelte/vite-plugin-svelte-native/parse-envelope.js` to get the
+ * same plain-object AST that `JSON.parse(parse(source))` produces, but
+ * without the per-byte `JSON.parse` tokenisation cost.
+ */
+export function parseEnvelope(source: string, options?: ParseOptions): Buffer;
+
+// ---------------------------------------------------------------------------
 // svelte2tsx
 // ---------------------------------------------------------------------------
 

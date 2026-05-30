@@ -39,6 +39,7 @@ pub mod napi;
 // that unit tests and any future non-NAPI consumers (the WASM build, for
 // example) can exercise the encoder.
 pub mod napi_raw;
+pub mod napi_raw_parse;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
