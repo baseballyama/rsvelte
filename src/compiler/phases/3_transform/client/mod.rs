@@ -2115,7 +2115,7 @@ fn find_module_scope_injection_point(code: &str) -> usize {
     for needle in FACTORY_NEEDLES {
         if let Some(pos) = code.find(needle)
             && let Some(line_start) = line_start_of(code, pos)
-            && best.map_or(true, |b| line_start < b)
+            && best.is_none_or(|b| line_start < b)
         {
             best = Some(line_start);
         }

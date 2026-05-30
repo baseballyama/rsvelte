@@ -262,6 +262,65 @@ impl Parser<'_> {
         let pattern_str = body_text[..eq_idx].trim();
         let init_str = body_text[eq_idx + 1..].trim();
 
+        // In loose mode, an empty RHS (`{const x = }`) collapses both sides
+        // into a single empty-name declarator at the `}` position — mirrors
+        // upstream's `read_declaration` loose fallback. The pattern's name
+        // is discarded too, matching the upstream snapshot that puts an
+        // empty Identifier at `body_end`.
+        if self.options.loose && init_str.is_empty() {
+            let empty_pos = body_end as u32;
+            let id = serde_json::json!({
+                "type": "Identifier",
+                "name": "",
+                "start": empty_pos,
+                "end": empty_pos,
+            });
+            let mut declarator = serde_json::Map::new();
+            declarator.insert(
+                "type".to_string(),
+                serde_json::Value::String("VariableDeclarator".to_string()),
+            );
+            declarator.insert("id".to_string(), id);
+            declarator.insert("init".to_string(), serde_json::Value::Null);
+            declarator.insert(
+                "start".to_string(),
+                serde_json::Value::Number(empty_pos.into()),
+            );
+            declarator.insert(
+                "end".to_string(),
+                serde_json::Value::Number(empty_pos.into()),
+            );
+            let mut declaration = serde_json::Map::new();
+            declaration.insert(
+                "type".to_string(),
+                serde_json::Value::String("VariableDeclaration".to_string()),
+            );
+            declaration.insert(
+                "kind".to_string(),
+                serde_json::Value::String(kind.to_string()),
+            );
+            declaration.insert(
+                "declarations".to_string(),
+                serde_json::Value::Array(vec![serde_json::Value::Object(declarator)]),
+            );
+            declaration.insert(
+                "start".to_string(),
+                serde_json::Value::Number((decl_start as u32).into()),
+            );
+            declaration.insert(
+                "end".to_string(),
+                serde_json::Value::Number(empty_pos.into()),
+            );
+            return Ok(Some(TemplateNode::DeclarationTag(Box::new(
+                DeclarationTag {
+                    start: start as u32,
+                    end: self.index as u32,
+                    declaration: Expression::Value(serde_json::Value::Object(declaration)),
+                    metadata: Default::default(),
+                },
+            ))));
+        }
+
         // Strip a TS type annotation (`x: number`, `{x, y}: Point`).
         let pattern_clean = strip_type_annotation(pattern_str);
 
