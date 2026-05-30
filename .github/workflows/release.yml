@@ -21,7 +21,12 @@ concurrency:
   # in-flight publish — npm publish is per-package, so a mid-flight cancel
   # can leave us with versions bumped in package.json but never published
   # to the registry.
-  cancel-in-progress: ${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}
+  # The expression is quoted so the literal colon in the predicate
+  # string ('chore(release): version packages') doesn't confuse the
+  # YAML parser. GitHub Actions still evaluates `${{ }}` inside the
+  # string and `cancel-in-progress` accepts the resulting `'true'` /
+  # `'false'` literal.
+  cancel-in-progress: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
 
 jobs:
   # Per-platform svelte-check binary builds. Each job uploads its rsvelte
