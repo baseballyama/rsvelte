@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/rsvelte_capi"]
+members = ["crates/rsvelte_capi", "crates/rsvelte_formatter"]
 
 [package]
 name = "svelte-compiler-rust"
