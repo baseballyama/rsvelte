@@ -645,6 +645,7 @@ pub fn clean_nodes<'a>(
 
         match node.as_ref() {
             TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
             | TemplateNode::DebugTag(_)
             | TemplateNode::SvelteBody(_)
             | TemplateNode::SvelteWindow(_)

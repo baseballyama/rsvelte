@@ -379,6 +379,18 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
             ));
             context.write("}");
         }
+        TemplateNode::DeclarationTag(tag) => {
+            // Svelte 5.56.0 #18282: prints `{let x = expr}` / `{const x = expr}`
+            // (no leading `@`, unlike `{@const}`). The kind prefix (`let ` /
+            // `const `) is emitted by `format_variable_declaration_from_source`,
+            // which reads `kind` from the VariableDeclaration AST.
+            context.write("{");
+            context.write(&format_variable_declaration_from_source(
+                &tag.declaration,
+                source,
+            ));
+            context.write("}");
+        }
         TemplateNode::DebugTag(tag) => {
             context.write("{@debug");
             for (i, ident) in tag.identifiers.iter().enumerate() {

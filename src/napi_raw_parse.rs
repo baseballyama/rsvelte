@@ -102,6 +102,7 @@ pub const TAG_CONST_TAG: u8 = 0x14;
 pub const TAG_DEBUG_TAG: u8 = 0x15;
 pub const TAG_RENDER_TAG: u8 = 0x16;
 pub const TAG_ATTACH_TAG: u8 = 0x17;
+pub const TAG_DECLARATION_TAG: u8 = 0x18;
 
 pub const TAG_REGULAR_ELEMENT: u8 = 0x20;
 pub const TAG_COMPONENT: u8 = 0x21;
@@ -605,6 +606,14 @@ fn write_const_tag<W: Writer>(w: &mut W, t: &ConstTag) -> std::io::Result<()> {
     write_expression(w, &t.declaration)
 }
 
+fn write_declaration_tag<W: Writer>(w: &mut W, t: &DeclarationTag) -> std::io::Result<()> {
+    // `{let x = …}` / `{const x = …}` carries a `VariableDeclaration`
+    // expression — mirrors `write_const_tag` since the envelope shape is
+    // identical (start/end + declaration). Svelte 5.56.0 #18282.
+    write_preamble(w, TAG_DECLARATION_TAG, t.start, t.end);
+    write_expression(w, &t.declaration)
+}
+
 fn write_debug_tag<W: Writer>(w: &mut W, t: &DebugTag) -> std::io::Result<()> {
     write_preamble(w, TAG_DEBUG_TAG, t.start, t.end);
     write_u32(w, t.identifiers.len() as u32);
@@ -820,6 +829,7 @@ fn write_template_node<W: Writer>(w: &mut W, node: &TemplateNode) -> std::io::Re
         TemplateNode::ExpressionTag(n) => write_expression_tag(w, n),
         TemplateNode::HtmlTag(n) => write_html_tag(w, n),
         TemplateNode::ConstTag(n) => write_const_tag(w, n),
+        TemplateNode::DeclarationTag(n) => write_declaration_tag(w, n),
         TemplateNode::DebugTag(n) => write_debug_tag(w, n),
         TemplateNode::RenderTag(n) => write_render_tag(w, n),
         TemplateNode::AttachTag(n) => write_attach_tag(w, n),

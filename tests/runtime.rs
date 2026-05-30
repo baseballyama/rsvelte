@@ -159,7 +159,7 @@ fn should_write_actual_output() -> bool {
 /// entry as soon as the upstream behaviour is matched.
 const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // async-overlap-multiple-5..7 still fail on the client side (the SSR
-    // `$.save` predicate port (this PR) unblocked -1..4). -5..7 use
+    // `$.save` predicate port unblocked -1..4). -5..7 use
     // `let b = $derived(await delay(...))` in the instance script and hit a
     // separate async-blocker cluster.
     // Svelte 5.55.9 cluster (upstream `a5df6616e` "fix: avoid unnecessary
@@ -172,6 +172,33 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // ...}` async-batching port; the remaining two still fail on orthogonal
     // axes ($derived(await ...) → `(await $.save($.async_derived(...)))()`
     // lowering, etc.).
+
+    // Svelte 5.56.0 #18282 (`59d3a36f8` "feat: allow declarations in the
+    // template") follow-ups: the synchronous DeclarationTag (`{let x = …}` /
+    // `{const x = …}`) lands in this PR, but two paths are pending and
+    // tracked as separate ports. See `AGENTS.md` Test Status notes.
+    //
+    // 1. `declaration-tags` — nested `{const}` inside an element needs a
+    //    block-scope `{ … }` wrap so its identifier doesn't leak into the
+    //    outer fragment. The fragment-walker reorganisation required for
+    //    this is non-trivial; ConstTag has the same gap with the same
+    //    output today.
+    // 2. `async-declaration-tag` / `async-declaration-tag-2` — the
+    //    `metadata.promises_id` async-blocker lowering path
+    //    (`add_async_declaration` in upstream's DeclarationTag.js) is not
+    //    yet ported. Synchronous declaration tags pass.
+    "declaration-tags",
+    "async-declaration-tag",
+    "async-declaration-tag-2",
+    // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const
+    // blockers through closure references"): rsvelte's per-template_effect
+    // blocker scanner does not yet propagate awaited `@const` blockers
+    // across closure boundaries (IIFE in template expressions).
+    "async-each-const-await-iife",
+    // Pre-existing: template_effect double-counts `$$promises` inside an
+    // `$.async(...)` wrapper for the IfBlock branch. Same blocker-scanner
+    // cluster as `async-each-const-await-iife`.
+    "async-style-after-await",
 ];
 
 /// runtime-legacy fixtures still failing on the rsvelte port. Each cluster is

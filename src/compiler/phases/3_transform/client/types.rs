@@ -102,6 +102,7 @@ impl<'a> ComponentContext<'a> {
             TemplateNode::RenderTag(render) => self.visit_render_tag(render),
             TemplateNode::HtmlTag(html) => self.visit_html_tag(html),
             TemplateNode::ConstTag(const_tag) => self.visit_const_tag(const_tag),
+            TemplateNode::DeclarationTag(decl_tag) => self.visit_declaration_tag(decl_tag),
             TemplateNode::DebugTag(debug_tag) => self.visit_debug_tag(debug_tag),
             TemplateNode::SvelteBoundary(boundary) => self.visit_svelte_boundary(boundary),
             TemplateNode::SvelteHead(head) => self.visit_svelte_head(head),
@@ -877,6 +878,15 @@ impl<'a> ComponentContext<'a> {
     fn visit_const_tag(&mut self, const_tag: &crate::ast::template::ConstTag) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::const_tag::const_tag as visit_const_tag_impl;
         visit_const_tag_impl(const_tag, self);
+        TransformResult::None
+    }
+
+    fn visit_declaration_tag(
+        &mut self,
+        decl_tag: &crate::ast::template::DeclarationTag,
+    ) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::declaration_tag::declaration_tag as visit_declaration_tag_impl;
+        visit_declaration_tag_impl(decl_tag, self);
         TransformResult::None
     }
 
@@ -1842,8 +1852,11 @@ pub struct ComponentClientTransformState<'a> {
     /// Transformed async {@const} declarations (if any)
     pub async_consts: Option<AsyncConsts>,
 
-    /// Transformed let: directives
-    pub let_directives: Vec<JsExpressionStatement>,
+    /// Transformed `let:` directive declarations (one `const x = $.derived(...)`
+    /// statement per directive). Mirrors Svelte 5.55.10 / 5.56.0 #18271: these
+    /// must be emitted BEFORE `state.consts` (`{@const}` declarations) and
+    /// `state.init` so `{@const}` bodies can reference let: bindings.
+    pub let_directives: Vec<JsStatement>,
 
     /// Current node being processed (usually an anchor)
     pub node: JsExpr,
@@ -2010,6 +2023,15 @@ pub struct ComponentClientTransformState<'a> {
     /// Set to true when `validate_mutation()` or ownership binding validation is used.
     /// Uses `Rc<Cell<bool>>` so the flag is shared across all child states.
     pub needs_mutation_validation: Rc<Cell<bool>>,
+
+    /// Cache of hoisted `$.from_html` / `$.from_svg` / `$.from_mathml` templates,
+    /// keyed by `(namespace, flags, raw_html_content)`. Mirrors Svelte 5.56.0's
+    /// `state.templates` map introduced in upstream #18320 to deduplicate
+    /// byte-identical templates across fragments / branches into a single
+    /// hoisted factory. Skipped in dev mode (where templates are wrapped in
+    /// per-call-site `$.add_locations`). Shared via `Rc<RefCell<_>>` so every
+    /// child fragment state sees the same map.
+    pub templates: Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, String>>>,
 
     /// Binding names hidden from `get_binding()` in named slot contexts.
     pub hidden_let_bindings: FxHashSet<String>,
@@ -2208,6 +2230,7 @@ impl<'a> ComponentClientTransformState<'a> {
             extra_blocker_indices: Vec::new(),
             is_standalone: false,
             const_blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
+            templates: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
         }
     }
 

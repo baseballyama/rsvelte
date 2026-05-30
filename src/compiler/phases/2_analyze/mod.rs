@@ -388,6 +388,14 @@ pub fn analyze_component(
         populate_legacy_dependencies(ast, &mut analysis);
     }
 
+    // Pre-compute legacy-pattern detection so template visitors (notably
+    // `DeclarationTag` from Svelte 5.56.0 #18282) can make a maybe_runes
+    // decision without waiting for the post-walk `maybe_runes` reconciliation
+    // below. `instance_has_legacy_patterns` walks `export let` / `$:` patterns
+    // in the instance script and is independent of analysis-phase state, so
+    // it's safe to call here.
+    analysis.instance_has_legacy_patterns = instance_has_legacy_patterns(ast);
+
     // Analyze the template using visitors.
     // Take a pointer to the arena to avoid borrow conflict with &mut ast.
     let arena_ptr = &ast.arena as *const crate::ast::arena::ParseArena;
@@ -479,7 +487,7 @@ pub fn analyze_component(
         && !merged_runes_false
         && !analysis.uses_props
         && !analysis.uses_rest_props
-        && !instance_has_legacy_patterns(ast)
+        && !analysis.instance_has_legacy_patterns
     {
         analysis.maybe_runes = true;
     }
@@ -2926,6 +2934,17 @@ fn node_check_features(
             }
         }
         TemplateNode::ConstTag(tag) => {
+            let json_results = expression_check_features(&tag.declaration, arena, store_subs);
+            FragmentCheckResults {
+                has_await: json_results.has_await,
+                has_rune_reference: json_results.has_rune_reference,
+            }
+        }
+        TemplateNode::DeclarationTag(tag) => {
+            // Declaration tags (`{let x = $state(…)}` / `{const x = $derived(…)}`,
+            // Svelte 5.56.0 #18282) carry rune calls in their init expressions
+            // and can also `await` — both auto-flip the component into runes
+            // mode just like an instance-script `let x = $state(…)` would.
             let json_results = expression_check_features(&tag.declaration, arena, store_subs);
             FragmentCheckResults {
                 has_await: json_results.has_await,

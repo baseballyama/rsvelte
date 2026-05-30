@@ -95,7 +95,12 @@ fn process_element_let_directives(
                 "$.derived_safe_equal"
             };
 
-            context.state.init.push(b::const_decl(
+            // Push to `state.let_directives` (not `state.init`) so the slot
+            // body assembly emits let: bindings BEFORE `{@const}` declarations
+            // and other init statements. Mirrors Svelte 5.55.10 / 5.56.0
+            // #18271 — `{@const}` bodies on slotted elements can reference
+            // let: bindings, so the let: must be declared first.
+            context.state.let_directives.push(b::const_decl(
                 arena,
                 &name,
                 b::call(
@@ -947,12 +952,15 @@ pub fn visit_regular_element(
         // Add a hydration marker inside the option element so $.child() has an anchor to find
         context.state.template.push_comment(None);
 
-        // Create a separate template for the rich content
-        // Generate unique names for template and variables
-        let template_name = context
-            .state
-            .memoizer
-            .generate_id(&format!("{}_content", node.name));
+        // Create a separate template for the rich content.
+        //
+        // The hoisted template factory id is allocated lazily by
+        // `transform_template` below (Svelte 5.56.0 #18320), so we only pass
+        // the preferred base name (`<element>_content`) here. Reserving the
+        // name up front would consume the slot even when an identical
+        // template elsewhere in the component already supplies a deduped id,
+        // causing `option_content_1_1` instead of the upstream `option_content`.
+        let template_base = format!("{}_content", node.name);
         let fragment_id_name = context.state.memoizer.generate_id("fragment");
         let anchor_id_name = context.state.memoizer.generate_id("anchor");
 
@@ -960,7 +968,7 @@ pub fn visit_regular_element(
         let anchor_id = b::id(&anchor_id_name);
 
         // Create a separate template for processing the rich content
-        let mut select_template = Template::new();
+        let select_template = Template::new();
 
         // Save current state and create new state for processing children in the separate template
         let saved_template = std::mem::replace(&mut context.state.template, select_template);
@@ -992,27 +1000,37 @@ pub fn visit_regular_element(
         let child_update = std::mem::take(&mut context.state.update);
         let child_after_update = std::mem::take(&mut context.state.after_update);
 
-        // Get the template and restore saved state
-        select_template = std::mem::replace(&mut context.state.template, saved_template);
+        // Route the select rich-content template through `transform_template`
+        // (Svelte 5.56.0 #18320) so the hoisted `var <id> = $.from_html(...)`
+        // declaration is deduplicated against identical templates elsewhere in
+        // the component — matters when a <select> uses several `<option>`s with
+        // identical comment-only content (`<!>`) which all share one factory
+        // upstream. The base name (`<element>_content`) is unsuffixed; the
+        // dedup-aware emitter inside `transform_template` allocates a fresh
+        // unique id only when no cache hit exists.
+        let template_id_expr = crate::compiler::phases::phase3_transform::client::transform_template::transform_template(
+            &context.arena,
+            &mut context.state,
+            &template_base,
+            crate::compiler::phases::phase3_transform::client::transform_template::Namespace::Html,
+            Some(1u32),
+            None,
+        );
+        // Use the returned identifier name for the body's factory call below.
+        let template_name = match &template_id_expr {
+            crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr::Identifier(name) => {
+                name.to_string()
+            }
+            _ => template_base.clone(),
+        };
+
+        // Restore saved state (template + init/update/after_update) now that
+        // the select template has been hoisted via the shared cache.
+        let _ = std::mem::replace(&mut context.state.template, saved_template);
+        let _ = select_template; // captured above for clarity, unused after hoist
         context.state.init = saved_init;
         context.state.update = saved_update;
         context.state.after_update = saved_after_update;
-
-        // Transform the template to $.from_html(...) and hoist it
-        // We need to generate the template expression here
-        let template_html = select_template.as_html();
-        let template_call = b::call(
-            &context.arena,
-            b::member_path(&context.arena, "$.from_html"),
-            vec![template_html, b::number(1.0)],
-        );
-
-        // Add the template declaration to hoisted
-        context.state.hoisted.push(b::var_decl(
-            &context.arena,
-            &template_name,
-            Some(template_call),
-        ));
 
         // Build the rich content function body
         // The anchor is the child of the element (a hydration marker during hydration)
@@ -1784,6 +1802,7 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
             TemplateNode::SnippetBlock(_)
             | TemplateNode::DebugTag(_)
             | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
             | TemplateNode::Comment(_)
             | TemplateNode::ExpressionTag(_) => {}
 

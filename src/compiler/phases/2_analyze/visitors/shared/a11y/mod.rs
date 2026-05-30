@@ -314,7 +314,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                 || handlers.contains("keyup")
                 || handlers.contains("keypress");
             if !has_key_event {
-                warnings.push(w::a11y_click_events_have_key_events());
+                warnings.push(w::a11y_click_events_have_key_events(&node.name));
             }
         }
     }

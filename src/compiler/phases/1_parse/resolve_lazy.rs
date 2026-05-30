@@ -114,6 +114,15 @@ fn resolve_template_node(
                 first_error,
             );
         }
+        TemplateNode::DeclarationTag(tag) => {
+            resolve_expression(
+                arena,
+                &mut tag.declaration,
+                line_offsets,
+                source,
+                first_error,
+            );
+        }
         TemplateNode::DebugTag(tag) => {
             for expr in &mut tag.identifiers {
                 resolve_expression(arena, expr, line_offsets, source, first_error);

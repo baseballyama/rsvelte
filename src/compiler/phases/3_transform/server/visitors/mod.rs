@@ -62,6 +62,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
             TemplateNode::SvelteHead(head) => self.generate_svelte_head(head),
             TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
+            TemplateNode::DeclarationTag(tag) => self.generate_declaration_tag(tag),
             TemplateNode::TitleElement(title) => self.generate_title_element(title),
             TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
             TemplateNode::SvelteSelf(elem) => self.generate_svelte_self(elem),

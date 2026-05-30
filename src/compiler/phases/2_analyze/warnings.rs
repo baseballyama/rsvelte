@@ -234,11 +234,15 @@ pub fn a11y_autofocus() -> AnalysisWarning {
     )
 }
 
-/// Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler
-pub fn a11y_click_events_have_key_events() -> AnalysisWarning {
+/// Visible, non-interactive element with a click event must be accompanied by a keyboard event handler.
+/// The element tag name is interpolated into the message (Svelte 5.56.0 #18272).
+pub fn a11y_click_events_have_key_events(tag_name: &str) -> AnalysisWarning {
     warning(
         "a11y_click_events_have_key_events",
-        "Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+        format!(
+            "Visible, non-interactive element `<{}>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+            tag_name
+        ),
     )
 }
 
@@ -683,11 +687,11 @@ pub fn script_context_deprecated() -> AnalysisWarning {
     )
 }
 
-/// Unrecognized script attribute
+/// Unrecognised script attribute
 pub fn script_unknown_attribute() -> AnalysisWarning {
     warning(
         "script_unknown_attribute",
-        "Unrecognized attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
+        "Unrecognised attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
     )
 }
 

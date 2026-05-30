@@ -2,7 +2,7 @@
 
 use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
-use crate::ast::template::{ConstTag, TemplateNode};
+use crate::ast::template::{ConstTag, DeclarationTag, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -395,6 +395,72 @@ impl<'a> ServerCodeGenerator<'a> {
                     .push(OutputPart::ConstDeclaration(declaration_source));
             }
         }
+        Ok(())
+    }
+
+    /// Generate a `{let x = …}` / `{const x = …}` declaration tag
+    /// (Svelte 5.56.0 #18282) on the server side. Mirrors `generate_const_tag`
+    /// for the synchronous path but preserves the `let` / `const` keyword that
+    /// the user wrote: the source slice already includes the keyword.
+    ///
+    /// The asynchronous path (`metadata.expression.has_await` /
+    /// `async_consts` active) is intentionally not threaded through the
+    /// `$$renderer.run([...])` lowering yet — the corresponding
+    /// `async-declaration-tag*` fixtures continue to fail until that work
+    /// lands, so the synchronous case can ship independently.
+    pub(crate) fn generate_declaration_tag(
+        &mut self,
+        tag: &DeclarationTag,
+    ) -> Result<(), TransformError> {
+        let start = tag.start as usize;
+        let end = tag.end as usize;
+        if start >= end || end > self.source.len() {
+            return Ok(());
+        }
+        let raw = &self.source[start..end];
+        // Strip the surrounding `{` and `}` so the rune transformer sees a
+        // clean `let x = $state(1)` / `const y = …` statement.
+        let body = raw
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix('}'))
+            .unwrap_or(raw)
+            .trim();
+        if body.is_empty() {
+            return Ok(());
+        }
+        let mut script_input = String::with_capacity(body.len() + 2);
+        script_input.push_str(body);
+        if !body.ends_with(';') {
+            script_input.push(';');
+        }
+        script_input.push('\n');
+
+        // Run through the same server-side rune-rewrite pipeline used for the
+        // instance script so `$state(v)` is stripped to `v`, `$derived(expr)`
+        // becomes `$.derived(() => expr)`, etc.
+        let imported_names = rustc_hash::FxHashSet::default();
+        let transformed =
+            crate::compiler::phases::phase3_transform::server::transform_script::transform_script_content_with_imports(
+                &script_input,
+                &imported_names,
+                self.dev,
+            );
+
+        let trimmed = transformed.trim();
+        if trimmed.is_empty() {
+            return Ok(());
+        }
+        // Emit the rewritten declaration as a raw statement so the original
+        // `let` / `const` keyword (and trailing `;`) emitted by the rune
+        // pipeline survives verbatim. Routing through
+        // `OutputPart::ConstDeclaration` would prepend `const ` to the
+        // already-prefixed line, producing `const let x = ...;` — wrong.
+        let stmt = if trimmed.ends_with(';') {
+            trimmed.to_string()
+        } else {
+            format!("{};", trimmed)
+        };
+        self.output_parts.push(OutputPart::RawStatement(stmt));
         Ok(())
     }
 

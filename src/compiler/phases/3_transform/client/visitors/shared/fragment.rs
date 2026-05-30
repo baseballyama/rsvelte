@@ -419,15 +419,19 @@ pub fn process_children<F>(
             TemplateNode::ExpressionTag(expr) => {
                 sequence.push(TextOrExpr::Expr((**expr).clone()));
             }
-            // ConstTag doesn't produce DOM nodes - just visit it to add declarations
-            TemplateNode::ConstTag(_) => {
+            // ConstTag / DeclarationTag don't produce DOM nodes - just visit
+            // them to add declarations. Mirrors upstream's `{@const}`/`{let}`
+            // / `{const}` skip-from-template behaviour (Svelte 5.56.0 #18282
+            // makes the new declaration tag types share the same template
+            // bypass).
+            TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_) => {
                 // Flush any pending sequence
                 if !sequence.is_empty() {
                     flush_sequence(sequence, &mut prev, &mut skipped, context);
                     sequence = Vec::with_capacity(8);
                 }
 
-                // Visit the const tag to generate its declarations
+                // Visit the tag to generate its declarations
                 // This doesn't need a DOM node or sibling navigation
                 context.visit_node(node, None);
             }
@@ -1048,6 +1052,7 @@ where
             TemplateNode::SnippetBlock(_)
             | TemplateNode::DebugTag(_)
             | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
             | TemplateNode::Comment(_)
             | TemplateNode::ExpressionTag(_) => {}
 

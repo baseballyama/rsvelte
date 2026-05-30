@@ -1390,6 +1390,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 // These node types are hoisted out by clean_nodes in the official compiler
                 TemplateNode::SnippetBlock(_) => false,
                 TemplateNode::ConstTag(_) => false,
+                TemplateNode::DeclarationTag(_) => false,
                 TemplateNode::SvelteBody(_) => false,
                 TemplateNode::SvelteWindow(_) => false,
                 TemplateNode::SvelteDocument(_) => false,
