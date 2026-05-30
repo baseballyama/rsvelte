@@ -141,6 +141,9 @@ jobs:
     needs: run
     if: always() && needs.run.result != 'skipped'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -167,3 +170,16 @@ jobs:
               issue_number: context.issue.number,
               body: '## ecosystem-ci results\n\n' + body,
             });
+
+      # Maintain a rolling history issue (label `ecosystem-ci-history`) and
+      # open a new failure issue (label `ecosystem-ci-failure`) when this run
+      # has any non-pass target. Skipped for pull_request runs — PRs already
+      # get an inline summary comment above. See scripts/ecosystem-ci-issues.mjs.
+      - name: Update history / failure issues
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MATRIX_RESULT: ${{ needs.run.result }}
+          DISPATCH_TARGET: ${{ github.event.inputs.target }}
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+        run: node scripts/ecosystem-ci-issues.mjs
