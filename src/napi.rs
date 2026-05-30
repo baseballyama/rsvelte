@@ -1204,7 +1204,7 @@ pub fn napi_compile_envelope(
 //      capacity and may over-allocate; a `Bump` with an exact-sized
 //      slice burns no extra bytes. More importantly, this is the
 //      *plumbing* for future moves: when the AST or codegen output
-//      starts living in a Bump (PERF_ROADMAP.md), the same
+//      starts living in a Bump (docs/perf-roadmap.md), the same
 //      `create_buffer_with_borrowed_data` path generalises to
 //      "pass any arena byte range to JS without copying."
 //

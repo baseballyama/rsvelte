@@ -1,4 +1,4 @@
-# bumpalo migration plan (PERF_ROADMAP §7.2 B)
+# bumpalo migration plan (perf-roadmap §7.2 B)
 
 > **Scope**: This is a multi-PR effort, not a single-session change. Each
 > phase below is a separate PR with its own test+bench gate. Phases must

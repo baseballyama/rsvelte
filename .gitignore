@@ -78,6 +78,8 @@ compat-targets/
 # skills) that get regenerated on demand and should not pollute git.
 .benchmark-files.txt
 benchmark-results.json
+.perf-log.md
+.perf/
 libmagic_string.rlib
 profile.json.gz
 *.profile.json.gz
