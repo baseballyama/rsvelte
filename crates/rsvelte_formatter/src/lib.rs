@@ -13,11 +13,16 @@
 //! CSS formatting and markup Doc IR composition.
 
 mod error;
+mod expression;
 mod options;
 mod script;
 
 pub use error::FormatError;
 pub use options::FormatOptions;
+
+// Re-exports so consumers don't need to depend on `oxc_formatter` directly.
+pub use oxc_formatter::JsFormatOptions;
+pub use oxc_formatter_core::{IndentStyle, IndentWidth};
 
 use svelte_compiler_rust::{ParseOptions, parse};
 
@@ -38,6 +43,8 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
             edits.push((start, end, formatted));
         }
     }
+
+    expression::collect_expression_tag_edits(source, &root.fragment, options, &mut edits)?;
 
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));

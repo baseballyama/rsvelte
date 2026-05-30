@@ -1904,6 +1904,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_ast",
  "oxc_formatter",
+ "oxc_formatter_core",
  "oxc_parser",
  "oxc_span",
  "svelte-compiler-rust",
