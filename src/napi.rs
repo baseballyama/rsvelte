@@ -82,6 +82,97 @@ fn warnings_to_json(warnings: &[crate::compiler::Warning]) -> Vec<Value> {
         .collect()
 }
 
+/// Parse options surfaced to the NAPI bindings.
+#[napi(object)]
+pub struct NapiParseOptions {
+    /// Skip emitting nested `loc:{ start, end }` blocks on Expression
+    /// sub-trees. The top-level `start`/`end` byte offsets are still
+    /// present. Callers that re-parse expression ranges with their own
+    /// parser (e.g. `svelte-eslint-parser`) can opt in for a smaller
+    /// AST and a faster `JSON.parse` (or, when paired with
+    /// `parseEnvelope`, a tighter binary buffer).
+    pub skip_expression_loc: Option<bool>,
+    /// Skip emitting the full CSS `StyleSheet` AST — only the outer
+    /// `start`/`end` positions are kept. The decoded `css` field
+    /// becomes a minimal stub (`{ type: "StyleSheet", start, end,
+    /// attributes: [], children: [], content: { start, end,
+    /// styles: "", comment: null } }`). Use this when the downstream
+    /// pipeline re-parses style blocks with its own CSS parser (e.g.
+    /// `svelte-eslint-parser` uses postcss). Saves ~5–10 KB of buffer
+    /// and the matching JSON-parse cost on the JS side per component.
+    pub skip_css_ast: Option<bool>,
+}
+
+/// Parse a Svelte component and return the AST as a JSON string.
+///
+/// Mirrors the wasm-exposed `parse_svelte` function but over the NAPI
+/// boundary — no wasm linear-memory copy, no `wasm_bindgen` allocator.
+/// The caller is responsible for `JSON.parse` on the returned string.
+///
+/// For the fastest path skip JSON entirely: see [`napi_parse_envelope`]
+/// and the matching `decodeParseEnvelope` JS decoder.
+#[napi(js_name = "parse")]
+pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
+    use crate::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+
+    let parse_options = ParseOptions {
+        skip_expression_loc: options
+            .as_ref()
+            .and_then(|o| o.skip_expression_loc)
+            .unwrap_or(false),
+        ..ParseOptions::default()
+    };
+    match rust_parse(&source, parse_options) {
+        Ok(ast) => {
+            // Serialize within the AST's arena so `JsNodeId`s in the
+            // Serialize impls resolve (mirrors `wasm::parse_svelte`).
+            crate::ast::arena::with_serialize_arena(&ast.arena, || {
+                serde_json::to_string(&ast)
+                    .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
+            })
+        }
+        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+    }
+}
+
+/// Parse a Svelte component and return a raw-transfer envelope.
+///
+/// Encodes the AST into the rsvelte parse envelope format
+/// (`napi_raw_parse`). Pair with the matching JS decoder in
+/// `@rsvelte/vite-plugin-svelte-native/parse-envelope.js` to skip
+/// `JSON.parse`'s tokenization cost on the JS side.
+#[napi(js_name = "parseEnvelope")]
+pub fn napi_parse_envelope(
+    source: String,
+    options: Option<NapiParseOptions>,
+) -> napi::Result<Buffer> {
+    use crate::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+
+    let parse_options = ParseOptions {
+        skip_expression_loc: options
+            .as_ref()
+            .and_then(|o| o.skip_expression_loc)
+            .unwrap_or(false),
+        ..ParseOptions::default()
+    };
+    let skip_loc = parse_options.skip_expression_loc;
+    let skip_css = options
+        .as_ref()
+        .and_then(|o| o.skip_css_ast)
+        .unwrap_or(false);
+    let ast = rust_parse(&source, parse_options)
+        .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
+    // napi-rs's `Vec<u8> → Buffer` conversion is already zero-copy
+    // (V8 adopts the `Vec`'s allocation); a bumpalo-backed variant
+    // measured ~20% slower on representative inputs because the
+    // pre-sized arena + finalizer plumbing outweighs the saved
+    // `Vec::reserve` calls for envelopes that fit in a single growth
+    // step.
+    let buf =
+        crate::napi_raw_parse::encode_root_to_vec_with_flags(&ast, &source, skip_loc, skip_css);
+    Ok(buf.into())
+}
+
 ///
 /// Takes source code and an options object, returns a result object
 /// matching the official `svelte/compiler` output shape.
