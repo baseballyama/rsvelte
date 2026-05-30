@@ -75,6 +75,14 @@ fn recurse_into_children(
     let next_depth = enclosing_depth + 1;
     match node {
         TemplateNode::RegularElement(elem) => {
+            // `<pre>` and `<textarea>` preserve whitespace; don't recurse
+            // so no Text edits are pushed for their subtree. Open and
+            // close tags of the element itself are still normalized by
+            // `markup.rs` and expressions inside are still formatted by
+            // `expression.rs`.
+            if is_whitespace_preserving(elem.name.as_str()) {
+                return Ok(());
+            }
             collect_indent_edits(source, &elem.fragment, next_depth, options, edits)?;
         }
         TemplateNode::Component(c) => {
@@ -163,6 +171,13 @@ fn is_indent_provoking(node: &TemplateNode) -> bool {
 
 fn is_whitespace_only(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_whitespace())
+}
+
+/// Elements whose interior whitespace is meaningful and must survive
+/// verbatim. Matches prettier-plugin-svelte's `whitespaceSensitive`
+/// list for the common cases.
+fn is_whitespace_preserving(tag_name: &str) -> bool {
+    matches!(tag_name, "pre" | "textarea")
 }
 
 fn indent_for_level(level: usize, opts: &JsFormatOptions) -> String {
