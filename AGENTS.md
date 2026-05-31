@@ -16,7 +16,7 @@ This project aims to create a complete port of the official Svelte compiler in R
 Directory structure mirrors the official Svelte compiler at `submodules/svelte/packages/svelte/src/compiler/`.
 
 ```
-src/compiler/phases/
+crates/rsvelte_core/src/compiler/phases/
 ├── 1_parse/     # Parsing (Svelte syntax → AST)
 ├── 2_analyze/   # Analysis (scope tree, bindings)
 └── 3_transform/ # Code generation (AST → JS/CSS)
@@ -115,7 +115,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70afafe18e48`, **v5.56.0**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `tests/compatibility_report.rs` and `tests/runtime.rs`; `tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
+Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70afafe18e48`, **v5.56.0**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -131,21 +131,21 @@ Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70
 | Runtime Runes | 988/993 | 5 failing — 1 simple `{const x = …}` block-scope wrap (`declaration-tags`), 2 async-declaration-tag paths (`async-declaration-tag*` — `metadata.promises_id` lowering not yet ported), and 2 pre-existing async-blocker fixtures (`async-each-const-await-iife` from Svelte 5.56.0 #18309 `e705369de`, `async-style-after-await` double-counting `$$promises` blockers inside an `$.async(...)` wrapper). All other DeclarationTag (5.56.0 #18282) cases pass including `declaration-tags-no-script`. |
 | Runtime Browser | 32/32 | |
 | Print | 42/42 | All executed fixtures pass — `declaration-tag` (Svelte 5.56.0 #18282) unblocked by the new print visitor branch (`{` + `format_variable_declaration_from_source` + `}`). |
-| Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `tests/common/preprocess_fixtures.rs` |
+| Preprocess | 19/19 | Each fixture's `_config.js` JS preprocessor hand-ported in `crates/rsvelte_core/tests/common/preprocess_fixtures.rs` |
 | Sourcemaps | 0/0 | No fixtures yet |
-| svelte2tsx | 247/247 | Wave 1 of the ecosystem port — error fixtures now compared via `expected.error.json` start/end offsets. Driven by `tests/common/svelte2tsx.rs`. |
+| svelte2tsx | 247/247 | Wave 1 of the ecosystem port — error fixtures now compared via `expected.error.json` start/end offsets. Driven by `crates/rsvelte_core/tests/common/svelte2tsx.rs`. |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
 **Compatibility report total (Svelte 5.56.0): 3253/3259 in-scope-run passing (99.8%). 6 fixtures still failing (`runtime-runes`: 5 + `parser-modern`: 1) tied to the Svelte 5.56.0 #18282 DeclarationTag follow-up work (block-scope wrap for nested `{const}`, async-blocker lowering for `{let x = $state(await …)}`) and two pre-existing 5.56.0 #18309 async-blocker closure-reference clusters. The 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
-- **HtmlTag `is_controlled`** (Svelte 5.53.8 `0206a2019`) — fragment / html_tag visitor branches in `src/compiler/phases/3_transform/client/visitors/{html_tag.rs,shared/fragment.rs}`. Unblocked 11 fixtures across runtime-runes, runtime-legacy, hydration.
+- **HtmlTag `is_controlled`** (Svelte 5.53.8 `0206a2019`) — fragment / html_tag visitor branches in `crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/{html_tag.rs,shared/fragment.rs}`. Unblocked 11 fixtures across runtime-runes, runtime-legacy, hydration.
 - **`$.update_derived` helpers on derived `++` / `--`** (Svelte 5.53.2 `6aa7b9c64`) — `transform_script.rs::rewrite_derived_update_expressions` rewrites `count()++`/`++count()` shape into `$.update_derived(count)` / `$.update_derived_pre(count)` after the bare-read wrap pass. Unblocked `derived-update-server`.
 - **`<option>` synthetic-value via `transform_store_refs`** (Svelte 5.53.6 `e3d277b00`) — `select_element.rs` now routes the synthetic value expression through `transform_store_refs` so `$label` becomes `$.store_get(...)`. Unblocked `select-option-store-implicit-value`.
 - **Bare-derived `$derived(visible)` collapse** (Svelte 5.55.5 `b771df3`) — `transform_script.rs::unthunk_bare_derived_arg` rewrites `$.derived(() => visible())` back to `$.derived(visible)` when the inner is a known derived. Unblocked `derived-dep-set-while-rendering`.
 - **SSR attribute `$.stringify` elide** (Svelte 5.55.9 `a5df6616e`, partial) — `eval_attr_expr_json` handles `ConditionalExpression` and string-concat `BinaryExpression`. Class, style-directive, and class-attribute (no-directive) emission paths route through it; the no-class-directive path also falls back to a static `class="..."` attribute when every interpolation inlines. Unblocked `attribute-dynamic-multiple`, `globals-not-overwritten-by-bindings`, `attribute-parts`, `head-raw-elements-content`, `innerhtml-interpolated-literal`. Multi-line `let` extraction remains pending.
-- **ASI-aware side-effect import detection** (Svelte 5.55.2 cluster) — `extract_imports` in `src/compiler/phases/3_transform/{client/mod.rs,server/helpers.rs}` now recognises `import "module"` / `import 'module'` (no `from`, no `;`) as a complete one-line side-effect import via `is_complete_side_effect_import`. Previously the line-by-line splitter only treated an import as complete when it contained `;` or matched `... from "…"`, so the side-effect form merged into the next statement (e.g. `let count = 1;`), breaking legacy `$.mutable_source` lowering. Unblocked `flush-sync-each-block`.
+- **ASI-aware side-effect import detection** (Svelte 5.55.2 cluster) — `extract_imports` in `crates/rsvelte_core/src/compiler/phases/3_transform/{client/mod.rs,server/helpers.rs}` now recognises `import "module"` / `import 'module'` (no `from`, no `;`) as a complete one-line side-effect import via `is_complete_side_effect_import`. Previously the line-by-line splitter only treated an import as complete when it contained `;` or matched `... from "…"`, so the side-effect form merged into the next statement (e.g. `let count = 1;`), breaking legacy `$.mutable_source` lowering. Unblocked `flush-sync-each-block`.
 - **Comments in element openers and `Root.comments`** (Svelte 5.53.0 `92e2fc120`) — `parse_attribute` in `1_parse/state/element.rs` consumes `// …` / `/* … */` between attributes and pushes a `JsComment` onto `Root.comments`. The JS parser pipeline (`parse_expression` / `parse_program`) also forwards every OXC-discovered comment via a per-thread sink. Legacy AST surfaces the same data as `_comments`. Unblocked `parser-modern/comment-in-tag`, `parser-modern/parens`, `parser-legacy/script-comment-only`.
 - **CSS prune-edge-cases / `:where()` composition** (Svelte 5.53.7 `0965028d3`) — `is_descendant_selector_unused` walks chains of arbitrary depth (was 2-link only), so `main > article > div > section > span` is now pruned as unused when the DOM doesn't satisfy the chain. `format_simple_selector_with_scope` and the relative-selector loop now also treat standalone `:where(...)` like `:is(...)`, recursing into the inner SelectorList so `ul :where(li)` emits `ul.svelte-xxx :where(li:where(.svelte-xxx))` instead of `:where(.svelte-xxx):where(li)`. Unblocked `css/css-prune-edge-cases`.
 - **Head-effect blocker threading** (Svelte 5.53.0 `582e4443d`) — `client/visitors/title_element.rs` now scans the title value + memo expressions against `state.blocker_map` and emits a `[$$promises[N], ...]` blockers array as the 4th arg of `$.deferred_template_effect(...)`. `server/build.rs::apply_async_wrapping` now recurses into `SvelteHead` / `TitleElement` bodies so reactive expressions inside `<svelte:head><title>` get wrapped in `$$renderer.async([$$promises[N]], ...)`. Unblocked `async-derived-title-update`.
@@ -178,8 +178,8 @@ Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70
 **CSS** - Selector scoping, combinators, pseudo-classes, `:global()`, keyframe prefixing
 **Validator** - Warning/error detection including A11y
 **Compiler Errors** - Error detection patterns
-**Print** - `src/compiler/print/` provides AST-to-source conversion (40/40 fixtures).
-**Preprocess** - `src/compiler/preprocess/` provides the markup/script/style preprocessor pipeline (19/19 fixtures). Each fixture's `_config.js` JS preprocessor is hand-ported into Rust closures in `tests/common/preprocess_fixtures.rs`.
+**Print** - `crates/rsvelte_core/src/compiler/print/` provides AST-to-source conversion (40/40 fixtures).
+**Preprocess** - `crates/rsvelte_core/src/compiler/preprocess/` provides the markup/script/style preprocessor pipeline (19/19 fixtures). Each fixture's `_config.js` JS preprocessor is hand-ported into Rust closures in `crates/rsvelte_core/tests/common/preprocess_fixtures.rs`.
 
 ### Out of scope
 
@@ -194,7 +194,7 @@ Source: `pnpm run compatibility-report` (generated 2026-05-30, Svelte commit `70
 ### Adding Features
 
 1. Check `submodules/svelte/packages/svelte/src/compiler/phases/{phase}/` for the reference implementation (requires `git submodule update --init`)
-2. Implement in the corresponding Rust module under `src/compiler/phases/`
+2. Implement in the corresponding Rust module under `crates/rsvelte_core/src/compiler/phases/`
 3. Run tests: `cargo test`
 4. Debug differences with `node scripts/diff/compare-parsers.mjs`
 

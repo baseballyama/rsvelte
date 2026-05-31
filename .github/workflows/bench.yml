@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
-      - 'benches/**'
+      - 'crates/rsvelte_core/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/bench.yml'

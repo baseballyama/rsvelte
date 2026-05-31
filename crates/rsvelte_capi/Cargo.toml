@@ -23,7 +23,7 @@ publish = false
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-svelte-compiler-rust = { path = "../..", default-features = false, features = ["native"] }
+svelte-compiler-rust = { path = "../rsvelte_core", default-features = false, features = ["native"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 
@@ -34,8 +34,3 @@ cbindgen = "0.29"
 cbindgen = "0.29"
 serde_json = "1.0"
 
-[profile.release]
-lto = "fat"
-codegen-units = 1
-opt-level = 3
-panic = "abort"
