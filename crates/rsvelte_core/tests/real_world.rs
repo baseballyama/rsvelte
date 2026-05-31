@@ -21,6 +21,7 @@ use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
 /// Fixture directory path.
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join("tests")
         .join("real_world")
         .join("fixtures")

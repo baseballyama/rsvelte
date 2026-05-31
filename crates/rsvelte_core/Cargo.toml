@@ -1,0 +1,174 @@
+[package]
+name = "svelte-compiler-rust"
+version = "0.6.0"
+edition = "2024"
+rust-version = "1.90"
+description = "A high-performance Rust implementation of the Svelte compiler"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+homepage = "https://github.com/baseballyama/rsvelte"
+keywords = ["svelte", "compiler", "wasm"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["native"]
+native = ["rayon", "miette/fancy", "jemalloc"]
+trace-fastpath = []
+# `napi` opts the cdylib into the NAPI build. When the cdylib gets
+# dlopen'd by Node (post-program-start), jemalloc's default
+# initial-exec TLS model can exhaust the static TLS reserve on Linux —
+# producing "cannot allocate memory in static TLS block" at load time.
+# Pull in the `disable_initial_exec_tls` feature transitively so the
+# NAPI build is always dlopen-safe. The `?` makes it a no-op when
+# jemalloc is disabled (e.g. `--no-default-features --features napi`).
+napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
+jemalloc = ["dep:tikv-jemallocator"]
+wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
+
+[dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+# Parallelism (native only)
+rayon = { version = "1.10", optional = true }
+
+# Memory efficiency
+bumpalo = { version = "3.16", features = ["collections"] }
+compact_str = { version = "0.9", features = ["serde"] }
+smallvec = { version = "1.13", features = ["serde"] }
+
+# Fast hashing (5-10x faster than std HashMap/HashSet)
+rustc-hash = "2.0"
+
+# JavaScript parsing and code generation
+oxc_allocator = "0.133"
+oxc_parser = "0.133"
+oxc_ast = { version = "0.133", features = ["serialize"] }
+oxc_span = "0.133"
+oxc_diagnostics = "0.133"
+oxc_codegen = "0.133"
+oxc_syntax = "0.133"
+oxc_semantic = "0.133"
+
+# SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+
+# Error handling
+thiserror = "2.0"
+miette = "7.4"
+
+# Regex
+regex = "1.11"
+
+# Immutable data structures for efficient cloning
+im = "15.1"
+
+# SIMD-accelerated string search
+memchr = "2.7"
+
+# Fast integer formatting (already a transitive dep, now used directly in codegen)
+itoa = "1"
+
+# Source map handling
+sourcemap = "9.0"
+
+# MagicString (Rolldown's port)
+string_wizard = "1.0.0"
+
+# File system
+walkdir = "2.5"
+
+# Watch mode for the svelte-check CLI (Wave 2). `notify` is intentionally
+# a regular dep, not feature-gated, because the only consumer is the
+# Wave 2 binary and gating it would just add a feature combo to manage.
+notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
+
+# CLI argument parsing (svelte-check binary, Wave 2)
+clap = { version = "4.5", features = ["derive"] }
+
+# Time
+chrono = "0.4"
+
+# N-API support (optional)
+napi = { version = "3", default-features = false, features = ["napi9", "serde-json", "async", "tokio_rt", "compat-mode"], optional = true }
+napi-derive = { version = "3", optional = true }
+
+# WASM support (optional)
+wasm-bindgen = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+getrandom = { version = "0.4", optional = true }
+lazy_static = "1.5.0"
+indexmap = { version = "2.13.0", features = ["serde"] }
+oxc_ast_visit = "0.133"
+
+# Better multi-threaded memory allocator (optional, Unix/Mac only)
+[target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
+tikv-jemallocator = { version = "0.7", optional = true }
+
+[build-dependencies]
+napi-build = { version = "2", optional = true }
+
+[dev-dependencies]
+# Testing
+insta = { version = "1.42", features = ["json", "glob"] }
+pretty_assertions = "1.4"
+criterion = { version = "0.8", features = ["html_reports"] }
+test-generator = "0.3"
+glob = "0.3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+# Unified diff output for test failure messages
+similar = { version = "3.0", features = ["text"] }
+
+[[bin]]
+name = "test_reporter"
+path = "src/bin/test_reporter.rs"
+
+[[bin]]
+name = "benchmark_runner"
+path = "src/bin/benchmark_runner.rs"
+
+[[bin]]
+name = "profiler"
+path = "src/bin/profiler.rs"
+
+[[bin]]
+name = "parse_profile"
+path = "src/bin/parse_profile.rs"
+
+[[bin]]
+name = "samply_target"
+path = "src/bin/samply_target.rs"
+
+[[bin]]
+name = "compile_profile"
+path = "src/bin/compile_profile.rs"
+
+[[bin]]
+name = "min_parse_cost"
+path = "src/bin/min_parse_cost.rs"
+
+[[bin]]
+name = "oxc_call_counter"
+path = "src/bin/oxc_call_counter.rs"
+
+[[bin]]
+name = "parse_bottleneck"
+path = "src/bin/parse_bottleneck.rs"
+
+[[bin]]
+name = "fastpath_coverage"
+path = "src/bin/fastpath_coverage.rs"
+
+[[bench]]
+name = "parser"
+harness = false
+
+[[bench]]
+name = "compiler"
+harness = false
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

@@ -176,7 +176,7 @@ fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 
 }
 
 fn collect_files() -> Vec<(String, String)> {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let test_dir = base.join("submodules/svelte/packages/svelte/tests");
     let categories = [
         "parser-modern/samples",

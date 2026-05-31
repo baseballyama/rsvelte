@@ -56,9 +56,9 @@ The container provides a known-good Rust nightly + Node 22 + pnpm.
 
 ## Test suite at a glance
 
-All compiler tests are integration tests under `tests/`. Each suite is its own
-file (`tests/parser_fixtures.rs`, `tests/runtime.rs`, …) and uses
-`tests/common/mod.rs` for shared utilities (path resolution, fixture loading,
+All compiler tests are integration tests under `crates/rsvelte_core/tests/`. Each suite is its own
+file (`crates/rsvelte_core/tests/parser_fixtures.rs`, `crates/rsvelte_core/tests/runtime.rs`, …) and uses
+`crates/rsvelte_core/tests/common/mod.rs` for shared utilities (path resolution, fixture loading,
 canonicalization, diff output).
 
 The data flow is:
@@ -117,8 +117,8 @@ runner prints a canonical diff on mismatch, and runs the suite single-threaded.
 
 ### Manual debug env vars
 
-These are read by `tests/common/mod.rs::compare_js_with_debug` and apply to
-suites that delegate through it (currently `tests/runtime.rs`):
+These are read by `crates/rsvelte_core/tests/common/mod.rs::compare_js_with_debug` and apply to
+suites that delegate through it (currently `crates/rsvelte_core/tests/runtime.rs`):
 
 | Var                 | Effect                                                   |
 |---------------------|----------------------------------------------------------|
@@ -143,7 +143,7 @@ Svelte test suite first. This keeps "compatibility" honest.
    pnpm run generate-fixtures -- --category=<suite> --sample=<your-sample> --force
    ```
 3. Iterate with `scripts/dev/test-sample.sh <suite> <your-sample>`.
-4. Fix the Rust code under `src/compiler/...` until canonical output matches.
+4. Fix the Rust code under `crates/rsvelte_core/src/compiler/...` until canonical output matches.
 5. Run the full suite once before pushing:
    ```bash
    cargo test --release
@@ -181,9 +181,9 @@ silently agree with broken output forever.
    ```
 
 4. **Trace through the relevant compiler phase.** The phases are:
-   - `src/compiler/phases/1_parse/` — Svelte → AST
-   - `src/compiler/phases/2_analyze/` — scope, runes, bindings
-   - `src/compiler/phases/3_transform/` — AST → JS (client/server)
+   - `crates/rsvelte_core/src/compiler/phases/1_parse/` — Svelte → AST
+   - `crates/rsvelte_core/src/compiler/phases/2_analyze/` — scope, runes, bindings
+   - `crates/rsvelte_core/src/compiler/phases/3_transform/` — AST → JS (client/server)
 
    Start by narrowing the diff to a single output line, then `grep` the
    surrounding identifier in the transform phase.

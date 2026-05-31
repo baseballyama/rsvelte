@@ -19,7 +19,7 @@ on:
     branches: [main]
     paths:
       - 'crates/rsvelte_capi/**'
-      - 'src/**'
+      - 'crates/rsvelte_core/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/rsvelte-capi.yml'
@@ -27,7 +27,7 @@ on:
     branches: [main]
     paths:
       - 'crates/rsvelte_capi/**'
-      - 'src/**'
+      - 'crates/rsvelte_core/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/rsvelte-capi.yml'

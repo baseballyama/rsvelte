@@ -20,7 +20,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn main() {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let dirs = [
         "submodules/svelte/packages/svelte/tests/runtime-runes/samples",
         "submodules/svelte/packages/svelte/tests/runtime-legacy/samples",

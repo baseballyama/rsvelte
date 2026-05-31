@@ -262,7 +262,7 @@ Re-run `pnpm run test-and-update` to refresh these numbers.
 The directory structure mirrors `submodules/svelte/packages/svelte/src/compiler/`:
 
 ```
-src/compiler/phases/
+crates/rsvelte_core/src/compiler/phases/
 ├── 1_parse/     # Parsing (Svelte syntax → AST)
 ├── 2_analyze/   # Analysis (scope tree, bindings, rune detection)
 └── 3_transform/ # Code generation (AST → JS/CSS, client + SSR)

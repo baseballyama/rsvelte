@@ -18,6 +18,7 @@ use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
 /// Get sample Svelte files for benchmarking.
 fn get_sample_files() -> Vec<(String, String)> {
     let samples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join("submodules/svelte/packages/svelte/tests/runtime-runes/samples");
 
     if !samples_dir.exists() {

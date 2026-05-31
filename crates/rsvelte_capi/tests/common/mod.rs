@@ -1,4 +1,10 @@
 //! Shared helpers for FFI integration tests.
+//!
+//! Each integration test file under `tests/` is its own crate and only uses
+//! a subset of these helpers. `dead_code` is allowed at the file level so
+//! the test that only drives `compile` doesn't flag `compile_module` (and
+//! its `FnVariant::Module` branch) as unused, and vice versa.
+#![allow(dead_code)]
 
 use rsvelte_capi::{RsvelteBuf, rsvelte_compile, rsvelte_compile_module, rsvelte_free};
 use serde_json::Value;
