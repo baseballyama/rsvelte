@@ -736,7 +736,8 @@ pub struct FixtureOutcome {
 /// `submodules/language-tools/packages/svelte2tsx/test/svelte2tsx/samples`
 /// and emit one `FixtureOutcome` per sample.
 pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
-    let samples_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    let samples_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join("submodules/language-tools/packages/svelte2tsx/test/svelte2tsx/samples");
     if !samples_dir.exists() {
         return None;
