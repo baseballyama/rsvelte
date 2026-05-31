@@ -4,7 +4,7 @@ pkg/
 
 # Dependencies (will be installed in container)
 node_modules/
-docs/node_modules/
+apps/playground/node_modules/
 
 # Git
 .git/

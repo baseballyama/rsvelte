@@ -30,9 +30,9 @@ target
 .playwright-mcp/
 
 # Docs site
-docs/node_modules/
-docs/.svelte-kit/
-docs/build/
+apps/playground/node_modules/
+apps/playground/.svelte-kit/
+apps/playground/build/
 
 # Generated fixtures (run `npm run generate-fixtures` to regenerate)
 fixtures/

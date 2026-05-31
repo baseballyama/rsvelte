@@ -10,7 +10,7 @@ export const load: PageLoad = async ({ fetch }) => {
 			return {
 				results: null,
 				error:
-					'Test results not available. Run: cargo run --release --bin test_reporter -- --output docs/static/test-results.json'
+					'Test results not available. Run: cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json'
 			};
 		}
 
@@ -20,7 +20,7 @@ export const load: PageLoad = async ({ fetch }) => {
 		return {
 			results: null,
 			error:
-				'Failed to load test results. Run: cargo run --release --bin test_reporter -- --output docs/static/test-results.json'
+				'Failed to load test results. Run: cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json'
 		};
 	}
 };

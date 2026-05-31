@@ -215,7 +215,7 @@ Per-task benchmark across 3,637 real `.svelte` files, 10 iterations (3 warmup), 
 | **`svelte2tsx`** — `.svelte` → `.tsx` generation | 306.1 ms | 115.3 ms | 16.0 ms | **19.1×** |
 | **`svelte-check`** — CLI, 500-file workspace | 2,088.0 ms | 46.9 ms | 13.8 ms | **151.5×** |
 
-> Apple M1 Pro · 10-core arm64 · 3,637 `.svelte` files · 10 iterations (3 warmup). Recorded 2026-05-24 at commit `da6b3c8`. Live numbers, charts, and reproduction steps live on the [benchmark page](https://baseballyama.github.io/rsvelte/benchmark) (or run `node scripts/bench/run-benchmark.mjs > docs/static/benchmark-results.json` locally).
+> Apple M1 Pro · 10-core arm64 · 3,637 `.svelte` files · 10 iterations (3 warmup). Recorded 2026-05-24 at commit `da6b3c8`. Live numbers, charts, and reproduction steps live on the [benchmark page](https://baseballyama.github.io/rsvelte/benchmark) (or run `node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json` locally).
 
 A single-threaded **100× speedup** over the JS compiler is one of this project's explicit goals — the parser is already at multi-threaded `99.5×` and `svelte-check` at `151.5×`, but the full pipeline is still climbing. Current numbers are a snapshot, not a ceiling.
 

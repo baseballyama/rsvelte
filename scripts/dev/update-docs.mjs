@@ -5,7 +5,7 @@
  *
  * This script reads the compatibility report JSON and updates:
  * 1. README.md - Compatibility table
- * 2. docs/static/test-results.json - Progress dashboard data
+ * 2. apps/playground/static/test-results.json - Progress dashboard data
  *
  * Usage:
  *   node scripts/dev/update-docs.mjs
@@ -265,7 +265,7 @@ function updateTestResults(report) {
 	}
 
 	fs.writeFileSync(testResultsPath, JSON.stringify(testResults, null, 2));
-	console.log('Updated docs/static/test-results.json');
+	console.log('Updated apps/playground/static/test-results.json');
 }
 
 // Verify the README's Svelte target-version marker is consistent with the

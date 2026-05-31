@@ -83,7 +83,7 @@
 					><span class="c-cmt"># From the repo root</span>
 <span class="c-prompt">$</span> cargo run <span class="c-flag">--release --bin</span
 					> test_reporter <span class="c-op">--</span> <span class="c-op">\</span>
-    <span class="c-flag">--output</span> docs/static/test-results.json</code
+    <span class="c-flag">--output</span> apps/playground/static/test-results.json</code
 				></pre>
 		</section>
 	{:else if data.results}

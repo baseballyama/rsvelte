@@ -248,7 +248,7 @@ npm run update-docs
 
 This updates:
 - `README.md` — compatibility table
-- `docs/static/test-results.json` — dashboard data
+- `apps/playground/static/test-results.json` — dashboard data
 
 Also update the test status table in `CLAUDE.md` if the numbers changed.
 

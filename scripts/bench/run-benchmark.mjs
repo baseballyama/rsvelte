@@ -123,7 +123,7 @@ const TEST_CATEGORIES = [
 
 // How many iterations to run for accurate timing.
 // Override via env vars when you need tighter error bars — e.g. when
-// publishing `docs/static/benchmark-results.json`, run with
+// publishing `apps/playground/static/benchmark-results.json`, run with
 // `BENCHMARK_WARMUP=3 BENCHMARK_ITERATIONS=10 node scripts/bench/run-benchmark.mjs`
 // so per-run jitter (mostly JS-side V8 inlining warmup) is averaged out.
 const WARMUP_ITERATIONS = Number(process.env.BENCHMARK_WARMUP ?? 1);

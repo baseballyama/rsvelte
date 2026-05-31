@@ -81,7 +81,7 @@ fi
 # Step 6: Update docs site preview runtime version + rsvelte shim version
 echo ""
 echo "[6/6] Updating docs preview runtime to ${VERSION}..."
-PREVIEW_FILE="${ROOT}/docs/src/lib/preview.ts"
+PREVIEW_FILE="${ROOT}/apps/playground/src/lib/preview.ts"
 if [ -f "${PREVIEW_FILE}" ]; then
     sed -i.bak "s|esm\.sh/svelte@[0-9.]*|esm.sh/svelte@${VERSION}|g" "${PREVIEW_FILE}"
     rm -f "${PREVIEW_FILE}.bak"
@@ -92,7 +92,7 @@ fi
 
 # Bump the VERSION constant reported by the docs rsvelte shim so tools that
 # call `compiler.VERSION` see the same version we target.
-SHIM_FILE="${ROOT}/docs/rsvelte-shim/compiler.mjs"
+SHIM_FILE="${ROOT}/apps/playground/rsvelte-shim/compiler.mjs"
 if [ -f "${SHIM_FILE}" ]; then
     sed -i.bak "s|export const VERSION = '[0-9.]*';|export const VERSION = '${VERSION}';|g" "${SHIM_FILE}"
     sed -i.bak "s|sveltejs/svelte@[0-9.]*|sveltejs/svelte@${VERSION}|g" "${SHIM_FILE}"
