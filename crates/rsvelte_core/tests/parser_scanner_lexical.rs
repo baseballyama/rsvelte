@@ -3,7 +3,7 @@
 //! expression must ignore braces / parens / ` as ` that appear inside string
 //! literals, template literals, and comments.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> Result<String, String> {
     compile(

@@ -2,7 +2,7 @@
 //! orphan `else` continuation, regex-literal scanning, multi-declarator await
 //! splitting, post-await class hoisting, and nested-destructure leaf hoisting.
 
-use svelte_compiler_rust::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
 fn ssr_async(src: &str) -> String {
     compile(

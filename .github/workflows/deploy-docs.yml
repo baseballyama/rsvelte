@@ -107,13 +107,13 @@ jobs:
         # apps/playground/rsvelte-shim/compiler.mjs loads
         # apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node at build time so
         # vite-plugin-svelte compiles every .svelte through rsvelte. Ubuntu CI
-        # is linux-x64-gnu; the cdylib is named libsvelte_compiler_rust.so.
+        # is linux-x64-gnu; the cdylib is named librsvelte_core.so.
         run: cargo build --release --features napi --lib
 
       - name: Stage NAPI binding
         run: |
           mkdir -p apps/npm/vite-plugin-svelte-native-linux-x64-gnu
-          cp target/release/libsvelte_compiler_rust.so \
+          cp target/release/librsvelte_core.so \
              apps/npm/vite-plugin-svelte-native-linux-x64-gnu/rsvelte.node
 
       - name: Setup pnpm cache for playground

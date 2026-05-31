@@ -5,7 +5,7 @@
 //! plumbing has been hardened in adjacent passes). Pin the cases the issue
 //! cites so future drift surfaces.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

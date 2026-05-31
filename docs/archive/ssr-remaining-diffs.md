@@ -139,11 +139,11 @@ function foo() { ... }
 
 ## 環境
 
-- NAPI ビルド: `cargo build --release --features napi --lib && cp target/release/libsvelte_compiler_rust.dylib svelte/rsvelte.darwin-arm64.node`
+- NAPI ビルド: `cargo build --release --features napi --lib && cp target/release/librsvelte_core.dylib svelte/rsvelte.darwin-arm64.node`
 - SSR 測定: `node scripts/measure-ssr-batch.mjs` (結果は `/tmp/ssr_batch_result.txt`)
 - 個別差分: `node scripts/show-ssr-diff.mjs ".real-world-tests/<PATH>"`
 - テスト: `cargo test --release --test ssr test_ssr`
-- 注意: NAPI ビルド後のテストはキャッシュ衝突する。`find target/release -name "libsvelte_compiler_rust*" -delete && find target/release/.fingerprint -name "svelte-compiler-rust-*" -exec rm -rf {} +` でクリーン。
+- 注意: NAPI ビルド後のテストはキャッシュ衝突する。`find target/release -name "librsvelte_core*" -delete && find target/release/.fingerprint -name "rsvelte_core-*" -exec rm -rf {} +` でクリーン。
 
 ## 差分ファイル一覧 (27件)
 

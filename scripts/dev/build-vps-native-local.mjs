@@ -18,19 +18,19 @@ let triple;
 let dylib;
 if (platform === 'darwin' && arch === 'arm64') {
 	triple = 'darwin-arm64';
-	dylib = 'libsvelte_compiler_rust.dylib';
+	dylib = 'librsvelte_core.dylib';
 } else if (platform === 'darwin' && arch === 'x64') {
 	triple = 'darwin-x64';
-	dylib = 'libsvelte_compiler_rust.dylib';
+	dylib = 'librsvelte_core.dylib';
 } else if (platform === 'linux' && arch === 'x64') {
 	triple = 'linux-x64-gnu';
-	dylib = 'libsvelte_compiler_rust.so';
+	dylib = 'librsvelte_core.so';
 } else if (platform === 'linux' && arch === 'arm64') {
 	triple = 'linux-arm64-gnu';
-	dylib = 'libsvelte_compiler_rust.so';
+	dylib = 'librsvelte_core.so';
 } else if (platform === 'win32' && arch === 'x64') {
 	triple = 'win32-x64-msvc';
-	dylib = 'svelte_compiler_rust.dll';
+	dylib = 'rsvelte_core.dll';
 } else {
 	console.error(`[build-vps-native] unsupported platform ${platform}/${arch}`);
 	process.exit(2);

@@ -3,7 +3,7 @@
 //! `$store` reference shifted the position. Verify a store ref after a
 //! multi-byte identifier is still detected and rewritten correctly.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(

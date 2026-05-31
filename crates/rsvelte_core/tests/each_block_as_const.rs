@@ -6,8 +6,8 @@
 //! Svelte parses the iterable greedily so the alias separator is the LAST
 //! top-level ` as `. We mirror that with a right-most-` as ` scan.
 
-use svelte_compiler_rust::ast::arena::with_serialize_arena;
-use svelte_compiler_rust::{ParseOptions, convert_to_legacy, parse};
+use rsvelte_core::ast::arena::with_serialize_arena;
+use rsvelte_core::{ParseOptions, convert_to_legacy, parse};
 
 /// Compile-time invariant: `serialize_to_json` produces a JSON tree where the
 /// each-block context (alias) is recognisable. We just check the rendered

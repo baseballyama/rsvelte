@@ -8,7 +8,7 @@
 //! both compiled successfully while upstream errors with
 //! `svelte_component_missing_this` and `component_invalid_directive`.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn try_compile(src: &str) -> Result<(), String> {
     match compile(

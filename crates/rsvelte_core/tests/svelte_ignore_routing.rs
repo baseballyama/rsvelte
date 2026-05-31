@@ -2,7 +2,7 @@
 //! `analysis.warnings.push(...)` bypassed the `svelte-ignore` stack. Routing
 //! them through `emit_warning` lets an in-scope `svelte-ignore` suppress them.
 
-use svelte_compiler_rust::{CompileOptions, compile};
+use rsvelte_core::{CompileOptions, compile};
 
 fn warning_codes(src: &str) -> Vec<String> {
     match compile(

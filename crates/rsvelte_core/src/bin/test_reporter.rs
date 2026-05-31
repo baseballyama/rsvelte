@@ -25,9 +25,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use chrono::Utc;
+use rsvelte_core::compiler::CssMode;
+use rsvelte_core::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
 use serde::{Deserialize, Serialize};
-use svelte_compiler_rust::compiler::CssMode;
-use svelte_compiler_rust::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
 use walkdir::WalkDir;
 
 // ============================================================================

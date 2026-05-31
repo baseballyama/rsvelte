@@ -1,8 +1,8 @@
 //! Regression test: printing a pending-only `{#await}` block (no `:then` /
 //! `:catch`) must not emit a dangling `{:` (issue #467, H-052).
 
-use svelte_compiler_rust::compiler::print::print_with_source;
-use svelte_compiler_rust::{ParseOptions, parse};
+use rsvelte_core::compiler::print::print_with_source;
+use rsvelte_core::{ParseOptions, parse};
 
 fn print_roundtrip(src: &str) -> String {
     let ast = parse(

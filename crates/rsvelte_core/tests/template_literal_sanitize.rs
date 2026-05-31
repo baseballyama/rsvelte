@@ -2,7 +2,7 @@
 //! `${` in user text. The multi-node `<title>` path and the mixed client
 //! attribute / style value paths now route through `sanitize_template_string`.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(

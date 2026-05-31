@@ -2,7 +2,7 @@
 //! must be JS-escaped — a string-literal key containing a quote would otherwise
 //! produce invalid JS in the `$.exclude_from_object(..., [...])` call.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(

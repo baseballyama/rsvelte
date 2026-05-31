@@ -4,7 +4,7 @@
 //! (`let $N = $.derived(...)`) share one `$N` namespace, so they must draw from
 //! a single counter — otherwise the `let $0` shadows the async param `$0`.
 
-use svelte_compiler_rust::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
 fn client_async(src: &str) -> String {
     compile(

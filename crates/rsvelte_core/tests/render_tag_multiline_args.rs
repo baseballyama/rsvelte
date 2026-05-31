@@ -16,7 +16,7 @@
 //! argument lost N characters off the end, and the first argument lost
 //! anywhere up to its full length (saturating at empty).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_server(src: &str) -> String {
     let result = compile(

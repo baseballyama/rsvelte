@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: svelte-compiler-rust-dev
+    container_name: rsvelte_core-dev
     volumes:
       # Mount source code
       - .:/workspace

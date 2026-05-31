@@ -193,7 +193,7 @@ impl Svelte2TsxError {
 /// # Example
 ///
 /// ```rust,ignore
-/// use svelte_compiler_rust::svelte2tsx::{svelte2tsx, Svelte2TsxOptions};
+/// use rsvelte_core::svelte2tsx::{svelte2tsx, Svelte2TsxOptions};
 ///
 /// let source = "<h1>Hello</h1>";
 /// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();

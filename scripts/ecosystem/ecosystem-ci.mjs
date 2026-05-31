@@ -222,7 +222,7 @@ function buildRsvelte(checkoutPath) {
 		{ stdio: 'inherit', cwd: ROOT },
 	);
 	if (r.status !== 0) throw new Error('cargo build failed');
-	const srcPath = path.join(ROOT, 'target', 'release', `libsvelte_compiler_rust.${ext}`);
+	const srcPath = path.join(ROOT, 'target', 'release', `librsvelte_core.${ext}`);
 	if (!fs.existsSync(srcPath)) throw new Error(`cargo output missing: ${srcPath}`);
 
 	// Stage A: drop a copy under checkout/<name>/.rsvelte/ for the loader-hook

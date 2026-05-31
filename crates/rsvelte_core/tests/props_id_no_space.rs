@@ -2,7 +2,7 @@
 //! (`let id=$props.id()`) must be skipped, not survive alongside the generated
 //! `const id = $.props_id()` (issue #477, H-060).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
     let result = compile(

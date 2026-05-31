@@ -14,7 +14,7 @@
 //!    became `() => { width: 0, … }` — an arrow with a *block* body, not
 //!    one returning the object. Mirrors the same fix from #150 / #151.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_client(src: &str) -> String {
     let result = compile(

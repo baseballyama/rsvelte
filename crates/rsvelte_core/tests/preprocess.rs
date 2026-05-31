@@ -16,7 +16,7 @@ use std::path::Path;
 
 use common::get_svelte_test_samples;
 use common::preprocess_fixtures::{build_preprocessors, filename_for};
-use svelte_compiler_rust::compiler::preprocess::preprocess;
+use rsvelte_core::compiler::preprocess::preprocess;
 
 #[derive(Debug, Clone)]
 pub struct PreprocessFixture {

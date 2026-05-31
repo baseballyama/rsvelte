@@ -1,5 +1,5 @@
 {
-  "name": "svelte-compiler-rust",
+  "name": "rsvelte_core",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "dev",
   "workspaceFolder": "/workspace",

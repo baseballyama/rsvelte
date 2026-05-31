@@ -9,7 +9,7 @@
 //! complete expression surface as `expected_token`, an incomplete expression as
 //! `js_parse_error`.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn try_compile(src: &str) -> Result<(), (String, usize, usize)> {
     match compile(

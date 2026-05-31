@@ -16,7 +16,7 @@ shared library + one header that **any** language with a C FFI can call
 | PHP (7.4+)        | built-in `FFI` extension                 | code shipped           | ✅      |
 | Java (JDK 22+)    | `java.lang.foreign` (FFM API)            | code shipped           | ✅      |
 | C++               | include `rsvelte.h` (extern "C" guarded) | covered by C smoke     | —       |
-| Rust              | depend on `svelte-compiler-rust` direct  | —                      | —       |
+| Rust              | depend on `rsvelte_core` direct  | —                      | —       |
 | Kotlin / Scala    | same as Java (FFM)                       | code shipped           | —       |
 | .NET (C# / F#)    | `[DllImport]` / `LibraryImport`          | applicable             | —       |
 | Swift             | bridging header                          | applicable             | —       |
@@ -83,7 +83,7 @@ cargo build -p rsvelte_capi --release
 ### Rust callers (`Cargo.toml`)
 
 `rsvelte_capi` itself is not yet published to crates.io (it depends
-on the unpublished `svelte-compiler-rust` core crate). Add it as a
+on the unpublished `rsvelte_core` core crate). Add it as a
 git dependency in the meantime:
 
 ```toml

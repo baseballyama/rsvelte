@@ -12,10 +12,8 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, Parser, parse, parse_reuse};
 use std::time::Instant;
-use svelte_compiler_rust::compiler::phases::phase1_parse::{
-    ParseOptions, Parser, parse, parse_reuse,
-};
 
 fn main() {
     let options = ParseOptions {

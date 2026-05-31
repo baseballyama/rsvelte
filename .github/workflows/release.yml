@@ -96,11 +96,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: libsvelte_compiler_rust.dylib }
-          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: libsvelte_compiler_rust.dylib }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: libsvelte_compiler_rust.so }
-          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: libsvelte_compiler_rust.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: svelte_compiler_rust.dll }
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, dylib: librsvelte_core.dylib }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, dylib: librsvelte_core.dylib }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, dylib: librsvelte_core.so }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, dylib: librsvelte_core.so, apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, dylib: rsvelte_core.dll }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:

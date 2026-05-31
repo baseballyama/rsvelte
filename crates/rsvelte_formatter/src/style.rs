@@ -9,7 +9,7 @@
 //!
 //! When no callback is set the style body is left verbatim.
 
-use svelte_compiler_rust::ast::css::StyleSheet;
+use rsvelte_core::ast::css::StyleSheet;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;

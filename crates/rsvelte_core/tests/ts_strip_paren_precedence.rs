@@ -10,7 +10,7 @@
 //! member / call / `new`, etc.) — never a unary / binary / logical /
 //! conditional / sequence expression.
 
-use svelte_compiler_rust::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
+use rsvelte_core::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
 
 fn compile_ts(src: &str) -> String {
     compile_module(

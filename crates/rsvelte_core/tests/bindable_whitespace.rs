@@ -5,7 +5,7 @@
 //! `$bindable (0)` (valid JS) wasn't unwrapped and the rune call leaked into the
 //! generated `$.prop(...)` default.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
     let result = compile(

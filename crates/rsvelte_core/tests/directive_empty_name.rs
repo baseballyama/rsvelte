@@ -2,7 +2,7 @@
 //! (issue #473, H-146 / M-040), matching `use:` / `animate:` which already
 //! rejected empty names. Previously it lowered to an empty JS identifier.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn try_compile(src: &str) -> Result<(), String> {
     compile(

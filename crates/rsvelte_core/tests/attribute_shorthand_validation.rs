@@ -3,7 +3,7 @@
 //! upstream; rsvelte previously accepted the whole expression text as the
 //! attribute name.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn try_compile(src: &str) -> Result<(), String> {
     compile(

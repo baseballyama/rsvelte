@@ -2,7 +2,7 @@
 //! `options_deprecated_immutable` warning (issue #481, M-061). The warning was
 //! defined but never emitted.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn warnings(src: &str) -> Vec<String> {
     let r = compile(

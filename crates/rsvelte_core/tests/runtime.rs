@@ -17,9 +17,7 @@ use common::{
     compare_js_with_debug as compare_js_debug, ensure_fixtures_exist, get_fixture_samples,
     load_fixture_output, svelte_path, write_actual_output,
 };
-use svelte_compiler_rust::{
-    CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode,
-};
+use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode};
 
 /// Load input from Svelte test suite.
 fn load_input(category: &str, sample_name: &str) -> Option<String> {

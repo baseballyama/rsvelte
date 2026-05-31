@@ -18,12 +18,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use svelte_compiler_rust::compiler::phases::phase1_parse::{
+use rsvelte_core::compiler::phases::phase1_parse::{
     ParseOptions, compute_line_offsets, ensure_script_parsed, parse, resolve_lazy_expressions,
 };
-use svelte_compiler_rust::compiler::phases::phase2_analyze::analyze_component;
-use svelte_compiler_rust::compiler::phases::phase3_transform::{profile, transform_component};
-use svelte_compiler_rust::{CompileOptions, GenerateMode};
+use rsvelte_core::compiler::phases::phase2_analyze::analyze_component;
+use rsvelte_core::compiler::phases::phase3_transform::{profile, transform_component};
+use rsvelte_core::{CompileOptions, GenerateMode};
 
 fn main() {
     let files = collect_files();
@@ -39,7 +39,7 @@ fn main() {
 
     // Warmup
     for (_, content) in files.iter().take(100) {
-        let _ = svelte_compiler_rust::compile(
+        let _ = rsvelte_core::compile(
             content,
             CompileOptions {
                 generate: GenerateMode::Client,
@@ -79,11 +79,9 @@ fn main() {
         if let Some(ref mut ast) = asts[i] {
             // SAFETY: `ast` is in `asts[i]` for the whole iteration; the
             // serialize arena pointer is cleared before this borrow ends.
-            unsafe {
-                svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
-            };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
             let _ = resolve_lazy_expressions(ast, content);
-            svelte_compiler_rust::ast::arena::clear_serialize_arena();
+            rsvelte_core::ast::arena::clear_serialize_arena();
         }
     }
     let resolve_lazy_time = start.elapsed();
@@ -94,16 +92,14 @@ fn main() {
         if let Some(ref mut ast) = asts[i] {
             let line_offsets = compute_line_offsets(content, false);
             // SAFETY: same lifetime invariant as 2a.
-            unsafe {
-                svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
-            };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
             if let Some(ref mut instance) = ast.instance {
                 ensure_script_parsed(&ast.arena, instance, content, &line_offsets);
             }
             if let Some(ref mut module) = ast.module {
                 ensure_script_parsed(&ast.arena, module, content, &line_offsets);
             }
-            svelte_compiler_rust::ast::arena::clear_serialize_arena();
+            rsvelte_core::ast::arena::clear_serialize_arena();
         }
     }
     let ensure_script_time = start.elapsed();
@@ -114,11 +110,9 @@ fn main() {
     for (i, (_, content)) in files.iter().enumerate() {
         if let Some(ref mut ast) = asts[i] {
             // SAFETY: same lifetime invariant as 2a.
-            unsafe {
-                svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
-            };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
             let analysis = analyze_component(ast, content, &compile_opts).ok();
-            svelte_compiler_rust::ast::arena::clear_serialize_arena();
+            rsvelte_core::ast::arena::clear_serialize_arena();
             analyses.push(analysis);
         } else {
             analyses.push(None);
@@ -138,11 +132,9 @@ fn main() {
             // loop iteration; the serialize arena pointer is cleared before
             // we move to the next iteration so the pointer never outlives
             // its referent.
-            unsafe {
-                svelte_compiler_rust::ast::arena::set_serialize_arena(&ast.arena as *const _)
-            };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
             let _ = transform_component(analysis, ast, content, &compile_opts);
-            svelte_compiler_rust::ast::arena::clear_serialize_arena();
+            rsvelte_core::ast::arena::clear_serialize_arena();
         }
     }
     let transform_time = start.elapsed();

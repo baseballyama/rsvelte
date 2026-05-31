@@ -10,7 +10,7 @@
 //! `escape_html(data, /*is_attr*/ true)`) then `escape_js_string` (JS literal),
 //! so the output is valid JS and byte-identical to the official compiler.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn ssr(src: &str) -> String {
     compile(

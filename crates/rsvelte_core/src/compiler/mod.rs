@@ -27,7 +27,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use svelte_compiler_rust::{compile, CompileOptions, GenerateMode};
+//! use rsvelte_core::{compile, CompileOptions, GenerateMode};
 //!
 //! let source = "<h1>Hello World</h1>";
 //! let options = CompileOptions {
@@ -1283,7 +1283,7 @@ fn strip_ts_from_attribute_value(
 /// # Example
 ///
 /// ```rust,ignore
-/// use svelte_compiler_rust::{compile_batch, CompileOptions, GenerateMode};
+/// use rsvelte_core::{compile_batch, CompileOptions, GenerateMode};
 ///
 /// let sources = vec![
 ///     ("<h1>Hello</h1>", CompileOptions { generate: GenerateMode::Client, ..Default::default() }),

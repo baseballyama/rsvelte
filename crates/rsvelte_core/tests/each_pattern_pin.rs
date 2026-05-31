@@ -7,7 +7,7 @@
 //! Pin the H-135 / H-136 cases that have working code paths so future drift
 //! in the each-block destructuring lowering surfaces.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

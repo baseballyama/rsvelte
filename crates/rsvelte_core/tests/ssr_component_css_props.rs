@@ -3,7 +3,7 @@
 //! `$.store_get` and static text JS-escaped — rather than emitted from raw
 //! source.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn ssr(src: &str) -> String {
     compile(

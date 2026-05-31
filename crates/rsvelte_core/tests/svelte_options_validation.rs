@@ -12,7 +12,7 @@
 //! runes={false}, H-115 customElement={null}) already work correctly; this test
 //! pins their behaviour so regressions surface.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn try_compile(src: &str, opts: CompileOptions) -> Result<String, String> {
     match compile(src, opts) {

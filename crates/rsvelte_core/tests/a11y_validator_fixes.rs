@@ -2,7 +2,7 @@
 //! (H-077), dangerous `href` schemes match case-insensitively (H-081), and
 //! valid nested lists don't trip the `<li>`-in-`<li>` descendant rule (H-082).
 
-use svelte_compiler_rust::{CompileOptions, compile};
+use rsvelte_core::{CompileOptions, compile};
 
 fn warning_codes(src: &str) -> Vec<String> {
     match compile(

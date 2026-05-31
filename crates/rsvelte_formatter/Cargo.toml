@@ -11,7 +11,7 @@ publish = false
 crate-type = ["rlib"]
 
 [dependencies]
-svelte-compiler-rust = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
 oxc_allocator = "0.133"
 oxc_ast = "0.133"
 oxc_parser = "0.133"

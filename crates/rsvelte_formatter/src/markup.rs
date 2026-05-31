@@ -26,8 +26,8 @@
 //! - Children fragments (recursed into separately by the caller)
 
 use oxc_formatter::JsFormatOptions;
-use svelte_compiler_rust::ast::js::Expression;
-use svelte_compiler_rust::ast::template::{
+use rsvelte_core::ast::js::Expression;
+use rsvelte_core::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, Fragment, SpreadAttribute,
     TemplateNode,
 };

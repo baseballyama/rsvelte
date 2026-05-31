@@ -6,7 +6,7 @@
 //! interpolated the raw slot name without escaping. A slot whose `name`
 //! attribute carries `'` produced invalid JS such as `slots: {'foo'bar': {}}`.
 
-use svelte_compiler_rust::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+use rsvelte_core::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
 fn run(src: &str) -> String {
     svelte2tsx(

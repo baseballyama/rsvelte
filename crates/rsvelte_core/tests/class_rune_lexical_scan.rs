@@ -3,7 +3,7 @@
 //! truncate the class body / argument (H-057, H-058), and `new class {}(args)`
 //! must keep the user's constructor arguments (H-059).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(

@@ -13,7 +13,7 @@
 //! The fix is to use `Expression::as_json()` which falls back to a
 //! per-thread deserialization arena when no serialize arena is active.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_client(src: &str) {
     compile(

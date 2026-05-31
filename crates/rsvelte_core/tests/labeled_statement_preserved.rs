@@ -2,7 +2,7 @@
 //! (issue #456, H-111). The converter previously returned only the body, so a
 //! surviving `break label;` / `continue label;` referenced a removed label.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
     compile(

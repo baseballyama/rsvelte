@@ -12,4 +12,4 @@ We have a quick list of common questions to get you started engaging with this p
 4. Once merged to `main`, the **Release** workflow opens (or updates) a "Version Packages" PR that bumps the version and updates `CHANGELOG.md`.
 5. Merging that PR triggers `wasm-pack build` and `pnpm publish` to the npm registry.
 
-See `npm/svelte-compiler-rust/README.md` for how the published artifact is assembled from `pkg/`.
+See `npm/rsvelte_core/README.md` for how the published artifact is assembled from `pkg/`.

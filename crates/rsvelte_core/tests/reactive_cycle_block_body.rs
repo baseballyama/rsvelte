@@ -8,7 +8,7 @@
 //! empty assignment sets and were dropped from the cycle graph — a cross
 //! assignment cycle was silently accepted and looped forever at runtime.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_error_code(src: &str) -> Option<String> {
     match compile(

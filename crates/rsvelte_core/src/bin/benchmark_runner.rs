@@ -25,10 +25,10 @@ use std::time::Instant;
 #[cfg(feature = "native")]
 use rayon::prelude::*;
 
-use svelte_compiler_rust::svelte2tsx::{
+use rsvelte_core::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, svelte2tsx,
 };
-use svelte_compiler_rust::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
+use rsvelte_core::{CompileOptions, GenerateMode, ParseOptions, compile, parse};
 
 #[derive(Debug, Clone, PartialEq)]
 enum Task {
@@ -193,7 +193,7 @@ fn run_single_threaded(files: &[(String, String)], task: &Task) {
         Task::Parse => {
             // Reuse parser instance across files for reduced per-file overhead
             let dummy_source = "";
-            let mut parser = svelte_compiler_rust::compiler::phases::phase1_parse::Parser::new(
+            let mut parser = rsvelte_core::compiler::phases::phase1_parse::Parser::new(
                 dummy_source,
                 ParseOptions {
                     modern: true,
@@ -209,7 +209,7 @@ fn run_single_threaded(files: &[(String, String)], task: &Task) {
                 ..Default::default()
             };
             for (_path, content) in files {
-                let _ = svelte_compiler_rust::compiler::phases::phase1_parse::parse_reuse(
+                let _ = rsvelte_core::compiler::phases::phase1_parse::parse_reuse(
                     &mut parser,
                     content,
                     options,

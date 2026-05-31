@@ -15,7 +15,7 @@
 //!   `pending_leading_comments` plumbing. The others would each need
 //!   targeted scope-tracking changes; deferred.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn warnings(src: &str) -> Vec<String> {
     compile(

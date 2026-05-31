@@ -2,13 +2,13 @@
 //! applied even when the code is unchanged (H-139), and `Some({})` must clear
 //! the tag's attributes rather than fall back to the originals (H-140).
 
-use rustc_hash::FxHashMap;
-use std::future::Future;
-use svelte_compiler_rust::compiler::preprocess::preprocess;
-use svelte_compiler_rust::compiler::preprocess::types::{
+use rsvelte_core::compiler::preprocess::preprocess;
+use rsvelte_core::compiler::preprocess::types::{
     AttributeValue, PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
     PreprocessorResult, Processed,
 };
+use rustc_hash::FxHashMap;
+use std::future::Future;
 
 fn ok<F>(f: F) -> PreprocessorResult
 where

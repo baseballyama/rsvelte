@@ -3,7 +3,7 @@
 //! `$effect.pre(` / `$effect(` as raw byte patterns and rewrote them even inside
 //! string / template literals and comments, corrupting their contents.
 
-use svelte_compiler_rust::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
+use rsvelte_core::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
 
 fn server_module(src: &str) -> String {
     compile_module(

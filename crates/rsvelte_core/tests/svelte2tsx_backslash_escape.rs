@@ -3,7 +3,7 @@
 //! would otherwise turn `\n` / `\t` into a newline / tab inside the generated
 //! template literal.
 
-use svelte_compiler_rust::svelte2tsx::{
+use rsvelte_core::svelte2tsx::{
     Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, svelte2tsx,
 };
 

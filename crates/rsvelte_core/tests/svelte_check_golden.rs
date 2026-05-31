@@ -24,9 +24,9 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use svelte_compiler_rust::svelte_check::diagnostic::DiagnosticSeverity;
-use svelte_compiler_rust::svelte_check::tsgo::find_compiler;
-use svelte_compiler_rust::svelte_check::{RunOptions, run};
+use rsvelte_core::svelte_check::diagnostic::DiagnosticSeverity;
+use rsvelte_core::svelte_check::tsgo::find_compiler;
+use rsvelte_core::svelte_check::{RunOptions, run};
 
 fn fixture_root() -> Option<PathBuf> {
     let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

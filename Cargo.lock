@@ -1892,9 +1892,60 @@ name = "rsvelte_capi"
 version = "0.1.1"
 dependencies = [
  "cbindgen",
+ "rsvelte_core",
  "serde",
  "serde_json",
- "svelte-compiler-rust",
+]
+
+[[package]]
+name = "rsvelte_core"
+version = "0.6.0"
+dependencies = [
+ "bumpalo",
+ "chrono",
+ "clap",
+ "compact_str",
+ "console_error_panic_hook",
+ "criterion",
+ "getrandom 0.4.2",
+ "glob",
+ "im",
+ "indexmap",
+ "insta",
+ "itoa",
+ "lazy_static",
+ "memchr",
+ "miette",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "notify",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_codegen",
+ "oxc_diagnostics",
+ "oxc_formatter",
+ "oxc_parser",
+ "oxc_semantic",
+ "oxc_span",
+ "oxc_syntax",
+ "pretty_assertions",
+ "rayon",
+ "regex",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "similar 3.1.1",
+ "smallvec",
+ "sourcemap",
+ "string_wizard",
+ "test-generator",
+ "thiserror",
+ "tikv-jemallocator",
+ "tokio",
+ "walkdir",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1920,7 +1971,7 @@ dependencies = [
  "oxc_formatter_core",
  "oxc_parser",
  "oxc_span",
- "svelte-compiler-rust",
+ "rsvelte_core",
  "thiserror",
 ]
 
@@ -2169,57 +2220,6 @@ name = "supports-unicode"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
-
-[[package]]
-name = "svelte-compiler-rust"
-version = "0.6.0"
-dependencies = [
- "bumpalo",
- "chrono",
- "clap",
- "compact_str",
- "console_error_panic_hook",
- "criterion",
- "getrandom 0.4.2",
- "glob",
- "im",
- "indexmap",
- "insta",
- "itoa",
- "lazy_static",
- "memchr",
- "miette",
- "napi",
- "napi-build",
- "napi-derive",
- "notify",
- "oxc_allocator",
- "oxc_ast",
- "oxc_ast_visit",
- "oxc_codegen",
- "oxc_diagnostics",
- "oxc_formatter",
- "oxc_parser",
- "oxc_semantic",
- "oxc_span",
- "oxc_syntax",
- "pretty_assertions",
- "rayon",
- "regex",
- "rustc-hash",
- "serde",
- "serde_json",
- "similar 3.1.1",
- "smallvec",
- "sourcemap",
- "string_wizard",
- "test-generator",
- "thiserror",
- "tikv-jemallocator",
- "tokio",
- "walkdir",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "syn"

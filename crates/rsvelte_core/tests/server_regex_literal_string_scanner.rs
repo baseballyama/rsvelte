@@ -8,7 +8,7 @@
 //! literal backslash-t in the emitted JS, which rolldown/oxc reject as
 //! `Invalid Unicode escape sequence`.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_server(src: &str) -> String {
     let result = compile(

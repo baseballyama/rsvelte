@@ -13,7 +13,7 @@ keywords = ["svelte", "compiler", "ffi", "cdylib", "bindings"]
 categories = ["compilers", "external-ffi-bindings", "web-programming"]
 # Releases live on GitHub Releases (per-OS prebuilt cdylibs) — see the
 # Release rsvelte_capi workflow. crates.io publishing additionally
-# requires `svelte-compiler-rust` itself to be published; until then,
+# requires `rsvelte_core` itself to be published; until then,
 # Rust callers should depend on this crate via a git path.
 publish = false
 
@@ -23,7 +23,7 @@ publish = false
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-svelte-compiler-rust = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 

@@ -8,7 +8,7 @@
 // upstream pnpm workspace.
 //
 // Run: `node scripts/dev/test-vps-shim.mjs` (after `cargo build --release
-// --features napi --lib` and `cp target/release/libsvelte_compiler_rust.dylib
+// --features napi --lib` and `cp target/release/librsvelte_core.dylib
 // apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node`).
 
 import { createRequire } from 'node:module';

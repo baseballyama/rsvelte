@@ -1,7 +1,7 @@
 //! Issue #456: inline JS statement conversion must preserve `for...in` (vs
 //! `for...of`, H-110) and destructuring `catch` parameters (H-112).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(

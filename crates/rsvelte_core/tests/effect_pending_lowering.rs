@@ -2,7 +2,7 @@
 //! `$.eager(() => $.pending())` — a thunk that *calls* `$.pending()` — matching
 //! upstream, not a bare `$.eager($.pending)` reference.
 
-use svelte_compiler_rust::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
 fn client_async(src: &str) -> String {
     compile(

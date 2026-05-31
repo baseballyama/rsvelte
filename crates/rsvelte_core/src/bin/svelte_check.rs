@@ -22,7 +22,7 @@ use std::process::ExitCode;
 use std::collections::{HashMap, HashSet};
 
 use clap::Parser;
-use svelte_compiler_rust::svelte_check::{
+use rsvelte_core::svelte_check::{
     OutputFormat, RunOptions, run,
     runner::{DiagnosticSource, WarningOverride},
     watch::{WatchOptions, run_watch},
@@ -170,7 +170,7 @@ fn main() -> ExitCode {
 }
 
 fn print_run(
-    result: &svelte_compiler_rust::svelte_check::runner::RunResult,
+    result: &rsvelte_core::svelte_check::runner::RunResult,
     workspace: &Path,
     format: OutputFormat,
 ) {

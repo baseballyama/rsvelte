@@ -6,7 +6,7 @@
 //! `bind:checked` and `bind:files`; `indeterminate` / `group` are never
 //! type-checked, so binding them to a type-less input is accepted.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn try_compile(src: &str) -> Result<(), String> {
     compile(

@@ -155,7 +155,7 @@ Useful if you're building your own language tooling on top of the same surface `
 
 ```toml
 [dependencies]
-svelte-compiler-rust = { git = "https://github.com/baseballyama/rsvelte" }
+rsvelte_core = { git = "https://github.com/baseballyama/rsvelte" }
 ```
 
 ```rust
