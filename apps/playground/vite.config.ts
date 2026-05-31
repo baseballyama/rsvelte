@@ -16,7 +16,9 @@ export default defineConfig({
 	server: {
 		port: 5234,
 		fs: {
-			allow: ['..']
+			// `pkg/` (the wasm build) lives at the repo root, two levels above
+			// this app, so the dev server needs to serve from there.
+			allow: ['../..']
 		}
 	},
 	optimizeDeps: {

@@ -2,18 +2,27 @@
 	import { base } from '$app/paths';
 	import { onMount } from 'svelte';
 	import type { BenchmarkResults } from '$lib/types/benchmark';
+	import type { TestResults } from '$lib/types/test-results';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import EcoCard from '$lib/components/EcoCard.svelte';
+	import { shipped, counts } from '$lib/ecosystem';
 
 	let bench = $state<BenchmarkResults | null>(null);
+	let tests = $state<TestResults | null>(null);
 	let animated = $state(false);
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`${base}/benchmark-results.json`);
-			if (res.ok) bench = await res.json();
+			const [b, t] = await Promise.all([
+				fetch(`${base}/benchmark-results.json`).then((r) => (r.ok ? r.json() : null)),
+				fetch(`${base}/test-results.json`).then((r) => (r.ok ? r.json() : null))
+			]);
+			bench = b;
+			tests = t;
 		} catch {
 			bench = null;
+			tests = null;
 		}
 		requestAnimationFrame(() => (animated = true));
 	});
@@ -33,14 +42,58 @@
 	const formatDate = (iso: string): string =>
 		new Date(iso).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
-	const specs = [
-		{ n: 1202, label: 'runtime / legacy', sub: 'svelte 4 parity' },
-		{ n: 865, label: 'runtime / runes', sub: '$state / $derived / $effect' },
-		{ n: 324, label: 'validator + a11y', sub: 'warnings & errors' },
-		{ n: 245, label: 'svelte2tsx', sub: 'ecosystem / wave 1' },
-		{ n: 179, label: 'css', sub: ':global / scoping / keyframes' },
-		{ n: 144, label: 'compiler errors', sub: 'parse & semantic checks' }
+	// The four measured tools across the toolchain — each multi-threaded
+	// rsvelte vs. its official JavaScript counterpart on the same corpus.
+	const toolchain = $derived.by(() => {
+		if (!bench) return [];
+		const list = [
+			{ label: 'svelte/compiler', sub: 'full pipeline', x: bench.speedup.multiThreadVsJs },
+			{ label: 'parser', sub: 'phase 1, isolated', x: bench.parse.speedup.multiThreadVsJs }
+		];
+		if (bench.svelte2tsx) {
+			list.push({ label: 'svelte2tsx', sub: '.svelte → .tsx', x: bench.svelte2tsx.speedup.multiThreadVsJs });
+		}
+		if (bench.svelteCheck) {
+			list.push({ label: 'svelte-check', sub: 'project type-check', x: bench.svelteCheck.speedup.multiThreadVsJs });
+		}
+		return list;
+	});
+
+	const maxSpeedup = $derived(toolchain.reduce((m, t) => Math.max(m, t.x), 0));
+
+	const compat = $derived.by(() => {
+		if (!tests) return null;
+		const inScope = tests.summary.total - tests.summary.skipped;
+		return {
+			passed: tests.summary.passed,
+			inScope,
+			pct: tests.summary.percentage,
+			commit: tests.commit_sha
+		};
+	});
+
+	// Curated compatibility highlights — counts pulled live from the report.
+	const HIGHLIGHTS = [
+		{ id: 'runtime-legacy', label: 'runtime / legacy', sub: 'svelte 4 parity' },
+		{ id: 'runtime-runes', label: 'runtime / runes', sub: '$state / $derived / $effect' },
+		{ id: 'validator', label: 'validator + a11y', sub: 'warnings & errors' },
+		{ id: 'css', label: 'css', sub: ':global / scoping / keyframes' },
+		{ id: 'hydration', label: 'hydration', sub: 'resume server markup' },
+		{ id: 'compiler-errors', label: 'compiler errors', sub: 'parse & semantic checks' }
 	];
+
+	const specs = $derived(
+		HIGHLIGHTS.map((h) => {
+			const cat = tests?.categories.find((c) => c.id === h.id);
+			return {
+				label: h.label,
+				sub: h.sub,
+				passed: cat ? cat.passed : null,
+				total: cat ? cat.total - cat.skipped : null,
+				pct: cat ? cat.percentage : null
+			};
+		})
+	);
 
 	const why = [
 		{
@@ -55,17 +108,17 @@
 		},
 		{
 			n: '03',
-			h: 'Built for OXC.',
-			p: 'Conventions mirror oxc_ast so the compiler drops cleanly into the wider OXC toolchain when it lands.'
+			h: 'One stack, end to end.',
+			p: 'Compiler, svelte2tsx and svelte-check share the same Rust AST and OXC foundation — no JS hop between the tools in your build.'
 		}
 	];
 </script>
 
 <svelte:head>
-	<title>rsvelte · the Svelte compiler, in Rust</title>
+	<title>rsvelte · the Svelte ecosystem, in Rust</title>
 	<meta
 		name="description"
-		content="A Rust port of the Svelte 5 compiler. Same surface, identical output, parallelized by default."
+		content="A Rust port of the Svelte ecosystem — compiler, svelte2tsx, svelte-check and vite-plugin-svelte as drop-in replacements. Same surface, identical output, up to 145× faster."
 	/>
 </svelte:head>
 
@@ -73,23 +126,24 @@
 	<SiteNav active="home" />
 
 	<header class="hero">
-		<p class="eyebrow"><span class="rule"></span>Svelte 5 · written in Rust</p>
+		<p class="eyebrow"><span class="rule"></span>Svelte ecosystem · written in Rust</p>
 
 		<h1 class="title">
-			The Svelte compiler,<br />rewritten in <span class="ink-rust">Rust</span>.
+			The Svelte ecosystem,<br />rewritten in <span class="ink-rust">Rust</span>.
 		</h1>
 
 		<p class="lede">
-			A drop-in replacement for <code>svelte/compiler</code> — same surface, identical output,
-			parallelized by default.
+			Drop-in replacements for the tools you already run — the compiler, <code>svelte2tsx</code>,
+			<code>svelte-check</code>, the Vite plugin. Same surface, identical output, up to
+			<span class="ink-svelte">{bench ? Math.round(maxSpeedup) : 145}×</span> faster.
 		</p>
 
 		<div class="cta">
-			<a href="{base}/playground" class="btn btn-primary">
-				Open playground <span aria-hidden="true">→</span>
+			<a href="{base}/ecosystem" class="btn btn-primary">
+				Explore the ecosystem <span aria-hidden="true">→</span>
 			</a>
-			<a href="{base}/benchmark" class="btn btn-ghost">
-				View benchmark <span aria-hidden="true">→</span>
+			<a href="{base}/playground" class="btn btn-ghost">
+				Open playground <span aria-hidden="true">→</span>
 			</a>
 		</div>
 
@@ -101,24 +155,18 @@
 	<section class="perf" id="performance">
 		<div class="section-head">
 			<span class="num">01</span>
-			<h2>
-				{#if bench}
-					<span class="ink-svelte">{bench.speedup.multiThreadVsJs.toFixed(1)}×</span> faster than
-					<code>svelte/compiler</code>.
-				{:else}
-					Compilation, measured against <code>svelte/compiler</code>.
-				{/if}
-			</h2>
+			<h2>Fast across the <em>whole</em> toolchain.</h2>
 			<p class="lede">
-				The benchmark runs the full compile pipeline — parse, analyze, codegen — over the official
-				Svelte test corpus on the same machine.
+				Speed is the point. Every tool is benchmarked against its official
+				<code>svelte/*</code> counterpart — same machine, same corpus, full pipeline: parse,
+				analyze, codegen.
 			</p>
 		</div>
 
 		<div class="perf-grid">
 			<figure class="bars">
 				<figcaption>
-					<span class="bars-title">Compile (client)</span>
+					<span class="bars-title">Compile · full pipeline</span>
 					<span class="bars-sub"
 						>{bench ? `${bench.testFilesCount.toLocaleString('en-US')} .svelte files` : '—'}</span
 					>
@@ -131,24 +179,9 @@
 						bench.rustMultiThread.durationMs
 					)}
 					{@const rows = [
-						{
-							k: 'svelte/compiler',
-							tone: 'js',
-							sub: 'JavaScript',
-							dur: bench.javascript.durationMs
-						},
-						{
-							k: 'rsvelte / single',
-							tone: 'rs',
-							sub: 'no parallelism',
-							dur: bench.rustSingleThread.durationMs
-						},
-						{
-							k: 'rsvelte / multi',
-							tone: 'rm',
-							sub: 'rayon fan-out',
-							dur: bench.rustMultiThread.durationMs
-						}
+						{ k: 'svelte/compiler', tone: 'js', sub: 'JavaScript', dur: bench.javascript.durationMs },
+						{ k: 'rsvelte / single', tone: 'rs', sub: 'no parallelism', dur: bench.rustSingleThread.durationMs },
+						{ k: 'rsvelte / multi', tone: 'rm', sub: 'rayon fan-out', dur: bench.rustMultiThread.durationMs }
 					]}
 					<div class="bar-list">
 						{#each rows as r, i (r.k)}
@@ -159,10 +192,7 @@
 								</div>
 								<div class="bar-graph">
 									<span class="bar-track">
-										<span
-											class="bar-fill bar-{r.tone}"
-											style="--w: {(r.dur / max) * 100}%;"
-										></span>
+										<span class="bar-fill bar-{r.tone}" style="--w: {(r.dur / max) * 100}%;"></span>
 									</span>
 									<span class="bar-t">{formatDuration(r.dur)}</span>
 								</div>
@@ -186,49 +216,62 @@
 				</div>
 			</figure>
 
-			<aside class="stats">
-				<div class="stat stat-hero">
-					<span class="stat-k">Full pipeline · multi</span>
-					<span class="stat-n">
-						{bench ? bench.speedup.multiThreadVsJs.toFixed(1) : '—'}<span class="stat-x">×</span>
-					</span>
-					<span class="stat-s">rayon fan-out vs. <code>svelte/compiler</code></span>
-				</div>
-				<div class="stat">
-					<span class="stat-k">Parser only · multi</span>
-					<span class="stat-n">
-						{bench ? bench.parse.speedup.multiThreadVsJs.toFixed(0) : '—'}<span class="stat-x"
-							>×</span
-						>
-					</span>
-					<span class="stat-s">phase 1, isolated</span>
-				</div>
-				<div class="stat">
-					<span class="stat-k">Throughput</span>
-					<span class="stat-n">
-						{bench ? formatThroughput(bench.rustMultiThread.throughputFilesPerSec) : '—'}<span
-							class="stat-x">/s</span
-						>
-					</span>
-					<span class="stat-s">files compiled per second</span>
-				</div>
-				<a class="stat stat-link" href="{base}/benchmark">
-					<span class="stat-k">Full breakdown</span>
-					<span class="stat-go"
-						>parse · ssr · svelte2tsx <span aria-hidden="true">→</span></span
-					>
+			<aside class="toolchain">
+				<p class="toolchain-k">Multi-threaded vs. official JS</p>
+				{#if toolchain.length}
+					<ul class="toolchain-list">
+						{#each toolchain as t (t.label)}
+							<li class="toolchain-row">
+								<span class="tc-meta">
+									<span class="tc-name">{t.label}</span>
+									<span class="tc-sub">{t.sub}</span>
+								</span>
+								<span class="tc-x">{t.x.toFixed(t.x >= 50 ? 0 : 1)}<span class="x">×</span></span>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="toolchain-empty">—</p>
+				{/if}
+				<a class="toolchain-link" href="{base}/benchmark">
+					Full breakdown <span aria-hidden="true">→</span>
 				</a>
 			</aside>
 		</div>
 	</section>
 
-	<section class="dropin">
+	<section class="eco">
 		<div class="section-head">
 			<span class="num">02</span>
+			<h2>Not just a <em>compiler</em>.</h2>
+			<p class="lede">
+				rsvelte ports the hot path of every common Svelte workflow. {counts.shipped} drop-in
+				packages ship today, each a byte-for-byte replacement for its upstream tool.
+			</p>
+		</div>
+
+		<div class="eco-grid">
+			{#each shipped as c (c.name)}
+				<EcoCard {c} compact />
+			{/each}
+		</div>
+
+		<div class="eco-foot">
+			<a class="eco-link" href="{base}/ecosystem">
+				See the full inventory — shipped, planned &amp; delegated
+				<span aria-hidden="true">→</span>
+			</a>
+		</div>
+	</section>
+
+	<section class="dropin">
+		<div class="section-head">
+			<span class="num">03</span>
 			<h2>One import. <em>No flags.</em></h2>
 			<p class="lede">
-				No bundler plugin to wire, no compiler flag to flip. Same <code>compile()</code>,
-				<code>compileModule()</code>, <code>parse()</code>, <code>preprocess()</code>.
+				No bundler plugin to rewrite, no compiler flag to flip. The same
+				<code>compile()</code>, <code>parse()</code>, <code>preprocess()</code> — or swap the Vite
+				plugin and leave your <code>vite.config.js</code> untouched.
 			</p>
 		</div>
 
@@ -241,13 +284,49 @@
 		</figure>
 	</section>
 
+	<section class="compat">
+		<div class="section-head">
+			<span class="num">04</span>
+			<h2>Verified against the <em>official</em> suite.</h2>
+			<p class="lede">
+				{#if compat}
+					<span class="big-pct">{compat.passed.toLocaleString('en-US')} / {compat.inScope.toLocaleString('en-US')}</span>
+					in-scope fixtures from <code>sveltejs/svelte</code> — {compat.pct.toFixed(1)}%. Full
+					breakdown on the <a class="link" href="{base}/progress">compatibility page</a>.
+				{:else}
+					Every category of the official <code>sveltejs/svelte</code> suite, run locally. Full
+					breakdown on the <a class="link" href="{base}/progress">compatibility page</a>.
+				{/if}
+			</p>
+		</div>
+
+		<dl class="spec-list">
+			{#each specs as s, i (s.label)}
+				<div class="spec-row" style="--i: {i};">
+					<dt class="spec-k">{s.label}</dt>
+					<dd class="spec-v">
+						<span class="spec-n"
+							>{s.passed !== null ? s.passed.toLocaleString('en-US') : '—'}<span class="spec-n-sep"
+								>/</span
+							><span class="spec-n-tot">{s.total !== null ? s.total.toLocaleString('en-US') : '—'}</span></span
+						>
+						<span class="spec-s">{s.sub}</span>
+						<span class="spec-pct"
+							>{s.pct !== null ? Math.round(s.pct) : '—'}<span class="dim">%</span></span
+						>
+					</dd>
+				</div>
+			{/each}
+		</dl>
+	</section>
+
 	<section class="capi">
 		<div class="section-head">
-			<span class="num">03</span>
+			<span class="num">05</span>
 			<h2>Not just <em>Node.js</em>.</h2>
 			<p class="lede">
-				A stable C ABI ships alongside the NAPI build — one shared library, one header,
-				UTF-8 JSON in/out. Drive the same compiler from any language with a C FFI.
+				A stable C ABI ships alongside the NAPI build — one shared library, one header, UTF-8 JSON
+				in/out. Drive the same compiler from any language with a C FFI.
 			</p>
 		</div>
 
@@ -270,35 +349,10 @@
 		</p>
 	</section>
 
-	<section class="compat">
-		<div class="section-head">
-			<span class="num">04</span>
-			<h2>Every test, passing.</h2>
-			<p class="lede">
-				<span class="big-pct">3,341 / 3,341</span> in-scope fixtures from the official
-				<code>sveltejs/svelte</code> suite. Full breakdown on the
-				<a class="link" href="{base}/progress">compatibility page</a>.
-			</p>
-		</div>
-
-		<dl class="spec-list">
-			{#each specs as s, i (s.label)}
-				<div class="spec-row" style="--i: {i};">
-					<dt class="spec-k">{s.label}</dt>
-					<dd class="spec-v">
-						<span class="spec-n">{s.n.toLocaleString('en-US')}</span>
-						<span class="spec-s">{s.sub}</span>
-					</dd>
-					<span class="spec-pct">100<span class="dim">%</span></span>
-				</div>
-			{/each}
-		</dl>
-	</section>
-
 	<section class="why">
 		<div class="section-head">
-			<span class="num">05</span>
-			<h2>Why a port?</h2>
+			<span class="num">06</span>
+			<h2>Why it's fast.</h2>
 		</div>
 
 		<div class="why-list">
@@ -375,7 +429,7 @@
 
 	.lede {
 		font-size: clamp(1.05rem, 1.3vw, 1.2rem);
-		max-width: 52ch;
+		max-width: 54ch;
 		color: var(--ink-soft);
 		margin: 1.6rem 0 0;
 	}
@@ -465,6 +519,7 @@
 	}
 
 	.perf .section-head,
+	.eco .section-head,
 	.dropin .section-head,
 	.capi .section-head,
 	.compat .section-head,
@@ -506,7 +561,8 @@
 	}
 
 	.section-head h2 code,
-	.compat .lede code {
+	.compat .lede code,
+	.perf .lede code {
 		font-family: 'Fira Mono', monospace;
 		font-size: 0.78em;
 		font-weight: 500;
@@ -678,105 +734,153 @@
 		color: var(--ink-faint);
 	}
 
-	.stats {
-		display: flex;
-		flex-direction: column;
-		gap: 0.65rem;
-	}
-
-	.stat {
+	/* TOOLCHAIN SPEEDUP LIST */
+	.toolchain {
 		background: var(--bg);
 		border: 1px solid var(--rule);
 		border-radius: 6px;
-		padding: 1rem 1.2rem 1.15rem;
-		display: grid;
-		grid-template-areas: 'k k' 'n n' 's s';
-		gap: 0.1rem;
-	}
-
-	.stat.stat-hero {
-		border-color: var(--rust);
-		background: var(--bg);
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--rust) 8%, transparent);
-	}
-
-	.stat-k {
-		grid-area: k;
-		font-family: 'Fira Mono', monospace;
-		font-size: 0.7rem;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--ink-soft);
-	}
-
-	.stat-n {
-		grid-area: n;
-		font-family: 'Overpass', sans-serif;
-		font-weight: 800;
-		font-size: clamp(2rem, 3.6vw, 2.7rem);
-		line-height: 1;
-		letter-spacing: -0.035em;
-		color: var(--ink);
-		font-variant-numeric: tabular-nums;
-		display: inline-flex;
-		align-items: baseline;
-		margin-top: 0.35rem;
-	}
-
-	.stat-hero .stat-n {
-		color: var(--rust);
-	}
-
-	.stat-x {
-		font-family: 'Fira Mono', monospace;
-		font-weight: 500;
-		font-size: 0.4em;
-		margin-left: 0.18em;
-		color: var(--ink-faint);
-		letter-spacing: 0.04em;
-	}
-
-	.stat-hero .stat-x {
-		color: var(--rust);
-		opacity: 0.75;
-	}
-
-	.stat-s {
-		grid-area: s;
-		font-size: 0.82rem;
-		color: var(--ink-soft);
-		margin-top: 0.4rem;
-	}
-
-	.stat-s code {
-		font-size: 0.92em;
-		color: var(--ink);
-	}
-
-	.stat-link {
+		padding: 1.1rem 1.25rem 1.25rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.45rem;
-		padding: 0.95rem 1.2rem 1rem;
+		gap: 0.2rem;
+	}
+
+	.toolchain-k {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.66rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+		margin: 0 0 0.5rem;
+	}
+
+	.toolchain-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.toolchain-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.7rem 0;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.toolchain-row:first-child {
+		border-top: 1px solid var(--rule);
+	}
+
+	.tc-meta {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		min-width: 0;
+	}
+
+	.tc-name {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.8rem;
 		color: var(--ink);
-		transition: border-color 0.18s;
 	}
 
-	.stat-link:hover {
-		border-color: var(--ink);
+	.tc-sub {
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.66rem;
+		color: var(--ink-faint);
 	}
 
-	.stat-go {
+	.tc-x {
+		font-family: 'Overpass', sans-serif;
+		font-weight: 800;
+		font-size: 1.45rem;
+		line-height: 1;
+		letter-spacing: -0.03em;
+		color: var(--svelte);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.tc-x .x {
+		font-family: 'Fira Mono', monospace;
+		font-weight: 500;
+		font-size: 0.42em;
+		margin-left: 0.1em;
+		color: var(--svelte);
+		opacity: 0.7;
+	}
+
+	.toolchain-empty {
+		font-family: 'Fira Mono', monospace;
+		color: var(--ink-faint);
+		padding: 1rem 0;
+	}
+
+	.toolchain-link {
+		margin-top: 0.9rem;
 		font-family: 'Fira Mono', monospace;
 		font-size: 0.78rem;
 		color: var(--ink-soft);
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
+		transition: color 0.18s;
 	}
 
-	.stat-link:hover .stat-go {
+	.toolchain-link span {
+		transition: transform 0.18s;
+	}
+
+	.toolchain-link:hover {
 		color: var(--svelte);
+	}
+
+	.toolchain-link:hover span {
+		transform: translateX(3px);
+	}
+
+	/* ECOSYSTEM */
+	.eco {
+		max-width: 1080px;
+		margin: 0 auto;
+	}
+
+	.eco-grid {
+		max-width: 1080px;
+		margin: 0 auto;
+		padding: 0 clamp(1rem, 4vw, 2.5rem);
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+		gap: 1rem;
+	}
+
+	.eco-foot {
+		max-width: 1080px;
+		margin: 0 auto;
+		padding: 1.6rem clamp(1rem, 4vw, 2.5rem) clamp(2rem, 4vh, 3rem);
+	}
+
+	.eco-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-family: 'Overpass', sans-serif;
+		font-weight: 600;
+		font-size: 0.95rem;
+		color: var(--svelte);
+	}
+
+	.eco-link span {
+		transition: transform 0.18s;
+	}
+
+	.eco-link:hover {
+		color: var(--svelte-hover);
+	}
+
+	.eco-link:hover span {
+		transform: translateX(3px);
 	}
 
 	/* DROP-IN */
@@ -912,7 +1016,7 @@
 
 	.spec-row {
 		display: grid;
-		grid-template-columns: minmax(10rem, 14rem) 1fr auto;
+		grid-template-columns: minmax(10rem, 14rem) 1fr;
 		gap: 1.4rem;
 		align-items: baseline;
 		padding: 1rem 0;
@@ -949,6 +1053,17 @@
 		min-width: 0;
 	}
 
+	/* The percentage is the last child of the value <dd>; push it to the row's
+	   right edge so the layout matches the old 3-column grid. */
+	.spec-pct {
+		margin-left: auto;
+		padding-left: 0.85rem;
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.82rem;
+		color: var(--ink);
+		font-variant-numeric: tabular-nums;
+	}
+
 	.spec-n {
 		font-family: 'Overpass', sans-serif;
 		font-weight: 700;
@@ -958,17 +1073,20 @@
 		letter-spacing: -0.015em;
 	}
 
+	.spec-n-sep {
+		color: var(--ink-faint);
+		margin: 0 0.18em;
+	}
+
+	.spec-n-tot {
+		color: var(--ink-soft);
+		font-size: 0.82em;
+	}
+
 	.spec-s {
 		font-family: 'Fira Mono', monospace;
 		font-size: 0.74rem;
 		color: var(--ink-soft);
-	}
-
-	.spec-pct {
-		font-family: 'Fira Mono', monospace;
-		font-size: 0.82rem;
-		color: var(--ink);
-		font-variant-numeric: tabular-nums;
 	}
 
 	.spec-pct .dim {
@@ -1042,11 +1160,8 @@
 			grid-template-columns: 1fr;
 		}
 		.spec-row {
-			grid-template-columns: 1fr auto;
+			grid-template-columns: 1fr;
 			gap: 0.4rem 1rem;
-		}
-		.spec-v {
-			grid-column: 1 / -1;
 		}
 	}
 

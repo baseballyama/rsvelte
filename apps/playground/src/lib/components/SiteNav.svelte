@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { themeStore } from '$lib/theme.svelte';
 
-	type Active = 'home' | 'playground' | 'progress' | 'benchmark';
+	type Active = 'home' | 'ecosystem' | 'playground' | 'progress' | 'benchmark';
 
 	interface Props {
 		// Each page passes its own slug so the link gets the `active` style
@@ -34,10 +34,11 @@
 			</svg>
 		</span>
 		<span class="brand-text">rsvelte</span>
-		<span class="brand-tag">rust&nbsp;port</span>
+		<span class="brand-tag">svelte&nbsp;·&nbsp;in&nbsp;rust</span>
 	</a>
 
 	<div class="links">
+		<a href="{base}/ecosystem" class:active={isActive('ecosystem')}>Ecosystem</a>
 		<a href="{base}/playground" class:active={isActive('playground')}>Playground</a>
 		<a href="{base}/progress" class:active={isActive('progress')}>Compatibility</a>
 		<a href="{base}/benchmark" class:active={isActive('benchmark')}>Benchmark</a>
@@ -202,7 +203,10 @@
 			gap: 0.7rem;
 			font-size: 0.84rem;
 		}
-		.links a:nth-child(2) {
+		/* Keep the two primary destinations (Ecosystem, Playground) on phones;
+		   Compatibility + Benchmark are reachable from the home page. */
+		.links a:nth-child(3),
+		.links a:nth-child(4) {
 			display: none;
 		}
 	}
