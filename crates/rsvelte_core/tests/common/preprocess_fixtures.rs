@@ -3,11 +3,11 @@
 //! `tests/compatibility_report.rs` (the dashboard) hand-port each fixture's
 //! `_config.js` JS preprocessor into Rust closures here.
 
-use rustc_hash::FxHashMap;
-use svelte_compiler_rust::compiler::preprocess::types::{
+use rsvelte_core::compiler::preprocess::types::{
     AttributeValue, MarkupPreprocessorFn, MarkupPreprocessorOptions, PreprocessorFn,
     PreprocessorGroup, PreprocessorOptions, PreprocessorResult, Processed,
 };
+use rustc_hash::FxHashMap;
 
 /// Read a string attribute value, panicking if it isn't a `String`.
 pub fn attr_str<'a>(attrs: &'a FxHashMap<String, AttributeValue>, name: &str) -> Option<&'a str> {
@@ -22,7 +22,7 @@ where
     F: std::future::Future<
             Output = Result<
                 Option<Processed>,
-                svelte_compiler_rust::compiler::preprocess::types::PreprocessError,
+                rsvelte_core::compiler::preprocess::types::PreprocessError,
             >,
         > + Send
         + 'static,
@@ -108,7 +108,7 @@ pub fn build_preprocessors(name: &str) -> Option<Vec<PreprocessorGroup>> {
         "empty-sourcemap" => vec![PreprocessorGroup {
             style: Some(Box::new(|opts: PreprocessorOptions| {
                 ok(async move {
-                    use svelte_compiler_rust::compiler::preprocess::types::{
+                    use rsvelte_core::compiler::preprocess::types::{
                         SimpleDecodedMap, SourceMapInput,
                     };
                     Ok(Some(Processed {

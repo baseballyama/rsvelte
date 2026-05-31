@@ -6,8 +6,8 @@
 //! preprocessor map (with mappings as `"AAAA,SAASA"` etc.) failed to deserialise
 //! and was silently dropped — `decode_map` returned `None`.
 
-use svelte_compiler_rust::compiler::preprocess::decode_sourcemap::decode_map;
-use svelte_compiler_rust::compiler::preprocess::types::{Processed, SourceMapInput};
+use rsvelte_core::compiler::preprocess::decode_sourcemap::decode_map;
+use rsvelte_core::compiler::preprocess::types::{Processed, SourceMapInput};
 
 fn vlq_processed(map_json: &str) -> Processed {
     Processed {

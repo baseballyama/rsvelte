@@ -28,12 +28,12 @@
 
 use std::os::raw::c_char;
 
-use serde::Deserialize;
-use serde_json::Value;
-use svelte_compiler_rust::compiler::{
+use rsvelte_core::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
     compile as rust_compile, compile_module as rust_compile_module,
 };
+use serde::Deserialize;
+use serde_json::Value;
 
 /// Owned byte buffer crossing the FFI boundary.
 ///
@@ -67,7 +67,7 @@ impl RsvelteBuf {
     }
 }
 
-/// Library version (matches the `svelte-compiler-rust` crate version).
+/// Library version (matches the `rsvelte_core` crate version).
 ///
 /// Returns a static, NUL-terminated UTF-8 string. The caller MUST NOT
 /// free the returned pointer.
@@ -393,20 +393,20 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
         && let Some(v) = compat.component_api
     {
         opts.compatibility.component_api = if v == 4 {
-            svelte_compiler_rust::compiler::ComponentApi::V4
+            rsvelte_core::compiler::ComponentApi::V4
         } else {
-            svelte_compiler_rust::compiler::ComponentApi::V5
+            rsvelte_core::compiler::ComponentApi::V5
         };
     }
     if let Some(hash_override) = raw.css_hash_override {
         opts.css_hash = Some(std::sync::Arc::new(
-            move |_: &svelte_compiler_rust::compiler::CssHashInput| hash_override.clone(),
+            move |_: &rsvelte_core::compiler::CssHashInput| hash_override.clone(),
         ));
     }
     if let Some(v) = raw.fragments.as_deref() {
         opts.fragments = match v {
-            "tree" => svelte_compiler_rust::compiler::FragmentMode::Tree,
-            _ => svelte_compiler_rust::compiler::FragmentMode::Html,
+            "tree" => rsvelte_core::compiler::FragmentMode::Tree,
+            _ => rsvelte_core::compiler::FragmentMode::Html,
         };
     }
     Ok(opts)
@@ -450,7 +450,7 @@ unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompi
 
 // --- result encoding ------------------------------------------------------
 
-fn compile_result_to_json(result: &svelte_compiler_rust::compiler::CompileResult) -> Value {
+fn compile_result_to_json(result: &rsvelte_core::compiler::CompileResult) -> Value {
     let js_obj = serde_json::json!({
         "code": result.js.code,
         "map": result

@@ -12,7 +12,7 @@
 //!
 //! Both paths now use the same `?` propagation the component compile path uses.
 
-use svelte_compiler_rust::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
+use rsvelte_core::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
 
 fn opts(filename: &str) -> ModuleCompileOptions {
     ModuleCompileOptions {

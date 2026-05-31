@@ -10,7 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use svelte_compiler_rust::svelte2tsx::{
+use rsvelte_core::svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace,
     Svelte2TsxOptions, SvelteVersion, svelte2tsx,
 };

@@ -10,11 +10,11 @@ use std::path::{Path, PathBuf};
 
 // use rayon::prelude::*;  // Disabled for sequential execution
 use common::get_svelte_test_samples;
-use serde::Deserialize;
-use svelte_compiler_rust::{
+use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
     compile_module,
 };
+use serde::Deserialize;
 
 /// Get all compiler-errors test samples.
 fn get_compiler_error_samples() -> Vec<PathBuf> {

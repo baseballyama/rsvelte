@@ -1,4 +1,4 @@
-# Development environment for svelte-compiler-rust
+# Development environment for rsvelte_core
 FROM rust:1.96-bookworm
 
 # Install Node.js 22.x and pnpm

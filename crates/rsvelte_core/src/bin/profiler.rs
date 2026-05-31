@@ -35,10 +35,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
-use svelte_compiler_rust::compiler::phases::phase2_analyze::analyze_component;
-use svelte_compiler_rust::compiler::phases::phase3_transform::transform_component;
-use svelte_compiler_rust::{CompileOptions, GenerateMode};
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
+use rsvelte_core::compiler::phases::phase2_analyze::analyze_component;
+use rsvelte_core::compiler::phases::phase3_transform::transform_component;
+use rsvelte_core::{CompileOptions, GenerateMode};
 
 #[derive(Debug, Clone)]
 struct Config {

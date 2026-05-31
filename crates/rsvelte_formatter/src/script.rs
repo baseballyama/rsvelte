@@ -2,7 +2,7 @@ use oxc_allocator::Allocator;
 use oxc_formatter::{Formatter, JsFormatOptions};
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
-use svelte_compiler_rust::ast::template::Script;
+use rsvelte_core::ast::template::Script;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;

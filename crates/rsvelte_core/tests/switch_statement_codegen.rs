@@ -2,7 +2,7 @@
 //! reactive block) must be emitted as a real switch, not flattened into a block
 //! (issue #456, H-109).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
     compile(

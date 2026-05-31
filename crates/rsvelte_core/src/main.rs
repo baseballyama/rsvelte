@@ -17,13 +17,13 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 use std::fs;
 use std::path::PathBuf;
 
-use svelte_compiler_rust::{ParseOptions, parse};
+use rsvelte_core::{ParseOptions, parse};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 2 {
-        eprintln!("Usage: svelte-compiler-rust <file.svelte>");
+        eprintln!("Usage: rsvelte_core <file.svelte>");
         std::process::exit(1);
     }
 

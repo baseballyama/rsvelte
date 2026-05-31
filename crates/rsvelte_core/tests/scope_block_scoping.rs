@@ -2,7 +2,7 @@
 //! enclosing function scope, and `try` / `finally` blocks and `switch` bodies
 //! get their own lexical scopes so `let`/`const` inside them don't leak.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_client(src: &str) -> Result<String, String> {
     compile(

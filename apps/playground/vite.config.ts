@@ -20,6 +20,6 @@ export default defineConfig({
 		}
 	},
 	optimizeDeps: {
-		exclude: ['svelte-compiler-rust']
+		exclude: ['rsvelte_core']
 	}
 });

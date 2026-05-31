@@ -17,7 +17,7 @@
 //!   M-046..M-048** all share the AST-driven rewrite the issue itself
 //!   recommends as the fix; deferred to the coordinated effort.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

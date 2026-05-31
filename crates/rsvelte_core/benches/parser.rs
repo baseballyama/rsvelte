@@ -7,7 +7,7 @@ use std::fs;
 use std::hint::black_box;
 use std::path::PathBuf;
 
-use svelte_compiler_rust::{ParseOptions, parse, parse_parallel};
+use rsvelte_core::{ParseOptions, parse, parse_parallel};
 
 /// Get sample Svelte files for benchmarking.
 fn get_sample_files() -> Vec<(String, String)> {

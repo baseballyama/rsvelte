@@ -2,7 +2,7 @@
 //! explicit `runes={false}` (H-114), `customElement={null}` (H-115), the
 //! `disclose_version` option (H-087), and the `name` option (H-088).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn opts(name: Option<String>, disclose: bool) -> CompileOptions {
     CompileOptions {

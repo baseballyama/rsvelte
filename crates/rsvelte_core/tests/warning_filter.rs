@@ -1,8 +1,8 @@
 //! Issue #450 H-083: the public `warning_filter` option must actually be
 //! applied — a filter that returns false drops the warning.
 
+use rsvelte_core::{CompileOptions, Warning, compile};
 use std::sync::Arc;
-use svelte_compiler_rust::{CompileOptions, Warning, compile};
 
 type WarningFilter = Option<Arc<dyn Fn(&Warning) -> bool + Send + Sync>>;
 

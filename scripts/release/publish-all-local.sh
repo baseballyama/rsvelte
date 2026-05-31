@@ -275,9 +275,9 @@ sc_dest_for() {
 dylib_for() {
   local target="$1"
   case "$target" in
-    *-apple-darwin)    echo "libsvelte_compiler_rust.dylib" ;;
-    *-unknown-linux-*) echo "libsvelte_compiler_rust.so" ;;
-    *-pc-windows-msvc) echo "svelte_compiler_rust.dll" ;;
+    *-apple-darwin)    echo "librsvelte_core.dylib" ;;
+    *-unknown-linux-*) echo "librsvelte_core.so" ;;
+    *-pc-windows-msvc) echo "rsvelte_core.dll" ;;
   esac
 }
 

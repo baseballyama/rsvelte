@@ -3,7 +3,7 @@
 //! redeclaration error in JS/TS; the function-redeclaration allowance (kept for
 //! TS overloads) previously suppressed it.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn tc(src: &str) -> Result<(), String> {
     compile(

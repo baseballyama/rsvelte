@@ -6,7 +6,7 @@
 //! `$.effect(() => { title = $0 ?? '' })` form — leaving `$0` unbound (undefined).
 //! It must use `$.deferred_template_effect(($0) => …, [() => foo()])` like upstream.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
     let result = compile(

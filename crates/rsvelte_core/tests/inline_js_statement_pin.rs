@@ -7,7 +7,7 @@
 //! destructured catch parameter) are easy to regress when the converter is
 //! touched, so pin each one with a single targeted assertion.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

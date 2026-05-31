@@ -12,7 +12,7 @@ use common::{
     compare_js, compare_sourcemaps, ensure_fixtures_exist, get_fixture_samples,
     load_fixture_output, svelte_path, write_actual_output,
 };
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 /// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
 /// in the compiled output match LF-authored fixtures on Windows runners.

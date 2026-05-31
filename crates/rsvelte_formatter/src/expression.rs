@@ -2,8 +2,8 @@ use oxc_allocator::Allocator;
 use oxc_formatter::Formatter;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
-use svelte_compiler_rust::ast::js::Expression;
-use svelte_compiler_rust::ast::template::{ExpressionTag, Fragment, TemplateNode};
+use rsvelte_core::ast::js::Expression;
+use rsvelte_core::ast::template::{ExpressionTag, Fragment, TemplateNode};
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;

@@ -403,7 +403,7 @@ These bits land in Wave 1 and are reused by every later wave.
 
 ### NAPI binding strategy
 
-- Single crate (`svelte-compiler-rust`) keeps exporting all NAPI functions
+- Single crate (`rsvelte_core`) keeps exporting all NAPI functions
   rather than splitting per tool. Avoids double-loading the Rust runtime in
   consumer Node processes.
 - Async APIs (`preprocess`, future `hot_update_diff`) use

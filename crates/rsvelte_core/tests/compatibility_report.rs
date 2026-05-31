@@ -16,7 +16,7 @@ use common::{
     canonicalize_css, compare_js, ensure_fixtures_exist, fixtures_path, get_fixture_samples,
     get_svelte_test_samples, load_fixture_output, svelte_path, write_actual_output,
 };
-use svelte_compiler_rust::{
+use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, ParseOptions, compile,
     compile_module, compiler::CssMode, convert_to_legacy, parse,
 };
@@ -94,7 +94,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         match parse(&input, options) {
             Ok(ast) => {
                 let actual_json =
-                    svelte_compiler_rust::ast::arena::with_serialize_arena(&ast.arena, || {
+                    rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
                         if modern {
                             serde_json::to_string_pretty(&ast).unwrap_or_default()
                         } else {
@@ -1232,8 +1232,8 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
 /// `output.svelte`. Mirrors `tests/print.rs::test_print` so the
 /// compatibility-report stays in sync with the standalone test.
 fn run_print_tests() -> CategoryResult {
-    use svelte_compiler_rust::compiler::print::print_with_source;
-    use svelte_compiler_rust::{ParseOptions, parse};
+    use rsvelte_core::compiler::print::print_with_source;
+    use rsvelte_core::{ParseOptions, parse};
 
     let samples = get_svelte_test_samples("print");
     let mut result = CategoryResult::new("print");
@@ -1325,7 +1325,7 @@ fn normalize_print_output(s: &str) -> String {
 /// closures (see `tests/common/preprocess_fixtures.rs`). Mirrors
 /// `tests/preprocess.rs` so the compat dashboard stays in lock-step.
 fn run_preprocess_tests() -> CategoryResult {
-    use svelte_compiler_rust::compiler::preprocess::preprocess;
+    use rsvelte_core::compiler::preprocess::preprocess;
 
     let samples = get_svelte_test_samples("preprocess");
     let mut result = CategoryResult::new("preprocess");

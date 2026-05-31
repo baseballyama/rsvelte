@@ -11,7 +11,7 @@
 //! - **H-074..H-076 / M-049..M-051** all live downstream of the same
 //!   text-based scanner and share the AST refactor; deferred.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

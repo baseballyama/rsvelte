@@ -20,7 +20,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
 
 fn main() {
     let large = create_large_file();

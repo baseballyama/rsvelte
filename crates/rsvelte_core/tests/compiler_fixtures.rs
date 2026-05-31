@@ -13,7 +13,7 @@ use common::{
     write_actual_output,
 };
 use rayon::prelude::*;
-use svelte_compiler_rust::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
 /// Load input from Svelte test suite. Normalizes CRLF→LF so byte offsets
 /// in the compiled output match LF-authored fixtures on Windows runners.

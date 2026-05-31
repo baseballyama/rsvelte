@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // `wasm-pack build` writes `pkg/package.json` based on the Cargo crate name
-// (`svelte-compiler-rust`). We publish under the scoped npm name
+// (`rsvelte_core`). We publish under the scoped npm name
 // `@rsvelte/compiler`, so we overlay the npm-side metadata here after the
 // wasm build completes and before `pnpm publish` reads it.
 //

@@ -17,9 +17,9 @@
 //! and matched `(...)` / `[...]` groups in turn — so `$.get(items).length`
 //! is returned as a single operand.
 
-use svelte_compiler_rust::GenerateMode;
-use svelte_compiler_rust::compile_module;
-use svelte_compiler_rust::compiler::ModuleCompileOptions;
+use rsvelte_core::GenerateMode;
+use rsvelte_core::compile_module;
+use rsvelte_core::compiler::ModuleCompileOptions;
 
 fn compile_mod_client_dev(src: &str) -> String {
     let result = compile_module(

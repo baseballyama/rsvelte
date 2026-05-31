@@ -38,7 +38,7 @@ extern "C" {
 #endif // __cplusplus
 
 /**
- * Library version (matches the `svelte-compiler-rust` crate version).
+ * Library version (matches the `rsvelte_core` crate version).
  *
  * Returns a static, NUL-terminated UTF-8 string. The caller MUST NOT
  * free the returned pointer.

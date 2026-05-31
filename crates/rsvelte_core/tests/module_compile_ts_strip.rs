@@ -21,9 +21,9 @@
 //!    mutated (e.g. a form-model `isValid` stayed `false` even after the
 //!    form was filled in).
 
-use svelte_compiler_rust::GenerateMode;
-use svelte_compiler_rust::compile_module;
-use svelte_compiler_rust::compiler::ModuleCompileOptions;
+use rsvelte_core::GenerateMode;
+use rsvelte_core::compile_module;
+use rsvelte_core::compiler::ModuleCompileOptions;
 
 fn compile_mod(src: &str, generate: GenerateMode) -> String {
     let result = compile_module(

@@ -9,7 +9,7 @@
 //! scope class). The official Svelte compiler scopes straight through the
 //! boundary.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_css(src: &str) -> String {
     let result = compile(

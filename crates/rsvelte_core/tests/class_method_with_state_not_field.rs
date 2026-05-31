@@ -10,7 +10,7 @@
 //! `parse_state_field` now rejects anything that doesn't look like a valid
 //! class-field name (plain identifier, quoted, or computed `[expr]`).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

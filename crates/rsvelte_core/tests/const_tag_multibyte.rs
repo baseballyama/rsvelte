@@ -2,7 +2,7 @@
 //! character indices, so a multi-byte character before the `=` doesn't corrupt
 //! (or panic on) the pattern/init slice.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn go(src: &str, mode: GenerateMode) -> String {
     compile(

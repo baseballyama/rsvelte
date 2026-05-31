@@ -25,7 +25,7 @@ function loadBinding() {
 		repoRoot,
 		`apps/npm/vite-plugin-svelte-native-${triple()}/rsvelte.node`,
 	);
-	const cdylib = join(repoRoot, 'target/release/libsvelte_compiler_rust.dylib');
+	const cdylib = join(repoRoot, 'target/release/librsvelte_core.dylib');
 	for (const candidate of [cdylib, staged]) {
 		try {
 			return require(candidate);

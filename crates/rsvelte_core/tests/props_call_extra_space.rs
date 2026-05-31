@@ -10,7 +10,7 @@
 //! Fix: `canonicalize_props_call` normalises `= $props ()` → `= $props()`
 //! before the text matchers run, in both the client and server transforms.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_code(src: &str, mode: GenerateMode) -> String {
     compile(

@@ -9,31 +9,31 @@
 
 ## 環境
 
-- 作業ディレクトリ: /Users/baseballyama/git/svelte-compiler-rust
-- Docker コンテナ: svelte-compiler-rust-dev で cargo コマンドを実行
+- 作業ディレクトリ: /Users/baseballyama/git/rsvelte_core
+- Docker コンテナ: rsvelte_core-dev で cargo コマンドを実行
 - NAPI バインディング: svelte/rsvelte.linux-arm64-gnu.node
 
 ## ビルドと測定コマンド
 
 ```bash
 # ビルド + NAPI コピー
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && cargo build --release --features napi --lib 2>&1 | tail -3 && cp target/release/libsvelte_compiler_rust.so svelte/rsvelte.linux-arm64-gnu.node'
+docker exec rsvelte_core-dev bash -c 'cd /workspace && cargo build --release --features napi --lib 2>&1 | tail -3 && cp target/release/librsvelte_core.so svelte/rsvelte.linux-arm64-gnu.node'
 
 # SSR 測定
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/bench/measure-ssr.mjs 2>&1'
+docker exec rsvelte_core-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/bench/measure-ssr.mjs 2>&1'
 
 # Client 測定（リグレッション確認用）
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/precise-semantic-diff.mjs 2>&1 | head -10'
+docker exec rsvelte_core-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/precise-semantic-diff.mjs 2>&1 | head -10'
 
 # SSR カテゴリ分類
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/categorize-ssr-diffs.mjs 2>&1'
+docker exec rsvelte_core-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/categorize-ssr-diffs.mjs 2>&1'
 
 # 1ファイルのSSR差分確認
-docker exec svelte-compiler-rust-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/ssr-diff-one.mjs <FILE_PATH> 2>&1'
+docker exec rsvelte_core-dev bash -c 'cd /workspace && LD_PRELOAD=/workspace/svelte/rsvelte.linux-arm64-gnu.node node scripts/diff/ssr-diff-one.mjs <FILE_PATH> 2>&1'
 # → /tmp/ssr_js.js と /tmp/ssr_rs.js に書き出される
 
 # テスト
-docker exec svelte-compiler-rust-dev cargo test --release --no-fail-fast 2>&1 | grep FAILED
+docker exec rsvelte_core-dev cargo test --release --no-fail-fast 2>&1 | grep FAILED
 ```
 
 ## SSR 141 件の差異カテゴリ
@@ -123,7 +123,7 @@ RS:     const flipOrdering = (ordering) => {
 
 - Client の 910/910 を壊さないこと。各変更後に `precise-semantic-diff.mjs` を実行
 - SSR パニック修正済み（`helpers.rs:1409` のスライスエラー）
-- `docker-dev.sh` ではなく直接 `docker exec svelte-compiler-rust-dev ...` を使う
+- `docker-dev.sh` ではなく直接 `docker exec rsvelte_core-dev ...` を使う
 - Docker コンテナは `aarch64` (ARM64)
 - コミットは頻繁に、各論理的な修正ごとに commit + push
 - `cargo fmt && cargo clippy --all-targets --all-features -- -D warnings` をコミット前に

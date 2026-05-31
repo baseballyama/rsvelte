@@ -8,7 +8,7 @@
 //! alongside the bindings). The component-spreads cases now route through
 //! `$.spread_props([…interleaved spreads/props…, { … }])`, matching upstream.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn ssr(src: &str) -> String {
     compile(

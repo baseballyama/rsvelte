@@ -27,7 +27,7 @@ pub use options::{FormatOptions, StyleFormatter};
 pub use oxc_formatter::JsFormatOptions;
 pub use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 
-use svelte_compiler_rust::{ParseOptions, parse};
+use rsvelte_core::{ParseOptions, parse};
 
 /// Format a Svelte source string.
 ///

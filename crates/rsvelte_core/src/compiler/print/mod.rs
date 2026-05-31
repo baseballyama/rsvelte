@@ -10,7 +10,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use svelte_compiler_rust::compiler::print::print;
+//! use rsvelte_core::compiler::print::print;
 //!
 //! let ast = parse(source, options)?;
 //! let result = print(&ast, None)?;

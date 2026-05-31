@@ -14,10 +14,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use common::get_svelte_test_samples;
+use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 use serde::Deserialize;
-use svelte_compiler_rust::{
-    CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module,
-};
 
 /// Get all validator test samples.
 fn get_validator_samples() -> Vec<PathBuf> {

@@ -7,7 +7,7 @@
 //! selectors. The official Svelte compiler treats `[data-x="a,b"]` as a single
 //! selector. The splitter now also tracks `[` / `]` depth and string quotes.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_css(src: &str) -> String {
     let result = compile(

@@ -3,7 +3,7 @@
 //! `lostpointercapture` end in "capture" but are real event names, not capture
 //! variants, so they must not be split into `gotpointer` + capture.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(

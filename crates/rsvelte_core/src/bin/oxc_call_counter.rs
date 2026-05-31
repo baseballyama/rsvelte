@@ -67,7 +67,7 @@ fn main() {
     println!();
 
     // Now measure parse time breakdown
-    use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
 
     // Warmup
     for _ in 0..3 {

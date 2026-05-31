@@ -2,7 +2,7 @@
 
 This directory is the **changesets version anchor** for the `@rsvelte/compiler` npm package. It contains no runtime code.
 
-The actual published artifact is built by `wasm-pack` into the repo-root `pkg/` directory. When `pnpm publish` runs against this workspace package, the `publishConfig.directory` field redirects it to pack and upload `pkg/`. Right before publish, `scripts/release/finalize-pkg.mjs` rewrites `pkg/package.json`'s `name` from the Cargo crate name (`svelte-compiler-rust`) to the scoped npm name (`@rsvelte/compiler`).
+The actual published artifact is built by `wasm-pack` into the repo-root `pkg/` directory. When `pnpm publish` runs against this workspace package, the `publishConfig.directory` field redirects it to pack and upload `pkg/`. Right before publish, `scripts/release/finalize-pkg.mjs` rewrites `pkg/package.json`'s `name` from the Cargo crate name (`rsvelte_core`) to the scoped npm name (`@rsvelte/compiler`).
 
 Why split it this way:
 

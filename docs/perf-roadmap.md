@@ -258,7 +258,7 @@ cargo test --release
 pnpm run compatibility-report
 
 # Runtime tests (MUST run in Docker)
-docker exec svelte-compiler-rust-dev cargo test --release --test runtime
+docker exec rsvelte_core-dev cargo test --release --test runtime
 
 # Benchmark
 ./scripts/bench/bench.sh --quick
@@ -284,7 +284,7 @@ node --expose-gc scripts/dev/test-raw-transfer.mjs
 4. **JsNode::Raw fallback is critical** — ArrowFunctionExpression
    bodies store child nodes as `JsNode::Raw(Value)`. All pattern
    matching must handle Raw with JSON fallback.
-5. **Test in Docker** — `docker exec svelte-compiler-rust-dev cargo
+5. **Test in Docker** — `docker exec rsvelte_core-dev cargo
    test --release --test runtime`
 6. **Benchmark is noisy** — run 3 times, look at Rust absolute ms not
    the ratio (JS varies too)

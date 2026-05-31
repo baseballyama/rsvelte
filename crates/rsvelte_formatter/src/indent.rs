@@ -15,7 +15,7 @@
 //! (`{#if}` / `{#each}` / ...) add one indent level to their bodies.
 
 use oxc_formatter::JsFormatOptions;
-use svelte_compiler_rust::ast::template::{Fragment, TemplateNode};
+use rsvelte_core::ast::template::{Fragment, TemplateNode};
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;

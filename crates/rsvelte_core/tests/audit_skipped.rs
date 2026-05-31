@@ -19,8 +19,8 @@ use std::fs;
 use common::{
     canonicalize_css, compare_js, ensure_fixtures_exist, load_fixture_output, svelte_path,
 };
-use svelte_compiler_rust::ast::arena::with_serialize_arena;
-use svelte_compiler_rust::{
+use rsvelte_core::ast::arena::with_serialize_arena;
+use rsvelte_core::{
     CompileOptions, ExperimentalOptions, GenerateMode, ParseOptions, compile, compile_module,
     compiler::CssMode, convert_to_legacy, parse,
 };
@@ -313,7 +313,7 @@ fn audit_css(name: &str) -> Outcome {
 }
 
 fn audit_print(name: &str) -> Outcome {
-    use svelte_compiler_rust::compiler::print::print_with_source;
+    use rsvelte_core::compiler::print::print_with_source;
 
     let mut out = Outcome::default();
     let input_path = svelte_path()

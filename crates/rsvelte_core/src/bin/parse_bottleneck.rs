@@ -19,7 +19,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
 
 fn main() {
     let files = collect_files();
@@ -124,7 +124,7 @@ fn main() {
 }
 
 fn bench_reuse(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 {
-    use svelte_compiler_rust::compiler::phases::phase1_parse::{Parser, parse_reuse};
+    use rsvelte_core::compiler::phases::phase1_parse::{Parser, parse_reuse};
 
     let mut parser = Parser::new("", options);
 

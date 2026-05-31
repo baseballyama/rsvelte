@@ -11,7 +11,7 @@
 //!   rejects user variables that start with `$` (the `dollar_prefix_invalid`
 //!   diagnostic fires before any rewrite can run).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn client(src: &str) -> String {
     compile(

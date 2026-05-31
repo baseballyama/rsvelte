@@ -15,8 +15,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use common::canonicalize_js;
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 use serde::Deserialize;
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
 
 /// Fixture directory path.
 fn fixtures_dir() -> PathBuf {

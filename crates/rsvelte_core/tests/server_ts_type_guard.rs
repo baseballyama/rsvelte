@@ -20,7 +20,7 @@
 //! The fix teaches the pass to keep tracking when a line ends with a
 //! continuation operator (the arrow `=>`, binary operators, `.`, etc.).
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_server(src: &str) -> String {
     let result = compile(

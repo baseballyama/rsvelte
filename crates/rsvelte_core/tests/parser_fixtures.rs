@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 
 use common::get_svelte_test_samples;
 use rayon::prelude::*;
-use svelte_compiler_rust::ast::arena::with_serialize_arena;
-use svelte_compiler_rust::{ParseOptions, convert_to_legacy, parse};
+use rsvelte_core::ast::arena::with_serialize_arena;
+use rsvelte_core::{ParseOptions, convert_to_legacy, parse};
 
 /// Get all parser test samples from the Svelte test suite.
 fn get_parser_samples(test_type: &str) -> Vec<PathBuf> {

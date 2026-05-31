@@ -7,7 +7,7 @@
 //! fails. Wrap the body in parens (`() => ({ … })`) so the arrow returns the
 //! object expression.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn compile_client(src: &str) -> String {
     let result = compile(

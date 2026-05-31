@@ -28,7 +28,7 @@ cd "$ROOT"
 echo "[build-rsvelte] cargo build --release --features napi --lib"
 cargo build --release --features napi --lib
 
-SRC="target/release/libsvelte_compiler_rust.${EXT}"
+SRC="target/release/librsvelte_core.${EXT}"
 if [ ! -f "$SRC" ]; then
   echo "[build-rsvelte] ERROR: build output not found: $SRC" >&2
   exit 1

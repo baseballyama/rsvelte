@@ -3,7 +3,7 @@
 //! object/array rest, and nested array patterns must match upstream Svelte's
 //! `extract_paths` output instead of the previous hand-rolled partial handling.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn cj(src: &str) -> String {
     compile(

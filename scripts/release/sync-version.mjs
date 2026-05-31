@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sync the npm package version from `npm/svelte-compiler-rust/package.json`
+// Sync the npm package version from `npm/rsvelte_core/package.json`
 // (managed by changesets) into `Cargo.toml` and `Cargo.lock`.
 //
 // `wasm-pack build` derives `pkg/package.json` from `Cargo.toml`, so keeping
@@ -40,14 +40,14 @@ function patchCargoLock() {
 	const original = readFileSync(cargoLockPath, 'utf8');
 	// Each package entry in Cargo.lock looks like:
 	//   [[package]]
-	//   name = "svelte-compiler-rust"
+	//   name = "rsvelte_core"
 	//   version = "0.1.0"
 	// Match exactly the entry whose name is the crate we publish.
 	const re =
-		/(\[\[package\]\]\nname = "svelte-compiler-rust"\nversion = ")([^"]+)(")/;
+		/(\[\[package\]\]\nname = "rsvelte_core"\nversion = ")([^"]+)(")/;
 	const match = original.match(re);
 	if (!match) {
-		throw new Error('Failed to find svelte-compiler-rust entry in Cargo.lock');
+		throw new Error('Failed to find rsvelte_core entry in Cargo.lock');
 	}
 	if (match[2] === targetVersion) return;
 	writeFileSync(cargoLockPath, original.replace(re, `$1${targetVersion}$3`));

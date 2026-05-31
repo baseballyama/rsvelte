@@ -10,10 +10,10 @@ use std::fs;
 use std::hint::black_box;
 use std::path::PathBuf;
 
-use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
-use svelte_compiler_rust::compiler::phases::phase2_analyze::analyze_component;
-use svelte_compiler_rust::compiler::phases::phase3_transform::transform_component;
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
+use rsvelte_core::compiler::phases::phase2_analyze::analyze_component;
+use rsvelte_core::compiler::phases::phase3_transform::transform_component;
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 /// Get sample Svelte files for benchmarking.
 fn get_sample_files() -> Vec<(String, String)> {

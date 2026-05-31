@@ -8,8 +8,8 @@ use std::fs;
 use std::path::Path;
 
 use common::get_svelte_test_samples;
-use svelte_compiler_rust::compiler::print::print_with_source;
-use svelte_compiler_rust::{ParseOptions, parse};
+use rsvelte_core::compiler::print::print_with_source;
+use rsvelte_core::{ParseOptions, parse};
 
 /// A Print test fixture.
 #[allow(dead_code)]

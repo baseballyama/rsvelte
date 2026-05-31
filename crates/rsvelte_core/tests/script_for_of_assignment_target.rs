@@ -5,7 +5,7 @@
 //! `JsNode::Null`, and the downstream converter then bailed out (`?` on a missing
 //! object), discarding the whole loop from the generated output.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_js(src: &str) -> String {
     let result = compile(

@@ -10,8 +10,8 @@
 //! (erroring in strict mode on a mismatch), and `parse()` reports
 //! `block_unexpected_close` for a leftover `{/...}` at root.
 
-use svelte_compiler_rust::error::ParseError;
-use svelte_compiler_rust::{ParseOptions, parse};
+use rsvelte_core::error::ParseError;
+use rsvelte_core::{ParseOptions, parse};
 
 fn error_code(source: &str) -> String {
     match parse(source, ParseOptions::default()) {

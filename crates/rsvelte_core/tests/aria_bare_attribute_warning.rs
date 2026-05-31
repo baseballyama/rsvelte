@@ -9,7 +9,7 @@
 //! `aria-checked` (tristate). Distinguish the bare-attribute case and route it
 //! through the per-type warning.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn warnings(src: &str) -> Vec<String> {
     compile(

@@ -14,9 +14,9 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse};
 use std::fs;
 use std::path::PathBuf;
-use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
 
 fn main() {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

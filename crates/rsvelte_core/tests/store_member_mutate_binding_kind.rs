@@ -10,7 +10,7 @@
 //! `store()` for a prop, the bare name for plain / `$state` / reactive-import
 //! stores — matching `get_store()` in the official compiler.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn client(src: &str) -> String {
     compile(
