@@ -147,7 +147,7 @@
 	<title>Playground · rsvelte</title>
 	<meta
 		name="description"
-		content="A live playground for the Rust port of the Svelte 5 compiler — edit a component and see the generated JS, CSS, AST and rendered preview."
+		content="A live playground for rsvelte, the Rust port of the Svelte ecosystem — edit a component and see the generated JS, CSS, AST and rendered preview."
 	/>
 </svelte:head>
 
