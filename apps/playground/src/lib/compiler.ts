@@ -1,6 +1,6 @@
-import type { ParseResultWasm, CompileResultWasm } from '../../../pkg/svelte_compiler_rust';
+import type { ParseResultWasm, CompileResultWasm } from '../../../pkg/rsvelte_core';
 
-let wasmModule: typeof import('../../../pkg/svelte_compiler_rust') | null = null;
+let wasmModule: typeof import('../../../pkg/rsvelte_core') | null = null;
 let initPromise: Promise<void> | null = null;
 
 export async function initCompiler(): Promise<void> {
@@ -8,7 +8,7 @@ export async function initCompiler(): Promise<void> {
 	if (initPromise) return initPromise;
 
 	initPromise = (async () => {
-		const wasm = await import('../../../pkg/svelte_compiler_rust');
+		const wasm = await import('../../../pkg/rsvelte_core');
 		await wasm.default();
 		wasmModule = wasm;
 	})();

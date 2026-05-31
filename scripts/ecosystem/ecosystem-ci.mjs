@@ -236,7 +236,7 @@ function buildRsvelte(checkoutPath) {
 	// so the vps-shim swap can point pnpm at our local rsvelte rather than the
 	// last npm-published version. Without this, ecosystem-ci would verify
 	// whatever version was published to npm, not the rsvelte at HEAD.
-	const platformPkg = path.join(ROOT, 'npm', `vite-plugin-svelte-native-${triple}`);
+	const platformPkg = path.join(ROOT, 'apps', 'npm', `vite-plugin-svelte-native-${triple}`);
 	if (!fs.existsSync(platformPkg)) {
 		throw new Error(`platform npm package missing: ${platformPkg}`);
 	}
@@ -301,9 +301,9 @@ function applySwap(target, checkoutPath, bindingPath, triple) {
 		// the override key in each case).
 		pkg.pnpm.overrides['@sveltejs/vite-plugin-svelte'] = `file:${forkStage}`;
 		pkg.pnpm.overrides['@rsvelte/vite-plugin-svelte-native'] =
-			`file:${path.join(ROOT, 'npm', 'vite-plugin-svelte-native')}`;
+			`file:${path.join(ROOT, 'apps', 'npm', 'vite-plugin-svelte-native')}`;
 		pkg.pnpm.overrides[`@rsvelte/vite-plugin-svelte-native-${triple}`] =
-			`file:${path.join(ROOT, 'npm', `vite-plugin-svelte-native-${triple}`)}`;
+			`file:${path.join(ROOT, 'apps', 'npm', `vite-plugin-svelte-native-${triple}`)}`;
 		fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 		log(`vps-shim: staged fork -> ${path.relative(ROOT, forkStage)} and injected 3 pnpm.overrides`);
 		return { strategy, env: {}, needsReinstall: true };

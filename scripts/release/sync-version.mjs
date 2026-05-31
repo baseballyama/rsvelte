@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Sync the npm package version from `npm/rsvelte_core/package.json`
-// (managed by changesets) into `Cargo.toml` and `Cargo.lock`.
+// Sync the npm package version from `apps/npm/compiler/package.json`
+// (managed by changesets) into `crates/rsvelte_core/Cargo.toml` and the
+// repo-root `Cargo.lock`.
 //
-// `wasm-pack build` derives `pkg/package.json` from `Cargo.toml`, so keeping
-// these aligned is what makes "bump the workspace package.json via changesets,
-// then publish the freshly built pkg/" produce a coherent npm release.
+// `wasm-pack build` derives `pkg/package.json` from the rsvelte_core
+// crate's Cargo.toml, so keeping these aligned is what makes "bump the
+// workspace package.json via changesets, then publish the freshly built
+// pkg/" produce a coherent npm release.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +15,7 @@ import { dirname, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
 const npmPkgPath = resolve(repoRoot, 'apps/npm/compiler/package.json');
-const cargoTomlPath = resolve(repoRoot, 'Cargo.toml');
+const cargoTomlPath = resolve(repoRoot, 'crates/rsvelte_core/Cargo.toml');
 const cargoLockPath = resolve(repoRoot, 'Cargo.lock');
 
 const targetVersion = JSON.parse(readFileSync(npmPkgPath, 'utf8')).version;

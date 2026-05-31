@@ -20,7 +20,7 @@ let initPromise;
 async function ensureReady() {
 	if (!initPromise) {
 		initPromise = (async () => {
-			const wasmPath = require.resolve('@rsvelte/compiler/svelte_compiler_rust_bg.wasm');
+			const wasmPath = require.resolve('@rsvelte/compiler/rsvelte_core_bg.wasm');
 			const bytes = await readFile(wasmPath);
 			await initWasm({ module_or_path: bytes });
 		})();

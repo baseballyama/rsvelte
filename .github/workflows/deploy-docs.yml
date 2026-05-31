@@ -101,7 +101,7 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM
-        run: wasm-pack build --target web --no-default-features --features wasm
+        run: wasm-pack build crates/rsvelte_core --out-dir ../../pkg --target web --no-default-features --features wasm
 
       - name: Build NAPI cdylib
         # apps/playground/rsvelte-shim/compiler.mjs loads
