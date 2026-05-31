@@ -6,7 +6,7 @@
 //
 // The version is intentionally left as wasm-pack produced it: that comes from
 // `Cargo.toml`, which `sync-version.mjs` has already aligned with the version
-// in `npm/compiler/package.json`. Keeping wasm-pack as the version writer
+// in `apps/npm/compiler/package.json`. Keeping wasm-pack as the version writer
 // avoids a second source of truth.
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -16,7 +16,7 @@ import { dirname, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
 const pkgJsonPath = resolve(repoRoot, 'pkg/package.json');
-const sourceJsonPath = resolve(repoRoot, 'npm/compiler/package.json');
+const sourceJsonPath = resolve(repoRoot, 'apps/npm/compiler/package.json');
 
 const generated = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
 const source = JSON.parse(readFileSync(sourceJsonPath, 'utf8'));

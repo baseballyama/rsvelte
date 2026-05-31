@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Build the NAPI cdylib for the current platform and stage it as
-// `npm/vite-plugin-svelte-native-<triple>/rsvelte.node`. Mirrors what the
+// `apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node`. Mirrors what the
 // release-time matrix in `.github/workflows/release.yml` does per-triple,
 // but only for the host triple — used by `pnpm run test:vps-shim` to
 // guarantee the artifact is fresh.
@@ -43,7 +43,7 @@ execSync('cargo build --release --features napi --lib', {
 });
 
 const src = resolve(repoRoot, 'target/release', dylib);
-const destDir = resolve(repoRoot, `npm/vite-plugin-svelte-native-${triple}`);
+const destDir = resolve(repoRoot, `apps/npm/vite-plugin-svelte-native-${triple}`);
 const dest = resolve(destDir, 'rsvelte.node');
 if (!existsSync(src)) {
 	console.error(`[build-vps-native] cargo build did not produce ${src}`);

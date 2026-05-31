@@ -18,12 +18,12 @@ const repoRoot = join(here, '../..');
 
 // Prefer the in-tree release cdylib so test results reflect the
 // latest `cargo build --release`. Fall back to the staged
-// `npm/vite-plugin-svelte-native-*/rsvelte.node` so the script works
+// `apps/npm/vite-plugin-svelte-native-*/rsvelte.node` so the script works
 // after publish-style staging too.
 function loadBinding() {
 	const staged = join(
 		repoRoot,
-		`npm/vite-plugin-svelte-native-${triple()}/rsvelte.node`,
+		`apps/npm/vite-plugin-svelte-native-${triple()}/rsvelte.node`,
 	);
 	const cdylib = join(repoRoot, 'target/release/libsvelte_compiler_rust.dylib');
 	for (const candidate of [cdylib, staged]) {
@@ -54,7 +54,7 @@ function triple() {
 
 const binding = loadBinding();
 const { decodeEnvelope, decodeBatch } = await import(
-	`file://${join(repoRoot, 'npm/vite-plugin-svelte-native/envelope.js')}`
+	`file://${join(repoRoot, 'apps/npm/vite-plugin-svelte-native/envelope.js')}`
 ).then((m) => m.default ?? m);
 
 const SOURCE = `

@@ -25,11 +25,11 @@ All packages ship under the `@rsvelte` scope on npm.
 
 | Package | Drop-in for | Status |
 |---|---|---|
-| [`@rsvelte/compiler`](npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) (wasm) | ✅ 100% test compat ([details](#compatibility)) |
-| [`@rsvelte/svelte2tsx`](npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) | ✅ 245 / 245 fixtures |
-| [`@rsvelte/svelte-check`](npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI | ✅ v1.0 — walker + overlay + tsgo backend + incremental + watch |
+| [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) (wasm) | ✅ 100% test compat ([details](#compatibility)) |
+| [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) | ✅ 245 / 245 fixtures |
+| [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI | ✅ v1.0 — walker + overlay + tsgo backend + incremental + watch |
 | [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/vite-plugin-svelte/tree/rsvelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) | ✅ v1.0 — fork that routes through the NAPI compiler |
-| [`@rsvelte/vite-plugin-svelte-native`](npm/vite-plugin-svelte-native) | — | NAPI bindings the Vite plugin and other Node tools consume |
+| [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | — | NAPI bindings the Vite plugin and other Node tools consume |
 
 See [`docs/ecosystem-implementation-plan.md`](docs/ecosystem-implementation-plan.md) for the full ecosystem port plan, including which upstream tools are intentionally **out of scope** (and where they're being routed instead — usually back to OXC).
 
@@ -200,7 +200,7 @@ If your build relies on any of these, the value won't take effect. Use the worka
 | `cssHash({ hash, name, filename, css }) => string` | Ignored. CSS scope classes fall back to the default `svelte-<base36hash>` scheme — identical to upstream Svelte's default `cssHash`. | Pre-compute the hash on the JS side and pass it as `cssHashOverride: '<hash>'` — an rsvelte-specific extension that injects a deterministic string. |
 | `warningFilter(warning) => boolean` | Ignored. All compiler warnings are returned unfiltered. | Filter `result.warnings` yourself after compilation. |
 
-Everything else (`generate`, `css`, `dev`, `hmr`, `sourcemap`, `runes`, `compatibility`, `experimental.async`, `preserveComments`, `preserveWhitespace`, `customElement`, `accessors`, `namespace`, `immutable`, `modernAst`, `discloseVersion`, `outputFilename`, `cssOutputFilename`, …) matches upstream exactly. The full list of accepted fields is mirrored in [`npm/vite-plugin-svelte-native/index.d.ts`](npm/vite-plugin-svelte-native/index.d.ts).
+Everything else (`generate`, `css`, `dev`, `hmr`, `sourcemap`, `runes`, `compatibility`, `experimental.async`, `preserveComments`, `preserveWhitespace`, `customElement`, `accessors`, `namespace`, `immutable`, `modernAst`, `discloseVersion`, `outputFilename`, `cssOutputFilename`, …) matches upstream exactly. The full list of accepted fields is mirrored in [`apps/npm/vite-plugin-svelte-native/index.d.ts`](apps/npm/vite-plugin-svelte-native/index.d.ts).
 
 The Rust API (`svelte_compiler_rust::compile`) has no such restriction — `css_hash: Option<CssHashFn>` and `warning_filter: Option<WarningFilterFn>` work as real `Arc<dyn Fn>` closures.
 

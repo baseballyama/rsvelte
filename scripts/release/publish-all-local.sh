@@ -191,12 +191,12 @@ log "═════════════════════════
 log " Phase 1/6: @rsvelte/compiler"
 log "═════════════════════════════════════════════════════════════════════"
 
-step "sync version (npm/compiler/package.json → Cargo.toml/.lock)" \
+step "sync version (apps/npm/compiler/package.json → Cargo.toml/.lock)" \
   pnpm run sync-version
 
 # Build the WASM bundle only if pkg/ doesn't already reflect the current
 # compiler version. Re-runs after a successful build skip the slow step.
-COMPILER_VERSION="$(jq -r .version npm/compiler/package.json)"
+COMPILER_VERSION="$(jq -r .version apps/npm/compiler/package.json)"
 if [ ! -f pkg/package.json ] || [ "$(jq -r .version pkg/package.json 2>/dev/null || echo '')" != "$COMPILER_VERSION" ]; then
   step "wasm-pack build" \
     pnpm run build:wasm
@@ -217,7 +217,7 @@ log "═════════════════════════
 log " Phase 2/6: @rsvelte/svelte2tsx"
 log "═════════════════════════════════════════════════════════════════════"
 
-publish_if_new npm/svelte2tsx
+publish_if_new apps/npm/svelte2tsx
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 3: build native binaries for 5 triples (svelte-check + vps-native)
@@ -254,7 +254,7 @@ build_for_target() {
 
 # Cargo writes the binary as the bin target's `name` (`svelte_check`,
 # underscore — cargo doesn't translate the filename). The loader package
-# (`npm/svelte-check/bin/svelte-check.cjs`) execs `svelte-check` /
+# (`apps/npm/svelte-check/bin/svelte-check.cjs`) execs `svelte-check` /
 # `svelte-check.exe` (dash), so we rename during the staging copy. CI
 # does the same rename in its `Stage binary` step.
 sc_src_for() {
@@ -296,8 +296,8 @@ is_published() {
 for entry in "${TRIPLES[@]}"; do
   triple="${entry%%:*}"
   target="${entry##*:}"
-  sc_dir="$REPO_ROOT/npm/svelte-check-$triple"
-  vps_dir="$REPO_ROOT/npm/vite-plugin-svelte-native-$triple"
+  sc_dir="$REPO_ROOT/apps/npm/svelte-check-$triple"
+  vps_dir="$REPO_ROOT/apps/npm/vite-plugin-svelte-native-$triple"
 
   # Skip the whole triple if both per-triple packages are already on npm
   # AT the local version. Saves ~3-10 min of cross-compile per triple.
@@ -348,10 +348,10 @@ log "═════════════════════════
 
 for entry in "${TRIPLES[@]}"; do
   triple="${entry%%:*}"
-  publish_if_new "npm/svelte-check-$triple"
+  publish_if_new "apps/npm/svelte-check-$triple"
 done
 
-publish_if_new npm/svelte-check
+publish_if_new apps/npm/svelte-check
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 5: publish vps-native (platforms first, then loader)
@@ -364,10 +364,10 @@ log "═════════════════════════
 
 for entry in "${TRIPLES[@]}"; do
   triple="${entry%%:*}"
-  publish_if_new "npm/vite-plugin-svelte-native-$triple"
+  publish_if_new "apps/npm/vite-plugin-svelte-native-$triple"
 done
 
-publish_if_new npm/vite-plugin-svelte-native
+publish_if_new apps/npm/vite-plugin-svelte-native
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 6: submodule — @rsvelte/vite-plugin-svelte (JS shim)
@@ -401,8 +401,8 @@ else
   # `git diff --quiet` later short-circuits the commit step.
   log "patching $SHIM_DIR/package.json to v$VPS_VERSION"
   SHIM_PKG="$SHIM_DIR/package.json"
-  COMPILER_VERSION="$(jq -r .version "$REPO_ROOT/npm/compiler/package.json")"
-  VPS_NATIVE_VERSION="$(jq -r .version "$REPO_ROOT/npm/vite-plugin-svelte-native/package.json")"
+  COMPILER_VERSION="$(jq -r .version "$REPO_ROOT/apps/npm/compiler/package.json")"
+  VPS_NATIVE_VERSION="$(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte-native/package.json")"
   jq \
     --arg v       "$VPS_VERSION" \
     --arg compv   ">=$COMPILER_VERSION" \
@@ -469,10 +469,10 @@ log " ✅ All publishes complete."
 log "═════════════════════════════════════════════════════════════════════"
 log ""
 log "Verify:"
-log "  npm view @rsvelte/compiler version                   # $(jq -r .version "$REPO_ROOT/npm/compiler/package.json")"
-log "  npm view @rsvelte/svelte2tsx version                 # $(jq -r .version "$REPO_ROOT/npm/svelte2tsx/package.json")"
-log "  npm view @rsvelte/svelte-check version               # $(jq -r .version "$REPO_ROOT/npm/svelte-check/package.json")"
-log "  npm view @rsvelte/vite-plugin-svelte-native version  # $(jq -r .version "$REPO_ROOT/npm/vite-plugin-svelte-native/package.json")"
+log "  npm view @rsvelte/compiler version                   # $(jq -r .version "$REPO_ROOT/apps/npm/compiler/package.json")"
+log "  npm view @rsvelte/svelte2tsx version                 # $(jq -r .version "$REPO_ROOT/apps/npm/svelte2tsx/package.json")"
+log "  npm view @rsvelte/svelte-check version               # $(jq -r .version "$REPO_ROOT/apps/npm/svelte-check/package.json")"
+log "  npm view @rsvelte/vite-plugin-svelte-native version  # $(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte-native/package.json")"
 log "  npm view @rsvelte/vite-plugin-svelte version         # $VPS_VERSION"
 log ""
 log "Don't forget to push the submodule-pointer commit to main:"

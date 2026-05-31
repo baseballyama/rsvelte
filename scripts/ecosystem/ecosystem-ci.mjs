@@ -232,7 +232,7 @@ function buildRsvelte(checkoutPath) {
 	const stageAPath = path.join(stageADir, nodeName);
 	fs.copyFileSync(srcPath, stageAPath);
 
-	// Stage B: drop the *same* binary into npm/vite-plugin-svelte-native-<triple>/
+	// Stage B: drop the *same* binary into apps/npm/vite-plugin-svelte-native-<triple>/
 	// so the vps-shim swap can point pnpm at our local rsvelte rather than the
 	// last npm-published version. Without this, ecosystem-ci would verify
 	// whatever version was published to npm, not the rsvelte at HEAD.

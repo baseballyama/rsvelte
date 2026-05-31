@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Stage the per-platform NAPI `.node` binaries produced by the matrix build
-// into their corresponding `npm/vite-plugin-svelte-native-<triple>/` package
+// into their corresponding `apps/npm/vite-plugin-svelte-native-<triple>/` package
 // directory so `pnpm publish` picks them up.
 //
 // Expected layout under the artifact root (default `./artifacts`):
@@ -31,7 +31,7 @@ const triples = [
 let missing = 0;
 for (const triple of triples) {
 	const src = resolve(artifactRoot, `vps-native-${triple}`, 'rsvelte.node');
-	const dest = resolve(repoRoot, `npm/vite-plugin-svelte-native-${triple}`, 'rsvelte.node');
+	const dest = resolve(repoRoot, `apps/npm/vite-plugin-svelte-native-${triple}`, 'rsvelte.node');
 	if (!existsSync(src)) {
 		console.warn(`[stage] missing artifact: ${src}`);
 		missing += 1;

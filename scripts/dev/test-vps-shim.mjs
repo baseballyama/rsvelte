@@ -9,7 +9,7 @@
 //
 // Run: `node scripts/dev/test-vps-shim.mjs` (after `cargo build --release
 // --features napi --lib` and `cp target/release/libsvelte_compiler_rust.dylib
-// npm/vite-plugin-svelte-native-<triple>/rsvelte.node`).
+// apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node`).
 
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
-const shimEntry = resolve(repoRoot, 'npm/vite-plugin-svelte-native/index.cjs');
+const shimEntry = resolve(repoRoot, 'apps/npm/vite-plugin-svelte-native/index.cjs');
 
 if (!existsSync(shimEntry)) {
 	console.error(`[vps-shim] missing shim entry: ${shimEntry}`);

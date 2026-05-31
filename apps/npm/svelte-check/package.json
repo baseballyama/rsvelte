@@ -6,9 +6,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "npm/svelte-check"
+    "directory": "apps/apps/npm/svelte-check"
   },
-  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/npm/svelte-check#readme",
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/svelte-check#readme",
   "bugs": {
     "url": "https://github.com/baseballyama/rsvelte/issues"
   },

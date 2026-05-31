@@ -25,10 +25,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
 
 const platformDirs = [
-	'npm/svelte-check-darwin-arm64',
-	'npm/svelte-check-darwin-x64',
-	'npm/svelte-check-linux-x64-gnu',
-	'npm/svelte-check-linux-arm64-gnu',
+	'apps/npm/svelte-check-darwin-arm64',
+	'apps/npm/svelte-check-darwin-x64',
+	'apps/npm/svelte-check-linux-x64-gnu',
+	'apps/npm/svelte-check-linux-arm64-gnu',
 ];
 
 const dryRun = process.argv.includes('--dry-run');

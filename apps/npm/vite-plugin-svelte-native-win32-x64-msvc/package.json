@@ -1,21 +1,18 @@
 {
-  "name": "@rsvelte/vite-plugin-svelte-native-linux-arm64-gnu",
+  "name": "@rsvelte/vite-plugin-svelte-native-win32-x64-msvc",
   "version": "0.2.0",
-  "description": "Prebuilt rsvelte NAPI binding for linux-arm64 (glibc)",
+  "description": "Prebuilt rsvelte NAPI binding for win32-x64 (msvc)",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "npm/vite-plugin-svelte-native-linux-arm64-gnu"
+    "directory": "apps/apps/npm/vite-plugin-svelte-native-win32-x64-msvc"
   },
   "os": [
-    "linux"
+    "win32"
   ],
   "cpu": [
-    "arm64"
-  ],
-  "libc": [
-    "glibc"
+    "x64"
   ],
   "main": "./rsvelte.node",
   "files": [
