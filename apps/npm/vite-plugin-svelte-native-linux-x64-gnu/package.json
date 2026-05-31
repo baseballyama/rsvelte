@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/vite-plugin-svelte-native-linux-x64-gnu",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Prebuilt rsvelte NAPI binding for linux-x64 (glibc)",
   "license": "MIT",
   "repository": {
