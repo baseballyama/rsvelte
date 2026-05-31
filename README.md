@@ -159,7 +159,7 @@ rsvelte_core = { git = "https://github.com/baseballyama/rsvelte" }
 ```
 
 ```rust
-use svelte_compiler_rust::{compile, CompileOptions};
+use rsvelte_core::{compile, CompileOptions};
 
 let source = r#"<h1>Hello, {name}!</h1>"#;
 let result = compile(source, CompileOptions::default()).unwrap();
@@ -202,7 +202,7 @@ If your build relies on any of these, the value won't take effect. Use the worka
 
 Everything else (`generate`, `css`, `dev`, `hmr`, `sourcemap`, `runes`, `compatibility`, `experimental.async`, `preserveComments`, `preserveWhitespace`, `customElement`, `accessors`, `namespace`, `immutable`, `modernAst`, `discloseVersion`, `outputFilename`, `cssOutputFilename`, …) matches upstream exactly. The full list of accepted fields is mirrored in [`apps/npm/vite-plugin-svelte-native/index.d.ts`](apps/npm/vite-plugin-svelte-native/index.d.ts).
 
-The Rust API (`svelte_compiler_rust::compile`) has no such restriction — `css_hash: Option<CssHashFn>` and `warning_filter: Option<WarningFilterFn>` work as real `Arc<dyn Fn>` closures.
+The Rust API (`rsvelte_core::compile`) has no such restriction — `css_hash: Option<CssHashFn>` and `warning_filter: Option<WarningFilterFn>` work as real `Arc<dyn Fn>` closures.
 
 ## Performance
 

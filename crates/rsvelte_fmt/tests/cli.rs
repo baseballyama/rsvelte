@@ -8,22 +8,10 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn bin() -> PathBuf {
-    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.pop();
-    p.pop();
-    p.push("target");
-    p.push(if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "release"
-    });
-    p.push("rsvelte-fmt");
-    assert!(
-        p.exists(),
-        "rsvelte-fmt binary not built at {}",
-        p.display()
-    );
-    p
+    // Cargo sets CARGO_BIN_EXE_<bin-name> for integration tests so the test
+    // doesn't have to guess where the binary lives — important under
+    // cargo-llvm-cov, which uses target/llvm-cov-target/ instead of target/.
+    PathBuf::from(env!("CARGO_BIN_EXE_rsvelte-fmt"))
 }
 
 fn run_stdin(stdin: &str, args: &[&str]) -> (String, String, i32) {
