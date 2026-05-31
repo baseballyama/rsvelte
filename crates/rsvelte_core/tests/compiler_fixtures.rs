@@ -325,7 +325,7 @@ fn test_compiler_snapshot_fixtures() {
 #[test]
 fn test_compile_output_has_real_tabs() {
     // Use the actual skip-static-subtree input
-    let input_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+    let input_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(
         "submodules/svelte/packages/svelte/tests/snapshot/samples/skip-static-subtree/index.svelte",
     );
     let input = std::fs::read_to_string(&input_path).expect("Failed to read input file");

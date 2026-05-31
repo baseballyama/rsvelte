@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use svelte_compiler_rust::compiler::phases::phase1_parse::{ParseOptions, parse};
 
 fn main() {
-    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let dirs = [
         "submodules/svelte/packages/svelte/tests/runtime-runes/samples",
         "submodules/svelte/packages/svelte/tests/runtime-legacy/samples",

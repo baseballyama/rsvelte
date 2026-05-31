@@ -29,7 +29,7 @@ use svelte_compiler_rust::svelte_check::tsgo::find_compiler;
 use svelte_compiler_rust::svelte_check::{RunOptions, run};
 
 fn fixture_root() -> Option<PathBuf> {
-    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
         .join("submodules")
         .join("language-tools")
         .join("packages")
