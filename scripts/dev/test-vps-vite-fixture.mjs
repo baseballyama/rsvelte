@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
-const shimEntry = resolve(repoRoot, 'npm/vite-plugin-svelte-native/index.cjs');
+const shimEntry = resolve(repoRoot, 'apps/npm/vite-plugin-svelte-native/index.cjs');
 
 if (!existsSync(shimEntry)) {
 	console.error(`[vps-vite-fixture] missing shim entry: ${shimEntry}`);

@@ -19,12 +19,12 @@ target
 
 # svelte-check platform binaries (staged into per-platform npm packages by the
 # release workflow; never committed)
-/npm/svelte-check-*/svelte-check
-/npm/svelte-check-*/svelte-check.exe
+/apps/npm/svelte-check-*/svelte-check
+/apps/npm/svelte-check-*/svelte-check.exe
 
 # vite-plugin-svelte-native platform .node files (same story — built per
 # target in CI, staged into the matching platform package, never committed)
-/npm/vite-plugin-svelte-native-*/rsvelte.node
+/apps/npm/vite-plugin-svelte-native-*/rsvelte.node
 
 # Playwright MCP
 .playwright-mcp/

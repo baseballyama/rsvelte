@@ -31,7 +31,7 @@ concurrency:
 jobs:
   # Per-platform svelte-check binary builds. Each job uploads its rsvelte
   # `svelte-check` artifact; the `release` job below downloads them all and
-  # stages them into the corresponding `npm/svelte-check-<triple>/` package
+  # stages them into the corresponding `apps/npm/svelte-check-<triple>/` package
   # directory before `changeset publish` runs. On the "Version Packages" PR
   # cycle the staged binaries are unused — that's expected; we trade a few
   # CI minutes for not having to detect publish vs. version-PR up front.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Stage the per-platform svelte-check binaries produced by the matrix build
-// into their corresponding `npm/svelte-check-<triple>/` directories so
+// into their corresponding `apps/npm/svelte-check-<triple>/` directories so
 // `pnpm publish` picks them up.
 //
 // Expected layout under the artifact root (default `./artifacts`):
@@ -34,7 +34,7 @@ const targets = [
 let missing = 0;
 for (const { triple, binary } of targets) {
 	const src = resolve(artifactRoot, `svelte-check-${triple}`, binary);
-	const dest = resolve(repoRoot, `npm/svelte-check-${triple}`, binary);
+	const dest = resolve(repoRoot, `apps/npm/svelte-check-${triple}`, binary);
 	if (!existsSync(src)) {
 		console.warn(`[stage] missing artifact: ${src}`);
 		missing += 1;

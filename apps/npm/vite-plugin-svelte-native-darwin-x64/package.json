@@ -1,15 +1,15 @@
 {
-  "name": "@rsvelte/vite-plugin-svelte-native-win32-x64-msvc",
+  "name": "@rsvelte/vite-plugin-svelte-native-darwin-x64",
   "version": "0.2.0",
-  "description": "Prebuilt rsvelte NAPI binding for win32-x64 (msvc)",
+  "description": "Prebuilt rsvelte NAPI binding for darwin-x64",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "npm/vite-plugin-svelte-native-win32-x64-msvc"
+    "directory": "apps/apps/npm/vite-plugin-svelte-native-darwin-x64"
   },
   "os": [
-    "win32"
+    "darwin"
   ],
   "cpu": [
     "x64"

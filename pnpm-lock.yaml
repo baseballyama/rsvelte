@@ -15,10 +15,10 @@ importers:
         specifier: ^0.52.0
         version: 0.52.0
 
-  npm/compiler:
-    publishDirectory: ../../pkg
+  apps/npm/compiler:
+    publishDirectory: ../../../pkg
 
-  npm/svelte-check:
+  apps/npm/svelte-check:
     optionalDependencies:
       '@rsvelte/svelte-check-darwin-arm64':
         specifier: workspace:^
@@ -36,23 +36,23 @@ importers:
         specifier: workspace:^
         version: link:../svelte-check-win32-x64-msvc
 
-  npm/svelte-check-darwin-arm64: {}
+  apps/npm/svelte-check-darwin-arm64: {}
 
-  npm/svelte-check-darwin-x64: {}
+  apps/npm/svelte-check-darwin-x64: {}
 
-  npm/svelte-check-linux-arm64-gnu: {}
+  apps/npm/svelte-check-linux-arm64-gnu: {}
 
-  npm/svelte-check-linux-x64-gnu: {}
+  apps/npm/svelte-check-linux-x64-gnu: {}
 
-  npm/svelte-check-win32-x64-msvc: {}
+  apps/npm/svelte-check-win32-x64-msvc: {}
 
-  npm/svelte2tsx:
+  apps/npm/svelte2tsx:
     dependencies:
       '@rsvelte/compiler':
         specifier: workspace:^
-        version: link:../../pkg
+        version: link:../../../pkg
 
-  npm/vite-plugin-svelte-native:
+  apps/npm/vite-plugin-svelte-native:
     optionalDependencies:
       '@rsvelte/vite-plugin-svelte-native-darwin-arm64':
         specifier: workspace:^
@@ -70,15 +70,15 @@ importers:
         specifier: workspace:^
         version: link:../vite-plugin-svelte-native-win32-x64-msvc
 
-  npm/vite-plugin-svelte-native-darwin-arm64: {}
+  apps/npm/vite-plugin-svelte-native-darwin-arm64: {}
 
-  npm/vite-plugin-svelte-native-darwin-x64: {}
+  apps/npm/vite-plugin-svelte-native-darwin-x64: {}
 
-  npm/vite-plugin-svelte-native-linux-arm64-gnu: {}
+  apps/npm/vite-plugin-svelte-native-linux-arm64-gnu: {}
 
-  npm/vite-plugin-svelte-native-linux-x64-gnu: {}
+  apps/npm/vite-plugin-svelte-native-linux-x64-gnu: {}
 
-  npm/vite-plugin-svelte-native-win32-x64-msvc: {}
+  apps/npm/vite-plugin-svelte-native-win32-x64-msvc: {}
 
 packages:
 

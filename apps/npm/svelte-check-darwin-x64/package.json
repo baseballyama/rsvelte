@@ -1,18 +1,18 @@
 {
-  "name": "@rsvelte/svelte-check-darwin-arm64",
+  "name": "@rsvelte/svelte-check-darwin-x64",
   "version": "0.1.4",
-  "description": "Prebuilt svelte-check binary for darwin-arm64",
+  "description": "Prebuilt svelte-check binary for darwin-x64",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "npm/svelte-check-darwin-arm64"
+    "directory": "apps/apps/npm/svelte-check-darwin-x64"
   },
   "os": [
     "darwin"
   ],
   "cpu": [
-    "arm64"
+    "x64"
   ],
   "files": [
     "svelte-check"

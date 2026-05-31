@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '../..');
 const { decodeEnvelope, decodeBatch } = await import(
-	`file://${join(repoRoot, 'npm/vite-plugin-svelte-native/envelope.js')}`
+	`file://${join(repoRoot, 'apps/npm/vite-plugin-svelte-native/envelope.js')}`
 ).then((m) => m.default ?? m);
 
 const MAGIC = 0x31565352;

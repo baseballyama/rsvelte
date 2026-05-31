@@ -12,7 +12,7 @@ import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
-const npmPkgPath = resolve(repoRoot, 'npm/compiler/package.json');
+const npmPkgPath = resolve(repoRoot, 'apps/npm/compiler/package.json');
 const cargoTomlPath = resolve(repoRoot, 'Cargo.toml');
 const cargoLockPath = resolve(repoRoot, 'Cargo.lock');
 

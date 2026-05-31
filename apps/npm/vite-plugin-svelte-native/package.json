@@ -6,9 +6,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "npm/vite-plugin-svelte-native"
+    "directory": "apps/apps/npm/vite-plugin-svelte-native"
   },
-  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/npm/vite-plugin-svelte-native#readme",
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte-native#readme",
   "bugs": {
     "url": "https://github.com/baseballyama/rsvelte/issues"
   },
