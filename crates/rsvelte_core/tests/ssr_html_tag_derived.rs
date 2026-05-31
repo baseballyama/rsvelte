@@ -7,7 +7,7 @@
 //! the transform it stayed `$.html(post.html)` (reading `.html` off a function),
 //! which renders empty.
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
 fn compile_ssr(source: &str) -> String {
     let options = CompileOptions {
