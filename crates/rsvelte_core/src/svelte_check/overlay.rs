@@ -25,6 +25,25 @@ use crate::svelte2tsx::{
     SvelteVersion, svelte2tsx,
 };
 
+/// svelte2tsx shim declarations, vendored from
+/// `submodules/language-tools/packages/svelte2tsx/svelte-{shims,jsx}-v4.d.ts`
+/// (MIT, sveltejs/language-tools). They declare the ambient globals the
+/// `.tsx` shadows reference (`svelteHTML`, `__sveltets_2_*`, the JSX
+/// namespace). The JS reference resolves these from the installed
+/// `svelte2tsx` package; rsvelte ships a standalone binary with no such
+/// dependency in the consumer's `node_modules`, so we embed them and
+/// write them into the cache dir at runtime instead. Keep byte-identical
+/// to upstream — tsgo consumes them verbatim.
+const SHIM_SVELTE_SHIMS_V4: &str = include_str!("shims/svelte-shims-v4.d.ts");
+const SHIM_SVELTE_JSX_V4: &str = include_str!("shims/svelte-jsx-v4.d.ts");
+
+/// Filenames the shims are written under inside the cache dir. Names
+/// match upstream so diagnostics / `isSvelteShim`-style checks line up.
+const SHIM_FILES: &[(&str, &str)] = &[
+    ("svelte-shims-v4.d.ts", SHIM_SVELTE_SHIMS_V4),
+    ("svelte-jsx-v4.d.ts", SHIM_SVELTE_JSX_V4),
+];
+
 /// One emitted `.svelte` → `.tsx` shadow.
 #[derive(Debug, Clone)]
 pub struct OverlayEntry {
@@ -259,6 +278,13 @@ pub fn materialize_overlay_with(
         });
     }
 
+    // Materialise the svelte2tsx shims into the cache dir so the overlay
+    // tsconfig can reference them by a stable relative path regardless of
+    // what's installed in the consumer's node_modules.
+    for (name, contents) in SHIM_FILES {
+        fs::write(cache_dir.join(name), contents)?;
+    }
+
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
     let tsconfig_json = build_overlay_tsconfig(&cache_dir, tsconfig_path, workspace);
     fs::write(&overlay_tsconfig, tsconfig_json)?;
@@ -335,7 +361,7 @@ fn looks_like_ts_svelte(source: &str) -> bool {
     lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
 }
 
-fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, workspace: &Path) -> String {
+fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, _workspace: &Path) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
         let rel = path_relative(cache_dir, orig);
@@ -344,7 +370,39 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, workspace: 
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
-    compiler_opts.insert("rootDirs".into(), serde_json::json!([".", "./svelte"]));
+    // The `.tsx` shadows svelte2tsx emits must be processed with a JSX
+    // backend or tsgo / tsc rejects every `.svelte` → `.tsx` import with
+    // TS6142 ("'--jsx' is not set"). `preserve` matches what svelte2tsx's
+    // output is written against. The overlay tsconfig is isolated, so this
+    // never leaks into the user's real build.
+    compiler_opts.insert("jsx".into(), "preserve".into());
+    // rootDirs: virtually overlay the emitted `.tsx`/kit shadows
+    // (`<cacheDir>/svelte`) on top of the project's own rootDirs. We must
+    // MERGE — not replace — the base rootDirs, otherwise frameworks that
+    // rely on them (SvelteKit maps generated `$types` via
+    // `rootDirs: ["..", "./types"]`) lose resolution and every
+    // `import ... from './$types'` fails with TS2307. The base value is
+    // inherited through `extends`, but a child `compilerOptions.rootDirs`
+    // overrides arrays wholesale, so we resolve the chain ourselves.
+    let mut root_dirs_abs = original
+        .map(resolve_root_dirs_abs)
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| vec![cache_dir.to_path_buf()]);
+    root_dirs_abs.push(cache_dir.join("svelte"));
+    let mut root_dirs: Vec<String> = root_dirs_abs
+        .iter()
+        .map(|p| path_relative(cache_dir, p))
+        .collect();
+    root_dirs.dedup();
+    compiler_opts.insert(
+        "rootDirs".into(),
+        serde_json::Value::Array(
+            root_dirs
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        ),
+    );
     obj.insert("compilerOptions", serde_json::Value::Object(compiler_opts));
 
     // Inherited config-file specs: read the user's tsconfig.json (if
@@ -381,20 +439,21 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, workspace: 
         );
     }
 
-    // Pull the svelte2tsx shim `.d.ts` files into the overlay's `files`
-    // array. Without these, tsgo / tsc trips on every reference to
-    // `__sveltets_2_with_any_event` etc that svelte2tsx emits into the
-    // `.tsx` shadow. Mirrors `resolveSvelte2tsxShims` in the JS
-    // reference (`incremental.ts:1108`).
+    // Reference the svelte2tsx shim `.d.ts` files we materialised into the
+    // cache dir (see `SHIM_FILES`). Without these, tsgo / tsc trips on
+    // every reference to `__sveltets_2_with_any_event` / `svelteHTML` etc
+    // that svelte2tsx emits into the `.tsx` shadow. Equivalent to
+    // `resolveSvelte2tsxShims` in the JS reference, except we embed the
+    // shims rather than resolving them from `node_modules/svelte2tsx`
+    // (which a standalone rsvelte install has no reason to provide).
     //
     // We always set `files` so any `.svelte` entries listed in the base
     // tsconfig (TS rejects arbitrary extensions in `files` even with
     // `allowArbitraryExtensions` → TS6054) get overridden out. Non-
     // `.svelte` entries from the user's `files` are forwarded.
-    let shim_paths = resolve_svelte2tsx_shims(workspace);
-    let mut files_entries: Vec<String> = shim_paths
+    let mut files_entries: Vec<String> = SHIM_FILES
         .iter()
-        .map(|p| path_relative(cache_dir, p))
+        .map(|(name, _)| format!("./{name}"))
         .collect();
     files_entries.extend(user_specs.files);
     files_entries.sort();
@@ -528,46 +587,62 @@ fn strip_jsonc_comments(src: &str) -> String {
     out
 }
 
-/// Locate the svelte2tsx shim `.d.ts` files needed by the overlay's
-/// `.tsx` shadows. Walks up from `workspace` looking for the first
-/// `node_modules/svelte2tsx/<shim>.d.ts` along the chain — same
-/// resolution shape Node uses, so both flat and nested install layouts
-/// (npm, pnpm hoisted, workspaces) work. Returns an empty Vec when no
-/// shims can be found; the overlay still works in that case but tsgo /
-/// tsc will surface "Cannot find name '__sveltets_*'" diagnostics.
-fn resolve_svelte2tsx_shims(workspace: &Path) -> Vec<PathBuf> {
-    const SHIM_NAMES: &[&str] = &["svelte-shims-v4.d.ts", "svelte-jsx-v4.d.ts"];
+/// Resolve a tsconfig's effective `rootDirs` to absolute paths, following
+/// the `extends` chain. Returns the entries from the nearest config that
+/// defines `rootDirs` (a child `compilerOptions.rootDirs` replaces the
+/// parent's wholesale, mirroring TypeScript), each resolved relative to
+/// the directory of the file that defined it. Empty when no config in the
+/// chain sets `rootDirs`.
+///
+/// Only relative-path `extends` are followed (the common case, incl.
+/// SvelteKit's `./.svelte-kit/tsconfig.json`); a bare package-name
+/// `extends` stops the walk — we'd need full node resolution to chase it,
+/// and the caller falls back to a sensible default.
+fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
+    let mut current = Some(tsconfig_path.to_path_buf());
+    // Guard against pathological `extends` cycles.
+    let mut hops = 0;
+    while let Some(file) = current {
+        hops += 1;
+        if hops > 32 {
+            break;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            break;
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
+            break;
+        };
+        let dir = file.parent().unwrap_or(Path::new("."));
 
-    // Roots to check. We canonicalize so callers passing a relative
-    // path still get sensible parent-walk behaviour.
-    let start = workspace
-        .canonicalize()
-        .unwrap_or_else(|_| workspace.to_path_buf());
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    let mut cursor: Option<&Path> = Some(start.as_path());
-    while let Some(dir) = cursor {
-        // Installed via pnpm/npm: workspace symlink lands here once
-        // language-tools has been `pnpm install`-ed.
-        candidates.push(dir.join("node_modules/svelte2tsx"));
-        // Workspace source layout: the shims are checked into the
-        // language-tools repo, so they're usable even without an
-        // install step. Lets CI find them when only the submodule was
-        // pulled down (no `pnpm install` for language-tools).
-        candidates.push(dir.join("packages/svelte2tsx"));
-        cursor = dir.parent();
-    }
+        if let Some(arr) = parsed
+            .get("compilerOptions")
+            .and_then(|c| c.get("rootDirs"))
+            .and_then(|v| v.as_array())
+        {
+            return arr
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| dir.join(s))
+                .collect();
+        }
 
-    let mut out: Vec<PathBuf> = Vec::new();
-    for shim in SHIM_NAMES {
-        for root in &candidates {
-            let path = root.join(shim);
-            if path.exists() {
-                out.push(path);
-                break;
+        // Not defined here — follow a relative `extends`.
+        match parsed.get("extends").and_then(|v| v.as_str()) {
+            Some(ext) if ext.starts_with('.') => {
+                let mut next = dir.join(ext);
+                if next.is_dir() {
+                    next = next.join("tsconfig.json");
+                } else if next.extension().is_none() {
+                    next.set_extension("json");
+                }
+                current = Some(next);
             }
+            _ => break,
         }
     }
-    out
+    Vec::new()
 }
 
 /// POSIX-style relative path from `from_dir` to `to_path` (so the
@@ -746,6 +821,81 @@ mod tests {
         let _ = materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, true).unwrap();
         assert!(!removed_tsx.exists(), "stale .tsx should have been pruned");
         assert!(!removed_dts.exists(), "stale .d.ts should have been pruned");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Regression test for the `--tsgo` overlay (the 154-error bug): the
+    /// generated tsconfig must (1) set `jsx: "preserve"` so `.tsx` shadows
+    /// type-check, (2) reference the embedded svelte2tsx shims under
+    /// `files`, and (3) MERGE the project's `rootDirs` (resolved through
+    /// the `extends` chain) with the overlay's `./svelte` rather than
+    /// replacing them — otherwise SvelteKit's `$types` resolution breaks.
+    #[test]
+    fn overlay_tsconfig_has_jsx_shims_and_merged_rootdirs() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_tsgo_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        // A SvelteKit-style two-level config: the project tsconfig extends
+        // a generated one that owns `rootDirs`.
+        fs::create_dir_all(tmp.join(".svelte-kit")).unwrap();
+        fs::write(
+            tmp.join(".svelte-kit/tsconfig.json"),
+            r#"{ "compilerOptions": { "rootDirs": ["..", "./types"] } }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        // Shims were written into the cache dir.
+        assert!(layout.cache_dir.join("svelte-shims-v4.d.ts").exists());
+        assert!(layout.cache_dir.join("svelte-jsx-v4.d.ts").exists());
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+
+        // (1) jsx backend set.
+        assert_eq!(cfg["compilerOptions"]["jsx"], serde_json::json!("preserve"));
+
+        // (2) shims referenced via `files`.
+        let files_arr: Vec<String> = cfg["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            files_arr
+                .iter()
+                .any(|f| f.ends_with("svelte-shims-v4.d.ts"))
+        );
+        assert!(files_arr.iter().any(|f| f.ends_with("svelte-jsx-v4.d.ts")));
+
+        // (3) rootDirs merged: the overlay's own `./svelte`, the project
+        // root, AND the inherited `./types` are all present — not just
+        // `[".", "./svelte"]`.
+        let root_dirs: Vec<String> = cfg["compilerOptions"]["rootDirs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            root_dirs.iter().any(|d| d.ends_with("svelte")),
+            "overlay svelte dir missing: {root_dirs:?}"
+        );
+        assert!(
+            root_dirs.iter().any(|d| d.ends_with("types")),
+            "inherited SvelteKit `types` rootDir was clobbered: {root_dirs:?}"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
