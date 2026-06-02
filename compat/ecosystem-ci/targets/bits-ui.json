@@ -9,10 +9,11 @@
   },
   "commands": {
     "install": "pnpm install --no-frozen-lockfile",
-    "build": "pnpm -F bits-ui build"
+    "build": "pnpm -F bits-ui build",
+    "check": "pnpm -F bits-ui check"
   },
   "timeoutMinutes": 30,
-  "tags": ["ui-library", "headless"],
+  "tags": ["ui-library", "headless", "svelte-check"],
   "allowList": {
     "expectedBaselineFailures": []
   }
