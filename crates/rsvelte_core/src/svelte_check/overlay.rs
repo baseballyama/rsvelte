@@ -405,14 +405,18 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, _workspace:
     );
     obj.insert("compilerOptions", serde_json::Value::Object(compiler_opts));
 
-    // Inherited config-file specs: read the user's tsconfig.json (if
-    // any) and merge its `include` / `exclude` / `files` arrays into
-    // the overlay, rebased so paths are resolved from the overlay dir
-    // (one level deeper than the original tsconfig dir). Without this
-    // the overlay's `include = ["./svelte/**/*"]` blocks every plain
-    // `.ts` / `.js` file in the project from being type-checked.
+    // Inherited config-file specs: read the user's effective
+    // `include` / `exclude` / `files` (resolved through the `extends`
+    // chain) and merge them into the overlay, rebased so paths resolve
+    // from the overlay dir. Without this the overlay's
+    // `include = ["./svelte/**/*"]` blocks every plain `.ts` / `.js`
+    // file in the project from being type-checked — and, crucially,
+    // project ambient declaration files (`src/app.d.ts`, SvelteKit's
+    // generated `ambient.d.ts`) never enter the program, so their
+    // `declare global` / `namespace App` augmentations are invisible to
+    // `--tsgo` (false TS2304 / TS2307 on a clean SvelteKit project).
     let user_specs = original
-        .and_then(|p| read_tsconfig_specs(p, cache_dir))
+        .map(|p| read_tsconfig_specs(p, cache_dir))
         .unwrap_or_default();
 
     let mut include_value = vec!["./svelte/**/*".to_string()];
@@ -481,53 +485,212 @@ struct InheritedSpecs {
     files: Vec<String>,
 }
 
-/// Read the user's tsconfig.json (JSONC: comments allowed) and pluck
-/// the `include` / `exclude` / `files` arrays. Each path is rebased
-/// from `tsconfig_dir` (the location of the original tsconfig) onto
-/// `cache_dir` (the overlay dir, one level deeper). Returns `None`
-/// when the file can't be read or the JSON shape isn't recognised —
-/// in that case the overlay falls back to "shim files only", which
-/// matches the pre-rebase behaviour.
-fn read_tsconfig_specs(tsconfig_path: &Path, cache_dir: &Path) -> Option<InheritedSpecs> {
-    let raw = fs::read_to_string(tsconfig_path).ok()?;
-    let stripped = strip_jsonc_comments(&raw);
-    let parsed: serde_json::Value = serde_json::from_str(&stripped).ok()?;
-    let tsconfig_dir = tsconfig_path.parent()?;
-
-    let rebase = |spec: &str| -> String {
-        // tsconfig globs are relative to tsconfig_dir; we want them
-        // relative to cache_dir. Resolve to absolute first via a
-        // best-effort join (specs may contain `**` etc — that's a
-        // pattern, not a real path component, but for the prefix walk
-        // path_relative does it's fine).
-        let abs = tsconfig_dir.join(spec);
-        path_relative(cache_dir, &abs)
-    };
-
-    let extract = |key: &str| -> Vec<String> {
-        parsed
-            .get(key)
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect::<Vec<_>>()
+/// Resolve the user's effective `include` / `exclude` / `files` and
+/// rebase each onto `cache_dir` (the overlay dir). Each key is resolved
+/// independently through the `extends` chain — SvelteKit projects keep
+/// these in the generated `./.svelte-kit/tsconfig.json`, not the root
+/// tsconfig, so reading only the directly-passed file forwarded nothing
+/// and project ambient files never entered the program.
+fn read_tsconfig_specs(tsconfig_path: &Path, cache_dir: &Path) -> InheritedSpecs {
+    let rebased = |key: &str| -> Vec<String> {
+        resolve_config_specs(tsconfig_path, key)
+            .map(|(specs, base)| {
+                specs
+                    .iter()
+                    .map(|s| rebase_spec(s, &base, cache_dir))
+                    .collect()
             })
             .unwrap_or_default()
     };
 
-    let include = extract("include").into_iter().map(|s| rebase(&s)).collect();
-    let exclude = extract("exclude").into_iter().map(|s| rebase(&s)).collect();
-    let files = extract("files")
-        .into_iter()
-        .filter(|s| !s.ends_with(".svelte"))
-        .map(|s| rebase(&s))
-        .collect();
-    Some(InheritedSpecs {
+    let include = rebased("include");
+    let exclude = rebased("exclude");
+    let files = resolve_config_specs(tsconfig_path, "files")
+        .map(|(specs, base)| {
+            specs
+                .iter()
+                .filter(|s| !s.ends_with(".svelte"))
+                .map(|s| rebase_spec(s, &base, cache_dir))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    InheritedSpecs {
         include,
         exclude,
         files,
-    })
+    }
+}
+
+/// Walk the `extends` chain from `tsconfig_path` and return the
+/// `(specs, base_dir)` for the nearest config that defines `key`
+/// (`include` / `exclude` / `files`). Mirrors TypeScript: a config that
+/// sets the key shadows its parent's value wholesale; a config that
+/// omits it inherits from the config it extends. `base_dir` is the
+/// directory of the *defining* config so its relative specs rebase
+/// correctly. Only relative-path `extends` are followed (see
+/// [`resolve_root_dirs_abs`] for the rationale).
+fn resolve_config_specs(tsconfig_path: &Path, key: &str) -> Option<(Vec<String>, PathBuf)> {
+    let mut current = Some(tsconfig_path.to_path_buf());
+    // Guard against pathological `extends` cycles.
+    let mut hops = 0;
+    while let Some(file) = current {
+        hops += 1;
+        if hops > 32 {
+            break;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            break;
+        };
+        let stripped = strip_jsonc_comments(&raw);
+        let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
+            break;
+        };
+        let dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
+
+        if let Some(arr) = parsed.get(key).and_then(|v| v.as_array()) {
+            let specs = arr
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
+            return Some((specs, dir));
+        }
+
+        match parsed.get("extends").and_then(|v| v.as_str()) {
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(&dir, ext)),
+            _ => break,
+        }
+    }
+    None
+}
+
+/// Resolve a relative `extends` target (`"./.svelte-kit/tsconfig.json"`,
+/// `"../tsconfig.base"`, `"./configs"`) to a concrete tsconfig path: a
+/// directory gains `/tsconfig.json`, an extension-less file gains
+/// `.json`, mirroring TypeScript's resolution.
+fn resolve_extends_path(dir: &Path, ext: &str) -> PathBuf {
+    let mut next = dir.join(ext);
+    if next.is_dir() {
+        next = next.join("tsconfig.json");
+    } else if next.extension().is_none() {
+        next.set_extension("json");
+    }
+    next
+}
+
+/// True if a single path segment carries a glob metacharacter.
+fn is_glob_segment(seg: &str) -> bool {
+    seg.contains(['*', '?', '{', '}', '[', ']'])
+}
+
+/// Rebase a tsconfig `include` / `exclude` / `files` spec (relative to
+/// `base_dir`, the dir of the config that declared it) onto `cache_dir`
+/// (the overlay dir), POSIX-style.
+///
+/// The leading non-glob directory prefix is split off and rebased
+/// lexically; the glob tail (`**/*.ts`, …) is re-appended verbatim. This
+/// is the fix for the previous `path_relative(cache_dir, base.join(spec))`
+/// approach, which fed `**` into path resolution as if it were a real
+/// directory component and produced garbage like `../../../../src/**/*.ts`.
+fn rebase_spec(spec: &str, base_dir: &Path, cache_dir: &Path) -> String {
+    let segs: Vec<&str> = spec.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
+    let split_at = segs
+        .iter()
+        .position(|s| is_glob_segment(s))
+        .unwrap_or(segs.len());
+    let prefix = segs[..split_at].join("/");
+    let tail = segs[split_at..].join("/");
+
+    let prefix_path = if prefix.is_empty() {
+        base_dir.to_path_buf()
+    } else {
+        base_dir.join(&prefix)
+    };
+    // Absolutise both ends before the lexical diff: at runtime `cache_dir`
+    // and the config dirs are relative to the CWD (the CLI is invoked with
+    // `--tsconfig ./tsconfig.json`), and a lexical relative path between two
+    // relative inputs is meaningless. We anchor on the CWD rather than
+    // `canonicalize` so glob prefixes that don't exist on disk still rebase.
+    let rel_prefix = relative_lexical(&absolutize(cache_dir), &absolutize(&prefix_path));
+
+    if tail.is_empty() {
+        rel_prefix
+    } else if rel_prefix == "." {
+        tail
+    } else {
+        format!("{rel_prefix}/{tail}")
+    }
+}
+
+/// Make `path` absolute by anchoring relative paths on the current working
+/// directory, then normalise `.`/`..` lexically. No filesystem access
+/// beyond reading the CWD, so it works for not-yet-created paths.
+fn absolutize(path: &Path) -> PathBuf {
+    let joined = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    };
+    normalize_abs(&joined)
+}
+
+/// Lexically normalise `.` / `..` in a path without touching the
+/// filesystem — needed because the directory prefix of a glob (or a
+/// path under a not-yet-created dir) can't be `canonicalize`d.
+fn normalize_abs(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                let last = out.components().next_back();
+                if matches!(last, Some(Component::Normal(_))) {
+                    out.pop();
+                } else if !matches!(last, Some(Component::RootDir) | Some(Component::Prefix(_))) {
+                    out.push("..");
+                }
+                // At the root, `..` is a no-op.
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// POSIX relative path from `from_dir` to `to_path`, computed lexically
+/// (no `canonicalize`), so it is correct for paths that don't exist on
+/// disk. Unlike [`path_relative`], this never resolves symlinks — which
+/// is what we want for tsconfig specs (TypeScript interprets them
+/// lexically relative to the config location).
+fn relative_lexical(from_dir: &Path, to_path: &Path) -> String {
+    use std::path::Component;
+    let from = normalize_abs(from_dir);
+    let to = normalize_abs(to_path);
+    let collect = |p: &Path| -> Vec<String> {
+        p.components()
+            .filter(|c| !matches!(c, Component::RootDir | Component::Prefix(_)))
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect()
+    };
+    let from_parts = collect(&from);
+    let to_parts = collect(&to);
+    let mut i = 0;
+    while i < from_parts.len() && i < to_parts.len() && from_parts[i] == to_parts[i] {
+        i += 1;
+    }
+    let mut parts: Vec<String> = Vec::new();
+    for _ in i..from_parts.len() {
+        parts.push("..".into());
+    }
+    parts.extend(to_parts[i..].iter().cloned());
+    if parts.is_empty() {
+        ".".into()
+    } else {
+        parts.join("/")
+    }
 }
 
 /// Strip `//` line comments and `/* ... */` block comments from a
@@ -630,15 +793,7 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
 
         // Not defined here — follow a relative `extends`.
         match parsed.get("extends").and_then(|v| v.as_str()) {
-            Some(ext) if ext.starts_with('.') => {
-                let mut next = dir.join(ext);
-                if next.is_dir() {
-                    next = next.join("tsconfig.json");
-                } else if next.extension().is_none() {
-                    next.set_extension("json");
-                }
-                current = Some(next);
-            }
+            Some(ext) if ext.starts_with('.') => current = Some(resolve_extends_path(dir, ext)),
             _ => break,
         }
     }
@@ -895,6 +1050,101 @@ mod tests {
         assert!(
             root_dirs.iter().any(|d| d.ends_with("types")),
             "inherited SvelteKit `types` rootDir was clobbered: {root_dirs:?}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// `rebase_spec` must rebase the non-glob directory prefix and keep
+    /// the glob tail verbatim — the old `path_relative(join(spec))` path
+    /// fed `**` into path resolution and produced `../../../../src/...`.
+    #[test]
+    fn rebase_spec_handles_globs_and_extends_base() {
+        let cache = Path::new("/w/.svelte-check");
+        // include declared in the SvelteKit-generated config, relative to
+        // `.svelte-kit/`.
+        assert_eq!(
+            rebase_spec("../src/**/*.ts", Path::new("/w/.svelte-kit"), cache),
+            "../src/**/*.ts"
+        );
+        // exact ambient file in the generated config.
+        assert_eq!(
+            rebase_spec("./ambient.d.ts", Path::new("/w/.svelte-kit"), cache),
+            "../.svelte-kit/ambient.d.ts"
+        );
+        // exact file relative to the project root.
+        assert_eq!(
+            rebase_spec("src/app.d.ts", Path::new("/w"), cache),
+            "../src/app.d.ts"
+        );
+        // a spec that is glob from its first segment.
+        assert_eq!(
+            rebase_spec("**/*.ts", Path::new("/w/src"), cache),
+            "../src/**/*.ts"
+        );
+    }
+
+    /// Regression test for the "project ambient `.d.ts` invisible to
+    /// `--tsgo`" gap: a SvelteKit project keeps `include` in the generated
+    /// `./.svelte-kit/tsconfig.json`, not the root tsconfig. The overlay
+    /// must resolve `include` through the `extends` chain and forward it
+    /// (correctly rebased) so `src/app.d.ts` enters the program.
+    #[test]
+    fn overlay_forwards_project_include_through_extends_chain() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_inc_fwd_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::create_dir_all(tmp.join(".svelte-kit")).unwrap();
+        // The generated config owns include + rootDirs; the root tsconfig
+        // only extends it (no include of its own).
+        fs::write(
+            tmp.join(".svelte-kit/tsconfig.json"),
+            r#"{
+                "compilerOptions": { "rootDirs": ["..", "./types"] },
+                "include": ["../src/**/*.ts", "../src/**/*.svelte", "./ambient.d.ts"]
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("src/app.d.ts"), "declare global {}\nexport {};\n").unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let include: Vec<String> = cfg["include"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+
+        // The overlay's own shadow glob is still there …
+        assert!(
+            include.iter().any(|i| i == "./svelte/**/*"),
+            "overlay shadow include missing: {include:?}"
+        );
+        // … plus the project's include, forwarded through `extends` and
+        // rebased *without* glob mangling.
+        assert!(
+            include.iter().any(|i| i == "../src/**/*.ts"),
+            "extends-chain include not forwarded / mis-rebased: {include:?}"
+        );
+        assert!(
+            include.iter().any(|i| i == "../.svelte-kit/ambient.d.ts"),
+            "exact ambient include not forwarded: {include:?}"
+        );
+        // No mangled `../../../..`-style prefix leaked in.
+        assert!(
+            !include.iter().any(|i| i.contains("../../../")),
+            "glob rebase produced a mangled path: {include:?}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
