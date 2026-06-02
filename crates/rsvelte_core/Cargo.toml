@@ -48,7 +48,7 @@ oxc_allocator = "0.133"
 oxc_parser = "0.133"
 oxc_ast = { version = "0.133", features = ["serialize"] }
 oxc_span = "0.133"
-oxc_diagnostics = "0.133"
+oxc_diagnostics = "0.134"
 oxc_codegen = "0.133"
 oxc_syntax = "0.133"
 oxc_semantic = "0.133"
