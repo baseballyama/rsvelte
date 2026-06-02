@@ -45,7 +45,7 @@ rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
 oxc_allocator = "0.133"
-oxc_parser = "0.133"
+oxc_parser = "0.134"
 oxc_ast = { version = "0.133", features = ["serialize"] }
 oxc_span = "0.133"
 oxc_diagnostics = "0.134"
