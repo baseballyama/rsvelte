@@ -15,7 +15,7 @@
 
 use super::super::AnalysisError;
 use super::super::errors;
-use super::shared::utils::{validate_opening_tag, walk_js_expression, walk_js_expression_node};
+use super::shared::utils::{walk_js_expression, walk_js_expression_node};
 use super::{FragmentOwnerType, VisitorContext};
 use crate::ast::template::DeclarationTag;
 use crate::ast::typed_expr::JsNode;
@@ -25,20 +25,9 @@ use crate::ast::typed_expr::JsNode;
 /// Corresponds to `DeclarationTag(node, context)` in upstream
 /// `DeclarationTag.js`.
 pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Declaration tags forbid leading whitespace inside the curly braces just
-    // like `{@const}` — the opener must be `{let ` / `{const ` with no
-    // whitespace between `{` and the keyword. Determine which keyword by
-    // peeking at the source.
-    let source = &context.analysis.source;
-    let start = tag.start as usize;
-    let opener_char = if source[start..].starts_with("{let") {
-        'l'
-    } else {
-        'c'
-    };
-    if context.analysis.runes {
-        validate_opening_tag(start, source, opener_char)?;
-    }
+    // Unlike `{@const}`, declaration tags tolerate leading whitespace inside the
+    // curly braces (`{ let x = 1 }`), so there is no `validate_opening_tag`
+    // check here — upstream removed it in Svelte 5.56.1 #18348.
 
     // Disallow in pure legacy mode. `maybe_runes` is the final flag set
     // AFTER the template walk by `analyze_component` (it reconciles
