@@ -68,8 +68,87 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         return;
     }
 
-    context
-        .state
-        .consts
-        .push(JsStatement::Raw(trimmed.to_string().into()));
+    // A multi-declarator declaration tag (`{let a = …, b = …}`) is lowered by
+    // the instance-script transform into separate `let`/`const` statements
+    // (`let a = …;\nlet b = …;`). Upstream keeps it as one comma-separated
+    // declaration, so rejoin them — continuation declarators go on their own
+    // line indented one extra level, which matches esrap's output once the
+    // codegen re-indents the raw block. Only genuine top-level-comma
+    // declarations are rejoined. (Svelte 5.56.1 #18348.)
+    let raw = if body_has_top_level_comma(body) {
+        rejoin_declarators(trimmed)
+    } else {
+        trimmed.to_string()
+    };
+
+    context.state.consts.push(JsStatement::Raw(raw.into()));
+}
+
+/// Whether a declaration body has a top-level comma (a multi-declarator
+/// declaration), ignoring commas inside strings or `()` / `[]` / `{}` nesting.
+fn body_has_top_level_comma(body: &str) -> bool {
+    let bytes = body.as_bytes();
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut string_ch = 0u8;
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            if c == string_ch && (i == 0 || bytes[i - 1] != b'\\') {
+                in_string = false;
+            }
+        } else {
+            match c {
+                b'"' | b'\'' | b'`' => {
+                    in_string = true;
+                    string_ch = c;
+                }
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 0 => return true,
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Rejoin instance-script-split `let` / `const` statements
+/// (`let a = …;\nlet b = …;`) into one comma-separated declaration with each
+/// continuation declarator on its own line indented one level deeper. Returns
+/// the input unchanged unless it is a run of single-line, same-kind
+/// declarations.
+fn rejoin_declarators(s: &str) -> String {
+    let lines: Vec<&str> = s.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.len() < 2 {
+        return s.to_string();
+    }
+    let kind = {
+        let first = lines[0].trim_start();
+        if first.starts_with("let ") {
+            "let "
+        } else if first.starts_with("const ") {
+            "const "
+        } else {
+            return s.to_string();
+        }
+    };
+    let mut declarators = Vec::with_capacity(lines.len());
+    for line in &lines {
+        let Some(rest) = line.trim().strip_prefix(kind) else {
+            return s.to_string();
+        };
+        declarators.push(rest.strip_suffix(';').unwrap_or(rest).trim().to_string());
+    }
+    let mut out = String::from(kind);
+    for (i, d) in declarators.iter().enumerate() {
+        if i > 0 {
+            out.push_str(",\n\t");
+        }
+        out.push_str(d);
+    }
+    out.push(';');
+    out
 }

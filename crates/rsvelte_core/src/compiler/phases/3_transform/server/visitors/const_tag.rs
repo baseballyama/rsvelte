@@ -439,10 +439,15 @@ impl<'a> ServerCodeGenerator<'a> {
         // instance script so `$state(v)` is stripped to `v`, `$derived(expr)`
         // becomes `$.derived(() => expr)`, etc.
         let imported_names = rustc_hash::FxHashSet::default();
+        // Seed the component's derived binding names so a read of a `$derived`
+        // declared in *another* declaration tag (`{let d = $derived(…)}` then
+        // `{let e = $derived(d * 2)}`) is wrapped to the server callable form
+        // `d()` (Svelte 5.56.1 #18348).
         let transformed =
-            crate::compiler::phases::phase3_transform::server::transform_script::transform_script_content_with_imports(
+            crate::compiler::phases::phase3_transform::server::transform_script::transform_script_content_with_imports_and_derived(
                 &script_input,
                 &imported_names,
+                &self.derived_names,
                 self.dev,
             );
 
