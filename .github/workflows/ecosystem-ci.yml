@@ -144,6 +144,11 @@ jobs:
     permissions:
       contents: read
       issues: write
+      # Required to comment on the PR below: GITHUB_TOKEN is a GitHub App token,
+      # and posting to a PR conversation needs `pull-requests: write` even though
+      # the API path is /issues/comments (`issues: write` alone yields
+      # "Resource not accessible by integration").
+      pull-requests: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -159,6 +164,9 @@ jobs:
 
       - name: Post summary to PR
         if: github.event_name == 'pull_request'
+        # Cosmetic: a comment-permission hiccup must never red the whole sweep —
+        # the verdict lives in the result-* artifacts and this job's log.
+        continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
