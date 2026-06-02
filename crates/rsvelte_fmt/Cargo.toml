@@ -14,7 +14,7 @@ path = "src/main.rs"
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "a8cb7d6cbc22241e347d3811ab209f55e72fa867" }
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 rayon = "1.10"
