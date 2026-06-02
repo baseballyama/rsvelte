@@ -51,7 +51,7 @@ oxc_span = "0.133"
 oxc_diagnostics = "0.134"
 oxc_codegen = "0.133"
 oxc_syntax = "0.133"
-oxc_semantic = "0.133"
+oxc_semantic = "0.134"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
