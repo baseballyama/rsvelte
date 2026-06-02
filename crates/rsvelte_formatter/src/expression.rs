@@ -1,5 +1,5 @@
 use oxc_allocator::Allocator;
-use oxc_formatter::Formatter;
+use oxc_formatter::format_program;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
 use rsvelte_core::ast::js::Expression;
@@ -366,7 +366,10 @@ pub(crate) fn format_expression_source(
         return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
     }
 
-    let formatted = Formatter::new(&allocator, options.js.clone()).build(&parser_ret.program);
+    let formatted = format_program(&allocator, &parser_ret.program, options.js.clone(), None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     Ok(strip_outer_parens(s).trim().to_string())
@@ -432,7 +435,10 @@ pub(crate) fn format_pattern_source(
         oxc_formatter_core::LineWidth::try_from(u16::MAX).unwrap_or(single_line.line_width);
     single_line.expand = oxc_formatter_core::Expand::Never;
 
-    let formatted = Formatter::new(&allocator, single_line).build(&parser_ret.program);
+    let formatted = format_program(&allocator, &parser_ret.program, single_line, None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
 
     // Output shape: `let <pattern> = __rsvelte_fmt_rhs__;\n`. Strip the
     // leading `let ` and the trailing ` = __rsvelte_fmt_rhs__;` so we
