@@ -3906,19 +3906,32 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                         let stripped = strip_top_level_await_from_expr(cleaned);
                         let nested_await = super::helpers::expr_contains_await(&stripped);
                         let needs_paren = stripped.trim_start().starts_with('{');
-                        if nested_await {
-                            result.push_str("await $.async_derived(async () => ");
-                        } else {
-                            result.push_str("await $.async_derived(() => ");
-                        }
-                        if needs_paren {
-                            result.push('(');
-                            result.push_str(&stripped);
+                        if !nested_await
+                            && !needs_paren
+                            && let Some(ident) = unthunk_no_arg_ident_call(&stripped)
+                        {
+                            // `await $.async_derived(() => getFoo())` collapses to
+                            // `await $.async_derived(getFoo)` — the bare function
+                            // reference (upstream's `b.thunk(value, true)` →
+                            // unthunk pass).
+                            result.push_str("await $.async_derived(");
+                            result.push_str(ident);
                             result.push(')');
                         } else {
-                            result.push_str(&stripped);
+                            if nested_await {
+                                result.push_str("await $.async_derived(async () => ");
+                            } else {
+                                result.push_str("await $.async_derived(() => ");
+                            }
+                            if needs_paren {
+                                result.push('(');
+                                result.push_str(&stripped);
+                                result.push(')');
+                            } else {
+                                result.push_str(&stripped);
+                            }
+                            result.push(')');
                         }
-                        result.push(')');
                     } else if let Some(ident) = unthunk_no_arg_ident_call(cleaned) {
                         result.push_str("$.derived(");
                         result.push_str(ident);

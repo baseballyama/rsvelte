@@ -923,7 +923,7 @@ pub fn collect_identifiers_from_statement_props(
 /// but skips arrow functions that are the value of `children` or `$$slots` properties.
 /// This mirrors the official Svelte compiler's memoizer which tracks blockers from
 /// direct prop expressions but not from children callbacks.
-fn collect_ids_from_expr_props(
+pub(crate) fn collect_ids_from_expr_props(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,

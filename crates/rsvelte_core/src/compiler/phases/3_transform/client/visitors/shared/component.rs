@@ -1159,8 +1159,32 @@ fn process_regular_attribute(
     // because their initial type is SnippetBlock, not FunctionExpression)
     let is_snippet_reference = is_snippet_identifier(&attr.value, context);
 
+    // A prop whose value reads an async-blocked binding (e.g.
+    // `onclick={() => foo}` where `const foo = $derived(await …)`) must be
+    // emitted as a getter so the child re-reads it once the promise resolves
+    // (Svelte 5.56.1 #18352). Collect the value's identifiers — descending into
+    // closures, since the read is inside the `() => foo` arrow — and check them
+    // against the instance/`{@const}` blocker maps.
+    let prop_references_blocked_binding = {
+        let blocker_map = context.state.blocker_map.borrow();
+        let const_blocker_map = context.state.const_blocker_map.borrow();
+        if blocker_map.is_empty() && const_blocker_map.is_empty() {
+            false
+        } else {
+            let mut names: Vec<compact_str::CompactString> = Vec::new();
+            super::super::fragment::collect_ids_from_expr_props(
+                &final_value,
+                &context.arena,
+                &mut names,
+            );
+            names.iter().any(|n| {
+                blocker_map.contains_key(n.as_str()) || const_blocker_map.contains_key(n.as_str())
+            })
+        }
+    };
+
     // Add to props
-    if result.has_state || is_snippet_reference {
+    if result.has_state || is_snippet_reference || prop_references_blocked_binding {
         // Use getter for reactive values and snippet references
         push_prop_immediate(
             props_and_spreads,
