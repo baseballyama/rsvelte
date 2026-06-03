@@ -1868,8 +1868,51 @@ fn parse_expression_with_typescript(
                     })
                     .collect();
 
+                // Interior comments: a comment that sits *inside* the
+                // expression (after its start, before its end) is attached as a
+                // `leadingComments` entry on the sub-node it immediately
+                // precedes — mirroring acorn (e.g. `a instanceof /* c */ B`
+                // attaches `/* c */` to `B`). Svelte 5.56.1 #18330.
+                let interior_comments: Vec<(usize, Value)> = result
+                    .program
+                    .comments
+                    .iter()
+                    .filter(|c| c.span.end > expr_start && c.span.start < expr_end)
+                    .map(|c| {
+                        let comment_start = offset + c.span.start as usize - 1;
+                        let comment_end = offset + c.span.end as usize - 1;
+                        let raw = &wrapped[c.span.start as usize..c.span.end as usize];
+                        let mut value = extract_comment_value(raw, c.kind);
+                        if matches!(
+                            c.kind,
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                                | oxc_ast::ast::CommentKind::MultiLineBlock
+                        ) {
+                            value = normalize_block_comment_indentation(
+                                &value,
+                                content,
+                                c.span.start as usize - 1,
+                            );
+                        }
+                        (
+                            comment_end,
+                            create_comment_object(
+                                c.kind,
+                                value,
+                                comment_start,
+                                comment_end,
+                                line_offsets,
+                            )
+                            .to_value(),
+                        )
+                    })
+                    .collect();
+
                 // Attach comments to the expression
-                if !leading_comments.is_empty() || !trailing_comments.is_empty() {
+                if !leading_comments.is_empty()
+                    || !trailing_comments.is_empty()
+                    || !interior_comments.is_empty()
+                {
                     let mut json_val = expr.as_json().clone();
                     if let Value::Object(ref mut obj) = json_val {
                         if !leading_comments.is_empty() {
@@ -1885,6 +1928,18 @@ fn parse_expression_with_typescript(
                             );
                         }
                     }
+                    // Attach each interior comment to the node it precedes.
+                    for (comment_end, comment_obj) in interior_comments {
+                        if let Some(target) =
+                            json_min_node_start_at_or_after(&json_val, comment_end)
+                        {
+                            json_attach_leading_comment_at_start(
+                                &mut json_val,
+                                target,
+                                &comment_obj,
+                            );
+                        }
+                    }
                     expr = Expression::Value(json_val);
                 }
             }
@@ -1894,6 +1949,89 @@ fn parse_expression_with_typescript(
 
         None
     })
+}
+
+/// Smallest `start` among AST nodes (objects carrying a non-comment `type`)
+/// whose `start >= threshold`. Used to find the node an interior comment
+/// immediately precedes.
+fn json_min_node_start_at_or_after(node: &Value, threshold: usize) -> Option<usize> {
+    fn walk(node: &Value, threshold: usize, best: &mut Option<usize>) {
+        match node {
+            Value::Object(map) => {
+                let is_ast_node = map
+                    .get("type")
+                    .and_then(|t| t.as_str())
+                    .is_some_and(|t| t != "Block" && t != "Line");
+                if is_ast_node
+                    && let Some(s) = map
+                        .get("start")
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v as usize)
+                    && s >= threshold
+                    && best.is_none_or(|b| s < b)
+                {
+                    *best = Some(s);
+                }
+                for v in map.values() {
+                    walk(v, threshold, best);
+                }
+            }
+            Value::Array(arr) => {
+                for v in arr {
+                    walk(v, threshold, best);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut best = None;
+    walk(node, threshold, &mut best);
+    best
+}
+
+/// Attach `comment` to the `leadingComments` of the first (pre-order /
+/// outermost) AST node whose `start == target_start`.
+fn json_attach_leading_comment_at_start(
+    node: &mut Value,
+    target_start: usize,
+    comment: &Value,
+) -> bool {
+    match node {
+        Value::Object(map) => {
+            let is_ast_node = map
+                .get("type")
+                .and_then(|t| t.as_str())
+                .is_some_and(|t| t != "Block" && t != "Line");
+            let start = map
+                .get("start")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize);
+            if is_ast_node && start == Some(target_start) {
+                let entry = map
+                    .entry("leadingComments".to_string())
+                    .or_insert_with(|| Value::Array(Vec::new()));
+                if let Value::Array(arr) = entry {
+                    arr.push(comment.clone());
+                }
+                return true;
+            }
+            for v in map.values_mut() {
+                if json_attach_leading_comment_at_start(v, target_start, comment) {
+                    return true;
+                }
+            }
+            false
+        }
+        Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                if json_attach_leading_comment_at_start(v, target_start, comment) {
+                    return true;
+                }
+            }
+            false
+        }
+        _ => false,
+    }
 }
 
 /// Unwrap ParenthesizedExpression to get the inner expression.

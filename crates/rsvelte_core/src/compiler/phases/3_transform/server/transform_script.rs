@@ -13,7 +13,14 @@ use memchr::memmem;
 use rustc_hash::FxHashSet;
 
 pub(crate) fn transform_script_content_module(script: &str, dev: bool) -> String {
-    transform_script_content_inner(script, true, &[], &FxHashSet::default(), dev)
+    transform_script_content_inner(
+        script,
+        true,
+        &[],
+        &FxHashSet::default(),
+        &FxHashSet::default(),
+        dev,
+    )
 }
 
 /// Transform script content for server-side rendering, with pre-extracted imported names.
@@ -22,7 +29,14 @@ pub(crate) fn transform_script_content_with_imports(
     imported_names: &FxHashSet<String>,
     dev: bool,
 ) -> String {
-    transform_script_content_inner(script, false, &[], imported_names, dev)
+    transform_script_content_inner(
+        script,
+        false,
+        &[],
+        imported_names,
+        &FxHashSet::default(),
+        dev,
+    )
 }
 
 /// Transform script content with additional bindable prop names and pre-extracted imported names.
@@ -32,7 +46,26 @@ pub(crate) fn transform_script_content_with_props_and_imports(
     imported_names: &FxHashSet<String>,
     dev: bool,
 ) -> String {
-    transform_script_content_inner(script, false, reexported_props, imported_names, dev)
+    transform_script_content_inner(
+        script,
+        false,
+        reexported_props,
+        imported_names,
+        &FxHashSet::default(),
+        dev,
+    )
+}
+
+/// Like `transform_script_content_with_imports`, but seeds extra derived
+/// binding names (e.g. the component's full set of `$derived` bindings) so a
+/// cross-declaration-tag derived read is wrapped to `name()`.
+pub(crate) fn transform_script_content_with_imports_and_derived(
+    script: &str,
+    imported_names: &FxHashSet<String>,
+    extra_derived: &FxHashSet<String>,
+    dev: bool,
+) -> String {
+    transform_script_content_inner(script, false, &[], imported_names, extra_derived, dev)
 }
 
 fn transform_script_content_inner(
@@ -40,6 +73,7 @@ fn transform_script_content_inner(
     is_module: bool,
     reexported_props: &[(String, String)],
     imported_names: &FxHashSet<String>,
+    extra_derived: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     // Check if rune base names are imported (making $state/$derived store subscriptions, not runes).
@@ -123,7 +157,7 @@ fn transform_script_content_inner(
     // Svelte 5.52+: derived bindings now stay callable on the server, so any
     // bare read of a derived name must be rewritten to `name()`. Collect names
     // from the `$.derived(...)` declarators we just emitted, then wrap reads.
-    let script = wrap_derived_reads_in_script(&script);
+    let script = wrap_derived_reads_in_script(&script, extra_derived);
     // Svelte 5.53.2 (upstream `6aa7b9c64` "fix: update expressions on server
     // deriveds"): `name++` / `--name` etc. on a derived must use
     // `$.update_derived(name)` / `$.update_derived_pre(name)` helpers. After
@@ -1357,9 +1391,16 @@ fn collect_derived_names_from_script(script: &str) -> DerivedNameCollection {
 ///   the upstream tests we care about exercise read paths, and the upstream
 ///   AssignmentExpression diff acknowledges that assignment to a derived
 ///   on the server is intentionally broken.
-fn wrap_derived_reads_in_script(script: &str) -> String {
-    let (derived_names, derived_var_names, derived_declarators) =
+fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>) -> String {
+    let (mut derived_names, derived_var_names, derived_declarators) =
         collect_derived_names_from_script(script);
+    // Cross-context deriveds — e.g. a `{let d = $derived(…)}` declaration tag
+    // whose `d` is read from a *different* declaration tag — are not declared
+    // in this script slice, so seed them in from the component's known derived
+    // bindings so the read is still wrapped to `d()` (Svelte 5.56.1 #18348).
+    for name in extra_derived {
+        derived_names.insert(name.clone());
+    }
     if derived_names.is_empty() {
         return script.to_string();
     }
@@ -3865,19 +3906,32 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                         let stripped = strip_top_level_await_from_expr(cleaned);
                         let nested_await = super::helpers::expr_contains_await(&stripped);
                         let needs_paren = stripped.trim_start().starts_with('{');
-                        if nested_await {
-                            result.push_str("await $.async_derived(async () => ");
-                        } else {
-                            result.push_str("await $.async_derived(() => ");
-                        }
-                        if needs_paren {
-                            result.push('(');
-                            result.push_str(&stripped);
+                        if !nested_await
+                            && !needs_paren
+                            && let Some(ident) = unthunk_no_arg_ident_call(&stripped)
+                        {
+                            // `await $.async_derived(() => getFoo())` collapses to
+                            // `await $.async_derived(getFoo)` — the bare function
+                            // reference (upstream's `b.thunk(value, true)` →
+                            // unthunk pass).
+                            result.push_str("await $.async_derived(");
+                            result.push_str(ident);
                             result.push(')');
                         } else {
-                            result.push_str(&stripped);
+                            if nested_await {
+                                result.push_str("await $.async_derived(async () => ");
+                            } else {
+                                result.push_str("await $.async_derived(() => ");
+                            }
+                            if needs_paren {
+                                result.push('(');
+                                result.push_str(&stripped);
+                                result.push(')');
+                            } else {
+                                result.push_str(&stripped);
+                            }
+                            result.push(')');
                         }
-                        result.push(')');
                     } else if let Some(ident) = unthunk_no_arg_ident_call(cleaned) {
                         result.push_str("$.derived(");
                         result.push_str(ident);

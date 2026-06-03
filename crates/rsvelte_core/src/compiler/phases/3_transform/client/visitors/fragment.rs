@@ -512,9 +512,14 @@ pub fn fragment(
                 }
                 // Also scan memoized expressions for blocked identifiers.
                 // Memoized values like `[() => checkedFactory()()]` are not in
-                // state.update but still reference blocked variables.
+                // state.update but still reference blocked variables. These are
+                // render-time thunks (no event handlers), so descend into
+                // nested closures too — a blocker referenced from inside an IIFE
+                // such as `{(() => host)()}` must still be collected (Svelte
+                // 5.56.0 #18309). The blocker set is deduped, so re-collecting a
+                // name already found in `state.update` is a no-op.
                 for memo_expr in state.memoizer.all_expressions() {
-                    collect_ids_from_expr(&memo_expr, &context.arena, &mut all_names);
+                    collect_ids_from_expr_props(&memo_expr, &context.arena, &mut all_names);
                 }
 
                 // Collect instance-level blocker indices from blocker_map.
@@ -918,7 +923,7 @@ pub fn collect_identifiers_from_statement_props(
 /// but skips arrow functions that are the value of `children` or `$$slots` properties.
 /// This mirrors the official Svelte compiler's memoizer which tracks blockers from
 /// direct prop expressions but not from children callbacks.
-fn collect_ids_from_expr_props(
+pub(crate) fn collect_ids_from_expr_props(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     names: &mut Vec<compact_str::CompactString>,

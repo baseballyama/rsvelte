@@ -214,8 +214,11 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                 }
 
                 // Determine if `/` is a division operator or the start of a regex.
-                // After an identifier, closing paren/bracket, or postfix operator,
-                // `/` is division.
+                // After a value — identifier, number, closing paren/bracket, a
+                // postfix operator, or a string/template-literal close quote —
+                // `/` is division. (A `/` immediately after a string literal such
+                // as `'ab' / divisor` is always division: no regex can follow a
+                // value without an intervening operator.)
                 let is_division = match prev_non_ws {
                     Some(c) => {
                         c.is_ascii_alphanumeric()
@@ -225,6 +228,9 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                             || c == b']'
                             || c == b'+'
                             || c == b'-'
+                            || c == b'\''
+                            || c == b'"'
+                            || c == b'`'
                     }
                     None => false,
                 };
