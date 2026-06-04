@@ -864,6 +864,16 @@ pub fn visit_regular_element(
     // either fold the child consts into the element block (has_declarations) or
     // bubble them back up to the parent (transparent fragment).
     let saved_child_consts = std::mem::take(&mut context.state.consts);
+    // When the fragment introduces declarations, the child also gets a fresh
+    // `async_consts` group (upstream `async_consts: has_declarations ? undefined`)
+    // so a nested `{const = $derived(await …)}` / `{let = $state(await …)}`
+    // emits its own `var promises_N = $.run([…])` inside the element block,
+    // rather than leaking its thunk into the enclosing block's group.
+    let saved_async_consts = if has_declarations {
+        context.state.async_consts.take()
+    } else {
+        None
+    };
 
     // When this element introduces declarations, switch `state.scope` to the
     // element's Phase-2 child scope (keyed by `element.start` in
@@ -890,9 +900,29 @@ pub fn visit_regular_element(
         // `$.get(name)`) so the block-local binding wins: `get_binding`
         // resolves to the const and `get_literal_value` can constant-fold it
         // instead of `convert_expression` emitting `$.get(...)`.
-        let decl_names: Vec<String> = child_scope.declarations.keys().cloned().collect();
+        //
+        // ONLY for non-reactive (literal/plain `const`) declarations — those
+        // shadow an outer reactive binding. A block-local reactive declaration
+        // (`{let x = $state(…)}` / `{const y = $derived(…)}`) needs to KEEP its
+        // own `$.get` transform, so it is left in place.
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let removable_names: Vec<String> = child_scope
+            .declarations
+            .iter()
+            .filter(|entry| {
+                let idx = *entry.1;
+                match context.state.scope_root.bindings.get(idx) {
+                    Some(b) => !matches!(
+                        b.kind,
+                        BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                    ),
+                    None => true,
+                }
+            })
+            .map(|entry| entry.0.clone())
+            .collect();
         context.state.scope = child_scope;
-        for n in &decl_names {
+        for n in &removable_names {
             context.state.transform.remove(n);
         }
     }
@@ -1223,6 +1253,31 @@ pub fn visit_regular_element(
     let child_update = std::mem::take(&mut context.state.update);
     let child_after_update = std::mem::take(&mut context.state.after_update);
     let child_consts = std::mem::take(&mut context.state.consts);
+    // Take the child's async_consts group (if any) and build its
+    // `var promises_N = $.run([…thunks])` declaration, mirroring
+    // `fragment.rs`. Emitted into the block after the consts, before init.
+    let child_async_consts_stmt = if has_declarations {
+        context.state.async_consts.take().and_then(|ac| {
+            if ac.thunks.is_empty() {
+                return None;
+            }
+            let id_name = match &ac.id {
+                JsExpr::Identifier(name) => name.clone(),
+                _ => "promises".into(),
+            };
+            Some(b::var_decl(
+                &context.arena,
+                id_name,
+                Some(b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.run"),
+                    vec![b::array(ac.thunks)],
+                )),
+            ))
+        })
+    } else {
+        None
+    };
 
     // Restore the parent state
     context.state.init = saved_child_init;
@@ -1232,6 +1287,9 @@ pub fn visit_regular_element(
     context.state.consts = saved_child_consts;
     context.state.scope = saved_scope;
     context.state.transform = saved_transform;
+    if has_declarations {
+        context.state.async_consts = saved_async_consts;
+    }
     // For a transparent fragment (no DeclarationTag), child consts (e.g. legacy
     // `{@const}` that bubbled up from a nested transparent element) flow back to
     // the parent scope. When `has_declarations`, they are instead emitted inside
@@ -1248,6 +1306,9 @@ pub fn visit_regular_element(
         block_body.extend(child_snippets);
         if has_declarations {
             block_body.extend(child_consts);
+            if let Some(stmt) = child_async_consts_stmt {
+                block_body.push(stmt);
+            }
         }
         block_body.extend(child_init);
         block_body.extend(element_state_init);
