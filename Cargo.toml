@@ -24,18 +24,18 @@ panic = "unwind"  # Criterion requires unwind for catching panics
 # rsvelte's AST types unify with oxc_formatter's transitive deps
 # (avoids "two Program<'a> types from different source units" errors).
 [patch.crates-io]
-oxc_allocator         = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_parser            = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_ast               = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_ast_macros        = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_ast_visit         = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_span              = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_diagnostics       = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_codegen           = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_syntax            = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_semantic          = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_ecmascript        = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_estree            = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_str               = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
-oxc_data_structures   = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
+oxc_allocator         = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_parser            = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_ast               = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_ast_macros        = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_ast_visit         = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_span              = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_diagnostics       = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_codegen           = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_syntax            = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_semantic          = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_ecmascript        = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_estree            = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_str               = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
+oxc_data_structures   = { git = "https://github.com/oxc-project/oxc", rev = "beb46d31faa27278abfae34ae99b5e016688ed28" }
