@@ -172,26 +172,12 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // lowering, etc.).
 
     // Svelte 5.56.0 #18282 (`59d3a36f8` "feat: allow declarations in the
-    // template") follow-ups: the synchronous DeclarationTag (`{let x = …}` /
-    // `{const x = …}`) lands in this PR, but two paths are pending and
-    // tracked as separate ports. See `AGENTS.md` Test Status notes.
-    //
-    // 1. `declaration-tags` — nested `{const}` inside an element needs a
-    //    block-scope `{ … }` wrap so its identifier doesn't leak into the
-    //    outer fragment. The fragment-walker reorganisation required for
-    //    this is non-trivial; ConstTag has the same gap with the same
-    //    output today.
-    // 2. `async-declaration-tag` / `async-declaration-tag-2` — the
-    //    `metadata.promises_id` async-blocker lowering path
-    //    (`add_async_declaration` in upstream's DeclarationTag.js) is not
-    //    yet ported. Synchronous declaration tags pass.
-    // `declaration-tags` — CLIENT output now fully matches (element-nested
-    // `{const}`/`{let}` block-scope wrap + child-scope binding resolution +
-    // `scope.evaluate` constant-folding all ported in
-    // `client/visitors/regular_element.rs` + `shared/utils.rs::get_literal_value`).
-    // Still SERVER-side pending: the string renderer does not yet block-scope
-    // element-nested declarations (`{ … }` wrap) or fold their literal reads.
-    "declaration-tags",
+    // template") follow-up: `async-declaration-tag` / `async-declaration-tag-2`
+    // need the `metadata.promises_id` async-blocker lowering path
+    // (`add_async_declaration` in upstream's DeclarationTag.js) for
+    // `{let x = $state(await …)}`, which is not yet ported. The synchronous
+    // DeclarationTag path — including element-nested block-scoping + constant
+    // folding (client + server) — is complete (`declaration-tags` passes).
     "async-declaration-tag",
     "async-declaration-tag-2",
     // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const

@@ -2657,10 +2657,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     hoisted.push(part.clone());
                     in_hoisted_region = true;
                 }
-                OutputPart::RawStatement(s) if s.starts_with("let ") || s.starts_with("var ") => {
-                    // Hoist `let` and `var` declarations (from async const tags) alongside
-                    // ConstDeclaration and SnippetFunction to match the official
-                    // compiler's state.init ordering.
+                OutputPart::RawStatement(s)
+                    if s.starts_with("let ")
+                        || s.starts_with("var ")
+                        || s.starts_with("const ") =>
+                {
+                    // Hoist `let` / `var` / `const` declarations (from async const
+                    // tags and DeclarationTags `{let x = …}` / `{const x = …}`)
+                    // alongside ConstDeclaration and SnippetFunction to match the
+                    // official compiler's state.init ordering (declarations sit at
+                    // the top of the enclosing block before any rendered HTML).
                     hoisted.push(part.clone());
                     in_hoisted_region = true;
                 }

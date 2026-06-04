@@ -466,6 +466,42 @@ impl<'a> ServerCodeGenerator<'a> {
             format!("{};", trimmed)
         };
         self.output_parts.push(OutputPart::RawStatement(stmt));
+
+        // Populate `constant_vars` for foldable literal declarators so reads of
+        // the binding constant-fold to the literal in template expressions
+        // (mirrors `generate_const_tag` + upstream `scope.evaluate`). Reactive
+        // initializers (`$state(…)` / `$derived(…)`) don't fold, so they're
+        // left out and continue to read via their runtime form.
+        let decl_json = tag.declaration.as_json();
+        if let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) {
+            for d in decls {
+                let (Some(id), Some(init)) = (d.get("id"), d.get("init")) else {
+                    continue;
+                };
+                if init.is_null() || id.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                    continue;
+                }
+                let Some(name) = id.get("name").and_then(|n| n.as_str()) else {
+                    continue;
+                };
+                let (Some(s), Some(e)) = (
+                    init.get("start").and_then(|v| v.as_u64()),
+                    init.get("end").and_then(|v| v.as_u64()),
+                ) else {
+                    continue;
+                };
+                let (s, e) = (s as usize, e as usize);
+                if s >= e || e > self.source.len() {
+                    continue;
+                }
+                let rhs = self.source[s..e].trim();
+                if let Some(folded) =
+                    super::super::helpers::try_evaluate_with_constants(rhs, &self.constant_vars)
+                {
+                    self.constant_vars.insert(name.to_string(), folded);
+                }
+            }
+        }
         Ok(())
     }
 
