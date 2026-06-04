@@ -1,5 +1,5 @@
 use oxc_allocator::Allocator;
-use oxc_formatter::{Formatter, JsFormatOptions};
+use oxc_formatter::{JsFormatOptions, format_program};
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
 use rsvelte_core::ast::template::Script;
@@ -57,7 +57,10 @@ pub(crate) fn format_script(
         return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
     }
 
-    let formatted = Formatter::new(&allocator, options.js.clone()).build(&parser_ret.program);
+    let formatted = format_program(&allocator, &parser_ret.program, options.js.clone(), None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
 
     // oxc_formatter emits a trailing newline. Add one indent level to
     // every non-empty line so the body is nested under `<script>` using

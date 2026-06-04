@@ -12,10 +12,10 @@ crate-type = ["rlib"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
-oxc_allocator = "0.133"
-oxc_ast = "0.133"
-oxc_parser = "0.133"
-oxc_span = "0.133"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "3d13e293e4e24c91eb2958df493245c85f7087bd" }
+oxc_allocator = "0.134"
+oxc_ast = "0.134"
+oxc_parser = "0.134"
+oxc_span = "0.134"
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "f6f0fbf5d9a565a46031166c835dbe56b875ac3a" }
 thiserror = "2.0"

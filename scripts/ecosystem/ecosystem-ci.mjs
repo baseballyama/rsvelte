@@ -246,6 +246,161 @@ function buildRsvelte(checkoutPath) {
 	return { nodeName, bindingPath: stageAPath, triple };
 }
 
+// Build the rsvelte `svelte-check` CLI binary and stage it into the matching
+// apps/npm/svelte-check-<triple>/ package, mirroring buildRsvelte's stage B for
+// the NAPI binding. Used by the svelte-check swap so pnpm picks up the local
+// rsvelte at HEAD, not the last npm-published version. The cargo invocation
+// mirrors the release workflow's `build-svelte-check` job.
+function buildSvelteCheck(triple) {
+	const ext = process.platform === 'win32' ? '.exe' : '';
+	log(`building rsvelte svelte-check binary (triple=${triple})`);
+	// No `--features napi`: the napi feature links against node's runtime, which a
+	// standalone binary can't satisfy (linker error). Mirrors release.yml's
+	// `build-svelte-check` job. This means rsvelte_core compiles a second time
+	// under the default feature set (buildRsvelte built it with `napi`), which is
+	// an acceptable one-off cost for the (single, opt-in) svelte-check target.
+	const r = spawnSync('cargo', ['build', '--release', '--bin', 'svelte_check'], {
+		stdio: 'inherit',
+		cwd: ROOT,
+	});
+	if (r.status !== 0) throw new Error('cargo build --bin svelte_check failed');
+	const srcPath = path.join(ROOT, 'target', 'release', `svelte_check${ext}`);
+	if (!fs.existsSync(srcPath)) throw new Error(`cargo output missing: ${srcPath}`);
+	const platformPkg = path.join(ROOT, 'apps', 'npm', `svelte-check-${triple}`);
+	if (!fs.existsSync(platformPkg)) {
+		throw new Error(`platform npm package missing: ${platformPkg}`);
+	}
+	// cargo names the binary after the bin's `name` field (`svelte_check`); the
+	// user-facing package ships it as `svelte-check` (see release.yml).
+	const destPath = path.join(platformPkg, `svelte-check${ext}`);
+	fs.copyFileSync(srcPath, destPath);
+	if (ext !== '.exe') fs.chmodSync(destPath, 0o755);
+	log(`staged svelte-check -> ${path.relative(ROOT, destPath)}`);
+}
+
+// pnpm 11 no longer reads the `pnpm` field from package.json (overrides,
+// onlyBuiltDependencies, supportedArchitectures, ... were all moved to
+// pnpm-workspace.yaml). Merge a small, controlled set of top-level keys into the
+// target's pnpm-workspace.yaml (creating it if absent) without a YAML dependency:
+//
+//   - dangerouslyAllowAllBuilds: true   — build native deps (esbuild, ...) during
+//     install instead of failing with ERR_PNPM_IGNORED_BUILDS. Targets that keep
+//     `pnpm.onlyBuiltDependencies` in package.json (e.g. flowbite-svelte) rely on
+//     this since pnpm 11 silently ignores that field.
+//   - overrides: { name: spec, ... }    — the swap. In pnpm 10 this used to be
+//     injected into package.json#pnpm.overrides; pnpm 11 ignores it there, so the
+//     swap was silently a no-op (the matrix verified official svelte, not rsvelte).
+//
+// The merge preserves existing content (packages, catalog, the target's own
+// overrides). Our override keys are namespaced (@sveltejs/..., @rsvelte/...,
+// svelte-check) and don't collide with a target's overrides in practice.
+function mergeWorkspaceYaml(
+	checkoutPath,
+	{ dangerouslyAllowAllBuilds = false, overrides = null } = {},
+) {
+	let wsPath = null;
+	for (const f of ['pnpm-workspace.yaml', 'pnpm-workspace.yml']) {
+		const p = path.join(checkoutPath, f);
+		if (fs.existsSync(p)) {
+			wsPath = p;
+			break;
+		}
+	}
+	if (!wsPath) wsPath = path.join(checkoutPath, 'pnpm-workspace.yaml');
+	let content = fs.existsSync(wsPath) ? fs.readFileSync(wsPath, 'utf8') : '';
+	if (content && !content.endsWith('\n')) content += '\n';
+
+	if (dangerouslyAllowAllBuilds && !/^dangerouslyAllowAllBuilds:/m.test(content)) {
+		content += 'dangerouslyAllowAllBuilds: true\n';
+	}
+
+	if (overrides && Object.keys(overrides).length > 0) {
+		const entryLines = Object.entries(overrides).map(
+			([k, v]) => `  '${k}': '${v}'`,
+		);
+		if (/^overrides:/m.test(content)) {
+			// Insert our entries right after the existing `overrides:` line.
+			content = content.replace(
+				/^(overrides:[^\n]*\n)/m,
+				(_m, head) => head + entryLines.join('\n') + '\n',
+			);
+		} else {
+			content += 'overrides:\n' + entryLines.join('\n') + '\n';
+		}
+	}
+
+	fs.writeFileSync(wsPath, content);
+	return wsPath;
+}
+
+// Remove a top-level YAML key and its indented block (or inline value) from
+// `content`. Used to drop a target's build-approval lists so they don't clash
+// with `dangerouslyAllowAllBuilds`.
+function removeYamlTopLevelKey(content, key) {
+	const lines = content.split('\n');
+	const out = [];
+	let skipping = false;
+	for (const line of lines) {
+		if (skipping) {
+			// Keep skipping the key's indented children; stop at the next
+			// top-level (non-indented) line or a blank line.
+			if (/^\s/.test(line) && line.trim() !== '') continue;
+			skipping = false;
+		}
+		if (new RegExp(`^${key}\\s*:`).test(line)) {
+			skipping = true;
+			continue;
+		}
+		out.push(line);
+	}
+	return out.join('\n');
+}
+
+// Make `pnpm install` build every dependency's install/postinstall script for
+// both the baseline and rsvelte runs, the way each target's own CI does.
+//
+// pnpm 10+ aborts with ERR_PNPM_IGNORED_BUILDS when a dependency ships an
+// unapproved build script, and `dangerouslyAllowAllBuilds: true` (set in
+// pnpm-workspace.yaml) lifts that. But it conflicts with a target's own
+// `onlyBuiltDependencies` / `neverBuiltDependencies` lists
+// (ERR_PNPM_CONFIG_CONFLICT_BUILT_DEPENDENCIES), so we strip those from both
+// package.json#pnpm (where pnpm 9/10 read them) and pnpm-workspace.yaml (pnpm
+// 11) first. pnpm 9 builds everything by default and ignores the workspace key.
+function prepareBuildApproval(checkoutPath) {
+	const pkgPath = path.join(checkoutPath, 'package.json');
+	if (fs.existsSync(pkgPath)) {
+		const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+		if (pkg.pnpm) {
+			delete pkg.pnpm.onlyBuiltDependencies;
+			delete pkg.pnpm.neverBuiltDependencies;
+			fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+		}
+	}
+	for (const f of ['pnpm-workspace.yaml', 'pnpm-workspace.yml']) {
+		const p = path.join(checkoutPath, f);
+		if (!fs.existsSync(p)) continue;
+		let content = fs.readFileSync(p, 'utf8');
+		content = removeYamlTopLevelKey(content, 'onlyBuiltDependencies');
+		content = removeYamlTopLevelKey(content, 'neverBuiltDependencies');
+		fs.writeFileSync(p, content);
+	}
+	return mergeWorkspaceYaml(checkoutPath, { dangerouslyAllowAllBuilds: true });
+}
+
+// Guard against a silent swap no-op: after the rsvelte install, confirm the
+// rsvelte vite-plugin-svelte NAPI wrapper actually landed in the target's
+// node_modules. It only gets installed when the `@sveltejs/vite-plugin-svelte`
+// override resolved to our staged fork (which depends on it). If the override
+// were ignored — as it was under pnpm 11 with the old package.json injection —
+// the official plugin (no rsvelte dep) is installed and this returns false.
+function assertVpsSwapApplied(checkoutPath) {
+	const pnpmDir = path.join(checkoutPath, 'node_modules', '.pnpm');
+	if (!fs.existsSync(pnpmDir)) return false;
+	return fs
+		.readdirSync(pnpmDir)
+		.some((e) => e.startsWith('@rsvelte+vite-plugin-svelte-native@'));
+}
+
 function applySwap(target, checkoutPath, bindingPath, triple) {
 	const strategy = target.swap?.strategy ?? 'loader-hook';
 
@@ -291,21 +446,46 @@ function applySwap(target, checkoutPath, bindingPath, triple) {
 		const stagedPkgPath = path.join(forkStage, 'package.json');
 		const stagedPkg = JSON.parse(fs.readFileSync(stagedPkgPath, 'utf8'));
 		stagedPkg.name = '@sveltejs/vite-plugin-svelte';
+		// Marker so assertVpsSwapApplied / debugging can tell our fork apart from
+		// the official plugin once pnpm has installed it.
+		stagedPkg._rsvelteShim = true;
 		fs.writeFileSync(stagedPkgPath, JSON.stringify(stagedPkg, null, 2) + '\n');
 
+		// All file: refs use plain paths (each staged/local package's name matches
+		// the override key).
+		const overrides = {
+			'@sveltejs/vite-plugin-svelte': `file:${forkStage}`,
+			'@rsvelte/vite-plugin-svelte-native': `file:${path.join(ROOT, 'apps', 'npm', 'vite-plugin-svelte-native')}`,
+			[`@rsvelte/vite-plugin-svelte-native-${triple}`]: `file:${path.join(ROOT, 'apps', 'npm', `vite-plugin-svelte-native-${triple}`)}`,
+		};
+		// Targets that also verify svelte-check get the rsvelte svelte-check CLI
+		// swapped in too (loader wrapper + platform binary, same two-package shape
+		// as the NAPI native packages). Only injected when commands.check is set so
+		// a target's own svelte-check usage isn't disturbed otherwise.
+		if (target.commands?.check) {
+			overrides['svelte-check'] = `file:${path.join(ROOT, 'apps', 'npm', 'svelte-check')}`;
+			overrides[`@rsvelte/svelte-check-${triple}`] =
+				`file:${path.join(ROOT, 'apps', 'npm', `svelte-check-${triple}`)}`;
+		}
+
+		// Write the overrides to BOTH places because each target pins its own pnpm
+		// (via package.json#packageManager / corepack), and where pnpm looks for
+		// overrides changed across majors:
+		//   - pnpm 9  reads package.json#pnpm.overrides; it ignores overrides in
+		//             pnpm-workspace.yaml (added in pnpm 10).
+		//   - pnpm 11 ignores the package.json `pnpm` field entirely; overrides
+		//             must be in pnpm-workspace.yaml.
+		//   - pnpm 10 reads pnpm-workspace.yaml (and warns about package.json#pnpm).
+		// e.g. melt-ui pins pnpm@9, flowbite-svelte uses the ambient pnpm 11.
 		const pkgPath = path.join(checkoutPath, 'package.json');
 		const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 		pkg.pnpm = pkg.pnpm ?? {};
-		pkg.pnpm.overrides = pkg.pnpm.overrides ?? {};
-		// All three overrides use plain file: refs (package.json#name matches
-		// the override key in each case).
-		pkg.pnpm.overrides['@sveltejs/vite-plugin-svelte'] = `file:${forkStage}`;
-		pkg.pnpm.overrides['@rsvelte/vite-plugin-svelte-native'] =
-			`file:${path.join(ROOT, 'apps', 'npm', 'vite-plugin-svelte-native')}`;
-		pkg.pnpm.overrides[`@rsvelte/vite-plugin-svelte-native-${triple}`] =
-			`file:${path.join(ROOT, 'apps', 'npm', `vite-plugin-svelte-native-${triple}`)}`;
+		pkg.pnpm.overrides = { ...(pkg.pnpm.overrides ?? {}), ...overrides };
 		fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-		log(`vps-shim: staged fork -> ${path.relative(ROOT, forkStage)} and injected 3 pnpm.overrides`);
+		const wsPath = mergeWorkspaceYaml(checkoutPath, { overrides });
+		log(
+			`vps-shim: staged fork -> ${path.relative(ROOT, forkStage)} and injected ${Object.keys(overrides).length} overrides into package.json + ${path.relative(ROOT, wsPath)}`,
+		);
 		return { strategy, env: {}, needsReinstall: true };
 	}
 
@@ -328,7 +508,10 @@ function applySwap(target, checkoutPath, bindingPath, triple) {
 
 function restoreTarget(target) {
 	const dest = path.join(CHECKOUT_DIR, target.name);
-	for (const f of ['package.json', 'pnpm-lock.yaml']) {
+	// pnpm-workspace.yaml: restores the target's own file when it ships one; a
+	// no-op for the untracked sentinel we drop for non-monorepo targets (that
+	// gets recreated/cleaned on the next run).
+	for (const f of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml']) {
 		spawnSync('git', ['checkout', '--', f], { cwd: dest, stdio: 'ignore' });
 	}
 	fs.rmSync(path.join(dest, '.rsvelte'), { recursive: true, force: true });
@@ -355,6 +538,13 @@ async function runTarget(name) {
 	log(`=== ${target.name} (${target.type}, swap=${target.swap?.strategy ?? 'loader-hook'}) ===`);
 
 	const { sha: targetSha } = cloneOrUpdate(target);
+	const checkoutPath = path.join(CHECKOUT_DIR, target.name);
+
+	// Allow all dependency build scripts for both baseline and rsvelte installs —
+	// matches what each target's own CI does, and keeps pnpm 10+ from aborting
+	// with ERR_PNPM_IGNORED_BUILDS on targets whose build approvals live in the
+	// (pnpm-11-ignored) package.json#pnpm.onlyBuiltDependencies, e.g. flowbite.
+	prepareBuildApproval(checkoutPath);
 
 	const baseline = {};
 	baseline.install = runPhase(
@@ -386,7 +576,21 @@ async function runTarget(name) {
 			target.timeoutMinutes,
 		);
 	}
-	const baselineFailed = ['install', 'build', 'test'].some(
+	// svelte-check verification (Wave 2). Gated by the baseline: if the official
+	// svelte-check already reports problems on this target, that's the target's
+	// issue, not a rsvelte regression — classify as baseline-failure and skip the
+	// rsvelte run. We only proceed to compare rsvelte's svelte-check on a target
+	// the official one passes cleanly.
+	if (target.commands.check) {
+		baseline.check = runPhase(
+			target,
+			'baseline-check',
+			target.commands.check,
+			{},
+			target.timeoutMinutes,
+		);
+	}
+	const baselineFailed = ['install', 'build', 'test', 'check'].some(
 		(k) => baseline[k] && baseline[k].exitCode !== 0,
 	);
 	if (baselineFailed) {
@@ -394,9 +598,10 @@ async function runTarget(name) {
 		return 'baseline-failure';
 	}
 
-	// Build rsvelte NAPI and stage it under the target's .rsvelte/
-	const checkoutPath = path.join(CHECKOUT_DIR, target.name);
+	// Build rsvelte NAPI (and the svelte-check binary when this target verifies
+	// it) and stage them under the target's .rsvelte/ + apps/npm.
 	const { bindingPath, triple } = buildRsvelte(checkoutPath);
+	if (target.commands.check) buildSvelteCheck(triple);
 
 	let swap;
 	try {
@@ -413,6 +618,17 @@ async function runTarget(name) {
 
 	const rsvelte = {};
 	if (swap.needsReinstall) {
+		// Force a fresh resolution so the swap overrides actually apply. pnpm 11
+		// does NOT invalidate an existing install when pnpm-workspace.yaml
+		// `overrides` change (even `--force` reports "Already up to date"), so a
+		// plain reinstall keeps the baseline's official packages and the swap is a
+		// silent no-op. Removing node_modules + the lockfile makes pnpm re-resolve
+		// against the overrides; the warm store keeps it fast.
+		fs.rmSync(path.join(checkoutPath, 'node_modules'), {
+			recursive: true,
+			force: true,
+		});
+		fs.rmSync(path.join(checkoutPath, 'pnpm-lock.yaml'), { force: true });
 		rsvelte.install = runPhase(
 			target,
 			'rsvelte-install',
@@ -429,6 +645,21 @@ async function runTarget(name) {
 			});
 			restoreTarget(target);
 			return 'rsvelte-install-failure';
+		}
+		// Fail loudly instead of silently verifying official svelte: if the
+		// override didn't take, the rsvelte plugin never got installed and any
+		// "pass" below would be meaningless.
+		if (swap.strategy === 'vps-shim' && !assertVpsSwapApplied(checkoutPath)) {
+			writeResult(target, targetSha, {
+				result: 'swap-noop',
+				baseline,
+				rsvelte,
+				swap: { strategy: swap.strategy },
+				error:
+					'rsvelte vite-plugin-svelte NAPI wrapper not found in node_modules after install — the override did not take effect (the run would have verified official svelte, not rsvelte)',
+			});
+			restoreTarget(target);
+			return 'swap-noop';
 		}
 	}
 	if (target.commands.build) {
@@ -449,8 +680,17 @@ async function runTarget(name) {
 			target.timeoutMinutes,
 		);
 	}
+	if (target.commands.check) {
+		rsvelte.check = runPhase(
+			target,
+			'rsvelte-check',
+			target.commands.check,
+			swap.env,
+			target.timeoutMinutes,
+		);
+	}
 
-	const rsvelteFailed = ['build', 'test'].some(
+	const rsvelteFailed = ['build', 'test', 'check'].some(
 		(k) => rsvelte[k] && rsvelte[k].exitCode !== 0,
 	);
 	const result = rsvelteFailed ? 'regression' : 'pass';
@@ -479,6 +719,8 @@ function exitCodeForResult(result) {
 			return 4;
 		case 'swap-failure':
 			return 5;
+		case 'swap-noop':
+			return 6;
 		default:
 			return 1;
 	}

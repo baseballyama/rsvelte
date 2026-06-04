@@ -7,7 +7,7 @@
 //! Run: `cargo test --test oxc_formatter_probe -- --nocapture`
 
 use oxc_allocator::Allocator;
-use oxc_formatter::{Formatter, JsFormatOptions};
+use oxc_formatter::{JsFormatOptions, format_program};
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 
@@ -23,7 +23,15 @@ fn formats_unformatted_js() {
         parser_ret.errors
     );
 
-    let formatted = Formatter::new(&allocator, JsFormatOptions::new()).build(&parser_ret.program);
+    let formatted = format_program(
+        &allocator,
+        &parser_ret.program,
+        JsFormatOptions::new(),
+        None,
+    )
+    .print()
+    .expect("print")
+    .into_code();
 
     println!("--- input ---\n{source}\n--- output ---\n{formatted}");
 

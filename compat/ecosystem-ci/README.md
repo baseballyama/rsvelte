@@ -56,7 +56,8 @@ See `targets/shadcn-svelte.json` for a worked example. Required fields:
 | `type` | `app` or `tool` — controls verification strategy |
 | `commands.install` | how to install deps |
 | `commands.test` and/or `commands.build` | what to run for verification (at least one required) |
-| `swap.strategy` | `vps-shim` (preferred when the target uses vite-plugin-svelte), `loader-hook` (require-hook fallback), or `pnpm-override` (already-forked targets). The runner stages a renamed copy of `submodules/vite-plugin-svelte/packages/vite-plugin-svelte` and uses three pnpm.overrides — `@sveltejs/vite-plugin-svelte`, `@rsvelte/vite-plugin-svelte-native`, and `@rsvelte/vite-plugin-svelte-native-<triple>` — so the target picks up the *local* NAPI binary, not the last npm-published one. |
+| `commands.check` | optional; a `svelte-check` invocation (Wave 2). When set, the runner also verifies the rsvelte `svelte-check` CLI: it runs the *same* command under the official `svelte-check` (baseline) and then under the rsvelte `@rsvelte/svelte-check` binary (swapped in alongside the compiler). Use flags both binaries accept (`--workspace`, `--output`, `--tsconfig`, `--ignore`, `--fail-on-warnings`, `--compiler-warnings`, `--diagnostic-sources`). Gated by the baseline like every other phase. |
+| `swap.strategy` | `vps-shim` (preferred when the target uses vite-plugin-svelte), `loader-hook` (require-hook fallback), or `pnpm-override` (already-forked targets). The runner stages a renamed copy of `submodules/vite-plugin-svelte/packages/vite-plugin-svelte` and injects pnpm `overrides` **into both `package.json` and `pnpm-workspace.yaml`** (each target pins a different pnpm major that reads overrides from a different place — see "pnpm version caveats" below) — `@sveltejs/vite-plugin-svelte`, `@rsvelte/vite-plugin-svelte-native`, and `@rsvelte/vite-plugin-svelte-native-<triple>` (plus `svelte-check` + `@rsvelte/svelte-check-<triple>` when `commands.check` is set) — so the target picks up the *local* rsvelte binaries, not the last npm-published ones. |
 | `subPath` | optional; if the verification target is a sub-package of a monorepo |
 | `timeoutMinutes` | per-phase timeout |
 | `tags` | free-form labels for grouping (`ui-library`, `sveltekit`, …) |
@@ -66,27 +67,57 @@ See `targets/shadcn-svelte.json` for a worked example. Required fields:
 
 1. Resolve the target JSON.
 2. Clone or fast-forward `compat/ecosystem-ci/checkout/<name>/` to the latest commit on `branch`.
-3. `pnpm install` (or whatever `commands.install` says).
-4. **Baseline**: run `commands.build` and/or `commands.test` against the unmodified target. Save log + exit code under `.cache/<name>-baseline.{log,json}`.
-5. Build rsvelte NAPI via `.claude/skills/verify-svelte-compat/scripts/build-rsvelte.sh`, drop the `.node` into `checkout/<name>/.rsvelte/`.
-6. **Swap**: invoke the swap script that matches `swap.strategy`. This injects a `svelte/compiler` shim or a `pnpm.overrides` entry.
-7. **rsvelte run**: re-run the same commands. Save log + exit code under `.cache/<name>-rsvelte.{log,json}`.
-8. **Compare**: exit codes + log diff. Write final verdict to `results/<name>.json`:
+3. Ensure `pnpm-workspace.yaml` carries `dangerouslyAllowAllBuilds: true` (see "pnpm version caveats" below), then `pnpm install` (or whatever `commands.install` says).
+4. **Baseline**: run `commands.build`, `commands.test`, and/or `commands.check` against the unmodified target. Save log + exit code under `.cache/<name>-baseline-*.{log,json}`.
+5. Build rsvelte NAPI (`cargo build --release --features napi --lib`) and stage it into `apps/npm/vite-plugin-svelte-native-<triple>/`; for targets with `commands.check`, also build `svelte_check` and stage it into `apps/npm/svelte-check-<triple>/`.
+6. **Swap**: inject pnpm `overrides` into the target's `package.json` and `pnpm-workspace.yaml`, then remove `node_modules` + `pnpm-lock.yaml` and re-install so the overrides actually resolve (see "pnpm version caveats" below). A post-install sanity check confirms the rsvelte plugin really landed in `node_modules`.
+7. **rsvelte run**: re-run the same commands. Save log + exit code under `.cache/<name>-rsvelte-*.{log,json}`.
+8. **Verdict**: written to `results/<name>.json`. The rsvelte phases must all exit 0 (gated by the baseline):
 
    ```jsonc
    {
      "name": "shadcn-svelte",
-     "targetCommit": "abc123",
-     "rsvelteCommit": "def456",
-     "result": "pass" | "baseline-failure" | "regression",
-     "baseline": { "exitCode": 0, "durationSeconds": 145 },
-     "rsvelte":  { "exitCode": 0, "durationSeconds": 162 },
+     "targetSha": "abc123",
+     "rsvelteSha": "def456",
+     "result": "pass" | "baseline-failure" | "regression" | "rsvelte-install-failure" | "swap-failure" | "swap-noop",
+     "baseline": { "install": { "exitCode": 0, "durationMs": 145000 }, "build": { "exitCode": 0, "durationMs": 12000 } },
+     "rsvelte":  { "install": { "exitCode": 0, "durationMs": 8000 }, "build": { "exitCode": 0, "durationMs": 16000 } },
      "verifiedAt": "2026-05-25T12:34:56Z"
    }
    ```
 
 If baseline itself fails, the run is classified `baseline-failure` and does
-**not** count as a regression — the target is broken for everyone.
+**not** count as a regression — the target is broken for everyone. `swap-noop`
+means the override silently failed to take effect (the run would have verified
+official svelte, not rsvelte) — treated as a hard failure, never a green pass.
+
+### pnpm version caveats
+
+Each target pins its own pnpm via `package.json#packageManager` (corepack /
+pnpm's self-version-management honours it), so a single sweep runs a mix of
+pnpm majors — e.g. melt-ui pins `pnpm@9`, bits-ui `pnpm@10`, and flowbite-svelte
+(no pin) uses the ambient pnpm 11. Where pnpm reads its config changed across
+those majors, so the harness works around three things:
+
+- **Where `overrides` live moved.** pnpm 9 reads `package.json#pnpm.overrides`
+  and ignores overrides in `pnpm-workspace.yaml`; pnpm 11 ignores the
+  `package.json` `pnpm` field entirely and only reads `pnpm-workspace.yaml`;
+  pnpm 10 reads both. The swap therefore writes the overrides to **both** places
+  so it takes effect regardless of the target's pinned pnpm.
+- **Build-script approval (pnpm 10+).** pnpm 10+ aborts install with
+  `ERR_PNPM_IGNORED_BUILDS` when a dependency ships an unapproved build script.
+  Targets that keep their approvals in `package.json#pnpm.onlyBuiltDependencies`
+  (ignored by pnpm 11, e.g. flowbite-svelte) would break at baseline, so we set
+  `dangerouslyAllowAllBuilds: true` in `pnpm-workspace.yaml` to build native deps
+  (esbuild, sharp, …) during install. pnpm 9 builds everything anyway and just
+  ignores the key.
+- **Changing overrides doesn't invalidate an existing install.** A plain (or even
+  `--force`) reinstall reports "Already up to date" and keeps the baseline's
+  official packages, so the swap becomes a silent no-op. The runner therefore
+  deletes `node_modules` + `pnpm-lock.yaml` before the rsvelte install to force a
+  fresh resolution against the overrides; the warm pnpm store keeps that
+  re-resolution fast. A post-install sanity check (`swap-noop` result) fails the
+  run loudly if the rsvelte plugin still didn't land in `node_modules`.
 
 ## Adding a target
 
