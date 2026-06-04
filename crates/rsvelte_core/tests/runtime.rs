@@ -185,6 +185,12 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     //    `metadata.promises_id` async-blocker lowering path
     //    (`add_async_declaration` in upstream's DeclarationTag.js) is not
     //    yet ported. Synchronous declaration tags pass.
+    // `declaration-tags` — CLIENT output now fully matches (element-nested
+    // `{const}`/`{let}` block-scope wrap + child-scope binding resolution +
+    // `scope.evaluate` constant-folding all ported in
+    // `client/visitors/regular_element.rs` + `shared/utils.rs::get_literal_value`).
+    // Still SERVER-side pending: the string renderer does not yet block-scope
+    // element-nested declarations (`{ … }` wrap) or fold their literal reads.
     "declaration-tags",
     "async-declaration-tag",
     "async-declaration-tag-2",

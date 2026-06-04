@@ -833,6 +833,23 @@ pub fn visit_regular_element(
         .iter()
         .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
 
+    // `has_declarations` mirrors upstream `RegularElement.js`:
+    //   const has_declarations = !node.fragment.metadata.transparent;
+    // An element fragment starts transparent and is downgraded to
+    // non-transparent ONLY when it directly contains a `DeclarationTag`
+    // (the new `{const x = …}` / `{let x = …}` syntax — NOT legacy `{@const}`
+    // ConstTag), per the parser's `pop()` rule
+    // (`phases/1-parse/index.js`). When set, the element's children get their
+    // own `consts` scope and are wrapped in a `{ … }` block so a nested
+    // `{const}` can shadow an outer binding of the same name. Computing it
+    // directly off the DeclarationTag presence avoids depending on the
+    // `transparent` metadata being threaded through analysis.
+    let has_declarations = node
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::DeclarationTag(_)));
+
     // Always create a separate child state for processing children.
     // This matches the JS implementation which always creates:
     //   const child_state = { ...state, init: [], update: [], after_update: [], snippets: [] };
@@ -841,6 +858,44 @@ pub fn visit_regular_element(
     let saved_child_update = std::mem::take(&mut context.state.update);
     let saved_child_after_update = std::mem::take(&mut context.state.after_update);
     let saved_child_snippets = std::mem::take(&mut context.state.snippets);
+    // When the fragment introduces declarations, children get their own
+    // `consts` buffer (upstream `consts: has_declarations ? [] : state.consts`).
+    // We always take the parent consts aside while visiting children, then
+    // either fold the child consts into the element block (has_declarations) or
+    // bubble them back up to the parent (transparent fragment).
+    let saved_child_consts = std::mem::take(&mut context.state.consts);
+
+    // When this element introduces declarations, switch `state.scope` to the
+    // element's Phase-2 child scope (keyed by `element.start` in
+    // `template_scope_map`) for the duration of child processing. `get_binding`
+    // is scope-aware (it consults `self.scope` first, then walks parents), so a
+    // nested `{const doubled}` then resolves to the block-local binding instead
+    // of an outer same-named `$derived`, and `scope.evaluate` can constant-fold
+    // it. Only done for `has_declarations` to keep resolution unchanged for the
+    // overwhelmingly common transparent element. Mirrors upstream's per-element
+    // `child_state.scope` (the fragment walker carries the fragment's scope).
+    let saved_scope = context.state.scope;
+    let saved_transform = context.state.transform.clone();
+    if has_declarations
+        && let Some(child_scope) = context
+            .state
+            .scope_root
+            .template_scope_map
+            .get(&node.start)
+            .and_then(|idx| context.state.scope_root.all_scopes.get(*idx))
+    {
+        // The child scope's declarations are exactly this element's
+        // DeclarationTag bindings. Drop any same-named instance-level
+        // `transform` entry (e.g. an outer `$derived` that maps the name to
+        // `$.get(name)`) so the block-local binding wins: `get_binding`
+        // resolves to the const and `get_literal_value` can constant-fold it
+        // instead of `convert_expression` emitting `$.get(...)`.
+        let decl_names: Vec<String> = child_scope.declarations.keys().cloned().collect();
+        context.state.scope = child_scope;
+        for n in &decl_names {
+            context.state.transform.remove(n);
+        }
+    }
 
     // Propagate preserve_whitespace to child processing so that `pre`/`textarea`
     // whitespace is preserved for ExpressionTag/Text content within nested elements.
@@ -1167,17 +1222,33 @@ pub fn visit_regular_element(
     let child_init = std::mem::take(&mut context.state.init);
     let child_update = std::mem::take(&mut context.state.update);
     let child_after_update = std::mem::take(&mut context.state.after_update);
+    let child_consts = std::mem::take(&mut context.state.consts);
 
     // Restore the parent state
     context.state.init = saved_child_init;
     context.state.update = saved_child_update;
     context.state.after_update = saved_child_after_update;
     context.state.snippets = saved_child_snippets;
+    context.state.consts = saved_child_consts;
+    context.state.scope = saved_scope;
+    context.state.transform = saved_transform;
+    // For a transparent fragment (no DeclarationTag), child consts (e.g. legacy
+    // `{@const}` that bubbled up from a nested transparent element) flow back to
+    // the parent scope. When `has_declarations`, they are instead emitted inside
+    // the element block below, so they are not pushed here.
+    if !has_declarations {
+        context.state.consts.extend(child_consts.iter().cloned());
+    }
 
-    if has_snippet_blocks {
-        // Wrap children in `{...}` to avoid declaration conflicts
+    if has_snippet_blocks || has_declarations {
+        // Wrap children in `{...}` to avoid declaration conflicts.
+        // Upstream block order: snippets, consts, init, element_state.init,
+        // render(update), after_update, element_state.after_update.
         let mut block_body = Vec::new();
         block_body.extend(child_snippets);
+        if has_declarations {
+            block_body.extend(child_consts);
+        }
         block_body.extend(child_init);
         block_body.extend(element_state_init);
 

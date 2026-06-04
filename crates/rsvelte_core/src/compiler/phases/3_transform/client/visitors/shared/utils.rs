@@ -3514,6 +3514,33 @@ pub(crate) fn get_literal_value(
                     "false" => Some(Some("false".to_string())),
                     "null" | "undefined" => Some(None),
                     _ => {
+                        // Check for a JSON `Literal` node form (from binding.initial,
+                        // e.g. a `{const x = 'nested'}` DeclarationTag whose initial is
+                        // stored as `{"type":"Literal",...,"value":"nested","raw":"'nested'"}`).
+                        // Mirrors upstream `scope.evaluate()` returning the literal value.
+                        if init.contains("\"type\":\"Literal\"")
+                            && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(init)
+                            && parsed.get("type").and_then(|t| t.as_str()) == Some("Literal")
+                        {
+                            return match parsed.get("value") {
+                                Some(v) if v.is_string() => {
+                                    Some(Some(v.as_str().unwrap().to_string()))
+                                }
+                                Some(v) if v.is_f64() || v.is_i64() || v.is_u64() => {
+                                    let n = v.as_f64().unwrap();
+                                    if n.fract() == 0.0 {
+                                        Some(Some(format!("{}", n as i64)))
+                                    } else {
+                                        Some(Some(n.to_string()))
+                                    }
+                                }
+                                Some(v) if v.is_boolean() => {
+                                    Some(Some(v.as_bool().unwrap().to_string()))
+                                }
+                                Some(v) if v.is_null() => Some(None),
+                                _ => None,
+                            };
+                        }
                         // Check for TemplateLiteral JSON format (from binding.initial)
                         // Template literals without expressions are known compile-time values
                         if init.contains("\"type\":\"TemplateLiteral\"")
