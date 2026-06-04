@@ -357,7 +357,8 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             let is_hoisted = matches!(node, TemplateNode::ConstTag(_))
-                || matches!(node, TemplateNode::SnippetBlock(_));
+                || matches!(node, TemplateNode::SnippetBlock(_))
+                || matches!(node, TemplateNode::DeclarationTag(_));
             // Flush accumulated async consts before processing non-const content
             if !is_hoisted {
                 body_generator.flush_async_consts();

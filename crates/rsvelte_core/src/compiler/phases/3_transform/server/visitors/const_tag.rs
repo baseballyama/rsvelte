@@ -465,6 +465,36 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             format!("{};", trimmed)
         };
+
+        // Decide sync vs async from the LOWERED declaration. An awaited or
+        // blocked initializer (`{let x = $state(await …)}` /
+        // `{const y = $derived(await …)}` / `{let z = $state(awaited_binding)}`)
+        // is lowered to a bare `let name;` plus an assignment thunk collected
+        // into `self.async_consts` (emitted `var promises_N =
+        // $$renderer.run([…])`), with blocker-wait thunks — mirroring the
+        // ConstTag async path (`generate_const_tag`).
+        let has_await = tag.metadata.expression.has_await();
+        let body_no_semi = stmt.trim_end().trim_end_matches(';').trim();
+        let after_kw = body_no_semi
+            .strip_prefix("let ")
+            .or_else(|| body_no_semi.strip_prefix("const "))
+            .or_else(|| body_no_semi.strip_prefix("var "))
+            .unwrap_or(body_no_semi)
+            .trim();
+        if let Some(eq_idx) = find_assignment_eq(after_kw) {
+            let lhs = after_kw[..eq_idx].trim().to_string();
+            let rhs = after_kw[eq_idx + 1..].trim().to_string();
+            let init_refs = extract_identifiers_from_expr(&rhs);
+            let blockers = self.compute_decl_tag_blockers(&init_refs);
+            if has_await || !blockers.is_empty() {
+                let declared_names = extract_declared_names(&lhs);
+                self.emit_async_decl_tag(&declared_names, &lhs, &rhs, has_await, &blockers);
+                return Ok(());
+            }
+        }
+
+        // Synchronous path: emit the rewritten declaration verbatim (preserving
+        // the user's `let`/`const` keyword).
         self.output_parts.push(OutputPart::RawStatement(stmt));
 
         // Populate `constant_vars` for foldable literal declarators so reads of
@@ -503,6 +533,136 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Compute the cross-group async blockers for a DeclarationTag whose
+    /// initializer references `init_refs`. Mirrors the blocker computation in
+    /// `generate_const_tag`: a referenced binding registered in
+    /// `const_blocker_map` (a different async_consts group) or in the
+    /// instance-level `top_level_blocker_map` (`$$promises[N]`) contributes a
+    /// wait expression. Blockers within the current group are skipped (they are
+    /// ordered implicitly by sequential `$$renderer.run` execution).
+    fn compute_decl_tag_blockers(&self, init_refs: &[String]) -> Vec<String> {
+        let current_group_name = self.async_consts.as_ref().map(|g| g.name.clone());
+        let const_blocker_map = self.const_blocker_map.borrow();
+        let mut blist: Vec<String> = Vec::new();
+        for name in init_refs {
+            if let Some(blocker_expr) = const_blocker_map.get(name) {
+                if let Some(ref group_name) = current_group_name
+                    && blocker_expr.starts_with(&format!("{}[", group_name))
+                {
+                    continue;
+                }
+                if !blist.contains(blocker_expr) {
+                    blist.push(blocker_expr.clone());
+                }
+            } else if let Some(&idx) = self.top_level_blocker_map.get(name) {
+                let blocker_expr = format!("$$promises[{}]", idx);
+                if !blist.contains(&blocker_expr) {
+                    blist.push(blocker_expr);
+                }
+            }
+        }
+        blist
+    }
+
+    /// Emit a DeclarationTag through the async-declaration lowering: a bare
+    /// `let name;` for each declared binding, blocker-wait thunk(s), and the
+    /// deferred assignment thunk, all collected into `self.async_consts` (which
+    /// `flush_async_consts` renders as `var promises_N = $$renderer.run([…])`).
+    /// Registers each binding's blocker in `const_blocker_map` so downstream
+    /// reactive reads wrap in `$$renderer.async([promises_N[i]], …)`. Mirrors
+    /// the async branch of `generate_const_tag`.
+    fn emit_async_decl_tag(
+        &mut self,
+        declared_names: &[String],
+        lhs: &str,
+        rhs: &str,
+        has_await: bool,
+        blockers: &[String],
+    ) {
+        if self.async_consts.is_none() {
+            let group_name = self.generate_promises_name();
+            self.async_consts = Some(super::super::AsyncConstsGroup {
+                name: group_name,
+                thunks: Vec::new(),
+                declared_vars: Vec::new(),
+            });
+        }
+
+        for name in declared_names {
+            self.output_parts
+                .push(OutputPart::RawStatement(format!("let {};", name)));
+        }
+
+        let group = self.async_consts.as_mut().unwrap();
+
+        if blockers.len() == 1 {
+            group.thunks.push((format!("() => {}", blockers[0]), false));
+        } else if blockers.len() > 1 {
+            group.thunks.push((
+                format!("() => Promise.all([{}])", blockers.join(", ")),
+                false,
+            ));
+        }
+
+        let is_destructuring = lhs.starts_with('{') || lhs.starts_with('[');
+        // Re-indent multiline rhs so inner lines align with the thunk body.
+        let normalize_rhs = |rhs: &str| -> String {
+            if !rhs.contains('\n') {
+                return rhs.to_string();
+            }
+            let lines: Vec<&str> = rhs.lines().collect();
+            if lines.len() <= 1 {
+                return rhs.to_string();
+            }
+            let min_indent = lines[1..]
+                .iter()
+                .filter(|l| !l.trim().is_empty())
+                .map(|l| l.len() - l.trim_start().len())
+                .min()
+                .unwrap_or(0);
+            let mut result = lines[0].to_string();
+            for line in &lines[1..] {
+                result.push('\n');
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let stripped = if min_indent <= line.len() {
+                    &line[min_indent..]
+                } else {
+                    line.trim()
+                };
+                result.push_str("\t\t");
+                result.push_str(stripped);
+            }
+            result
+        };
+
+        let thunk_code = if has_await {
+            let save_wrapped = super::super::helpers::transform_await_to_save(rhs);
+            let save_wrapped = normalize_rhs(&save_wrapped);
+            if is_destructuring {
+                format!("async () => ({} = {})", lhs, save_wrapped)
+            } else {
+                format!("async () => {} = {}", lhs, save_wrapped)
+            }
+        } else if is_destructuring {
+            format!("() => ({} = {})", lhs, normalize_rhs(rhs))
+        } else {
+            format!("() => {} = {}", lhs, normalize_rhs(rhs))
+        };
+        let thunk_index = group.thunks.len();
+        group.thunks.push((thunk_code, has_await));
+
+        let group_name = group.name.clone();
+        for name in declared_names {
+            group.declared_vars.push((name.clone(), thunk_index));
+            let blocker_expr = format!("{}[{}]", group_name, thunk_index);
+            self.const_blocker_map
+                .borrow_mut()
+                .insert(name.clone(), blocker_expr);
+        }
     }
 
     /// Flush accumulated async const tags into a single `$$renderer.run([...])` call.

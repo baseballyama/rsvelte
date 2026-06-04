@@ -235,6 +235,7 @@ impl<'a> ServerCodeGenerator<'a> {
             for n in meaningful_nodes.iter().take(idx) {
                 let n_hoisted = matches!(n, TemplateNode::ConstTag(_))
                     || matches!(n, TemplateNode::SnippetBlock(_))
+                    || matches!(n, TemplateNode::DeclarationTag(_))
                     || matches!(n, TemplateNode::DebugTag(_))
                     || (matches!(n, TemplateNode::Comment(_)) && !self.preserve_comments);
                 if !n_hoisted {
@@ -297,6 +298,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 matches!(node, TemplateNode::Comment(_)) && !self.preserve_comments;
             let is_hoisted = is_const_tag
                 || matches!(node, TemplateNode::SnippetBlock(_))
+                || matches!(node, TemplateNode::DeclarationTag(_))
                 || is_transparent_comment;
             // Flush accumulated async consts before processing non-const content.
             // Also skip SnippetBlock and transparent comments since those are hoisted/stripped.
