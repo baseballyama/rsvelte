@@ -27,7 +27,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_template_chunk, expression_has_reactive_state,
+    build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -1313,16 +1313,69 @@ pub fn visit_regular_element(
         block_body.extend(child_init);
         block_body.extend(element_state_init);
 
-        // Add template_effect for update statements
+        // Add template_effect for update statements. If any update reads an
+        // async-blocked binding (e.g. a nested `{const g = $derived(await …)}`
+        // registers `g` → `promises_N[i]` in const_blocker_map), emit the
+        // blockers as the template_effect's 4th argument via
+        // `build_render_statement_with_memoizer` (which also collapses a single
+        // update into the `() => stmt` form). Mirrors `fragment.rs`.
         if !child_update.is_empty() {
-            block_body.push(b::stmt(
-                &context.arena,
-                b::call(
+            let block_blockers: Option<JsExpr> = {
+                let mut names: Vec<compact_str::CompactString> = Vec::new();
+                for stmt in &child_update {
+                    crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_identifiers_from_statement(
+                        stmt,
+                        &context.arena,
+                        &mut names,
+                    );
+                }
+                let bm = context.state.blocker_map.borrow();
+                let cbm = context.state.const_blocker_map.borrow();
+                let mut exprs: Vec<JsExpr> = Vec::new();
+                let mut seen: rustc_hash::FxHashSet<compact_str::CompactString> =
+                    rustc_hash::FxHashSet::default();
+                for name in &names {
+                    if !seen.insert(name.clone()) {
+                        continue;
+                    }
+                    if let Some(blocker) = cbm.get(name.as_str()) {
+                        exprs.push(blocker.clone());
+                    } else if let Some(&idx) = bm.get(name.as_str()) {
+                        exprs.push(b::member_computed(
+                            &context.arena,
+                            b::id("$$promises"),
+                            b::number(idx as f64),
+                        ));
+                    }
+                }
+                if exprs.is_empty() {
+                    None
+                } else {
+                    Some(b::array(exprs))
+                }
+            };
+            if block_blockers.is_some() {
+                block_body.push(b::stmt(
                     &context.arena,
-                    b::member_path(&context.arena, "$.template_effect"),
-                    vec![b::arrow_block(vec![], child_update)],
-                ),
-            ));
+                    build_render_statement_with_memoizer(
+                        &context.arena,
+                        child_update,
+                        vec![],
+                        None,
+                        None,
+                        block_blockers,
+                    ),
+                ));
+            } else {
+                block_body.push(b::stmt(
+                    &context.arena,
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.template_effect"),
+                        vec![b::arrow_block(vec![], child_update)],
+                    ),
+                ));
+            }
         }
 
         block_body.extend(child_after_update);

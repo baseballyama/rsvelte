@@ -154,6 +154,15 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         .get_all_blockers_for_expr(&expression, &context.arena);
     let has_blockers = !blocker_exprs.is_empty();
 
+    // Scope `const_blocker_map` to this if-block. The map is name-keyed and
+    // shared (Rc<RefCell>), so a block-local async declaration like
+    // `{let name = $state(await …)}` inside a branch would otherwise overwrite
+    // an outer same-named binding's blocker (e.g. a root `{let name}`),
+    // corrupting the outer fragment's `template_effect` blockers. We snapshot it
+    // here (the branches still SEE outer entries + add their own, visible to
+    // their own nested elements) and restore the snapshot before returning.
+    let saved_const_blocker_map = context.state.const_blocker_map.borrow().clone();
+
     // Collect all flattened if/elseif branches (flattening is suppressed when
     // an else-if's test has blockers not in the outer's set — see
     // `collect_branch_blocker_strings`).
@@ -368,6 +377,10 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     } else {
         context.state.init.push(b::block(statements));
     }
+
+    // Restore the outer `const_blocker_map`, dropping this if-block's
+    // branch-local blocker registrations so they don't leak to the parent.
+    *context.state.const_blocker_map.borrow_mut() = saved_const_blocker_map;
 }
 
 /// Visit a fragment and return its block statement.
