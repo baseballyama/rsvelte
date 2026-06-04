@@ -178,6 +178,16 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // `{let x = $state(await …)}`, which is not yet ported. The synchronous
     // DeclarationTag path — including element-nested block-scoping + constant
     // folding (client + server) — is complete (`declaration-tags` passes).
+    // `async-declaration-tag{,-2}` — `{let x = $state(await …)}` /
+    // `{const y = $derived(await …)}` async-declaration lowering. The client
+    // foundation is in place (`declaration_tag.rs` routes awaited/blocked
+    // declarations through `add_const_declaration` → `$.run([…])`), so the root
+    // and if-block groups already match upstream. Still pending for a full pass:
+    // element-block `async_consts` reset + `$.run` emission (so a nested
+    // `{const z = $derived(await …)}` gets its own `promises_N`),
+    // `const_blocker_map` scoping across blocks (so a shadowed `name` doesn't
+    // overwrite an outer binding's blocker), the matching server lowering, and
+    // the gnarly `-2` (svelte:boundary + snippet + destructured await + each).
     "async-declaration-tag",
     "async-declaration-tag-2",
     // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const

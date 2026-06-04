@@ -528,7 +528,7 @@ fn create_derived(context: &ComponentContext, expression: JsExpr, is_async: bool
 /// When the expression has async dependencies (awaits or blockers from other async
 /// const declarations), this creates an async run group with wait thunks and registers
 /// the resulting binding's blocker for future const tags.
-fn add_const_declaration(
+pub(crate) fn add_const_declaration(
     context: &mut ComponentContext,
     id_name: &str,
     expression: JsExpr,

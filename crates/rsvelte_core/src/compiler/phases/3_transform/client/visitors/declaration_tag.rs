@@ -18,7 +18,7 @@
 
 use crate::ast::template::DeclarationTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsStatement;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 
 /// Visit a declaration tag.
 ///
@@ -68,6 +68,19 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         return;
     }
 
+    // Async path (Svelte 5.56.0 #18282 `add_async_declaration`): when the
+    // declaration's initializer is awaited or depends on an async binding,
+    // lower it to a bare `let name;` plus an assignment thunk collected into
+    // `state.async_consts` (emitted as `var promises_N = $.run([...])`), with
+    // blocker-wait thunks for cross-group dependencies. The rune-rewrite
+    // pipeline above already produced the exact lowered RHS (e.g.
+    // `$.state($.proxy(await id))` / `await $.async_derived(() => …)`); we just
+    // restructure it. Reuses `add_const_declaration`, which is upstream's
+    // `add_async_declaration` for the single-binding case.
+    if try_emit_async_declaration(node, trimmed, context).is_some() {
+        return;
+    }
+
     // A multi-declarator declaration tag (`{let a = …, b = …}`) is lowered by
     // the instance-script transform into separate `let`/`const` statements
     // (`let a = …;\nlet b = …;`). Upstream keeps it as one comma-separated
@@ -82,6 +95,102 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     };
 
     context.state.consts.push(JsStatement::Raw(raw.into()));
+}
+
+/// Try to emit a `{let x = …}` / `{const x = …}` declaration tag via the
+/// async-declaration lowering (`add_const_declaration` = upstream's
+/// `add_async_declaration`). Returns `Some(())` when handled (the declaration
+/// is a single simple-identifier declarator whose initializer is awaited or
+/// blocked by an async binding), otherwise `None` so the caller falls back to
+/// the synchronous text path.
+fn try_emit_async_declaration(
+    node: &DeclarationTag,
+    lowered: &str,
+    context: &mut ComponentContext,
+) -> Option<()> {
+    let decl_json = node.declaration.as_json();
+    let decls = decl_json.get("declarations")?.as_array()?;
+    // Only the single simple-identifier declarator shape is handled here;
+    // multi-declarator / destructuring async tags fall back to the sync path.
+    if decls.len() != 1 {
+        return None;
+    }
+    let d = decls[0].as_object()?;
+    let id = d.get("id")?;
+    if id.get("type")?.as_str()? != "Identifier" {
+        return None;
+    }
+    let name = id.get("name")?.as_str()?;
+    let init = d.get("init").filter(|i| !i.is_null())?;
+
+    // Identifiers referenced by the initializer, for async-blocker lookup.
+    let mut init_refs: Vec<String> = Vec::new();
+    collect_init_identifiers(init, &mut init_refs);
+
+    let has_await = node.metadata.expression.has_await();
+    let has_blocker = {
+        let bm = context.state.blocker_map.borrow();
+        let cbm = context.state.const_blocker_map.borrow();
+        init_refs
+            .iter()
+            .any(|r| bm.contains_key(r) || cbm.contains_key(r))
+    };
+    // Purely synchronous declarations stay on the text path (which preserves
+    // the user's `let`/`const` keyword verbatim).
+    if !has_await && !has_blocker {
+        return None;
+    }
+
+    // Extract the lowered RHS from `<kind> <name> = <RHS>;`. The first ` = ` is
+    // the declarator assignment (arrow `=>` and the RHS body never produce a
+    // bare ` = ` before it for these shapes).
+    let eq = lowered.find(" = ")?;
+    let rhs = lowered[eq + 3..]
+        .trim_end()
+        .trim_end_matches(';')
+        .trim()
+        .to_string();
+    if rhs.is_empty() {
+        return None;
+    }
+
+    super::const_tag::add_const_declaration(
+        context,
+        name,
+        JsExpr::Raw(rhs.into()),
+        &node.metadata.expression,
+        &init_refs,
+    );
+    Some(())
+}
+
+/// Recursively collect identifier names referenced anywhere in a JSON
+/// expression (over-collecting member-property names is harmless — they won't
+/// match a blocker-map entry).
+fn collect_init_identifiers(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && let Some(n) = map.get("name").and_then(|n| n.as_str())
+            {
+                let n = n.to_string();
+                if !out.contains(&n) {
+                    out.push(n);
+                }
+            }
+            for (k, v) in map {
+                if k != "type" {
+                    collect_init_identifiers(v, out);
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr {
+                collect_init_identifiers(v, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Whether a declaration body has a top-level comma (a multi-declarator
