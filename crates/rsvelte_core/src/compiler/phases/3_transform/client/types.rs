@@ -2072,6 +2072,18 @@ pub struct ComponentClientTransformState<'a> {
     /// These are merged into the blocker detection in Fragment visitor.
     pub extra_blocker_indices: Vec<usize>,
 
+    /// Names referenced ONLY by shorthand style directives (`style:color` with no
+    /// `={...}` value), per the current fragment state. Upstream's
+    /// `StyleDirective.js` analyze visitor adds a shorthand directive's binding to
+    /// `metadata.expression.dependencies` (NOT `references`), and the client
+    /// `Memoizer.check_blockers` only walks `references`, so a shorthand-only
+    /// directive never contributes a `$$promises[N]` blocker to its
+    /// `$.template_effect`. The Rust blocker computation instead scans the literal
+    /// identifiers of update statements, so we record shorthand directive names here
+    /// and skip them during that scan unless the same name is also referenced by a
+    /// non-shorthand (blocker-contributing) construct in the same fragment.
+    pub style_shorthand_blocker_names: Vec<String>,
+
     /// Whether the fragment is standalone (single Component or RenderTag that
     /// doesn't need a template wrapper). Set by Fragment visitor and consumed by
     /// component/render-tag visitors to know if `$.next()` is needed after `$.async()`.
@@ -2228,6 +2240,7 @@ impl<'a> ComponentClientTransformState<'a> {
                 rustc_hash::FxHashMap::default(),
             )),
             extra_blocker_indices: Vec::new(),
+            style_shorthand_blocker_names: Vec::new(),
             is_standalone: false,
             const_blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
             templates: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),

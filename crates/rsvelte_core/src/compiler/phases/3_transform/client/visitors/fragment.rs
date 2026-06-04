@@ -195,6 +195,7 @@ pub fn fragment(
         blocker_map: context.state.blocker_map.clone(),
         blocker_map_primary_names: context.state.blocker_map_primary_names.clone(),
         extra_blocker_indices: Vec::new(),
+        style_shorthand_blocker_names: Vec::new(),
         is_standalone: false,
         const_blocker_map: context.state.const_blocker_map.clone(),
         needs_mutation_validation: context.state.needs_mutation_validation.clone(),
@@ -520,6 +521,25 @@ pub fn fragment(
                 // name already found in `state.update` is a no-op.
                 for memo_expr in state.memoizer.all_expressions() {
                     collect_ids_from_expr_props(&memo_expr, &context.arena, &mut all_names);
+                }
+
+                // Exclude names that are referenced ONLY by shorthand `style:x`
+                // directives. Upstream's `StyleDirective.js` analyze visitor adds a
+                // shorthand directive's binding to `metadata.expression.dependencies`
+                // (not `references`), and the client `Memoizer.check_blockers` only
+                // walks `references`, so a shorthand-only `$.set_style` never emits a
+                // `$$promises[N]` blocker on its `$.template_effect`. `build_set_style`
+                // records such names in `style_shorthand_blocker_names` only when ALL
+                // of that element's style directives are shorthand (if any is a normal
+                // `style:x={expr}`, upstream merges its references and the whole
+                // set_style blocks, so the name is not recorded).
+                if !state.style_shorthand_blocker_names.is_empty() {
+                    all_names.retain(|n| {
+                        !state
+                            .style_shorthand_blocker_names
+                            .iter()
+                            .any(|s| s.as_str() == n.as_str())
+                    });
                 }
 
                 // Collect instance-level blocker indices from blocker_map.
