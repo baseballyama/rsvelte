@@ -180,8 +180,12 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // `await $.async_derived(async () => (await $.save(X))())` save-wrap shape,
     // and element-block `async_consts` reset + cross-group blocker. Only
     // `async-declaration-tag-2` (svelte:boundary + snippet + destructured await
-    // + each) remains pending.
-    "async-declaration-tag-2",
+    // + each) now ALSO fully passes — the boundary keeps non-special snippets
+    // inside the `$.boundary(...)` callback when the fragment has DeclarationTags
+    // (`has_const || has_declaration`), the cross-const / destructured-await
+    // declaration tags route into the shared `$.run([…])` async group, the
+    // awaited `$derived` reads register the `$.get` transform, and the each
+    // collection + index param + per-binding blocker dedup all match upstream.
     // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const
     // blockers through closure references"): rsvelte's per-template_effect
     // blocker scanner does not yet propagate awaited `@const` blockers

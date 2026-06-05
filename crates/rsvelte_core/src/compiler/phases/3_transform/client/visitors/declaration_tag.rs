@@ -47,6 +47,35 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         return;
     }
 
+    // Mark the current (and any ancestor) each-block `index` binding as USED when
+    // a declarator initializer references it. Reads of the each index inside a
+    // DeclarationTag init (`{const i = $derived(await index)}`) go through the
+    // instance-script rune pipeline, NOT the template transform tracker, so the
+    // each-block visitor would otherwise omit the `index` callback parameter.
+    // Mirrors how the ConstTag (`{@const}`) path marks index usage via
+    // `build_expression`'s transform tracker.
+    {
+        let decl_json = node.declaration.as_json();
+        if let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) {
+            let mut refs: Vec<String> = Vec::new();
+            for d in decls {
+                if let Some(init) = d.get("init").filter(|i| !i.is_null()) {
+                    collect_init_identifiers(init, &mut refs);
+                }
+            }
+            if let Some(ref idx_name) = context.state.each_index_name
+                && refs.iter().any(|r| r == idx_name)
+            {
+                context.state.each_index_used.set(true);
+            }
+            for (anc_name, anc_used) in &context.state.ancestor_each_index_names {
+                if refs.iter().any(|r| r == anc_name) {
+                    anc_used.set(true);
+                }
+            }
+        }
+    }
+
     // Ensure the statement ends with `;` so the rune-rewriting pipeline (which
     // expects script-like input) can parse and re-emit it cleanly.
     let mut script_input = String::with_capacity(body.len() + 2);
@@ -110,17 +139,23 @@ fn try_emit_async_declaration(
 ) -> Option<()> {
     let decl_json = node.declaration.as_json();
     let decls = decl_json.get("declarations")?.as_array()?;
-    // Only the single simple-identifier declarator shape is handled here;
-    // multi-declarator / destructuring async tags fall back to the sync path.
+    // Only single-declarator tags are async-lowered here; genuine
+    // multi-declarator (`{let a = …, b = …}`) tags fall back to the sync /
+    // rejoin path. Destructuring patterns (`{const { x, y } = …}`) ARE handled
+    // (one declarator with an ObjectPattern / ArrayPattern id).
     if decls.len() != 1 {
         return None;
     }
     let d = decls[0].as_object()?;
     let id = d.get("id")?;
-    if id.get("type")?.as_str()? != "Identifier" {
+    let id_type = id.get("type")?.as_str()?;
+    let is_pattern = matches!(
+        id_type,
+        "ObjectPattern" | "ObjectExpression" | "ArrayPattern" | "ArrayExpression"
+    );
+    if id_type != "Identifier" && !is_pattern {
         return None;
     }
-    let name = id.get("name")?.as_str()?;
     let init = d.get("init").filter(|i| !i.is_null())?;
 
     // Identifiers referenced by the initializer, for async-blocker lookup.
@@ -135,25 +170,68 @@ fn try_emit_async_declaration(
             .iter()
             .any(|r| bm.contains_key(r) || cbm.contains_key(r))
     };
-    // Purely synchronous declarations stay on the text path (which preserves
-    // the user's `let`/`const` keyword verbatim).
-    if !has_await && !has_blocker {
+    // Route through the async-declaration lowering when the initializer awaits,
+    // depends on an async binding, OR an async group is already open in this
+    // fragment (`async_consts.is_some()`). The last clause mirrors upstream's
+    // `mark_async_declaration` condition (`has_await || async_consts ||
+    // blockers.length > 0`): once any tag opens a `$.run` group, every later
+    // declaration in the same block joins it, so a cross-const dep like
+    // `{const after_async = number + 1}` becomes a sequential thunk in the same
+    // group instead of a sync `const` that reads `number` before its thunk has
+    // assigned it. Purely synchronous declarations (no open group) stay on the
+    // text path, which preserves the user's `let`/`const` keyword verbatim.
+    if !has_await && !has_blocker && context.state.async_consts.is_none() {
         return None;
     }
 
-    // Extract the lowered RHS from `<kind> <name> = <RHS>;`. The first ` = ` is
-    // the declarator assignment (arrow `=>` and the RHS body never produce a
-    // bare ` = ` before it for these shapes).
-    let eq = lowered.find(" = ")?;
-    let rhs = lowered[eq + 3..]
-        .trim_end()
-        .trim_end_matches(';')
-        .trim()
-        .to_string();
+    // Extract the lowered RHS robustly: split at the FIRST top-level `=` that is
+    // not part of `==`/`===`/`=>`/`<=`/`>=`/`!=`, so non-canonical spacing in
+    // the source (`after_async =number + 1`) round-trips correctly. The
+    // declarator id (lhs) preceding it may be a multi-token pattern.
+    let rhs = {
+        let body = lowered.trim_end().trim_end_matches(';').trim();
+        let eq = find_top_level_assignment_eq(body)?;
+        body[eq + 1..].trim().to_string()
+    };
     if rhs.is_empty() {
         return None;
     }
 
+    if is_pattern {
+        // Destructuring: emit `let <name>;` per declared id + one assignment
+        // thunk whose LHS is the WHOLE raw pattern (so a binding named like a
+        // `$derived` is not call-wrapped on the assignment target). The raw
+        // pattern comes from the declarator `id` source span.
+        let declared_names = super::const_tag::extract_pattern_identifiers(id);
+        if declared_names.is_empty() {
+            return None;
+        }
+        let src = &context.state.analysis.source;
+        let lhs_pattern = id
+            .get("start")
+            .and_then(|v| v.as_u64())
+            .zip(id.get("end").and_then(|v| v.as_u64()))
+            .and_then(|(st, en)| {
+                let (st, en) = (st as usize, en as usize);
+                if st < en && en <= src.len() {
+                    Some(src[st..en].trim().to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| super::const_tag::render_pattern_text(id));
+        super::const_tag::add_async_declaration_multi(
+            context,
+            &declared_names,
+            &lhs_pattern,
+            JsExpr::Raw(rhs.into()),
+            &node.metadata.expression,
+            &init_refs,
+        );
+        return Some(());
+    }
+
+    let name = id.get("name")?.as_str()?;
     super::const_tag::add_const_declaration(
         context,
         name,
@@ -162,6 +240,37 @@ fn try_emit_async_declaration(
         &init_refs,
     );
     Some(())
+}
+
+/// Find the byte index of the first top-level assignment `=` in `s`, skipping
+/// `==`/`===`/`=>`/`<=`/`>=`/`!=` and any `=` nested inside (), [], {}.
+fn find_top_level_assignment_eq(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth: i32 = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let prev = if i > 0 { bytes[i - 1] } else { 0 };
+                let next = if i + 1 < bytes.len() { bytes[i + 1] } else { 0 };
+                // Skip ==, ===, =>, <=, >=, !=
+                if next == b'=' || next == b'>' {
+                    i += 1;
+                    continue;
+                }
+                if prev == b'=' || prev == b'<' || prev == b'>' || prev == b'!' {
+                    i += 1;
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Recursively collect identifier names referenced anywhere in a JSON

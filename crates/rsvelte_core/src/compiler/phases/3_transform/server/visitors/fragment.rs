@@ -185,7 +185,9 @@ impl<'a> ServerCodeGenerator<'a> {
             let mut prev_was_hoisted = false;
             while first_visible < end_idx {
                 match nodes[first_visible] {
-                    TemplateNode::ConstTag(_) | TemplateNode::SnippetBlock(_) => {
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::DeclarationTag(_)
+                    | TemplateNode::SnippetBlock(_) => {
                         first_visible += 1;
                         prev_was_hoisted = true;
                     }

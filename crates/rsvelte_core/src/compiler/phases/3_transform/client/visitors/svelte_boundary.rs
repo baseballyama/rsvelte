@@ -80,20 +80,25 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
 
     let use_async = context.state.options.experimental_async;
 
-    // In async mode, check if there are const tags (needed to decide snippet hoisting)
+    // In async mode, check if there are const tags OR declaration tags (needed to
+    // decide snippet hoisting). Mirrors upstream SvelteBoundary.js which tracks
+    // both `has_const` (ConstTag, `{@const}`) and `has_declaration` (DeclarationTag,
+    // `{const x = …}` / `{let x = …}`) and keeps non-special snippets inside the
+    // boundary callback when either is present (so the snippet can reference them).
     let has_const = use_async
-        && node
-            .fragment
-            .nodes
-            .iter()
-            .any(|n| matches!(n, TemplateNode::ConstTag(_)));
+        && node.fragment.nodes.iter().any(|n| {
+            matches!(
+                n,
+                TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_)
+            )
+        });
 
     // Process fragment children
     for child in &node.fragment.nodes {
         match child {
-            TemplateNode::ConstTag(_) => {
-                // In async mode, const tags live inside the boundary content
-                // In non-async mode, they are also processed inline
+            TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_) => {
+                // In async mode, const / declaration tags live inside the boundary
+                // content. In non-async mode, they are also processed inline.
                 content_nodes.push(child.clone());
             }
             TemplateNode::SnippetBlock(snippet) => {

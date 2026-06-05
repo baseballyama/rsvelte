@@ -486,9 +486,37 @@ impl<'a> ServerCodeGenerator<'a> {
             let rhs = after_kw[eq_idx + 1..].trim().to_string();
             let init_refs = extract_identifiers_from_expr(&rhs);
             let blockers = self.compute_decl_tag_blockers(&init_refs);
-            if has_await || !blockers.is_empty() {
+            // Route through the async-declaration lowering when the initializer
+            // awaits, has a cross-group blocker, OR an async group is already
+            // open in this fragment (`self.async_consts.is_some()`). The last
+            // clause mirrors upstream's `mark_async_declaration` condition
+            // (`has_await || context.state.async_consts || blockers.length > 0`):
+            // once any tag opens a `$$renderer.run` group, every later
+            // declaration in the same block joins it, so a cross-const dep like
+            // `{const after_async = number + 1}` becomes a sequential thunk in
+            // the same group rather than a sync `const` that reads `number`
+            // before its thunk has assigned it. Mirrors the equivalent gate in
+            // `generate_const_tag` (the ConstTag / `{@const}` twin).
+            if has_await || !blockers.is_empty() || self.async_consts.is_some() {
                 let declared_names = extract_declared_names(&lhs);
-                self.emit_async_decl_tag(&declared_names, &lhs, &rhs, has_await, &blockers);
+                // For a destructuring LHS, take the pattern text from the RAW
+                // source (the declarator `id` span) so a binding whose name
+                // collides with a component-wide `$derived` (`length`) is NOT
+                // rewritten to `length()` inside the assignment TARGET. Reads in
+                // the RHS / template still go through the derived-wrap; only the
+                // assignment target must stay un-wrapped.
+                let lhs_for_assign = if lhs.starts_with('{') || lhs.starts_with('[') {
+                    self.raw_declarator_id(tag).unwrap_or_else(|| lhs.clone())
+                } else {
+                    lhs.clone()
+                };
+                self.emit_async_decl_tag(
+                    &declared_names,
+                    &lhs_for_assign,
+                    &rhs,
+                    has_await,
+                    &blockers,
+                );
                 return Ok(());
             }
         }
@@ -533,6 +561,25 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Return the RAW source text of a single-declarator DeclarationTag's `id`
+    /// pattern (e.g. `{ length, 0: first }`). Used as the assignment-target text
+    /// for a destructured async declaration so the un-rewritten pattern is used
+    /// (no derived-call wrapping leaks into the assignment LHS).
+    fn raw_declarator_id(&self, tag: &DeclarationTag) -> Option<String> {
+        let decl_json = tag.declaration.as_json();
+        let decls = decl_json.get("declarations").and_then(|d| d.as_array())?;
+        if decls.len() != 1 {
+            return None;
+        }
+        let id = decls[0].get("id")?;
+        let start = id.get("start").and_then(|v| v.as_u64())? as usize;
+        let end = id.get("end").and_then(|v| v.as_u64())? as usize;
+        if start >= end || end > self.source.len() {
+            return None;
+        }
+        Some(self.source[start..end].trim().to_string())
     }
 
     /// Compute the cross-group async blockers for a DeclarationTag whose
@@ -678,6 +725,26 @@ impl<'a> ServerCodeGenerator<'a> {
             self.const_blocker_map
                 .borrow_mut()
                 .insert(name.clone(), blocker_expr);
+        }
+
+        // A DeclarationTag whose initializer is NOT a `$derived` declares a
+        // PLAIN (non-reactive) binding — e.g. the destructured
+        // `{const { length, 0: first } = await '01234'}`. If such a binding's
+        // name collides with a component-wide `$derived` of the same name
+        // declared in a sibling/nested scope (here the snippet's
+        // `{const length = $derived(await number)}`), the flat `derived_names`
+        // set would wrongly wrap this scope's plain read as `length()`. Shadow
+        // the derived name in THIS generator's `derived_names` so subsequent
+        // reads at this scope stay plain. Nested snippet bodies build a fresh
+        // `ServerCodeGenerator` (re-seeding `derived_names` from analysis), so
+        // their own derived reads are unaffected.
+        let is_derived = extract_async_derived_thunk_body(rhs).is_some()
+            || rhs.contains("$.derived(")
+            || rhs.contains("$.derived_safe_equal(");
+        if !is_derived {
+            for name in declared_names {
+                self.derived_names.remove(name);
+            }
         }
     }
 

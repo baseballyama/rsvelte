@@ -3932,6 +3932,27 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
                     if matches!(binding.kind, BindingKind::EachIndex) {
                         return true;
                     }
+                    // A template-scoped DeclarationTag / ConstTag binding
+                    // (`{const after_async = number + 1}`) is defined when its
+                    // initializer is a statically-non-nullish shape. Upstream's
+                    // `is_defined` walks `binding.initial`; mirror that with the
+                    // recorded `initial_node_type` so e.g. `after_async`
+                    // (BinaryExpression) reads bare while `number`
+                    // (AwaitExpression) keeps `?? ''`.
+                    if matches!(binding.kind, BindingKind::Template)
+                        && binding.initial_is_defined
+                        && let Some(ref ity) = binding.initial_node_type
+                        && matches!(
+                            ity.as_str(),
+                            "BinaryExpression"
+                                | "UpdateExpression"
+                                | "ArrayExpression"
+                                | "ObjectExpression"
+                                | "TemplateLiteral"
+                        )
+                    {
+                        return true;
+                    }
                     // For Normal const bindings with defined initial value
                     if matches!(binding.kind, BindingKind::Normal)
                         && !binding.reassigned

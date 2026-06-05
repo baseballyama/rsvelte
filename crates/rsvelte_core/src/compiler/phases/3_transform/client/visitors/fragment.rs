@@ -628,13 +628,33 @@ pub fn fragment(
                 // Use pointer identity to deduplicate (same source pointer = same expression).
                 let mut const_blocker_exprs: Vec<JsExpr> = Vec::new();
                 let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
+                // Also dedup by VALUE: a destructured async declaration
+                // (`{const { length, 0: first } = await …}`) registers the
+                // SAME `promises[N]` slot for EVERY declared name, but each name
+                // is a separate `const_blocker_map` entry (distinct storage =
+                // distinct pointer). Upstream shares ONE blocker Expression for
+                // the whole pattern (`Memoizer.#blockers = new Set<Expression>`
+                // keyed on identity), so the pattern contributes a SINGLE array
+                // entry. Mirror that by also collapsing structurally-equal
+                // blocker expressions.
+                let mut seen_values: rustc_hash::FxHashSet<String> =
+                    rustc_hash::FxHashSet::default();
                 for name in &all_names {
                     if let Some(blocker_expr) = const_map.get(name.as_str()) {
                         let ptr = blocker_expr as *const JsExpr;
-                        if !seen_ptrs.contains(&ptr) {
-                            seen_ptrs.push(ptr);
-                            const_blocker_exprs.push(blocker_expr.clone());
+                        if seen_ptrs.contains(&ptr) {
+                            continue;
                         }
+                        let value_key =
+                            crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                                blocker_expr,
+                                &context.arena,
+                            );
+                        if !seen_values.insert(value_key) {
+                            continue;
+                        }
+                        seen_ptrs.push(ptr);
+                        const_blocker_exprs.push(blocker_expr.clone());
                     }
                 }
 

@@ -302,6 +302,19 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
 /// Extract all identifier names from a destructuring pattern JSON.
 ///
 /// Handles ObjectPattern, ArrayPattern, RestElement, and AssignmentPattern.
+/// Public wrapper: extract all declared identifier names from a declarator
+/// `id` pattern JSON (Identifier / ObjectPattern / ArrayPattern). Used by the
+/// DeclarationTag async destructure lowering.
+pub(crate) fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
+    extract_identifiers_from_pattern(pattern)
+}
+
+/// Public wrapper: render a declarator `id` pattern JSON back to source-like
+/// text (fallback when the raw source span is unavailable).
+pub(crate) fn render_pattern_text(pattern: &serde_json::Value) -> String {
+    render_pattern_as_string(pattern)
+}
+
 fn extract_identifiers_from_pattern(pattern: &serde_json::Value) -> Vec<String> {
     let mut identifiers = Vec::new();
     collect_identifiers(pattern, &mut identifiers);
@@ -608,6 +621,25 @@ pub(crate) fn add_const_declaration(
     let has_blockers = !blockers.is_empty();
 
     if has_await || context.state.async_consts.is_some() || has_blockers {
+        // A `{const x = $derived(await …)}` async declaration is REACTIVE: reads
+        // of `x` must wrap in `$.get(x)` (and an object-shorthand `{ x }`
+        // expands to `{ x: $.get(x) }`). Detect the derived shape from the
+        // lowered RHS (`$.derived(...)` / `$.async_derived(...)`) so we can
+        // register the same `$.get` read transform that the ConstTag
+        // (`{@const}`) path registers in `create_derived`. Plain async bindings
+        // (`{const n = await …}` / cross-const `{const a = b + 1}` /
+        // destructured `{const { x } = await …}`) are NOT reactive and read
+        // bare, so they do NOT get this transform.
+        let is_reactive_derived = {
+            let code = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                &expression,
+                &context.arena,
+            );
+            code.contains("$.derived(")
+                || code.contains("$.derived_safe_equal(")
+                || code.contains("$.async_derived(")
+        };
+
         // Async case: need to handle async consts
         let async_consts = context.state.async_consts.get_or_insert_with(|| {
             let id_name = context.state.memoizer.generate_id("promises");
@@ -676,6 +708,23 @@ pub(crate) fn add_const_declaration(
             .const_blocker_map
             .borrow_mut()
             .insert(id_name.to_string(), blocker_expr);
+
+        if is_reactive_derived {
+            context.state.transform.insert(
+                id_name.to_string(),
+                IdentifierTransform {
+                    read: Some(get_value),
+                    read_source: None,
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                    replacement_id: None,
+                },
+            );
+        }
     } else {
         // Simple case: just add const declaration
         context
@@ -692,6 +741,141 @@ pub(crate) fn add_const_declaration(
                 b::svelte_call(&context.arena, "get", vec![b::id(id_name)]),
             ));
         }
+    }
+}
+
+/// Async-declaration lowering for a DESTRUCTURED / multi-binding declaration
+/// tag (`{const { length, 0: first } = await '01234'}`). Mirrors upstream's
+/// `build_async_declaration_parts` + `add_async_declaration`: emit one bare
+/// `let <name>;` per declared identifier, push the deferred assignment thunk
+/// (whose LHS is the WHOLE pattern) into the shared `async_consts` `$.run([…])`
+/// group, and register the SAME `promises[idx]` blocker for EVERY declared
+/// name in `const_blocker_map`. `lhs_pattern` is the RAW pattern text (so a
+/// binding whose name collides with a `$derived` is not wrapped on the
+/// assignment target). `rhs` is the lowered initializer (e.g.
+/// `await '01234'`). `init_refs` are identifiers referenced by `rhs` for
+/// cross-group blocker lookup.
+pub(crate) fn add_async_declaration_multi(
+    context: &mut ComponentContext,
+    declared_names: &[String],
+    lhs_pattern: &str,
+    rhs: JsExpr,
+    metadata: &crate::ast::template::ExpressionMetadata,
+    init_refs: &[String],
+) {
+    let has_await = metadata.has_await();
+
+    // Collect cross-group blockers (same logic as add_const_declaration).
+    let blockers = {
+        let const_blocker_map = context.state.const_blocker_map.borrow();
+        let top_level_blocker_map = context.state.blocker_map.borrow();
+        let current_async_consts_id =
+            context
+                .state
+                .async_consts
+                .as_ref()
+                .and_then(|ac| match &ac.id {
+                    JsExpr::Identifier(name) => Some(name.clone()),
+                    _ => None,
+                });
+
+        let mut blocker_list: Vec<JsExpr> = Vec::new();
+        let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
+        let mut seen_top_level: Vec<usize> = Vec::new();
+
+        for name in init_refs {
+            if let Some(blocker_expr) = const_blocker_map.get(name) {
+                let ptr = blocker_expr as *const JsExpr;
+                if seen_ptrs.contains(&ptr) {
+                    continue;
+                }
+                let should_include = match blocker_expr {
+                    JsExpr::Member(member_expr) => match context.arena.get_expr(member_expr.object)
+                    {
+                        JsExpr::Identifier(obj_name) => {
+                            current_async_consts_id.as_deref() != Some(obj_name.as_str())
+                        }
+                        _ => true,
+                    },
+                    _ => true,
+                };
+                if should_include {
+                    seen_ptrs.push(ptr);
+                    blocker_list.push(blocker_expr.clone());
+                }
+            } else if let Some(&idx) = top_level_blocker_map.get(name) {
+                if seen_top_level.contains(&idx) {
+                    continue;
+                }
+                seen_top_level.push(idx);
+                let blocker_expr =
+                    b::member_computed(&context.arena, b::id("$$promises"), b::number(idx as f64));
+                blocker_list.push(blocker_expr);
+            }
+        }
+        blocker_list
+    };
+
+    // Open / reuse the async_consts group.
+    let async_consts = context.state.async_consts.get_or_insert_with(|| {
+        let id_name = context.state.memoizer.generate_id("promises");
+        AsyncConsts {
+            id: b::id(&id_name),
+            thunks: Vec::new(),
+        }
+    });
+
+    // One bare `let <name>;` per declared identifier.
+    for name in declared_names {
+        context
+            .state
+            .consts
+            .push(b::let_decl(&context.arena, name, None));
+    }
+
+    // Blocker-wait thunks before the assignment thunk.
+    if blockers.len() == 1 {
+        let blocker_promise = b::member(
+            &context.arena,
+            blockers.into_iter().next().unwrap(),
+            "promise",
+        );
+        async_consts
+            .thunks
+            .push(b::thunk(&context.arena, blocker_promise));
+    } else if blockers.len() > 1 {
+        async_consts.thunks.push(b::thunk(
+            &context.arena,
+            b::svelte_call(&context.arena, "wait", vec![b::array(blockers)]),
+        ));
+    }
+
+    // Assignment with the WHOLE pattern as the LHS: `({ length, 0: first } = rhs)`.
+    let assignment = b::assign(&context.arena, JsExpr::Raw(lhs_pattern.into()), rhs);
+    if has_await {
+        async_consts
+            .thunks
+            .push(b::async_arrow(&context.arena, vec![], assignment));
+    } else {
+        async_consts
+            .thunks
+            .push(b::thunk(&context.arena, assignment));
+    }
+
+    // Register the SAME blocker for every declared name.
+    let thunk_index = async_consts.thunks.len() - 1;
+    let async_consts_id = async_consts.id.clone();
+    for name in declared_names {
+        let blocker_expr = b::member_computed(
+            &context.arena,
+            async_consts_id.clone(),
+            b::number(thunk_index as f64),
+        );
+        context
+            .state
+            .const_blocker_map
+            .borrow_mut()
+            .insert(name.clone(), blocker_expr);
     }
 }
 
