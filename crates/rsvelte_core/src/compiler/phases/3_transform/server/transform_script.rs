@@ -4272,6 +4272,44 @@ fn line_ends_with_continuation(trimmed: &str) -> bool {
 }
 
 /// Count bracket depth change for a line (positive = more opens, negative = more closes).
+/// Update `depth` for the curly-brace nesting of a class member body as `line`
+/// is consumed. `{`/`}` that sit inside parentheses/brackets (e.g. a `{}`
+/// default-parameter value in `getTimeline(opts = {}) {`) or inside string /
+/// template literals are ignored, so an object-literal default parameter does
+/// not prematurely close the method block. Returns `true` if `depth` reached 0
+/// on this line (the member body closed). (issue #648)
+fn update_member_brace_depth(line: &str, depth: &mut i32) -> bool {
+    let mut paren: i32 = 0;
+    let mut in_str = false;
+    let mut str_ch = ' ';
+    let mut closed = false;
+    for ch in line.chars() {
+        if in_str {
+            if ch == str_ch {
+                in_str = false;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' | '`' => {
+                in_str = true;
+                str_ch = ch;
+            }
+            '(' | '[' => paren += 1,
+            ')' | ']' => paren -= 1,
+            '{' if paren == 0 => *depth += 1,
+            '}' if paren == 0 => {
+                *depth -= 1;
+                if *depth == 0 {
+                    closed = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    closed
+}
+
 fn count_bracket_depth(line: &str) -> i32 {
     let mut depth: i32 = 0;
     let mut in_str = false;
@@ -4511,23 +4549,14 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
 
         if in_block {
             block_lines.push(line.to_string());
-            for c in trimmed.chars() {
-                match c {
-                    '{' => block_depth += 1,
-                    '}' => {
-                        block_depth -= 1;
-                        if block_depth == 0 {
-                            in_block = false;
-                            if block_is_arrow_fn {
-                                members.push(ClassMember::ArrowFn(block_lines.clone()));
-                            } else {
-                                members.push(ClassMember::Method(block_lines.clone()));
-                            }
-                            block_lines.clear();
-                        }
-                    }
-                    _ => {}
+            if update_member_brace_depth(trimmed, &mut block_depth) {
+                in_block = false;
+                if block_is_arrow_fn {
+                    members.push(ClassMember::ArrowFn(block_lines.clone()));
+                } else {
+                    members.push(ClassMember::Method(block_lines.clone()));
                 }
+                block_lines.clear();
             }
             continue;
         }
@@ -4554,19 +4583,10 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             block_depth = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            for c in trimmed.chars() {
-                match c {
-                    '{' => block_depth += 1,
-                    '}' => {
-                        block_depth -= 1;
-                        if block_depth == 0 {
-                            in_block = false;
-                            members.push(ClassMember::Method(block_lines.clone()));
-                            block_lines.clear();
-                        }
-                    }
-                    _ => {}
-                }
+            if update_member_brace_depth(trimmed, &mut block_depth) {
+                in_block = false;
+                members.push(ClassMember::Method(block_lines.clone()));
+                block_lines.clear();
             }
             continue;
         }
@@ -4584,25 +4604,30 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             block_depth = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            for c in trimmed.chars() {
-                match c {
-                    '{' => block_depth += 1,
-                    '}' => {
-                        block_depth -= 1;
-                        if block_depth == 0 {
-                            in_block = false;
-                            members.push(ClassMember::ArrowFn(block_lines.clone()));
-                            block_lines.clear();
-                        }
-                    }
-                    _ => {}
-                }
+            if update_member_brace_depth(trimmed, &mut block_depth) {
+                in_block = false;
+                members.push(ClassMember::ArrowFn(block_lines.clone()));
+                block_lines.clear();
             }
             continue;
         }
 
-        let is_method_start = (trimmed.contains('(') && trimmed.contains('{'))
-            && !trimmed.contains('=')
+        // A method signature is `name(params) {` — its first `(` comes before
+        // any `=` (a `=` only appears inside the parens as a default parameter,
+        // e.g. `getTimeline(opts = {}) {`). A class *field* (`x = …`, including
+        // arrow fields `x = () => {` already consumed by `is_arrow_fn_start`
+        // above) has its `=` *before* the `(`. The old guard `!contains('=')`
+        // was too broad: it false-negatived any method with a default param, so
+        // the scanner never entered the method block and mis-parsed a local
+        // `const x = $derived(…)` in the body as a private derived class field
+        // (`#const_x = $.derived(…)`), emitting invalid JS. Mirror the
+        // `constructor(` guard below: method iff `(` precedes the first `=`.
+        // (issue #648)
+        let is_method_start = trimmed.contains('(')
+            && trimmed.contains('{')
+            && trimmed
+                .find('=')
+                .is_none_or(|eq_pos| trimmed.find('(').is_some_and(|p| p < eq_pos))
             && !trimmed.starts_with("//")
             && !trimmed.starts_with("/*");
 
@@ -4612,19 +4637,10 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             block_depth = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            for c in trimmed.chars() {
-                match c {
-                    '{' => block_depth += 1,
-                    '}' => {
-                        block_depth -= 1;
-                        if block_depth == 0 {
-                            in_block = false;
-                            members.push(ClassMember::Method(block_lines.clone()));
-                            block_lines.clear();
-                        }
-                    }
-                    _ => {}
-                }
+            if update_member_brace_depth(trimmed, &mut block_depth) {
+                in_block = false;
+                members.push(ClassMember::Method(block_lines.clone()));
+                block_lines.clear();
             }
             continue;
         }
