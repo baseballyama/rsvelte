@@ -172,23 +172,15 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // lowering, etc.).
 
     // Svelte 5.56.0 #18282 (`59d3a36f8` "feat: allow declarations in the
-    // template") follow-up: `async-declaration-tag` / `async-declaration-tag-2`
-    // need the `metadata.promises_id` async-blocker lowering path
-    // (`add_async_declaration` in upstream's DeclarationTag.js) for
-    // `{let x = $state(await …)}`, which is not yet ported. The synchronous
-    // DeclarationTag path — including element-nested block-scoping + constant
-    // folding (client + server) — is complete (`declaration-tags` passes).
-    // `async-declaration-tag{,-2}` — `{let x = $state(await …)}` /
-    // `{const y = $derived(await …)}` async-declaration lowering. The client
-    // foundation is in place (`declaration_tag.rs` routes awaited/blocked
-    // declarations through `add_const_declaration` → `$.run([…])`), so the root
-    // and if-block groups already match upstream. Still pending for a full pass:
-    // element-block `async_consts` reset + `$.run` emission (so a nested
-    // `{const z = $derived(await …)}` gets its own `promises_N`),
-    // `const_blocker_map` scoping across blocks (so a shadowed `name` doesn't
-    // overwrite an outer binding's blocker), the matching server lowering, and
-    // the gnarly `-2` (svelte:boundary + snippet + destructured await + each).
-    "async-declaration-tag",
+    // template"). `async-declaration-tag` (`{let x = $state(await …)}` /
+    // `{const y = $derived(await …)}`) now FULLY passes on both client and
+    // server — the async-declaration lowering (`add_async_declaration` in
+    // upstream's DeclarationTag.js) is ported: root-fragment `$$renderer.run`
+    // flush, cross-block `const_blocker_map` shadow scoping, the
+    // `await $.async_derived(async () => (await $.save(X))())` save-wrap shape,
+    // and element-block `async_consts` reset + cross-group blocker. Only
+    // `async-declaration-tag-2` (svelte:boundary + snippet + destructured await
+    // + each) remains pending.
     "async-declaration-tag-2",
     // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const
     // blockers through closure references"): rsvelte's per-template_effect

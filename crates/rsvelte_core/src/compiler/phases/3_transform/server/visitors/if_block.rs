@@ -74,6 +74,20 @@ impl<'a> ServerCodeGenerator<'a> {
         // pass here.
         let test_expr = Self::transform_rune_in_template_expr(&test_expr);
 
+        // Snapshot the const_blocker_map entries present BEFORE this if-block
+        // so we can undo any SHADOW the branch introduces. The shared
+        // `const_blocker_map` is name-keyed; a block-local
+        // `{let name = $state(await …)}` registers `name -> promises_N[i]`,
+        // overwriting an OUTER same-named binding's blocker. After both
+        // branches are generated we re-assert the original value for every
+        // pre-existing key so the outer read (e.g. the root `{name}`) still
+        // resolves to the outer blocker. Keys the branch newly introduces
+        // (block-local consts consumed at the build root) are LEFT IN PLACE —
+        // a blanket remove would regress fixtures whose if-block `{@const}` /
+        // `$derived` consts are wrapped at the build wrapper level.
+        let cbm_before: rustc_hash::FxHashMap<String, String> =
+            self.const_blocker_map.borrow().clone();
+
         // Generate consequent body parts
         let consequent_body = self.generate_if_branch_body(&block.consequent, None)?;
 
@@ -88,6 +102,16 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             None
         };
+
+        // Undo shadows: restore the ORIGINAL value for every key that existed
+        // before this if-block (fires AFTER both branches so nested
+        // `collect_blocker_identity_set` reads still saw the live entries).
+        {
+            let mut cbm = self.const_blocker_map.borrow_mut();
+            for (k, v) in &cbm_before {
+                cbm.insert(k.clone(), v.clone());
+            }
+        }
 
         self.output_parts.push(OutputPart::IfBlock {
             test_expr,

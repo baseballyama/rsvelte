@@ -640,7 +640,23 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         let thunk_code = if has_await {
-            let save_wrapped = super::super::helpers::transform_await_to_save(rhs);
+            let save_wrapped = if let Some(inner_body) = extract_async_derived_thunk_body(rhs) {
+                // RHS is the lowered async-derived shape
+                // `await $.async_derived(() => X)`. Upstream keeps the OUTER
+                // `await $.async_derived(...)` untouched and save-wraps the
+                // INNER thunk body (re-adding the inner `await` the rune
+                // pipeline stripped):
+                //   `await $.async_derived(async () => (await $.save(X))())`.
+                let saved_body = super::super::helpers::transform_await_to_save(&format!(
+                    "await {}",
+                    inner_body
+                ));
+                format!("await $.async_derived(async () => {})", saved_body)
+            } else {
+                // `$state(await …)` etc. — the single outer await is the save
+                // target: `(await $.save(id))()`.
+                super::super::helpers::transform_await_to_save(rhs)
+            };
             let save_wrapped = normalize_rhs(&save_wrapped);
             if is_destructuring {
                 format!("async () => ({} = {})", lhs, save_wrapped)
@@ -747,6 +763,65 @@ fn find_assignment_eq(decl: &str) -> Option<usize> {
     None
 }
 
+/// If `rhs` is the lowered async-derived shape `await $.async_derived(<thunk>)`,
+/// return the thunk body `X` (the expression the inner arrow returns), with the
+/// rune pipeline's stripped inner `await` already removed. Handles the arrow
+/// shapes the server rune pipeline can emit:
+///   `await $.async_derived(() => X)`       -> Some("X")
+///   `await $.async_derived(async () => X)` -> Some("X")
+/// Uses bracket-matched extraction of the `$.async_derived(` argument so an
+/// inner body that itself ends in `)` is handled correctly.
+fn extract_async_derived_thunk_body(rhs: &str) -> Option<String> {
+    let t = rhs.trim();
+    const PREFIX: &str = "await $.async_derived(";
+    let after = t.strip_prefix(PREFIX)?;
+    // The remaining text after PREFIX is `<thunk>)` — find the closing paren
+    // that matches the `(` of `$.async_derived(`. We scan `after` with depth 1.
+    let bytes = after.as_bytes();
+    let mut depth = 1i32;
+    let mut i = 0;
+    let mut in_str: Option<u8> = None;
+    let mut close_idx = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = in_str {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => in_str = Some(c),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    close_idx = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let close = close_idx?;
+    // Anything after the matched close paren means this is not a clean
+    // `await $.async_derived(<thunk>)` (e.g. trailing operators) — bail.
+    if !after[close + 1..].trim().is_empty() {
+        return None;
+    }
+    let inner = after[..close].trim();
+    inner
+        .strip_prefix("async () =>")
+        .or_else(|| inner.strip_prefix("() =>"))
+        .map(|body| body.trim().to_string())
+}
+
 /// Extract declared variable names from a destructuring pattern or simple identifier.
 /// Returns a list of identifier names declared by the LHS of a const tag declaration.
 fn extract_declared_names(lhs: &str) -> Vec<String> {
@@ -775,25 +850,69 @@ fn extract_identifiers_from_expr(expr: &str) -> Vec<String> {
     let chars: Vec<char> = expr.chars().collect();
     let len = chars.len();
     let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
 
     while i < len {
         let c = chars[i];
 
-        // String tracking
-        if c == '\'' || c == '"' || c == '`' {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
-                in_string = false;
-            }
+        // Template literal: skip the literal text but recurse into `${ … }`
+        // interpolations so a `${name}` dependency is detected (mirrors
+        // upstream, where the interpolation expression is a real reference).
+        if c == '`' {
             i += 1;
+            while i < len {
+                let tc = chars[i];
+                if tc == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if tc == '`' {
+                    i += 1;
+                    break;
+                }
+                if tc == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    // Capture the balanced-brace interpolation body.
+                    let mut depth = 1i32;
+                    let inner_start = i + 2;
+                    let mut j = inner_start;
+                    while j < len && depth > 0 {
+                        match chars[j] {
+                            '{' => depth += 1,
+                            '}' => depth -= 1,
+                            _ => {}
+                        }
+                        if depth == 0 {
+                            break;
+                        }
+                        j += 1;
+                    }
+                    let inner: String = chars[inner_start..j].iter().collect();
+                    for id in extract_identifiers_from_expr(&inner) {
+                        idents.push(id);
+                    }
+                    i = if j < len { j + 1 } else { j };
+                    continue;
+                }
+                i += 1;
+            }
             continue;
         }
-        if in_string {
+
+        // Single/double quoted string: skip entirely.
+        if c == '\'' || c == '"' {
+            let quote = c;
             i += 1;
+            while i < len {
+                let sc = chars[i];
+                if sc == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if sc == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
             continue;
         }
 
