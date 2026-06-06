@@ -1,0 +1,146 @@
+name: auto-update-submodules
+
+# Weekly bump of the tooling submodules — everything EXCEPT svelte. The svelte
+# submodule is handled separately by `auto-update-svelte.yml` because bumping it
+# requires regenerating fixtures and fixing test regressions (the `upgrade-svelte`
+# skill), which CI cannot do unattended.
+#
+# One independent PR per submodule (a matrix job each). The gitlink is advanced
+# to the latest commit of the submodule's tracked ref (the `branch` from
+# .gitmodules, or the remote default branch when none is set). Each PR is
+# upserted onto a stable per-submodule branch, so a re-run force-updates the
+# existing PR instead of opening duplicates.
+#
+# SETUP:
+#   - Settings → Actions → General → Workflow permissions: enable "Allow GitHub
+#     Actions to create and approve pull requests" (required for the default
+#     GITHUB_TOKEN to open PRs).
+#   - PRs created with the default GITHUB_TOKEN do NOT trigger the `CI` workflow.
+#     To have CI run automatically on these PRs, add a repo secret `GH_PAT`
+#     (fine-grained PAT with `contents: write` + `pull-requests: write`); it is
+#     used for checkout/push/PR when present and falls back to GITHUB_TOKEN.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1' # Mondays 05:17 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Independent PRs — one failing submodule must not cancel the others.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: language-tools
+            path: submodules/language-tools
+          - name: typescript-go
+            path: submodules/typescript-go
+          - name: vite-plugin-svelte
+            path: submodules/vite-plugin-svelte
+    concurrency:
+      group: auto-update-submodules-${{ matrix.name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Do not check the submodule contents out — we only rewrite the
+          # gitlink SHA in the index, which needs the superproject tree only.
+          submodules: false
+          token: ${{ secrets.GH_PAT || github.token }}
+
+      - name: Update ${{ matrix.name }} gitlink and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          SUB_NAME: ${{ matrix.name }}
+          SUB_PATH: ${{ matrix.path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Resolve this submodule's configured URL and tracked ref from
+          # .gitmodules (section names are inconsistent, so map by path).
+          section=$(git config -f .gitmodules --get-regexp '\.path$' \
+            | awk -v p="${SUB_PATH}" '$2 == p { sub(/\.path$/, "", $1); print $1 }')
+          if [ -z "${section}" ]; then
+            echo "::error::No .gitmodules entry found for path ${SUB_PATH}"
+            exit 1
+          fi
+          url=$(git config -f .gitmodules "${section}.url")
+          # Fetch over HTTPS so no SSH key is needed in CI.
+          url="${url/git@github.com:/https://github.com/}"
+          branch=$(git config -f .gitmodules "${section}.branch" 2>/dev/null || true)
+          if [ -n "${branch}" ]; then
+            ref="refs/heads/${branch}"
+          else
+            ref="HEAD" # remote default branch
+          fi
+          echo "Submodule ${SUB_NAME}: url=${url} ref=${ref}"
+
+          new=$(git ls-remote "${url}" "${ref}" | awk 'NR==1 {print $1}')
+          if [ -z "${new}" ]; then
+            echo "::error::git ls-remote ${url} ${ref} returned no SHA (private repo without GH_PAT?)"
+            exit 1
+          fi
+          cur=$(git ls-tree HEAD -- "${SUB_PATH}" | awk '{print $3}')
+          echo "current=${cur}"
+          echo "latest =${new}"
+
+          if [ "${new}" = "${cur}" ]; then
+            echo "${SUB_NAME} is already up to date; nothing to do."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          pr_branch="chore/update-${SUB_NAME}"
+          git checkout -B "${pr_branch}"
+
+          # Advance the gitlink to the new commit without checking the
+          # submodule out (mode 160000 = gitlink).
+          git update-index --cacheinfo "160000,${new},${SUB_PATH}"
+
+          short_new=${new:0:12}
+          short_cur=${cur:0:12}
+          title="chore(deps): update ${SUB_NAME} submodule to ${short_new}"
+          git commit -m "${title}"
+          git push --force origin "${pr_branch}"
+
+          # Build a compare link from the (https) submodule URL.
+          repo_url="${url%.git}"
+          {
+            echo "Weekly automated bump of the \`${SUB_PATH}\` submodule."
+            echo
+            echo "| | commit |"
+            echo "|---|---|"
+            echo "| from | \`${short_cur}\` |"
+            echo "| to | \`${short_new}\` |"
+            echo
+            echo "Tracked ref: \`${ref}\`"
+            echo
+            echo "[Compare upstream changes](${repo_url}/compare/${cur}...${new})"
+            echo
+            echo "---"
+            echo
+            echo "Opened by the \`auto-update-submodules\` workflow. Review the upstream"
+            echo "diff and merge once CI is green. A bump may surface new upstream test"
+            echo "fixtures (e.g. svelte2tsx) that need port work before CI passes."
+          } > pr-body.md
+
+          existing=$(gh pr list --head "${pr_branch}" --state open --json number --jq 'length')
+          if [ "${existing}" -eq 0 ]; then
+            gh pr create --base main --head "${pr_branch}" \
+              --title "${title}" --body-file pr-body.md
+          else
+            number=$(gh pr list --head "${pr_branch}" --state open --json number --jq '.[0].number')
+            gh pr edit "${number}" --title "${title}" --body-file pr-body.md
+            echo "Updated existing PR #${number} (force-pushed ${pr_branch})."
+          fi
