@@ -15,6 +15,29 @@ fn bin() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_rsvelte-fmt"))
 }
 
+/// A fake oxfmt that prepends `/*FMT*/` to every CSS file it formats. Handles
+/// both explicit file arguments and the `<style>` staging directory the batch
+/// hands it (basename `rsvelte-fmt-styles-*`, walked like real oxfmt walks a
+/// directory). Any *other* directory argument — e.g. the project dir from the
+/// non-`.svelte` delegation pass — is ignored, so it never touches the test's
+/// own `.svelte`/`.cjs` files. Shared by the delegation and cache-output tests.
+const MARKER_OXFMT: &str = r#"const fs = require('node:fs');
+const path = require('node:path');
+function fmtFile(p) { fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8')); }
+for (const p of process.argv.slice(2)) {
+  if (p.startsWith('-') || p.startsWith('!')) continue;
+  let st;
+  try { st = fs.statSync(p); } catch { continue; }
+  if (st.isFile()) fmtFile(p);
+  else if (st.isDirectory() && path.basename(p).startsWith('rsvelte-fmt-styles-')) {
+    for (const e of fs.readdirSync(p)) {
+      const fp = path.join(p, e);
+      if (fs.statSync(fp).isFile()) fmtFile(fp);
+    }
+  }
+}
+"#;
+
 fn run_stdin(stdin: &str, args: &[&str]) -> (String, String, i32) {
     let mut child = Command::new(bin())
         .args(args)
@@ -120,24 +143,14 @@ fn batched_style_delegation_maps_each_block_to_its_file() {
     let dir = tempdir();
 
     // Fake oxfmt: prepend `/*FMT*/` to every real *file* it receives (in
-    // place). Skips flags (`--…`) and exclude globs (`!…`) and silently ignores
-    // directory arguments — so it tolerates the directory-delegation args
-    // (`--no-error-on-unmatched-pattern !**/*.svelte <dir>`) the non-`.svelte`
-    // pass now passes, while still exercising the temp-file `<style>` batch.
+    // place). Skips flags (`--…`) and exclude globs (`!…`). It walks the
+    // `<style>` staging directory (`rsvelte-fmt-styles-*`) the batch now hands
+    // it (#707), mirroring real oxfmt's directory walk, but ignores any *other*
+    // directory — so the project dir from the non-`.svelte` delegation pass
+    // (`--no-error-on-unmatched-pattern !**/*.svelte <dir>`) is left alone (real
+    // oxfmt covers that tree via its own walker + the .svelte exclude).
     let fake = dir.join("fake-oxfmt.cjs");
-    std::fs::write(
-        &fake,
-        r#"const fs = require('node:fs');
-for (const p of process.argv.slice(2)) {
-  if (p.startsWith('-') || p.startsWith('!')) continue;
-  let st;
-  try { st = fs.statSync(p); } catch { continue; }
-  if (!st.isFile()) continue;
-  fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8'));
-}
-"#,
-    )
-    .unwrap();
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
 
     let c1 = dir.join("c1.svelte");
     let c2 = dir.join("c2.svelte");
@@ -309,12 +322,18 @@ fn write_counting_oxfmt(dir: &std::path::Path) -> PathBuf {
     std::fs::write(
         &fake,
         r#"const fs = require('node:fs');
+const path = require('node:path');
 let touchedFile = false;
 for (const p of process.argv.slice(2)) {
   if (p.startsWith('-') || p.startsWith('!')) continue;
   let st;
   try { st = fs.statSync(p); } catch { continue; }
   if (st.isFile()) touchedFile = true; // identity: leave content as-is
+  else if (st.isDirectory() && path.basename(p).startsWith('rsvelte-fmt-styles-')) {
+    for (const e of fs.readdirSync(p)) {
+      if (fs.statSync(path.join(p, e)).isFile()) touchedFile = true;
+    }
+  }
 }
 if (touchedFile && process.env.FAKE_OXFMT_LOG) {
   fs.appendFileSync(process.env.FAKE_OXFMT_LOG, 'call\n');
@@ -459,19 +478,7 @@ fn style_cache_output_matches_uncached() {
     let dir = tempdir();
     let cache = dir.join("cache");
     let fake = dir.join("marker-oxfmt.cjs");
-    std::fs::write(
-        &fake,
-        r#"const fs = require('node:fs');
-for (const p of process.argv.slice(2)) {
-  if (p.startsWith('-') || p.startsWith('!')) continue;
-  let st;
-  try { st = fs.statSync(p); } catch { continue; }
-  if (!st.isFile()) continue;
-  fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8'));
-}
-"#,
-    )
-    .unwrap();
+    std::fs::write(&fake, MARKER_OXFMT).unwrap();
 
     let body = "<div></div>\n<style>.a{color:red}</style>\n";
     let cached = dir.join("cached.svelte");

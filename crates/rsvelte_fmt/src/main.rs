@@ -660,9 +660,15 @@ fn format_styles_cached(
 }
 
 /// Format every collected `<style>` body in a single `oxfmt` invocation by
-/// staging each into a temp file and running `oxfmt <files...>` (in-place),
+/// staging each into a temp directory and running `oxfmt <dir>` (in-place),
 /// then reading them back. Returns the formatted CSS in input order plus
 /// whether oxfmt exited successfully (so callers can decide whether to cache).
+///
+/// The styles are handed to oxfmt as a single **directory** argument rather
+/// than N explicit file paths: oxfmt parallelizes its directory walk, and on
+/// large trees a multi-thousand-entry argv can also be slower (or hit
+/// `ARG_MAX`). The staging dir holds only our `s{i}.{ext}` files, so the walk
+/// formats exactly the set we read back. See #707.
 fn batch_format_styles(
     oxfmt: &Path,
     config: Option<&Path>,
@@ -673,6 +679,10 @@ fn batch_format_styles(
     }
 
     let dir = std::env::temp_dir().join(format!("rsvelte-fmt-styles-{}", std::process::id()));
+    // Start from a clean dir: oxfmt walks the whole directory, so a stale file
+    // left by a crashed prior run with a recycled PID must not leak into the
+    // batch (it would waste work and could surface spurious parse errors).
+    let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("creating temp dir {}", dir.display()))?;
 
@@ -696,7 +706,7 @@ fn batch_format_styles(
         cmd.arg("-c").arg(c);
     }
     let out = cmd
-        .args(&paths)
+        .arg(&dir)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .output()
