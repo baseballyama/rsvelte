@@ -1214,7 +1214,18 @@ fn apply_props_typedef(
 
             let abs_let = info.let_pos + offset;
             let abs_destruct = info.destructure_start + offset;
-            let insert_pos = abs_let + 3; // after "let"
+            // Insert right after the declaration keyword. The keyword is usually
+            // `let` (3 chars) but may be `const` (5) — count the leading
+            // identifier characters at `let_pos` instead of assuming `let`.
+            let raw_bytes = raw_content.as_bytes();
+            let mut kw_len = 0usize;
+            let start = info.let_pos as usize;
+            while start + kw_len < raw_bytes.len()
+                && raw_bytes[start + kw_len].is_ascii_alphabetic()
+            {
+                kw_len += 1;
+            }
+            let insert_pos = abs_let + kw_len as u32; // after the keyword (let/const/var)
             let typedef_with_space = format!("{} ", typedef_text);
             str.overwrite(insert_pos, abs_destruct, &typedef_with_space);
             exported_names.has_component_props_typedef = true;
@@ -1679,6 +1690,16 @@ fn resolve_hoistable_type_decls(
     // itself blocked. Promote candidates to hoistable when all type-deps are
     // hoistable.
     let mut hoistable = vec![false; candidates.len()];
+    // Record the order in which candidates are promoted to hoistable. The JS
+    // reference (`HoistableInterfaces.determineHoistableInterfaces`) inserts
+    // each interface into a `Map` as soon as all its type dependencies are
+    // already hoistable, then `moveHoistableInterfaces` moves them to
+    // `scriptStart` in that Map (insertion) order. A dependency therefore lands
+    // BEFORE the interface that depends on it, even when it appears later in
+    // source (e.g. `interface A extends B<A>` followed by `interface B<T> {}`
+    // emits `B` first). We mirror that by emitting `hoistable_type_ranges` in
+    // promotion order rather than source order.
+    let mut hoist_order: Vec<usize> = Vec::new();
     let mut progress = true;
     while progress {
         progress = false;
@@ -1706,26 +1727,26 @@ fn resolve_hoistable_type_decls(
             }
             if can_hoist {
                 hoistable[i] = true;
+                hoist_order.push(i);
                 progress = true;
             }
         }
     }
 
     let raw_bytes = raw_content.as_bytes();
-    for (i, c) in candidates.iter().enumerate() {
-        if hoistable[i] {
-            // Extend the move range backward through preceding trivia
-            // (whitespace + line / block comments) so JSDoc and explanatory
-            // comments on the declaration travel with the hoisted chunk.
-            // Matches TypeScript's `node.pos`, which spans leading trivia.
-            let start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
-            exported_names
-                .hoistable_type_ranges
-                .push((start as u32 + offset, c.rel_end + offset));
-            exported_names
-                .hoistable_instance_type_names
-                .insert(c.name.clone());
-        }
+    for &i in &hoist_order {
+        let c = &candidates[i];
+        // Extend the move range backward through preceding trivia
+        // (whitespace + line / block comments) so JSDoc and explanatory
+        // comments on the declaration travel with the hoisted chunk.
+        // Matches TypeScript's `node.pos`, which spans leading trivia.
+        let start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
+        exported_names
+            .hoistable_type_ranges
+            .push((start as u32 + offset, c.rel_end + offset));
+        exported_names
+            .hoistable_instance_type_names
+            .insert(c.name.clone());
     }
 }
 
