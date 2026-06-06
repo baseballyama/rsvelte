@@ -322,11 +322,20 @@ fn push_open_tag(
     let leading_indent_width = indent_visual_width(depth, &options.js);
     let line_width = options.js.line_width.value() as usize;
 
+    // A multi-line attribute value (e.g. a multi-line arrow handler or a
+    // `bind:` getter/setter pair) can't sit on a single tag line — its
+    // continuation lines would collapse toward column 0 instead of aligning
+    // under the attribute. Force the multi-line shape so each attribute lands
+    // on its own line and its continuation lines are re-indented to the
+    // attribute column (#692).
+    let any_multiline_attr = rendered_attrs.iter().any(|a| a.contains('\n'));
+
     // A `//` line comment can't share a line with the closing `>` (it would
     // comment out the rest of the tag), so any line comment forces the
     // multi-line shape.
-    let fits_one_line =
-        !has_line_comment && leading_indent_width + visual_width(&one_liner) <= line_width;
+    let fits_one_line = !has_line_comment
+        && !any_multiline_attr
+        && leading_indent_width + visual_width(&one_liner) <= line_width;
 
     let rendered = if rendered_attrs.is_empty() || fits_one_line {
         one_liner
@@ -455,7 +464,11 @@ fn render_multi_line(
     for a in attrs {
         out.push('\n');
         out.push_str(&inner_indent);
-        out.push_str(a);
+        // A multi-line attribute value (arrow handler, `bind:` getter/setter,
+        // …) is formatted at column 0 by the delegated expression formatter;
+        // re-indent its continuation lines to the attribute column so they
+        // align under the attribute instead of collapsing to column 0 (#692).
+        out.push_str(&reindent_continuation(a, &inner_indent));
     }
     out.push('\n');
     out.push_str(&outer_indent);
@@ -463,6 +476,28 @@ fn render_multi_line(
         out.push_str("/>");
     } else {
         out.push('>');
+    }
+    out
+}
+
+/// Prefix every continuation line (every line after the first) of a rendered
+/// attribute value with `indent`, so a multi-line expression aligns under its
+/// attribute in the multi-line tag layout. The first line is left alone — the
+/// caller has already emitted the attribute indent before it. Empty lines are
+/// not indented (no trailing whitespace). See #692.
+fn reindent_continuation(rendered: &str, indent: &str) -> String {
+    if !rendered.contains('\n') {
+        return rendered.to_string();
+    }
+    let mut out = String::with_capacity(rendered.len() + indent.len() * 2);
+    for (i, line) in rendered.split('\n').enumerate() {
+        if i > 0 {
+            out.push('\n');
+            if !line.is_empty() {
+                out.push_str(indent);
+            }
+        }
+        out.push_str(line);
     }
     out
 }

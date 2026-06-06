@@ -254,3 +254,48 @@ fn block_comment_between_attributes_is_preserved() {
         "block comment inside open tag was dropped:\n{out}"
     );
 }
+
+// ─── Multi-line attribute values (#692) ──────────────────────────────────
+
+#[test]
+fn multiline_attr_expression_reindented_to_attribute_column() {
+    // A multi-line arrow handler must force the multi-line tag layout and have
+    // its continuation lines aligned under the attribute, not collapsed to
+    // column 0 (#692).
+    let src = "<div>\n  <div>\n    <button\n      onclick={() => {\n        foo();\n        bar();\n      }}\n    >x</button>\n  </div>\n</div>\n";
+    let out = fmt(src);
+    let expected = "    <button\n      onclick={() => {\n        foo();\n        bar();\n      }}\n    >x</button>";
+    assert!(
+        out.contains(expected),
+        "multi-line attr not re-indented to nesting level:\n{out}"
+    );
+}
+
+#[test]
+fn multiline_attr_forces_multiline_tag_even_when_short() {
+    // The one-liner would "fit" by char count, but a newline in the value means
+    // it can't actually be one line — force the multi-line shape.
+    let src = "<button onclick={() => {\n  a();\n  b();\n}}>x</button>\n";
+    let out = fmt(src);
+    // The attribute lands on its own line under `<button`.
+    assert!(
+        out.contains("<button\n  onclick={() => {"),
+        "expected multi-line tag layout:\n{out}"
+    );
+    // Closing brace of the handler aligns under the attribute (2 spaces), and
+    // the body one JS level deeper (4 spaces).
+    assert!(out.contains("\n    a();\n"), "body not re-indented:\n{out}");
+    assert!(
+        out.contains("\n  }}\n"),
+        "closing brace not aligned:\n{out}"
+    );
+}
+
+#[test]
+fn multiline_attr_idempotent() {
+    let src =
+        "<div>\n  <button\n    onclick={() => {\n      foo();\n    }}\n  >x</button>\n</div>\n";
+    let once = fmt(src);
+    let twice = fmt(&once);
+    assert_eq!(once, twice, "re-indentation should be idempotent");
+}
