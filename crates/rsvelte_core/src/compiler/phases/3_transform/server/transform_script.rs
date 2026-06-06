@@ -3095,10 +3095,13 @@ fn expand_destructured_derived(script: &str) -> String {
     // Counter for generating unique `$$derived_array` / `$$d` names across
     // the whole script. We don't try to be clever about scoping — there are
     // no nested destructured deriveds in the test corpus.
-    static DERIVED_ARRAY_COUNTER: AtomicUsize = AtomicUsize::new(0);
-    static D_COUNTER: AtomicUsize = AtomicUsize::new(0);
-    DERIVED_ARRAY_COUNTER.store(0, Ordering::Relaxed);
-    D_COUNTER.store(0, Ordering::Relaxed);
+    //
+    // These MUST be call-local, not `static`: the test runner (and any
+    // parallel consumer) compiles many components concurrently, and a shared
+    // global counter would race — one compile resetting/incrementing another's
+    // counter, producing nondeterministic `$$derived_array_N` numbering.
+    let derived_array_counter = AtomicUsize::new(0);
+    let d_counter = AtomicUsize::new(0);
 
     let mut result = String::with_capacity(script.len());
     let bytes = script.as_bytes();
@@ -3218,7 +3221,7 @@ fn expand_destructured_derived(script: &str) -> String {
         let base_expr = if !is_by && arg_is_ident {
             arg_expr.to_string()
         } else {
-            let n = D_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let n = d_counter.fetch_add(1, Ordering::Relaxed);
             let name = if n == 0 {
                 "$$d".to_string()
             } else {
@@ -3250,7 +3253,7 @@ fn expand_destructured_derived(script: &str) -> String {
             &base_expr,
             &mut inserts,
             &mut paths,
-            &DERIVED_ARRAY_COUNTER,
+            &derived_array_counter,
         );
 
         // Compose declarators in upstream order: inserts (already in DFS
