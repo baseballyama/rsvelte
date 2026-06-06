@@ -1,5 +1,13 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [3c1b453]
+- Updated dependencies [7f593d4]
+  - @rsvelte/compiler@0.7.0
+
 ## 0.1.5
 
 ### Patch Changes
