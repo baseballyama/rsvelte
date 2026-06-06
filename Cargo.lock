@@ -1895,7 +1895,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "bumpalo",
  "chrono",
