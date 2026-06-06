@@ -85,6 +85,58 @@ fn snippet_object_destructuring_parameter() {
     );
 }
 
+// ─── Snippet parameter lists are TS function parameters (#684) ───────────
+//
+// Optional (`?`), type-annotated, and default-valued params must round-trip
+// and never leak the internal `__rsvelte_fmt_rhs__` sentinel.
+
+fn fmt_ts(snippet: &str) -> String {
+    let src = format!("<script lang=\"ts\"></script>\n{snippet}\n");
+    format(&src, &FormatOptions::default()).expect("format ok")
+}
+
+#[test]
+fn snippet_optional_typed_parameter() {
+    let out = fmt_ts("{#snippet f(x?: string)}<p>{x}</p>{/snippet}");
+    assert!(
+        out.contains("{#snippet f(x?: string)}"),
+        "optional param dropped/garbled:\n{out}"
+    );
+}
+
+#[test]
+fn snippet_default_value_parameter() {
+    let out = fmt_ts("{#snippet f(x: number = 1)}<p>{x}</p>{/snippet}");
+    assert!(
+        out.contains("{#snippet f(x: number = 1)}"),
+        "default-value param dropped/garbled:\n{out}"
+    );
+}
+
+#[test]
+fn snippet_typed_default_does_not_leak_sentinel() {
+    let out = fmt_ts("{#snippet f(items: string[] = [])}<p>{items}</p>{/snippet}");
+    assert!(
+        !out.contains("__rsvelte_fmt_rhs__"),
+        "internal sentinel leaked into output:\n{out}"
+    );
+    assert!(
+        out.contains("{#snippet f(items: string[] = [])}"),
+        "typed default param garbled:\n{out}"
+    );
+}
+
+#[test]
+fn snippet_multiple_optional_parameters() {
+    let out = fmt_ts(
+        "{#snippet chip(label: string, subLabel?: string, icon?: number)}<p>{label}</p>{/snippet}",
+    );
+    assert!(
+        out.contains("{#snippet chip(label: string, subLabel?: string, icon?: number)}"),
+        "multi optional/typed params garbled:\n{out}"
+    );
+}
+
 #[test]
 fn snippet_multiple_parameters() {
     let out = fmt("{#snippet row({name},{ value })}<li>{name}</li>{/snippet}");

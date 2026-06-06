@@ -52,3 +52,36 @@ fn formats_module_and_instance_independently() {
     );
     assert!(out.contains("<p>{x}</p>"), "markup not preserved:\n{out}");
 }
+
+#[test]
+fn template_literal_interior_is_not_reindented() {
+    // Re-embedding `<script>` must not re-indent the interior of a
+    // multi-line template literal — that whitespace is part of the string
+    // value, and re-indenting it both mutates the string and breaks
+    // idempotency (#686).
+    let source = concat!(
+        "<script lang=\"ts\">\n",
+        "  const html = `\n",
+        "    <div>\n",
+        "      hello\n",
+        "    </div>\n",
+        "  `;\n",
+        "</script>\n",
+        "\n",
+        "<p>{html}</p>\n",
+    );
+    let out = format(source, &FormatOptions::default()).expect("format ok");
+    println!("--- output ---\n{out}");
+    // Quasi lines keep their original indentation (4 / 6 spaces).
+    assert!(
+        out.contains("\n    <div>\n"),
+        "quasi line reindented:\n{out}"
+    );
+    assert!(
+        out.contains("\n      hello\n"),
+        "quasi line reindented:\n{out}"
+    );
+    // Idempotent: a second pass is a fixed point.
+    let out2 = format(&out, &FormatOptions::default()).expect("format ok");
+    assert_eq!(out, out2, "formatting is not idempotent");
+}
