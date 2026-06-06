@@ -15,13 +15,18 @@ use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
 use rsvelte_formatter::{FormatOptions, format};
 
+mod config;
+use config::OxfmtConfig;
+
 /// rsvelte-fmt: fast Svelte + JS/TS/CSS formatter.
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Files or directories to format. Directories are walked recursively
-    /// for `.svelte`, `.ts`, `.tsx`, `.js`, `.jsx`, `.cjs`, `.mjs`,
-    /// `.css`, and `.json` files.
+    /// Files or directories to format. `.svelte` files are formatted in
+    /// process; every other path is delegated to `oxfmt`, so directories cover
+    /// the full oxfmt-supported set (`.ts`/`.js`/`.css`/`.json` and also
+    /// `.md`/`.yaml`/`.toml`/`.html`, etc.) — the same files `oxfmt .` would
+    /// format. See #694.
     paths: Vec<PathBuf>,
 
     /// Write formatted output back to source files. Default when paths
@@ -44,17 +49,28 @@ struct Cli {
     #[arg(long, value_name = "PATH")]
     stdin_filepath: Option<PathBuf>,
 
-    /// Maximum line width before the formatter tries to break.
-    #[arg(long, value_name = "N", default_value_t = 80)]
-    print_width: u16,
+    /// Maximum line width before the formatter tries to break. Overrides
+    /// `printWidth` from `.oxfmtrc`; defaults to 80 when neither is set.
+    #[arg(long, value_name = "N")]
+    print_width: Option<u16>,
 
-    /// Number of spaces per indent level. Ignored when `--use-tabs`.
-    #[arg(long, value_name = "N", default_value_t = 2)]
-    tab_width: u8,
+    /// Number of spaces per indent level. Ignored when `--use-tabs`. Overrides
+    /// `tabWidth` from `.oxfmtrc`; defaults to 2 when neither is set.
+    #[arg(long, value_name = "N")]
+    tab_width: Option<u8>,
 
-    /// Indent with tabs instead of spaces.
+    /// Indent with tabs instead of spaces. When omitted, `useTabs` from
+    /// `.oxfmtrc` applies (if any), else spaces.
     #[arg(long)]
     use_tabs: bool,
+
+    /// Path to an `.oxfmtrc` config file. When omitted, the nearest
+    /// `.oxfmtrc.json` / `.oxfmtrc.jsonc` is discovered upward from the working
+    /// directory (matching oxfmt). The resolved config drives inline
+    /// `<script>` / `<style>` formatting so embedded blocks match standalone
+    /// files (quote style, print width, …).
+    #[arg(short = 'c', long, value_name = "PATH")]
+    config: Option<PathBuf>,
 
     /// Path to the `oxfmt` binary. Defaults to `oxfmt` on `$PATH`.
     #[arg(long, value_name = "PATH", default_value = "oxfmt")]
@@ -92,9 +108,10 @@ fn oxfmt_command(oxfmt: &Path) -> Command {
     }
 }
 
-/// File extensions that get delegated to `oxfmt`. Kept narrow on purpose
-/// so we don't accidentally feed binary files into the formatter.
-const OXFMT_EXTS: &[&str] = &["ts", "tsx", "js", "jsx", "cjs", "mjs", "json", "css"];
+/// oxfmt exclude pattern that keeps `.svelte` files out of the delegated pass —
+/// those are handled in-process by `rsvelte_formatter`. Applies to directory
+/// walks and to any explicitly-passed `.svelte` path.
+const OXFMT_EXCLUDE_SVELTE: &str = "!**/*.svelte";
 
 fn main() -> ExitCode {
     match run() {
@@ -108,10 +125,25 @@ fn main() -> ExitCode {
 
 fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
-    let options = build_format_options(&cli);
+
+    // Resolve the project's `.oxfmtrc` once. Standalone files delegated to
+    // `oxfmt` discover it themselves; we resolve it here so inline `<script>`
+    // (formatted in-process) and inline `<style>` (staged in a temp dir) honor
+    // the same settings. Discovery starts from `--stdin-filepath`'s directory
+    // in stdin mode, else the working directory — matching oxfmt.
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let config_start = cli
+        .stdin_filepath
+        .as_deref()
+        .filter(|_| cli.stdin)
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| cwd.clone());
+    let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start);
+
+    let options = build_format_options(&cli, &cfg);
 
     if cli.stdin {
-        return run_stdin(&cli, &options);
+        return run_stdin(&cli, &options, &cfg);
     }
 
     if cli.paths.is_empty() {
@@ -120,15 +152,15 @@ fn run() -> Result<ExitCode> {
         ));
     }
 
-    let (svelte, others) = partition_files(&cli.paths)?;
+    let (svelte, oxfmt_paths) = partition_files(&cli.paths)?;
 
     let mode = if cli.check { Mode::Check } else { Mode::Write };
 
     // Run both pipelines in parallel — oxfmt subprocess will overlap
     // with the in-process Svelte formatter.
     let (svelte_result, oxfmt_result) = rayon::join(
-        || run_svelte_files(&svelte, &options, &cli.oxfmt_bin, mode),
-        || run_oxfmt(&others, &cli.oxfmt_bin, mode),
+        || run_svelte_files(&svelte, &options, &cli.oxfmt_bin, &cfg, mode),
+        || run_oxfmt(&oxfmt_paths, &cli.oxfmt_bin, mode),
     );
 
     let svelte_status = svelte_result?;
@@ -179,23 +211,39 @@ fn combine(a: PipelineStatus, b: PipelineStatus, mode: Mode) -> ExitCode {
     }
 }
 
-fn build_format_options(cli: &Cli) -> FormatOptions {
-    let indent_style = if cli.use_tabs {
+/// Build the [`FormatOptions`] for the in-process Svelte formatter, layering
+/// the resolved `.oxfmtrc` under any explicit CLI flags. Precedence for the
+/// keys that exist in both places (`--print-width`/`--tab-width`/`--use-tabs`):
+/// CLI flag > `.oxfmtrc` > built-in default. Keys with no CLI equivalent
+/// (`singleQuote`, `semi`, `trailingComma`, …) come straight from `.oxfmtrc`.
+fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
+    let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
+    let indent_style = if use_tabs {
         IndentStyle::Tab
     } else {
         IndentStyle::Space
     };
-    let indent_width = IndentWidth::try_from(cli.tab_width).unwrap_or(IndentWidth::default());
-    let line_width = LineWidth::try_from(cli.print_width).unwrap_or(LineWidth::default());
+    let tab_width = cli.tab_width.or(cfg.tab_width).unwrap_or(2);
+    let print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
+    let indent_width = IndentWidth::try_from(tab_width).unwrap_or(IndentWidth::default());
+    let line_width = LineWidth::try_from(print_width).unwrap_or(LineWidth::default());
+
+    let mut js = JsFormatOptions {
+        indent_style,
+        indent_width,
+        line_width,
+        ..JsFormatOptions::new()
+    };
+    // Layer the remaining `.oxfmtrc` JS keys (quotes, semicolons, …) so inline
+    // `<script>` blocks match standalone files. See #693.
+    cfg.apply_js(&mut js);
 
     FormatOptions {
-        js: JsFormatOptions {
-            indent_style,
-            indent_width,
-            line_width,
-            ..JsFormatOptions::new()
-        },
-        style_formatter: Some(make_oxfmt_style_formatter(cli.oxfmt_bin.clone())),
+        js,
+        style_formatter: Some(make_oxfmt_style_formatter(
+            cli.oxfmt_bin.clone(),
+            cfg.path.clone(),
+        )),
         // `format` derives this per-document from `<script lang="ts">`.
         typescript: false,
     }
@@ -205,13 +253,24 @@ fn build_format_options(cli: &Cli) -> FormatOptions {
 /// for every `<style>` body inside a `.svelte` file.
 /// This way CSS / SCSS / Less inside Svelte components are formatted
 /// by the same engine that handles standalone `.css` files.
-fn make_oxfmt_style_formatter(oxfmt: PathBuf) -> rsvelte_formatter::StyleFormatter {
+fn make_oxfmt_style_formatter(
+    oxfmt: PathBuf,
+    config: Option<PathBuf>,
+) -> rsvelte_formatter::StyleFormatter {
     Arc::new(move |body: &str, lang: &str| -> Result<String, String> {
         let filename = format!("inline.{}", oxfmt_ext(lang));
         // oxfmt reads stdin implicitly when `--stdin-filepath` is given with no
         // path arguments. It has no `--stdin` flag and errors if one is passed
         // (#680), so feed the body on stdin and pass only `--stdin-filepath`.
-        let mut child = oxfmt_command(&oxfmt)
+        let mut cmd = oxfmt_command(&oxfmt);
+        // Force the resolved project config so inline `<style>` settings match
+        // standalone files even though oxfmt's own cwd discovery would apply
+        // here too — explicit is harmless and keeps the path consistent with
+        // the temp-dir batch path. See #693.
+        if let Some(c) = &config {
+            cmd.arg("-c").arg(c);
+        }
+        let mut child = cmd
             .arg("--stdin-filepath")
             .arg(&filename)
             .stdin(Stdio::piped())
@@ -238,7 +297,7 @@ fn make_oxfmt_style_formatter(oxfmt: PathBuf) -> rsvelte_formatter::StyleFormatt
 
 // ─── stdin path ─────────────────────────────────────────────────────────
 
-fn run_stdin(cli: &Cli, options: &FormatOptions) -> Result<ExitCode> {
+fn run_stdin(cli: &Cli, options: &FormatOptions, cfg: &OxfmtConfig) -> Result<ExitCode> {
     let filepath = cli
         .stdin_filepath
         .as_ref()
@@ -265,14 +324,31 @@ fn run_stdin(cli: &Cli, options: &FormatOptions) -> Result<ExitCode> {
         Ok(ExitCode::SUCCESS)
     } else {
         // Pass through to oxfmt via stdin.
-        oxfmt_stdin(&cli.oxfmt_bin, filepath, &source, cli.check)
+        oxfmt_stdin(
+            &cli.oxfmt_bin,
+            cfg.path.as_deref(),
+            filepath,
+            &source,
+            cli.check,
+        )
     }
 }
 
-fn oxfmt_stdin(oxfmt: &Path, path: &Path, source: &str, check: bool) -> Result<ExitCode> {
+fn oxfmt_stdin(
+    oxfmt: &Path,
+    config: Option<&Path>,
+    path: &Path,
+    source: &str,
+    check: bool,
+) -> Result<ExitCode> {
     let mut cmd = oxfmt_command(oxfmt);
     // oxfmt reads stdin implicitly given `--stdin-filepath`; passing `--stdin`
-    // is rejected (#680).
+    // is rejected (#680). Forward an explicit `--config` when the user set one
+    // so stdin formatting matches the rest of the project; otherwise oxfmt
+    // discovers `.oxfmtrc` from cwd on its own.
+    if let Some(c) = config {
+        cmd.arg("-c").arg(c);
+    }
     cmd.arg("--stdin-filepath").arg(path);
     if check {
         cmd.arg("--check");
@@ -295,28 +371,42 @@ fn oxfmt_stdin(oxfmt: &Path, path: &Path, source: &str, check: bool) -> Result<E
 
 // ─── file walking ───────────────────────────────────────────────────────
 
+/// Split the user's inputs into the in-process Svelte pass and the delegated
+/// `oxfmt` pass.
+///
+/// `.svelte` files are enumerated for the in-process formatter by walking every
+/// directory input (plus any explicit `.svelte` file arguments). Everything else
+/// is handed to `oxfmt`: directory inputs go through verbatim so `oxfmt` walks
+/// them with its full supported extension set (`.md`/`.yaml`/`.toml`/`.html`,
+/// …) — the same coverage as `oxfmt .` — while a `!**/*.svelte` exclude (added
+/// in [`run_oxfmt`]) keeps the Svelte files for us. Non-`.svelte` file
+/// arguments are passed straight through. See #694.
 fn partition_files(roots: &[PathBuf]) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let mut svelte = Vec::new();
-    let mut others = Vec::new();
+    let mut oxfmt_paths = Vec::new();
     for root in roots {
-        for entry in walkdir::WalkDir::new(root)
-            .follow_links(false)
-            .into_iter()
-            .filter_entry(|e| !is_hidden(e.path()) && !is_ignored_dir(e.path()))
-        {
-            let entry = entry.context("walking input tree")?;
-            if !entry.file_type().is_file() {
-                continue;
+        let meta = std::fs::metadata(root)
+            .with_context(|| format!("reading {} — no such file or directory", root.display()))?;
+        if meta.is_dir() {
+            // Enumerate `.svelte` files ourselves; oxfmt walks the rest.
+            for entry in walkdir::WalkDir::new(root)
+                .follow_links(false)
+                .into_iter()
+                .filter_entry(|e| !is_hidden(e.path()) && !is_ignored_dir(e.path()))
+            {
+                let entry = entry.context("walking input tree")?;
+                if entry.file_type().is_file() && is_svelte(entry.path()) {
+                    svelte.push(entry.into_path());
+                }
             }
-            let path = entry.into_path();
-            match path.extension().and_then(OsStr::to_str) {
-                Some(SVELTE_EXT) => svelte.push(path),
-                Some(ext) if OXFMT_EXTS.contains(&ext) => others.push(path),
-                _ => {}
-            }
+            oxfmt_paths.push(root.clone());
+        } else if is_svelte(root) {
+            svelte.push(root.clone());
+        } else {
+            oxfmt_paths.push(root.clone());
         }
     }
-    Ok((svelte, others))
+    Ok((svelte, oxfmt_paths))
 }
 
 fn is_hidden(p: &Path) -> bool {
@@ -374,6 +464,7 @@ fn run_svelte_files(
     files: &[PathBuf],
     options: &FormatOptions,
     oxfmt: &Path,
+    cfg: &OxfmtConfig,
     mode: Mode,
 ) -> Result<PipelineStatus> {
     // ── Pass 1: format in parallel, collecting <style> bodies ──
@@ -395,8 +486,8 @@ fn run_svelte_files(
     }
 
     // ── Batch: one oxfmt call for every <style> body ──
-    let formatted_css =
-        batch_format_styles(oxfmt, &slot_css).context("formatting <style> blocks via oxfmt")?;
+    let formatted_css = batch_format_styles(oxfmt, cfg.path.as_deref(), &slot_css)
+        .context("formatting <style> blocks via oxfmt")?;
 
     // file_idx → (local_idx → formatted css)
     let mut per_file: Vec<Vec<String>> = vec![Vec::new(); pass1.len()];
@@ -486,7 +577,11 @@ fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
 /// Format every collected `<style>` body in a single `oxfmt` invocation by
 /// staging each into a temp file and running `oxfmt <files...>` (in-place),
 /// then reading them back. Returns the formatted CSS in input order.
-fn batch_format_styles(oxfmt: &Path, styles: &[(&str, &str)]) -> Result<Vec<String>> {
+fn batch_format_styles(
+    oxfmt: &Path,
+    config: Option<&Path>,
+    styles: &[(&str, &str)],
+) -> Result<Vec<String>> {
     if styles.is_empty() {
         return Ok(Vec::new());
     }
@@ -506,7 +601,15 @@ fn batch_format_styles(oxfmt: &Path, styles: &[(&str, &str)]) -> Result<Vec<Stri
         })
         .collect::<Result<_>>()?;
 
-    let out = oxfmt_command(oxfmt)
+    let mut cmd = oxfmt_command(oxfmt);
+    // The temp files live in the system temp dir, where oxfmt's own upward
+    // config discovery can't reach the project's `.oxfmtrc`. Force it so inline
+    // `<style>` blocks are formatted with the same settings as standalone CSS.
+    // See #693.
+    if let Some(c) = config {
+        cmd.arg("-c").arg(c);
+    }
+    let out = cmd
         .args(&paths)
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -562,8 +665,17 @@ fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Resul
 
 // ─── oxfmt delegation ───────────────────────────────────────────────────
 
-fn run_oxfmt(files: &[PathBuf], oxfmt: &Path, mode: Mode) -> Result<PipelineStatus> {
-    if files.is_empty() {
+/// Delegate every non-`.svelte` path to a single `oxfmt` invocation.
+///
+/// `paths` are the user's directory / file inputs verbatim; a `!**/*.svelte`
+/// exclude keeps Svelte files for the in-process pass, and
+/// `--no-error-on-unmatched-pattern` makes a tree with only `.svelte` files a
+/// clean no-op rather than an error. oxfmt's informational summary
+/// ("Finished … on N files", "Format issues found in above N files") goes to
+/// stdout; we capture it to recover file counts for our own summary, then
+/// forward it. Warnings/errors on stderr stay inherited.
+fn run_oxfmt(paths: &[PathBuf], oxfmt: &Path, mode: Mode) -> Result<PipelineStatus> {
+    if paths.is_empty() {
         return Ok(PipelineStatus::default());
     }
 
@@ -574,16 +686,67 @@ fn run_oxfmt(files: &[PathBuf], oxfmt: &Path, mode: Mode) -> Result<PipelineStat
             cmd.arg("--check");
         }
     }
-    cmd.args(files);
-    cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit());
+    cmd.arg("--no-error-on-unmatched-pattern");
+    cmd.arg(OXFMT_EXCLUDE_SVELTE);
+    cmd.args(paths);
+    cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
 
-    let status = cmd
-        .status()
+    let out = cmd
+        .output()
         .with_context(|| format!("failed to run `{}` — is oxfmt installed?", oxfmt.display()))?;
 
+    // Forward oxfmt's captured stdout (its own summary / check listing).
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    print!("{stdout}");
+    let _ = io::stdout().flush();
+
+    let (files_total, issues) = parse_oxfmt_counts(&stdout);
+    let code = out.status.code();
+    let (files_changed, had_errors) = match mode {
+        // Check: exit 1 = "would reformat" (not an error); exit >1 = real error.
+        Mode::Check => (issues, code.is_none_or(|c| c > 1)),
+        // Write: oxfmt formats in place; any non-zero exit is a real error.
+        Mode::Write => (0, !out.status.success()),
+    };
+
     Ok(PipelineStatus {
-        files_total: files.len(),
-        files_changed: if status.success() { 0 } else { files.len() },
-        had_errors: status.code().is_none_or(|c| c > 1),
+        files_total,
+        files_changed,
+        had_errors,
     })
+}
+
+/// Recover `(files_total, issue_count)` from oxfmt's stdout summary. Best-effort
+/// — counts default to 0 when the expected lines are absent so reporting can
+/// never fail the run.
+fn parse_oxfmt_counts(stdout: &str) -> (usize, usize) {
+    // "Finished in 70ms on 3 files using 10 threads."
+    let total = stdout
+        .lines()
+        .find_map(|l| count_before_word(l, "Finished", "files"))
+        .unwrap_or(0);
+    // "Format issues found in above 2 files. Run without `--check` to fix."
+    let issues = stdout
+        .lines()
+        .find_map(|l| count_before_word(l, "Format issues found", "files"))
+        .unwrap_or(0);
+    (total, issues)
+}
+
+/// In a line that starts with (contains) `marker`, return the integer that
+/// immediately precedes the token `word` (e.g. the `N` in "… N files …").
+fn count_before_word(line: &str, marker: &str, word: &str) -> Option<usize> {
+    if !line.contains(marker) {
+        return None;
+    }
+    let mut prev: Option<&str> = None;
+    for tok in line.split_whitespace() {
+        // Trailing punctuation: oxfmt prints "… 2 files." (with a period) in the
+        // check summary but "… 3 files using …" elsewhere.
+        if tok.trim_end_matches(|c: char| !c.is_alphanumeric()) == word {
+            return prev.and_then(|p| p.parse::<usize>().ok());
+        }
+        prev = Some(tok);
+    }
+    None
 }

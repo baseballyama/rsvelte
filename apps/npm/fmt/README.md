@@ -1,9 +1,11 @@
 # @rsvelte/fmt
 
 A Rust-powered formatter for Svelte projects. `rsvelte-fmt` formats `.svelte`
-files in-process with the rsvelte formatter and delegates every other file
-(`.ts` / `.tsx` / `.js` / `.jsx` / `.cjs` / `.mjs` / `.json` / `.css`) — and the
-`<style>` CSS body of each Svelte component — to [`oxfmt`](https://oxc.rs/docs/guide/usage/formatter).
+files in-process with the rsvelte formatter and delegates every other file — and
+the `<script>` / `<style>` bodies of each Svelte component — to
+[`oxfmt`](https://oxc.rs/docs/guide/usage/formatter). On a directory it covers
+the full oxfmt-supported set (`.ts` / `.js` / `.css` / `.json`, plus `.md` /
+`.yaml` / `.toml` / `.html`, …), so it formats the same files `oxfmt .` would.
 Both pipelines run in parallel, so a mixed project formats in a single pass with
 no Node startup cost on the Svelte side and no Prettier doc-IR round-trip.
 
@@ -67,8 +69,21 @@ Add it to your `package.json`:
 }
 ```
 
-Directory inputs are walked recursively, skipping `node_modules`, `target`,
-`dist`, `build`, and hidden directories.
+Directory inputs hand every non-`.svelte` file to `oxfmt` (which respects
+`.gitignore` / `.prettierignore` and skips `node_modules`), while `.svelte`
+files are walked in-process, skipping `node_modules`, `target`, `dist`,
+`build`, and hidden directories.
+
+## Configuration (`.oxfmtrc`)
+
+`rsvelte-fmt` reads the project's [`oxfmt` config](https://oxc.rs/docs/guide/usage/formatter)
+(`.oxfmtrc.json` / `.oxfmtrc.jsonc`, discovered upward from the working
+directory, or `--config <path>`). Standalone files already pick it up via
+`oxfmt`; the inline `<script>` and `<style>` blocks inside `.svelte` files now
+honor it too, so settings like `singleQuote`, `semi`, `printWidth`,
+`trailingComma`, `quoteProps`, `arrowParens`, `bracketSpacing`, and `endOfLine`
+apply consistently across standalone files and embedded blocks. Explicit
+`--print-width` / `--tab-width` / `--use-tabs` flags override the config.
 
 ## CLI flags
 
@@ -78,9 +93,10 @@ Directory inputs are walked recursively, skipping `node_modules`, `target`,
 | `--check` | off | Exit 1 if any file would change; no writes |
 | `--stdin` | off | Read source on stdin, write result to stdout |
 | `--stdin-filepath PATH` | — | Filename used to pick the engine (required with `--stdin`) |
-| `--print-width N` | 80 | Maximum line width before breaking |
-| `--tab-width N` | 2 | Spaces per indent level |
-| `--use-tabs` | off | Indent with tabs |
+| `--print-width N` | `.oxfmtrc` / 80 | Maximum line width before breaking |
+| `--tab-width N` | `.oxfmtrc` / 2 | Spaces per indent level |
+| `--use-tabs` | `.oxfmtrc` / off | Indent with tabs |
+| `--config PATH`, `-c` | discovered | `.oxfmtrc` to apply to inline `<script>` / `<style>` blocks |
 | `--oxfmt-bin PATH` | resolved / `oxfmt` | Override the oxfmt binary used for non-`.svelte` files |
 
 Run `rsvelte-fmt --help` for the authoritative list.

@@ -11,9 +11,13 @@ Fast Svelte + JS/TS/CSS formatter — one CLI, written in Rust.
 
 - `.svelte` files → in-process [`rsvelte_formatter`](../rsvelte_formatter).
   CSS inside `<style>` blocks is sent to `oxfmt` through a callback, so it
-  matches what `oxfmt` produces for standalone `.css`.
-- `.ts` / `.tsx` / `.js` / `.jsx` / `.cjs` / `.mjs` / `.json` / `.css`
-  files → a child `oxfmt` process.
+  matches what `oxfmt` produces for standalone `.css`. Inline `<script>` /
+  `<style>` blocks honor the project `.oxfmtrc` (discovered upward from cwd, or
+  `--config`), so quote style / print width / etc. match standalone files.
+- Every non-`.svelte` path → a single child `oxfmt` process. Directories are
+  delegated whole (with a `!**/*.svelte` exclude), so coverage matches
+  `oxfmt .` — the full supported set (`.ts` / `.js` / `.css` / `.json`, plus
+  `.md` / `.yaml` / `.toml` / `.html`, …), `.gitignore`-aware.
 
 Both pipelines run **in parallel** via `rayon::join`, so on a mixed project the
 in-process Svelte work overlaps with the `oxfmt` subprocess on every invocation.
@@ -22,9 +26,10 @@ There are no Node calls and no Prettier doc-IR round-trip — just rsvelte parsi
 
 ## Status
 
-Functional v0. The Svelte path is tested end-to-end (6 CLI integration
-tests, plus 105 tests in `rsvelte_formatter`). The `oxfmt` delegation path
-is exercised manually because `oxfmt` may not be present in every CI lane.
+Functional v0. The Svelte path is tested end-to-end (CLI integration tests,
+plus the tests in `rsvelte_formatter`). The `oxfmt` delegation path is
+exercised with a fake `oxfmt` in tests and against real `oxfmt` in the
+ecosystem-ci lane.
 
 ## Install
 
@@ -103,9 +108,10 @@ save hooks) can be pointed at `rsvelte-fmt` instead.
 | `--check` | off | Exit 1 if any file would change |
 | `--stdin` | off | Read source on stdin |
 | `--stdin-filepath PATH` | — | Required with `--stdin` |
-| `--print-width N` | 80 | Maximum line width |
-| `--tab-width N` | 2 | Spaces per indent level |
-| `--use-tabs` | off | Indent with tabs |
+| `--print-width N` | `.oxfmtrc` / 80 | Maximum line width |
+| `--tab-width N` | `.oxfmtrc` / 2 | Spaces per indent level |
+| `--use-tabs` | `.oxfmtrc` / off | Indent with tabs |
+| `--config PATH`, `-c` | discovered | `.oxfmtrc` applied to inline `<script>` / `<style>` |
 | `--oxfmt-bin PATH` | `oxfmt` | Subprocess binary for non-`.svelte` files |
 
 Options are forwarded to both halves of the dispatch so a mixed
