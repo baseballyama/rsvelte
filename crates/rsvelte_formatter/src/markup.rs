@@ -289,28 +289,46 @@ fn push_open_tag(
 
     let self_closing = is_self_closing(source, open_tag_end);
 
-    // Build the list of fully-rendered attribute strings once, so the
-    // one-line and multi-line shapes share the same content.
-    let mut rendered_attrs: Vec<String> = Vec::with_capacity(attributes.len() + 1);
+    // Build the list of fully-rendered open-tag items (attributes plus any
+    // comments interleaved between them), each tagged with its source
+    // position so the rendering order matches the source. Comments inside an
+    // element's open tag are owned by this rewrite, so they'd be silently
+    // dropped if we rebuilt the tag from the attribute list alone (#685).
+    let mut items: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
 
     if let Some(expr) = this_expression
         && let Some(formatted) = format_expression_at(source, expr, options)?
     {
-        rendered_attrs.push(format!("this={{{formatted}}}"));
+        // `this={X}` is emitted first regardless of source position.
+        items.push((element_start, format!("this={{{formatted}}}")));
     }
 
     for attr in attributes {
-        rendered_attrs.push(render_attribute(attr, source, options)?);
+        let (attr_start, _) = attribute_span(attr);
+        items.push((attr_start, render_attribute(attr, source, options)?));
     }
+
+    let comments = collect_open_tag_comments(source, element_start, open_tag_end, attributes);
+    let has_line_comment = comments.iter().any(|c| c.is_line);
+    for c in comments {
+        items.push((c.start, c.text));
+    }
+
+    items.sort_by_key(|(start, _)| *start);
+    let rendered_attrs: Vec<String> = items.into_iter().map(|(_, text)| text).collect();
 
     let one_liner = render_one_line(tag_name, &rendered_attrs, self_closing);
 
     let leading_indent_width = indent_visual_width(depth, &options.js);
     let line_width = options.js.line_width.value() as usize;
 
-    let rendered = if rendered_attrs.is_empty()
-        || leading_indent_width + visual_width(&one_liner) <= line_width
-    {
+    // A `//` line comment can't share a line with the closing `>` (it would
+    // comment out the rest of the tag), so any line comment forces the
+    // multi-line shape.
+    let fits_one_line =
+        !has_line_comment && leading_indent_width + visual_width(&one_liner) <= line_width;
+
+    let rendered = if rendered_attrs.is_empty() || fits_one_line {
         one_liner
     } else {
         render_multi_line(tag_name, &rendered_attrs, self_closing, depth, &options.js)
@@ -318,6 +336,92 @@ fn push_open_tag(
 
     edits.push((element_start, open_tag_end, rendered));
     Ok(())
+}
+
+/// A comment found between attributes inside an element's open tag.
+struct OpenTagComment {
+    start: u32,
+    text: String,
+    is_line: bool,
+}
+
+/// Scan the open-tag region for `//` and `/* … */` comments that sit in the
+/// gaps between attributes (or before the first / after the last). These are
+/// not part of the attribute list, so they must be collected separately to
+/// avoid being dropped when the open tag is rewritten (#685).
+fn collect_open_tag_comments(
+    source: &str,
+    element_start: u32,
+    open_tag_end: u32,
+    attributes: &[Attribute],
+) -> Vec<OpenTagComment> {
+    let bytes = source.as_bytes();
+    let name_end = open_tag_name_end(source, element_start);
+    let end = (open_tag_end as usize).min(bytes.len());
+
+    // Attribute spans (sorted) so we can skip over them while scanning gaps.
+    let mut spans: Vec<(usize, usize)> = attributes
+        .iter()
+        .map(|a| {
+            let (s, e) = attribute_span(a);
+            (s as usize, e as usize)
+        })
+        .collect();
+    spans.sort_by_key(|s| s.0);
+
+    let mut comments = Vec::new();
+    let mut i = name_end;
+    let mut span_idx = 0;
+    while i < end {
+        // Skip past any attribute span covering `i`.
+        while span_idx < spans.len() && spans[span_idx].1 <= i {
+            span_idx += 1;
+        }
+        if span_idx < spans.len() && spans[span_idx].0 <= i {
+            i = spans[span_idx].1;
+            continue;
+        }
+
+        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            let start = i;
+            i += 2;
+            while i < end && bytes[i] != b'\n' {
+                i += 1;
+            }
+            let text = source[start..i].trim_end().to_string();
+            comments.push(OpenTagComment {
+                start: start as u32,
+                text,
+                is_line: true,
+            });
+        } else if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            let start = i;
+            i += 2;
+            while i < end && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                i += 1;
+            }
+            i = (i + 2).min(end);
+            comments.push(OpenTagComment {
+                start: start as u32,
+                text: source[start..i].to_string(),
+                is_line: false,
+            });
+        } else {
+            i += 1;
+        }
+    }
+    comments
+}
+
+/// Return the byte offset just past the `<tagname` opener (the first
+/// whitespace / `>` / `/` after the tag name).
+fn open_tag_name_end(source: &str, element_start: u32) -> usize {
+    let bytes = source.as_bytes();
+    let mut i = element_start as usize + 1;
+    while i < bytes.len() && !matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r' | b'>' | b'/') {
+        i += 1;
+    }
+    i
 }
 
 fn render_one_line(tag_name: &str, attrs: &[String], self_closing: bool) -> String {
@@ -422,6 +526,24 @@ fn find_open_tag_end(source: &str, element_start: u32, attributes: &[Attribute])
     let bytes = source.as_bytes();
     let mut i = scan_from;
     while i < bytes.len() {
+        // Skip over comments so a `>` inside `// …` / `/* … */` (which can
+        // sit between the last attribute and the closing `>`) doesn't end
+        // the open tag prematurely (#685).
+        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            i += 2;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            i += 2;
+            while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                i += 1;
+            }
+            i += 2;
+            continue;
+        }
         if bytes[i] == b'>' {
             return Some((i + 1) as u32);
         }

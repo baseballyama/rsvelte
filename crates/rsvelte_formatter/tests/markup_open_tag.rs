@@ -221,3 +221,36 @@ fn end_to_end_realistic_component() {
     );
     assert!(out.contains("{count}"), "{out}");
 }
+
+// ─── Comments inside the open tag are preserved (#685) ───────────────────
+
+#[test]
+fn line_comment_between_attributes_is_preserved() {
+    let out = fmt("<div\n  role=\"x\"\n  // important note\n  class=\"y\"\n></div>");
+    assert!(
+        out.contains("// important note"),
+        "line comment inside open tag was dropped:\n{out}"
+    );
+    assert!(out.contains("role=\"x\""), "{out}");
+    assert!(out.contains("class=\"y\""), "{out}");
+}
+
+#[test]
+fn line_comment_forces_multiline_open_tag() {
+    // A `//` comment can't share a line with the closing `>`, so even a
+    // short tag must render multi-line when one is present.
+    let out = fmt("<div\n  role=\"x\"\n  // note\n  class=\"y\"\n></div>");
+    assert!(
+        out.lines().any(|l| l.trim_start() == "// note"),
+        "expected line comment on its own line:\n{out}"
+    );
+}
+
+#[test]
+fn block_comment_between_attributes_is_preserved() {
+    let out = fmt("<div\n  role=\"x\"\n  /* note */\n  class=\"y\"\n></div>");
+    assert!(
+        out.contains("/* note */"),
+        "block comment inside open tag was dropped:\n{out}"
+    );
+}
