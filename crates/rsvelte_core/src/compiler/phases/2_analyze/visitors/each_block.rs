@@ -104,6 +104,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
         .filter(|n| match n {
             TemplateNode::Comment(_) => false,
             TemplateNode::ConstTag(_) => false,
+            TemplateNode::DeclarationTag(_) => false,
             TemplateNode::Text(text) => !text.data.trim().is_empty(),
             _ => true,
         })

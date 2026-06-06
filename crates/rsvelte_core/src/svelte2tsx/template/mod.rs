@@ -521,6 +521,57 @@ fn collect_slot_prop_entries(attributes: &[Attribute], source: &str) -> Vec<Stri
     props
 }
 
+/// Hoist `{#snippet}` blocks to the top of their containing block/element.
+///
+/// Mirrors `hoistSnippetBlock` in the JS reference
+/// (`htmlxtojsx_v2/nodes/SnippetBlock.ts`): each non-leading snippet child is
+/// moved to `targetPosition`, the position of the first non-snippet,
+/// non-empty-text child. This lets later content reference a snippet defined
+/// further down in source (the generated `const foo = ...` declaration is
+/// emitted before the `{const}` / `{let}` declaration tags and elements that
+/// follow it).
+///
+/// Snippets that are already first (`targetPosition` still `None`) or already
+/// at the target position are left untouched, matching the JS reference's
+/// early-`continue` guards. Component / boundary containers are excluded by
+/// their callers (they treat snippets as implicit props instead), so this is
+/// only invoked for block and plain-element fragments.
+fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString) {
+    let mut target_position: Option<u32> = None;
+    for node in &fragment.nodes {
+        if !matches!(node, TemplateNode::SnippetBlock(_)) {
+            if target_position.is_none() {
+                let is_empty_text = match node {
+                    TemplateNode::Text(t) => source
+                        .get(t.start as usize..t.end as usize)
+                        .map(|s| s.trim().is_empty())
+                        .unwrap_or(true),
+                    _ => false,
+                };
+                if !is_empty_text {
+                    // JS reference: `node.type === 'Text' ? node.end : node.start`
+                    target_position = Some(match node {
+                        TemplateNode::Text(t) => t.end,
+                        _ => node.start(),
+                    });
+                }
+            }
+            continue;
+        }
+
+        // It's a snippet block.
+        let Some(tp) = target_position else {
+            // Already the first meaningful child — nothing to move.
+            continue;
+        };
+        let s = node.start();
+        if s == tp {
+            continue;
+        }
+        str.move_range(s, node.end(), tp);
+    }
+}
+
 /// Process a fragment's child nodes in-place.
 fn process_fragment_inplace(
     fragment: &Fragment,
@@ -1142,6 +1193,11 @@ fn handle_each_block(
         let header = format!("{}{}{}", header_before_expr, expr_text, header_after_expr);
         str.overwrite(block.start, body_start, &header);
     }
+
+    // Hoist inner snippets to the top of the each body before processing, so
+    // their generated `const foo = ...` declarations precede the `{const}` /
+    // `{let}` declaration tags and elements that reference them.
+    hoist_snippet_blocks(&block.body, source, str);
 
     // Process body children
     process_fragment_inplace(&block.body, source, options, str, counter);

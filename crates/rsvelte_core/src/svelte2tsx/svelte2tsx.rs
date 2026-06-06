@@ -939,8 +939,13 @@ pub fn svelte2tsx(
                 // its own newline + indent, and the trailing `;` mirrors
                 // `appendLeft(node.end, ';')` from the JS reference so the
                 // declaration is statement-terminated.
-                let mut type_ranges = exported_names.hoistable_type_ranges.clone();
-                type_ranges.sort_by_key(|(s, _)| *s);
+                // Preserve the promotion (topological) order produced by
+                // `resolve_hoistable_type_decls`, which mirrors the JS
+                // reference's `Map` insertion order: a dependency is moved
+                // BEFORE the interface that depends on it, even when it appears
+                // later in source. Sorting by start position would wrongly
+                // restore source order.
+                let type_ranges = exported_names.hoistable_type_ranges.clone();
                 for (s, e) in type_ranges {
                     if s < e && (e as usize) <= source.len() {
                         // `prepend_right` / `append_left` add to the moved
@@ -1117,8 +1122,13 @@ pub fn svelte2tsx(
                 // its own newline + indent, and the trailing `;` mirrors
                 // `appendLeft(node.end, ';')` from the JS reference so the
                 // declaration is statement-terminated.
-                let mut type_ranges = exported_names.hoistable_type_ranges.clone();
-                type_ranges.sort_by_key(|(s, _)| *s);
+                // Preserve the promotion (topological) order produced by
+                // `resolve_hoistable_type_decls`, which mirrors the JS
+                // reference's `Map` insertion order: a dependency is moved
+                // BEFORE the interface that depends on it, even when it appears
+                // later in source. Sorting by start position would wrongly
+                // restore source order.
+                let type_ranges = exported_names.hoistable_type_ranges.clone();
                 for (s, e) in type_ranges {
                     if s < e && (e as usize) <= source.len() {
                         // `prepend_right` / `append_left` add to the moved
