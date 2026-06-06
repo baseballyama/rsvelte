@@ -161,20 +161,22 @@ Useful if you're building your own language tooling on top of the same surface `
 
 `rsvelte-fmt` is a Rust-native formatter for Svelte projects — one CLI that formats `.svelte` files **in-process** (no Node, no Prettier doc-IR round-trip) and routes `.js` / `.ts` / `.jsx` / `.tsx` / `.json` / `.css` to [`oxfmt`](https://oxc.rs/docs/guide/usage/formatter), with both pipelines running in parallel. It's the standalone proof of the `oxfmt` integration goal above; the `.svelte` engine itself lives in the [`rsvelte_formatter`](crates/rsvelte_formatter) library crate.
 
-Build from source (not yet published):
+Install from npm — prebuilt binaries ship for macOS / Linux / Windows:
 
 ```bash
-cargo build --release -p rsvelte_fmt
-./target/release/rsvelte-fmt --help
+npm install -D @rsvelte/fmt
+npx rsvelte-fmt --help
 ```
 
 ```bash
-rsvelte-fmt src/                 # format in place, recursively
-rsvelte-fmt --check src/         # exit 1 if anything would change (CI gate)
-cat App.svelte | rsvelte-fmt --stdin --stdin-filepath App.svelte   # editor integration
+npx rsvelte-fmt src/                 # format in place, recursively
+npx rsvelte-fmt --check src/         # exit 1 if anything would change (CI gate)
+cat App.svelte | npx rsvelte-fmt --stdin --stdin-filepath App.svelte   # editor integration
 ```
 
-`oxfmt` must be on `$PATH` for non-`.svelte` files (and to format `<style>` blocks); point at a specific binary with `--oxfmt-bin`. See [`crates/rsvelte_fmt/README.md`](crates/rsvelte_fmt/README.md) for all flags, exit codes, and how it compares to `oxfmt + prettier-plugin-svelte`.
+[`oxfmt`](https://www.npmjs.com/package/oxfmt) formats the non-`.svelte` files (and `<style>` CSS); it's an **optional peer dependency** — `npm install -D oxfmt` and the loader resolves it automatically (or pass `--oxfmt-bin <path>`). Without it, `.svelte` markup still formats and the other files are skipped.
+
+Prefer to build from source? `cargo build --release -p rsvelte_fmt` produces `./target/release/rsvelte-fmt`. See [`crates/rsvelte_fmt/README.md`](crates/rsvelte_fmt/README.md) for all flags, exit codes, and how it compares to `oxfmt + prettier-plugin-svelte`, or the [`@rsvelte/fmt`](apps/npm/fmt) package README for npm-specific details.
 
 ### Embed in a Rust crate
 
