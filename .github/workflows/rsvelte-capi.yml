@@ -61,10 +61,29 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          submodules: true
+          submodules: false
+
+      # capi only needs the `svelte` submodule: rsvelte_core's build.rs
+      # reads submodules/svelte/packages/svelte/package.json to embed the
+      # version string in the disclose-version import. The other three
+      # submodules (language-tools, typescript-go, vite-plugin-svelte —
+      # ~534 MB combined) are never touched by the capi build/tests, and
+      # vite-plugin-svelte is an SSH-only remote. Shallow-init just svelte
+      # to keep the uploaded library's version accurate.
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      # Without this every run recompiles the whole oxc_* dependency graph
+      # in release mode from scratch (the bulk of the build time). The
+      # cache is keyed per-OS and shared across this workflow's runs
+      # (incl. main pushes) so PR builds restore the prebuilt deps.
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: capi-${{ matrix.os }}
 
       # Build twice on purpose: the first run regenerates the header
       # into include/rsvelte.h (build script writes when env var unset),

@@ -91,6 +91,9 @@ jobs:
         with:
           components: clippy
 
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -205,6 +208,9 @@ jobs:
         run: pnpm run generate-fixtures
         timeout-minutes: 15
 
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
       - name: Run tests
         # `--all-features` would enable `napi`, which only links cleanly when
         # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:
@@ -307,6 +313,9 @@ jobs:
         run: pnpm run generate-fixtures
         timeout-minutes: 15
 
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
       - name: Generate compatibility report
         run: pnpm run compatibility-report
         timeout-minutes: 30
@@ -384,6 +393,9 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
       - name: Build documentation
         run: cargo doc --no-deps
