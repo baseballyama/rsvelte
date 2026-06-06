@@ -15,6 +15,53 @@ env:
   RUSTFLAGS: -Dwarnings
 
 jobs:
+  changeset:
+    name: Changeset
+    # Conventional-commit `fix` / `feat` PRs are user-facing changes that
+    # must ship a changeset so the Release workflow can version + changelog
+    # them. Other types (chore, docs, refactor, test, ci, build, perf…) are
+    # exempt. Add the `skip-changeset` label to bypass for a one-off.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Require changeset for fix/feat PRs
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$SKIP" == "true" ]]; then
+            echo "skip-changeset label present — skipping changeset requirement."
+            exit 0
+          fi
+
+          # Only `fix` / `feat` (optionally scoped and/or breaking `!`) require a changeset.
+          if [[ ! "$PR_TITLE" =~ ^(fix|feat)(\([^\)]*\))?!?: ]]; then
+            echo "PR title '$PR_TITLE' is not a fix/feat change — changeset not required."
+            exit 0
+          fi
+
+          # New changeset markdown files added in this PR (README.md is pre-existing).
+          added=$(git diff --name-only --diff-filter=A "$BASE_SHA"...HEAD -- '.changeset/*.md' \
+            | grep -vE '\.changeset/README\.md$' || true)
+
+          if [[ -z "$added" ]]; then
+            type="${PR_TITLE%%[(:]*}"
+            echo "::error::This is a '$type' PR but no changeset was added. Run 'pnpm changeset', describe the change, and commit the generated file under .changeset/. (Add the 'skip-changeset' label to bypass.)"
+            exit 1
+          fi
+
+          echo "Found changeset(s):"
+          echo "$added"
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
