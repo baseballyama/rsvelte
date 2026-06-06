@@ -55,10 +55,18 @@ const fmtMs = (v) => v.toFixed(0) + 'ms';
 console.log('=== Benchmark Results (' + r.testFilesCount + ' files) ===');
 console.log('');
 
-for (const task of ['compile-client', 'compile-server', 'parse', 'svelte2tsx']) {
-    const d = r[task];
-    if (!d) continue;
-    console.log(d.taskLabel + ':');
+// compile-client lives at the top level of the JSON for backwards
+// compat; every other task is a nested sibling keyed by name.
+const tasks = [
+    ['Compile (Client)', r],
+    ['Parse', r.parse],
+    ['svelte2tsx', r.svelte2tsx],
+    ['fmt', r.fmt],
+    ['svelte-check', r.svelteCheck],
+];
+for (const [label, d] of tasks) {
+    if (!d || !d.javascript) continue;
+    console.log(label + ':');
     console.log('  JavaScript:           ' + fmtMs(d.javascript.durationMs));
     console.log('  Rust (single-thread): ' + fmtMs(d.rustSingleThread.durationMs) + '  (' + fmt(d.speedup.singleThreadVsJs) + 'x)');
     console.log('  Rust (multi-thread):  ' + fmtMs(d.rustMultiThread.durationMs) + '  (' + fmt(d.speedup.multiThreadVsJs) + 'x)');
@@ -72,6 +80,7 @@ run_criterion() {
     log "Running Criterion benchmarks..."
     cargo bench --bench compiler 2>&1
     cargo bench --bench parser 2>&1
+    cargo bench -p rsvelte_formatter --bench formatter 2>&1
     ok "Criterion benchmarks complete. See target/criterion/ for HTML reports."
 }
 
@@ -139,10 +148,16 @@ console.log('');
 console.log('Task               | JS       | Rust     | Speedup');
 console.log('-------------------|----------|----------|--------');
 
-for (const task of ['compile-client', 'compile-server', 'parse', 'svelte2tsx']) {
-    const d = r[task];
-    if (!d) continue;
-    const label = d.taskLabel.padEnd(18);
+const tasks = [
+    ['Compile (Client)', r],
+    ['Parse', r.parse],
+    ['svelte2tsx', r.svelte2tsx],
+    ['fmt', r.fmt],
+    ['svelte-check', r.svelteCheck],
+];
+for (const [taskLabel, d] of tasks) {
+    if (!d || !d.javascript) continue;
+    const label = taskLabel.padEnd(18);
     const js = fmtMs(d.javascript.durationMs).padStart(8);
     const rs = fmtMs(d.rustSingleThread.durationMs).padStart(8);
     const sp = (fmt(d.speedup.singleThreadVsJs) + 'x').padStart(7);

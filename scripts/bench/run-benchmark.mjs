@@ -108,6 +108,24 @@ const { svelte2tsx: upstreamSvelte2tsx } = await import(
 	'../../submodules/language-tools/packages/svelte2tsx/index.mjs'
 );
 
+// Prettier + prettier-plugin-svelte are the JS baseline for the `fmt` task.
+// Both are plain npm devDependencies (see root package.json), so a normal
+// `pnpm install` makes them resolvable — unlike svelte/compiler and
+// language-tools above, there is nothing to build first. prettier-plugin-
+// svelte also peer-depends on `svelte`, which is likewise a devDependency.
+let prettier;
+let prettierPluginSvelte;
+try {
+	const prettierMod = await import('prettier');
+	prettier = prettierMod.default ?? prettierMod;
+	prettierPluginSvelte = await import('prettier-plugin-svelte');
+} catch (err) {
+	console.error(
+		'[run-benchmark] prettier / prettier-plugin-svelte not found — run `pnpm install`.',
+	);
+	throw err;
+}
+
 // Test directories containing Svelte files
 const TEST_CATEGORIES = [
 	'parser-modern/samples',
@@ -229,9 +247,15 @@ function benchmarkJavaScript(files, iterations, task) {
 }
 
 /**
- * Benchmark Rust compiler using the benchmark binary
+ * Benchmark Rust compiler using the benchmark binary.
+ *
+ * `binName` selects which Cargo binary drives the task. Compiler tasks
+ * (compile-client / parse / svelte2tsx) use `benchmark_runner` in
+ * `rsvelte_core`; the `fmt` task uses `fmt_benchmark_runner` in
+ * `rsvelte_fmt` (the formatter can't live in the compiler crate without a
+ * dependency cycle). Both share the same CLI + JSON-output contract.
  */
-async function benchmarkRust(files, singleThread, task) {
+async function benchmarkRust(files, singleThread, task, binName = 'benchmark_runner') {
 	const mode = singleThread ? 'single' : 'multi';
 
 	// Create a temp file with all file paths
@@ -239,12 +263,21 @@ async function benchmarkRust(files, singleThread, task) {
 	const tempFile = join(__dirname, '../../.benchmark-files.txt');
 	writeFileSync(tempFile, fileList);
 
+	// `profile.release` sets `panic = "abort"`, so a formatter panic on a
+	// malformed corpus file would kill the whole run. The fmt runner relies
+	// on `catch_unwind` to skip such files, which only works under a profile
+	// with `panic = "unwind"` — that's exactly what `profile.bench` is for
+	// (it inherits release's optimisation flags, so the timings stay
+	// representative). Compiler tasks don't panic on this corpus, so they
+	// keep the faster-to-link release profile.
+	const profileFlag = binName === 'fmt_benchmark_runner' ? '--profile=bench' : '--release';
+
 	return new Promise((resolve, reject) => {
 		const args = [
 			'run',
-			'--release',
+			profileFlag,
 			'--bin',
-			'benchmark_runner',
+			binName,
 			'--',
 			'--mode',
 			mode,
@@ -436,6 +469,88 @@ function asTaskResults(taskResult) {
 	return { javascript, rustSingleThread, rustMultiThread, speedup };
 }
 
+// ── fmt task ────────────────────────────────────────────────────────────────
+//
+// The `fmt` task pits prettier + prettier-plugin-svelte (the canonical JS
+// Svelte formatter) against rsvelte_formatter over the shared per-file
+// corpus. It needs its own runner because prettier 3's `format()` is async,
+// whereas the compiler tasks above call synchronous APIs. The Rust side is
+// driven by the `fmt_benchmark_runner` binary in `rsvelte_fmt`.
+
+async function benchmarkPrettier(files, iterations) {
+	const opts = (filepath) => ({
+		parser: 'svelte',
+		plugins: [prettierPluginSvelte],
+		filepath,
+	});
+
+	// Warmup
+	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
+		for (const file of files) {
+			try {
+				await prettier.format(file.content, opts(file.path));
+			} catch {
+				// Ignore formatting errors — some fixtures aren't valid Svelte.
+			}
+		}
+	}
+
+	const times = [];
+	for (let i = 0; i < iterations; i++) {
+		const start = performance.now();
+		for (const file of files) {
+			try {
+				await prettier.format(file.content, opts(file.path));
+			} catch {
+				// Ignore formatting errors for benchmark
+			}
+		}
+		times.push(performance.now() - start);
+	}
+	return times;
+}
+
+async function runFmtTask(files) {
+	console.error('\n=== fmt ===');
+
+	console.error('  Benchmarking JavaScript (prettier-plugin-svelte)...');
+	const jsTimes = await benchmarkPrettier(files, BENCHMARK_ITERATIONS);
+	const jsStats = calculateStats(jsTimes, files.length);
+	console.error(
+		`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	console.error('  Benchmarking Rust (single-threaded)...');
+	const rustSingleTimes = await benchmarkRust(files, true, 'fmt', 'fmt_benchmark_runner');
+	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
+	console.error(
+		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	console.error('  Benchmarking Rust (multi-threaded)...');
+	const rustMultiTimes = await benchmarkRust(files, false, 'fmt', 'fmt_benchmark_runner');
+	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
+	console.error(
+		`    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+	);
+
+	const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
+	const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
+	console.error(`  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`);
+
+	return {
+		task: 'fmt',
+		taskLabel: 'fmt',
+		javascript: { ...jsStats },
+		rustSingleThread: { ...rustSingleStats },
+		rustMultiThread: { ...rustMultiStats },
+		speedup: {
+			singleThreadVsJs: speedupSingle,
+			multiThreadVsJs: speedupMulti,
+		},
+	};
+}
+
 // ── svelte-check task ──────────────────────────────────────────────────────
 //
 // Unlike the other tasks, svelte-check is a project-wise CLI, not a per-file
@@ -568,11 +683,12 @@ async function main() {
 	const compileClient = await runBenchmarkTask(files, 'compile-client');
 	const parse = await runBenchmarkTask(files, 'parse');
 	const svelte2tsx = await runBenchmarkTask(files, 'svelte2tsx');
+	const fmt = await runFmtTask(files);
 	const svelteCheck = await runSvelteCheckTask();
 
 	// Output combined JSON. Compile-client lives at the top level for
 	// backward compatibility with the existing benchmark page; parse,
-	// svelte2tsx and svelte-check are nested siblings so the page can
+	// svelte2tsx, fmt and svelte-check are nested siblings so the page can
 	// render each as its own section.
 	const output = {
 		generatedAt: new Date().toISOString(),
@@ -582,6 +698,7 @@ async function main() {
 		...asTaskResults(compileClient),
 		parse: asTaskResults(parse),
 		svelte2tsx: asTaskResults(svelte2tsx),
+		fmt: asTaskResults(fmt),
 		svelteCheck: { ...svelteCheck, filesCount: SVELTE_CHECK_FILES },
 	};
 
