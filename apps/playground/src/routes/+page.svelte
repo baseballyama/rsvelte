@@ -126,6 +126,8 @@
 	<SiteNav active="home" />
 
 	<header class="hero">
+		<img class="hero-logo" src="{base}/logo.png" alt="rsvelte" width="96" height="96" />
+
 		<p class="eyebrow"><span class="rule"></span>Svelte ecosystem · written in Rust</p>
 
 		<h1 class="title">
@@ -386,6 +388,14 @@
 		max-width: 1080px;
 		margin: 0 auto;
 		padding: clamp(4rem, 12vh, 7rem) clamp(1rem, 4vw, 2.5rem) clamp(3rem, 6vh, 4.5rem);
+	}
+
+	.hero-logo {
+		display: block;
+		width: clamp(72px, 9vw, 96px);
+		height: auto;
+		margin: 0 0 1.8rem;
+		border-radius: 16px;
 	}
 
 	.eyebrow {
