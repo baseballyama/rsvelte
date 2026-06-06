@@ -132,4 +132,15 @@ if (result.error) {
 	console.error(`[@rsvelte/fmt] Failed to exec ${binPath}: ${result.error.message}`);
 	process.exit(1);
 }
+
+// If the native binary was killed by a signal (e.g. SIGABRT from a Rust
+// panic), `result.status` is null and `result.signal` holds the signal
+// name. Returning `status ?? 0` here would mask the crash as a clean exit 0,
+// hiding panics and any partial/corrupt output from tooling and CI. Propagate
+// signal terminations as the conventional 128 + signal-number exit code.
+if (result.signal) {
+	const signum = require('node:os').constants.signals[result.signal];
+	console.error(`[@rsvelte/fmt] ${binPath} was terminated by ${result.signal}.`);
+	process.exit(typeof signum === 'number' ? 128 + signum : 1);
+}
 process.exit(result.status ?? 0);

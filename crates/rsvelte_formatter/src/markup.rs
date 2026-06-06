@@ -209,29 +209,52 @@ fn push_close_tag(
     tag_name: &str,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    let Some((start, end)) = find_close_tag_span(source, element_end) else {
+    let Some((start, end)) = find_close_tag_span(source, element_end, tag_name) else {
         return;
     };
     edits.push((start, end, format!("</{tag_name}>")));
 }
 
-fn find_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)> {
+/// Locate the element's closing tag `</tagname ...>` that ends exactly at
+/// `element_end`. The close tag must be the text *immediately* ending at
+/// `element_end`: `<`, `/`, the tag name, optional whitespace, then `>`.
+///
+/// This is deliberately strict. Self-closing / void elements (`<span />`,
+/// `<br>`) have no close tag, so this returns `None` for them. An earlier
+/// version scanned backward for *any* `</`, which would happily match the
+/// `</` of a preceding `</script>` block or sibling element's close tag —
+/// producing a bogus edit that overwrote everything in between (see #669).
+fn find_close_tag_span(source: &str, element_end: u32, tag_name: &str) -> Option<(u32, u32)> {
     let bytes = source.as_bytes();
     let end = element_end as usize;
-    if end == 0 || bytes.get(end.checked_sub(1)?) != Some(&b'>') {
+    if end == 0 || end > bytes.len() || bytes[end - 1] != b'>' {
         return None;
     }
-    // Scan backward for "</".
-    let mut i = end.checked_sub(2)?;
-    loop {
-        if bytes.get(i) == Some(&b'<') && bytes.get(i + 1) == Some(&b'/') {
-            return Some((i as u32, end as u32));
-        }
-        if i == 0 {
-            return None;
-        }
-        i -= 1;
+
+    // Walk back over whitespace between the tag name and the closing `>`.
+    let mut i = end - 1; // at '>'
+    i = i.checked_sub(1)?;
+    while matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r') {
+        i = i.checked_sub(1)?;
     }
+
+    // `bytes[i]` is now the last character of the tag name; match the name
+    // backward (case-insensitively, matching HTML close-tag semantics).
+    let name = tag_name.as_bytes();
+    let name_end = i + 1;
+    let name_start = name_end.checked_sub(name.len())?;
+    if !bytes[name_start..name_end].eq_ignore_ascii_case(name) {
+        return None;
+    }
+
+    // The tag name must be preceded by `</`.
+    let slash = name_start.checked_sub(1)?;
+    let lt = slash.checked_sub(1)?;
+    if bytes[slash] != b'/' || bytes[lt] != b'<' {
+        return None;
+    }
+
+    Some((lt as u32, end as u32))
 }
 
 /// Push one edit covering the element's open tag span (from `<` to the
