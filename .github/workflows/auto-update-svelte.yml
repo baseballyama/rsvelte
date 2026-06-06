@@ -1,0 +1,182 @@
+name: auto-update-svelte
+
+# Weekly: when a newer stable svelte@X.Y.Z is published than the one pinned by
+# the submodules/svelte gitlink, open a STARTER PR that advances the gitlink to
+# the new tag and bumps the playground preview version strings.
+#
+# Unlike the tooling submodules (see auto-update-submodules.yml), a svelte bump
+# cannot be completed unattended: it needs regenerated fixtures and manual
+# regression fixes via the `upgrade-svelte` skill. CI on this PR will fail until
+# that work is done — the PR is just a ready-to-grab starting point.
+#
+# Complements `check-svelte-release.yml`, which files a tracking issue for the
+# same event. (If you prefer PRs only, that issue workflow can be retired.)
+#
+# SETUP:
+#   - Settings → Actions → General → Workflow permissions: enable "Allow GitHub
+#     Actions to create and approve pull requests" (required for the default
+#     GITHUB_TOKEN to open PRs).
+#   - PRs created with the default GITHUB_TOKEN do NOT trigger the `CI` workflow.
+#     Add a `GH_PAT` repo secret to have CI run automatically; it falls back to
+#     GITHUB_TOKEN when absent.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 5 * * 1' # Mondays 05:37 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-update-svelte
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Open Svelte upgrade PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+          token: ${{ secrets.GH_PAT || github.token }}
+
+      - name: Read pinned Svelte version
+        id: current
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+        run: |
+          set -euo pipefail
+          SHA=$(git ls-tree HEAD submodules/svelte | awk '{print $3}')
+          if [ -z "${SHA}" ]; then
+            echo "::error::Could not determine submodule SHA for submodules/svelte"
+            exit 1
+          fi
+          VERSION=$(gh api \
+            "repos/sveltejs/svelte/contents/packages/svelte/package.json?ref=${SHA}" \
+            --jq '.content' | base64 -d | jq -r '.version')
+          if [ -z "${VERSION}" ] || [ "${VERSION}" = "null" ]; then
+            echo "::error::Could not read svelte package version at ${SHA}"
+            exit 1
+          fi
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "Pinned svelte version: ${VERSION} (${SHA})"
+
+      - name: Fetch latest stable Svelte release
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/sveltejs/svelte/releases \
+            --jq '[.[]
+                  | select(.tag_name | startswith("svelte@"))
+                  | select(.prerelease == false)
+                  | select(.draft == false)][0]' \
+            > latest.json
+          if [ ! -s latest.json ] || [ "$(jq -r '. // empty' latest.json)" = "" ]; then
+            echo "::error::No stable svelte@* release found on sveltejs/svelte"
+            exit 1
+          fi
+          TAG=$(jq -r '.tag_name' latest.json)
+          VERSION=${TAG#svelte@}
+          URL=$(jq -r '.html_url' latest.json)
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "url=${URL}" >> "${GITHUB_OUTPUT}"
+          echo "Latest stable svelte release: ${VERSION} (${URL})"
+
+      - name: Open upgrade PR if a newer release is available
+        if: steps.current.outputs.version != steps.latest.outputs.version
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          CURRENT_VERSION: ${{ steps.current.outputs.version }}
+          LATEST_VERSION: ${{ steps.latest.outputs.version }}
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+          LATEST_URL: ${{ steps.latest.outputs.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Only act when the pinned version is strictly older (version-aware).
+          NEWEST=$(printf '%s\n%s\n' "${CURRENT_VERSION}" "${LATEST_VERSION}" | sort -V | tail -n1)
+          if [ "${NEWEST}" = "${CURRENT_VERSION}" ]; then
+            echo "Pinned ${CURRENT_VERSION} >= latest ${LATEST_VERSION}; nothing to do."
+            exit 0
+          fi
+
+          # Resolve the new tag's commit (peel annotated tags to the commit).
+          svelte_url="https://github.com/sveltejs/svelte.git"
+          new=$(git ls-remote "${svelte_url}" "refs/tags/${LATEST_TAG}^{}" | awk 'NR==1 {print $1}')
+          if [ -z "${new}" ]; then
+            new=$(git ls-remote "${svelte_url}" "refs/tags/${LATEST_TAG}" | awk 'NR==1 {print $1}')
+          fi
+          if [ -z "${new}" ]; then
+            echo "::error::Could not resolve commit for ${LATEST_TAG}"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          pr_branch="chore/upgrade-svelte-${LATEST_VERSION}"
+          git checkout -B "${pr_branch}"
+
+          # Advance the svelte gitlink (mode 160000 = gitlink).
+          git update-index --cacheinfo "160000,${new},submodules/svelte"
+
+          # Bump the playground preview runtime + rsvelte shim version strings,
+          # mirroring scripts/dev/upgrade-svelte.sh steps [5]/[6].
+          preview="apps/playground/src/lib/preview.ts"
+          shim="apps/playground/rsvelte-shim/compiler.mjs"
+          if [ -f "${preview}" ]; then
+            sed -i "s|esm\.sh/svelte@[0-9.]*|esm.sh/svelte@${LATEST_VERSION}|g" "${preview}"
+            git add "${preview}"
+          fi
+          if [ -f "${shim}" ]; then
+            sed -i "s|export const VERSION = '[0-9.]*';|export const VERSION = '${LATEST_VERSION}';|g" "${shim}"
+            sed -i "s|sveltejs/svelte@[0-9.]*|sveltejs/svelte@${LATEST_VERSION}|g" "${shim}"
+            git add "${shim}"
+          fi
+
+          short_new=${new:0:12}
+          title="chore: upgrade Svelte submodule to ${LATEST_VERSION}"
+          git commit -m "${title}"
+          git push --force origin "${pr_branch}"
+
+          {
+            echo "Starter PR to upgrade the Svelte compatibility target."
+            echo
+            echo "- from: \`${CURRENT_VERSION}\`"
+            echo "- to: [\`${LATEST_VERSION}\`](${LATEST_URL}) (\`${short_new}\`)"
+            echo
+            echo "## ⚠️ Not mergeable as-is"
+            echo
+            echo "A svelte bump needs fixtures regenerated and any regressions"
+            echo "fixed. **CI will fail until that is done.** To finish:"
+            echo
+            echo "1. \`git fetch origin ${pr_branch} && git checkout ${pr_branch}\`"
+            echo "2. \`git submodule update --init --recursive submodules/svelte\`"
+            echo "3. Run the \`upgrade-svelte\` skill (or \`./scripts/dev/upgrade-svelte.sh ${LATEST_VERSION}\`)"
+            echo "   to rebuild the compiler, regenerate fixtures, fix regressions,"
+            echo "   refresh docs, and add a changeset."
+            echo "4. Push the fixes to this branch."
+            echo
+            echo "---"
+            echo
+            echo "Opened by the \`auto-update-svelte\` workflow."
+          } > pr-body.md
+
+          existing=$(gh pr list --head "${pr_branch}" --state open --json number --jq 'length')
+          if [ "${existing}" -eq 0 ]; then
+            gh pr create --base main --head "${pr_branch}" \
+              --title "${title}" --body-file pr-body.md
+          else
+            number=$(gh pr list --head "${pr_branch}" --state open --json number --jq '.[0].number')
+            gh pr edit "${number}" --title "${title}" --body-file pr-body.md
+            echo "Updated existing PR #${number}."
+          fi
