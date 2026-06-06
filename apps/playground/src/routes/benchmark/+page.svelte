@@ -7,7 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	type TaskId = 'full' | 'parse' | 'svelte2tsx' | 'svelte-check';
+	type TaskId = 'full' | 'parse' | 'svelte2tsx' | 'fmt' | 'svelte-check';
 
 	// `animationTime` is the elapsed wall-clock ms since the run started.
 	// Each bar across every task shows `min(animationTime, this.durationMs)`,
@@ -44,6 +44,8 @@
 		id: TaskId;
 		label: string;
 		sub: string;
+		// Name of the JavaScript tool this task is benchmarked against.
+		baseline: string;
 		data: BenchmarkTaskResults;
 		filesCount?: number;
 	};
@@ -52,15 +54,25 @@
 		if (!data.results) return [];
 		const r = data.results;
 		const list: TaskPanel[] = [
-			{ id: 'full', label: 'Full pipeline', sub: 'parse / analyze / codegen', data: r },
-			{ id: 'parse', label: 'Parser only', sub: 'phase 1, isolated', data: r.parse }
+			{ id: 'full', label: 'Full pipeline', sub: 'parse / analyze / codegen', baseline: 'svelte/compiler', data: r },
+			{ id: 'parse', label: 'Parser only', sub: 'phase 1, isolated', baseline: 'svelte/compiler', data: r.parse }
 		];
 		if (r.svelte2tsx) {
 			list.push({
 				id: 'svelte2tsx',
 				label: 'svelte2tsx',
 				sub: '.svelte / .tsx generation',
+				baseline: 'svelte2tsx',
 				data: r.svelte2tsx
+			});
+		}
+		if (r.fmt) {
+			list.push({
+				id: 'fmt',
+				label: 'fmt',
+				sub: 'formatter · .svelte sources',
+				baseline: 'prettier-svelte',
+				data: r.fmt
 			});
 		}
 		if (r.svelteCheck) {
@@ -68,6 +80,7 @@
 				id: 'svelte-check',
 				label: 'svelte-check',
 				sub: `CLI · ${r.svelteCheck.filesCount.toLocaleString('en-US')}-file workspace`,
+				baseline: 'svelte-check',
 				data: r.svelteCheck,
 				filesCount: r.svelteCheck.filesCount
 			});
@@ -238,7 +251,7 @@
 						</header>
 						<div class="bars">
 							{#each [
-								{ name: 'svelte/compiler', sub: 'JavaScript', dur: t.javascript.durationMs, tone: 'js' },
+								{ name: task.baseline, sub: 'JavaScript', dur: t.javascript.durationMs, tone: 'js' },
 								{ name: 'rsvelte / single', sub: 'no parallelism', dur: t.rustSingleThread.durationMs, tone: 'rs' },
 								{ name: 'rsvelte / multi', sub: 'rayon fan-out', dur: t.rustMultiThread.durationMs, tone: 'rm' }
 							] as bar (bar.name)}
@@ -278,11 +291,11 @@
 				<pre><code><span class="c-cmt"># 1. Build the Rust compiler in release mode</span>
 <span class="c-prompt">$</span> cargo build <span class="c-flag">--release</span>
 
-<span class="c-cmt"># 2. Run the corpus benchmark</span>
-<span class="c-prompt">$</span> node scripts/bench/run-benchmark.mjs <span class="c-op">&gt;</span> apps/playground/static/benchmark-results.json
+<span class="c-cmt"># 2. Run the corpus benchmark (compile / parse / svelte2tsx / fmt / svelte-check)</span>
+<span class="c-prompt">$</span> pnpm run generate-benchmark
 
 <span class="c-cmt"># 3. View the report locally</span>
-<span class="c-prompt">$</span> cd docs <span class="c-op">&amp;&amp;</span> pnpm dev</code></pre>
+<span class="c-prompt">$</span> pnpm run dev:docs</code></pre>
 			</figure>
 		</section>
 	{/if}

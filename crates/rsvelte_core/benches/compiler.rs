@@ -30,7 +30,10 @@ fn get_sample_files() -> Vec<(String, String)> {
 
     for entry in fs::read_dir(&samples_dir).unwrap() {
         let entry = entry.unwrap();
-        let input_path = entry.path().join("input.svelte");
+        // Runtime-runes samples name their root component `main.svelte`, not
+        // `input.svelte` (which is the parser/snapshot convention) — looking
+        // for the wrong name here previously yielded a single real sample.
+        let input_path = entry.path().join("main.svelte");
 
         if input_path.exists() {
             let name = entry.file_name().to_str().unwrap().to_string();

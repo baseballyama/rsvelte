@@ -38,5 +38,8 @@ export interface BenchmarkResults extends BenchmarkTaskResults {
 	testFilesCount: number;
 	parse: BenchmarkTaskResults;
 	svelte2tsx?: BenchmarkTaskResults;
+	// rsvelte_formatter vs prettier-plugin-svelte. Optional — older JSON
+	// snapshots predate the fmt task.
+	fmt?: BenchmarkTaskResults;
 	svelteCheck?: SvelteCheckBenchmarkTaskResults;
 }

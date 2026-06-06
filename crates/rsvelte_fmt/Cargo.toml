@@ -11,6 +11,14 @@ publish = false
 name = "rsvelte-fmt"
 path = "src/main.rs"
 
+# Benchmark driver invoked by `scripts/bench/run-benchmark.mjs` for the `fmt`
+# task. Lives here (not in `rsvelte_core`'s `benchmark_runner`) because the
+# formatter sits in `rsvelte_formatter`, which depends on `rsvelte_core` —
+# the reverse dependency would be a cycle.
+[[bin]]
+name = "fmt_benchmark_runner"
+path = "src/bin/fmt_benchmark_runner.rs"
+
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "d727b6b10c690ef8b401572687fcb23589ac688e" }
