@@ -1,0 +1,26 @@
+{
+  "name": "@rsvelte/fmt-darwin-arm64",
+  "version": "0.1.0",
+  "description": "Prebuilt rsvelte-fmt binary for darwin-arm64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/fmt-darwin-arm64"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "rsvelte-fmt"
+  ],
+  "scripts": {
+    "prepack": "chmod +x rsvelte-fmt"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

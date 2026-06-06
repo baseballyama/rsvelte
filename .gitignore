@@ -26,6 +26,11 @@ target
 # target in CI, staged into the matching platform package, never committed)
 /apps/npm/vite-plugin-svelte-native-*/rsvelte.node
 
+# rsvelte-fmt platform binaries (staged into per-platform npm packages by the
+# release workflow; never committed)
+/apps/npm/fmt-*/rsvelte-fmt
+/apps/npm/fmt-*/rsvelte-fmt.exe
+
 # Playwright MCP
 .playwright-mcp/
 
