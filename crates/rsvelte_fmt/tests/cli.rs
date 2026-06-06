@@ -1,7 +1,8 @@
-//! Integration tests for the `rsvelte-fmt` CLI. Only the Svelte path is
-//! exercised here — the oxfmt-delegation path requires `oxfmt` to be on
-//! `$PATH`, which we can't assume in CI; that surface is covered by the
-//! ecosystem-ci job once a Phase ≥3 lands.
+//! Integration tests for the `rsvelte-fmt` CLI. The Svelte formatting path
+//! and the batched `<style>` delegation path are exercised here; the latter
+//! stands in a fake `oxfmt` (a `.cjs` run through `node`) so it needs no real
+//! `oxfmt` on `$PATH`. Delegation of whole non-`.svelte` files to a real
+//! `oxfmt` is covered by the ecosystem-ci job.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -106,6 +107,78 @@ fn no_paths_errors_helpfully() {
     assert_ne!(out.status.code(), Some(0));
     let stderr = String::from_utf8(out.stderr).unwrap();
     assert!(stderr.contains("no paths given"), "stderr:\n{stderr}");
+}
+
+/// Batched `<style>` delegation: every `.svelte` file's `<style>` body is
+/// collected and formatted in a single `oxfmt` invocation, then mapped back
+/// to its own file. We stand in a fake `oxfmt` (a `.cjs` the binary runs
+/// through `node`, so this is cross-platform) that prefixes each file it's
+/// given with a marker — proving (a) the batch path runs and (b) each block
+/// lands back in the correct file, not mixed across files.
+#[test]
+fn batched_style_delegation_maps_each_block_to_its_file() {
+    let dir = tempdir();
+
+    // Fake oxfmt: prepend `/*FMT*/` to every file path it receives (in place).
+    let fake = dir.join("fake-oxfmt.cjs");
+    std::fs::write(
+        &fake,
+        r#"const fs = require('node:fs');
+for (const p of process.argv.slice(2)) {
+  fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8'));
+}
+"#,
+    )
+    .unwrap();
+
+    let c1 = dir.join("c1.svelte");
+    let c2 = dir.join("c2.svelte");
+    let c3 = dir.join("c3.svelte"); // no <style> — callback must never fire
+    std::fs::write(&c1, "<div></div>\n<style>.sel_one{color:red}</style>\n").unwrap();
+    std::fs::write(&c2, "<div></div>\n<style>.sel_two{color:blue}</style>\n").unwrap();
+    std::fs::write(&c3, "<p>{x}</p>\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            dir.to_str().unwrap(),
+            "--write",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let out1 = std::fs::read_to_string(&c1).unwrap();
+    let out2 = std::fs::read_to_string(&c2).unwrap();
+    let out3 = std::fs::read_to_string(&c3).unwrap();
+
+    // Each file got the fake formatter applied to its own <style> body.
+    assert!(out1.contains("/*FMT*/"), "c1 missing marker:\n{out1}");
+    assert!(
+        out1.contains(".sel_one"),
+        "c1 missing its selector:\n{out1}"
+    );
+    assert!(out2.contains("/*FMT*/"), "c2 missing marker:\n{out2}");
+    assert!(
+        out2.contains(".sel_two"),
+        "c2 missing its selector:\n{out2}"
+    );
+
+    // Critically: no cross-contamination between batched files.
+    assert!(!out1.contains(".sel_two"), "c1 leaked c2's css:\n{out1}");
+    assert!(!out2.contains(".sel_one"), "c2 leaked c1's css:\n{out2}");
+
+    // A file with no <style> never invokes the formatter, so no marker.
+    assert!(!out3.contains("/*FMT*/"), "c3 should be untouched:\n{out3}");
+
+    // The placeholder must never survive into output.
+    assert!(
+        !out1.contains("RSVELTE_FMT_STYLE"),
+        "placeholder leaked:\n{out1}"
+    );
 }
 
 fn tempdir() -> PathBuf {
