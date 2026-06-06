@@ -433,7 +433,7 @@ pub(crate) fn format_pattern_source(
     let mut single_line = options.js.clone();
     single_line.line_width =
         oxc_formatter_core::LineWidth::try_from(u16::MAX).unwrap_or(single_line.line_width);
-    single_line.expand = oxc_formatter_core::Expand::Never;
+    single_line.expand = oxc_formatter::Expand::Never;
 
     let formatted = format_program(&allocator, &parser_ret.program, single_line, None)
         .print()
