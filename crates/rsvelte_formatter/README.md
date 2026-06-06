@@ -24,6 +24,10 @@ Functional and tested — **105 tests**, full hygiene (`cargo fmt`,
 `cargo clippy -- -D warnings`). Not yet published to crates.io; consumed by
 `rsvelte-fmt` via a workspace path dependency.
 
+On 3,852 real `.svelte` files (Apple M1 Pro), `format` runs **35× faster
+single-threaded and 204× faster multi-threaded** than `prettier-plugin-svelte`.
+Micro-bench it with `cargo bench -p rsvelte_formatter --bench formatter`.
+
 ## What it formats
 
 | Surface | Notes |
