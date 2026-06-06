@@ -113,9 +113,16 @@ save hooks) can be pointed at `rsvelte-fmt` instead.
 | `--use-tabs` | `.oxfmtrc` / off | Indent with tabs |
 | `--config PATH`, `-c` | discovered | `.oxfmtrc` applied to inline `<script>` / `<style>` |
 | `--oxfmt-bin PATH` | `oxfmt` | Subprocess binary for non-`.svelte` files |
+| `--no-style-cache` | off | Disable the on-disk inline `<style>` cache |
 
 Options are forwarded to both halves of the dispatch so a mixed
 project formats consistently.
+
+Inline `<style>` CSS is delegated to `oxfmt`; formatted results are cached on
+disk (keyed by oxfmt version + resolved `.oxfmtrc` + body) so unchanged blocks
+skip the round-trip on later runs. Cache hits are byte-identical to a fresh
+format. Disable via `--no-style-cache` / `RSVELTE_FMT_NO_CACHE`; relocate via
+`RSVELTE_FMT_CACHE_DIR`.
 
 ## Exit codes
 

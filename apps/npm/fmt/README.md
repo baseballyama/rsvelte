@@ -98,8 +98,21 @@ apply consistently across standalone files and embedded blocks. Explicit
 | `--use-tabs` | `.oxfmtrc` / off | Indent with tabs |
 | `--config PATH`, `-c` | discovered | `.oxfmtrc` to apply to inline `<script>` / `<style>` blocks |
 | `--oxfmt-bin PATH` | resolved / `oxfmt` | Override the oxfmt binary used for non-`.svelte` files |
+| `--no-style-cache` | off | Disable the on-disk cache of formatted inline `<style>` blocks |
 
 Run `rsvelte-fmt --help` for the authoritative list.
+
+### Inline `<style>` cache
+
+Inline `<style>` CSS is delegated to `oxfmt` for output parity with standalone
+`.css` files. To avoid re-running that round-trip on every invocation,
+formatted results are cached on disk (keyed by the oxfmt version, the resolved
+`.oxfmtrc`, and the exact `<style>` body), so an unchanged block is served from
+cache and skips `oxfmt` entirely on subsequent runs. Cache hits are
+byte-identical to a fresh format. Disable with `--no-style-cache` or the
+`RSVELTE_FMT_NO_CACHE` environment variable; relocate it with
+`RSVELTE_FMT_CACHE_DIR` (defaults to the platform cache dir, e.g.
+`~/.cache/rsvelte-fmt`).
 
 ## Exit codes
 

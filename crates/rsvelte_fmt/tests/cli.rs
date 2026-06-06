@@ -298,6 +298,223 @@ fs.appendFileSync(process.env.FAKE_OXFMT_LOG, process.argv.slice(2).join('\n') +
     );
 }
 
+// ─── Inline `<style>` cache (#703) ───────────────────────────────────────
+
+/// A fake oxfmt that records one line in `$FAKE_OXFMT_LOG` per *batch*
+/// invocation (any run that receives a real file argument), and otherwise
+/// leaves the staged CSS files unchanged (identity format). Counting log lines
+/// tells us how many times the `<style>` batch actually reached oxfmt.
+fn write_counting_oxfmt(dir: &std::path::Path) -> PathBuf {
+    let fake = dir.join("counting-oxfmt.cjs");
+    std::fs::write(
+        &fake,
+        r#"const fs = require('node:fs');
+let touchedFile = false;
+for (const p of process.argv.slice(2)) {
+  if (p.startsWith('-') || p.startsWith('!')) continue;
+  let st;
+  try { st = fs.statSync(p); } catch { continue; }
+  if (st.isFile()) touchedFile = true; // identity: leave content as-is
+}
+if (touchedFile && process.env.FAKE_OXFMT_LOG) {
+  fs.appendFileSync(process.env.FAKE_OXFMT_LOG, 'call\n');
+}
+"#,
+    )
+    .unwrap();
+    fake
+}
+
+fn oxfmt_call_count(log: &std::path::Path) -> usize {
+    std::fs::read_to_string(log)
+        .map(|s| s.lines().count())
+        .unwrap_or(0)
+}
+
+/// A warm cache serves an unchanged `<style>` body without touching oxfmt: the
+/// first `--check` populates the cache (one batch call), the second hits it
+/// (zero further calls).
+#[test]
+fn style_cache_skips_oxfmt_on_warm_run() {
+    let dir = tempdir();
+    let cache = dir.join("cache");
+    let log = dir.join("calls.log");
+    std::fs::write(&log, "").unwrap();
+    let fake = write_counting_oxfmt(&dir);
+
+    let file = dir.join("c.svelte");
+    std::fs::write(&file, "<div></div>\n<style>.a{color:red}</style>\n").unwrap();
+
+    let check = || {
+        Command::new(bin())
+            .args([
+                file.to_str().unwrap(),
+                "--check",
+                "--oxfmt-bin",
+                fake.to_str().unwrap(),
+            ])
+            .env("RSVELTE_FMT_CACHE_DIR", &cache)
+            .env("FAKE_OXFMT_LOG", &log)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+    };
+
+    check(); // cold — populates the cache
+    assert_eq!(
+        oxfmt_call_count(&log),
+        1,
+        "cold run should invoke oxfmt once"
+    );
+    check(); // warm — should be served from cache
+    assert_eq!(
+        oxfmt_call_count(&log),
+        1,
+        "warm run should NOT invoke oxfmt again (served from cache)"
+    );
+}
+
+/// `--no-style-cache` opts out: oxfmt is invoked on every run.
+#[test]
+fn no_style_cache_flag_always_invokes_oxfmt() {
+    let dir = tempdir();
+    let cache = dir.join("cache");
+    let log = dir.join("calls.log");
+    std::fs::write(&log, "").unwrap();
+    let fake = write_counting_oxfmt(&dir);
+
+    let file = dir.join("c.svelte");
+    std::fs::write(&file, "<div></div>\n<style>.a{color:red}</style>\n").unwrap();
+
+    let check = || {
+        Command::new(bin())
+            .args([
+                file.to_str().unwrap(),
+                "--check",
+                "--no-style-cache",
+                "--oxfmt-bin",
+                fake.to_str().unwrap(),
+            ])
+            .env("RSVELTE_FMT_CACHE_DIR", &cache)
+            .env("FAKE_OXFMT_LOG", &log)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+    };
+
+    check();
+    check();
+    assert_eq!(
+        oxfmt_call_count(&log),
+        2,
+        "--no-style-cache should invoke oxfmt on every run"
+    );
+}
+
+/// `RSVELTE_FMT_NO_CACHE` disables the cache the same way the flag does.
+#[test]
+fn env_disables_style_cache() {
+    let dir = tempdir();
+    let cache = dir.join("cache");
+    let log = dir.join("calls.log");
+    std::fs::write(&log, "").unwrap();
+    let fake = write_counting_oxfmt(&dir);
+
+    let file = dir.join("c.svelte");
+    std::fs::write(&file, "<div></div>\n<style>.a{color:red}</style>\n").unwrap();
+
+    let check = || {
+        Command::new(bin())
+            .args([
+                file.to_str().unwrap(),
+                "--check",
+                "--oxfmt-bin",
+                fake.to_str().unwrap(),
+            ])
+            .env("RSVELTE_FMT_CACHE_DIR", &cache)
+            .env("RSVELTE_FMT_NO_CACHE", "1")
+            .env("FAKE_OXFMT_LOG", &log)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+    };
+
+    check();
+    check();
+    assert_eq!(
+        oxfmt_call_count(&log),
+        2,
+        "RSVELTE_FMT_NO_CACHE should disable the cache"
+    );
+}
+
+/// Cache hits must be byte-identical to a fresh (uncached) format. A fake oxfmt
+/// that prefixes each `<style>` body with a marker formats two identical files;
+/// one run uses the cache, the other disables it — the written output must match.
+#[test]
+fn style_cache_output_matches_uncached() {
+    let dir = tempdir();
+    let cache = dir.join("cache");
+    let fake = dir.join("marker-oxfmt.cjs");
+    std::fs::write(
+        &fake,
+        r#"const fs = require('node:fs');
+for (const p of process.argv.slice(2)) {
+  if (p.startsWith('-') || p.startsWith('!')) continue;
+  let st;
+  try { st = fs.statSync(p); } catch { continue; }
+  if (!st.isFile()) continue;
+  fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8'));
+}
+"#,
+    )
+    .unwrap();
+
+    let body = "<div></div>\n<style>.a{color:red}</style>\n";
+    let cached = dir.join("cached.svelte");
+    let uncached = dir.join("uncached.svelte");
+    std::fs::write(&cached, body).unwrap();
+    std::fs::write(&uncached, body).unwrap();
+
+    let fmt = |file: &std::path::Path, no_cache: bool| {
+        let mut args = vec![
+            file.to_str().unwrap().to_string(),
+            "--write".to_string(),
+            "--oxfmt-bin".to_string(),
+            fake.to_str().unwrap().to_string(),
+        ];
+        if no_cache {
+            args.push("--no-style-cache".to_string());
+        }
+        Command::new(bin())
+            .args(&args)
+            .env("RSVELTE_FMT_CACHE_DIR", &cache)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+    };
+
+    // Warm the cache by formatting the cached file once, then re-create it and
+    // format again (this second format is served from cache).
+    fmt(&cached, false);
+    std::fs::write(&cached, body).unwrap();
+    fmt(&cached, false);
+
+    fmt(&uncached, true);
+
+    let a = std::fs::read_to_string(&cached).unwrap();
+    let b = std::fs::read_to_string(&uncached).unwrap();
+    assert_eq!(a, b, "cached output must equal uncached output");
+    assert!(
+        a.contains("/*FMT*/"),
+        "marker missing — oxfmt result not applied:\n{a}"
+    );
+}
+
 fn tempdir() -> PathBuf {
     let mut dir = std::env::temp_dir();
     dir.push(format!(
