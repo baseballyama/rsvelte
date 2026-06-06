@@ -28,8 +28,8 @@
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, Fragment, SpreadAttribute,
-    TemplateNode,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment,
+    SpreadAttribute, TemplateNode,
 };
 
 use crate::error::FormatError;
@@ -466,7 +466,7 @@ fn render_attribute(
             Ok(format!("{{@attach {inner}}}"))
         }
         Attribute::BindDirective(d) => {
-            let inner = format_expression_at(source, &d.expression, options)?.unwrap_or_default();
+            let inner = render_directive_value(source, &d.expression, d.end, options)?;
             let modifiers = render_modifiers(&d.modifiers);
             if inner == d.name.as_str() && modifiers.is_empty() {
                 Ok(format!("bind:{}", d.name))
@@ -475,7 +475,7 @@ fn render_attribute(
             }
         }
         Attribute::ClassDirective(d) => {
-            let inner = format_expression_at(source, &d.expression, options)?.unwrap_or_default();
+            let inner = render_directive_value(source, &d.expression, d.end, options)?;
             if inner == d.name.as_str() {
                 Ok(format!("class:{}", d.name))
             } else {
@@ -485,7 +485,7 @@ fn render_attribute(
         Attribute::OnDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("on:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("on:{}{modifiers}", d.name))
@@ -501,7 +501,7 @@ fn render_attribute(
             };
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("{prefix}:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("{prefix}:{}{modifiers}", d.name))
@@ -509,7 +509,7 @@ fn render_attribute(
         }
         Attribute::AnimateDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("animate:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("animate:{}", d.name))
@@ -517,7 +517,7 @@ fn render_attribute(
         }
         Attribute::UseDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("use:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("use:{}", d.name))
@@ -553,6 +553,26 @@ fn render_attribute(
     }
 }
 
+/// Return the source text of an `ExpressionTag`'s inner expression, without
+/// the surrounding `{`/`}`.
+///
+/// A regular `name={expr}` attribute's `ExpressionTag` spans the braces, so we
+/// strip one byte from each end. But the attribute shorthand `{name}` is
+/// parsed (matching upstream `start: id.start, end: id.end`) so its
+/// `ExpressionTag` spans only the identifier — there are no braces to strip.
+/// Blindly slicing `start+1..end-1` there dropped the first and last character
+/// of the identifier, silently rewriting `{width}` to `width={idt}` (#679). So
+/// only peel braces when they're actually present at the span boundaries.
+fn expression_tag_inner<'a>(tag: &ExpressionTag, source: &'a str) -> &'a str {
+    let (start, end) = (tag.start as usize, tag.end as usize);
+    let bytes = source.as_bytes();
+    if bytes.get(start) == Some(&b'{') && end > start + 1 && bytes.get(end - 1) == Some(&b'}') {
+        source.get(start + 1..end - 1).unwrap_or("")
+    } else {
+        source.get(start..end).unwrap_or("")
+    }
+}
+
 fn render_attribute_node(
     node: &AttributeNode,
     source: &str,
@@ -561,10 +581,7 @@ fn render_attribute_node(
     match &node.value {
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
-            let inner_src = source
-                .get(tag.start as usize + 1..tag.end as usize - 1)
-                .unwrap_or("")
-                .trim();
+            let inner_src = expression_tag_inner(tag, source).trim();
             if inner_src.is_empty() {
                 return Ok(format!("{}={{}}", node.name));
             }
@@ -591,10 +608,7 @@ fn render_attribute_value_for_directive(
     match value {
         AttributeValue::True(_) => Ok(String::new()),
         AttributeValue::Expression(tag) => {
-            let inner_src = source
-                .get(tag.start as usize + 1..tag.end as usize - 1)
-                .unwrap_or("")
-                .trim();
+            let inner_src = expression_tag_inner(tag, source).trim();
             if inner_src.is_empty() {
                 return Ok("{}".to_string());
             }
@@ -661,6 +675,24 @@ fn render_modifiers<S: AsRef<str>>(modifiers: &[S]) -> String {
 
 /// Slice the expression's source span, trim it, and format. Returns
 /// `None` if the span is missing or empty.
+/// Format a directive's `{ EXPR }` value. Prefers the source-brace slice
+/// ([`crate::expression::format_directive_value`]) so a TS cast the parser
+/// narrows away — `bind:value={value as string}` → bare `value` node — is
+/// preserved verbatim (#682), and falls back to the bare-node formatter when
+/// the value braces can't be located. `value_end` is the directive node's
+/// `end` (just past the closing `}`).
+fn render_directive_value(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    if let Some(s) = crate::expression::format_directive_value(source, expr, value_end, options)? {
+        return Ok(s);
+    }
+    Ok(format_expression_at(source, expr, options)?.unwrap_or_default())
+}
+
 fn format_expression_at(
     source: &str,
     expr: &Expression,

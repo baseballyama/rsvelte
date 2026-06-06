@@ -3,9 +3,9 @@
 //! `rsvelte_formatter` doesn't ship its own CSS engine. Instead it
 //! exposes a callback on [`crate::FormatOptions::style_formatter`] that
 //! receives the body and the lang (`css` / `scss` / `less` / ...). The
-//! `rsvelte-fmt` CLI wires this up to spawn `oxfmt --stdin
-//! --stdin-filepath style.<lang>`, so CSS formatting goes through the
-//! same engine `oxfmt` uses for standalone files.
+//! `rsvelte-fmt` CLI wires this up to spawn
+//! `oxfmt --stdin-filepath style.<lang>`, so CSS formatting goes through
+//! the same engine `oxfmt` uses for standalone files.
 //!
 //! When no callback is set the style body is left verbatim.
 

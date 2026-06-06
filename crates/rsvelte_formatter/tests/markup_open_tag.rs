@@ -70,6 +70,36 @@ fn attribute_shorthand_collapses() {
 }
 
 #[test]
+fn shorthand_attribute_is_preserved_verbatim() {
+    // Regression for #679: a `{name}` shorthand's ExpressionTag spans only the
+    // identifier (no braces), so the formatter must not strip a byte from each
+    // end — `{width}` was being rewritten to `width={idt}` (silent data loss).
+    for (src, expect) in [
+        ("<div {width}></div>", "<div {width}>"),
+        ("<div {height}></div>", "<div {height}>"),
+        ("<input {value} />", "<input {value} />"),
+        (
+            "<div {disabled} {hidden}></div>",
+            "<div {disabled} {hidden}>",
+        ),
+    ] {
+        let out = fmt(src);
+        assert!(
+            out.contains(expect),
+            "expected `{expect}` from `{src}`:\n{out}"
+        );
+    }
+}
+
+#[test]
+fn single_char_shorthand_attribute_is_preserved() {
+    // The 1-char case `{x}` previously sliced to an empty range (`1..0`) and
+    // emitted `x={}` (#679).
+    let out = fmt("<div {x}></div>");
+    assert!(out.contains("<div {x}>"), "expected `<div {{x}}>`:\n{out}");
+}
+
+#[test]
 fn attribute_no_shorthand_when_names_differ() {
     let out = fmt("<div id={otherId}></div>");
     assert!(

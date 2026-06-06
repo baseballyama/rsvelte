@@ -346,6 +346,64 @@ fn enclosing_braces_span(source: &str, expr_start: u32, expr_end: u32) -> Option
     Some((lbrace as u32, (rbrace + 1) as u32))
 }
 
+/// Format a directive value `{ EXPR }` by slicing the full brace interior
+/// from the source, where `value_end` is the offset just past the closing
+/// `}` (the directive node's `end`).
+///
+/// Unlike [`crate::markup::format_expression_at`], this works from source
+/// text rather than the AST expression node. The parser narrows a TS cast
+/// (`{value as string}`) down to its inner identifier (`value`), so the bare
+/// node span would silently drop `as string` — turning `bind:value={value as
+/// string}` into `bind:value` and `class:x={v as T}` into `class:x={v}`
+/// (#682). Slicing `{` … `}` from the source keeps the cast verbatim, then
+/// re-parses/formats it (as TypeScript when `options.typescript`).
+///
+/// Falls back to `None` (caller uses the bare-node path) when the value
+/// braces can't be located, so non-`{expr}` values stay on the old path.
+pub(crate) fn format_directive_value(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+) -> Result<Option<String>, FormatError> {
+    let Some(expr_start) = expr.start() else {
+        return Ok(None);
+    };
+    let bytes = source.as_bytes();
+
+    // Closing brace: the directive node ends just past it.
+    let end = value_end as usize;
+    if end == 0 || bytes.get(end - 1) != Some(&b'}') {
+        return Ok(None);
+    }
+    let close = end - 1;
+
+    // Opening brace: whitespace-only back-scan from the expression start.
+    let mut open = None;
+    let mut i = expr_start as usize;
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b' ' | b'\t' | b'\n' | b'\r' => continue,
+            b'{' => {
+                open = Some(i);
+                break;
+            }
+            _ => break,
+        }
+    }
+    let Some(open) = open else { return Ok(None) };
+    if open >= close {
+        return Ok(None);
+    }
+
+    let inner = source.get(open + 1..close).unwrap_or("").trim();
+    if inner.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(format_expression_source(inner, options)?))
+}
+
 // ─── Expression formatter ───────────────────────────────────────────────
 
 /// Format a single JS expression source. Wraps in parens to force
@@ -356,7 +414,11 @@ pub(crate) fn format_expression_source(
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     let allocator = Allocator::default();
-    let source_type = SourceType::default();
+    let source_type = if options.typescript {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
 
     let wrapped = format!("({expr_source});");
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
@@ -415,7 +477,11 @@ pub(crate) fn format_pattern_source(
 ) -> Result<String, FormatError> {
     const SENTINEL: &str = "__rsvelte_fmt_rhs__";
     let allocator = Allocator::default();
-    let source_type = SourceType::default();
+    let source_type = if options.typescript {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
 
     let wrapped = format!("let {pattern_source} = {SENTINEL};");
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
