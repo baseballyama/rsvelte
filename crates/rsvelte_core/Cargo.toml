@@ -115,7 +115,7 @@ napi-build = { version = "2", optional = true }
 # Testing
 insta = { version = "1.42", features = ["json", "glob"] }
 pretty_assertions = "1.4"
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { version = "4.7.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
 test-generator = "0.3"
 glob = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
