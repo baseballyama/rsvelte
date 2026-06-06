@@ -299,3 +299,40 @@ fn multiline_attr_idempotent() {
     let twice = fmt(&once);
     assert_eq!(once, twice, "re-indentation should be idempotent");
 }
+
+// ─── Multi-line template literals in attribute values (#698) ──────────────
+
+#[test]
+fn multiline_template_literal_attr_interior_not_reindented() {
+    // The interior lines of a template literal are part of the runtime string
+    // value, so they must NOT be re-indented to the markup column (#698).
+    let src = "<div>\n  <Comp text={`\n    line1\n    line2\n  `} />\n</div>\n";
+    let out = fmt(src);
+    // The quasi lines keep their original column — not pushed to the attribute
+    // indent. Look for the exact interior, un-prefixed.
+    assert!(
+        out.contains("\n    line1\n    line2\n"),
+        "template-literal interior was re-indented:\n{out}"
+    );
+}
+
+#[test]
+fn multiline_template_literal_attr_idempotent() {
+    // The whole point of #698: formatting must reach a fixed point and must not
+    // mutate the literal's content on repeated passes.
+    let src = "<div>\n  <Comp text={`\n    line1\n    line2\n  `} />\n</div>\n";
+    let once = fmt(src);
+    let twice = fmt(&once);
+    assert_eq!(once, twice, "template-literal attr must be idempotent");
+}
+
+#[test]
+fn template_literal_substitution_in_attr_is_reindented() {
+    // Code inside `${ … }` is ordinary code context: if a substitution spans
+    // lines its continuation should still align under the attribute, while the
+    // surrounding quasi text stays verbatim.
+    let src = "<div>\n  <Comp text={`a\n${\nfoo()}\nb`} />\n</div>\n";
+    let once = fmt(src);
+    let twice = fmt(&once);
+    assert_eq!(once, twice, "substitution re-indent must be idempotent");
+}
