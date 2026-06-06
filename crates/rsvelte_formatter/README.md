@@ -1,54 +1,57 @@
 # rsvelte_formatter
 
-Fast Svelte 5 formatter built on top of the [rsvelte](../..) parser and
+> **This is the library crate — the in-process formatting engine.**
+> If you just want to format files from the command line, reach for the
+> [`rsvelte-fmt`](../rsvelte_fmt) CLI instead. It wraps this crate for
+> `.svelte` files and also formats `.js` / `.ts` / `.css` via `oxfmt`.
+
+Fast Svelte 5 formatter built on the [rsvelte](../..) parser and
 [`oxc_formatter`](https://github.com/oxc-project/oxc/tree/main/crates/oxc_formatter).
 
-`rsvelte_formatter` is the library that powers [`rsvelte-fmt`](../rsvelte_fmt) —
-a Rust-native replacement for `prettier-plugin-svelte`. It formats `.svelte`
-source strings in-process, with zero subprocesses, zero Node, and JS/TS
-expression formatting handled by `oxc_formatter` so the JS half of a Svelte
-file matches what `oxfmt` produces for `.ts` / `.js`.
+`rsvelte_formatter` powers [`rsvelte-fmt`](../rsvelte_fmt) — a Rust-native
+replacement for `prettier-plugin-svelte`. It formats `.svelte` source strings
+**in-process, with zero subprocesses and zero Node**. JS/TS expression
+formatting is handed to `oxc_formatter`, so the JavaScript half of a Svelte file
+matches exactly what `oxfmt` produces for standalone `.ts` / `.js` files.
+
+CSS inside `<style>` is formatted through a caller-supplied
+[`style_formatter`](#options) callback — the crate ships no CSS engine of its
+own. (`rsvelte-fmt` wires that callback to `oxfmt`.)
 
 ## Status
 
-Functional and tested — **88 tests**, full hygiene (`cargo fmt`, `cargo
-clippy -- -D warnings`). Not yet shipped to crates.io; depended on by
-`rsvelte-fmt` via a workspace path.
+Functional and tested — **105 tests**, full hygiene (`cargo fmt`,
+`cargo clippy -- -D warnings`). Not yet published to crates.io; consumed by
+`rsvelte-fmt` via a workspace path dependency.
 
 ## What it formats
 
-| Surface | Status |
+| Surface | Notes |
 |---|---|
 | `<script>` / `<script context="module">` body | Re-parsed with `oxc_parser`, formatted via `oxc_formatter::Formatter::build` |
+| `<style>` body | Delegated to the [`style_formatter`](#options) callback (lang-aware: `css` / `scss` / `less` / …). Verbatim when no callback is set |
 | Template-position `{expr}` interpolations | Formatted; whitespace inside braces collapsed |
 | Attribute values: `class={expr}`, `class="a{expr}b"` | Formatted inline |
 | Spread attribute: `{...obj.props}` | Formatted inline |
 | `{@html EXPR}`, `{@render EXPR}`, `{@debug ID, …}`, `{@attach EXPR}` | Formatted inline |
 | Directives: `bind:` / `class:` / `on:` / `transition:` / `in:` / `out:` / `animate:` / `use:` / `style:` | Expression formatted, modifiers preserved |
 | Block headers: `{#if}`, `{#each}`, `{#await}`, `{#key}`, `{#snippet}` | Test / iterable / promise / key formatted |
-| `<svelte:component this={X}>` / `<svelte:element this={X}>` | `this` rendered as first attribute |
-| Open-tag attribute spacing | Single space between attributes, normalized self-closing as ` />` |
+| Destructuring patterns: `{#each … as PATTERN}`, `{:then PATTERN}`, `{:catch PATTERN}`, `{#snippet name(PARAM, …)}`, `let:item={PATTERN}` | Object / array / default / rest patterns normalized via oxc |
+| `<svelte:component this={X}>` / `<svelte:element this={X}>` | `this` rendered as the first attribute |
+| Open-tag attribute spacing | Single space between attributes, self-closing normalized to ` />` |
 | Close-tag whitespace | `</div >` → `</div>` |
 | Attribute shorthand | `name={name}` → `{name}`, `bind:name={name}` → `bind:name`, `class:name={name}` → `class:name` |
 | Child indentation | Re-indented per nesting depth and `indent_style` / `indent_width` |
 | Block body indentation | Body of `{#if}` etc. indented one level deeper than the block |
-| Open-tag line wrapping | When the one-liner would overflow `line_width`, attributes break to one-per-line |
+| Open-tag line wrapping | When the one-liner would overflow `line_width`, attributes break one-per-line |
 | `<pre>` / `<textarea>` whitespace | Preserved verbatim |
 
 ## What it does NOT (yet) format
 
-These are intentionally deferred — they need a pattern-formatting path
-(for destructuring-pattern formatting) or a CSS engine integration:
-
 | Surface | Why deferred |
 |---|---|
-| `{@const ident = expr}` | VariableDeclaration, not a bare expression — needs statement formatting |
-| `{#each iter as PATTERN}` context binding | Destructuring pattern |
-| `{#await … as PATTERN}` / `{:then PATTERN}` / `{:catch PATTERN}` | Destructuring patterns |
-| `{#snippet name(PARAM, …)}` parameter list | Destructuring patterns |
-| `let:item={PATTERN}` directive value | Destructuring pattern |
-| `<style>` body | CSS engine integration (see Roadmap) |
-| Text-content whitespace collapse | Behaviour decision pending (`<p>hello   world</p>`) |
+| `{@const ident = expr}`, `{let …}`, `{const …}` | Statement-shaped tags (VariableDeclaration, not a bare expression) — need statement formatting |
+| Text-content whitespace collapse (`<p>hello   world</p>`) | Behaviour decision pending |
 
 ## Usage
 
@@ -66,6 +69,7 @@ let opts = FormatOptions {
         line_width: LineWidth::try_from(80).unwrap(),
         ..JsFormatOptions::new()
     },
+    ..FormatOptions::default()
 };
 
 let formatted = format(source, &opts)?;
@@ -82,11 +86,31 @@ Output:
 </button>
 ```
 
+### Formatting `<style>` bodies
+
+Supply a `style_formatter` callback — it receives `(body, lang)` and returns the
+formatted CSS. Without it, `<style>` content is passed through unchanged.
+
+```rust
+use std::sync::Arc;
+use rsvelte_formatter::FormatOptions;
+
+let opts = FormatOptions::default().with_style_formatter(Arc::new(
+    |body: &str, lang: &str| -> Result<String, String> {
+        // Run your CSS formatter for `lang` ("css" / "scss" / "less" / …).
+        Ok(body.to_string())
+    },
+));
+```
+
+The callback is `Send + Sync`, so a single `FormatOptions` can drive parallel
+file formatting via `rayon`.
+
 ## Options
 
-`FormatOptions` is a thin wrapper around
-[`oxc_formatter::JsFormatOptions`](https://docs.rs/oxc_formatter/) so JS
-and Svelte share the same knobs:
+`FormatOptions` carries the Svelte-specific knobs and wraps
+[`oxc_formatter::JsFormatOptions`](https://docs.rs/oxc_formatter/) so JS and
+Svelte share the same configuration:
 
 | Field | Default | Effect |
 |---|---|---|
@@ -97,41 +121,38 @@ and Svelte share the same knobs:
 | `js.semicolons` | `Always` | Semicolons in `<script>` bodies |
 | `js.trailing_commas` | `All` | Trailing commas in `<script>` bodies |
 | `js.arrow_parentheses` | `Always` | `(x) => x` vs `x => x` |
-| _everything else on `JsFormatOptions`_ | — | Used for `<script>` body and embedded expressions |
+| _everything else on `JsFormatOptions`_ | — | Used for `<script>` bodies and embedded expressions |
+| `style_formatter` | `None` | Callback formatting each `<style>` body; verbatim when unset |
 
-`IndentStyle`, `IndentWidth`, and `LineWidth` are re-exported from
-the crate root.
+`IndentStyle`, `IndentWidth`, `LineWidth`, `JsFormatOptions`, and
+`StyleFormatter` are all re-exported from the crate root.
 
 ## Architecture (current implementation)
 
-The current implementation collects a list of source edits
-`(start, end, replacement)` from four passes, sorts them by descending
-start, and applies them in reverse order to the source string. Each pass
-owns a disjoint set of source spans:
+`format` collects a list of source edits `(start, end, replacement)` from five
+passes, sorts them by descending start offset, and applies them in reverse so
+earlier offsets stay valid. Each pass owns a disjoint set of source spans, so
+they compose without overlapping:
 
 ```
 lib.rs::format
-  ├─ script::format_script          (<script> bodies, oxc_formatter)
-  ├─ markup::collect_open_tag_edits (element open + close tags)
+  ├─ script::format_script            (<script> bodies, oxc_formatter)
+  ├─ markup::collect_open_tag_edits   (element open + close tags)
   ├─ expression::collect_template_edits (template-position expressions, block headers, top-level @-tags)
-  └─ indent::collect_indent_edits   (whitespace-only Text nodes between siblings)
+  ├─ indent::collect_indent_edits     (whitespace-only Text nodes between siblings)
+  └─ style::collect_style_edit        (<style> body, via the style_formatter callback)
 ```
 
-The passes are independent and compose because their spans don't
-overlap. A more principled Doc-IR-based formatter (using
-`oxc_formatter_core::Format`) is on the roadmap once the upstream
-builder helpers stabilize.
+A more principled Doc-IR-based formatter (using `oxc_formatter_core::Format`)
+remains on the roadmap once the upstream builder helpers stabilize.
 
 ## Roadmap
 
-- [ ] `<style>` body formatting (likely via `oxc_formatter`'s
-      `ExternalCallbacks::embedded_formatter` once the API stabilises,
-      or a small CSS engine integration)
-- [ ] Pattern formatting (destructuring inside `{#each as PATTERN}`,
-      `{#snippet name(PARAM)}`, `let:item={PATTERN}`)
-- [ ] `{@const}` statement formatting
+- [ ] `{@const}` / `{let}` / `{const}` statement formatting
 - [ ] Text-content whitespace collapse (`<p>hello   world</p>`)
 - [ ] User-extensible whitespace-sensitive element list
+- [ ] Doc-IR-based formatter via `oxc_formatter_core::Format` once the upstream
+      builders stabilize
 
 ## License
 

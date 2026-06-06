@@ -1,8 +1,14 @@
-# rsvelte
+<p align="center">
+  <img src="assets/logo.png" alt="rsvelte" width="200" height="200" />
+</p>
+
+<h1 align="center">rsvelte</h1>
+
+<p align="center">
+  <strong>A Rust port of the official Svelte 5 compiler, built to slot natively into the <a href="https://oxc.rs/">OXC</a> ecosystem.</strong>
+</p>
 
 > **⚠️ Early Stage Project** — rsvelte already passes the official Svelte 5 compiler test suite end-to-end, but it's still pre-1.0. APIs, output, and behaviour may change without notice. Use it in production at your own risk.
-
-**A Rust port of the official Svelte 5 compiler, built to slot natively into the [OXC](https://oxc.rs/) ecosystem.**
 
 ## Why rsvelte exists
 
@@ -13,7 +19,7 @@ Today, the native JS toolchain that has grown up around OXC — `oxlint`, `oxfmt
 rsvelte fixes that at the source. By porting the compiler — **and** the surrounding ecosystem hot paths (`svelte2tsx`, `svelte-check`, `vite-plugin-svelte`) — to Rust on top of OXC's own parser, codegen, and semantic stack, rsvelte gives OXC a Svelte surface it can call into directly. Once upstreamed, that surface unlocks:
 
 - **`oxlint`** — lint `<script>` blocks and Svelte-specific patterns at OXC speed (a Rust path forward for `eslint-plugin-svelte`).
-- **`oxfmt`** — format `.svelte` files alongside the rest of the project (a Rust path forward for `prettier-plugin-svelte`).
+- **`oxfmt`** — format `.svelte` files alongside the rest of the project (a Rust path forward for `prettier-plugin-svelte`). The standalone [`rsvelte-fmt`](#format-svelte-files-rsvelte-fmt) CLI proves this path today.
 - **Rolldown** — native bundling of Svelte projects through OXC's parser stack, without a JS-side compiler hop.
 - **`tsgo` + `tsgolint`** — type-checking and type-aware linting over `.svelte` files. Already wired into `@rsvelte/svelte-check` today as the correctness bridge.
 
@@ -151,6 +157,25 @@ console.log(result.exportedNames); // { props, all }
 
 Useful if you're building your own language tooling on top of the same surface `svelte-check`, the Svelte language server, and `tsc` all rely on.
 
+### Format `.svelte` files (`rsvelte-fmt`)
+
+`rsvelte-fmt` is a Rust-native formatter for Svelte projects — one CLI that formats `.svelte` files **in-process** (no Node, no Prettier doc-IR round-trip) and routes `.js` / `.ts` / `.jsx` / `.tsx` / `.json` / `.css` to [`oxfmt`](https://oxc.rs/docs/guide/usage/formatter), with both pipelines running in parallel. It's the standalone proof of the `oxfmt` integration goal above; the `.svelte` engine itself lives in the [`rsvelte_formatter`](crates/rsvelte_formatter) library crate.
+
+Build from source (not yet published):
+
+```bash
+cargo build --release -p rsvelte_fmt
+./target/release/rsvelte-fmt --help
+```
+
+```bash
+rsvelte-fmt src/                 # format in place, recursively
+rsvelte-fmt --check src/         # exit 1 if anything would change (CI gate)
+cat App.svelte | rsvelte-fmt --stdin --stdin-filepath App.svelte   # editor integration
+```
+
+`oxfmt` must be on `$PATH` for non-`.svelte` files (and to format `<style>` blocks); point at a specific binary with `--oxfmt-bin`. See [`crates/rsvelte_fmt/README.md`](crates/rsvelte_fmt/README.md) for all flags, exit codes, and how it compares to `oxfmt + prettier-plugin-svelte`.
+
 ### Embed in a Rust crate
 
 ```toml
@@ -222,7 +247,7 @@ A single-threaded **100× speedup** over the JS compiler is one of this project'
 ## Compatibility
 
 <!-- svelte-target-version -->
-**Targeting Svelte `v5.56.1`** ([`3ef761b87b84`](https://github.com/sveltejs/svelte/commit/3ef761b87b84)) — automatically maintained by `pnpm run update-docs`.
+**Targeting Svelte `v5.56.2`** ([`51baf1c1af4f`](https://github.com/sveltejs/svelte/commit/51baf1c1af4f)) — automatically maintained by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
 Current compatibility with the official Svelte compiler test suite:

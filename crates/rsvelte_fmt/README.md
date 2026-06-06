@@ -2,22 +2,29 @@
 
 Fast Svelte + JS/TS/CSS formatter — one CLI, written in Rust.
 
-`rsvelte-fmt` dispatches:
+> **This is the command-line tool.** The `.svelte` formatting engine itself
+> lives in the [`rsvelte_formatter`](../rsvelte_formatter) library crate;
+> `rsvelte-fmt` is the thin CLI that drives it and routes everything else to
+> `oxfmt`.
 
-- `.svelte` files to in-process [`rsvelte_formatter`](../rsvelte_formatter)
+`rsvelte-fmt` dispatches by file type:
+
+- `.svelte` files → in-process [`rsvelte_formatter`](../rsvelte_formatter).
+  CSS inside `<style>` blocks is sent to `oxfmt` through a callback, so it
+  matches what `oxfmt` produces for standalone `.css`.
 - `.ts` / `.tsx` / `.js` / `.jsx` / `.cjs` / `.mjs` / `.json` / `.css`
-  files to a child `oxfmt` process
+  files → a child `oxfmt` process.
 
-Both pipelines run **in parallel** via `rayon::join`, so on a mixed
-project the in-process Svelte work overlaps with the `oxfmt` subprocess
-on every invocation. There are no Node calls and no Prettier doc-IR
-round-trip — just rsvelte parsing + `oxc_formatter`.
+Both pipelines run **in parallel** via `rayon::join`, so on a mixed project the
+in-process Svelte work overlaps with the `oxfmt` subprocess on every invocation.
+There are no Node calls and no Prettier doc-IR round-trip — just rsvelte parsing
++ `oxc_formatter`.
 
 ## Status
 
-Functional v0. The Svelte path is tested end-to-end (6 integration
-tests). The `oxfmt` delegation path is exercised manually because
-`oxfmt` may not be present in every CI lane.
+Functional v0. The Svelte path is tested end-to-end (6 CLI integration
+tests, plus 105 tests in `rsvelte_formatter`). The `oxfmt` delegation path
+is exercised manually because `oxfmt` may not be present in every CI lane.
 
 ## Install
 
@@ -133,7 +140,8 @@ $ cat src/App.svelte
 - The Svelte parser is rsvelte (Rust, in-process).
 - The Svelte → output rewrite is straight `oxc_formatter` calls for JS
   pieces plus a hand-rolled markup pass.
-- `oxfmt` is only invoked for the file types it natively supports.
+- `oxfmt` is invoked only for standalone non-`.svelte` files and for the CSS
+  body of `<style>` blocks — never for the Svelte markup itself.
 
 ## License
 
