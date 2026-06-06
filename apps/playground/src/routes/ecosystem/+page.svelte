@@ -10,7 +10,7 @@
 	<title>Ecosystem · rsvelte</title>
 	<meta
 		name="description"
-		content="The Svelte ecosystem, ported to Rust — compiler, svelte2tsx, svelte-check and vite-plugin-svelte as drop-in replacements, with links to every upstream tool and what's delegated to OXC."
+		content="The Svelte ecosystem, ported to Rust — compiler, svelte2tsx, svelte-check, fmt and vite-plugin-svelte as drop-in replacements, with links to every upstream tool and what's delegated to OXC."
 	/>
 </svelte:head>
 
@@ -49,7 +49,7 @@
 			</div>
 			<div>
 				<dt>Top speedup</dt>
-				<dd><span class="big ink-svelte">145×</span> <span class="dim">parser vs. JS</span></dd>
+				<dd><span class="big ink-svelte">204×</span> <span class="dim">fmt vs. JS</span></dd>
 			</div>
 		</dl>
 	</header>

@@ -42,7 +42,7 @@
 	const formatDate = (iso: string): string =>
 		new Date(iso).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
-	// The four measured tools across the toolchain — each multi-threaded
+	// The measured tools across the toolchain — each multi-threaded
 	// rsvelte vs. its official JavaScript counterpart on the same corpus.
 	const toolchain = $derived.by(() => {
 		if (!bench) return [];
@@ -52,6 +52,9 @@
 		];
 		if (bench.svelte2tsx) {
 			list.push({ label: 'svelte2tsx', sub: '.svelte → .tsx', x: bench.svelte2tsx.speedup.multiThreadVsJs });
+		}
+		if (bench.fmt) {
+			list.push({ label: 'fmt', sub: 'formatter vs prettier', x: bench.fmt.speedup.multiThreadVsJs });
 		}
 		if (bench.svelteCheck) {
 			list.push({ label: 'svelte-check', sub: 'project type-check', x: bench.svelteCheck.speedup.multiThreadVsJs });
@@ -109,7 +112,7 @@
 		{
 			n: '03',
 			h: 'One stack, end to end.',
-			p: 'Compiler, svelte2tsx and svelte-check share the same Rust AST and OXC foundation — no JS hop between the tools in your build.'
+			p: 'Compiler, svelte2tsx, svelte-check and fmt share the same Rust AST and OXC foundation — no JS hop between the tools in your build.'
 		}
 	];
 </script>
@@ -118,7 +121,7 @@
 	<title>rsvelte · the Svelte ecosystem, in Rust</title>
 	<meta
 		name="description"
-		content="A Rust port of the Svelte ecosystem — compiler, svelte2tsx, svelte-check and vite-plugin-svelte as drop-in replacements. Same surface, identical output, up to 145× faster."
+		content="A Rust port of the Svelte ecosystem — compiler, svelte2tsx, svelte-check, fmt and vite-plugin-svelte as drop-in replacements. Same surface, identical output, up to 204× faster."
 	/>
 </svelte:head>
 
@@ -136,8 +139,8 @@
 
 		<p class="lede">
 			Drop-in replacements for the tools you already run — the compiler, <code>svelte2tsx</code>,
-			<code>svelte-check</code>, the Vite plugin. Same surface, identical output, up to
-			<span class="ink-svelte">{bench ? Math.round(maxSpeedup) : 145}×</span> faster.
+			<code>svelte-check</code>, <code>fmt</code>, the Vite plugin. Same surface, identical output, up to
+			<span class="ink-svelte">{bench ? Math.round(maxSpeedup) : 204}×</span> faster.
 		</p>
 
 		<div class="cta">

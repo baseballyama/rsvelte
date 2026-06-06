@@ -233,18 +233,19 @@ The Rust API (`rsvelte_core::compile`) has no such restriction — `css_hash: Op
 
 ## Performance
 
-Per-task benchmark across 3,637 real `.svelte` files, 10 iterations (3 warmup), against the official `svelte/compiler`:
+Per-task benchmark across 3,852 real `.svelte` files, 10 iterations (3 warmup). Each task is measured against its JavaScript counterpart — `svelte/compiler` for the compiler phases, `svelte2tsx`, `svelte-check`, and `prettier-plugin-svelte` for `fmt`:
 
-| Task | JS (`svelte/compiler`) | Rust (single-threaded) | Rust (multi-threaded) | Multi vs JS |
+| Task | JS baseline | Rust (single-threaded) | Rust (multi-threaded) | Multi vs JS |
 |---|---:|---:|---:|---:|
-| **Full pipeline** — parse / analyze / codegen | 864.8 ms | 381.1 ms | 50.1 ms | **17.3×** |
-| **Parser only** — phase 1, isolated | 187.5 ms | 8.7 ms | 1.9 ms | **99.5×** |
-| **`svelte2tsx`** — `.svelte` → `.tsx` generation | 306.1 ms | 115.3 ms | 16.0 ms | **19.1×** |
-| **`svelte-check`** — CLI, 500-file workspace | 2,088.0 ms | 46.9 ms | 13.8 ms | **151.5×** |
+| **Full pipeline** — parse / analyze / codegen | 807.5 ms | 436.5 ms | 61.2 ms | **13.2×** |
+| **Parser only** — phase 1, isolated | 210.9 ms | 9.9 ms | 2.2 ms | **96.3×** |
+| **`svelte2tsx`** — `.svelte` → `.tsx` generation | 328.3 ms | 130.0 ms | 17.2 ms | **19.0×** |
+| **`fmt`** — formatter, `.svelte` sources | 3,475.9 ms | 98.2 ms | 17.0 ms | **204.2×** |
+| **`svelte-check`** — CLI, 500-file workspace | 2,086.9 ms | 50.6 ms | 14.3 ms | **145.5×** |
 
-> Apple M1 Pro · 10-core arm64 · 3,637 `.svelte` files · 10 iterations (3 warmup). Recorded 2026-05-24 at commit `da6b3c8`. Live numbers, charts, and reproduction steps live on the [benchmark page](https://baseballyama.github.io/rsvelte/benchmark) (or run `node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json` locally).
+> Apple M1 Pro · 10-core arm64 · 3,852 `.svelte` files · 10 iterations (3 warmup). Recorded 2026-06-06 on the latest `main`. Live numbers, charts, and reproduction steps live on the [benchmark page](https://baseballyama.github.io/rsvelte/benchmark) (or run `pnpm run generate-benchmark` locally).
 
-A single-threaded **100× speedup** over the JS compiler is one of this project's explicit goals — the parser is already at multi-threaded `99.5×` and `svelte-check` at `151.5×`, but the full pipeline is still climbing. Current numbers are a snapshot, not a ceiling.
+A single-threaded **100× speedup** over the JS compiler is one of this project's explicit goals — `fmt` already lands at multi-threaded `204.2×` (and `35.4×` single-threaded) against `prettier-plugin-svelte`, the parser at `96.3×`, and `svelte-check` at `145.5×`, while the full pipeline is still climbing. Current numbers are a snapshot, not a ceiling.
 
 ## Compatibility
 

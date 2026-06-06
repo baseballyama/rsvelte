@@ -56,8 +56,8 @@ export const shipped: EcoComponent[] = [
 		status: 'shipped',
 		blurb:
 			'The whole compile pipeline — parse, analyze, transform — for client, SSR and hydration. Output matches the official compiler across the in-scope test suite.',
-		speedup: { x: 17, of: 'full pipeline' },
-		note: 'Parser alone runs 145× · 99.8% of in-scope fixtures green'
+		speedup: { x: 13, of: 'full pipeline' },
+		note: 'Parser alone runs 96× · 99.8% of in-scope fixtures green'
 	},
 	{
 		name: '@rsvelte/svelte2tsx',
@@ -68,7 +68,7 @@ export const shipped: EcoComponent[] = [
 		status: 'shipped',
 		blurb:
 			'Turns a .svelte component into the TSX shadow file the TypeScript checker reads, with column-accurate source maps.',
-		speedup: { x: 22, of: 'svelte2tsx' },
+		speedup: { x: 19, of: 'svelte2tsx' },
 		note: 'Wave 1 · 100% of fixtures'
 	},
 	{
@@ -80,8 +80,20 @@ export const shipped: EcoComponent[] = [
 		status: 'shipped',
 		blurb:
 			'The project type-checker CLI. A Rust walker + overlay drives tsgo for the TypeScript half; diagnostics map back to .svelte positions. Watch + incremental cache included.',
-		speedup: { x: 144, of: 'svelte-check' },
+		speedup: { x: 145, of: 'svelte-check' },
 		note: 'Rust walker + tsgo backend · 500-file workspace'
+	},
+	{
+		name: '@rsvelte/fmt',
+		dropInFor: 'prettier-plugin-svelte',
+		originalUrl: 'https://github.com/sveltejs/prettier-plugin-svelte',
+		pkgUrl: 'https://github.com/baseballyama/rsvelte/tree/main/apps/npm/fmt',
+		install: 'npm i -D @rsvelte/fmt',
+		status: 'shipped',
+		blurb:
+			'A Rust-native formatter for .svelte files — in-process, with no Node startup and no Prettier doc-IR round-trip. Routes .js / .ts / .css to oxfmt, with both pipelines running in parallel.',
+		speedup: { x: 204, of: 'fmt' },
+		note: 'Built on oxc_formatter · vs prettier-plugin-svelte'
 	},
 	{
 		name: '@rsvelte/vite-plugin-svelte',
@@ -120,14 +132,6 @@ export const delegated: EcoComponent[] = [
 		status: 'delegated',
 		blurb: 'Linting belongs in oxlint — rsvelte gives it a Svelte surface to call into.',
 		routesTo: { label: 'oxlint', url: 'https://oxc.rs/docs/guide/usage/linter.html' }
-	},
-	{
-		name: 'prettier-plugin-svelte',
-		dropInFor: 'prettier-plugin-svelte',
-		originalUrl: 'https://github.com/sveltejs/prettier-plugin-svelte',
-		status: 'delegated',
-		blurb: 'Formatting is a Rust-formatter job — oxfmt / dprint / biome, not a fork of Prettier.',
-		routesTo: { label: 'oxfmt', url: 'https://oxc.rs/' }
 	},
 	{
 		name: 'svelte-preprocess',

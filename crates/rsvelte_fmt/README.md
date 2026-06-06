@@ -162,6 +162,12 @@ $ cat src/App.svelte
 - `oxfmt` is invoked only for standalone non-`.svelte` files and for the CSS
   body of `<style>` blocks — never for the Svelte markup itself.
 
+Across 3,852 real `.svelte` files (Apple M1 Pro, 10 iterations / 3 warmup), the
+Svelte engine formats **35× faster single-threaded and 204× faster
+multi-threaded** than `prettier-plugin-svelte`. Benchmark the formatter locally
+with `cargo bench -p rsvelte_formatter --bench formatter`, or run the full
+JS-vs-Rust comparison with `pnpm run generate-benchmark`.
+
 ## License
 
 MIT
