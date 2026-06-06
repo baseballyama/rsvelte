@@ -1954,6 +1954,7 @@ dependencies = [
  "oxc_formatter_core",
  "rayon",
  "rsvelte_formatter",
+ "serde_json",
  "walkdir",
 ]
 

@@ -119,12 +119,20 @@ fn no_paths_errors_helpfully() {
 fn batched_style_delegation_maps_each_block_to_its_file() {
     let dir = tempdir();
 
-    // Fake oxfmt: prepend `/*FMT*/` to every file path it receives (in place).
+    // Fake oxfmt: prepend `/*FMT*/` to every real *file* it receives (in
+    // place). Skips flags (`--…`) and exclude globs (`!…`) and silently ignores
+    // directory arguments — so it tolerates the directory-delegation args
+    // (`--no-error-on-unmatched-pattern !**/*.svelte <dir>`) the non-`.svelte`
+    // pass now passes, while still exercising the temp-file `<style>` batch.
     let fake = dir.join("fake-oxfmt.cjs");
     std::fs::write(
         &fake,
         r#"const fs = require('node:fs');
 for (const p of process.argv.slice(2)) {
+  if (p.startsWith('-') || p.startsWith('!')) continue;
+  let st;
+  try { st = fs.statSync(p); } catch { continue; }
+  if (!st.isFile()) continue;
   fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8'));
 }
 "#,
@@ -178,6 +186,115 @@ for (const p of process.argv.slice(2)) {
     assert!(
         !out1.contains("RSVELTE_FMT_STYLE"),
         "placeholder leaked:\n{out1}"
+    );
+}
+
+/// #693: inline `<script>` formatting must honor the project `.oxfmtrc`.
+/// The script body is formatted in-process (no `oxfmt` needed), so a config
+/// with `singleQuote: true` should keep the string single-quoted instead of
+/// flipping it to oxc_formatter's double-quote default.
+#[test]
+fn inline_script_respects_oxfmtrc_single_quote() {
+    let dir = tempdir();
+    let cfg = dir.join(".oxfmtrc.json");
+    std::fs::write(&cfg, r#"{ "singleQuote": true }"#).unwrap();
+
+    let (stdout, _stderr, code) = run_stdin(
+        "<script>const x = \"hello\"</script>\n<p>{x}</p>\n",
+        &[
+            "--stdin",
+            "--stdin-filepath",
+            "x.svelte",
+            "--config",
+            cfg.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0);
+    assert!(
+        stdout.contains("const x = 'hello';"),
+        "expected single quotes from .oxfmtrc:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("\"hello\""),
+        "string should not be double-quoted:\n{stdout}"
+    );
+}
+
+/// Without a config, the in-process default is oxc_formatter's double quotes —
+/// confirms the config layer is what flips quote style, not something else.
+#[test]
+fn inline_script_defaults_to_double_quote_without_config() {
+    let (stdout, _stderr, code) = run_stdin(
+        "<script>const x = 'hello'</script>\n",
+        &["--stdin", "--stdin-filepath", "x.svelte"],
+    );
+    assert_eq!(code, 0);
+    assert!(
+        stdout.contains("const x = \"hello\";"),
+        "expected double-quote default:\n{stdout}"
+    );
+}
+
+/// #694: a directory input is delegated to a single `oxfmt` invocation that
+/// covers the full supported set (not a hard-coded extension list), with
+/// `.svelte` excluded for the in-process pass. We stand in a fake `oxfmt` that
+/// logs the exact argv it received so we can assert the delegation contract:
+/// the directory is passed through, `.svelte` is excluded, and unmatched
+/// patterns don't error.
+#[test]
+fn directory_delegates_full_set_to_oxfmt_with_svelte_excluded() {
+    let dir = tempdir();
+
+    // Fake oxfmt: append its received argv (one per line) to $FAKE_OXFMT_LOG.
+    let fake = dir.join("fake-oxfmt.cjs");
+    std::fs::write(
+        &fake,
+        r#"const fs = require('node:fs');
+fs.appendFileSync(process.env.FAKE_OXFMT_LOG, process.argv.slice(2).join('\n') + '\n');
+"#,
+    )
+    .unwrap();
+
+    let log = dir.join("argv.log");
+    std::fs::write(&log, "").unwrap();
+    // A `.svelte` file (in-process) plus a non-`.svelte` file so the dir isn't
+    // svelte-only.
+    std::fs::write(dir.join("a.svelte"), "<p>{x}</p>\n").unwrap();
+    std::fs::write(dir.join("readme.md"), "# x\n").unwrap();
+
+    let status = Command::new(bin())
+        .args([
+            dir.to_str().unwrap(),
+            "--write",
+            "--oxfmt-bin",
+            fake.to_str().unwrap(),
+        ])
+        .env("FAKE_OXFMT_LOG", log.to_str().unwrap())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(status.success(), "exit code: {:?}", status.code());
+
+    let argv = std::fs::read_to_string(&log).unwrap();
+    let args: Vec<&str> = argv.lines().collect();
+    assert!(
+        args.contains(&"!**/*.svelte"),
+        "oxfmt should be told to exclude .svelte; argv:\n{argv}"
+    );
+    assert!(
+        args.contains(&"--no-error-on-unmatched-pattern"),
+        "oxfmt should not error on unmatched patterns; argv:\n{argv}"
+    );
+    assert!(
+        args.contains(&dir.to_str().unwrap()),
+        "the directory itself should be delegated to oxfmt; argv:\n{argv}"
+    );
+    // We must NOT enumerate individual non-svelte files — the directory is
+    // handed off whole so oxfmt's own walker decides coverage.
+    assert!(
+        !args.iter().any(|a| a.ends_with("readme.md")),
+        "individual files should not be enumerated; argv:\n{argv}"
     );
 }
 
