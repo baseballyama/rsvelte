@@ -480,25 +480,194 @@ fn render_multi_line(
     out
 }
 
+/// One level of the scanner stack used by [`reindent_continuation`]. We only
+/// need to know whether a line begins inside template-literal *quasi* text
+/// (raw string content) versus ordinary code — the latter is re-indented, the
+/// former is left verbatim.
+enum AttrFrame {
+    /// Inside `` `…` `` quasi text (between backticks, outside `${}`).
+    Template,
+    /// Inside a `${ … }` substitution. The `u32` is the `{`-nesting depth
+    /// within the substitution, so the matching `}` is recognised.
+    Subst(u32),
+}
+
 /// Prefix every continuation line (every line after the first) of a rendered
 /// attribute value with `indent`, so a multi-line expression aligns under its
 /// attribute in the multi-line tag layout. The first line is left alone — the
 /// caller has already emitted the attribute indent before it. Empty lines are
 /// not indented (no trailing whitespace). See #692.
+///
+/// Lines that begin *inside* multi-line template-literal quasi text are left
+/// verbatim — their leading whitespace is part of the runtime string value, so
+/// re-indenting them would both mutate the string and make formatting
+/// non-idempotent (every pass would add another level) (#698). The scanner
+/// tracks template-literal / `${}` nesting plus string and comment context so
+/// backticks, `${`, and braces inside strings or comments aren't misread.
 fn reindent_continuation(rendered: &str, indent: &str) -> String {
     if !rendered.contains('\n') {
         return rendered.to_string();
     }
+    let chars: Vec<char> = rendered.chars().collect();
+    let n = chars.len();
     let mut out = String::with_capacity(rendered.len() + indent.len() * 2);
-    for (i, line) in rendered.split('\n').enumerate() {
-        if i > 0 {
-            out.push('\n');
-            if !line.is_empty() {
+    let mut stack: Vec<AttrFrame> = Vec::new();
+    let mut line_comment = false;
+    let mut block_comment = false;
+    let mut string: Option<char> = None;
+    // The first line is emitted without an indent prefix (the caller already
+    // wrote the attribute indent before it), so we start past the line-start
+    // handling for line 0.
+    let mut at_line_start = false;
+    let mut i = 0;
+
+    while i < n {
+        let c = chars[i];
+
+        if at_line_start {
+            let in_quasi = matches!(stack.last(), Some(AttrFrame::Template));
+            if c != '\n' && !in_quasi {
                 out.push_str(indent);
             }
+            at_line_start = false;
         }
-        out.push_str(line);
+
+        // Line comment: runs to end of line.
+        if line_comment {
+            out.push(c);
+            i += 1;
+            if c == '\n' {
+                line_comment = false;
+                at_line_start = true;
+            }
+            continue;
+        }
+
+        // Block comment: runs to `*/`. Interior lines are still re-indented
+        // (code context), matching the expression formatter's own alignment.
+        if block_comment {
+            if c == '*' && chars.get(i + 1) == Some(&'/') {
+                out.push('*');
+                out.push('/');
+                i += 2;
+                block_comment = false;
+                continue;
+            }
+            out.push(c);
+            i += 1;
+            if c == '\n' {
+                at_line_start = true;
+            }
+            continue;
+        }
+
+        // Regular string: consumes its own escapes; can't span lines in
+        // well-formed formatter output.
+        if let Some(q) = string {
+            out.push(c);
+            if c == '\\' {
+                if i + 1 < n {
+                    out.push(chars[i + 1]);
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+                continue;
+            }
+            i += 1;
+            if c == q {
+                string = None;
+            }
+            continue;
+        }
+
+        if matches!(stack.last(), Some(AttrFrame::Template)) {
+            // Inside template-literal quasi text.
+            match c {
+                '`' => {
+                    stack.pop();
+                    out.push(c);
+                    i += 1;
+                }
+                '\\' => {
+                    out.push(c);
+                    if i + 1 < n {
+                        out.push(chars[i + 1]);
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                }
+                '$' if chars.get(i + 1) == Some(&'{') => {
+                    stack.push(AttrFrame::Subst(0));
+                    out.push('$');
+                    out.push('{');
+                    i += 2;
+                }
+                '\n' => {
+                    out.push(c);
+                    at_line_start = true;
+                    i += 1;
+                }
+                _ => {
+                    out.push(c);
+                    i += 1;
+                }
+            }
+        } else {
+            // Ordinary code context (top level or inside `${ … }`).
+            match c {
+                '`' => {
+                    stack.push(AttrFrame::Template);
+                    out.push(c);
+                    i += 1;
+                }
+                '\'' | '"' => {
+                    string = Some(c);
+                    out.push(c);
+                    i += 1;
+                }
+                '/' if chars.get(i + 1) == Some(&'/') => {
+                    line_comment = true;
+                    out.push('/');
+                    out.push('/');
+                    i += 2;
+                }
+                '/' if chars.get(i + 1) == Some(&'*') => {
+                    block_comment = true;
+                    out.push('/');
+                    out.push('*');
+                    i += 2;
+                }
+                '{' => {
+                    if let Some(AttrFrame::Subst(d)) = stack.last_mut() {
+                        *d += 1;
+                    }
+                    out.push(c);
+                    i += 1;
+                }
+                '}' => {
+                    if matches!(stack.last(), Some(AttrFrame::Subst(0))) {
+                        stack.pop();
+                    } else if let Some(AttrFrame::Subst(d)) = stack.last_mut() {
+                        *d -= 1;
+                    }
+                    out.push(c);
+                    i += 1;
+                }
+                '\n' => {
+                    out.push(c);
+                    at_line_start = true;
+                    i += 1;
+                }
+                _ => {
+                    out.push(c);
+                    i += 1;
+                }
+            }
+        }
     }
+
     out
 }
 
