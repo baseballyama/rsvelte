@@ -1518,6 +1518,31 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut prev_text_ends_with_ws = false;
 
         for (i, node) in nodes.iter().enumerate() {
+            // Flush accumulated root-level async consts before processing a
+            // non-hoisted, non-whitespace node. The root fragment runs directly
+            // on `self` (no child generator), so unlike if/each/snippet bodies
+            // it has no other flush site — without this, a root-level
+            // `{let name = $state(await …)}` seeds `self.async_consts` but its
+            // `var promises = $$renderer.run([…])` is never emitted. Mirrors
+            // `fragment.rs` / `if_block.rs` flush discipline. `flush_async_consts`
+            // is a no-op when the group is None/empty, so this never disturbs the
+            // instance-script `$$promises` group (a separate Raw statement) nor
+            // any fixture without a root async declaration. Whitespace-only text
+            // is skipped so two consecutive declarations separated by template
+            // whitespace still group into one `$$renderer.run`.
+            let is_root_hoisted = matches!(
+                node,
+                TemplateNode::ConstTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DeclarationTag(_)
+            ) || (matches!(node, TemplateNode::Comment(_))
+                && !self.preserve_comments);
+            let is_ws_only_text =
+                matches!(node, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data));
+            if !is_root_hoisted && !is_ws_only_text {
+                self.flush_async_consts();
+            }
+
             // Skip whitespace-only text at root level (unless preserveWhitespace is set)
             if !self.preserve_whitespace
                 && let TemplateNode::Text(text) = node
@@ -1796,6 +1821,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
             self.generate_node(node, true)?;
         }
+        // Emit any trailing root-level async-const group (no-op when None/empty).
+        self.flush_async_consts();
         Ok(())
     }
 }

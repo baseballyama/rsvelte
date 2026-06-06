@@ -465,8 +465,287 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             format!("{};", trimmed)
         };
+
+        // Decide sync vs async from the LOWERED declaration. An awaited or
+        // blocked initializer (`{let x = $state(await …)}` /
+        // `{const y = $derived(await …)}` / `{let z = $state(awaited_binding)}`)
+        // is lowered to a bare `let name;` plus an assignment thunk collected
+        // into `self.async_consts` (emitted `var promises_N =
+        // $$renderer.run([…])`), with blocker-wait thunks — mirroring the
+        // ConstTag async path (`generate_const_tag`).
+        let has_await = tag.metadata.expression.has_await();
+        let body_no_semi = stmt.trim_end().trim_end_matches(';').trim();
+        let after_kw = body_no_semi
+            .strip_prefix("let ")
+            .or_else(|| body_no_semi.strip_prefix("const "))
+            .or_else(|| body_no_semi.strip_prefix("var "))
+            .unwrap_or(body_no_semi)
+            .trim();
+        if let Some(eq_idx) = find_assignment_eq(after_kw) {
+            let lhs = after_kw[..eq_idx].trim().to_string();
+            let rhs = after_kw[eq_idx + 1..].trim().to_string();
+            let init_refs = extract_identifiers_from_expr(&rhs);
+            let blockers = self.compute_decl_tag_blockers(&init_refs);
+            // Route through the async-declaration lowering when the initializer
+            // awaits, has a cross-group blocker, OR an async group is already
+            // open in this fragment (`self.async_consts.is_some()`). The last
+            // clause mirrors upstream's `mark_async_declaration` condition
+            // (`has_await || context.state.async_consts || blockers.length > 0`):
+            // once any tag opens a `$$renderer.run` group, every later
+            // declaration in the same block joins it, so a cross-const dep like
+            // `{const after_async = number + 1}` becomes a sequential thunk in
+            // the same group rather than a sync `const` that reads `number`
+            // before its thunk has assigned it. Mirrors the equivalent gate in
+            // `generate_const_tag` (the ConstTag / `{@const}` twin).
+            if has_await || !blockers.is_empty() || self.async_consts.is_some() {
+                let declared_names = extract_declared_names(&lhs);
+                // For a destructuring LHS, take the pattern text from the RAW
+                // source (the declarator `id` span) so a binding whose name
+                // collides with a component-wide `$derived` (`length`) is NOT
+                // rewritten to `length()` inside the assignment TARGET. Reads in
+                // the RHS / template still go through the derived-wrap; only the
+                // assignment target must stay un-wrapped.
+                let lhs_for_assign = if lhs.starts_with('{') || lhs.starts_with('[') {
+                    self.raw_declarator_id(tag).unwrap_or_else(|| lhs.clone())
+                } else {
+                    lhs.clone()
+                };
+                self.emit_async_decl_tag(
+                    &declared_names,
+                    &lhs_for_assign,
+                    &rhs,
+                    has_await,
+                    &blockers,
+                );
+                return Ok(());
+            }
+        }
+
+        // Synchronous path: emit the rewritten declaration verbatim (preserving
+        // the user's `let`/`const` keyword).
         self.output_parts.push(OutputPart::RawStatement(stmt));
+
+        // Populate `constant_vars` for foldable literal declarators so reads of
+        // the binding constant-fold to the literal in template expressions
+        // (mirrors `generate_const_tag` + upstream `scope.evaluate`). Reactive
+        // initializers (`$state(…)` / `$derived(…)`) don't fold, so they're
+        // left out and continue to read via their runtime form.
+        let decl_json = tag.declaration.as_json();
+        if let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) {
+            for d in decls {
+                let (Some(id), Some(init)) = (d.get("id"), d.get("init")) else {
+                    continue;
+                };
+                if init.is_null() || id.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                    continue;
+                }
+                let Some(name) = id.get("name").and_then(|n| n.as_str()) else {
+                    continue;
+                };
+                let (Some(s), Some(e)) = (
+                    init.get("start").and_then(|v| v.as_u64()),
+                    init.get("end").and_then(|v| v.as_u64()),
+                ) else {
+                    continue;
+                };
+                let (s, e) = (s as usize, e as usize);
+                if s >= e || e > self.source.len() {
+                    continue;
+                }
+                let rhs = self.source[s..e].trim();
+                if let Some(folded) =
+                    super::super::helpers::try_evaluate_with_constants(rhs, &self.constant_vars)
+                {
+                    self.constant_vars.insert(name.to_string(), folded);
+                }
+            }
+        }
         Ok(())
+    }
+
+    /// Return the RAW source text of a single-declarator DeclarationTag's `id`
+    /// pattern (e.g. `{ length, 0: first }`). Used as the assignment-target text
+    /// for a destructured async declaration so the un-rewritten pattern is used
+    /// (no derived-call wrapping leaks into the assignment LHS).
+    fn raw_declarator_id(&self, tag: &DeclarationTag) -> Option<String> {
+        let decl_json = tag.declaration.as_json();
+        let decls = decl_json.get("declarations").and_then(|d| d.as_array())?;
+        if decls.len() != 1 {
+            return None;
+        }
+        let id = decls[0].get("id")?;
+        let start = id.get("start").and_then(|v| v.as_u64())? as usize;
+        let end = id.get("end").and_then(|v| v.as_u64())? as usize;
+        if start >= end || end > self.source.len() {
+            return None;
+        }
+        Some(self.source[start..end].trim().to_string())
+    }
+
+    /// Compute the cross-group async blockers for a DeclarationTag whose
+    /// initializer references `init_refs`. Mirrors the blocker computation in
+    /// `generate_const_tag`: a referenced binding registered in
+    /// `const_blocker_map` (a different async_consts group) or in the
+    /// instance-level `top_level_blocker_map` (`$$promises[N]`) contributes a
+    /// wait expression. Blockers within the current group are skipped (they are
+    /// ordered implicitly by sequential `$$renderer.run` execution).
+    fn compute_decl_tag_blockers(&self, init_refs: &[String]) -> Vec<String> {
+        let current_group_name = self.async_consts.as_ref().map(|g| g.name.clone());
+        let const_blocker_map = self.const_blocker_map.borrow();
+        let mut blist: Vec<String> = Vec::new();
+        for name in init_refs {
+            if let Some(blocker_expr) = const_blocker_map.get(name) {
+                if let Some(ref group_name) = current_group_name
+                    && blocker_expr.starts_with(&format!("{}[", group_name))
+                {
+                    continue;
+                }
+                if !blist.contains(blocker_expr) {
+                    blist.push(blocker_expr.clone());
+                }
+            } else if let Some(&idx) = self.top_level_blocker_map.get(name) {
+                let blocker_expr = format!("$$promises[{}]", idx);
+                if !blist.contains(&blocker_expr) {
+                    blist.push(blocker_expr);
+                }
+            }
+        }
+        blist
+    }
+
+    /// Emit a DeclarationTag through the async-declaration lowering: a bare
+    /// `let name;` for each declared binding, blocker-wait thunk(s), and the
+    /// deferred assignment thunk, all collected into `self.async_consts` (which
+    /// `flush_async_consts` renders as `var promises_N = $$renderer.run([…])`).
+    /// Registers each binding's blocker in `const_blocker_map` so downstream
+    /// reactive reads wrap in `$$renderer.async([promises_N[i]], …)`. Mirrors
+    /// the async branch of `generate_const_tag`.
+    fn emit_async_decl_tag(
+        &mut self,
+        declared_names: &[String],
+        lhs: &str,
+        rhs: &str,
+        has_await: bool,
+        blockers: &[String],
+    ) {
+        if self.async_consts.is_none() {
+            let group_name = self.generate_promises_name();
+            self.async_consts = Some(super::super::AsyncConstsGroup {
+                name: group_name,
+                thunks: Vec::new(),
+                declared_vars: Vec::new(),
+            });
+        }
+
+        for name in declared_names {
+            self.output_parts
+                .push(OutputPart::RawStatement(format!("let {};", name)));
+        }
+
+        let group = self.async_consts.as_mut().unwrap();
+
+        if blockers.len() == 1 {
+            group.thunks.push((format!("() => {}", blockers[0]), false));
+        } else if blockers.len() > 1 {
+            group.thunks.push((
+                format!("() => Promise.all([{}])", blockers.join(", ")),
+                false,
+            ));
+        }
+
+        let is_destructuring = lhs.starts_with('{') || lhs.starts_with('[');
+        // Re-indent multiline rhs so inner lines align with the thunk body.
+        let normalize_rhs = |rhs: &str| -> String {
+            if !rhs.contains('\n') {
+                return rhs.to_string();
+            }
+            let lines: Vec<&str> = rhs.lines().collect();
+            if lines.len() <= 1 {
+                return rhs.to_string();
+            }
+            let min_indent = lines[1..]
+                .iter()
+                .filter(|l| !l.trim().is_empty())
+                .map(|l| l.len() - l.trim_start().len())
+                .min()
+                .unwrap_or(0);
+            let mut result = lines[0].to_string();
+            for line in &lines[1..] {
+                result.push('\n');
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let stripped = if min_indent <= line.len() {
+                    &line[min_indent..]
+                } else {
+                    line.trim()
+                };
+                result.push_str("\t\t");
+                result.push_str(stripped);
+            }
+            result
+        };
+
+        let thunk_code = if has_await {
+            let save_wrapped = if let Some(inner_body) = extract_async_derived_thunk_body(rhs) {
+                // RHS is the lowered async-derived shape
+                // `await $.async_derived(() => X)`. Upstream keeps the OUTER
+                // `await $.async_derived(...)` untouched and save-wraps the
+                // INNER thunk body (re-adding the inner `await` the rune
+                // pipeline stripped):
+                //   `await $.async_derived(async () => (await $.save(X))())`.
+                let saved_body = super::super::helpers::transform_await_to_save(&format!(
+                    "await {}",
+                    inner_body
+                ));
+                format!("await $.async_derived(async () => {})", saved_body)
+            } else {
+                // `$state(await …)` etc. — the single outer await is the save
+                // target: `(await $.save(id))()`.
+                super::super::helpers::transform_await_to_save(rhs)
+            };
+            let save_wrapped = normalize_rhs(&save_wrapped);
+            if is_destructuring {
+                format!("async () => ({} = {})", lhs, save_wrapped)
+            } else {
+                format!("async () => {} = {}", lhs, save_wrapped)
+            }
+        } else if is_destructuring {
+            format!("() => ({} = {})", lhs, normalize_rhs(rhs))
+        } else {
+            format!("() => {} = {}", lhs, normalize_rhs(rhs))
+        };
+        let thunk_index = group.thunks.len();
+        group.thunks.push((thunk_code, has_await));
+
+        let group_name = group.name.clone();
+        for name in declared_names {
+            group.declared_vars.push((name.clone(), thunk_index));
+            let blocker_expr = format!("{}[{}]", group_name, thunk_index);
+            self.const_blocker_map
+                .borrow_mut()
+                .insert(name.clone(), blocker_expr);
+        }
+
+        // A DeclarationTag whose initializer is NOT a `$derived` declares a
+        // PLAIN (non-reactive) binding — e.g. the destructured
+        // `{const { length, 0: first } = await '01234'}`. If such a binding's
+        // name collides with a component-wide `$derived` of the same name
+        // declared in a sibling/nested scope (here the snippet's
+        // `{const length = $derived(await number)}`), the flat `derived_names`
+        // set would wrongly wrap this scope's plain read as `length()`. Shadow
+        // the derived name in THIS generator's `derived_names` so subsequent
+        // reads at this scope stay plain. Nested snippet bodies build a fresh
+        // `ServerCodeGenerator` (re-seeding `derived_names` from analysis), so
+        // their own derived reads are unaffected.
+        let is_derived = extract_async_derived_thunk_body(rhs).is_some()
+            || rhs.contains("$.derived(")
+            || rhs.contains("$.derived_safe_equal(");
+        if !is_derived {
+            for name in declared_names {
+                self.derived_names.remove(name);
+            }
+        }
     }
 
     /// Flush accumulated async const tags into a single `$$renderer.run([...])` call.
@@ -551,6 +830,65 @@ fn find_assignment_eq(decl: &str) -> Option<usize> {
     None
 }
 
+/// If `rhs` is the lowered async-derived shape `await $.async_derived(<thunk>)`,
+/// return the thunk body `X` (the expression the inner arrow returns), with the
+/// rune pipeline's stripped inner `await` already removed. Handles the arrow
+/// shapes the server rune pipeline can emit:
+///   `await $.async_derived(() => X)`       -> Some("X")
+///   `await $.async_derived(async () => X)` -> Some("X")
+/// Uses bracket-matched extraction of the `$.async_derived(` argument so an
+/// inner body that itself ends in `)` is handled correctly.
+fn extract_async_derived_thunk_body(rhs: &str) -> Option<String> {
+    let t = rhs.trim();
+    const PREFIX: &str = "await $.async_derived(";
+    let after = t.strip_prefix(PREFIX)?;
+    // The remaining text after PREFIX is `<thunk>)` — find the closing paren
+    // that matches the `(` of `$.async_derived(`. We scan `after` with depth 1.
+    let bytes = after.as_bytes();
+    let mut depth = 1i32;
+    let mut i = 0;
+    let mut in_str: Option<u8> = None;
+    let mut close_idx = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = in_str {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => in_str = Some(c),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    close_idx = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let close = close_idx?;
+    // Anything after the matched close paren means this is not a clean
+    // `await $.async_derived(<thunk>)` (e.g. trailing operators) — bail.
+    if !after[close + 1..].trim().is_empty() {
+        return None;
+    }
+    let inner = after[..close].trim();
+    inner
+        .strip_prefix("async () =>")
+        .or_else(|| inner.strip_prefix("() =>"))
+        .map(|body| body.trim().to_string())
+}
+
 /// Extract declared variable names from a destructuring pattern or simple identifier.
 /// Returns a list of identifier names declared by the LHS of a const tag declaration.
 fn extract_declared_names(lhs: &str) -> Vec<String> {
@@ -579,25 +917,69 @@ fn extract_identifiers_from_expr(expr: &str) -> Vec<String> {
     let chars: Vec<char> = expr.chars().collect();
     let len = chars.len();
     let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
 
     while i < len {
         let c = chars[i];
 
-        // String tracking
-        if c == '\'' || c == '"' || c == '`' {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
-                in_string = false;
-            }
+        // Template literal: skip the literal text but recurse into `${ … }`
+        // interpolations so a `${name}` dependency is detected (mirrors
+        // upstream, where the interpolation expression is a real reference).
+        if c == '`' {
             i += 1;
+            while i < len {
+                let tc = chars[i];
+                if tc == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if tc == '`' {
+                    i += 1;
+                    break;
+                }
+                if tc == '$' && i + 1 < len && chars[i + 1] == '{' {
+                    // Capture the balanced-brace interpolation body.
+                    let mut depth = 1i32;
+                    let inner_start = i + 2;
+                    let mut j = inner_start;
+                    while j < len && depth > 0 {
+                        match chars[j] {
+                            '{' => depth += 1,
+                            '}' => depth -= 1,
+                            _ => {}
+                        }
+                        if depth == 0 {
+                            break;
+                        }
+                        j += 1;
+                    }
+                    let inner: String = chars[inner_start..j].iter().collect();
+                    for id in extract_identifiers_from_expr(&inner) {
+                        idents.push(id);
+                    }
+                    i = if j < len { j + 1 } else { j };
+                    continue;
+                }
+                i += 1;
+            }
             continue;
         }
-        if in_string {
+
+        // Single/double quoted string: skip entirely.
+        if c == '\'' || c == '"' {
+            let quote = c;
             i += 1;
+            while i < len {
+                let sc = chars[i];
+                if sc == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if sc == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
             continue;
         }
 

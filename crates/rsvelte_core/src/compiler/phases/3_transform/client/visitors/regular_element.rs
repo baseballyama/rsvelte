@@ -27,7 +27,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_template_chunk, expression_has_reactive_state,
+    build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -833,6 +833,23 @@ pub fn visit_regular_element(
         .iter()
         .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
 
+    // `has_declarations` mirrors upstream `RegularElement.js`:
+    //   const has_declarations = !node.fragment.metadata.transparent;
+    // An element fragment starts transparent and is downgraded to
+    // non-transparent ONLY when it directly contains a `DeclarationTag`
+    // (the new `{const x = …}` / `{let x = …}` syntax — NOT legacy `{@const}`
+    // ConstTag), per the parser's `pop()` rule
+    // (`phases/1-parse/index.js`). When set, the element's children get their
+    // own `consts` scope and are wrapped in a `{ … }` block so a nested
+    // `{const}` can shadow an outer binding of the same name. Computing it
+    // directly off the DeclarationTag presence avoids depending on the
+    // `transparent` metadata being threaded through analysis.
+    let has_declarations = node
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::DeclarationTag(_)));
+
     // Always create a separate child state for processing children.
     // This matches the JS implementation which always creates:
     //   const child_state = { ...state, init: [], update: [], after_update: [], snippets: [] };
@@ -841,6 +858,74 @@ pub fn visit_regular_element(
     let saved_child_update = std::mem::take(&mut context.state.update);
     let saved_child_after_update = std::mem::take(&mut context.state.after_update);
     let saved_child_snippets = std::mem::take(&mut context.state.snippets);
+    // When the fragment introduces declarations, children get their own
+    // `consts` buffer (upstream `consts: has_declarations ? [] : state.consts`).
+    // We always take the parent consts aside while visiting children, then
+    // either fold the child consts into the element block (has_declarations) or
+    // bubble them back up to the parent (transparent fragment).
+    let saved_child_consts = std::mem::take(&mut context.state.consts);
+    // When the fragment introduces declarations, the child also gets a fresh
+    // `async_consts` group (upstream `async_consts: has_declarations ? undefined`)
+    // so a nested `{const = $derived(await …)}` / `{let = $state(await …)}`
+    // emits its own `var promises_N = $.run([…])` inside the element block,
+    // rather than leaking its thunk into the enclosing block's group.
+    let saved_async_consts = if has_declarations {
+        context.state.async_consts.take()
+    } else {
+        None
+    };
+
+    // When this element introduces declarations, switch `state.scope` to the
+    // element's Phase-2 child scope (keyed by `element.start` in
+    // `template_scope_map`) for the duration of child processing. `get_binding`
+    // is scope-aware (it consults `self.scope` first, then walks parents), so a
+    // nested `{const doubled}` then resolves to the block-local binding instead
+    // of an outer same-named `$derived`, and `scope.evaluate` can constant-fold
+    // it. Only done for `has_declarations` to keep resolution unchanged for the
+    // overwhelmingly common transparent element. Mirrors upstream's per-element
+    // `child_state.scope` (the fragment walker carries the fragment's scope).
+    let saved_scope = context.state.scope;
+    let saved_transform = context.state.transform.clone();
+    if has_declarations
+        && let Some(child_scope) = context
+            .state
+            .scope_root
+            .template_scope_map
+            .get(&node.start)
+            .and_then(|idx| context.state.scope_root.all_scopes.get(*idx))
+    {
+        // The child scope's declarations are exactly this element's
+        // DeclarationTag bindings. Drop any same-named instance-level
+        // `transform` entry (e.g. an outer `$derived` that maps the name to
+        // `$.get(name)`) so the block-local binding wins: `get_binding`
+        // resolves to the const and `get_literal_value` can constant-fold it
+        // instead of `convert_expression` emitting `$.get(...)`.
+        //
+        // ONLY for non-reactive (literal/plain `const`) declarations — those
+        // shadow an outer reactive binding. A block-local reactive declaration
+        // (`{let x = $state(…)}` / `{const y = $derived(…)}`) needs to KEEP its
+        // own `$.get` transform, so it is left in place.
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let removable_names: Vec<String> = child_scope
+            .declarations
+            .iter()
+            .filter(|entry| {
+                let idx = *entry.1;
+                match context.state.scope_root.bindings.get(idx) {
+                    Some(b) => !matches!(
+                        b.kind,
+                        BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                    ),
+                    None => true,
+                }
+            })
+            .map(|entry| entry.0.clone())
+            .collect();
+        context.state.scope = child_scope;
+        for n in &removable_names {
+            context.state.transform.remove(n);
+        }
+    }
 
     // Propagate preserve_whitespace to child processing so that `pre`/`textarea`
     // whitespace is preserved for ExpressionTag/Text content within nested elements.
@@ -1167,30 +1252,130 @@ pub fn visit_regular_element(
     let child_init = std::mem::take(&mut context.state.init);
     let child_update = std::mem::take(&mut context.state.update);
     let child_after_update = std::mem::take(&mut context.state.after_update);
+    let child_consts = std::mem::take(&mut context.state.consts);
+    // Take the child's async_consts group (if any) and build its
+    // `var promises_N = $.run([…thunks])` declaration, mirroring
+    // `fragment.rs`. Emitted into the block after the consts, before init.
+    let child_async_consts_stmt = if has_declarations {
+        context.state.async_consts.take().and_then(|ac| {
+            if ac.thunks.is_empty() {
+                return None;
+            }
+            let id_name = match &ac.id {
+                JsExpr::Identifier(name) => name.clone(),
+                _ => "promises".into(),
+            };
+            Some(b::var_decl(
+                &context.arena,
+                id_name,
+                Some(b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.run"),
+                    vec![b::array(ac.thunks)],
+                )),
+            ))
+        })
+    } else {
+        None
+    };
 
     // Restore the parent state
     context.state.init = saved_child_init;
     context.state.update = saved_child_update;
     context.state.after_update = saved_child_after_update;
     context.state.snippets = saved_child_snippets;
+    context.state.consts = saved_child_consts;
+    context.state.scope = saved_scope;
+    context.state.transform = saved_transform;
+    if has_declarations {
+        context.state.async_consts = saved_async_consts;
+    }
+    // For a transparent fragment (no DeclarationTag), child consts (e.g. legacy
+    // `{@const}` that bubbled up from a nested transparent element) flow back to
+    // the parent scope. When `has_declarations`, they are instead emitted inside
+    // the element block below, so they are not pushed here.
+    if !has_declarations {
+        context.state.consts.extend(child_consts.iter().cloned());
+    }
 
-    if has_snippet_blocks {
-        // Wrap children in `{...}` to avoid declaration conflicts
+    if has_snippet_blocks || has_declarations {
+        // Wrap children in `{...}` to avoid declaration conflicts.
+        // Upstream block order: snippets, consts, init, element_state.init,
+        // render(update), after_update, element_state.after_update.
         let mut block_body = Vec::new();
         block_body.extend(child_snippets);
+        if has_declarations {
+            block_body.extend(child_consts);
+            if let Some(stmt) = child_async_consts_stmt {
+                block_body.push(stmt);
+            }
+        }
         block_body.extend(child_init);
         block_body.extend(element_state_init);
 
-        // Add template_effect for update statements
+        // Add template_effect for update statements. If any update reads an
+        // async-blocked binding (e.g. a nested `{const g = $derived(await …)}`
+        // registers `g` → `promises_N[i]` in const_blocker_map), emit the
+        // blockers as the template_effect's 4th argument via
+        // `build_render_statement_with_memoizer` (which also collapses a single
+        // update into the `() => stmt` form). Mirrors `fragment.rs`.
         if !child_update.is_empty() {
-            block_body.push(b::stmt(
-                &context.arena,
-                b::call(
+            let block_blockers: Option<JsExpr> = {
+                let mut names: Vec<compact_str::CompactString> = Vec::new();
+                for stmt in &child_update {
+                    crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_identifiers_from_statement(
+                        stmt,
+                        &context.arena,
+                        &mut names,
+                    );
+                }
+                let bm = context.state.blocker_map.borrow();
+                let cbm = context.state.const_blocker_map.borrow();
+                let mut exprs: Vec<JsExpr> = Vec::new();
+                let mut seen: rustc_hash::FxHashSet<compact_str::CompactString> =
+                    rustc_hash::FxHashSet::default();
+                for name in &names {
+                    if !seen.insert(name.clone()) {
+                        continue;
+                    }
+                    if let Some(blocker) = cbm.get(name.as_str()) {
+                        exprs.push(blocker.clone());
+                    } else if let Some(&idx) = bm.get(name.as_str()) {
+                        exprs.push(b::member_computed(
+                            &context.arena,
+                            b::id("$$promises"),
+                            b::number(idx as f64),
+                        ));
+                    }
+                }
+                if exprs.is_empty() {
+                    None
+                } else {
+                    Some(b::array(exprs))
+                }
+            };
+            if block_blockers.is_some() {
+                block_body.push(b::stmt(
                     &context.arena,
-                    b::member_path(&context.arena, "$.template_effect"),
-                    vec![b::arrow_block(vec![], child_update)],
-                ),
-            ));
+                    build_render_statement_with_memoizer(
+                        &context.arena,
+                        child_update,
+                        vec![],
+                        None,
+                        None,
+                        block_blockers,
+                    ),
+                ));
+            } else {
+                block_body.push(b::stmt(
+                    &context.arena,
+                    b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.template_effect"),
+                        vec![b::arrow_block(vec![], child_update)],
+                    ),
+                ));
+            }
         }
 
         block_body.extend(child_after_update);

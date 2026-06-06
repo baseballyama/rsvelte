@@ -1055,6 +1055,29 @@ pub fn build_set_style(
             prev = b::id(&id);
             previous_id = Some(id);
         }
+
+        // Upstream `StyleDirective.js` (analyze) adds a SHORTHAND directive's
+        // binding to `metadata.expression.dependencies` rather than `references`,
+        // and the client `Memoizer.check_blockers` only walks `references`. As a
+        // result a `$.set_style` whose directives are ALL shorthand never
+        // contributes a `$$promises[N]` blocker to its `$.template_effect`. Record
+        // the shorthand directive names so the Rust blocker scan (which works off
+        // the literal update-statement identifiers) can exclude them. If ANY
+        // directive in this set is non-shorthand, upstream merges its references
+        // into the shared metadata and the whole `set_style` blocks, so we record
+        // nothing.
+        if has_state
+            && style_directives
+                .iter()
+                .all(|d| matches!(&d.value, AttributeValue::True(true)))
+        {
+            for d in style_directives {
+                let name = d.name.to_string();
+                if !context.state.style_shorthand_blocker_names.contains(&name) {
+                    context.state.style_shorthand_blocker_names.push(name);
+                }
+            }
+        }
     }
 
     // Build the $.set_style call

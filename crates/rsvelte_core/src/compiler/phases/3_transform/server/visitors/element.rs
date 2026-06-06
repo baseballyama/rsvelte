@@ -68,6 +68,66 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         element: &RegularElement,
     ) -> Result<(), TransformError> {
+        // An element whose direct fragment contains a `DeclarationTag`
+        // (`{const x=…}` / `{let x=…}` — NOT legacy `{@const}`) is
+        // non-transparent: its children get their own scope and are wrapped in
+        // a `{ … }` block so a nested declaration can shadow an outer binding.
+        // Mirrors the client `regular_element.rs` `has_declarations` path and
+        // upstream `RegularElement.js`. We capture the element's generated
+        // output parts into a sub-body and wrap them in `OutputPart::BlockScope`
+        // (which renders `{ <body> }` and hoists const declarations to the top).
+        let has_declarations = element
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::DeclarationTag(_)));
+        if !has_declarations {
+            return self.generate_element_inner(element);
+        }
+        let saved = std::mem::take(&mut self.output_parts);
+        // Scope the block-local constant folds to this element: a nested
+        // `{const doubled = 'nested'}` must not leak its fold to an outer
+        // same-named binding once the block closes.
+        let saved_constants = self.constant_vars.clone();
+        // Set the parent's pending async_consts group aside so a nested
+        // `{const g = $derived(await …)}` / `{let l = $state(await …)}` emits
+        // its own `var promises_N = $$renderer.run([…])` INSIDE this element
+        // block (mirrors upstream `RegularElement.js`
+        // `async_consts: has_declarations ? undefined` and the client
+        // `regular_element.rs` has_declarations path).
+        let saved_async_consts = self.async_consts.take();
+        // Snapshot the const_blocker_map keys present BEFORE this element so we
+        // can prune only the block-local bindings it adds. The parent entries
+        // are kept intact while generating the body so a cross-group blocker
+        // lookup (e.g. greeting2 -> name -> promises_1[0]) still resolves.
+        let cbm_keys_before: rustc_hash::FxHashSet<String> =
+            self.const_blocker_map.borrow().keys().cloned().collect();
+        self.generate_element_inner(element)?;
+        // Flush the element's own pending async_consts INTO the captured body
+        // (emits `var promises_N = …` + ConstBlockerMetadata). The build-time
+        // hoist moves the `var promises_N` to the top of the `{ }` block.
+        self.flush_async_consts();
+        self.constant_vars = saved_constants;
+        self.async_consts = saved_async_consts;
+        // Remove only the block-local keys this element added; keep the parent
+        // map otherwise untouched (scoped restore, NOT a blanket save/restore).
+        {
+            let mut cbm = self.const_blocker_map.borrow_mut();
+            let added: Vec<String> = cbm
+                .keys()
+                .filter(|k| !cbm_keys_before.contains(*k))
+                .cloned()
+                .collect();
+            for k in added {
+                cbm.remove(&k);
+            }
+        }
+        let body = std::mem::replace(&mut self.output_parts, saved);
+        self.output_parts.push(OutputPart::BlockScope { body });
+        Ok(())
+    }
+
+    fn generate_element_inner(&mut self, element: &RegularElement) -> Result<(), TransformError> {
         // Lowercase element names in HTML namespace for XHTML compatibility
         // Reference: RegularElement.js L18: `const name = context.state.namespace === 'html' ? node.name.toLowerCase() : node.name;`
         let name_owned: String = if !element.metadata.svg && !element.metadata.mathml {

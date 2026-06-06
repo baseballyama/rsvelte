@@ -172,22 +172,20 @@ const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // lowering, etc.).
 
     // Svelte 5.56.0 #18282 (`59d3a36f8` "feat: allow declarations in the
-    // template") follow-ups: the synchronous DeclarationTag (`{let x = …}` /
-    // `{const x = …}`) lands in this PR, but two paths are pending and
-    // tracked as separate ports. See `AGENTS.md` Test Status notes.
-    //
-    // 1. `declaration-tags` — nested `{const}` inside an element needs a
-    //    block-scope `{ … }` wrap so its identifier doesn't leak into the
-    //    outer fragment. The fragment-walker reorganisation required for
-    //    this is non-trivial; ConstTag has the same gap with the same
-    //    output today.
-    // 2. `async-declaration-tag` / `async-declaration-tag-2` — the
-    //    `metadata.promises_id` async-blocker lowering path
-    //    (`add_async_declaration` in upstream's DeclarationTag.js) is not
-    //    yet ported. Synchronous declaration tags pass.
-    "declaration-tags",
-    "async-declaration-tag",
-    "async-declaration-tag-2",
+    // template"). `async-declaration-tag` (`{let x = $state(await …)}` /
+    // `{const y = $derived(await …)}`) now FULLY passes on both client and
+    // server — the async-declaration lowering (`add_async_declaration` in
+    // upstream's DeclarationTag.js) is ported: root-fragment `$$renderer.run`
+    // flush, cross-block `const_blocker_map` shadow scoping, the
+    // `await $.async_derived(async () => (await $.save(X))())` save-wrap shape,
+    // and element-block `async_consts` reset + cross-group blocker. Only
+    // `async-declaration-tag-2` (svelte:boundary + snippet + destructured await
+    // + each) now ALSO fully passes — the boundary keeps non-special snippets
+    // inside the `$.boundary(...)` callback when the fragment has DeclarationTags
+    // (`has_const || has_declaration`), the cross-const / destructured-await
+    // declaration tags route into the shared `$.run([…])` async group, the
+    // awaited `$derived` reads register the `$.get` transform, and the each
+    // collection + index param + per-binding blocker dedup all match upstream.
     // Svelte 5.56.0 #18309 (`e705369de` "fix: propagate async @const
     // blockers through closure references"): rsvelte's per-template_effect
     // blocker scanner does not yet propagate awaited `@const` blockers

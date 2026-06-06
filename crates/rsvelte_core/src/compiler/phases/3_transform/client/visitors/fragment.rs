@@ -195,6 +195,7 @@ pub fn fragment(
         blocker_map: context.state.blocker_map.clone(),
         blocker_map_primary_names: context.state.blocker_map_primary_names.clone(),
         extra_blocker_indices: Vec::new(),
+        style_shorthand_blocker_names: Vec::new(),
         is_standalone: false,
         const_blocker_map: context.state.const_blocker_map.clone(),
         needs_mutation_validation: context.state.needs_mutation_validation.clone(),
@@ -522,6 +523,25 @@ pub fn fragment(
                     collect_ids_from_expr_props(&memo_expr, &context.arena, &mut all_names);
                 }
 
+                // Exclude names that are referenced ONLY by shorthand `style:x`
+                // directives. Upstream's `StyleDirective.js` analyze visitor adds a
+                // shorthand directive's binding to `metadata.expression.dependencies`
+                // (not `references`), and the client `Memoizer.check_blockers` only
+                // walks `references`, so a shorthand-only `$.set_style` never emits a
+                // `$$promises[N]` blocker on its `$.template_effect`. `build_set_style`
+                // records such names in `style_shorthand_blocker_names` only when ALL
+                // of that element's style directives are shorthand (if any is a normal
+                // `style:x={expr}`, upstream merges its references and the whole
+                // set_style blocks, so the name is not recorded).
+                if !state.style_shorthand_blocker_names.is_empty() {
+                    all_names.retain(|n| {
+                        !state
+                            .style_shorthand_blocker_names
+                            .iter()
+                            .any(|s| s.as_str() == n.as_str())
+                    });
+                }
+
                 // Collect instance-level blocker indices from blocker_map.
                 //
                 // Dedup behavior matches upstream's `Memoizer.#blockers = new
@@ -608,13 +628,33 @@ pub fn fragment(
                 // Use pointer identity to deduplicate (same source pointer = same expression).
                 let mut const_blocker_exprs: Vec<JsExpr> = Vec::new();
                 let mut seen_ptrs: Vec<*const JsExpr> = Vec::new();
+                // Also dedup by VALUE: a destructured async declaration
+                // (`{const { length, 0: first } = await …}`) registers the
+                // SAME `promises[N]` slot for EVERY declared name, but each name
+                // is a separate `const_blocker_map` entry (distinct storage =
+                // distinct pointer). Upstream shares ONE blocker Expression for
+                // the whole pattern (`Memoizer.#blockers = new Set<Expression>`
+                // keyed on identity), so the pattern contributes a SINGLE array
+                // entry. Mirror that by also collapsing structurally-equal
+                // blocker expressions.
+                let mut seen_values: rustc_hash::FxHashSet<String> =
+                    rustc_hash::FxHashSet::default();
                 for name in &all_names {
                     if let Some(blocker_expr) = const_map.get(name.as_str()) {
                         let ptr = blocker_expr as *const JsExpr;
-                        if !seen_ptrs.contains(&ptr) {
-                            seen_ptrs.push(ptr);
-                            const_blocker_exprs.push(blocker_expr.clone());
+                        if seen_ptrs.contains(&ptr) {
+                            continue;
                         }
+                        let value_key =
+                            crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                                blocker_expr,
+                                &context.arena,
+                            );
+                        if !seen_values.insert(value_key) {
+                            continue;
+                        }
+                        seen_ptrs.push(ptr);
+                        const_blocker_exprs.push(blocker_expr.clone());
                     }
                 }
 
