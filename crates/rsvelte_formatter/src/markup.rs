@@ -466,7 +466,7 @@ fn render_attribute(
             Ok(format!("{{@attach {inner}}}"))
         }
         Attribute::BindDirective(d) => {
-            let inner = format_expression_at(source, &d.expression, options)?.unwrap_or_default();
+            let inner = render_directive_value(source, &d.expression, d.end, options)?;
             let modifiers = render_modifiers(&d.modifiers);
             if inner == d.name.as_str() && modifiers.is_empty() {
                 Ok(format!("bind:{}", d.name))
@@ -475,7 +475,7 @@ fn render_attribute(
             }
         }
         Attribute::ClassDirective(d) => {
-            let inner = format_expression_at(source, &d.expression, options)?.unwrap_or_default();
+            let inner = render_directive_value(source, &d.expression, d.end, options)?;
             if inner == d.name.as_str() {
                 Ok(format!("class:{}", d.name))
             } else {
@@ -485,7 +485,7 @@ fn render_attribute(
         Attribute::OnDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("on:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("on:{}{modifiers}", d.name))
@@ -501,7 +501,7 @@ fn render_attribute(
             };
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("{prefix}:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("{prefix}:{}{modifiers}", d.name))
@@ -509,7 +509,7 @@ fn render_attribute(
         }
         Attribute::AnimateDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("animate:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("animate:{}", d.name))
@@ -517,7 +517,7 @@ fn render_attribute(
         }
         Attribute::UseDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = format_expression_at(source, expr, options)?.unwrap_or_default();
+                let inner = render_directive_value(source, expr, d.end, options)?;
                 Ok(format!("use:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("use:{}", d.name))
@@ -675,6 +675,24 @@ fn render_modifiers<S: AsRef<str>>(modifiers: &[S]) -> String {
 
 /// Slice the expression's source span, trim it, and format. Returns
 /// `None` if the span is missing or empty.
+/// Format a directive's `{ EXPR }` value. Prefers the source-brace slice
+/// ([`crate::expression::format_directive_value`]) so a TS cast the parser
+/// narrows away — `bind:value={value as string}` → bare `value` node — is
+/// preserved verbatim (#682), and falls back to the bare-node formatter when
+/// the value braces can't be located. `value_end` is the directive node's
+/// `end` (just past the closing `}`).
+fn render_directive_value(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    if let Some(s) = crate::expression::format_directive_value(source, expr, value_end, options)? {
+        return Ok(s);
+    }
+    Ok(format_expression_at(source, expr, options)?.unwrap_or_default())
+}
+
 fn format_expression_at(
     source: &str,
     expr: &Expression,

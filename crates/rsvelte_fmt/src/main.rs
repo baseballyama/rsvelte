@@ -196,6 +196,8 @@ fn build_format_options(cli: &Cli) -> FormatOptions {
             ..JsFormatOptions::new()
         },
         style_formatter: Some(make_oxfmt_style_formatter(cli.oxfmt_bin.clone())),
+        // `format` derives this per-document from `<script lang="ts">`.
+        typescript: false,
     }
 }
 

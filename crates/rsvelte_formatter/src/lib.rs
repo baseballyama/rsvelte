@@ -38,6 +38,27 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
 
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
 
+    // A component is TypeScript if either `<script>` block declares
+    // `lang="ts"`. Template `{expr}` / attribute / pattern source must then
+    // be parsed in the same dialect as the script body, so `{value as
+    // string}` and friends round-trip instead of erroring as JS (#682).
+    // Thread the flag via a per-document clone — the shared `&FormatOptions`
+    // is never mutated, so parallel `format()` calls stay independent.
+    let typescript = [root.instance.as_deref(), root.module.as_deref()]
+        .into_iter()
+        .flatten()
+        .any(|script| script.is_typescript);
+    let ts_options;
+    let options = if typescript && !options.typescript {
+        ts_options = FormatOptions {
+            typescript: true,
+            ..options.clone()
+        };
+        &ts_options
+    } else {
+        options
+    };
+
     for script in [root.instance.as_deref(), root.module.as_deref()]
         .into_iter()
         .flatten()

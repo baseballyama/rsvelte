@@ -25,6 +25,14 @@ pub struct FormatOptions {
     /// The callback must be `Send + Sync` so the same `FormatOptions`
     /// can drive parallel file formatting via `rayon`.
     pub style_formatter: Option<StyleFormatter>,
+
+    /// Whether template `{expr}` / attribute / pattern source should be
+    /// parsed as TypeScript. [`crate::format`] sets this per-document from
+    /// the component's `<script lang="ts">` declaration, so a `{value as
+    /// string}` mustache parses with the same dialect as the `<script>`
+    /// body (#682). Callers normally leave it at its `false` default; it is
+    /// not a user-facing knob.
+    pub typescript: bool,
 }
 
 /// Callback used to format the body of a `<style>` block. See
@@ -36,6 +44,7 @@ impl FormatOptions {
         Self {
             js: JsFormatOptions::new(),
             style_formatter: None,
+            typescript: false,
         }
     }
 
@@ -60,6 +69,7 @@ impl std::fmt::Debug for FormatOptions {
                 "style_formatter",
                 &self.style_formatter.as_ref().map(|_| "<callback>"),
             )
+            .field("typescript", &self.typescript)
             .finish()
     }
 }
