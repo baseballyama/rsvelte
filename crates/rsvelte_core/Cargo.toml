@@ -54,7 +54,7 @@ oxc_syntax = "0.134"
 oxc_semantic = "0.134"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "187e1a52c1e16c43c50c435579e1e2c2173e690f" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "600cd6f40087e9f0453a73f48e4a33306265e50c" }
 
 # Error handling
 thiserror = "2.0"
