@@ -56,6 +56,38 @@ function isAlreadyPublished(name, version) {
 	return false;
 }
 
+// Block until the registry reflects a just-published version.
+//
+// Why: `changeset publish` runs immediately after this script and takes its
+// own `npm info` snapshot of every workspace package up front. If the registry
+// hasn't propagated a version we published here, changeset's snapshot shows it
+// as *not* published and it attempts a duplicate publish. npm answers that with
+// an E403 ("cannot publish over the previously published version"), and under
+// OIDC trusted publishing that error JSON carries no `summary` field — which
+// crashes changesets 2.31.0's `isAlreadyPublishedError(json.error.summary)`
+// (`undefined.includes(...)`), failing the whole release even though every
+// package actually published. Polling until the version is visible closes the
+// read-after-write gap so changeset reliably sees "already published" and skips
+// it (the benign "is not being published" warning) instead of racing.
+function waitUntilVisible(name, version, { timeoutMs = 90_000, intervalMs = 3_000 } = {}) {
+	const deadline = Date.now() + timeoutMs;
+	for (;;) {
+		if (isAlreadyPublished(name, version)) {
+			return true;
+		}
+		if (Date.now() >= deadline) {
+			// Don't fail the release: the publish itself succeeded, this is only
+			// the propagation barrier. Worst case changeset races as before.
+			console.warn(
+				`[publish-platform] ${name}@${version} not visible after ${timeoutMs}ms — continuing anyway`,
+			);
+			return false;
+		}
+		// Synchronous sleep so the barrier stays in this sequential script.
+		Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, intervalMs);
+	}
+}
+
 let failures = 0;
 for (const relDir of platformDirs) {
 	const absDir = resolve(repoRoot, relDir);
@@ -82,6 +114,14 @@ for (const relDir of platformDirs) {
 	if (result.status !== 0) {
 		console.error(`[publish-platform] FAILED: ${name}@${version} (exit ${result.status})`);
 		failures += 1;
+		continue;
+	}
+	// Wait for registry propagation before the next package / `changeset
+	// publish` so the duplicate-publish race can't crash changesets. Skipped
+	// for dry runs, which never touch the registry.
+	if (!dryRun) {
+		console.log(`[publish-platform] waiting for ${name}@${version} to be visible on the registry`);
+		waitUntilVisible(name, version);
 	}
 }
 
