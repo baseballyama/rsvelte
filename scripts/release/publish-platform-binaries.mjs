@@ -1,20 +1,20 @@
 #!/usr/bin/env node
-// Publish the platform packages that ship an executable `svelte-check`
-// binary via `npm publish` rather than `pnpm publish`.
+// Publish the platform packages that ship an executable POSIX binary
+// (`@rsvelte/svelte-check-*` and `@rsvelte/fmt-*`) via `npm publish` rather
+// than `pnpm publish`.
 //
 // Why: `pnpm pack` (which `pnpm publish` uses) normalises file modes to 0644,
 // dropping the execute bit even when the source file has +x set. The
 // resulting tarball ships a non-executable binary and `pnpm dlx
-// @rsvelte/svelte-check` fails with EACCES. `npm pack` preserves modes, so
+// @rsvelte/<pkg>` fails with EACCES. `npm pack` preserves modes, so
 // publishing these tarballs with npm yields a working install.
 //
 // This runs *before* `changeset publish`; changesets sees the already-
 // published versions and skips them, while every other workspace package
 // continues to publish through changesets/pnpm.
 //
-// The Windows platform package ships `svelte-check.exe` and is excluded —
-// Windows ignores POSIX mode bits, so pnpm's normalisation is harmless
-// there.
+// The Windows platform packages ship a `.exe` and are excluded — Windows
+// ignores POSIX mode bits, so pnpm's normalisation is harmless there.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -29,6 +29,10 @@ const platformDirs = [
 	'apps/npm/svelte-check-darwin-x64',
 	'apps/npm/svelte-check-linux-x64-gnu',
 	'apps/npm/svelte-check-linux-arm64-gnu',
+	'apps/npm/fmt-darwin-arm64',
+	'apps/npm/fmt-darwin-x64',
+	'apps/npm/fmt-linux-x64-gnu',
+	'apps/npm/fmt-linux-arm64-gnu',
 ];
 
 const dryRun = process.argv.includes('--dry-run');

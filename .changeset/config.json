@@ -18,6 +18,14 @@
       "@rsvelte/vite-plugin-svelte-native-linux-arm64-gnu",
       "@rsvelte/vite-plugin-svelte-native-linux-x64-gnu",
       "@rsvelte/vite-plugin-svelte-native-win32-x64-msvc"
+    ],
+    [
+      "@rsvelte/fmt",
+      "@rsvelte/fmt-darwin-arm64",
+      "@rsvelte/fmt-darwin-x64",
+      "@rsvelte/fmt-linux-arm64-gnu",
+      "@rsvelte/fmt-linux-x64-gnu",
+      "@rsvelte/fmt-win32-x64-msvc"
     ]
   ],
   "linked": [],

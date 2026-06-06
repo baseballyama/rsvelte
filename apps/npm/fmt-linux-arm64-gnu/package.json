@@ -1,0 +1,29 @@
+{
+  "name": "@rsvelte/fmt-linux-arm64-gnu",
+  "version": "0.1.0",
+  "description": "Prebuilt rsvelte-fmt binary for linux-arm64 (glibc)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "apps/npm/fmt-linux-arm64-gnu"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "rsvelte-fmt"
+  ],
+  "scripts": {
+    "prepack": "chmod +x rsvelte-fmt"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

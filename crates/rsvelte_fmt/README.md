@@ -28,16 +28,35 @@ is exercised manually because `oxfmt` may not be present in every CI lane.
 
 ## Install
 
-For now, build from source (the crate is not yet published):
+### npm (recommended)
+
+The CLI is published as [`@rsvelte/fmt`](https://www.npmjs.com/package/@rsvelte/fmt)
+with prebuilt binaries for macOS / Linux / Windows:
+
+```bash
+npm install -D @rsvelte/fmt
+npx rsvelte-fmt --help
+```
+
+[`oxfmt`](https://www.npmjs.com/package/oxfmt) handles non-`.svelte` files and
+`<style>` CSS. It's an **optional peer dependency** — install whatever version
+you want and the loader resolves it automatically:
+
+```bash
+npm install -D oxfmt
+```
+
+### From source
 
 ```bash
 cargo build --release -p rsvelte_fmt
 ./target/release/rsvelte-fmt --help
 ```
 
-You also need [`oxfmt`](https://oxc.rs/docs/guide/usage/formatter) on
-`$PATH` for non-`.svelte` files. Use `--oxfmt-bin PATH` to point at a
-specific binary.
+When run from source you need [`oxfmt`](https://oxc.rs/docs/guide/usage/formatter)
+on `$PATH` for non-`.svelte` files. Use `--oxfmt-bin PATH` to point at a
+specific binary (a native binary, or a Node launcher such as
+`node_modules/oxfmt/bin/oxfmt`).
 
 ## Usage
 

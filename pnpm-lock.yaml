@@ -18,6 +18,38 @@ importers:
   apps/npm/compiler:
     publishDirectory: ../../../pkg
 
+  apps/npm/fmt:
+    dependencies:
+      oxfmt:
+        specifier: '*'
+        version: 0.53.0
+    optionalDependencies:
+      '@rsvelte/fmt-darwin-arm64':
+        specifier: workspace:^
+        version: link:../fmt-darwin-arm64
+      '@rsvelte/fmt-darwin-x64':
+        specifier: workspace:^
+        version: link:../fmt-darwin-x64
+      '@rsvelte/fmt-linux-arm64-gnu':
+        specifier: workspace:^
+        version: link:../fmt-linux-arm64-gnu
+      '@rsvelte/fmt-linux-x64-gnu':
+        specifier: workspace:^
+        version: link:../fmt-linux-x64-gnu
+      '@rsvelte/fmt-win32-x64-msvc':
+        specifier: workspace:^
+        version: link:../fmt-win32-x64-msvc
+
+  apps/npm/fmt-darwin-arm64: {}
+
+  apps/npm/fmt-darwin-x64: {}
+
+  apps/npm/fmt-linux-arm64-gnu: {}
+
+  apps/npm/fmt-linux-x64-gnu: {}
+
+  apps/npm/fmt-win32-x64-msvc: {}
+
   apps/npm/svelte-check:
     optionalDependencies:
       '@rsvelte/svelte-check-darwin-arm64':

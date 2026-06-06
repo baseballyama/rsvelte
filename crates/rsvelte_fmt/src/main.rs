@@ -63,6 +63,35 @@ struct Cli {
 
 const SVELTE_EXT: &str = "svelte";
 
+/// Build a `Command` that runs `oxfmt`.
+///
+/// The npm `@rsvelte/fmt` launcher resolves the consumer's `oxfmt/bin/oxfmt`
+/// Node launcher (an extensionless script with shebang `#!/usr/bin/env node`)
+/// and passes it via `--oxfmt-bin`, setting `RSVELTE_FMT_NODE` to the exact
+/// interpreter. Such a script isn't directly executable on Windows, so when
+/// `RSVELTE_FMT_NODE` is set we run the oxfmt path through that `node`. As a
+/// convenience for `cargo run` users who point `--oxfmt-bin` at a `.js` /
+/// `.cjs` / `.mjs` launcher without setting the env var, we also fall back to
+/// `node` on `$PATH` in that case. A plain native binary (the default `oxfmt`
+/// on `$PATH`, or any user-supplied path) is run directly.
+fn oxfmt_command(oxfmt: &Path) -> Command {
+    let node_env = std::env::var_os("RSVELTE_FMT_NODE").filter(|v| !v.is_empty());
+    let is_js_ext = matches!(
+        oxfmt.extension().and_then(OsStr::to_str),
+        Some("js" | "cjs" | "mjs")
+    );
+    if node_env.is_some() || is_js_ext {
+        let node = node_env
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("node"));
+        let mut cmd = Command::new(node);
+        cmd.arg(oxfmt);
+        cmd
+    } else {
+        Command::new(oxfmt)
+    }
+}
+
 /// File extensions that get delegated to `oxfmt`. Kept narrow on purpose
 /// so we don't accidentally feed binary files into the formatter.
 const OXFMT_EXTS: &[&str] = &["ts", "tsx", "js", "jsx", "cjs", "mjs", "json", "css"];
@@ -183,7 +212,7 @@ fn make_oxfmt_style_formatter(oxfmt: PathBuf) -> rsvelte_formatter::StyleFormatt
             _ => "css",
         };
         let filename = format!("inline.{ext}");
-        let mut child = Command::new(&oxfmt)
+        let mut child = oxfmt_command(&oxfmt)
             .arg("--stdin")
             .arg("--stdin-filepath")
             .arg(&filename)
@@ -243,7 +272,7 @@ fn run_stdin(cli: &Cli, options: &FormatOptions) -> Result<ExitCode> {
 }
 
 fn oxfmt_stdin(oxfmt: &Path, path: &Path, source: &str, check: bool) -> Result<ExitCode> {
-    let mut cmd = Command::new(oxfmt);
+    let mut cmd = oxfmt_command(oxfmt);
     cmd.arg("--stdin");
     cmd.arg("--stdin-filepath").arg(path);
     if check {
@@ -369,7 +398,7 @@ fn run_oxfmt(files: &[PathBuf], oxfmt: &Path, mode: Mode) -> Result<PipelineStat
         return Ok(PipelineStatus::default());
     }
 
-    let mut cmd = Command::new(oxfmt);
+    let mut cmd = oxfmt_command(oxfmt);
     match mode {
         Mode::Write => {} // oxfmt's default for paths is in-place write
         Mode::Check => {
