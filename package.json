@@ -31,6 +31,7 @@
     "finalize-pkg": "node scripts/release/finalize-pkg.mjs",
     "stage-svelte-check": "node scripts/release/stage-svelte-check-binaries.mjs",
     "stage-fmt": "node scripts/release/stage-fmt-binaries.mjs",
+    "first-publish-fmt": "node scripts/release/first-publish-fmt.mjs",
     "stage-vps-native": "node scripts/release/stage-vps-binaries.mjs",
     "publish-platform-binaries": "node scripts/release/publish-platform-binaries.mjs",
     "test:envelope": "node scripts/dev/test-envelope-validation.mjs",
