@@ -29,6 +29,52 @@ concurrency:
   cancel-in-progress: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
 
 jobs:
+  # Fast path: open / refresh the "Version Packages" PR. The version cycle
+  # never stages binaries (changeset version only bumps package.json/CHANGELOG
+  # and mirrors the version into Cargo.toml/Cargo.lock as text), so this job
+  # has NO dependency on the binary build matrix. Decoupling it means a flaky
+  # crates.io download in one build leg can no longer block the version PR
+  # from being created — the failure that produced run 27058363504.
+  #
+  # Runs on every push to main EXCEPT the "Version Packages" merge itself —
+  # that commit consumes the changesets and triggers the `publish` job below.
+  version-pr:
+    name: Version PR
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Full history so changesets can read the merge base when computing
+          # which packages need releasing.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # No `publish` input on purpose — this job ONLY ever opens/refreshes the
+      # version PR. When there are no changesets it is a no-op. Publishing is
+      # handled by the `publish` job once the version PR is merged.
+      - name: Create or refresh Release Pull Request
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          # changeset version (bump versions, write CHANGELOG)
+          # + sync-version.mjs (mirror the bump into Cargo.toml/Cargo.lock)
+          version: pnpm run version-packages
+          commit: 'chore(release): version packages'
+          title: 'chore(release): version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # Per-platform svelte-check binary builds. Each job uploads its rsvelte
   # `svelte-check` artifact; the `release` job below downloads them all and
   # stages them into the corresponding `apps/npm/svelte-check-<triple>/` package
@@ -37,6 +83,9 @@ jobs:
   # CI minutes for not having to detect publish vs. version-PR up front.
   build-svelte-check:
     name: Build svelte-check (${{ matrix.triple }})
+    # Only the publish path needs binaries staged; gate every build leg to the
+    # "Version Packages" merge commit so regular pushes skip them entirely.
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     strategy:
       fail-fast: false
       matrix:
@@ -92,6 +141,7 @@ jobs:
   # it for the release job to stage into the matching platform package.
   build-vps-native:
     name: Build vps-native (${{ matrix.triple }})
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     strategy:
       fail-fast: false
       matrix:
@@ -148,6 +198,7 @@ jobs:
   # `[[bin]] name = "rsvelte-fmt"`), so no underscore rename is needed.
   build-rsvelte-fmt:
     name: Build rsvelte-fmt (${{ matrix.triple }})
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     strategy:
       fail-fast: false
       matrix:
@@ -194,8 +245,12 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  release:
-    name: Release
+  publish:
+    name: Publish
+    # Publish only runs on the "Version Packages" merge commit, once the
+    # version PR (opened by `version-pr` above) has been merged and the
+    # changesets consumed. This is the only path that needs staged binaries.
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     runs-on: ubuntu-latest
     needs: [build-svelte-check, build-vps-native, build-rsvelte-fmt]
     timeout-minutes: 30
@@ -258,19 +313,18 @@ jobs:
       # on npmjs.com pointing at this repo + workflow. No NPM_TOKEN is set
       # on purpose — writing an empty token to ~/.npmrc silently disables
       # the OIDC fallback.
-      - name: Create Release Pull Request or Publish
+      - name: Publish
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
-          # When the "Version Packages" PR is merged, this script runs:
+          # On the "Version Packages" merge there are no changesets left, so
+          # changesets/action takes the publish path and runs this script:
           # sync-version.mjs (version → Cargo.toml / Cargo.lock),
           # wasm-pack build (regenerates pkg/ with the new version),
           # finalize-pkg.mjs (rewrites pkg/package.json to @rsvelte/compiler),
           # changeset publish (pnpm publish all workspace packages).
+          # No `version` input here — version bumping happens in the separate
+          # `version-pr` job, decoupled from the binary builds this job needs.
           publish: pnpm run release
-          # When changesets exist on main, open/refresh a PR that runs:
-          # changeset version (bump versions, write CHANGELOG)
-          # + sync-version.mjs (mirror the bump into Cargo.toml/Cargo.lock)
-          version: pnpm run version-packages
           commit: 'chore(release): version packages'
           title: 'chore(release): version packages'
         env:
