@@ -28,8 +28,8 @@
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, Fragment, SpreadAttribute,
-    TemplateNode,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment,
+    SpreadAttribute, TemplateNode,
 };
 
 use crate::error::FormatError;
@@ -553,6 +553,26 @@ fn render_attribute(
     }
 }
 
+/// Return the source text of an `ExpressionTag`'s inner expression, without
+/// the surrounding `{`/`}`.
+///
+/// A regular `name={expr}` attribute's `ExpressionTag` spans the braces, so we
+/// strip one byte from each end. But the attribute shorthand `{name}` is
+/// parsed (matching upstream `start: id.start, end: id.end`) so its
+/// `ExpressionTag` spans only the identifier — there are no braces to strip.
+/// Blindly slicing `start+1..end-1` there dropped the first and last character
+/// of the identifier, silently rewriting `{width}` to `width={idt}` (#679). So
+/// only peel braces when they're actually present at the span boundaries.
+fn expression_tag_inner<'a>(tag: &ExpressionTag, source: &'a str) -> &'a str {
+    let (start, end) = (tag.start as usize, tag.end as usize);
+    let bytes = source.as_bytes();
+    if bytes.get(start) == Some(&b'{') && end > start + 1 && bytes.get(end - 1) == Some(&b'}') {
+        source.get(start + 1..end - 1).unwrap_or("")
+    } else {
+        source.get(start..end).unwrap_or("")
+    }
+}
+
 fn render_attribute_node(
     node: &AttributeNode,
     source: &str,
@@ -561,10 +581,7 @@ fn render_attribute_node(
     match &node.value {
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
-            let inner_src = source
-                .get(tag.start as usize + 1..tag.end as usize - 1)
-                .unwrap_or("")
-                .trim();
+            let inner_src = expression_tag_inner(tag, source).trim();
             if inner_src.is_empty() {
                 return Ok(format!("{}={{}}", node.name));
             }
@@ -591,10 +608,7 @@ fn render_attribute_value_for_directive(
     match value {
         AttributeValue::True(_) => Ok(String::new()),
         AttributeValue::Expression(tag) => {
-            let inner_src = source
-                .get(tag.start as usize + 1..tag.end as usize - 1)
-                .unwrap_or("")
-                .trim();
+            let inner_src = expression_tag_inner(tag, source).trim();
             if inner_src.is_empty() {
                 return Ok("{}".to_string());
             }

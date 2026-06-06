@@ -199,8 +199,8 @@ fn build_format_options(cli: &Cli) -> FormatOptions {
     }
 }
 
-/// Build the callback that runs `oxfmt --stdin --stdin-filepath
-/// inline.<lang>` for every `<style>` body inside a `.svelte` file.
+/// Build the callback that runs `oxfmt --stdin-filepath inline.<lang>`
+/// for every `<style>` body inside a `.svelte` file.
 /// This way CSS / SCSS / Less inside Svelte components are formatted
 /// by the same engine that handles standalone `.css` files.
 fn make_oxfmt_style_formatter(oxfmt: PathBuf) -> rsvelte_formatter::StyleFormatter {
@@ -212,8 +212,10 @@ fn make_oxfmt_style_formatter(oxfmt: PathBuf) -> rsvelte_formatter::StyleFormatt
             _ => "css",
         };
         let filename = format!("inline.{ext}");
+        // oxfmt reads stdin implicitly when `--stdin-filepath` is given with no
+        // path arguments. It has no `--stdin` flag and errors if one is passed
+        // (#680), so feed the body on stdin and pass only `--stdin-filepath`.
         let mut child = oxfmt_command(&oxfmt)
-            .arg("--stdin")
             .arg("--stdin-filepath")
             .arg(&filename)
             .stdin(Stdio::piped())
@@ -273,7 +275,8 @@ fn run_stdin(cli: &Cli, options: &FormatOptions) -> Result<ExitCode> {
 
 fn oxfmt_stdin(oxfmt: &Path, path: &Path, source: &str, check: bool) -> Result<ExitCode> {
     let mut cmd = oxfmt_command(oxfmt);
-    cmd.arg("--stdin");
+    // oxfmt reads stdin implicitly given `--stdin-filepath`; passing `--stdin`
+    // is rejected (#680).
     cmd.arg("--stdin-filepath").arg(path);
     if check {
         cmd.arg("--check");
