@@ -127,7 +127,7 @@ fn run() -> Result<ExitCode> {
     // Run both pipelines in parallel — oxfmt subprocess will overlap
     // with the in-process Svelte formatter.
     let (svelte_result, oxfmt_result) = rayon::join(
-        || run_svelte_files(&svelte, &options, mode),
+        || run_svelte_files(&svelte, &options, &cli.oxfmt_bin, mode),
         || run_oxfmt(&others, &cli.oxfmt_bin, mode),
     );
 
@@ -207,13 +207,7 @@ fn build_format_options(cli: &Cli) -> FormatOptions {
 /// by the same engine that handles standalone `.css` files.
 fn make_oxfmt_style_formatter(oxfmt: PathBuf) -> rsvelte_formatter::StyleFormatter {
     Arc::new(move |body: &str, lang: &str| -> Result<String, String> {
-        let ext = match lang {
-            "scss" => "scss",
-            "less" => "less",
-            "postcss" | "pcss" => "css",
-            _ => "css",
-        };
-        let filename = format!("inline.{ext}");
+        let filename = format!("inline.{}", oxfmt_ext(lang));
         // oxfmt reads stdin implicitly when `--stdin-filepath` is given with no
         // path arguments. It has no `--stdin` flag and errors if one is passed
         // (#680), so feed the body on stdin and pass only `--stdin-filepath`.
@@ -344,30 +338,99 @@ fn is_svelte(p: &Path) -> bool {
 
 // ─── Svelte pipeline ────────────────────────────────────────────────────
 
+/// A `<style>` body captured during pass 1, to be formatted in the
+/// single batched `oxfmt` call instead of one spawn per block.
+struct CollectedStyle {
+    css: String,
+    lang: String,
+}
+
+/// Result of pass 1 for a single `.svelte` file.
+struct Pass1 {
+    path: PathBuf,
+    source: String,
+    /// `Ok((formatted_with_placeholders, styles))` or the format error.
+    outcome: std::result::Result<(String, Vec<CollectedStyle>), String>,
+}
+
+/// Placeholder spliced into the output in place of each `<style>` body
+/// during pass 1; replaced with the batched-`oxfmt` output in pass 2.
+/// Wrapped in NUL bytes, which never occur in `.svelte` source or CSS, so
+/// the substitution can't collide with real content.
+fn style_placeholder(local_idx: usize) -> String {
+    format!("\u{0}RSVELTE_FMT_STYLE_{local_idx}\u{0}")
+}
+
+/// Format every `.svelte` file, batching all their `<style>` bodies into a
+/// single `oxfmt` invocation.
+///
+/// The naive path spawns `oxfmt` once per `<style>` block — and since the
+/// consumer's `oxfmt` is a Node launcher, every spawn pays a fresh Node
+/// cold start (~26ms measured), which dominates wall-clock on real trees.
+/// Instead: pass 1 formats each file in parallel with a *collecting* style
+/// callback that records the CSS and returns a placeholder; one batched
+/// `oxfmt` call formats them all; pass 2 substitutes the results back.
 fn run_svelte_files(
     files: &[PathBuf],
     options: &FormatOptions,
+    oxfmt: &Path,
     mode: Mode,
 ) -> Result<PipelineStatus> {
-    let results: Vec<_> = files
+    // ── Pass 1: format in parallel, collecting <style> bodies ──
+    let pass1: Vec<Pass1> = files
         .par_iter()
-        .map(|path| format_one_svelte(path, options, mode))
+        .map(|path| format_collecting(path, options))
         .collect();
 
+    // ── Flatten collected styles across all files, keyed by (file, local) ──
+    let mut slot_css: Vec<(&str, &str)> = Vec::new(); // (css, lang) in batch order
+    let mut slot_owner: Vec<(usize, usize)> = Vec::new(); // (file_idx, local_idx)
+    for (fi, p1) in pass1.iter().enumerate() {
+        if let Ok((_, styles)) = &p1.outcome {
+            for (li, st) in styles.iter().enumerate() {
+                slot_css.push((&st.css, &st.lang));
+                slot_owner.push((fi, li));
+            }
+        }
+    }
+
+    // ── Batch: one oxfmt call for every <style> body ──
+    let formatted_css =
+        batch_format_styles(oxfmt, &slot_css).context("formatting <style> blocks via oxfmt")?;
+
+    // file_idx → (local_idx → formatted css)
+    let mut per_file: Vec<Vec<String>> = vec![Vec::new(); pass1.len()];
+    for ((fi, li), css) in slot_owner.into_iter().zip(formatted_css) {
+        let v = &mut per_file[fi];
+        if v.len() <= li {
+            v.resize(li + 1, String::new());
+        }
+        v[li] = css;
+    }
+
+    // ── Pass 2: substitute placeholders, then write / check ──
     let mut status = PipelineStatus {
-        files_total: results.len(),
+        files_total: pass1.len(),
         ..PipelineStatus::default()
     };
-
-    for (path, outcome) in files.iter().zip(results) {
-        match outcome {
-            Ok(changed) => {
-                if changed {
-                    status.files_changed += 1;
-                }
-            }
+    for (fi, p1) in pass1.into_iter().enumerate() {
+        let (mut out, styles) = match p1.outcome {
+            Ok(v) => v,
             Err(e) => {
-                eprintln!("rsvelte-fmt: {}: {e:#}", path.display());
+                eprintln!("rsvelte-fmt: {}: {e}", p1.path.display());
+                status.had_errors = true;
+                continue;
+            }
+        };
+        for li in 0..styles.len() {
+            let css = per_file[fi].get(li).cloned().unwrap_or_default();
+            out = out.replace(&style_placeholder(li), &css);
+        }
+        match apply_output(&p1.path, &p1.source, &out, mode) {
+            Ok(true) => status.files_changed += 1,
+            Ok(false) => {}
+            Err(e) => {
+                eprintln!("rsvelte-fmt: {}: {e:#}", p1.path.display());
                 status.had_errors = true;
             }
         }
@@ -375,17 +438,118 @@ fn run_svelte_files(
     Ok(status)
 }
 
-fn format_one_svelte(path: &Path, options: &FormatOptions, mode: Mode) -> Result<bool> {
-    let source =
-        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let formatted = format(&source, options)
-        .map_err(|e| anyhow!("{}: rsvelte_formatter error: {e}", path.display()))?;
+/// Pass 1 for one file: read it and format with a style callback that
+/// records each `<style>` body and returns a placeholder.
+fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
+    let source = match std::fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) => {
+            return Pass1 {
+                path: path.to_path_buf(),
+                source: String::new(),
+                outcome: Err(format!("reading {}: {e}", path.display())),
+            };
+        }
+    };
+
+    let styles: Arc<std::sync::Mutex<Vec<CollectedStyle>>> = Arc::default();
+    let sink = styles.clone();
+    let mut opts = options.clone();
+    opts.style_formatter = Some(Arc::new(move |body: &str, lang: &str| {
+        let mut v = sink.lock().expect("style sink poisoned");
+        let idx = v.len();
+        v.push(CollectedStyle {
+            css: body.to_string(),
+            lang: lang.to_string(),
+        });
+        Ok(style_placeholder(idx))
+    }));
+
+    let outcome = match format(&source, &opts) {
+        Ok(formatted) => {
+            drop(opts); // release the sink Arc so we can unwrap it
+            let styles = Arc::try_unwrap(styles)
+                .map(|m| m.into_inner().expect("style sink poisoned"))
+                .unwrap_or_else(|arc| arc.lock().expect("style sink poisoned").drain(..).collect());
+            Ok((formatted, styles))
+        }
+        Err(e) => Err(format!("rsvelte_formatter error: {e}")),
+    };
+
+    Pass1 {
+        path: path.to_path_buf(),
+        source,
+        outcome,
+    }
+}
+
+/// Format every collected `<style>` body in a single `oxfmt` invocation by
+/// staging each into a temp file and running `oxfmt <files...>` (in-place),
+/// then reading them back. Returns the formatted CSS in input order.
+fn batch_format_styles(oxfmt: &Path, styles: &[(&str, &str)]) -> Result<Vec<String>> {
+    if styles.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let dir = std::env::temp_dir().join(format!("rsvelte-fmt-styles-{}", std::process::id()));
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("creating temp dir {}", dir.display()))?;
+
+    let paths: Vec<PathBuf> = styles
+        .iter()
+        .enumerate()
+        .map(|(i, (css, lang))| {
+            let p = dir.join(format!("s{i}.{}", oxfmt_ext(lang)));
+            std::fs::write(&p, css.as_bytes())
+                .with_context(|| format!("writing {}", p.display()))?;
+            Ok(p)
+        })
+        .collect::<Result<_>>()?;
+
+    let out = oxfmt_command(oxfmt)
+        .args(&paths)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .with_context(|| format!("running `{}` — is oxfmt installed?", oxfmt.display()))?;
+
+    // Read back regardless of exit status: a CSS body oxfmt couldn't parse
+    // is left unchanged on disk, so it round-trips as the original body.
+    let results: Vec<String> = paths
+        .iter()
+        .map(|p| std::fs::read_to_string(p).with_context(|| format!("reading {}", p.display())))
+        .collect::<Result<_>>()?;
+
+    let _ = std::fs::remove_dir_all(&dir);
+
+    if !out.status.success() {
+        eprintln!(
+            "rsvelte-fmt: oxfmt reported errors while formatting <style> blocks:\n{}",
+            String::from_utf8_lossy(&out.stderr).trim_end()
+        );
+    }
+    Ok(results)
+}
+
+/// Map a `<style lang="...">` value to the file extension oxfmt uses to
+/// pick a parser. Shared with the stdin path's per-block formatter.
+fn oxfmt_ext(lang: &str) -> &'static str {
+    match lang {
+        "scss" => "scss",
+        "less" => "less",
+        _ => "css",
+    }
+}
+
+/// Write `formatted` back to `path` (write mode) or report it (check mode).
+/// Returns whether the file would change.
+fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Result<bool> {
     if formatted == source {
         return Ok(false);
     }
     match mode {
         Mode::Write => {
-            std::fs::write(path, &formatted)
+            std::fs::write(path, formatted)
                 .with_context(|| format!("writing {}", path.display()))?;
             Ok(true)
         }
