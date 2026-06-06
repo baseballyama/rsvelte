@@ -16,7 +16,9 @@ use rayon::prelude::*;
 use rsvelte_formatter::{FormatOptions, format};
 
 mod config;
+mod style_cache;
 use config::OxfmtConfig;
+use style_cache::StyleCache;
 
 /// rsvelte-fmt: fast Svelte + JS/TS/CSS formatter.
 #[derive(Debug, Parser)]
@@ -75,6 +77,13 @@ struct Cli {
     /// Path to the `oxfmt` binary. Defaults to `oxfmt` on `$PATH`.
     #[arg(long, value_name = "PATH", default_value = "oxfmt")]
     oxfmt_bin: PathBuf,
+
+    /// Disable the on-disk cache of formatted inline `<style>` blocks. By
+    /// default, formatted CSS is cached (keyed by oxfmt version + resolved
+    /// config + body) so unchanged blocks skip the oxfmt round-trip on
+    /// subsequent runs. Also disabled by `RSVELTE_FMT_NO_CACHE`. See #703.
+    #[arg(long)]
+    no_style_cache: bool,
 }
 
 const SVELTE_EXT: &str = "svelte";
@@ -158,8 +167,18 @@ fn run() -> Result<ExitCode> {
 
     // Run both pipelines in parallel — oxfmt subprocess will overlap
     // with the in-process Svelte formatter.
+    let use_style_cache = !cli.no_style_cache;
     let (svelte_result, oxfmt_result) = rayon::join(
-        || run_svelte_files(&svelte, &options, &cli.oxfmt_bin, &cfg, mode),
+        || {
+            run_svelte_files(
+                &svelte,
+                &options,
+                &cli.oxfmt_bin,
+                &cfg,
+                mode,
+                use_style_cache,
+            )
+        },
         || run_oxfmt(&oxfmt_paths, &cli.oxfmt_bin, mode),
     );
 
@@ -466,6 +485,7 @@ fn run_svelte_files(
     oxfmt: &Path,
     cfg: &OxfmtConfig,
     mode: Mode,
+    use_style_cache: bool,
 ) -> Result<PipelineStatus> {
     // ── Pass 1: format in parallel, collecting <style> bodies ──
     let pass1: Vec<Pass1> = files
@@ -485,8 +505,18 @@ fn run_svelte_files(
         }
     }
 
-    // ── Batch: one oxfmt call for every <style> body ──
-    let formatted_css = batch_format_styles(oxfmt, cfg.path.as_deref(), &slot_css)
+    // ── Format every <style> body, served from cache when possible ──
+    // The cache (keyed by oxfmt version + resolved config + body) lets
+    // unchanged blocks skip the oxfmt staging round-trip entirely — the
+    // dominant cost on a real tree (#703). Only cache misses are sent to the
+    // single batched oxfmt call; freshly-formatted misses are then stored.
+    let cache = if use_style_cache && !slot_css.is_empty() {
+        StyleCache::new(oxfmt, cfg.path.as_deref())
+    } else {
+        None
+    };
+
+    let formatted_css = format_styles_cached(oxfmt, cfg.path.as_deref(), &slot_css, cache.as_ref())
         .context("formatting <style> blocks via oxfmt")?;
 
     // file_idx → (local_idx → formatted css)
@@ -574,16 +604,72 @@ fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
     }
 }
 
+/// Format every `<style>` body in input order, serving cache hits without
+/// touching oxfmt and batching only the misses into one oxfmt invocation.
+///
+/// On a hit the stored bytes are byte-identical to oxfmt's output (the key
+/// covers oxfmt version + config + body), so output parity is preserved. Misses
+/// are stored only when oxfmt formatted them successfully — a body oxfmt
+/// couldn't parse round-trips unchanged and is never cached, so it is retried
+/// on the next run.
+fn format_styles_cached(
+    oxfmt: &Path,
+    config: Option<&Path>,
+    styles: &[(&str, &str)],
+    cache: Option<&StyleCache>,
+) -> Result<Vec<String>> {
+    if styles.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let Some(cache) = cache else {
+        // Caching disabled — format everything through the batch path.
+        return Ok(batch_format_styles(oxfmt, config, styles)?.0);
+    };
+
+    // Partition into cache hits and misses, preserving input order.
+    let mut results: Vec<Option<String>> = Vec::with_capacity(styles.len());
+    let mut miss_styles: Vec<(&str, &str)> = Vec::new();
+    let mut miss_slots: Vec<usize> = Vec::new();
+    for (i, (css, lang)) in styles.iter().enumerate() {
+        match cache.get(css, lang) {
+            Some(hit) => results.push(Some(hit)),
+            None => {
+                results.push(None);
+                miss_styles.push((css, lang));
+                miss_slots.push(i);
+            }
+        }
+    }
+
+    if !miss_styles.is_empty() {
+        let (formatted, ok) = batch_format_styles(oxfmt, config, &miss_styles)?;
+        for (slot, css) in miss_slots.iter().zip(formatted) {
+            // Only persist successfully-formatted bodies. On an oxfmt error the
+            // body round-trips unchanged; caching that would pin the unformatted
+            // form, so skip it and let the next run retry.
+            if ok {
+                let (body, lang) = styles[*slot];
+                cache.put(body, lang, &css);
+            }
+            results[*slot] = Some(css);
+        }
+    }
+
+    Ok(results.into_iter().map(|r| r.unwrap_or_default()).collect())
+}
+
 /// Format every collected `<style>` body in a single `oxfmt` invocation by
 /// staging each into a temp file and running `oxfmt <files...>` (in-place),
-/// then reading them back. Returns the formatted CSS in input order.
+/// then reading them back. Returns the formatted CSS in input order plus
+/// whether oxfmt exited successfully (so callers can decide whether to cache).
 fn batch_format_styles(
     oxfmt: &Path,
     config: Option<&Path>,
     styles: &[(&str, &str)],
-) -> Result<Vec<String>> {
+) -> Result<(Vec<String>, bool)> {
     if styles.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), true));
     }
 
     let dir = std::env::temp_dir().join(format!("rsvelte-fmt-styles-{}", std::process::id()));
@@ -625,13 +711,14 @@ fn batch_format_styles(
 
     let _ = std::fs::remove_dir_all(&dir);
 
-    if !out.status.success() {
+    let ok = out.status.success();
+    if !ok {
         eprintln!(
             "rsvelte-fmt: oxfmt reported errors while formatting <style> blocks:\n{}",
             String::from_utf8_lossy(&out.stderr).trim_end()
         );
     }
-    Ok(results)
+    Ok((results, ok))
 }
 
 /// Map a `<style lang="...">` value to the file extension oxfmt uses to
