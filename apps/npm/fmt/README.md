@@ -100,6 +100,11 @@ project. The Svelte parser is rsvelte (Rust, in-process) and the JS rewrite is
 straight `oxc_formatter` — no Node calls and no Prettier round-trip for the
 Svelte markup itself.
 
+Formatting 3,852 real `.svelte` files (Apple M1 Pro, 10 iterations / 3 warmup),
+the Svelte engine runs **35× faster single-threaded and 204× faster
+multi-threaded** than `prettier-plugin-svelte`. Live numbers and reproduction
+steps are on the [benchmark page](https://baseballyama.github.io/rsvelte/benchmark).
+
 ## License
 
 MIT
