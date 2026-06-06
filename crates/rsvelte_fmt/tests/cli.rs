@@ -157,9 +157,15 @@ for (const p of process.argv.slice(2)) {
 
     // Each file got the fake formatter applied to its own <style> body.
     assert!(out1.contains("/*FMT*/"), "c1 missing marker:\n{out1}");
-    assert!(out1.contains(".sel_one"), "c1 missing its selector:\n{out1}");
+    assert!(
+        out1.contains(".sel_one"),
+        "c1 missing its selector:\n{out1}"
+    );
     assert!(out2.contains("/*FMT*/"), "c2 missing marker:\n{out2}");
-    assert!(out2.contains(".sel_two"), "c2 missing its selector:\n{out2}");
+    assert!(
+        out2.contains(".sel_two"),
+        "c2 missing its selector:\n{out2}"
+    );
 
     // Critically: no cross-contamination between batched files.
     assert!(!out1.contains(".sel_two"), "c1 leaked c2's css:\n{out1}");
@@ -169,7 +175,10 @@ for (const p of process.argv.slice(2)) {
     assert!(!out3.contains("/*FMT*/"), "c3 should be untouched:\n{out3}");
 
     // The placeholder must never survive into output.
-    assert!(!out1.contains("RSVELTE_FMT_STYLE"), "placeholder leaked:\n{out1}");
+    assert!(
+        !out1.contains("RSVELTE_FMT_STYLE"),
+        "placeholder leaked:\n{out1}"
+    );
 }
 
 fn tempdir() -> PathBuf {
