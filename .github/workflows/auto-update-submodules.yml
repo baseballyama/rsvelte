@@ -45,6 +45,10 @@ jobs:
             path: submodules/typescript-go
           - name: vite-plugin-svelte
             path: submodules/vite-plugin-svelte
+          - name: vize
+            path: submodules/vize
+          - name: corsa-bind
+            path: submodules/corsa-bind
     concurrency:
       group: auto-update-submodules-${{ matrix.name }}
       cancel-in-progress: false
