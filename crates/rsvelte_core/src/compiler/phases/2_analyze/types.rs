@@ -2105,6 +2105,11 @@ pub struct CssDomElement {
     pub has_spread: bool,
     /// Whether this element has a class directive (class:name)
     pub has_class_directive: bool,
+    /// Class names contributed by `class:NAME={...}` directives.
+    /// These are classes that the element may carry at runtime in addition to
+    /// any static `class="..."` names, so compound selector matching (e.g. the
+    /// `&.NAME` native-nesting path) must consult them as well as `classes`.
+    pub class_directive_names: FxHashSet<String>,
     /// Whether this element has a style directive (style:name)
     pub has_style_directive: bool,
     /// Parent element index (in elements array), None for root

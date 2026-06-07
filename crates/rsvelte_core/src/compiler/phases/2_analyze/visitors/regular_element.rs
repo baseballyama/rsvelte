@@ -452,6 +452,7 @@ pub fn visit(
     let mut dynamic_attribute_names: FxHashSet<String> = FxHashSet::default();
     let mut has_spread = false;
     let mut has_class_directive = false;
+    let mut class_directive_names: FxHashSet<String> = FxHashSet::default();
     let mut has_style_directive = false;
 
     // Track class names and IDs from attributes
@@ -721,8 +722,9 @@ pub fn visit(
         } else if let Attribute::BindDirective(bind) = attr {
             // bind:name is a dynamic attribute
             dynamic_attribute_names.insert(bind.name.to_string());
-        } else if let Attribute::ClassDirective(_) = attr {
+        } else if let Attribute::ClassDirective(class_dir) = attr {
             has_class_directive = true;
+            class_directive_names.insert(class_dir.name.to_string());
         } else if let Attribute::StyleDirective(_) = attr {
             has_style_directive = true;
         }
@@ -984,6 +986,7 @@ pub fn visit(
         dynamic_attribute_names,
         has_spread,
         has_class_directive,
+        class_directive_names,
         has_style_directive,
         parent_idx,
         children_idx: Vec::new(),

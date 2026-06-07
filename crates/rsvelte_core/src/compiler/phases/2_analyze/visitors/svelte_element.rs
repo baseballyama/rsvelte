@@ -98,6 +98,7 @@ pub fn visit(
         dynamic_attribute_names: FxHashSet::default(),
         has_spread: false,
         has_class_directive: false,
+        class_directive_names: FxHashSet::default(),
         has_style_directive: false,
         parent_idx,
         children_idx: Vec::new(),
