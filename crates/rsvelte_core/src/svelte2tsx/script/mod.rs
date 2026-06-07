@@ -12,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast as oxc;
+use oxc_ast_visit::Visit;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
 use regex::Regex;
@@ -1027,6 +1028,10 @@ pub fn process_instance_script(
         // Pass 5: store subscriptions. Reuses the already-parsed program
         // so we don't re-parse the instance script content with OXC.
         inject_store_subscriptions_with_program(program, offset, source, str);
+
+        // Pass 6: disambiguate generic arrow type-parameter lists for the
+        // `.tsx` overlay (`<T>` → `<T,>`) so they aren't misparsed as JSX.
+        disambiguate_arrow_type_params(program, offset, raw_content, str);
     });
 }
 
@@ -1287,6 +1292,11 @@ pub fn process_module_script(
             offset as usize,
             str,
         );
+
+        // Disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) so
+        // the module-script body, parsed at the top level of the `.tsx`
+        // overlay, doesn't lex a single-parameter arrow generic as JSX.
+        disambiguate_arrow_type_params(program, offset, raw_content, str);
 
         // Snapshot top-level module-script names for the snippet hoist analysis.
         for stmt in program.body.iter() {
@@ -2036,6 +2046,73 @@ fn rewrite_module_script_type_assertions_with_program(
         let abs_end = (end as usize + content_offset) as u32;
         str.overwrite(abs_start, abs_end, &new_text);
         last_end = end;
+    }
+}
+
+/// Walk a parsed script `program` and add a trailing comma to every generic
+/// **arrow function** type-parameter list that would otherwise be misparsed as
+/// JSX in the generated `.tsx` overlay.
+///
+/// In a `.tsx` file `const f = <T>(x: T) => x` is lexed as a JSX element
+/// (`<T>…`), producing a cascade of bogus "JSX element 'T' has no corresponding
+/// closing tag" errors. TypeScript itself disambiguates by requiring either a
+/// trailing comma (`<T,>`), a constraint (`<T extends X>`), a default
+/// (`<T = Y>`), or more than one parameter (`<T, U>`). Only the bare
+/// single-parameter form `<T>` is ambiguous, so that is the only shape we
+/// rewrite — to `<T,>`.
+///
+/// Note: this targets arrow functions only. `function foo<T>()`, call type
+/// arguments `f<T>()`, and class / interface generics are all unambiguous in
+/// TSX and are left untouched.
+fn disambiguate_arrow_type_params(
+    program: &oxc::Program,
+    offset: u32,
+    raw_content: &str,
+    str: &mut MagicString,
+) {
+    let mut collector = ArrowGenericCommaCollector {
+        raw_content,
+        insert_at: Vec::new(),
+    };
+    collector.visit_program(program);
+    for pos in collector.insert_at {
+        str.append_left(pos + offset, ",");
+    }
+}
+
+/// Collects byte offsets (relative to the script content) where a trailing
+/// comma must be inserted into a single-parameter generic arrow function.
+struct ArrowGenericCommaCollector<'s> {
+    raw_content: &'s str,
+    insert_at: Vec<u32>,
+}
+
+impl<'a> Visit<'a> for ArrowGenericCommaCollector<'_> {
+    fn visit_arrow_function_expression(&mut self, it: &oxc::ArrowFunctionExpression<'a>) {
+        if let Some(tp) = it.type_parameters.as_deref() {
+            // Only the single-parameter form is ambiguous. `<T, U>` already
+            // carries a disambiguating comma.
+            if tp.params.len() == 1 {
+                let param = &tp.params[0];
+                // A constraint (`extends`) or default (`=`) already makes the
+                // list unambiguous in TSX, so leave those alone.
+                if param.constraint.is_none() && param.default.is_none() {
+                    let bytes = self.raw_content.as_bytes();
+                    let mut i = param.span.end as usize;
+                    // Skip whitespace up to the closing `>` (or an existing
+                    // trailing comma).
+                    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                        i += 1;
+                    }
+                    let already_has_comma = i < bytes.len() && bytes[i] == b',';
+                    if !already_has_comma {
+                        self.insert_at.push(param.span.end);
+                    }
+                }
+            }
+        }
+        // Recurse so nested arrow functions are handled too.
+        oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
     }
 }
 
@@ -4026,6 +4103,73 @@ mod tests {
         assert!(
             result.code.contains("Record<string, never>"),
             "Output should contain empty record type when there are no props"
+        );
+    }
+
+    // -- Generic arrow disambiguation (#725) --
+
+    #[test]
+    fn test_generic_arrow_gets_trailing_comma() {
+        // A bare single-parameter generic arrow `<T>` would be lexed as a JSX
+        // element in the `.tsx` overlay; svelte2tsx must rewrite it to `<T,>`.
+        let source =
+            "<script lang=\"ts\">\nconst id = <T>(x: T): T => x;\n</script>\n<p>{id(1)}</p>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("<T,>(x: T)"),
+            "Generic arrow should be disambiguated to `<T,>`.\nGot: {}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("<T>(x: T)"),
+            "The ambiguous `<T>` form must not survive into the overlay.\nGot: {}",
+            result.code
+        );
+    }
+
+    #[test]
+    fn test_generic_arrow_already_safe_forms_untouched() {
+        let source = "<script lang=\"ts\">\n\
+            const multi = <T, U>(x: T, y: U): T => x;\n\
+            const constrained = <T extends number>(x: T): T => x;\n\
+            const defaulted = <T = string>(x: T): T => x;\n\
+            const already = <T,>(x: T): T => x;\n\
+            function fn<T>(x: T): T { return x; }\n\
+            const call = fn<number>(1);\n\
+            </script>";
+        let result = run_svelte2tsx(source);
+        // None of these forms are ambiguous in TSX, so they must be emitted
+        // verbatim — in particular no double comma on the already-safe arrow.
+        assert!(
+            result.code.contains("<T, U>(x: T, y: U)"),
+            "got: {}",
+            result.code
+        );
+        assert!(
+            result.code.contains("<T extends number>(x: T)"),
+            "got: {}",
+            result.code
+        );
+        assert!(
+            result.code.contains("<T = string>(x: T)"),
+            "got: {}",
+            result.code
+        );
+        assert!(result.code.contains("<T,>(x: T)"), "got: {}", result.code);
+        assert!(
+            !result.code.contains("<T,,>"),
+            "no double comma; got: {}",
+            result.code
+        );
+        assert!(
+            result.code.contains("function fn<T>(x: T)"),
+            "got: {}",
+            result.code
+        );
+        assert!(
+            result.code.contains("fn<number>(1)"),
+            "got: {}",
+            result.code
         );
     }
 
