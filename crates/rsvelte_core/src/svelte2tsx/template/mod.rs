@@ -1506,14 +1506,55 @@ fn handle_await_block(
                 }
             }
         } else {
-            // No then after pending
+            // No `:then` after the pending block. Covers
+            // `{#await p}pending{/await}` (pending only) and
+            // `{#await p}pending{:catch e}…{/await}` (pending + catch, no then).
+            // Previously this branch emitted only a trailing `}` — it never
+            // opened the block, dropped the `await(promise)` entirely, and
+            // ignored the catch, producing brace-unbalanced / invalid TSX.
+            // Mirror upstream `handleAwait`: `{ <pending> [try {] await(p);
+            // [} catch($$_e) { … }] }`.
             let pending_end = if !pending.nodes.is_empty() {
                 pending.nodes.last().unwrap().end()
             } else {
                 pending_start
             };
-            if pending_end < block.end {
-                str.overwrite(pending_end, block.end, "}");
+
+            // Opening `{ ` — consume the `{#await PROMISE}` opener (PROMISE is
+            // re-emitted as `await(...)` after the pending body).
+            str.overwrite(block.start, pending_start, "   { ");
+            process_fragment_inplace(pending, source, options, str, counter);
+
+            if let Some(ref catch) = block.catch {
+                let catch_start = if !catch.nodes.is_empty() {
+                    catch.nodes[0].start()
+                } else {
+                    block.end
+                };
+                let header = if !error_text.is_empty() {
+                    format!(
+                        "try {{ await ({});}} catch($$_e) {{ const {} = __sveltets_2_any();",
+                        expr_text, error_text
+                    )
+                } else {
+                    format!("try {{ await ({});}} catch($$_e) {{ ", expr_text)
+                };
+                if pending_end < catch_start {
+                    str.overwrite(pending_end, catch_start, &header);
+                } else {
+                    str.append_left(pending_end, &header);
+                }
+                process_fragment_inplace(catch, source, options, str, counter);
+                let catch_end = if !catch.nodes.is_empty() {
+                    catch.nodes.last().unwrap().end()
+                } else {
+                    catch_start
+                };
+                if catch_end < block.end {
+                    str.overwrite(catch_end, block.end, "}}");
+                }
+            } else if pending_end < block.end {
+                str.overwrite(pending_end, block.end, &format!("await ({});}}", expr_text));
             }
         }
     } else if has_then {
