@@ -3,7 +3,7 @@
 //! diagnostics into `Diagnostic` records that point at the user's
 //! Svelte source.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use sourcemap::SourceMap;
@@ -22,6 +22,40 @@ struct EntryMap {
     map: SourceMap,
 }
 
+/// Whether a TypeScript diagnostic code denotes a SYNTACTIC error.
+///
+/// TypeScript groups syntax (parse) errors under the `TS1xxx` range — e.g.
+/// `TS1005` (`',' expected`), `TS1109` (`Expression expected`), `TS1128`
+/// (`Declaration or statement expected`), `TS1136` (`Property assignment
+/// expected`). Semantic / type errors live in `TS2xxx`+.
+///
+/// This distinction is load-bearing: TypeScript (and tsgo) suppress ALL
+/// semantic diagnostics program-wide as soon as the program contains ANY
+/// syntactic error. So a single generated `.tsx` overlay that fails to
+/// parse silently drops every real type error in the whole project — the
+/// dangerous false-negative this module guards against (#728).
+pub fn is_syntactic_ts_code(code: &str) -> bool {
+    code.strip_prefix("TS")
+        .and_then(|n| n.parse::<u32>().ok())
+        .map(|n| (1000..2000).contains(&n))
+        .unwrap_or(false)
+}
+
+/// Result of mapping a tsgo diagnostic stream back to `.svelte` source.
+pub struct MappedTsDiagnostics {
+    /// Diagnostics with `file` / `range` pointing at the original source.
+    pub diagnostics: Vec<Diagnostic>,
+    /// `.svelte` source files whose GENERATED overlay `.tsx` produced at
+    /// least one SYNTACTIC (`TS1xxx`) diagnostic. Because TypeScript
+    /// suppresses every semantic diagnostic program-wide once any syntax
+    /// error exists, a syntactically-invalid overlay hides all real type
+    /// errors elsewhere. The runner cross-references these against the
+    /// Svelte-side compile errors to decide whether the bad TSX is an
+    /// rsvelte/svelte2tsx defect (overlay generated from a `.svelte` that
+    /// rsvelte itself parsed cleanly) and surfaces it loudly.
+    pub overlay_syntax_sources: Vec<PathBuf>,
+}
+
 /// Map every tsgo diagnostic to a `Diagnostic` whose `file` / `range`
 /// point at the original `.svelte` source. Diagnostics on `.tsx` files
 /// without a sourcemap are passed through unchanged (file points at the
@@ -30,7 +64,7 @@ pub fn map_tsgo_diagnostics(
     raw: &[RawTsDiagnostic],
     overlay: &OverlayLayout,
     workspace: &Path,
-) -> Vec<Diagnostic> {
+) -> MappedTsDiagnostics {
     // Build a lookup from absolute / canonicalised tsx path → entry.
     // tsc emits paths relative to its cwd (= workspace), so we key on
     // (a) the absolute tsx_path, (b) its canonicalised form, and
@@ -62,6 +96,12 @@ pub fn map_tsgo_diagnostics(
     }
     let mut maps: HashMap<PathBuf, EntryMap> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
+    // `.svelte` sources whose generated overlay produced a TS1xxx syntax
+    // diagnostic, in first-seen order (deduped). Recorded regardless of
+    // whether the position mapped back cleanly — any syntax error on a
+    // generated `.tsx` is overlay-attributable.
+    let mut overlay_syntax_sources: Vec<PathBuf> = Vec::new();
+    let mut overlay_syntax_seen: HashSet<PathBuf> = HashSet::new();
     for diag in raw {
         // tsc emits relative paths (cwd = workspace). Resolve them
         // against `workspace` so canonicalize / map lookup work even
@@ -87,6 +127,14 @@ pub fn map_tsgo_diagnostics(
             .or_else(|| by_tsx.get(&absolute).copied())
             .or_else(|| by_tsx.get(&diag.file).copied());
         if let Some(entry) = entry_match {
+            // A syntax error in this generated `.tsx` overlay taints the
+            // whole program's semantic checking — record its `.svelte`
+            // source so the runner can surface it loudly.
+            if is_syntactic_ts_code(&diag.code)
+                && overlay_syntax_seen.insert(entry.source_path.clone())
+            {
+                overlay_syntax_sources.push(entry.source_path.clone());
+            }
             let entry_map = match maps.get(&entry.tsx_path) {
                 Some(em) => em,
                 None => match build_entry_map(entry) {
@@ -143,7 +191,10 @@ pub fn map_tsgo_diagnostics(
             out.push(passthrough(diag, &diag.file, workspace));
         }
     }
-    out
+    MappedTsDiagnostics {
+        diagnostics: out,
+        overlay_syntax_sources,
+    }
 }
 
 /// Map a tsc/tsgo diagnostic on the augmented kit-file overlay back to
@@ -288,5 +339,35 @@ fn passthrough(diag: &RawTsDiagnostic, file: &Path, _workspace: &Path) -> Diagno
             },
         }),
         source: "ts",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_ts1xxx_as_syntactic() {
+        // Representative TS1xxx syntax codes.
+        for code in ["TS1005", "TS1109", "TS1128", "TS1136", "TS1003"] {
+            assert!(is_syntactic_ts_code(code), "{code} should be syntactic");
+        }
+    }
+
+    #[test]
+    fn classifies_ts2xxx_plus_as_semantic() {
+        // TS2xxx (type), TS6xxx (lint-ish), TS7xxx (implicit-any) are NOT
+        // syntactic and must not trip the loud-error path.
+        for code in ["TS2322", "TS2304", "TS6133", "TS7006", "TS18047"] {
+            assert!(!is_syntactic_ts_code(code), "{code} should be semantic");
+        }
+    }
+
+    #[test]
+    fn classifies_malformed_codes_as_non_syntactic() {
+        assert!(!is_syntactic_ts_code(""));
+        assert!(!is_syntactic_ts_code("TS"));
+        assert!(!is_syntactic_ts_code("nonsense"));
+        assert!(!is_syntactic_ts_code("TS999")); // below the 1000 floor
     }
 }
