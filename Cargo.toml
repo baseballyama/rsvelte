@@ -5,6 +5,7 @@ members = [
     "crates/rsvelte_core",
     "crates/rsvelte_fmt",
     "crates/rsvelte_formatter",
+    "crates/rsvelte_lint",
 ]
 
 [profile.release]

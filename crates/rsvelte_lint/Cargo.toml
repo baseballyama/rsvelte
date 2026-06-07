@@ -1,0 +1,21 @@
+[package]
+name = "rsvelte_lint"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "Fast native Svelte linter built on the rsvelte compiler (Wave 1: validator wrap + native rule engine)"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "rsvelte-lint"
+path = "src/main.rs"
+
+[dependencies]
+# Default features include `native`, which compiles the `svelte_check`
+# module we reuse for `Diagnostic` + output writers.
+rsvelte_core = { path = "../rsvelte_core" }
+clap = { version = "4.5", features = ["derive"] }
+walkdir = "2.5"
+anyhow = "1.0"
+rayon = "1.10"

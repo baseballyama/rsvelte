@@ -2053,6 +2053,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_lint"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "rayon",
+ "rsvelte_core",
+ "walkdir",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
