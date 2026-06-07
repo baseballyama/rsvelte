@@ -12,3 +12,9 @@
 [submodule "submodules/typescript-go"]
 	path = submodules/typescript-go
 	url = https://github.com/microsoft/typescript-go
+[submodule "submodules/vize"]
+	path = submodules/vize
+	url = git@github.com:ubugeeei-prod/vize.git
+[submodule "submodules/corsa-bind"]
+	path = submodules/corsa-bind
+	url = git@github.com:ubugeeei-prod/corsa-bind.git
