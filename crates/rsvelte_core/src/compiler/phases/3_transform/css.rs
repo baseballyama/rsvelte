@@ -1605,10 +1605,14 @@ fn is_nesting_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool
 
             // Check if any DOM element satisfies ALL the combined constraints
             let any_element_matches = ctx.dom_structure.elements.iter().any(|elem| {
-                // Check all required classes are present on the element
-                let classes_match = all_required_classes
-                    .iter()
-                    .all(|c| elem.classes.contains(*c));
+                // Check all required classes are present on the element. A class may
+                // be carried statically (`class="..."`), via a `class:NAME` directive,
+                // or potentially via a spread (`{...rest}`), which could set anything.
+                let classes_match = all_required_classes.iter().all(|c| {
+                    elem.has_spread
+                        || elem.classes.contains(*c)
+                        || elem.class_directive_names.contains(*c)
+                });
 
                 // Check all required ids match
                 let ids_match = all_required_ids
