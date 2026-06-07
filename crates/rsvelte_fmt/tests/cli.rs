@@ -522,6 +522,91 @@ fn style_cache_output_matches_uncached() {
     );
 }
 
+/// `.oxfmtrc` `ignorePatterns` must exclude matching `.svelte` files from the
+/// in-process walk, mirroring what `oxfmt` does for the non-`.svelte` files it
+/// walks. The dummy `--oxfmt-bin true` keeps the delegated directory pass a
+/// no-op so the test needs no real `oxfmt`.
+#[test]
+fn check_excludes_svelte_via_oxfmtrc_ignore_patterns() {
+    let dir = tempdir();
+    std::fs::write(
+        dir.join(".oxfmtrc.json"),
+        r#"{ "ignorePatterns": ["ignored/**/*.svelte"] }"#,
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join("ignored")).unwrap();
+    std::fs::create_dir_all(dir.join("kept")).unwrap();
+    // Both files are unformatted, so only ignore rules decide who is reported.
+    std::fs::write(
+        dir.join("ignored").join("skip.svelte"),
+        "<script>let x=1+2</script>",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("kept").join("keep.svelte"),
+        "<script>let x=1+2</script>",
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", ".", "--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+
+    assert!(
+        stdout.contains("keep.svelte"),
+        "kept file must be checked:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("skip.svelte"),
+        "ignored file must be excluded:\n{stdout}"
+    );
+    assert_eq!(out.status.code(), Some(1));
+}
+
+/// `.prettierignore` (oxfmt's default formatter ignore file) must also exclude
+/// matching `.svelte` files from the in-process walk.
+#[test]
+fn check_excludes_svelte_via_prettierignore() {
+    let dir = tempdir();
+    std::fs::write(dir.join(".prettierignore"), "ignored/\n").unwrap();
+    std::fs::create_dir_all(dir.join("ignored")).unwrap();
+    std::fs::create_dir_all(dir.join("kept")).unwrap();
+    std::fs::write(
+        dir.join("ignored").join("skip.svelte"),
+        "<script>let x=1+2</script>",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("kept").join("keep.svelte"),
+        "<script>let x=1+2</script>",
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .current_dir(&dir)
+        .args(["--check", ".", "--oxfmt-bin", "true"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+
+    assert!(
+        stdout.contains("keep.svelte"),
+        "kept file must be checked:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("skip.svelte"),
+        "ignored file must be excluded:\n{stdout}"
+    );
+    assert_eq!(out.status.code(), Some(1));
+}
+
 fn tempdir() -> PathBuf {
     let mut dir = std::env::temp_dir();
     dir.push(format!(
