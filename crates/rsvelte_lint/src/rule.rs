@@ -6,8 +6,8 @@
 //! only overrides what it cares about.
 
 use rsvelte_core::ast::template::{
-    AwaitBlock, Component, EachBlock, ExpressionTag, HtmlTag, IfBlock, RegularElement, Root,
-    SnippetBlock,
+    AwaitBlock, Component, DebugTag, EachBlock, ExpressionTag, HtmlTag, IfBlock, RegularElement,
+    Root, SnippetBlock,
 };
 
 use crate::context::LintContext;
@@ -103,4 +103,5 @@ pub trait Rule: Send + Sync {
     fn check_if(&self, ctx: &mut LintContext, block: &IfBlock) {}
     fn check_await(&self, ctx: &mut LintContext, block: &AwaitBlock) {}
     fn check_snippet(&self, ctx: &mut LintContext, block: &SnippetBlock) {}
+    fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {}
 }

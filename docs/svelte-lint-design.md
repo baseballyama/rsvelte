@@ -408,3 +408,26 @@ Each high/medium concern with a mitigation, a gate, or an explicit accepted-risk
 2. **Does the native compiler scope retain every reference the ~19 scope rules need?** (R9) — audit before committing the scope-rule estimate.
 3. **Is a second corsa TS program justified, or should typed Svelte rules ride the user's existing TS program via the compat path?** (R10) — measure monorepo memory/warm cost.
 4. **What is the empirical single-worker probe throughput on a realistic component with deep generics?** (R1/R2/R14) — gates every typed milestone and the daemon's interactive claims.
+
+---
+
+## Implementation status
+
+### Wave 1 — landed (`crates/rsvelte_lint`)
+
+The first slice is implemented and tested (validates Decisions A, C, parts of D/E):
+
+- **Rule engine** — `Rule` trait + `&'static RuleMeta` (`rule.rs`), single shared DFS `LintVisitor` (`visitor.rs`), `RuleRegistry` (`registry.rs`), `LintContext` with central `report*`/severity resolution (`context.rs`). Hooks: `check_root`/`element`/`component`/`html_tag`/`expression_tag`/`each`/`if`/`await`/`snippet`/`debug_tag`.
+- **Validator wrap** (`validator.rs`) — compiles with `GenerateMode::None` and surfaces the compiler's warnings/errors/`a11y_*` codes as lint diagnostics; config overrides apply by code. The §D "single biggest lever".
+- **Native rules** (`rules/`) — `svelte/no-at-html-tags`, `svelte/require-each-key`, `svelte/no-at-debug-tags` (autofixable), `svelte/button-has-type`.
+- **Config** (`config.rs`) — per-rule severity overrides (off/warn/error) over rule defaults. *Not yet:* per-rule options, globs, `extends`, `eslint.config.js` import (Wave 1 tail / Wave 2).
+- **Suppression** (`suppression.rs`) — dual `eslint-disable*` + `svelte-ignore` directives, line-based v1 (block-range tracking deferred to Wave 2).
+- **Autofix** (`fix_source` in `runner.rs`) — non-overlapping `Code`-tier edits, suppression-aware; `--fix` writes in place.
+- **Output** — reuses `svelte_check` `Diagnostic` + writers (human / machine / github-actions).
+- **CLI** `rsvelte-lint` — rayon per-file parallelism, `--off`/`--error`/`--fix`/`--format`/`--max-warnings`, ESLint-style exit codes.
+
+### Not yet started
+
+- **Scope-based rules** — gated on the §E / R9 scope-completeness audit before threading `ComponentAnalysis`/`ScopeRoot` into `RuleContext`.
+- Wave 1 tail: config file + `eslint.config.js` import, per-rule options, SARIF, minimal LSP, broader native rule set.
+- Waves 2–5 as described above.

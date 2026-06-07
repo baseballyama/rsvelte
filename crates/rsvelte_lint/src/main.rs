@@ -14,7 +14,7 @@ use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity};
 use rsvelte_core::svelte_check::writers::{OutputFormat, write_diagnostic, write_summary};
 
 use rsvelte_lint::rule::Severity;
-use rsvelte_lint::{LintConfig, lint_file};
+use rsvelte_lint::{LintConfig, fix_source, lint_file};
 
 #[derive(Parser, Debug)]
 #[command(name = "rsvelte-lint", about = "Fast native Svelte linter (Wave 1)")]
@@ -34,6 +34,10 @@ struct Cli {
     /// Treat a rule as an error (repeatable).
     #[arg(long = "error", value_name = "RULE")]
     error: Vec<String>,
+
+    /// Apply autofixes in place before reporting.
+    #[arg(long)]
+    fix: bool,
 
     /// Exit non-zero if warnings exceed this count.
     #[arg(long)]
@@ -85,6 +89,13 @@ fn main() -> ExitCode {
     let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let files = collect_files(&cli.paths);
 
+    if cli.fix {
+        let fixed: usize = files.par_iter().map(|f| fix_one(f, &config)).sum();
+        if fixed > 0 {
+            eprintln!("rsvelte-lint: applied {fixed} fix(es)");
+        }
+    }
+
     // Lint files in parallel; each file is independent.
     let per_file: Vec<Vec<Diagnostic>> = files
         .par_iter()
@@ -115,6 +126,18 @@ fn main() -> ExitCode {
     } else {
         ExitCode::SUCCESS
     }
+}
+
+/// Fix a single file in place, returning the number of fixes applied.
+fn fix_one(file: &Path, config: &LintConfig) -> usize {
+    let Ok(source) = std::fs::read_to_string(file) else {
+        return 0;
+    };
+    let res = fix_source(&source, config);
+    if res.applied > 0 && res.output != source {
+        let _ = std::fs::write(file, &res.output);
+    }
+    res.applied
 }
 
 fn read_error(file: &Path, e: &std::io::Error) -> Diagnostic {

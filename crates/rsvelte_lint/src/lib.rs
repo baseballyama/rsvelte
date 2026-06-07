@@ -33,4 +33,4 @@ pub mod visitor;
 pub use config::LintConfig;
 pub use diagnostic::{Fix, LintDiagnostic, TextEdit};
 pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-pub use runner::{lint_file, lint_source};
+pub use runner::{FixResult, fix_source, lint_file, lint_source};

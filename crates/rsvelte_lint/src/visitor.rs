@@ -98,6 +98,12 @@ impl<'r> LintVisitor<'r> {
                 }
                 self.visit_fragment(ctx, &b.body);
             }
+            TemplateNode::DebugTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_debug_tag(ctx, t);
+                }
+            }
             TemplateNode::KeyBlock(b) => self.visit_fragment(ctx, &b.fragment),
             TemplateNode::RegularElement(el) => {
                 for er in &self.rules {
@@ -131,7 +137,6 @@ impl<'r> LintVisitor<'r> {
             | TemplateNode::Comment(_)
             | TemplateNode::ConstTag(_)
             | TemplateNode::DeclarationTag(_)
-            | TemplateNode::DebugTag(_)
             | TemplateNode::RenderTag(_)
             | TemplateNode::AttachTag(_) => {}
         }
