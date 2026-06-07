@@ -8,6 +8,10 @@
   <strong>A Rust port of the official Svelte 5 compiler, built to slot natively into the <a href="https://oxc.rs/">OXC</a> ecosystem.</strong>
 </p>
 
+<p align="center">
+  <a href="https://app.codspeed.io/baseballyama/rsvelte?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed"/></a>
+</p>
+
 > **⚠️ Early Stage Project** — rsvelte already passes the official Svelte 5 compiler test suite end-to-end, but it's still pre-1.0. APIs, output, and behaviour may change without notice. Use it in production at your own risk.
 
 ## Why rsvelte exists
