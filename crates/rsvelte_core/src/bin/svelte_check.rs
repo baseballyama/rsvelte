@@ -165,6 +165,17 @@ fn main() -> ExitCode {
         ExitCode::SUCCESS
     } else {
         let result = run(&options);
+        // Finding nothing is almost always a misconfigured workspace path, not
+        // a clean project. Surface it on stderr (never stdout, so machine
+        // formats stay parseable) so "checked nothing" can't masquerade as
+        // "passed" (issue #718).
+        if result.files_checked == 0 {
+            eprintln!(
+                "rsvelte-check: warning: no .svelte files found under {} — nothing was checked. \
+                 Is the --workspace path correct?",
+                workspace.display()
+            );
+        }
         print_run(&result, &workspace, format);
         ExitCode::from(result.exit_code(cli.fail_on_warnings) as u8)
     }

@@ -30,6 +30,15 @@ pub fn find_svelte_files(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
+            // Never prune the walk root itself — it's the workspace the user
+            // explicitly pointed us at. `WalkDir::new(".")` / `"./"` reports a
+            // depth-0 entry whose `file_name()` falls back to the path string
+            // (`.`), which would otherwise trip the hidden-dir skip below and
+            // silently discard the entire tree (issue #718). The same guard
+            // also honours a workspace dir whose own name starts with `.`.
+            if e.depth() == 0 {
+                return true;
+            }
             let name = e.file_name().to_string_lossy();
             // Always skip node_modules and hidden directories — matches
             // the JS `excludePattern: /node_modules/.*\..*$/` plus the
@@ -69,6 +78,10 @@ pub fn find_relevant_files(
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
+            // Never prune the walk root — see `find_svelte_files` (issue #718).
+            if e.depth() == 0 {
+                return true;
+            }
             let name = e.file_name().to_string_lossy();
             if name == "node_modules" || name.starts_with('.') {
                 return false;
@@ -145,6 +158,31 @@ mod tests {
         assert!(
             !names.contains(&"Hidden.svelte".into()),
             "hidden dirs skipped"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn walk_root_is_never_pruned_by_hidden_skip() {
+        // Regression for #718: when the walk root's own name starts with `.`
+        // (as `WalkDir::new(".")` / `"./"` reports it at depth 0), the
+        // hidden-dir skip must not discard the entire tree. A workspace dir
+        // literally named `.app` exercises the same depth-0 guard.
+        let tmp = std::env::temp_dir().join(format!(".svc_walker_dot_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        setup_project(&tmp);
+        let files = find_svelte_files(&tmp, &[]);
+        let names: Vec<_> = files
+            .iter()
+            .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .collect();
+        assert!(
+            names.contains(&"App.svelte".into()),
+            "files under a dot-named root must still be found, got {names:?}"
+        );
+        assert!(
+            !names.contains(&"Hidden.svelte".into()),
+            "descendant hidden dirs are still skipped"
         );
         let _ = fs::remove_dir_all(&tmp);
     }
