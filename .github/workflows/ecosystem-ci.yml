@@ -26,8 +26,13 @@ on:
     # Nightly at 02:00 UTC. Adjust if the matrix grows past 4–5 targets.
     - cron: '0 2 * * *'
 
+# Scope the concurrency group by the dispatched target/tag so that the poll
+# workflow's per-target dispatches do not cancel each other (each changed
+# target is a separate run). Re-dispatching the SAME target still supersedes
+# its in-flight run. Schedule (full sweep) and PR runs fall back to the event
+# name, keeping their existing "latest wins per ref" behaviour.
 concurrency:
-  group: ecosystem-ci-${{ github.ref }}
+  group: ecosystem-ci-${{ github.ref }}-${{ github.event.inputs.target || github.event.inputs.tag || github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -147,7 +152,10 @@ jobs:
   summary:
     name: Summary
     needs: run
-    if: always() && needs.run.result != 'skipped'
+    # Skip on `skipped` (nothing ran) and `cancelled` (superseded by a newer
+    # run via concurrency, or manually aborted — not a real failure). This
+    # avoids spurious failure issues (see issue #729).
+    if: always() && needs.run.result != 'skipped' && needs.run.result != 'cancelled'
     runs-on: ubuntu-latest
     permissions:
       contents: read
