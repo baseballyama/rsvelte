@@ -699,17 +699,32 @@ pub fn visit(
                     }
                 }
                 "id" => {
-                    // Extract ID from attribute value
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                let id = text.data.trim();
-                                if !id.is_empty() {
-                                    context.analysis.css.used_ids.insert(id.to_string());
-                                    element_id = Some(id.to_string());
+                    match &attr_node.value {
+                        AttributeValue::Sequence(parts) => {
+                            // An interpolated id (`id="a{x}"`) has an unknown runtime
+                            // value, so it could match any #id selector.
+                            let has_dynamic_part = parts
+                                .iter()
+                                .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                            if has_dynamic_part {
+                                context.analysis.css.has_dynamic_ids = true;
+                            } else {
+                                for part in parts {
+                                    if let AttributeValuePart::Text(text) = part {
+                                        let id = text.data.trim();
+                                        if !id.is_empty() {
+                                            context.analysis.css.used_ids.insert(id.to_string());
+                                            element_id = Some(id.to_string());
+                                        }
+                                    }
                                 }
                             }
                         }
+                        // `id={expr}` or the `{id}` shorthand: dynamic, unknown value.
+                        AttributeValue::Expression(_) => {
+                            context.analysis.css.has_dynamic_ids = true;
+                        }
+                        _ => {}
                     }
                 }
                 _ => {}
