@@ -16,6 +16,8 @@ target
 
 # WASM build output
 /pkg
+# Formatter WASM build output (rsvelte_fmt_wasm → browser fmt tool)
+/pkg-fmt
 
 # svelte-check platform binaries (staged into per-platform npm packages by the
 # release workflow; never committed)

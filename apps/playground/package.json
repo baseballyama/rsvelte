@@ -7,7 +7,7 @@
 		"dev": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js dev",
 		"build": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js build",
 		"preview": "node --import ./rsvelte-shim/loader-register.mjs ./node_modules/vite/bin/vite.js preview",
-		"build:wasm": "cd ../.. && wasm-pack build crates/rsvelte_core --out-dir ../../pkg --target web --no-default-features --features wasm",
+		"build:wasm": "cd ../.. && wasm-pack build crates/rsvelte_core --out-dir ../../pkg --target web --no-default-features --features wasm && wasm-pack build crates/rsvelte_fmt_wasm --out-dir ../../pkg-fmt --target web",
 		"lint": "oxlint src/**/*.ts --deny-warnings",
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",

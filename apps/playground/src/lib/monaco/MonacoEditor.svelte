@@ -48,7 +48,7 @@
 			automaticLayout: true,
 			minimap: { enabled: false },
 			fontSize: 14,
-			fontFamily: "'Fira Mono', 'Fira Code', 'JetBrains Mono', Menlo, monospace",
+			fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, monospace",
 			lineNumbers: 'on',
 			lineHeight: 22,
 			padding: { top: 16 },

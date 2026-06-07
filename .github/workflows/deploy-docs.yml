@@ -103,8 +103,14 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Build WASM
+      - name: Build WASM (compiler + svelte2tsx)
         run: wasm-pack build crates/rsvelte_core --out-dir ../../pkg --target web --no-default-features --features wasm
+
+      - name: Build WASM (formatter)
+        # Powers the playground's `fmt` tool. Separate crate (rsvelte_fmt_wasm)
+        # so the formatter's wasm backend links without re-exporting
+        # rsvelte_core's own #[wasm_bindgen] symbols. Output → pkg-fmt/.
+        run: wasm-pack build crates/rsvelte_fmt_wasm --out-dir ../../pkg-fmt --target web
 
       - name: Build NAPI cdylib
         # apps/playground/rsvelte-shim/compiler.mjs loads
