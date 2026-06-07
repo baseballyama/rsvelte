@@ -44,6 +44,11 @@ pub struct OxfmtConfig {
     pub tab_width: Option<u8>,
     pub use_tabs: Option<bool>,
     pub end_of_line: Option<LineEnding>,
+    /// Glob patterns from `.oxfmtrc`'s `ignorePatterns`. Used to exclude
+    /// matching `.svelte` files from the in-process walk so coverage matches
+    /// `oxfmt` (which applies them to the non-`.svelte` files it walks itself).
+    /// Resolved relative to the config file's directory, like oxfmt.
+    pub ignore_patterns: Vec<String>,
 }
 
 impl OxfmtConfig {
@@ -111,6 +116,12 @@ impl OxfmtConfig {
         if let Some(v) = self.end_of_line {
             js.line_ending = v;
         }
+    }
+
+    /// Directory the config file lives in — the base for resolving
+    /// `ignorePatterns` globs. `None` when no config file was found.
+    pub fn config_dir(&self) -> Option<&Path> {
+        self.path.as_deref().and_then(Path::parent)
     }
 }
 
@@ -186,6 +197,16 @@ fn parse(src: &str) -> OxfmtConfig {
 
     cfg.print_width = as_u64("printWidth").and_then(|n| u16::try_from(n).ok());
     cfg.tab_width = as_u64("tabWidth").and_then(|n| u8::try_from(n).ok());
+
+    cfg.ignore_patterns = map
+        .get("ignorePatterns")
+        .and_then(serde_json::Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default();
 
     cfg
 }
