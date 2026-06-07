@@ -2224,6 +2224,14 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
                     }
                 }
             }
+            // `{#snippet}` blocks are passed as implicit *props*, not as
+            // default-slot content, so they must not trigger the synthetic
+            // `children` prop (which would otherwise produce a false
+            // `'children' does not exist in type '$$ComponentProps'`).
+            // Comments are likewise ignorable. Mirrors upstream
+            // `handleImplicitChildren`, which skips `SnippetBlock` / `Comment`
+            // and only fakes a `children` prop for a real default-slot child.
+            TemplateNode::SnippetBlock(_) | TemplateNode::Comment(_) => {}
             _ => return true,
         }
     }
