@@ -34,9 +34,12 @@ fn callback_receives_body_and_lang_default_css() {
     let (body, lang) = captured.expect("callback ran");
     assert_eq!(body, "p {color: red;}");
     assert_eq!(lang, "css");
+    // The callback returns base-0 CSS; inside <style> it is re-indented one
+    // level under the tag and placed on its own lines (no longer glued to the
+    // open tag as `<style>/* normalized */`).
     assert!(
-        out.contains("/* normalized */\np {color: red;}"),
-        "expected callback output spliced:\n{out}"
+        out.contains("<style>\n  /* normalized */\n  p {color: red;}\n</style>"),
+        "expected callback output re-indented and spliced:\n{out}"
     );
     assert!(out.starts_with("<style>"), "open tag preserved:\n{out}");
     assert!(out.ends_with("</style>"), "close tag preserved:\n{out}");

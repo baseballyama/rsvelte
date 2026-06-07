@@ -48,10 +48,17 @@ pub(crate) fn collect_indent_edits(
             if let TemplateNode::Text(t) = node
                 && is_whitespace_only(t.data.as_str())
             {
+                // Keep a single blank line where prettier-plugin-svelte / oxfmt
+                // would: between siblings, and at the document root where the
+                // whitespace abuts a sibling `<script>` / `<style>`. Leading and
+                // trailing blanks inside an element are collapsed away.
+                let keep_blank = t.data.matches('\n').count() >= 2
+                    && blank_line_allowed(source, t.start, t.end, i, last, child_depth);
+                let lead = if keep_blank { "\n" } else { "" };
                 let replacement = if i == last {
-                    format!("\n{parent_indent}")
+                    format!("{lead}\n{parent_indent}")
                 } else {
-                    format!("\n{child_indent}")
+                    format!("{lead}\n{child_indent}")
                 };
                 edits.push((t.start, t.end, replacement));
             }
@@ -171,6 +178,38 @@ fn is_indent_provoking(node: &TemplateNode) -> bool {
 
 fn is_whitespace_only(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_whitespace())
+}
+
+/// Whether a blank line may survive at this whitespace position, matching
+/// prettier-plugin-svelte / oxfmt:
+///
+/// - Between two siblings (neither first nor last in the fragment): kept.
+/// - Inside a nested element, the first/last whitespace (against the open or
+///   close tag) is stripped.
+/// - In the document root, the first/last whitespace is kept only when it
+///   abuts a sibling `<script>` / `<style>` block — i.e. the blank line a
+///   component conventionally has between `</script>` and the markup.
+fn blank_line_allowed(
+    source: &str,
+    start: u32,
+    end: u32,
+    i: usize,
+    last: usize,
+    child_depth: usize,
+) -> bool {
+    if i != 0 && i != last {
+        return true;
+    }
+    if child_depth != 0 {
+        return false;
+    }
+    if i == 0 {
+        let before = source[..start as usize].trim_end();
+        before.ends_with("</script>") || before.ends_with("</style>")
+    } else {
+        let after = source[end as usize..].trim_start();
+        after.starts_with("<style") || after.starts_with("<script")
+    }
 }
 
 /// Elements whose interior whitespace is meaningful and must survive

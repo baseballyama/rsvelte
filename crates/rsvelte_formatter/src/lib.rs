@@ -75,7 +75,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
     if let Some(css) = &root.css {
-        style::collect_style_edit(css, options, &mut edits)?;
+        style::collect_style_edit(source, css, options, &mut edits)?;
     }
 
     // Apply edits from the back so earlier offsets remain valid.
