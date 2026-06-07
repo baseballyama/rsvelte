@@ -1,5 +1,39 @@
 # @rsvelte/svelte-check
 
+## 0.2.0
+
+### Minor Changes
+
+- 8f34576: rename the CLI bin from `svelte-check` to `rsvelte-check` (#716)
+
+  `@rsvelte/svelte-check` previously shipped its CLI under the bin name `svelte-check`, colliding with the official [`svelte-check`](https://www.npmjs.com/package/svelte-check) package. In a single `node_modules/.bin/` only one `svelte-check` entry can exist, so installing both produced a last-writer-wins shadow and made a safe side-by-side migration impossible.
+
+  The bin is now `rsvelte-check`, so both tools can coexist and be addressed unambiguously from npm scripts:
+
+  ```jsonc
+  "type:check": "svelte-check --tsconfig ./tsconfig.json",  // official, authoritative
+  "type:check:fast": "rsvelte-check --workspace ."          // rsvelte, PR-time
+  ```
+
+  The CLI arguments and behavior are unchanged. Also fixes the doubled `apps/apps/` in `repository.directory`.
+
+### Patch Changes
+
+- e7ecade: fix(analyze): validate `<dt>`/`<dd>` placement against the parent rule, not an ancestor check, so a valid nested `<dl>` inside `<dd>` is accepted (#721)
+- 18ffc59: fix(svelte-check): `--workspace .` / `./` / `=.` no longer discover 0 files and silently pass (#718)
+
+  The project walker pruned any entry whose name starts with `.` (the hidden-dir skip). When the workspace root was `.` or `./`, walkdir reports the root entry's `file_name()` as the bare path string (`.`), so the **root itself** was pruned and the whole tree discarded — `--workspace .` reported `found 0 errors … in 0 files` and exited 0 even with `.svelte` files present (a silent false-pass in CI). Absolute and `..`-relative roots carry a real final component, so they were unaffected.
+
+  The walk root (depth 0) is now never pruned — it's the workspace the user explicitly pointed at — which also honours a workspace directory whose own name starts with `.`. Additionally, the CLI now prints a warning to **stderr** (never stdout, so machine formats stay parseable) when zero `.svelte` files are found, so a misconfigured path can't masquerade as a passing check.
+
+- 7410a0c: fix(svelte2tsx): don't panic on multibyte/CJK `<script>` content (#719)
+
+  `collect_type_body_deps`'s `typeof` lookbehind sliced `&body[j - 6..j]` with raw byte arithmetic. When non-ASCII (e.g. Japanese / CJK) text preceded an identifier in a `<script lang="ts">` type body — such as `必須) */` ahead of `imageSrc` — `j - 6` could land inside a multibyte UTF-8 char, and the `&str` slice panicked, aborting the entire `--emit-overlay` / `--tsgo` run (and with it every diagnostic for the project). The slice is now guarded with `str::is_char_boundary`; the six bytes can only spell the ASCII keyword `typeof` when `j - 6` is already a char boundary, so behavior is unchanged for ASCII input.
+
+- 0d68138: fix(svelte2tsx): lower Svelte 5 function bindings `bind:prop={get, set}` to valid TSX that type-checks both callables, instead of splicing a raw tuple into the props literal (#726)
+- 5a679cf: fix(svelte2tsx): disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) in the `.tsx` overlay so they aren't parsed as JSX (#725)
+- 1b9b399: fix(svelte-check): a syntactically-invalid generated `.tsx` overlay no longer silently suppresses all real type errors — `--tsgo` now reports it loudly and exits non-zero instead of producing a false pass (#728)
+
 ## 0.1.6
 
 ### Patch Changes
@@ -14,7 +48,6 @@
 
   Two causes in the overlay tsconfig builder
   (`crates/rsvelte_core/src/svelte_check/overlay.rs`):
-
   - **`include` not resolved through `extends`.** A SvelteKit project keeps its
     `include` in the generated `./.svelte-kit/tsconfig.json`, not the root
     tsconfig. `read_tsconfig_specs` only read the directly-passed config, so it
@@ -46,7 +79,6 @@
   `svelte-check --tsgo` reported a flood of spurious errors on a clean SvelteKit
   project (154 on the portfolio that surfaced this) where the non-tsgo checker
   reported none. Three gaps in the overlay tsconfig:
-
   - **No `jsx`.** The `.tsx` shadows svelte2tsx emits need a JSX backend, so every
     `.svelte` → `.tsx` import failed with TS6142 "'--jsx' is not set". The overlay
     now sets `jsx: "preserve"`.
@@ -87,7 +119,6 @@
 ### Patch Changes
 
 - 4db15ed: Roll up everything that has landed on `main` since `0.3.1` / `0.1.1`.
-
   - compiler: track upstream Svelte `5.51.4` → `5.51.5`.
   - vite-plugin-svelte-native: NAPI bindings now disable jemalloc's
     `initial-exec` TLS model so the dylib is safe to `dlopen` from Node on
@@ -114,7 +145,6 @@ publish` when pnpm is detected) normalises file modes to 0644. Running
   `spawnSync ... EACCES`.
 
   Three layers, so a single regression can't break this again:
-
   - `bin/svelte-check.cjs` chmods the binary +x best-effort before
     `spawnSync`, so already-published 0.x tarballs become usable for any
     end user on their next install.
@@ -135,7 +165,6 @@ publish` when pnpm is detected) normalises file modes to 0644. Running
   intended steady-state path is `release.yml` (changesets/action + matrix
   binary builds + `pnpm publish`). This changeset bumps each of the four
   top-level packages by `patch` so we can:
-
   1. Watch changesets/action open the "Version Packages" PR.
   2. Merge it.
   3. Watch the release workflow build the 5-triple matrix for both

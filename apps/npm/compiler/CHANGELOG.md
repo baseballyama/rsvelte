@@ -1,5 +1,11 @@
 # @rsvelte/compiler
 
+## 0.7.2
+
+### Patch Changes
+
+- e7ecade: fix(analyze): validate `<dt>`/`<dd>` placement against the parent rule, not an ancestor check, so a valid nested `<dl>` inside `<dd>` is accepted (#721)
+
 ## 0.7.1
 
 ### Patch Changes
