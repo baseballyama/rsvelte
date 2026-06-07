@@ -1403,7 +1403,18 @@ fn handle_await_block(
                 if expr_end < pending_start {
                     str.overwrite(expr_end, pending_start, "");
                 }
-                str.prepend_right(expr_start, "const $$_value = await (");
+                // When a `catch` (or error variable) is present, the await
+                // must be wrapped in a `try {` so the later `} catch(...) {`
+                // is balanced. Mirrors upstream `handleAwait` emitting
+                // `try { ` whenever `error || !catch.skip`.
+                str.prepend_right(
+                    expr_start,
+                    if has_catch {
+                        "try { const $$_value = await ("
+                    } else {
+                        "const $$_value = await ("
+                    },
+                );
                 let suffix = if !value_text.is_empty() {
                     format!(");{{ const {} = $$_value; ", value_text)
                 } else {
@@ -1419,20 +1430,22 @@ fn handle_await_block(
                 // the original monolithic bake.
                 str.overwrite(block.start, pending_start, "   { ");
                 process_fragment_inplace(pending, source, options, str, counter);
+                // `try { ` wrapper when a catch/error is present (see above).
+                let try_prefix = if has_catch { "try { " } else { "" };
                 if !value_text.is_empty() {
                     str.overwrite(
                         prev_end,
                         then_start,
                         &format!(
-                            "const $$_value = await ({});{{ const {} = $$_value; ",
-                            expr_text, value_text
+                            "{}const $$_value = await ({});{{ const {} = $$_value; ",
+                            try_prefix, expr_text, value_text
                         ),
                     );
                 } else {
                     str.overwrite(
                         prev_end,
                         then_start,
-                        &format!("const $$_value = await ({});{{ ", expr_text),
+                        &format!("{}const $$_value = await ({});{{ ", try_prefix, expr_text),
                     );
                 }
             }
@@ -1463,7 +1476,11 @@ fn handle_await_block(
                         ),
                     );
                 } else {
-                    str.overwrite(then_end, catch_start, "}}} catch {");
+                    // Variable-less `{:catch}` — close the value block + `try`
+                    // (two `}`) and open the catch. Always emit the `($$_e)`
+                    // binding so the braces stay balanced and the shape matches
+                    // the with-variable case; upstream does the same.
+                    str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
                 }
 
                 process_fragment_inplace(catch, source, options, str, counter);
@@ -1577,7 +1594,11 @@ fn handle_await_block(
                     ),
                 );
             } else {
-                str.overwrite(then_end, catch_start, "}}} catch {");
+                // Variable-less `{:catch}` — close the value block + `try`
+                // (two `}`) and open the catch. Always emit the `($$_e)`
+                // binding so the braces stay balanced and the shape matches
+                // the with-variable case; upstream does the same.
+                str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
             }
 
             process_fragment_inplace(catch, source, options, str, counter);
@@ -1611,7 +1632,7 @@ fn handle_await_block(
                     error_text
                 )
             } else {
-                ");} catch {".to_string()
+                ");} catch($$_e) { ".to_string()
             },
         );
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
@@ -1634,7 +1655,7 @@ fn handle_await_block(
             str.overwrite(
                 block.start,
                 catch_start,
-                &format!("   {{ try {{ await ({});}} catch {{", expr_text),
+                &format!("   {{ try {{ await ({});}} catch($$_e) {{ ", expr_text),
             );
         }
 
