@@ -109,6 +109,29 @@ pub fn collect_css_unused_warnings(
 ///
 /// For example, `x :is(y, .unused)` - if the overall selector is used but `.unused`
 /// inside :is() doesn't match any DOM element, report it.
+/// Clone `complex` and replace the simple selector at `children[ri].selectors[si]`
+/// (a `:is()` / `:where()` pseudo-class) with `branch_selectors` — the simple
+/// selectors of one of its single-compound argument branches. The rest of the
+/// compound (combinators, sibling/descendant relations, other simple selectors)
+/// is preserved, so the result can be reachability-checked as if that branch
+/// had been written in place of the `:is()`.
+fn substitute_is_branch(
+    complex: &Value,
+    ri: usize,
+    si: usize,
+    branch_selectors: &[Value],
+) -> Value {
+    let mut synth = complex.clone();
+    if let Some(children) = synth.get_mut("children").and_then(|c| c.as_array_mut())
+        && let Some(rel) = children.get_mut(ri)
+        && let Some(sels) = rel.get_mut("selectors").and_then(|s| s.as_array_mut())
+        && si < sels.len()
+    {
+        sels.splice(si..si + 1, branch_selectors.iter().cloned());
+    }
+    synth
+}
+
 fn collect_is_where_unused_warnings(
     complex_selector: &Value,
     css_source: &str,
@@ -121,13 +144,13 @@ fn collect_is_where_unused_warnings(
         None => return,
     };
 
-    for rel in rel_selectors {
+    for (ri, rel) in rel_selectors.iter().enumerate() {
         let selectors = match rel.get("selectors").and_then(|s| s.as_array()) {
             Some(s) => s,
             None => continue,
         };
 
-        for sel in selectors {
+        for (si, sel) in selectors.iter().enumerate() {
             let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
             let sel_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
@@ -151,7 +174,34 @@ fn collect_is_where_unused_warnings(
                         continue;
                     }
 
-                    if is_complex_selector_unused(inner_complex, ctx) {
+                    // Evaluate the branch IN THE CONTEXT of the surrounding
+                    // compound, not in isolation: substitute the branch's
+                    // simple selectors in place of the `:is()` / `:where()` in
+                    // the parent complex selector and check whether the whole
+                    // substituted selector is reachable. This catches branches
+                    // that are unreachable only because of a combinator — e.g.
+                    // for `:is(.a, .b) + .c` where `.c` never immediately
+                    // follows `.a`, the `.a` branch is unused even though a
+                    // bare `.a` element exists. Mirrors upstream marking each
+                    // `:is` argument's `metadata.used` during the real walk.
+                    let branch_selectors = inner_complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .and_then(|a| a.first())
+                        .and_then(|r| r.get("selectors"))
+                        .and_then(|s| s.as_array());
+
+                    let unused = match branch_selectors {
+                        Some(bs) => {
+                            let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                            is_complex_selector_unused(&synth, ctx)
+                        }
+                        // Empty branch (e.g. `:is()`) — fall back to the
+                        // isolated check.
+                        None => is_complex_selector_unused(inner_complex, ctx),
+                    };
+
+                    if unused {
                         let start = inner_complex
                             .get("start")
                             .and_then(|s| s.as_u64())
