@@ -125,6 +125,85 @@ fn get_expression_range(expr: &crate::ast::js::Expression) -> Option<(u32, u32)>
     Some((start, end))
 }
 
+/// For a Svelte 5 function binding `bind:prop={getFn, setFn}`, the directive
+/// value is a `SequenceExpression` of exactly two expressions (the getter and
+/// the setter). Returns the source byte ranges of the getter and setter,
+/// `((get_start, get_end), (set_start, set_end))`.
+///
+/// The template-expression arena isn't resolvable in the svelte2tsx parse
+/// path (`expr.as_json()` yields no children), so the split is done on the
+/// source text by scanning for the first top-level comma — the comma that
+/// separates the two expressions in `getFn, setFn`. This mirrors the
+/// `isGetSetBinding` branch in upstream `htmlxtojsx_v2/nodes/Binding.ts`,
+/// which reads `attr.expression.expressions[0]`/`[1]`.
+fn get_set_binding_ranges(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+) -> Option<((u32, u32), (u32, u32))> {
+    if expr.node_type() != Some("SequenceExpression") {
+        return None;
+    }
+    let (start, end) = get_expression_range(expr)?;
+    let (us, ue) = (start as usize, end as usize);
+    if ue > source.len() || us >= ue {
+        return None;
+    }
+    let text = &source[us..ue];
+    let bytes = text.as_bytes();
+    let mut depth: i32 = 0;
+    let mut string: Option<u8> = None; // active quote char: ' " `
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => string = Some(c),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => {
+                // Top-level comma: getter is [start, here), setter is
+                // (here, end). Trim surrounding whitespace from each half so
+                // the emitted ranges line up with the actual expressions.
+                let get_end = us + i;
+                let set_start = us + i + 1;
+                let get = trim_range(source, us, get_end)?;
+                let set = trim_range(source, set_start, ue)?;
+                return Some((get, set));
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Trim leading/trailing ASCII whitespace from a `[start, end)` source range,
+/// returning the tightened `(start, end)` (or `None` if empty after trimming).
+fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32, u32)> {
+    let bytes = source.as_bytes();
+    while start < end && bytes[start].is_ascii_whitespace() {
+        start += 1;
+    }
+    while end > start && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    if start >= end {
+        None
+    } else {
+        Some((start as u32, end as u32))
+    }
+}
+
 /// Get the expression source text from the original source.
 fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     if let Some((start, end)) = get_expression_range(expr) {
@@ -1993,6 +2072,17 @@ fn handle_component(
                     out.push_str(&format!("{} = {};", expr_text, inst_var));
                     continue;
                 }
+                if get_set_binding_ranges(&bind.expression, source).is_some() {
+                    // Function binding `bind:foo={getFn, setFn}`: the get/set
+                    // pair is already type-checked via
+                    // `__sveltets_2_get_set_binding(...)` in the props literal,
+                    // so the `() => expr = __sveltets_2_any(null)` type-widener
+                    // is skipped (mirrors the `if (!isGetSetBinding)` guard in
+                    // upstream `handleBinding`). Only the `$$bindings` marker
+                    // is emitted.
+                    out.push_str(&format!("{}.$$bindings = '{}';", inst_var, bind.name));
+                    continue;
+                }
                 let expr_text = get_expression_text(&bind.expression, source);
                 out.push_str(&format!(
                     "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
@@ -3276,7 +3366,21 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 // Component-side bind:foo={expr} → foo:expr, (no quotes,
                 // no `bind:` prefix). Mirrors the JS reference.
                 segs_push_lit(&mut inner, &format!("{}:", bind.name));
-                if let Some((s, e)) = get_expression_range(&bind.expression) {
+                if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source)
+                {
+                    // Svelte 5 function binding `bind:foo={getFn, setFn}` →
+                    // `foo:__sveltets_2_get_set_binding(getFn, setFn),` so both
+                    // callables are type-checked against the bindable prop type
+                    // (mirrors `handleBinding`'s `isGetSetBinding` branch in
+                    // `htmlxtojsx_v2/nodes/Binding.ts`). Splicing the raw
+                    // `getFn, setFn` tuple into the props literal would produce
+                    // invalid TSX (issue #726).
+                    segs_push_lit(&mut inner, "__sveltets_2_get_set_binding(");
+                    segs_push_src(&mut inner, gs, ge);
+                    segs_push_lit(&mut inner, ",");
+                    segs_push_src(&mut inner, ss, se);
+                    segs_push_lit(&mut inner, ")");
+                } else if let Some((s, e)) = get_expression_range(&bind.expression) {
                     segs_push_src(&mut inner, s, e);
                 } else {
                     segs_push_lit(&mut inner, get_expression_text(&bind.expression, source));
@@ -3519,7 +3623,16 @@ fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> O
 fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
     segs_push_lit(&mut out, &format!("\"bind:{}\":", bind.name));
-    if let Some((s, e)) = get_expression_range(&bind.expression) {
+    if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+        // Svelte 5 function binding on an element: `bind:value={getFn, setFn}`
+        // → `"bind:value":__sveltets_2_get_set_binding(getFn, setFn),`
+        // (mirrors the `isGetSetBinding` branch in upstream Binding.ts).
+        segs_push_lit(&mut out, "__sveltets_2_get_set_binding(");
+        segs_push_src(&mut out, gs, ge);
+        segs_push_lit(&mut out, ",");
+        segs_push_src(&mut out, ss, se);
+        segs_push_lit(&mut out, ")");
+    } else if let Some((s, e)) = get_expression_range(&bind.expression) {
         segs_push_src(&mut out, s, e);
     } else {
         segs_push_lit(&mut out, get_expression_text(&bind.expression, source));
@@ -3677,8 +3790,18 @@ fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<Str
     Some(format!("...{},", expr_text))
 }
 
-/// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`
+/// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`. A Svelte
+/// 5 function binding `bind:name={getFn, setFn}` becomes
+/// `"bind:name":__sveltets_2_get_set_binding(getFn, setFn),`.
 fn format_bind_directive(bind: &BindDirective, source: &str) -> String {
+    if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+        return format!(
+            "\"bind:{}\":__sveltets_2_get_set_binding({},{}),",
+            bind.name,
+            &source[gs as usize..ge as usize],
+            &source[ss as usize..se as usize],
+        );
+    }
     let expr_text = get_expression_text(&bind.expression, source);
     format!("\"bind:{}\":{},", bind.name, expr_text)
 }
@@ -3759,6 +3882,24 @@ fn build_bind_directive_suffix(
         let Attribute::BindDirective(bind) = attr else {
             continue;
         };
+        // Svelte 5 function binding `bind:foo={getFn, setFn}`: the get/set
+        // pair is checked via `__sveltets_2_get_set_binding(...)` in the
+        // attribute list, so the one-way / group / generic type-widener
+        // suffixes (all guarded by `if (!isGetSetBinding)` upstream) are
+        // skipped. `bind:this={getFn, setFn}` instead invokes the setter
+        // with the element instance: `(setFn)(var);` (mirrors Binding.ts).
+        if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+            if bind.name == "this" {
+                if let Some(var) = element_var {
+                    out.push_str(&format!(
+                        "({})({});",
+                        &source[ss as usize..se as usize],
+                        var
+                    ));
+                }
+            }
+            continue;
+        }
         let expr_text = get_expression_text(&bind.expression, source);
         if bind.name == "this" {
             if let Some(var) = element_var {
