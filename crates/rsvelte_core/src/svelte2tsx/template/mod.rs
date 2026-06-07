@@ -1888,10 +1888,17 @@ fn handle_regular_element(
         options.is_ts_file,
     );
 
-    // When all surviving props are empty but a `bind:` directive was
-    // stripped, JS reference still leaves whitespace inside `{ }`. Add a
-    // single space so `createElement("div", { })` matches.
-    if segs_is_empty(&attr_segs) && !bind_suffix.is_empty() {
+    // `class:` / `style:` directives are lowered to statements appended after
+    // the `createElement(...)` call (NOT as typed props keys). See
+    // `build_class_style_directive_suffix_segments`.
+    let class_style_suffix_segs =
+        build_class_style_directive_suffix_segments(&el.attributes, source);
+
+    // When all surviving props are empty but a `bind:` / `class:` / `style:`
+    // directive was stripped, JS reference still leaves whitespace inside
+    // `{ }`. Add a single space so `createElement("div", { })` matches.
+    if segs_is_empty(&attr_segs) && (!bind_suffix.is_empty() || !class_style_suffix_segs.is_empty())
+    {
         attr_segs.push(Seg::Lit(" ".into()));
     }
 
@@ -1905,27 +1912,31 @@ fn handle_regular_element(
     } else {
         String::new()
     };
-    let (header_lit, trailer_lit) = if !directive_prefix.is_empty() {
-        (
-            format!(
-                " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
-                directive_prefix, element_var_decl, el.name, actions_arg,
-            ),
-            format!("}});{}{}", directive_suffix, bind_suffix),
+    let header_lit = if !directive_prefix.is_empty() {
+        format!(
+            " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            directive_prefix, element_var_decl, el.name, actions_arg,
         )
     } else {
-        (
-            format!(
-                " {{ {}svelteHTML.createElement(\"{}\"{}, {{",
-                element_var_decl, el.name, actions_arg,
-            ),
-            format!("}});{}{}", directive_suffix, bind_suffix),
+        format!(
+            " {{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            element_var_decl, el.name, actions_arg,
         )
     };
-    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+    // The trailer closes the props object + createElement call (`}});`), then
+    // appends the `class:` / `style:` directive statements (segmented, so their
+    // expression chunks keep their source mapping), then the transition/animate
+    // (`directive_suffix`) and `bind:` (`bind_suffix`) suffixes.
+    let mut opener_segs: Vec<Seg> =
+        Vec::with_capacity(attr_segs.len() + class_style_suffix_segs.len() + 3);
     opener_segs.push(Seg::Lit(header_lit));
     opener_segs.extend(attr_segs);
-    opener_segs.push(Seg::Lit(trailer_lit));
+    // Close the props object + createElement call: `});` (one `}` for the
+    // props brace, then `)` + `;`). The outer block `{` is closed after the
+    // children by the closing-tag overwrite.
+    opener_segs.push(Seg::Lit("});".to_string()));
+    opener_segs.extend(class_style_suffix_segs);
+    opener_segs.push(Seg::Lit(format!("{}{}", directive_suffix, bind_suffix)));
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
     // Process children
@@ -3162,15 +3173,15 @@ fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: 
                 push_with_separator(&mut segs, part);
                 any_pushed = true;
             }
-            Attribute::ClassDirective(class) => {
-                let part = format_class_directive_segments(class, source);
-                push_with_separator(&mut segs, part);
-                any_pushed = true;
-            }
-            Attribute::StyleDirective(style) => {
-                let part = format_style_directive_segments(style, source);
-                push_with_separator(&mut segs, part);
-                any_pushed = true;
+            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
+                // `class:`/`style:` are directives, not attributes — they must
+                // NOT be emitted as `HTMLProps` keys (the props object is
+                // type-checked against `HTMLProps<tag, …>`, which has no
+                // `class:NAME` / `style:PROP` keys, so they would trip the
+                // excess-property check). They are lowered to statements
+                // appended *after* the `createElement(...)` call by
+                // `build_class_style_directive_suffix_segments`, mirroring
+                // upstream `htmlxtojsx_v2/nodes/{Class,StyleDirective}.ts`.
             }
             Attribute::TransitionDirective(_)
             | Attribute::UseDirective(_)
@@ -3655,6 +3666,83 @@ fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
     } else {
         // Event forwarding has no expression to preserve.
         segs_push_lit(&mut out, &format!("\"on:{}\":undefined,", on.name));
+    }
+    out
+}
+
+/// Lower `class:` / `style:` directives as statements appended *after* the
+/// element's `svelteHTML.createElement(...)` call, instead of as keys in the
+/// (typed) props object. Mirrors upstream `htmlxtojsx_v2/nodes/Class.ts`
+/// (`class:xx={yyy}` → `yyy;`) and `StyleDirective.ts`
+/// (`style:xx={yy}` → `__sveltets_2_ensureType(String, Number, yy);`). The
+/// expression chunks are preserved as `Seg::Src` so type errors map back to
+/// the original column.
+fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source: &str) -> Vec<Seg> {
+    let mut out: Vec<Seg> = Vec::new();
+    for attr in attributes {
+        match attr {
+            Attribute::ClassDirective(class) => {
+                // `class:xx={expr}` → ` expr;` — type-check the toggle
+                // expression as a standalone statement.
+                segs_push_lit(&mut out, " ");
+                if let Some((s, e)) = get_expression_range(&class.expression) {
+                    segs_push_src(&mut out, s, e);
+                } else {
+                    segs_push_lit(&mut out, get_expression_text(&class.expression, source));
+                }
+                segs_push_lit(&mut out, ";");
+            }
+            Attribute::StyleDirective(style) => {
+                // `style:xx={expr}` → ` __sveltets_2_ensureType(String, Number, expr);`
+                segs_push_lit(&mut out, " __sveltets_2_ensureType(String, Number, ");
+                match &style.value {
+                    AttributeValue::True(_) => {
+                        // Shorthand `style:color` → `…, color);` (implicit
+                        // reference to the `color` binding; synthesised from
+                        // the directive name, so no source range to pin).
+                        segs_push_lit(&mut out, &style.name);
+                    }
+                    AttributeValue::Expression(expr) => {
+                        if let Some((s, e)) = get_expression_range(&expr.expression) {
+                            segs_push_src(&mut out, s, e);
+                        } else {
+                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                        }
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        // `style:xx="a{b}"` → a template string `` `a${b}` ``.
+                        segs_push_lit(&mut out, "`");
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    let escaped = text
+                                        .raw
+                                        .replace('\\', "\\\\")
+                                        .replace('`', "\\`")
+                                        .replace('$', "\\$");
+                                    segs_push_lit(&mut out, &escaped);
+                                }
+                                AttributeValuePart::ExpressionTag(expr) => {
+                                    segs_push_lit(&mut out, "${");
+                                    if let Some((s, e)) = get_expression_range(&expr.expression) {
+                                        segs_push_src(&mut out, s, e);
+                                    } else {
+                                        segs_push_lit(
+                                            &mut out,
+                                            get_expression_text(&expr.expression, source),
+                                        );
+                                    }
+                                    segs_push_lit(&mut out, "}");
+                                }
+                            }
+                        }
+                        segs_push_lit(&mut out, "`");
+                    }
+                }
+                segs_push_lit(&mut out, ");");
+            }
+            _ => {}
+        }
     }
     out
 }
