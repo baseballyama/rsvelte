@@ -28,12 +28,13 @@
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment, IfBlock,
     SpreadAttribute, TemplateNode,
 };
 
 use crate::error::FormatError;
 use crate::expression::format_expression_source;
+use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
 /// Walk a `Fragment` recursively and append open-tag rewrite edits for
@@ -168,9 +169,23 @@ fn collect_node_open_tag_edits(
         // Blocks have child fragments but no attributes themselves.
         // Their bodies are conceptually one level deeper than the block.
         TemplateNode::IfBlock(blk) => {
-            collect_open_tag_edits(source, &blk.consequent, depth + 1, options, edits)?;
-            if let Some(alt) = &blk.alternate {
-                collect_open_tag_edits(source, alt, depth + 1, options, edits)?;
+            // `{:else if}` chains stay at the same depth as the opening `{#if}`
+            // (svelte nests them as `elseif` IfBlocks in the alternate); follow
+            // the chain instead of recursing so attributes don't gain an extra
+            // indent level per branch. See `indent.rs::else_if_branch`.
+            let mut current: &IfBlock = blk;
+            loop {
+                collect_open_tag_edits(source, &current.consequent, depth + 1, options, edits)?;
+                match &current.alternate {
+                    Some(alt) => match else_if_branch(alt) {
+                        Some(chained) => current = chained,
+                        None => {
+                            collect_open_tag_edits(source, alt, depth + 1, options, edits)?;
+                            break;
+                        }
+                    },
+                    None => break,
+                }
             }
         }
         TemplateNode::EachBlock(blk) => {

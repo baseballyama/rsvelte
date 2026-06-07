@@ -15,7 +15,7 @@
 //! (`{#if}` / `{#each}` / ...) add one indent level to their bodies.
 
 use oxc_formatter::JsFormatOptions;
-use rsvelte_core::ast::template::{Fragment, TemplateNode};
+use rsvelte_core::ast::template::{Fragment, IfBlock, TemplateNode};
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
@@ -118,9 +118,25 @@ fn recurse_into_children(
             collect_indent_edits(source, &e.fragment, next_depth, options, edits)?;
         }
         TemplateNode::IfBlock(blk) => {
-            collect_indent_edits(source, &blk.consequent, next_depth, options, edits)?;
-            if let Some(alt) = &blk.alternate {
-                collect_indent_edits(source, alt, next_depth, options, edits)?;
+            // Walk the `{#if} / {:else if} / {:else}` chain at one consistent
+            // depth. svelte desugars `{:else if}` into an alternate fragment
+            // whose sole child is another IfBlock (`elseif = true`); prettier
+            // keeps every chained branch at the same indent as the opening
+            // `{#if}`, so follow the chain here rather than recursing (which
+            // would add one level per `{:else if}`).
+            let mut current: &IfBlock = blk;
+            loop {
+                collect_indent_edits(source, &current.consequent, next_depth, options, edits)?;
+                match &current.alternate {
+                    Some(alt) => match else_if_branch(alt) {
+                        Some(chained) => current = chained,
+                        None => {
+                            collect_indent_edits(source, alt, next_depth, options, edits)?;
+                            break;
+                        }
+                    },
+                    None => break,
+                }
             }
         }
         TemplateNode::EachBlock(blk) => {
@@ -149,6 +165,18 @@ fn recurse_into_children(
         _ => {}
     }
     Ok(())
+}
+
+/// If `alt` is the desugared body of an `{:else if}` — a fragment whose sole
+/// child is an `elseif` IfBlock — return that IfBlock so the caller can keep it
+/// at the same depth. A plain `{:else}` whose body merely starts with an
+/// `{#if}` carries surrounding whitespace text nodes (and `elseif == false`),
+/// so it won't match and is indented as a normal nested block.
+pub(crate) fn else_if_branch(alt: &Fragment) -> Option<&IfBlock> {
+    match alt.nodes.as_slice() {
+        [TemplateNode::IfBlock(b)] if b.elseif => Some(b.as_ref()),
+        _ => None,
+    }
 }
 
 fn is_indent_provoking(node: &TemplateNode) -> bool {
