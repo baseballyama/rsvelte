@@ -26,6 +26,9 @@ struct CssContext<'a> {
     has_dynamic_elements: bool,
     /// Whether there are dynamic class expressions
     has_dynamic_classes: bool,
+    /// Whether any element has a dynamically-valued `id` (so `#id` selectors
+    /// cannot be pruned — a dynamic id can resolve to any value at runtime)
+    has_dynamic_ids: bool,
     /// Whether template has control flow (if/each/await/snippet/slot)
     has_control_flow: bool,
     /// Whether template has opaque elements (slots/snippets/render tags) or
@@ -77,6 +80,7 @@ pub fn collect_css_unused_warnings(
         used_ids: &analysis.css.used_ids,
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
+        has_dynamic_ids: analysis.css.has_dynamic_ids,
         has_control_flow: analysis.css.has_control_flow,
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
@@ -333,6 +337,7 @@ fn render_stylesheet_internal(
         used_ids: &analysis.css.used_ids,
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
+        has_dynamic_ids: analysis.css.has_dynamic_ids,
         has_control_flow: analysis.css.has_control_flow,
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
@@ -3365,6 +3370,11 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
         }
         Some("IdSelector") => {
             if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                // If any element has a dynamically-valued id, it could resolve to
+                // any value at runtime, so any #id selector is potentially used.
+                if ctx.has_dynamic_ids {
+                    return false;
+                }
                 // Decode CSS escape sequences for comparison
                 let decoded = decode_css_escape(name);
                 return !ctx.used_ids.contains(&decoded);
@@ -3764,6 +3774,9 @@ fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
                         }
                     }
                     Some("IdSelector") => {
+                        if ctx.has_dynamic_ids {
+                            return false;
+                        }
                         if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
                             let decoded = decode_css_escape(name);
                             if !ctx.used_ids.contains(&decoded) {
@@ -5954,6 +5967,7 @@ mod tests {
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                has_dynamic_ids: false,
                 has_control_flow: false,
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
@@ -5996,6 +6010,7 @@ mod tests {
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                has_dynamic_ids: false,
                 has_control_flow: false,
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,

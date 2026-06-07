@@ -2036,6 +2036,12 @@ pub struct CssAnalysis {
     /// If true, class selectors cannot be safely pruned
     pub has_dynamic_classes: bool,
 
+    /// Whether any element has a dynamically-valued `id` (`id={expr}`, the `{id}`
+    /// shorthand, an interpolated `id="a{x}"`, or a spread that could set `id`).
+    /// A dynamic id can resolve to any value at runtime, so when this is true no
+    /// `#id` selector can be safely pruned. Mirrors `has_dynamic_classes`.
+    pub has_dynamic_ids: bool,
+
     /// Whether the template has control flow (if/each/await/snippet) that affects sibling relationships
     /// If true, sibling combinator unused detection cannot be safely performed
     pub has_control_flow: bool,

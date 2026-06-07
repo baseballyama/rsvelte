@@ -67,14 +67,24 @@ pub fn visit(
                     _ => {}
                 }
             }
-            Attribute::Attribute(attr_node) if attr_node.name == "id" => {
-                if let AttributeValue::Sequence(parts) = &attr_node.value
-                    && parts.len() == 1
-                    && let Some(AttributeValuePart::Text(text)) = parts.first()
-                {
-                    element_id = Some(text.data.to_string());
+            Attribute::Attribute(attr_node) if attr_node.name == "id" => match &attr_node.value {
+                AttributeValue::Sequence(parts) => {
+                    let has_dynamic_part = parts
+                        .iter()
+                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                    if has_dynamic_part {
+                        context.analysis.css.has_dynamic_ids = true;
+                    } else if parts.len() == 1
+                        && let Some(AttributeValuePart::Text(text)) = parts.first()
+                    {
+                        element_id = Some(text.data.to_string());
+                    }
                 }
-            }
+                AttributeValue::Expression(_) => {
+                    context.analysis.css.has_dynamic_ids = true;
+                }
+                _ => {}
+            },
             Attribute::ClassDirective(cd) => {
                 context
                     .analysis
