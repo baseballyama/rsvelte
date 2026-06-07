@@ -10,8 +10,17 @@ publish = false
 [lib]
 crate-type = ["rlib"]
 
+[features]
+default = ["native"]
+# Forward the backend choice down to `rsvelte_core`: `native` keeps rayon /
+# miette / jemalloc; `wasm` swaps them for the wasm-bindgen toolchain so the
+# formatter (and the parser it reuses) link cleanly on wasm32 — see
+# `crates/rsvelte_fmt_wasm`.
+native = ["rsvelte_core/native"]
+wasm = ["rsvelte_core/wasm-deps"]
+
 [dependencies]
-rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+rsvelte_core = { path = "../rsvelte_core", default-features = false }
 oxc_allocator = "0.134"
 oxc_ast = "0.134"
 oxc_parser = "0.134"

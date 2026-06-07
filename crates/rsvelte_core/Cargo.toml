@@ -25,7 +25,16 @@ trace-fastpath = []
 # jemalloc is disabled (e.g. `--no-default-features --features napi`).
 napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
-wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
+# `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
+# module — `parse_svelte`, `compile_client`, `svelte2tsx`, …) and is what
+# `pkg/` is built with.
+wasm = ["wasm-deps"]
+# `wasm-deps` pulls only the wasm-bindgen toolchain + the wasm `getrandom`
+# backend, *without* enabling the `wasm` bindings module. Downstream wasm
+# crates (e.g. `rsvelte_fmt_wasm`) depend on `rsvelte_core` with this
+# feature so they reuse the parser on a wasm target without re-exporting
+# `rsvelte_core`'s `#[wasm_bindgen]` symbols (which collide at link time).
+wasm-deps = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
 
 [dependencies]
 # Serialization

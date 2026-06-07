@@ -310,7 +310,7 @@
 
 	code,
 	pre {
-		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+		font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 	}
 
 	/* HERO */
@@ -324,7 +324,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.7rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.75rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -340,7 +340,7 @@
 	}
 
 	.title {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		font-size: clamp(2rem, 4.6vw, 3.4rem);
 		line-height: 1.05;
@@ -372,7 +372,7 @@
 	}
 
 	.hero-meta dt {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.66rem;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
@@ -380,7 +380,7 @@
 	}
 
 	.hero-meta dd {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.86rem;
 		color: var(--ink);
 		margin: 0;
@@ -422,7 +422,7 @@
 	}
 
 	.stat-k {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
@@ -430,7 +430,7 @@
 	}
 
 	.stat-n {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		font-size: clamp(1.9rem, 3vw, 2.5rem);
 		line-height: 1;
@@ -446,7 +446,7 @@
 	}
 
 	.stat-x {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-weight: 500;
 		font-size: 0.42em;
 		margin-left: 0.18em;
@@ -487,7 +487,7 @@
 	}
 
 	.chart-title {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: clamp(1.2rem, 2.2vw, 1.5rem);
 		line-height: 1.1;
@@ -497,7 +497,7 @@
 	}
 
 	.chart-sub {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.72rem;
 		color: var(--ink-soft);
 		margin: 0;
@@ -534,7 +534,7 @@
 	}
 
 	.task-panel-label {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: 0.98rem;
 		color: var(--ink);
@@ -542,7 +542,7 @@
 	}
 
 	.task-panel-sub {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
 		color: var(--ink-faint);
 	}
@@ -551,7 +551,7 @@
 		display: inline-flex;
 		align-items: baseline;
 		gap: 0.4rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.72rem;
 		color: var(--ink-soft);
 	}
@@ -562,7 +562,7 @@
 	}
 
 	.task-panel-speedup-n {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: 0.95rem;
 		color: var(--rust);
@@ -572,7 +572,7 @@
 	}
 
 	.task-panel-speedup-n .x {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-weight: 500;
 		font-size: 0.72em;
 		margin-left: 0.06em;
@@ -585,7 +585,7 @@
 	}
 
 	.task-panel-speedup-st {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.74rem;
 		color: var(--ink-soft);
 	}
@@ -597,7 +597,7 @@
 		color: var(--ink);
 		padding: 0.45rem 0.85rem;
 		border-radius: 4px;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.76rem;
 		cursor: pointer;
 		display: inline-flex;
@@ -637,14 +637,14 @@
 	}
 
 	.bar-name {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.82rem;
 		font-weight: 500;
 		color: var(--ink);
 	}
 
 	.bar-sub {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.66rem;
 		color: var(--ink-faint);
 	}
@@ -685,7 +685,7 @@
 	}
 
 	.bar-time {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.84rem;
 		color: var(--ink);
 		font-variant-numeric: tabular-nums;
@@ -709,14 +709,14 @@
 	}
 
 	.section-head .num {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
 		letter-spacing: 0.18em;
 		color: var(--rust);
 	}
 
 	.section-head h2 {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: clamp(1.6rem, 3vw, 2.4rem);
 		line-height: 1.1;
@@ -731,7 +731,7 @@
 		border: 1px solid var(--rule);
 		border-radius: 6px;
 		overflow: hidden;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 	}
 
 	.diff figcaption {
@@ -778,7 +778,7 @@
 	}
 
 	.empty h1 {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: clamp(2rem, 4.6vw, 3rem);
 		line-height: 1.05;
@@ -800,7 +800,7 @@
 		border: 1px solid var(--rule);
 		border-radius: 6px;
 		padding: 1rem 1.2rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.85rem;
 		color: var(--ink);
 		line-height: 1.7;

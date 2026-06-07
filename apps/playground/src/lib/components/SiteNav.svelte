@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { themeStore } from '$lib/theme.svelte';
 
-	type Active = 'home' | 'ecosystem' | 'playground' | 'progress' | 'benchmark';
+	type Active = 'home' | 'docs' | 'ecosystem' | 'playground' | 'progress' | 'benchmark';
 
 	interface Props {
 		// Each page passes its own slug so the link gets the `active` style
@@ -38,6 +38,7 @@
 	</a>
 
 	<div class="links">
+		<a href="{base}/docs" class:active={isActive('docs')}>Docs</a>
 		<a href="{base}/ecosystem" class:active={isActive('ecosystem')}>Ecosystem</a>
 		<a href="{base}/playground" class:active={isActive('playground')}>Playground</a>
 		<a href="{base}/progress" class:active={isActive('progress')}>Compatibility</a>
@@ -119,7 +120,7 @@
 	}
 
 	.brand-tag {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.62rem;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
@@ -203,10 +204,10 @@
 			gap: 0.7rem;
 			font-size: 0.84rem;
 		}
-		/* Keep the two primary destinations (Ecosystem, Playground) on phones;
+		/* Keep the primary destinations (Docs, Ecosystem, Playground) on phones;
 		   Compatibility + Benchmark are reachable from the home page. */
-		.links a:nth-child(3),
-		.links a:nth-child(4) {
+		.links a:nth-child(4),
+		.links a:nth-child(5) {
 			display: none;
 		}
 	}

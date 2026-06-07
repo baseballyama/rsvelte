@@ -90,7 +90,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.64rem;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
@@ -122,7 +122,7 @@
 		display: inline-flex;
 		align-items: baseline;
 		gap: 0.3rem;
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		/* >=18.66px bold clears the WCAG large-text bar, so the Svelte-orange
 		   number stays AA-legible on the light card background. */
@@ -134,7 +134,7 @@
 	}
 
 	.speed-of {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-weight: 500;
 		font-size: 0.6rem;
 		letter-spacing: 0.06em;
@@ -143,7 +143,7 @@
 	}
 
 	.name {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-weight: 500;
 		font-size: 1.02rem;
 		letter-spacing: -0.01em;
@@ -160,7 +160,7 @@
 
 	.orig {
 		color: var(--svelte);
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.92em;
 		text-decoration: underline;
 		text-decoration-thickness: 1px;
@@ -181,7 +181,7 @@
 
 	.routes {
 		color: var(--ink-faint);
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.82em;
 	}
 
@@ -214,7 +214,7 @@
 	}
 
 	.note {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.68rem;
 		letter-spacing: 0.01em;
 		color: var(--ink-faint);
@@ -230,7 +230,7 @@
 	}
 
 	.install {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.74rem;
 		color: var(--ink);
 		background: var(--paper);
@@ -244,7 +244,7 @@
 	}
 
 	.src {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.74rem;
 		color: var(--ink-soft);
 		display: inline-flex;

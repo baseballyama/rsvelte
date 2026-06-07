@@ -2055,6 +2055,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_fmt_wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "getrandom 0.4.2",
+ "rsvelte_formatter",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "rsvelte_formatter"
 version = "0.1.0"
 dependencies = [

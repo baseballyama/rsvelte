@@ -36,6 +36,34 @@ export function compileServer(source: string, name: string): CompileResultWasm {
 	return wasmModule.compile_server(source, name);
 }
 
+export interface Svelte2TsxResult {
+	success: boolean;
+	code?: string;
+	map?: string | null;
+	exportedNames?: { props: string[]; all: string[] };
+	error?: string;
+}
+
+export interface Svelte2TsxOptions {
+	filename?: string;
+	isTsFile?: boolean;
+	mode?: 'ts' | 'dts';
+}
+
+/**
+ * Convert a `.svelte` component to its TSX shadow file. The wasm boundary is a
+ * JSON string in / JSON string out (see `rsvelte_core::wasm::svelte2tsx`).
+ */
+export function svelte2tsx(source: string, options: Svelte2TsxOptions = {}): Svelte2TsxResult {
+	if (!wasmModule) throw new Error('WASM not initialized');
+	const raw = wasmModule.svelte2tsx(source, JSON.stringify(options));
+	try {
+		return JSON.parse(raw) as Svelte2TsxResult;
+	} catch {
+		return { success: false, error: raw };
+	}
+}
+
 export type CompileMode = 'client' | 'server';
 export type OutputTab = 'result' | 'js' | 'css' | 'ast';
 

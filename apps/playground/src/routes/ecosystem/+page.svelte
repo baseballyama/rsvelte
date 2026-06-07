@@ -127,7 +127,7 @@
 	}
 
 	code {
-		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+		font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 	}
 
 	/* HERO */
@@ -141,7 +141,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.7rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.75rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -157,7 +157,7 @@
 	}
 
 	.title {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		font-size: clamp(2.1rem, 5.4vw, 3.8rem);
 		line-height: 1.04;
@@ -226,7 +226,7 @@
 	}
 
 	.hero-meta dt {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.66rem;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
@@ -241,7 +241,7 @@
 	}
 
 	.hero-meta .big {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		font-size: 1.7rem;
 		line-height: 1;
@@ -262,7 +262,7 @@
 	}
 
 	.hero-meta .dim {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.76rem;
 		color: var(--ink-soft);
 	}
@@ -283,7 +283,7 @@
 	}
 
 	.section-head .num {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
 		letter-spacing: 0.18em;
 		color: var(--rust);
@@ -292,7 +292,7 @@
 	}
 
 	.section-head h2 {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: clamp(1.5rem, 3vw, 2.3rem);
 		line-height: 1.1;
