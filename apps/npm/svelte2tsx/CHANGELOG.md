@@ -1,5 +1,14 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.7
+
+### Patch Changes
+
+- 0d68138: fix(svelte2tsx): lower Svelte 5 function bindings `bind:prop={get, set}` to valid TSX that type-checks both callables, instead of splicing a raw tuple into the props literal (#726)
+- 5a679cf: fix(svelte2tsx): disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) in the `.tsx` overlay so they aren't parsed as JSX (#725)
+- Updated dependencies [e7ecade]
+  - @rsvelte/compiler@0.7.2
+
 ## 0.1.6
 
 ### Patch Changes
@@ -61,7 +70,6 @@
 ### Patch Changes
 
 - 4db15ed: Roll up everything that has landed on `main` since `0.3.1` / `0.1.1`.
-
   - compiler: track upstream Svelte `5.51.4` → `5.51.5`.
   - vite-plugin-svelte-native: NAPI bindings now disable jemalloc's
     `initial-exec` TLS model so the dylib is safe to `dlopen` from Node on
@@ -88,7 +96,6 @@
   intended steady-state path is `release.yml` (changesets/action + matrix
   binary builds + `pnpm publish`). This changeset bumps each of the four
   top-level packages by `patch` so we can:
-
   1. Watch changesets/action open the "Version Packages" PR.
   2. Merge it.
   3. Watch the release workflow build the 5-triple matrix for both
