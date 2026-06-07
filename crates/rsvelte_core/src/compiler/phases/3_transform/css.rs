@@ -2290,45 +2290,75 @@ struct SelectorInfo {
     classes: Vec<String>,
     id: Option<String>,
     is_universal: bool,
+    /// `:is(...)` / `:where(...)` argument groups present in this compound. Each
+    /// group is the set of branch selectors; the group is satisfied when **any**
+    /// branch matches the element (an OR set), mirroring CSS `:is()` semantics.
+    /// A multi-part branch (one containing combinators) is recorded as a
+    /// universal branch so it conservatively matches, matching upstream's
+    /// treatment of complex `:is()` arguments as used.
+    is_groups: Vec<Vec<SelectorInfo>>,
 }
 
 fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
-    let mut info = SelectorInfo {
-        tag_name: None,
-        classes: Vec::new(),
-        id: None,
-        is_universal: false,
-    };
-
     if let Some(selectors) = rel_selector.get("selectors").and_then(|s| s.as_array()) {
-        for sel in selectors {
-            let sel_type = sel.get("type").and_then(|t| t.as_str());
-            match sel_type {
-                Some("TypeSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        if name == "*" {
-                            info.is_universal = true;
-                        } else {
-                            info.tag_name = Some(name.to_string());
-                        }
-                    }
-                }
-                Some("ClassSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        info.classes.push(name.to_string());
-                    }
-                }
-                Some("IdSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        info.id = Some(name.to_string());
-                    }
-                }
-                _ => {}
-            }
+        extract_selector_info_from_selectors(selectors)
+    } else {
+        SelectorInfo {
+            tag_name: None,
+            classes: Vec::new(),
+            id: None,
+            is_universal: false,
+            is_groups: Vec::new(),
         }
     }
+}
 
-    info
+/// Build `:is(...)` / `:where(...)` OR-groups from a compound's simple selectors.
+/// Each returned group is the set of branch [`SelectorInfo`]s; the group is
+/// satisfied when any branch matches (see [`selector_matches_element`]).
+fn extract_is_groups(selectors: &[Value]) -> Vec<Vec<SelectorInfo>> {
+    let mut groups = Vec::new();
+    for sel in selectors {
+        if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+            continue;
+        }
+        let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        if name != "is" && name != "where" {
+            continue;
+        }
+        let Some(children) = sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+        else {
+            continue;
+        };
+        let mut branches: Vec<SelectorInfo> = Vec::new();
+        for branch in children {
+            let rels = branch.get("children").and_then(|c| c.as_array());
+            match rels {
+                // Single compound (no combinator): match against its constraints.
+                Some(rs) if rs.len() == 1 => {
+                    if let Some(inner) = rs[0].get("selectors").and_then(|s| s.as_array()) {
+                        branches.push(extract_selector_info_from_selectors(inner));
+                    }
+                }
+                // Multi-part or empty branch: conservatively treat as matching,
+                // mirroring upstream marking complex `:is()` args as used.
+                _ => branches.push(SelectorInfo {
+                    tag_name: None,
+                    classes: Vec::new(),
+                    id: None,
+                    is_universal: true,
+                    is_groups: Vec::new(),
+                }),
+            }
+        }
+        if !branches.is_empty() {
+            groups.push(branches);
+        }
+    }
+    groups
 }
 
 fn selector_matches_element(
@@ -2362,8 +2392,23 @@ fn selector_matches_element(
         return false;
     }
 
+    // Check `:is()` / `:where()` groups: each group must have at least one
+    // branch that matches the element (OR within a group, AND across groups).
+    for group in &info.is_groups {
+        if !group
+            .iter()
+            .any(|branch| selector_matches_element(branch, el))
+        {
+            return false;
+        }
+    }
+
     // If no selector specified, it matches nothing specific
-    info.tag_name.is_some() || !info.classes.is_empty() || info.id.is_some() || info.is_universal
+    info.tag_name.is_some()
+        || !info.classes.is_empty()
+        || info.id.is_some()
+        || info.is_universal
+        || !info.is_groups.is_empty()
 }
 
 fn has_sibling_match(
@@ -3247,6 +3292,7 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
         classes: Vec::new(),
         id: None,
         is_universal: false,
+        is_groups: extract_is_groups(selectors),
     };
 
     for sel in selectors {
@@ -3271,7 +3317,8 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
                     info.id = Some(decode_css_escape(name));
                 }
             }
-            // Skip pseudo-classes like :has(), :not(), etc.
+            // `:is()` / `:where()` handled via is_groups; skip other pseudo-classes
+            // (`:has()`, `:not()`, etc.).
             _ => {}
         }
     }
