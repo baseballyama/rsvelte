@@ -325,6 +325,19 @@ fn is_direct_only_disallowed(ancestor_tag: &str) -> bool {
     )
 }
 
+/// Tags that "reset" a disallowed-descendant rule for `ancestor_tag`, mirroring
+/// upstream `autoclosing_children[tag].reset_by` in `html-tree-validation.js`.
+///
+/// `<dt>`/`<dd>` may not be descendants of `<dt>`/`<dd>`, *but* a nested `<dl>`
+/// between them resets the rule (a `<dl>` re-opens a valid description-list
+/// context). So a valid nested `<dl>` inside a `<dd>` must not error (#721).
+fn get_descendant_reset_by(ancestor_tag: &str) -> Option<&'static [&'static str]> {
+    match ancestor_tag {
+        "dt" | "dd" => Some(&["dl"]),
+        _ => None,
+    }
+}
+
 /// Check if a tag is valid with an ancestor.
 /// Returns an error message if invalid, or None if valid.
 fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<String> {
@@ -888,6 +901,19 @@ pub fn visit(
                 // outermost-first, so the direct parent is the last entry (H-082).
                 let is_direct_parent = i + 1 == context.element_ancestors.len();
                 if is_direct_only_disallowed(ancestor_name) && !is_direct_parent {
+                    continue;
+                }
+
+                // `reset_by` rules: if any element between this ancestor and the
+                // current element re-opens the context (e.g. a nested `<dl>`
+                // between an outer `<dd>` and an inner `<dt>`), the descendant
+                // restriction no longer applies. Mirrors upstream's `reset_by`
+                // walk in `is_tag_valid_with_ancestor` (#721).
+                if let Some(reset_by) = get_descendant_reset_by(ancestor_name)
+                    && context.element_ancestors[i + 1..]
+                        .iter()
+                        .any(|a| reset_by.contains(&a.as_str()))
+                {
                     continue;
                 }
 
