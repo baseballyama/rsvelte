@@ -468,7 +468,42 @@ function applySwap(target, checkoutPath, bindingPath, triple) {
 		// as the NAPI native packages). Only injected when commands.check is set so
 		// a target's own svelte-check usage isn't disturbed otherwise.
 		if (target.commands?.check) {
-			overrides['svelte-check'] = `file:${path.join(ROOT, 'apps', 'npm', 'svelte-check')}`;
+			// The published `@rsvelte/svelte-check` package exposes its CLI as the
+			// `rsvelte-check` bin (renamed in #716 so it doesn't collide with the
+			// official `svelte-check` when installed normally). But the swap replaces
+			// the target's `svelte-check` package, and the target's check script runs
+			// the bare `svelte-check` command — which resolves via node_modules/.bin/
+			// svelte-check. With a `rsvelte-check` bin, pnpm never creates a
+			// `.bin/svelte-check` entry, so the command falls back to the stale
+			// official bin path and dies with "Cannot find module .../svelte-check/
+			// bin/svelte-check". Stage a copy of the package whose bin is renamed back
+			// to `svelte-check` (mirroring the vps fork staging above) and point the
+			// override at it, so the swapped-in CLI is reachable as `svelte-check`.
+			const scStage = path.join(CACHE_DIR, 'svelte-check-stage');
+			fs.rmSync(scStage, { recursive: true, force: true });
+			fs.mkdirSync(scStage, { recursive: true });
+			const scCopyR = spawnSync(
+				'rsync',
+				[
+					'-a',
+					'--exclude=node_modules',
+					`${path.join(ROOT, 'apps', 'npm', 'svelte-check')}/`,
+					`${scStage}/`,
+				],
+				{ stdio: 'inherit' },
+			);
+			if (scCopyR.status !== 0) throw new Error('failed to stage svelte-check copy');
+			const scStagedPkgPath = path.join(scStage, 'package.json');
+			const scStagedPkg = JSON.parse(fs.readFileSync(scStagedPkgPath, 'utf8'));
+			const scBinTarget =
+				(typeof scStagedPkg.bin === 'string'
+					? scStagedPkg.bin
+					: scStagedPkg.bin?.['rsvelte-check'] ?? scStagedPkg.bin?.['svelte-check']) ??
+				'bin/svelte-check.cjs';
+			scStagedPkg.bin = { 'svelte-check': scBinTarget };
+			fs.writeFileSync(scStagedPkgPath, JSON.stringify(scStagedPkg, null, 2) + '\n');
+
+			overrides['svelte-check'] = `file:${scStage}`;
 			overrides[`@rsvelte/svelte-check-${triple}`] =
 				`file:${path.join(ROOT, 'apps', 'npm', `svelte-check-${triple}`)}`;
 		}
