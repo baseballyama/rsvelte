@@ -31,6 +31,7 @@ use rsvelte_core::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment, IfBlock,
     SpreadAttribute, TemplateNode,
 };
+use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::expression::format_expression_source;
@@ -701,11 +702,13 @@ fn indent_visual_width(level: usize, js_opts: &JsFormatOptions) -> usize {
     level * js_opts.indent_width.value() as usize
 }
 
-/// Visual width of a rendered string. Today we count chars (close
-/// enough for ASCII attribute names + values). A proper grapheme /
-/// wide-char-aware count can drop in later if needed.
+/// Visual width of a rendered string, matching how `oxfmt` / prettier measure
+/// line length: East Asian Wide and Fullwidth characters (CJK text, fullwidth
+/// punctuation, …) count as two columns and combining marks as zero. Counting
+/// bare `chars()` under-measured CJK-heavy open tags, so they never crossed
+/// `printWidth` and never wrapped even when `oxfmt` would (#762).
 fn visual_width(s: &str) -> usize {
-    s.chars().count()
+    UnicodeWidthStr::width(s)
 }
 
 // ─── source-scan helpers ────────────────────────────────────────────────
