@@ -416,8 +416,18 @@ async function main() {
 		process.exit(2);
 	}
 
-	const results = loadResults();
 	const matrixResult = process.env.MATRIX_RESULT ?? '';
+	// A `cancelled` matrix result means this run was superseded (concurrency
+	// cancel-in-progress) or manually aborted — never a real failure signal.
+	// The surviving/newer run reports its own status, so bail out entirely:
+	// no history row, no failure issue. This prevents spurious failure issues
+	// (see issue #729) when the poll workflow re-dispatches a target.
+	if (matrixResult === 'cancelled') {
+		log('skipping: matrix result is "cancelled" (superseded/aborted run)');
+		return 0;
+	}
+
+	const results = loadResults();
 	const summary = classify(results, matrixResult);
 
 	const serverUrl = process.env.GITHUB_SERVER_URL ?? 'https://github.com';

@@ -39,7 +39,12 @@ const VPS_FORK = path.join(
 );
 
 function log(msg) {
-	console.log(`[ecosystem-ci] ${msg}`);
+	// Diagnostics go to stderr so that machine-readable stdout (notably the
+	// `poll` command, whose stdout is captured into `changed.txt` and fed
+	// line-by-line to `gh workflow run -f target=...`) stays free of noise.
+	// Letting log lines leak onto stdout previously caused spurious dispatches
+	// with garbage target names (see issue #729).
+	console.error(`[ecosystem-ci] ${msg}`);
 }
 
 function ensureDirs() {
