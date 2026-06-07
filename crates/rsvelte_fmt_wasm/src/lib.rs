@@ -14,6 +14,7 @@
 use rsvelte_formatter::{
     FormatOptions, IndentStyle, IndentWidth, JsFormatOptions, LineWidth, format,
 };
+use serde_json::Value;
 use wasm_bindgen::prelude::*;
 
 /// Initialize the panic hook for readable errors in the browser console.
@@ -52,28 +53,21 @@ pub fn format_svelte(source: &str, options_json: &str) -> String {
 fn parse_options(options_json: &str) -> FormatOptions {
     let mut js = JsFormatOptions::new();
 
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(options_json) {
-        if let Some(obj) = value.as_object() {
-            if obj
-                .get("useTabs")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                js.indent_style = IndentStyle::Tab;
-            } else {
-                js.indent_style = IndentStyle::Space;
-            }
-            if let Some(w) = obj.get("tabWidth").and_then(|v| v.as_u64()) {
-                if let Ok(width) = IndentWidth::try_from(w as u8) {
-                    js.indent_width = width;
-                }
-            }
-            if let Some(w) = obj.get("printWidth").and_then(|v| v.as_u64()) {
-                if let Ok(width) = LineWidth::try_from(w as u16) {
-                    js.line_width = width;
-                }
-            }
-        }
+    let value = serde_json::from_str::<serde_json::Value>(options_json).unwrap_or(Value::Null);
+    let obj = value.as_object();
+    let get_bool = |k: &str| obj.and_then(|o| o.get(k)).and_then(Value::as_bool);
+    let get_u64 = |k: &str| obj.and_then(|o| o.get(k)).and_then(Value::as_u64);
+
+    js.indent_style = if get_bool("useTabs").unwrap_or(false) {
+        IndentStyle::Tab
+    } else {
+        IndentStyle::Space
+    };
+    if let Some(width) = get_u64("tabWidth").and_then(|w| IndentWidth::try_from(w as u8).ok()) {
+        js.indent_width = width;
+    }
+    if let Some(width) = get_u64("printWidth").and_then(|w| LineWidth::try_from(w as u16).ok()) {
+        js.line_width = width;
     }
 
     FormatOptions {
