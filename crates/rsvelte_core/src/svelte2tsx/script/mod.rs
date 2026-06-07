@@ -1502,8 +1502,15 @@ fn collect_type_body_deps(
             while j > 0 && matches!(bytes[j - 1], b' ' | b'\t' | b'\r' | b'\n') {
                 j -= 1;
             }
-            let preceded_by_typeof =
-                j >= 6 && &body[j - 6..j] == "typeof" && (j == 6 || !is_ident_byte(bytes[j - 7]));
+            // `&body[j - 6..j]` is raw byte arithmetic: when non-ASCII (e.g.
+            // CJK) text precedes the identifier, `j - 6` can land inside a
+            // multibyte char and panic the whole run (issue #719). Guard the
+            // slice with `is_char_boundary` — the 6 bytes can only spell the
+            // ASCII keyword `typeof` when `j - 6` is already a boundary.
+            let preceded_by_typeof = j >= 6
+                && body.is_char_boundary(j - 6)
+                && &body[j - 6..j] == "typeof"
+                && (j == 6 || !is_ident_byte(bytes[j - 7]));
             // Detect property-key context: `key:` or `key?:` (with optional
             // whitespace) — these are object-type member keys, not type
             // references, so they shouldn't count as deps even if they
@@ -3732,6 +3739,45 @@ fn extract_names_from_labeled_body(body: &oxc::Statement) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+    #[test]
+    fn collect_type_body_deps_handles_multibyte_before_ident() {
+        // Regression for #719: the `typeof` lookbehind sliced `&body[j - 6..j]`
+        // with raw byte arithmetic, which panicked when a multibyte (CJK)
+        // char preceded an identifier (here `必須) */` before `imageSrc`).
+        let body = "interface Props {\n\
+            \u{20}\u{20}/** \u{30A2}\u{30D0}\u{30BF}\u{30FC} */\n\
+            \u{20}\u{20}content: 'image' | 'initial' | 'count';\n\
+            \u{20}\u{20}/** \u{753B}\u{50CF} (content='image' \u{306E}\u{5834}\u{5408}\u{306B}\u{5FC5}\u{9808}) */\n\
+            \u{20}\u{20}imageSrc?: string;\n}";
+        let candidates: HashSet<String> = HashSet::new();
+        let generics: HashSet<String> = HashSet::new();
+        let values: HashSet<String> = HashSet::new();
+        let imports: HashSet<String> = HashSet::new();
+        // Must not panic.
+        let (_value_deps, _type_deps) =
+            collect_type_body_deps(body, &candidates, "Props", &generics, &values, &imports);
+    }
+
+    #[test]
+    fn svelte2tsx_does_not_panic_on_cjk_jsdoc() {
+        // End-to-end guard for #719: a `<script lang="ts">` whose JSDoc
+        // comments contain CJK characters used to abort the whole svelte2tsx
+        // run with a char-boundary panic during overlay generation.
+        let source = "<script lang=\"ts\">\n\
+            \u{20}\u{20}interface Props {\n\
+            \u{20}\u{20}\u{20}\u{20}/** \u{30A2}\u{30D0}\u{30BF}\u{30FC}\u{306E}\u{30B3}\u{30F3}\u{30C6}\u{30F3}\u{30C4} */\n\
+            \u{20}\u{20}\u{20}\u{20}content: 'image' | 'initial' | 'count';\n\
+            \u{20}\u{20}\u{20}\u{20}/** \u{753B}\u{50CF}\u{306E}\u{30BD}\u{30FC}\u{30B9} (content='image' \u{306E}\u{5834}\u{5408}\u{306B}\u{5FC5}\u{9808}) */\n\
+            \u{20}\u{20}\u{20}\u{20}imageSrc?: string;\n\
+            \u{20}\u{20}}\n\
+            \u{20}\u{20}const { content, imageSrc }: Props = $props();\n\
+            </script>\n\
+            <p>{content}{imageSrc}</p>\n";
+        let out = svelte2tsx(source, Svelte2TsxOptions::default()).expect("svelte2tsx ok");
+        // Smoke check: the prop identifiers survived into the overlay.
+        assert!(out.code.contains("imageSrc"));
+    }
 
     #[test]
     fn test_exported_names_empty() {
