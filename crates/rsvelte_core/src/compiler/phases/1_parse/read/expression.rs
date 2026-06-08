@@ -2875,67 +2875,17 @@ fn convert_type_annotation_adjusted(
 }
 
 /// Convert TSType with pre-adjusted offset.
+///
+/// This is a thin alias for [`convert_ts_type`]: both take an absolute base
+/// offset and add the node span (`base + span.start/end`). Keeping the alias
+/// avoids churning the FunctionParameter / declarator call sites that already
+/// pass an `adjusted_offset`.
 fn convert_ts_type_adjusted(
     ts_type: &oxc_ast::ast::TSType,
     adjusted_offset: usize,
     line_offsets: &[usize],
 ) -> Value {
-    use oxc_ast::ast::TSType;
-
-    let span = ts_type.span();
-    let start = adjusted_offset + span.start as usize;
-    let end = adjusted_offset + span.end as usize;
-
-    match ts_type {
-        TSType::TSStringKeyword(_) => {
-            create_ts_keyword("TSStringKeyword", start, end, line_offsets)
-        }
-        TSType::TSNumberKeyword(_) => {
-            create_ts_keyword("TSNumberKeyword", start, end, line_offsets)
-        }
-        TSType::TSBooleanKeyword(_) => {
-            create_ts_keyword("TSBooleanKeyword", start, end, line_offsets)
-        }
-        TSType::TSAnyKeyword(_) => create_ts_keyword("TSAnyKeyword", start, end, line_offsets),
-        TSType::TSVoidKeyword(_) => create_ts_keyword("TSVoidKeyword", start, end, line_offsets),
-        TSType::TSNullKeyword(_) => create_ts_keyword("TSNullKeyword", start, end, line_offsets),
-        TSType::TSUndefinedKeyword(_) => {
-            create_ts_keyword("TSUndefinedKeyword", start, end, line_offsets)
-        }
-        TSType::TSTypeReference(type_ref) => {
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("TSTypeReference".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-
-            // Convert typeName
-            let type_name =
-                convert_ts_type_name_adjusted(&type_ref.type_name, adjusted_offset, line_offsets);
-            obj.insert("typeName".to_string(), type_name);
-
-            Value::Object(obj)
-        }
-        _ => {
-            // Fallback for unsupported types
-            let mut obj = Map::new();
-            obj.insert(
-                "type".to_string(),
-                Value::String("TSUnknownKeyword".to_string()),
-            );
-            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-            if let Some(loc) = create_loc(start, end, line_offsets) {
-                obj.insert("loc".to_string(), loc);
-            }
-            Value::Object(obj)
-        }
-    }
+    convert_ts_type(ts_type, adjusted_offset, line_offsets)
 }
 
 /// Convert TSTypeName with pre-adjusted offset.
@@ -2977,6 +2927,19 @@ fn convert_ts_type_name_adjusted(
                 obj.insert("loc".to_string(), loc);
             }
 
+            // `left` recurses (it may itself be a qualified name); `right` is a
+            // plain Identifier. Matches svelte/compiler's TSQualifiedName shape.
+            obj.insert(
+                "left".to_string(),
+                convert_ts_type_name_adjusted(&qualified.left, adjusted_offset, line_offsets),
+            );
+            let r_start = adjusted_offset + qualified.right.span.start as usize;
+            let r_end = adjusted_offset + qualified.right.span.end as usize;
+            obj.insert(
+                "right".to_string(),
+                ts_identifier_value(&qualified.right.name, r_start, r_end, line_offsets),
+            );
+
             Value::Object(obj)
         }
         oxc_ast::ast::TSTypeName::ThisExpression(this) => {
@@ -3000,56 +2963,425 @@ fn convert_ts_type_name_adjusted(
     }
 }
 
-/// Convert oxc TSType to a serde_json::Value.
+/// Convert an oxc `TSType` to a serde_json `Value` matching svelte/compiler's
+/// (acorn-typescript) ESTree shape.
+///
+/// `offset` is an absolute base such that `offset + span.{start,end}` is the
+/// node's absolute position in the original source. Both the program path
+/// (`$props()` destructuring annotations) and the FunctionParameter / pattern
+/// path route through here so inline annotations no longer collapse to a
+/// members-less `TSUnknownKeyword` stub (#791).
 fn convert_ts_type(ts_type: &oxc_ast::ast::TSType, offset: usize, line_offsets: &[usize]) -> Value {
     use oxc_ast::ast::TSType;
 
+    let span = ts_type.span();
+    let start = offset + span.start as usize;
+    let end = offset + span.end as usize;
+
+    // Build a `{ type, start, end, loc }` object the rest of the arms extend.
+    let base = |type_name: &str| -> Map<String, Value> {
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String(type_name.to_string()));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        if let Some(loc) = create_loc(start, end, line_offsets) {
+            obj.insert("loc".to_string(), loc);
+        }
+        obj
+    };
+
     match ts_type {
-        TSType::TSStringKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
+        // ---- keyword / leaf types -------------------------------------------
+        TSType::TSStringKeyword(_) => {
             create_ts_keyword("TSStringKeyword", start, end, line_offsets)
         }
-        TSType::TSNumberKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
+        TSType::TSNumberKeyword(_) => {
             create_ts_keyword("TSNumberKeyword", start, end, line_offsets)
         }
-        TSType::TSBooleanKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
+        TSType::TSBooleanKeyword(_) => {
             create_ts_keyword("TSBooleanKeyword", start, end, line_offsets)
         }
-        TSType::TSAnyKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
-            create_ts_keyword("TSAnyKeyword", start, end, line_offsets)
-        }
-        TSType::TSVoidKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
-            create_ts_keyword("TSVoidKeyword", start, end, line_offsets)
-        }
-        TSType::TSNullKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
-            create_ts_keyword("TSNullKeyword", start, end, line_offsets)
-        }
-        TSType::TSUndefinedKeyword(kw) => {
-            let start = offset + kw.span.start as usize;
-            let end = offset + kw.span.end as usize;
+        TSType::TSAnyKeyword(_) => create_ts_keyword("TSAnyKeyword", start, end, line_offsets),
+        TSType::TSVoidKeyword(_) => create_ts_keyword("TSVoidKeyword", start, end, line_offsets),
+        TSType::TSNullKeyword(_) => create_ts_keyword("TSNullKeyword", start, end, line_offsets),
+        TSType::TSUndefinedKeyword(_) => {
             create_ts_keyword("TSUndefinedKeyword", start, end, line_offsets)
         }
-        _ => {
-            // Fallback for unsupported types
-            let mut obj = Map::new();
+        TSType::TSObjectKeyword(_) => {
+            create_ts_keyword("TSObjectKeyword", start, end, line_offsets)
+        }
+        TSType::TSSymbolKeyword(_) => {
+            create_ts_keyword("TSSymbolKeyword", start, end, line_offsets)
+        }
+        TSType::TSUnknownKeyword(_) => {
+            create_ts_keyword("TSUnknownKeyword", start, end, line_offsets)
+        }
+        TSType::TSNeverKeyword(_) => create_ts_keyword("TSNeverKeyword", start, end, line_offsets),
+        TSType::TSBigIntKeyword(_) => {
+            create_ts_keyword("TSBigIntKeyword", start, end, line_offsets)
+        }
+        TSType::TSIntrinsicKeyword(_) => {
+            create_ts_keyword("TSIntrinsicKeyword", start, end, line_offsets)
+        }
+        TSType::TSThisType(_) => create_ts_keyword("TSThisType", start, end, line_offsets),
+
+        // ---- references -----------------------------------------------------
+        TSType::TSTypeReference(type_ref) => {
+            let mut obj = base("TSTypeReference");
             obj.insert(
-                "type".to_string(),
-                Value::String("TSUnknownKeyword".to_string()),
+                "typeName".to_string(),
+                convert_ts_type_name_adjusted(&type_ref.type_name, offset, line_offsets),
+            );
+            if let Some(args) = &type_ref.type_arguments {
+                obj.insert(
+                    "typeArguments".to_string(),
+                    convert_ts_type_param_instantiation(args, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+
+        // ---- object type literal: `{ a: T; b: U }` --------------------------
+        TSType::TSTypeLiteral(lit) => {
+            let mut obj = base("TSTypeLiteral");
+            let members: Vec<Value> = lit
+                .members
+                .iter()
+                .map(|m| convert_ts_signature(m, offset, line_offsets))
+                .collect();
+            obj.insert("members".to_string(), Value::Array(members));
+            Value::Object(obj)
+        }
+
+        // ---- unions / intersections ----------------------------------------
+        TSType::TSUnionType(u) => {
+            let mut obj = base("TSUnionType");
+            let types: Vec<Value> = u
+                .types
+                .iter()
+                .map(|t| convert_ts_type(t, offset, line_offsets))
+                .collect();
+            obj.insert("types".to_string(), Value::Array(types));
+            Value::Object(obj)
+        }
+        TSType::TSIntersectionType(i) => {
+            let mut obj = base("TSIntersectionType");
+            let types: Vec<Value> = i
+                .types
+                .iter()
+                .map(|t| convert_ts_type(t, offset, line_offsets))
+                .collect();
+            obj.insert("types".to_string(), Value::Array(types));
+            Value::Object(obj)
+        }
+
+        // ---- arrays / tuples ------------------------------------------------
+        TSType::TSArrayType(a) => {
+            let mut obj = base("TSArrayType");
+            obj.insert(
+                "elementType".to_string(),
+                convert_ts_type(&a.element_type, offset, line_offsets),
             );
             Value::Object(obj)
         }
+        // ---- literal types: `'a'`, `403`, `true` ----------------------------
+        TSType::TSLiteralType(l) => {
+            let mut obj = base("TSLiteralType");
+            obj.insert(
+                "literal".to_string(),
+                convert_ts_literal(&l.literal, offset, line_offsets),
+            );
+            Value::Object(obj)
+        }
+
+        // ---- wrappers / operators ------------------------------------------
+        TSType::TSParenthesizedType(p) => {
+            let mut obj = base("TSParenthesizedType");
+            obj.insert(
+                "typeAnnotation".to_string(),
+                convert_ts_type(&p.type_annotation, offset, line_offsets),
+            );
+            Value::Object(obj)
+        }
+        TSType::TSTypeOperatorType(op) => {
+            use oxc_ast::ast::TSTypeOperatorOperator;
+            // svelte/compiler emits the node as `TSTypeOperator` (no `Type` suffix).
+            let mut obj = base("TSTypeOperator");
+            let operator = match op.operator {
+                TSTypeOperatorOperator::Keyof => "keyof",
+                TSTypeOperatorOperator::Unique => "unique",
+                TSTypeOperatorOperator::Readonly => "readonly",
+            };
+            obj.insert("operator".to_string(), Value::String(operator.to_string()));
+            obj.insert(
+                "typeAnnotation".to_string(),
+                convert_ts_type(&op.type_annotation, offset, line_offsets),
+            );
+            Value::Object(obj)
+        }
+        TSType::TSIndexedAccessType(ia) => {
+            let mut obj = base("TSIndexedAccessType");
+            obj.insert(
+                "objectType".to_string(),
+                convert_ts_type(&ia.object_type, offset, line_offsets),
+            );
+            obj.insert(
+                "indexType".to_string(),
+                convert_ts_type(&ia.index_type, offset, line_offsets),
+            );
+            Value::Object(obj)
+        }
+
+        // ---- span-bearing fallback for still-unhandled exotic types ---------
+        // Never the old span-less stub: keep offsets so downstream tooling can
+        // still address the node even when its inner shape isn't modelled yet.
+        _ => Value::Object(base("TSUnknownKeyword")),
     }
+}
+
+/// Convert a member of a `TSTypeLiteral` / interface body. Currently models
+/// `TSPropertySignature` exactly (the common inline-props case); other
+/// signature kinds degrade to a span-bearing node.
+fn convert_ts_signature(
+    sig: &oxc_ast::ast::TSSignature,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::TSSignature;
+
+    match sig {
+        TSSignature::TSPropertySignature(prop) => {
+            let start = offset + prop.span.start as usize;
+            let end = offset + prop.span.end as usize;
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("TSPropertySignature".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            if let Some(loc) = create_loc(start, end, line_offsets) {
+                obj.insert("loc".to_string(), loc);
+            }
+            obj.insert("computed".to_string(), Value::Bool(prop.computed));
+            // svelte/compiler omits `optional` / `readonly` when false.
+            if prop.optional {
+                obj.insert("optional".to_string(), Value::Bool(true));
+            }
+            if prop.readonly {
+                obj.insert("readonly".to_string(), Value::Bool(true));
+            }
+            obj.insert(
+                "key".to_string(),
+                convert_ts_property_key(&prop.key, offset, line_offsets),
+            );
+            if let Some(type_ann) = &prop.type_annotation {
+                obj.insert(
+                    "typeAnnotation".to_string(),
+                    convert_type_annotation_adjusted(type_ann, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+        // Index / method / call / construct signatures: span-bearing node so
+        // the member is still addressable even though it isn't fully modelled.
+        _ => {
+            let span = sig.span();
+            let start = offset + span.start as usize;
+            let end = offset + span.end as usize;
+            let type_name = match sig {
+                TSSignature::TSIndexSignature(_) => "TSIndexSignature",
+                TSSignature::TSCallSignatureDeclaration(_) => "TSCallSignatureDeclaration",
+                TSSignature::TSConstructSignatureDeclaration(_) => {
+                    "TSConstructSignatureDeclaration"
+                }
+                TSSignature::TSMethodSignature(_) => "TSMethodSignature",
+                TSSignature::TSPropertySignature(_) => "TSPropertySignature",
+            };
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String(type_name.to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            if let Some(loc) = create_loc(start, end, line_offsets) {
+                obj.insert("loc".to_string(), loc);
+            }
+            Value::Object(obj)
+        }
+    }
+}
+
+/// Convert a `TSPropertySignature` key (Identifier / string / numeric).
+fn convert_ts_property_key(
+    key: &oxc_ast::ast::PropertyKey,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::PropertyKey;
+
+    match key {
+        PropertyKey::StaticIdentifier(id) => {
+            let start = offset + id.span.start as usize;
+            let end = offset + id.span.end as usize;
+            ts_identifier_value(&id.name, start, end, line_offsets)
+        }
+        PropertyKey::StringLiteral(s) => {
+            let start = offset + s.span.start as usize;
+            let end = offset + s.span.end as usize;
+            ts_literal_value(
+                start,
+                end,
+                Value::String(s.value.to_string()),
+                s.raw.as_ref().map(|r| r.to_string()),
+                line_offsets,
+            )
+        }
+        PropertyKey::NumericLiteral(n) => {
+            let start = offset + n.span.start as usize;
+            let end = offset + n.span.end as usize;
+            ts_literal_value(
+                start,
+                end,
+                number_value(n.value),
+                n.raw.as_ref().map(|r| r.to_string()),
+                line_offsets,
+            )
+        }
+        _ => {
+            let span = key.span();
+            let start = offset + span.start as usize;
+            let end = offset + span.end as usize;
+            ts_identifier_value("", start, end, line_offsets)
+        }
+    }
+}
+
+/// Convert a `TSLiteralType` literal into an ESTree `Literal` node.
+fn convert_ts_literal(
+    literal: &oxc_ast::ast::TSLiteral,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::TSLiteral;
+
+    match literal {
+        TSLiteral::StringLiteral(s) => {
+            let start = offset + s.span.start as usize;
+            let end = offset + s.span.end as usize;
+            ts_literal_value(
+                start,
+                end,
+                Value::String(s.value.to_string()),
+                s.raw.as_ref().map(|r| r.to_string()),
+                line_offsets,
+            )
+        }
+        TSLiteral::NumericLiteral(n) => {
+            let start = offset + n.span.start as usize;
+            let end = offset + n.span.end as usize;
+            ts_literal_value(
+                start,
+                end,
+                number_value(n.value),
+                n.raw.as_ref().map(|r| r.to_string()),
+                line_offsets,
+            )
+        }
+        TSLiteral::BooleanLiteral(b) => {
+            let start = offset + b.span.start as usize;
+            let end = offset + b.span.end as usize;
+            ts_literal_value(
+                start,
+                end,
+                Value::Bool(b.value),
+                Some(b.value.to_string()),
+                line_offsets,
+            )
+        }
+        _ => {
+            let span = literal.span();
+            let start = offset + span.start as usize;
+            let end = offset + span.end as usize;
+            ts_literal_value(start, end, Value::Null, None, line_offsets)
+        }
+    }
+}
+
+/// Build an ESTree `Identifier` node `{ type, start, end, loc, name }` as a
+/// `serde_json::Value` (the `create_identifier` helper returns an `Expression`,
+/// which the TS-type converters can't use directly).
+fn ts_identifier_value(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Value {
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    if let Some(loc) = create_loc(start, end, line_offsets) {
+        obj.insert("loc".to_string(), loc);
+    }
+    obj.insert("name".to_string(), Value::String(name.to_string()));
+    Value::Object(obj)
+}
+
+/// Build an ESTree `Literal` node `{ type, start, end, loc, value, raw }`.
+fn ts_literal_value(
+    start: usize,
+    end: usize,
+    value: Value,
+    raw: Option<String>,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String("Literal".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    if let Some(loc) = create_loc(start, end, line_offsets) {
+        obj.insert("loc".to_string(), loc);
+    }
+    obj.insert("value".to_string(), value);
+    if let Some(raw) = raw {
+        obj.insert("raw".to_string(), Value::String(raw));
+    }
+    Value::Object(obj)
+}
+
+/// Encode an f64 literal value as an integer JSON number when it is integral
+/// (so `403` serializes as `403`, not `403.0`), else as a float.
+fn number_value(v: f64) -> Value {
+    if v.fract() == 0.0 && v.is_finite() && v.abs() < 9.007_199_254_740_992e15 {
+        Value::Number((v as i64).into())
+    } else {
+        serde_json::Number::from_f64(v)
+            .map(Value::Number)
+            .unwrap_or(Value::Null)
+    }
+}
+
+/// Convert a `TSTypeParameterInstantiation` (`<A, B>`) into svelte/compiler's
+/// shape: `{ type: 'TSTypeParameterInstantiation', start, end, loc, params }`.
+fn convert_ts_type_param_instantiation(
+    args: &oxc_ast::ast::TSTypeParameterInstantiation,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + args.span.start as usize;
+    let end = offset + args.span.end as usize;
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("TSTypeParameterInstantiation".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    if let Some(loc) = create_loc(start, end, line_offsets) {
+        obj.insert("loc".to_string(), loc);
+    }
+    let params: Vec<Value> = args
+        .params
+        .iter()
+        .map(|t| convert_ts_type(t, offset, line_offsets))
+        .collect();
+    obj.insert("params".to_string(), Value::Array(params));
+    Value::Object(obj)
 }
 
 /// Create a TypeScript keyword type node.
