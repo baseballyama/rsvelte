@@ -385,7 +385,10 @@ fn push_open_tag(
         return Ok(false);
     };
 
-    let self_closing = is_self_closing(source, open_tag_end);
+    // Void HTML elements (`<input>`, `<br>`, `<hr>`, …) have no closing tag;
+    // prettier-plugin-svelte normalizes them to the self-closing ` />` form
+    // even when the source omits the slash.
+    let self_closing = is_self_closing(source, open_tag_end) || is_void_element(tag_name);
 
     // When the open tag wraps, the closing `>` normally lands on its own line at
     // the outer indent. But if the element's content is whitespace-sensitive
@@ -561,6 +564,28 @@ fn open_tag_name_end(source: &str, element_start: u32) -> usize {
         i += 1;
     }
     i
+}
+
+/// HTML void elements — they never have a closing tag and are emitted in the
+/// self-closing ` />` form (matching prettier-plugin-svelte's default).
+fn is_void_element(tag_name: &str) -> bool {
+    matches!(
+        tag_name,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    )
 }
 
 fn render_one_line(tag_name: &str, attrs: &[String], self_closing: bool) -> String {
