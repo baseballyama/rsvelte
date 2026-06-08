@@ -2170,8 +2170,7 @@ fn handle_component(
     //   comes from a value (e.g. Storybook's `const { Story } = defineMeta(…)`)
     //   does not pick up its contextual `Snippet<[Args]>` type and the snippet
     //   parameter falls back to implicit `any` (#796).
-    let needs_instance =
-        has_events || has_lets || children_have_named_slots || use_snippet_props;
+    let needs_instance = has_events || has_lets || children_have_named_slots || use_snippet_props;
 
     // Check if Svelte 5 children prop is needed
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
