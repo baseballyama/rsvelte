@@ -3091,30 +3091,32 @@ impl Memoizer {
             return self.generate_id_slow(base);
         };
 
-        // Fast path: most calls succeed on the first attempt. Only borrow the
-        // shared `conflicts` set (skip the `next_suffix` borrow), and use
-        // `HashSet::insert` to combine the lookup + insert into a single
-        // hash. This function is ~33% of phase-3 transform inclusive time
-        // on template-heavy input, so trimming a redundant hash lookup +
-        // a RefCell borrow per call matters.
+        // Fast path: the base name is free. This function dominates phase-3
+        // transform time on template-heavy input, where a handful of base
+        // names ("text", "div", …) are reused across thousands of nodes — so
+        // the *first* call for a base takes this branch and every later one
+        // falls through to the suffix loop. `contains` (a borrow on `&str`,
+        // no allocation) keeps that common failure cheap; we only allocate
+        // the two owned Strings — one stored, one returned — on the rare
+        // success.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            let owned = sanitized.to_string();
-            if conflicts.insert(owned.clone()) {
-                return owned;
+            if !conflicts.contains(sanitized) {
+                conflicts.insert(sanitized.to_string());
+                return sanitized.to_string();
             }
         }
 
-        // Conflict path: fall through to the suffix loop. The loop body uses
-        // `contains` rather than `insert` so we don't allocate a String per
-        // candidate when the suffix tracker keeps us close to the next free
-        // slot — only the winning name gets cloned for insertion at the end.
+        // Conflict path: append `_N`, advancing `N` from the per-base suffix
+        // tracker so we usually land on a free slot in one iteration. A single
+        // `insert` does the membership test and the record in one hash; the
+        // reused `name` buffer is the winning return value, and only the
+        // stored copy is cloned.
         let mut conflicts = self.conflicts.borrow_mut();
         let mut next_suffix = self.next_suffix.borrow_mut();
-        let start_n = next_suffix.get(sanitized).copied().unwrap_or(1);
+        let mut n = next_suffix.get(sanitized).copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
-        let mut n = start_n;
         loop {
             name.clear();
             name.push_str(sanitized);
@@ -3124,34 +3126,38 @@ impl Memoizer {
             } else {
                 name.push_str(itoa_buf.format(n));
             }
-            if !conflicts.contains(name.as_str()) {
+            if conflicts.insert(name.clone()) {
                 break;
             }
             n += 1;
         }
 
-        conflicts.insert(name.clone());
-        next_suffix.insert(sanitized.to_string(), n + 1);
+        match next_suffix.get_mut(sanitized) {
+            Some(slot) => *slot = n + 1,
+            None => {
+                next_suffix.insert(sanitized.to_string(), n + 1);
+            }
+        }
         name
     }
 
     fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
 
-        // Mirror the fast-path optimization in `generate_id`: skip the
-        // `next_suffix` borrow on the no-conflict path and combine the
-        // lookup + insert into a single `HashSet::insert`.
+        // Mirror the fast/conflict-path layout of `generate_id`: a
+        // non-allocating `contains` on the common failure, then a single
+        // `insert` that tests and records the suffixed name in one hash.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            if conflicts.insert(sanitized.clone()) {
+            if !conflicts.contains(sanitized.as_str()) {
+                conflicts.insert(sanitized.clone());
                 return sanitized;
             }
         }
 
         let mut conflicts = self.conflicts.borrow_mut();
         let mut next_suffix = self.next_suffix.borrow_mut();
-        let start_n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
-        let mut n = start_n;
+        let mut n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
         loop {
@@ -3163,14 +3169,18 @@ impl Memoizer {
             } else {
                 name.push_str(itoa_buf.format(n));
             }
-            if !conflicts.contains(name.as_str()) {
+            if conflicts.insert(name.clone()) {
                 break;
             }
             n += 1;
         }
 
-        conflicts.insert(name.clone());
-        next_suffix.insert(sanitized, n + 1);
+        match next_suffix.get_mut(sanitized.as_str()) {
+            Some(slot) => *slot = n + 1,
+            None => {
+                next_suffix.insert(sanitized, n + 1);
+            }
+        }
         name
     }
 
