@@ -80,8 +80,8 @@ function logOnce() {
 
 // The upstream svelte version we mirror. vite-plugin-svelte does
 // `gte(VERSION, '5.36.0')` to decide whether async features are available.
-// rsvelte targets sveltejs/svelte@5.56.2, so report that.
-export const VERSION = '5.56.2';
+// rsvelte targets sveltejs/svelte@5.56.3, so report that.
+export const VERSION = '5.56.3';
 
 // The NAPI compile binding deserialises `options` via serde_json, which can't
 // represent JS functions. vite-plugin-svelte sets `options.cssHash = () => …`

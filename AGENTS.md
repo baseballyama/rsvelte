@@ -115,7 +115,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (generated 2026-06-06, Svelte commit `51baf1c1af4f`, **v5.56.2**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
+Source: `pnpm run compatibility-report` (generated 2026-06-08, Svelte commit `a9f48540e236`, **v5.56.3**). Re-run `pnpm run test-and-update` to refresh. Skip lists live in `crates/rsvelte_core/tests/compatibility_report.rs` and `crates/rsvelte_core/tests/runtime.rs`; `crates/rsvelte_core/tests/audit_skipped.rs` re-checks every skipped fixture after a Svelte bump. See [docs/skip-remaining-clusters.md](docs/skip-remaining-clusters.md) for a per-cluster breakdown of remaining skips with upstream commits, root causes, and a porting plan.
 
 | Suite | Pass/Total | Notes |
 |-------|------------|-------|
@@ -136,7 +136,7 @@ Source: `pnpm run compatibility-report` (generated 2026-06-06, Svelte commit `51
 | svelte2tsx | 253/253 | Wave 1 of the ecosystem port — error fixtures now compared via `expected.error.json` start/end offsets. Driven by `crates/rsvelte_core/tests/common/svelte2tsx.rs`. The `language-tools` bump added 6 fixtures; three needed port work: `$props()` typedef insertion now counts the real declaration-keyword length (`const`=5, not a hardcoded `let`=3); hoisted interfaces emit in topological-promotion order (base before extender, mirroring upstream `HoistableInterfaces`); and non-leading `{#snippet}` blocks inside `{#each}` are hoisted above sibling `{const}`/`{let}` declaration tags (port of upstream `hoistSnippetBlock`). |
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
-**Compatibility report total (Svelte 5.56.2): 3525/3525 in-scope-run passing (100.0%, 0 failures, 0 errors). The 5.56.2 bump carried a single compiler change — #18366 (ignore `DeclarationTag` nodes in the keyed-`{#each}` animate-directive single-child validation) — ported in `2_analyze/visitors/each_block.rs`. The concurrent `language-tools` submodule bump added six svelte2tsx fixtures, three of which exposed pre-existing port gaps now fixed (declaration-keyword length in `$props()` typedef insertion, topological interface-hoist ordering, and `{#snippet}` hoisting above sibling declaration tags inside `{#each}`). The 76 `migrate` fixtures are intentionally out of scope.**
+**Compatibility report total (Svelte 5.56.3): all in-scope-run fixtures passing (100.0%, 0 failures, 0 errors). 5.56.3 is a runtime/types-only patch — svelte#18384 (guard that a boundary exists before calling its error handler in an async derived) and #18388 (`$state.snapshot` bigint `Primitive` type), both under `internal/client` / `ambient.d.ts` — with no changes under `packages/svelte/src/compiler/`. The compiler output is therefore unchanged from 5.56.2: fixtures regenerate identically and every category stays at 100%. The 76 `migrate` fixtures are intentionally out of scope.**
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
