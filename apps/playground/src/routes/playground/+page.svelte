@@ -102,10 +102,6 @@
 		error = '';
 		const startTime = performance.now();
 		try {
-			// Lint is computed regardless of compile success (it surfaces compile
-			// errors and warnings too, alongside the native rules).
-			lintDiagnostics = lint(input, 'Component.svelte');
-
 			const clientResult = compileClient(input, 'Component');
 			const result = mode === 'client' ? clientResult : compileServer(input, 'Component');
 			const endTime = performance.now();
@@ -198,10 +194,18 @@
 		}
 	}
 
+	// ── lint ──────────────────────────────────────────
+	function runLint() {
+		if (!wasmReady) return;
+		// Surfaces compiler warnings/errors + a11y + the native rsvelte-lint rules.
+		lintDiagnostics = lint(input, 'Component.svelte');
+	}
+
 	function run() {
 		if (tool === 'compiler') compile();
 		else if (tool === 'svelte2tsx') runSvelte2tsx();
 		else if (tool === 'fmt') runFmt();
+		else if (tool === 'lint') runLint();
 	}
 
 	async function selectTool(next: ToolId) {
@@ -282,8 +286,7 @@
 		{ id: 'result', label: 'Result', sub: 'iframe preview' },
 		{ id: 'js', label: 'JS output', sub: 'compiled .js' },
 		{ id: 'css', label: 'CSS output', sub: 'scoped styles' },
-		{ id: 'ast', label: 'AST', sub: 'svelte AST · JSON' },
-		{ id: 'lint', label: 'Lint', sub: lintCount === 1 ? '1 finding' : `${lintCount} findings` }
+		{ id: 'ast', label: 'AST', sub: 'svelte AST · JSON' }
 	]);
 
 	const cliFor = (id: ToolId): { lang: string; code: string } => {
@@ -414,6 +417,12 @@
 							Apply to source
 						</button>
 					</header>
+				{:else if tool === 'lint'}
+					<header class="panel-head">
+						<span class="panel-num">02</span>
+						<h2 class="panel-title">Lint <em>diagnostics</em></h2>
+						<span class="panel-meta">{lintCount === 1 ? '1 finding' : `${lintCount} findings`}</span>
+					</header>
 				{/if}
 
 				<div class="panel-body output-host">
@@ -444,25 +453,6 @@
 									highlightRange={astHighlightRange}
 									onNodeClick={handleAstNodeClick}
 								/>
-							</div>
-						{:else if activeTab === 'lint'}
-							<div class="lint-host">
-								{#if lintDiagnostics.length === 0}
-									<div class="lint-empty">No lint findings — looks clean.</div>
-								{:else}
-									<ul class="lint-list">
-										{#each lintDiagnostics as d (d.line + ':' + d.column + ':' + d.code)}
-											<li class="lint-item">
-												<span class="lint-sev lint-{d.severity}">{d.severity}</span>
-												<span class="lint-loc" title="line {d.line}, column {d.column}">
-													{d.line}:{d.column}
-												</span>
-												<span class="lint-msg">{d.message}</span>
-												<span class="lint-code">{d.code}</span>
-											</li>
-										{/each}
-									</ul>
-								{/if}
 							</div>
 						{:else}
 							<div class="editor-host">
@@ -511,6 +501,25 @@
 								{/key}
 							</div>
 						{/if}
+					{:else if tool === 'lint'}
+						<div class="lint-host">
+							{#if lintDiagnostics.length === 0}
+								<div class="lint-empty">No lint findings — looks clean.</div>
+							{:else}
+								<ul class="lint-list">
+									{#each lintDiagnostics as d (d.line + ':' + d.column + ':' + d.code)}
+										<li class="lint-item">
+											<span class="lint-sev lint-{d.severity}">{d.severity}</span>
+											<span class="lint-loc" title="line {d.line}, column {d.column}">
+												{d.line}:{d.column}
+											</span>
+											<span class="lint-msg">{d.message}</span>
+											<span class="lint-code">{d.code}</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>
 					{/if}
 				</div>
 
@@ -532,9 +541,11 @@
 							<strong>{fmtChanged ? 'reformatted' : 'already formatted'}</strong>
 						</span>
 						{#if fmtVersion}
-							<span><span class="dim">fmt</span> <strong>v{fmtVersion}</strong></span>
+							<span><span class="dim">format</span> <strong>v{fmtVersion}</strong></span>
 						{/if}
 						<span class="note">&lt;style&gt; left verbatim in-browser</span>
+					{:else if tool === 'lint'}
+						<span><span class="dim">findings</span> <strong>{lintCount}</strong></span>
 					{/if}
 					<span class="grow"></span>
 					<span class="status-dot" class:ok={wasmReady && !error} class:err={!!error}></span>

@@ -88,7 +88,7 @@ export function lint(source: string, filename = 'Component.svelte'): LintDiagnos
 }
 
 export type CompileMode = 'client' | 'server';
-export type OutputTab = 'result' | 'js' | 'css' | 'ast' | 'lint';
+export type OutputTab = 'result' | 'js' | 'css' | 'ast';
 
 export interface CompileStats {
 	compileTime: number;
