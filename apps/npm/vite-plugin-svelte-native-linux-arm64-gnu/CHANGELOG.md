@@ -1,5 +1,7 @@
 # @rsvelte/vite-plugin-svelte-native-linux-arm64-gnu
 
+## 0.2.4
+
 ## 0.2.3
 
 ## 0.2.2
