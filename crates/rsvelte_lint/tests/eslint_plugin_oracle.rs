@@ -104,6 +104,17 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/prefer-derived-over-derived-by",
         true,
     ),
+    (
+        "no-ignored-unsubscribe",
+        "svelte/no-ignored-unsubscribe",
+        false,
+    ),
+    ("require-stores-init", "svelte/require-stores-init", false),
+    (
+        "require-store-callbacks-use-set-param",
+        "svelte/require-store-callbacks-use-set-param",
+        false,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
