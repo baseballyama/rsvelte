@@ -93,6 +93,17 @@ const RULES: &[(&str, &str, bool)] = &[
         false,
     ),
     ("no-store-async", "svelte/no-store-async", false),
+    ("no-target-blank", "svelte/no-target-blank", false),
+    (
+        "no-add-event-listener",
+        "svelte/no-add-event-listener",
+        false,
+    ),
+    (
+        "prefer-derived-over-derived-by",
+        "svelte/prefer-derived-over-derived-by",
+        true,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
@@ -114,6 +125,11 @@ const SKIP: &[&str] = &[
     // modules exercising the export path (flag exported `new X()` even without
     // mutation), which is not ported — the mutation path covers the rest.
     "prefer-svelte-reactivity/invalid/exports",
+    // `no-add-event-listener` TS-cast case: `(window.addEventListener as any)(…)`.
+    // rsvelte's ESTree strips the TS `as` cast, so the call's callee looks like a
+    // plain `window.addEventListener` member (upstream keeps it a TSAsExpression
+    // and skips it). The non-cast member/identifier cases are covered.
+    "no-add-event-listener/invalid/typescript01",
 ];
 
 /// One expected error from a `*-errors.yaml` file.
