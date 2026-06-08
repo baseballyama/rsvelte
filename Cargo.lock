@@ -2176,7 +2176,7 @@ dependencies = [
  "oxc_span",
  "rsvelte_core",
  "thiserror 2.0.18",
- "unicode-width 0.1.14",
+ "unicode-width 0.2.2",
 ]
 
 [[package]]
