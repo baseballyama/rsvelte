@@ -21,7 +21,7 @@ wasm = ["rsvelte_core/wasm-deps"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
-oxc_allocator = "0.134"
+oxc_allocator = "0.135"
 oxc_ast = "0.134"
 oxc_parser = "0.134"
 oxc_span = "0.134"
