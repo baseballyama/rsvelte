@@ -7,9 +7,9 @@
 
 const IMPORT_MAP = {
 	imports: {
-		svelte: 'https://esm.sh/svelte@5.56.2',
-		'svelte/internal/disclose-version': 'https://esm.sh/svelte@5.56.2/internal/disclose-version',
-		'svelte/internal/client': 'https://esm.sh/svelte@5.56.2/internal/client'
+		svelte: 'https://esm.sh/svelte@5.56.3',
+		'svelte/internal/disclose-version': 'https://esm.sh/svelte@5.56.3/internal/disclose-version',
+		'svelte/internal/client': 'https://esm.sh/svelte@5.56.3/internal/client'
 	}
 };
 
