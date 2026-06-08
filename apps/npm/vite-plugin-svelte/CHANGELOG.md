@@ -1,104 +1,102 @@
 # @sveltejs/vite-plugin-svelte
 
-## 6.2.4
-### Patch Changes
+## 0.4.0
 
+### Minor Changes
+
+- 45fca47: feat: support Vite 8 and vendor the plugin into the rsvelte repo.
+
+  The `@rsvelte/vite-plugin-svelte` shim is now a first-class workspace package at `apps/npm/vite-plugin-svelte` (previously a git submodule pointing at the `baseballyama/vite-plugin-svelte` fork), so it versions and publishes through the normal changeset Release flow like every other `@rsvelte/*` package.
+
+  It also widens the `vite` peer range to `^6.3.0 || ^7.0.0 || ^8.0.0` so the plugin installs on Vite 8 (Rolldown) projects. No plugin-API changes were needed — the plugin already branches on `rolldownVersion`; this mirrors upstream's own Vite 8 support, which was likewise a peer bump. The "experimental" startup warning is now gated to pre-release Vite builds so stable Vite 8 users do not see it. Closes #815.
+
+## 6.2.4
+
+### Patch Changes
 
 - fix(hmr): ensure that svelte files are recompiled and updated css modules returned correctly when reported out of order ([#1258](https://github.com/sveltejs/vite-plugin-svelte/pull/1258))
 
 ## 6.2.3
-### Patch Changes
 
+### Patch Changes
 
 - fix(filter): ignore zero-tagged ids per rollup convention ([#1255](https://github.com/sveltejs/vite-plugin-svelte/pull/1255))
 
 ## 6.2.2
+
 ### Patch Changes
 
-
 - Update experimental support for rolldown-vite to vite 8 beta ([#1246](https://github.com/sveltejs/vite-plugin-svelte/pull/1246))
-
 
 - perf: switch from debug to obug (smaller, esm-only) ([#1241](https://github.com/sveltejs/vite-plugin-svelte/pull/1241))
 
 ## 6.2.1
+
 ### Patch Changes
 
-
 - fix: remove unscopable global styles warning ([#1223](https://github.com/sveltejs/vite-plugin-svelte/pull/1223))
-
 
 - Remove automatic configuration for rolldownOptions.optimization.inlineConst because latest version of rolldown-vite has it enabled by default. ([#1225](https://github.com/sveltejs/vite-plugin-svelte/pull/1225))
 
 ## 6.2.0
-### Minor Changes
 
+### Minor Changes
 
 - feat(rolldown-vite): enable `optimization.inlineConst` by default to ensure treeshaking works with esm-env in svelte ([#1207](https://github.com/sveltejs/vite-plugin-svelte/pull/1207))
 
 ## 6.1.4
-### Patch Changes
 
+### Patch Changes
 
 - fix: allow preprocess plugin to run twice ([#1206](https://github.com/sveltejs/vite-plugin-svelte/pull/1206))
 
-
 - fix(types): update urls to PreprocessorGroup and CompileOptions in type documention ([#1203](https://github.com/sveltejs/vite-plugin-svelte/pull/1203))
-
 
 - replace kleur dependency with builtin node:utils styleText ([#1210](https://github.com/sveltejs/vite-plugin-svelte/pull/1210))
 
 ## 6.1.3
-### Patch Changes
 
+### Patch Changes
 
 - fix(api): add `api.filter` and deprecate `api.idFilter` to avoid confusing `filter.id = idFilter.id` assignments when used as hybrid filter in other plugins ([#1199](https://github.com/sveltejs/vite-plugin-svelte/pull/1199))
 
 ## 6.1.2
-### Patch Changes
 
+### Patch Changes
 
 - fix: ensure compiled css is returned when reloading during dev with ssr (e.g. SvelteKit) ([#1194](https://github.com/sveltejs/vite-plugin-svelte/pull/1194))
 
 ## 6.1.1
-### Patch Changes
 
+### Patch Changes
 
 - fix: ensure compiled svelte css is loaded correctly when rebuilding in `build --watch` ([#1189](https://github.com/sveltejs/vite-plugin-svelte/pull/1189))
 
 ## 6.1.0
-### Minor Changes
 
+### Minor Changes
 
 - feat: add support for the new experimental.async option and apply dynamicCompileOptions when compiling Svelte modules ([#1176](https://github.com/sveltejs/vite-plugin-svelte/pull/1176))
 
-
 ### Patch Changes
 
-
 - skip comment blocks when reporting compiler errors that might be caused by a preprocessor issue ([#1166](https://github.com/sveltejs/vite-plugin-svelte/pull/1166))
-
 
 - increase logLevel to info for "no Svelte config found" message ([#1179](https://github.com/sveltejs/vite-plugin-svelte/pull/1179))
 
 ## 6.0.0
-### Major Changes
 
+### Major Changes
 
 - drop support for node18 and update exports map to use default export. cjs is supported via require esm in node 20.19+ ([#1129](https://github.com/sveltejs/vite-plugin-svelte/pull/1129))
 
-
 - Remove experimental "advanced raw queries" feature. Basic `File.svelte?raw` is still supported. ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
-
 
 - Using the typescript preprocessor now requires a tsconfig.json with verbatimModuleSyntax enabled, eg @tsconfig/svelte ([#1135](https://github.com/sveltejs/vite-plugin-svelte/pull/1135))
 
-
 - remove support for loading commonjs svelte config files ([#1142](https://github.com/sveltejs/vite-plugin-svelte/pull/1142))
 
-
 - bump vite peer dependency to ^6.3.0 || ^7.0.0 ([#1130](https://github.com/sveltejs/vite-plugin-svelte/pull/1130))
-
 
 - define filters using object hook syntax and optimize the filter for resolveId ([#1132](https://github.com/sveltejs/vite-plugin-svelte/pull/1132))
 
@@ -112,18 +110,13 @@
 
   > **NOTE**
   > This can be a breaking change in case you have other plugins besides vite-plugin-svelte transforming your svelte code
-	> To fix this, read the [docs](https://github.com/sveltejs/vite-plugin-svelte/blob/main/docs/advanced-usage.md#transform-svelte-files-with-vite-plugins) on how to order plugins in relation to preprocess and compile
-
-
+  > To fix this, read the [docs](https://github.com/sveltejs/vite-plugin-svelte/blob/main/docs/advanced-usage.md#transform-svelte-files-with-vite-plugins) on how to order plugins in relation to preprocess and compile
 
 ### Minor Changes
 
-
 - Add experimental support for rolldown-vite ([#1135](https://github.com/sveltejs/vite-plugin-svelte/pull/1135))
 
-
 - replace esbuild optimizer with rolldown optimizer if rolldown-vite is used ([#1135](https://github.com/sveltejs/vite-plugin-svelte/pull/1135))
-
 
 - add support for loading TypeScript Svelte config files in runtimes that support it ([#1142](https://github.com/sveltejs/vite-plugin-svelte/pull/1142))
 
@@ -134,70 +127,53 @@
 
 ### Patch Changes
 
-
 - reduce deprecation logging to info and allow disabling it with a flag ([#1158](https://github.com/sveltejs/vite-plugin-svelte/pull/1158))
 
-
 - refactor internal caching to reduce code, memory use and avoid perEnvironmentCache ([#1154](https://github.com/sveltejs/vite-plugin-svelte/pull/1154))
-
 
 - fix: crawl local workspace private packages devDependencies for generating vite config ssr.noExternal ([#1155](https://github.com/sveltejs/vite-plugin-svelte/pull/1155))
 
-
 - log known-issues link when using rolldown-vite ([#1144](https://github.com/sveltejs/vite-plugin-svelte/pull/1144))
-
 
 - use vite environment api internally ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
 
-
 - remove vite7 beta releases from peerDependency range. ([#1151](https://github.com/sveltejs/vite-plugin-svelte/pull/1151))
-
 
 - deprecate `plugin.api.sveltePreprocess` ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
 
-
 ## 6.0.0-next.3
-### Patch Changes
 
+### Patch Changes
 
 - reduce deprecation logging to info and allow disabling it with a flag ([#1158](https://github.com/sveltejs/vite-plugin-svelte/pull/1158))
 
-
 - refactor internal caching to reduce code, memory use and avoid perEnvironmentCache ([#1154](https://github.com/sveltejs/vite-plugin-svelte/pull/1154))
-
 
 - fix: crawl local workspace private packages devDependencies for generating vite config ssr.noExternal ([#1155](https://github.com/sveltejs/vite-plugin-svelte/pull/1155))
 
 ## 6.0.0-next.2
-### Major Changes
 
+### Major Changes
 
 - Remove experimental "advanced raw queries" feature. Basic `File.svelte?raw` is still supported. ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
 
-
 - split preprocess and compile into separate plugins ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
-
 
 ### Patch Changes
 
-
 - use vite environment api internally ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
 
-
 - remove vite7 beta releases from peerDependency range. ([#1151](https://github.com/sveltejs/vite-plugin-svelte/pull/1151))
-
 
 - deprecate `plugin.api.sveltePreprocess` ([#1145](https://github.com/sveltejs/vite-plugin-svelte/pull/1145))
 
 ## 6.0.0-next.1
-### Major Changes
 
+### Major Changes
 
 - remove support for loading commonjs svelte config files ([#1142](https://github.com/sveltejs/vite-plugin-svelte/pull/1142))
 
-
 ### Minor Changes
-
 
 - add support for loading TypeScript Svelte config files in runtimes that support it ([#1142](https://github.com/sveltejs/vite-plugin-svelte/pull/1142))
 
@@ -208,21 +184,17 @@
 
 ### Patch Changes
 
-
 - log known-issues link when using rolldown-vite ([#1144](https://github.com/sveltejs/vite-plugin-svelte/pull/1144))
 
 ## 6.0.0-next.0
-### Major Changes
 
+### Major Changes
 
 - drop support for node18 and update exports map to use default export. cjs is supported via require esm in node 20.19+ ([#1129](https://github.com/sveltejs/vite-plugin-svelte/pull/1129))
 
-
 - Using the typescript preprocessor now requires a tsconfig.json with verbatimModuleSyntax enabled, eg @tsconfig/svelte ([#1135](https://github.com/sveltejs/vite-plugin-svelte/pull/1135))
 
-
 - bump vite peer dependency to ^6.3.0 || ^7.0.0 ([#1130](https://github.com/sveltejs/vite-plugin-svelte/pull/1130))
-
 
 - define filters using object hook syntax and optimize the filter for resolveId ([#1132](https://github.com/sveltejs/vite-plugin-svelte/pull/1132))
 
@@ -231,12 +203,9 @@
 
 ### Minor Changes
 
-
 - Add experimental support for rolldown-vite ([#1135](https://github.com/sveltejs/vite-plugin-svelte/pull/1135))
 
-
 - replace esbuild optimizer with rolldown optimizer if rolldown-vite is used ([#1135](https://github.com/sveltejs/vite-plugin-svelte/pull/1135))
-
 
 ### Patch Changes
 
@@ -244,59 +213,50 @@
   - @sveltejs/vite-plugin-svelte-inspector@5.0.0-next.0
 
 ## 5.1.0
-### Minor Changes
 
+### Minor Changes
 
 - scope css to js module to enable treeshaking scoped css from unused components. Requires vite 6.2 and svelte 5.26 ([#1092](https://github.com/sveltejs/vite-plugin-svelte/pull/1092))
 
-
 ### Patch Changes
-
 
 - add `svelte > clsx` to optimizeDeps.include to avoid page reload when using vite6 and npm ([#1124](https://github.com/sveltejs/vite-plugin-svelte/pull/1124))
 
 ## 5.0.3
-### Patch Changes
 
+### Patch Changes
 
 - fix errorhandling to work with errors that don't have a code property ([#1054](https://github.com/sveltejs/vite-plugin-svelte/pull/1054))
 
 ## 5.0.2
-### Patch Changes
 
+### Patch Changes
 
 - adapt internal handling of warning and error `code` property to changes in svelte5 ([#1044](https://github.com/sveltejs/vite-plugin-svelte/pull/1044))
 
 ## 5.0.1
-### Patch Changes
 
+### Patch Changes
 
 - Fix peer dependencies warning ([#1038](https://github.com/sveltejs/vite-plugin-svelte/pull/1038))
 
 ## 5.0.0
-### Major Changes
 
+### Major Changes
 
 - Handle Vite 6 breaking change and remove Vite 5 handling ([#1020](https://github.com/sveltejs/vite-plugin-svelte/pull/1020))
 
-
 - Support Vite 6 ([#1026](https://github.com/sveltejs/vite-plugin-svelte/pull/1026))
-
 
 ### Minor Changes
 
-
 - Add `esm-env` to `ssr.noExternal` by default to resolve its conditions with Vite ([#1020](https://github.com/sveltejs/vite-plugin-svelte/pull/1020))
-
 
 - Support `?inline` query on Svelte style virtual modules ([#1024](https://github.com/sveltejs/vite-plugin-svelte/pull/1024))
 
-
 ### Patch Changes
 
-
 - remove vite6 beta from peer range ([#1035](https://github.com/sveltejs/vite-plugin-svelte/pull/1035))
-
 
 - Allow script tags to span multiple lines ([`0db95a9`](https://github.com/sveltejs/vite-plugin-svelte/commit/0db95a9cbcd281b99b8b817c8eda8d9ff8fa2db2))
 
@@ -304,26 +264,20 @@
   - @sveltejs/vite-plugin-svelte-inspector@4.0.0
 
 ## 5.0.0-next.0
-### Major Changes
 
+### Major Changes
 
 - Handle Vite 6 breaking change and remove Vite 5 handling ([#1020](https://github.com/sveltejs/vite-plugin-svelte/pull/1020))
 
-
 - Support Vite 6 ([#1026](https://github.com/sveltejs/vite-plugin-svelte/pull/1026))
-
 
 ### Minor Changes
 
-
 - Add `esm-env` to `ssr.noExternal` by default to resolve its conditions with Vite ([#1020](https://github.com/sveltejs/vite-plugin-svelte/pull/1020))
-
 
 - Support `?inline` query on Svelte style virtual modules ([#1024](https://github.com/sveltejs/vite-plugin-svelte/pull/1024))
 
-
 ### Patch Changes
-
 
 - Allow script tags to span multiple lines ([`0db95a9`](https://github.com/sveltejs/vite-plugin-svelte/commit/0db95a9cbcd281b99b8b817c8eda8d9ff8fa2db2))
 
@@ -331,32 +285,26 @@
   - @sveltejs/vite-plugin-svelte-inspector@4.0.0-next.0
 
 ## 4.0.1
-### Patch Changes
 
+### Patch Changes
 
 - removed references to compiler options no longer available in svelte5 ([#1010](https://github.com/sveltejs/vite-plugin-svelte/pull/1010))
 
 ## 4.0.0
-### Major Changes
 
+### Major Changes
 
 - only prebundle files with default filenames (.svelte for components, .svelte.(js|ts) for modules) ([#901](https://github.com/sveltejs/vite-plugin-svelte/pull/901))
 
-
 - remove support for Svelte 4 ([#892](https://github.com/sveltejs/vite-plugin-svelte/pull/892))
-
 
 - breaking(types): some types that have been unintentionally public are now private ([#934](https://github.com/sveltejs/vite-plugin-svelte/pull/934))
 
-
 - disable script preprocessing in vitePreprocess() by default because Svelte 5 supports lang=ts out of the box ([#892](https://github.com/sveltejs/vite-plugin-svelte/pull/892))
-
 
 - replaced svelte-hmr with Svelte 5 compiler hmr integration ([#892](https://github.com/sveltejs/vite-plugin-svelte/pull/892))
 
-
 ### Minor Changes
-
 
 - allow infix notation for svelte modules ([#901](https://github.com/sveltejs/vite-plugin-svelte/pull/901))
 
@@ -365,51 +313,35 @@
 
 - feat(config): dynamically extract list of svelte exports from peer dependency so that new exports work automatically" ([#941](https://github.com/sveltejs/vite-plugin-svelte/pull/941))
 
-
 - feat(warnings): change default loglevel of warnings originating from files in node_modules to debug. To see them call `DEBUG:vite-plugin-svelte:node-modules-onwarn pnpm build`. ([#989](https://github.com/sveltejs/vite-plugin-svelte/pull/989))
-
 
 ### Patch Changes
 
-
 - fix: make defaultHandler a required argument for onwarn in plugin options ([#895](https://github.com/sveltejs/vite-plugin-svelte/pull/895))
-
 
 - prebundle with dev: true by default ([#901](https://github.com/sveltejs/vite-plugin-svelte/pull/901))
 
-
 - fix(dev): compile with hmr: false for prebundled deps as hmr does not work with that ([#950](https://github.com/sveltejs/vite-plugin-svelte/pull/950))
-
 
 - fix: ensure svelte modules correctly run in DEV mode ([#906](https://github.com/sveltejs/vite-plugin-svelte/pull/906))
 
-
 - ensure consistent use of compileOptions.hmr also for prebundling ([#956](https://github.com/sveltejs/vite-plugin-svelte/pull/956))
-
 
 - fix(optimizeDeps): avoid to optimise server only entrypoints of svelte that are never used on the client ([#941](https://github.com/sveltejs/vite-plugin-svelte/pull/941))
 
-
 - update peer on workspace packages to avoid packages bumping each other ([#916](https://github.com/sveltejs/vite-plugin-svelte/pull/916))
-
 
 - export PluginOptions interface ([#976](https://github.com/sveltejs/vite-plugin-svelte/pull/976))
 
-
 - Remove log about experimental status of Svelte 5. Note that breaking changes can still occur while vite-plugin-svelte 4 is in prerelease mode ([#894](https://github.com/sveltejs/vite-plugin-svelte/pull/894))
-
 
 - fix: ensure vite config is only resolved once during lazy init of vitePreprocess ([#912](https://github.com/sveltejs/vite-plugin-svelte/pull/912))
 
-
 - fix(vitePreprocess): default to build config so that svelte-check does not trigger dev-only plugins ([#931](https://github.com/sveltejs/vite-plugin-svelte/pull/931))
-
 
 - fix: only apply infix filter to basename ([#920](https://github.com/sveltejs/vite-plugin-svelte/pull/920))
 
-
 - fix: disable hmr when vite config server.hmr is false ([#913](https://github.com/sveltejs/vite-plugin-svelte/pull/913))
-
 
 - fix(dev): make sure custom cssHash is applied consistently even for prebundled components to avoid hash mismatches during hydration ([#950](https://github.com/sveltejs/vite-plugin-svelte/pull/950))
 
@@ -417,50 +349,44 @@
   - @sveltejs/vite-plugin-svelte-inspector@3.0.0
 
 ## 4.0.0-next.8
-### Minor Changes
 
+### Minor Changes
 
 - feat(warnings): change default loglevel of warnings originating from files in node_modules to debug. To see them call `DEBUG:vite-plugin-svelte:node-modules-onwarn pnpm build`. ([#989](https://github.com/sveltejs/vite-plugin-svelte/pull/989))
 
 ## 4.0.0-next.7
-### Patch Changes
 
+### Patch Changes
 
 - export PluginOptions interface ([#976](https://github.com/sveltejs/vite-plugin-svelte/pull/976))
 
 ## 4.0.0-next.6
-### Patch Changes
 
+### Patch Changes
 
 - ensure consistent use of compileOptions.hmr also for prebundling ([#956](https://github.com/sveltejs/vite-plugin-svelte/pull/956))
 
 ## 4.0.0-next.5
+
 ### Patch Changes
 
-
 - fix(dev): compile with hmr: false for prebundled deps as hmr does not work with that ([#950](https://github.com/sveltejs/vite-plugin-svelte/pull/950))
-
 
 - fix(dev): make sure custom cssHash is applied consistently even for prebundled components to avoid hash mismatches during hydration ([#950](https://github.com/sveltejs/vite-plugin-svelte/pull/950))
 
 ## 4.0.0-next.4
-### Major Changes
 
+### Major Changes
 
 - breaking(types): some types that have been unintentionally public are now private ([#934](https://github.com/sveltejs/vite-plugin-svelte/pull/934))
 
-
 ### Minor Changes
-
 
 - feat(config): dynamically extract list of svelte exports from peer dependency so that new exports work automatically" ([#941](https://github.com/sveltejs/vite-plugin-svelte/pull/941))
 
-
 ### Patch Changes
 
-
 - fix(optimizeDeps): avoid to optimise server only entrypoints of svelte that are never used on the client ([#941](https://github.com/sveltejs/vite-plugin-svelte/pull/941))
-
 
 - fix(vitePreprocess): default to build config so that svelte-check does not trigger dev-only plugins ([#931](https://github.com/sveltejs/vite-plugin-svelte/pull/931))
 
@@ -468,20 +394,18 @@
   - @sveltejs/vite-plugin-svelte-inspector@3.0.0-next.3
 
 ## 4.0.0-next.3
-### Patch Changes
 
+### Patch Changes
 
 - fix: only apply infix filter to basename ([#920](https://github.com/sveltejs/vite-plugin-svelte/pull/920))
 
 ## 4.0.0-next.2
-### Patch Changes
 
+### Patch Changes
 
 - update peer on workspace packages to avoid packages bumping each other ([#916](https://github.com/sveltejs/vite-plugin-svelte/pull/916))
 
-
 - fix: ensure vite config is only resolved once during lazy init of vitePreprocess ([#912](https://github.com/sveltejs/vite-plugin-svelte/pull/912))
-
 
 - fix: disable hmr when vite config server.hmr is false ([#913](https://github.com/sveltejs/vite-plugin-svelte/pull/913))
 
@@ -1349,7 +1273,6 @@
   ```
 
 * Add option to ignore svelte preprocessors of other vite plugins ([#98](https://github.com/sveltejs/vite-plugin-svelte/pull/98))
-
   - ignore them all: `ignorePluginPreprocessors: true`
   - ignore by name: `ignorePluginPreprocessors: ['<name of plugin>',...]`
 

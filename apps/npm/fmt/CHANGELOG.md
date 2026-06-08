@@ -1,5 +1,27 @@
 # @rsvelte/fmt
 
+## 0.3.9
+
+### Patch Changes
+
+- b26d4f0: fix(fmt): wrap attribute-value expressions by their rendered column, not column 0. Attribute and directive values were formatted at column 0 with the full print width, so a value that fits at column 0 but overflows once the open tag wraps and the attribute renders at its nesting indent stayed inline — diverging from prettier-plugin-svelte, which narrows the value's print width by the attribute's nesting depth. The open-tag rewrite now threads the attribute depth (`depth + 1`) into every value formatter (`render_attribute` → `render_attribute_node` / directive / spread / sequence paths) via a new `format_attribute_value_expression`, so e.g. a long `config={{ … }}` object now breaks across lines (with the existing `render_multi_line` reindent owning the continuation columns) exactly like oxfmt. This is sub-case (a) of #795 (the depth-unaware wrap decision, ~69 of 110 divergent files). Sub-case (b) — the Svelte-5 function-binding `bind:value={getter, setter}` softline brace shape — is left for a follow-up: it needs reconciling oxc's sequence-continuation indent with prettier's, which is a separate change. Partially addresses #795.
+- c547af9: fix(fmt): break the braces of a multi-line Svelte 5 function binding and drop its outer parens (#795 sub-case b). A function binding `bind:value={getter, setter}` parses as a top-level sequence expression, so it previously went through the generic mustache-sequence path that re-adds the outer parens (`bind:value={(getter, setter)}`, kept for `{(a, b)}` content — #799) and hugged the braces on one line. prettier-plugin-svelte instead prints a function binding _without_ the parens and, when the members don't fit on the attribute line (or a member is itself multi-line, e.g. a block-bodied setter), breaks the `{` / `}` onto their own lines with each member indented one level:
+
+  ```svelte
+  <TextInput
+    bind:value={
+      () => model.x ?? '',
+      (value) => {
+        model.x = value;
+      }
+    }
+  />
+  ```
+
+  A new `format_function_binding` in `crate::expression` detects the top-level sequence on a `bind:` directive, formats each member individually (so no outer parens), and either keeps the binding inline (`bind:value={a, b}`) when it fits or emits the broken-brace shape, which the existing open-tag `render_multi_line` reindent then pushes out to the attribute column. Closes #795.
+
+- cfc2fa6: fix(fmt): remove an unused `format_expression_source` import in `markup.rs`. The dead import had no effect on formatter output, but the CI build runs with `RUSTFLAGS=-Dwarnings`, which promotes the `unused import` warning to a hard compile error and broke the Clippy, Documentation, and Test jobs on `main`. Dropping the import restores a clean build.
+
 ## 0.3.8
 
 ### Patch Changes
