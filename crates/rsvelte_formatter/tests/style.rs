@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex};
 use rsvelte_formatter::{FormatOptions, StyleFormatter, format};
 
 fn fmt(src: &str, opts: &FormatOptions) -> String {
-    format(src, opts).expect("format ok")
+    let out = format(src, opts).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 #[test]

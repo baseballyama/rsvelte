@@ -5,7 +5,8 @@
 use rsvelte_formatter::{FormatOptions, format};
 
 fn fmt(src: &str) -> String {
-    format(src, &FormatOptions::default()).expect("format ok")
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 #[test]

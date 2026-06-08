@@ -85,5 +85,13 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     for (start, end, new_text) in edits {
         out.replace_range(start as usize..end as usize, &new_text);
     }
+
+    // End the file with exactly one newline (prettier / oxfmt `insertFinalNewline`).
+    let trimmed_len = out.trim_end_matches([' ', '\t', '\r', '\n']).len();
+    out.truncate(trimmed_len);
+    if !out.is_empty() {
+        out.push('\n');
+    }
+
     Ok(out)
 }
