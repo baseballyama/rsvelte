@@ -181,7 +181,30 @@ function sanitizeBlock(src) {
   let out = kept.join('\n');
   out = out.replace(/---[\s\S]*?---/g, ''); // deletion spans
   out = out.replace(/\+\+\+/g, ''); // insertion delimiters
-  return out;
+  return dedent(out);
+}
+
+/// Strip the common leading-whitespace prefix shared by every non-blank line.
+/// Markdown code blocks nested under a list/indent carry that indentation, which
+/// isn't part of the Svelte source — oxfmt drops it when formatting, so strip it
+/// from rsvelte's input too (the oracle is unchanged: oxfmt dedents regardless).
+function dedent(src) {
+  const lines = src.split('\n');
+  let prefix = null;
+  for (const l of lines) {
+    if (!l.trim()) continue;
+    const ind = l.match(/^[ \t]*/)[0];
+    if (prefix === null) {
+      prefix = ind;
+      continue;
+    }
+    let k = 0;
+    while (k < prefix.length && k < ind.length && prefix[k] === ind[k]) k++;
+    prefix = prefix.slice(0, k);
+    if (!prefix) return src;
+  }
+  if (!prefix) return src;
+  return lines.map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : l)).join('\n');
 }
 
 async function main() {
