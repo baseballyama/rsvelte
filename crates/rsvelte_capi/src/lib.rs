@@ -389,7 +389,10 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
         if let Some(s) = v.as_str() {
             opts.sourcemap = Some(s.to_string());
         } else if v.is_object() || v.is_array() {
-            opts.sourcemap = Some(serde_json::to_string(&v).unwrap_or_default());
+            // Only carry the map through when it serializes; on failure
+            // `.ok()` yields `None`, leaving the field unset rather than
+            // storing an empty-string sourcemap.
+            opts.sourcemap = serde_json::to_string(&v).ok();
         }
     }
     if let Some(v) = raw.output_filename {
