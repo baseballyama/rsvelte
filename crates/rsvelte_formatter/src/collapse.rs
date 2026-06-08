@@ -58,6 +58,15 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                     line_width,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_fill_mixed(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
                 } else {
                     collect(out, &elem.fragment, line_width, edits);
                 }
@@ -310,4 +319,209 @@ fn is_block_display(tag: &str) -> bool {
 
 fn is_whitespace_preserving(tag: &str) -> bool {
     matches!(tag, "pre" | "textarea")
+}
+
+/// A fill item: an inline token plus whether whitespace preceded it (a break
+/// opportunity). Glued tokens (no space) never break apart (`foo{bar}`).
+struct Tok {
+    text: String,
+    space_before: bool,
+}
+
+/// Narrow mixed-inline fill: when an element with inline content (text +
+/// expression tags / inline elements) is currently on ONE line but overflows
+/// printWidth, break its content onto its own indented line(s), greedily packed
+/// (prettier fill). Currently-multiline mixed content is left to the
+/// whitespace-sensitive indent pass — only the clearly-failing one-line overflow
+/// is touched, so passing layouts aren't disturbed.
+fn try_fill_mixed(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    if whole.contains('\n') {
+        return None; // only currently-one-line elements
+    }
+    let column = current_column(out, start);
+    if column + whole.width() <= line_width {
+        return None; // already fits
+    }
+    // Must be mixed (at least one non-text child) and entirely inline.
+    let mut has_non_text = false;
+    for n in &fragment.nodes {
+        if !matches!(n, TemplateNode::Text(_)) {
+            has_non_text = true;
+            if !is_inline_node(n) {
+                return None;
+            }
+        }
+    }
+    if !has_non_text {
+        return None; // pure text is handled by try_collapse
+    }
+
+    let content_start = node_start(fragment.nodes.first()?) as usize;
+    let content_end = node_end(fragment.nodes.last()?) as usize;
+    let open = out.get(s..content_start)?;
+    let close = out.get(content_end..e)?;
+    if open.contains('\n') {
+        return None;
+    }
+    let raw = out.get(content_start..content_end)?;
+    let had_lead = raw.starts_with([' ', '\t', '\r', '\n']);
+    let had_trail = raw.ends_with([' ', '\t', '\r', '\n']);
+    // Break only when the boundary whitespace is insignificant (content
+    // separated from the tags, or a block/list-item element) so hugged inline
+    // content stays hugged.
+    if !((had_lead && had_trail) || is_block_display(tag)) {
+        return None;
+    }
+
+    // Build fill tokens.
+    let mut toks: Vec<Tok> = Vec::new();
+    let mut pending_space = false;
+    for node in &fragment.nodes {
+        if let TemplateNode::Text(t) = node {
+            let txt = out.get(t.start as usize..t.end as usize)?;
+            if txt.starts_with([' ', '\t', '\r', '\n']) {
+                pending_space = true;
+            }
+            for (i, w) in txt.split_whitespace().enumerate() {
+                let space_before = (i > 0 || pending_space) && !toks.is_empty();
+                toks.push(Tok {
+                    text: w.to_string(),
+                    space_before,
+                });
+                pending_space = false;
+            }
+            if txt.ends_with([' ', '\t', '\r', '\n']) {
+                pending_space = true;
+            }
+        } else {
+            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            let space_before = pending_space && !toks.is_empty();
+            toks.push(Tok {
+                text: span.to_string(),
+                space_before,
+            });
+            pending_space = false;
+        }
+    }
+    if toks.is_empty() {
+        return None;
+    }
+
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+    let avail = line_width.saturating_sub(inner_indent.width()).max(1);
+    let lines = fill_tokens(&toks, avail)?;
+    // If everything still fits on a single content line there's nothing to gain.
+    if lines.len() == 1 {
+        return None;
+    }
+
+    let mut broken = String::with_capacity(whole.len() + 8);
+    broken.push_str(open);
+    for line in lines {
+        broken.push('\n');
+        broken.push_str(&inner_indent);
+        broken.push_str(&line);
+    }
+    broken.push('\n');
+    broken.push_str(indent);
+    broken.push_str(close);
+    (broken != whole).then_some((start, end, broken))
+}
+
+/// Greedy-pack fill tokens into lines no wider than `width`. Glued tokens stay on
+/// the current line. Returns `None` if an element token alone exceeds `width`
+/// (it needs an internal break this pass doesn't do — leave it untouched).
+fn fill_tokens(toks: &[Tok], width: usize) -> Option<Vec<String>> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    for (i, tok) in toks.iter().enumerate() {
+        if i == 0 || !tok.space_before {
+            if tok.text.starts_with('<') && i != 0 && tok.text.width() > width {
+                return None;
+            }
+            cur.push_str(&tok.text);
+            continue;
+        }
+        if cur.width() + 1 + tok.text.width() <= width {
+            cur.push(' ');
+            cur.push_str(&tok.text);
+        } else {
+            if tok.text.starts_with('<') && tok.text.width() > width {
+                return None;
+            }
+            lines.push(std::mem::take(&mut cur));
+            cur.push_str(&tok.text);
+        }
+    }
+    lines.push(cur);
+    Some(lines)
+}
+
+fn is_inline_node(node: &TemplateNode) -> bool {
+    match node {
+        TemplateNode::Text(_)
+        | TemplateNode::ExpressionTag(_)
+        | TemplateNode::HtmlTag(_)
+        | TemplateNode::AttachTag(_)
+        | TemplateNode::DebugTag(_)
+        | TemplateNode::Comment(_)
+        | TemplateNode::Component(_) => true,
+        TemplateNode::RegularElement(e) => !is_block_display(e.name.as_str()),
+        _ => false,
+    }
+}
+
+fn node_start(node: &TemplateNode) -> u32 {
+    template_node_span(node).0
+}
+
+fn node_end(node: &TemplateNode) -> u32 {
+    template_node_span(node).1
+}
+
+fn template_node_span(node: &TemplateNode) -> (u32, u32) {
+    match node {
+        TemplateNode::Text(n) => (n.start, n.end),
+        TemplateNode::Comment(n) => (n.start, n.end),
+        TemplateNode::TitleElement(n) => (n.start, n.end),
+        TemplateNode::SlotElement(n) => (n.start, n.end),
+        TemplateNode::SvelteBody(n)
+        | TemplateNode::SvelteDocument(n)
+        | TemplateNode::SvelteFragment(n)
+        | TemplateNode::SvelteBoundary(n)
+        | TemplateNode::SvelteHead(n)
+        | TemplateNode::SvelteOptions(n)
+        | TemplateNode::SvelteSelf(n)
+        | TemplateNode::SvelteWindow(n) => (n.start, n.end),
+        TemplateNode::ExpressionTag(n) => (n.start, n.end),
+        TemplateNode::HtmlTag(n) => (n.start, n.end),
+        TemplateNode::ConstTag(n) => (n.start, n.end),
+        TemplateNode::DeclarationTag(n) => (n.start, n.end),
+        TemplateNode::DebugTag(n) => (n.start, n.end),
+        TemplateNode::RenderTag(n) => (n.start, n.end),
+        TemplateNode::AttachTag(n) => (n.start, n.end),
+        TemplateNode::IfBlock(n) => (n.start, n.end),
+        TemplateNode::EachBlock(n) => (n.start, n.end),
+        TemplateNode::AwaitBlock(n) => (n.start, n.end),
+        TemplateNode::KeyBlock(n) => (n.start, n.end),
+        TemplateNode::SnippetBlock(n) => (n.start, n.end),
+        TemplateNode::RegularElement(n) => (n.start, n.end),
+        TemplateNode::Component(n) => (n.start, n.end),
+        TemplateNode::SvelteComponent(n) => (n.start, n.end),
+        TemplateNode::SvelteElement(n) => (n.start, n.end),
+    }
 }
