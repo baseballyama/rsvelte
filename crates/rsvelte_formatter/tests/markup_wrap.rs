@@ -93,8 +93,46 @@ fn directive_with_modifiers_wraps_as_one_attr() {
         "<button class=\"primary\" on:click|preventDefault={handleClickWithLongName}>x</button>",
         40,
     );
+    // The directive stays on one line; the element has inline text (`x`) so the
+    // open `>` hugs the last attribute and the close `>` breaks (#798).
     assert!(
-        out.contains("\n  on:click|preventDefault={handleClickWithLongName}\n"),
-        "expected directive on one line when wrapped:\n{out}"
+        out.contains("\n  on:click|preventDefault={handleClickWithLongName}>x</button\n>"),
+        "expected directive on one line + hugged tag:\n{out}"
+    );
+}
+
+// ─── #798: whitespace-sensitive inline element — hug open `>`, break close ──
+
+#[test]
+fn inline_text_element_hugs_open_and_breaks_close() {
+    let src = "<button onclick={() => { doSomethingWithAVeryLongName(); doAnotherThingWithLongName(); doThird(); }}>x</button>";
+    let out = fmt_at_width(src, 80);
+    // Open `>` glued to the last attribute line (`}}>x`), not on its own line.
+    assert!(out.contains("}}>x"), "open > should hug content:\n{out}");
+    assert!(
+        !out.contains("\n>x"),
+        "open > must not sit on its own line:\n{out}"
+    );
+    // Close tag broken: `</button` then `>` on its own line.
+    assert!(
+        out.contains("</button\n>"),
+        "close > should break onto its own line:\n{out}"
+    );
+    // Idempotent.
+    assert_eq!(fmt_at_width(&out, 80), out, "formatting must be idempotent");
+}
+
+#[test]
+fn wrapped_block_element_keeps_tags_unchanged() {
+    // Child on its own line => content not whitespace-adjacent => no hug.
+    let src = "<div data-thing={someValueHere} class=\"a-fairly-long-classname-goes-here\">\n  <span>child</span>\n</div>";
+    let out = fmt_at_width(src, 40);
+    assert!(
+        out.contains("</div>"),
+        "block element close tag stays intact:\n{out}"
+    );
+    assert!(
+        !out.contains("</div\n"),
+        "block element close > must not break:\n{out}"
     );
 }

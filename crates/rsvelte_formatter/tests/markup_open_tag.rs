@@ -264,7 +264,10 @@ fn multiline_attr_expression_reindented_to_attribute_column() {
     // column 0 (#692).
     let src = "<div>\n  <div>\n    <button\n      onclick={() => {\n        foo();\n        bar();\n      }}\n    >x</button>\n  </div>\n</div>\n";
     let out = fmt(src);
-    let expected = "    <button\n      onclick={() => {\n        foo();\n        bar();\n      }}\n    >x</button>";
+    // The element has whitespace-sensitive inline text content (`x`), so the
+    // open `>` hugs the last attribute and the close `>` breaks onto its own
+    // line at the element's indent (#798), matching prettier-plugin-svelte.
+    let expected = "    <button\n      onclick={() => {\n        foo();\n        bar();\n      }}>x</button\n    >";
     assert!(
         out.contains(expected),
         "multi-line attr not re-indented to nesting level:\n{out}"
@@ -285,9 +288,11 @@ fn multiline_attr_forces_multiline_tag_even_when_short() {
     // Closing brace of the handler aligns under the attribute (2 spaces), and
     // the body one JS level deeper (4 spaces).
     assert!(out.contains("\n    a();\n"), "body not re-indented:\n{out}");
+    // Whitespace-sensitive inline text (`x`): open `>` hugs `}}`, close `>`
+    // breaks onto its own line (#798).
     assert!(
-        out.contains("\n  }}\n"),
-        "closing brace not aligned:\n{out}"
+        out.contains("\n  }}>x</button\n>"),
+        "expected hugged open `>` and broken close `>`:\n{out}"
     );
 }
 

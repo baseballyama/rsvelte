@@ -63,7 +63,7 @@ fn collect_node_open_tag_edits(
 ) -> Result<(), FormatError> {
     match node {
         TemplateNode::RegularElement(elem) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 elem.start,
                 elem.name.as_str(),
@@ -73,11 +73,19 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, elem.end, elem.name.as_str(), edits);
+            push_close_tag(
+                source,
+                elem.end,
+                elem.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::Component(c) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 c.start,
                 c.name.as_str(),
@@ -87,11 +95,19 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, c.end, c.name.as_str(), edits);
+            push_close_tag(
+                source,
+                c.end,
+                c.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 t.start,
                 t.name.as_str(),
@@ -101,11 +117,19 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, t.end, t.name.as_str(), edits);
+            push_close_tag(
+                source,
+                t.end,
+                t.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &t.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 s.start,
                 s.name.as_str(),
@@ -115,7 +139,15 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, s.end, s.name.as_str(), edits);
+            push_close_tag(
+                source,
+                s.end,
+                s.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteHead(s)
@@ -126,7 +158,7 @@ fn collect_node_open_tag_edits(
         | TemplateNode::SvelteOptions(s)
         | TemplateNode::SvelteSelf(s)
         | TemplateNode::SvelteWindow(s) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 s.start,
                 s.name.as_str(),
@@ -136,11 +168,19 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, s.end, s.name.as_str(), edits);
+            push_close_tag(
+                source,
+                s.end,
+                s.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 c.start,
                 c.name.as_str(),
@@ -150,11 +190,19 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, c.end, c.name.as_str(), edits);
+            push_close_tag(
+                source,
+                c.end,
+                c.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
-            push_open_tag(
+            let wrapped = push_open_tag(
                 source,
                 e.start,
                 e.name.as_str(),
@@ -164,7 +212,15 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             )?;
-            push_close_tag(source, e.end, e.name.as_str(), edits);
+            push_close_tag(
+                source,
+                e.end,
+                e.name.as_str(),
+                wrapped,
+                depth,
+                options,
+                edits,
+            );
             collect_open_tag_edits(source, &e.fragment, depth + 1, options, edits)?;
         }
         // Blocks have child fragments but no attributes themselves.
@@ -223,12 +279,34 @@ fn push_close_tag(
     source: &str,
     element_end: u32,
     tag_name: &str,
+    open_wrapped: bool,
+    depth: usize,
+    options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     let Some((start, end)) = find_close_tag_span(source, element_end, tag_name) else {
         return;
     };
-    edits.push((start, end, format!("</{tag_name}>")));
+    // When the open tag wrapped and the element's content is whitespace-
+    // sensitive inline content (the last content char touches the close tag
+    // with no whitespace), prettier-plugin-svelte breaks the closing `>` onto
+    // its own line at the element's indent (`</button\n>`) so the trailing
+    // newline lands *inside* the close tag and no whitespace is added after the
+    // content (#798).
+    // Symmetric with `hug_open`: only break the close `>` when text content
+    // touches it. A trailing `>` (the end of a child element `</child>`) is not
+    // text, so the close `>` can break normally.
+    let hug_close = open_wrapped
+        && (start as usize)
+            .checked_sub(1)
+            .and_then(|i| source.as_bytes().get(i))
+            .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'>');
+    if hug_close {
+        let indent = indent_str(depth, &options.js);
+        edits.push((start, end, format!("</{tag_name}\n{indent}>")));
+    } else {
+        edits.push((start, end, format!("</{tag_name}>")));
+    }
 }
 
 /// Locate the element's closing tag `</tagname ...>` that ends exactly at
@@ -288,6 +366,10 @@ fn find_close_tag_span(source: &str, element_end: u32, tag_name: &str) -> Option
 ///   Each attribute on its own line at `depth + 1` indent, the closing
 ///   `>` (or `/>`) on a new line at `depth` indent. Used when the
 ///   one-liner would overflow.
+///
+/// Returns `true` when the open tag was rendered in the wrapped (multi-line)
+/// shape — the caller threads this into [`push_close_tag`] so the closing `>`
+/// of a whitespace-sensitive inline element can break onto its own line.
 #[allow(clippy::too_many_arguments)]
 fn push_open_tag(
     source: &str,
@@ -298,12 +380,28 @@ fn push_open_tag(
     depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
-) -> Result<(), FormatError> {
+) -> Result<bool, FormatError> {
     let Some(open_tag_end) = find_open_tag_end(source, element_start, attributes) else {
-        return Ok(());
+        return Ok(false);
     };
 
     let self_closing = is_self_closing(source, open_tag_end);
+
+    // When the open tag wraps, the closing `>` normally lands on its own line at
+    // the outer indent. But if the element's content is whitespace-sensitive
+    // inline content (the first content char touches the `>` with no
+    // whitespace), moving the `>` to its own line would inject significant
+    // whitespace before the content — so prettier-plugin-svelte keeps the `>`
+    // glued to the last attribute (`}}>text`) instead (#798).
+    // Only text content (not a child element `<…>` and not an empty element
+    // whose `>` is immediately followed by its own `</tag>`) is treated as
+    // whitespace-sensitive here — matching #798's "inline text children". A
+    // leading `<` means the next thing is a tag, so the `>` can safely break.
+    let hug_open = !self_closing
+        && source
+            .as_bytes()
+            .get(open_tag_end as usize)
+            .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'<');
 
     // Build the list of fully-rendered open-tag items (attributes plus any
     // comments interleaved between them), each tagged with its source
@@ -353,14 +451,22 @@ fn push_open_tag(
         && !any_multiline_attr
         && leading_indent_width + visual_width(&one_liner) <= line_width;
 
-    let rendered = if rendered_attrs.is_empty() || fits_one_line {
-        one_liner
+    let wrapped = !(rendered_attrs.is_empty() || fits_one_line);
+    let rendered = if wrapped {
+        render_multi_line(
+            tag_name,
+            &rendered_attrs,
+            self_closing,
+            depth,
+            &options.js,
+            hug_open,
+        )
     } else {
-        render_multi_line(tag_name, &rendered_attrs, self_closing, depth, &options.js)
+        one_liner
     };
 
     edits.push((element_start, open_tag_end, rendered));
-    Ok(())
+    Ok(wrapped)
 }
 
 /// A comment found between attributes inside an element's open tag.
@@ -471,6 +577,7 @@ fn render_multi_line(
     self_closing: bool,
     depth: usize,
     js_opts: &JsFormatOptions,
+    hug_open: bool,
 ) -> String {
     let inner_indent = indent_str(depth + 1, js_opts);
     let outer_indent = indent_str(depth, js_opts);
@@ -488,12 +595,19 @@ fn render_multi_line(
         // indent was already emitted before it.
         out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
     }
-    out.push('\n');
-    out.push_str(&outer_indent);
-    if self_closing {
-        out.push_str("/>");
-    } else {
+    if hug_open && !self_closing {
+        // Whitespace-sensitive inline content: glue the `>` to the last
+        // attribute line (`}}>text`) so no significant whitespace is injected
+        // before the content (#798).
         out.push('>');
+    } else {
+        out.push('\n');
+        out.push_str(&outer_indent);
+        if self_closing {
+            out.push_str("/>");
+        } else {
+            out.push('>');
+        }
     }
     out
 }
