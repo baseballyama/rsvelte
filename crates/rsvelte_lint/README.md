@@ -13,6 +13,15 @@ It combines two diagnostic sources:
 2. **Native rule engine** — a single shared DFS over the template AST that
    dispatches to `Rule` hooks, porting the proven `vize_patina` structure.
 
+## Try it
+
+```bash
+cargo run -p rsvelte_lint -- crates/rsvelte_lint/demo/Demo.svelte
+```
+
+See [`demo/README.md`](demo/README.md) for the expected output and the opt-in /
+autofix / SARIF variants.
+
 ## Usage
 
 ```bash
@@ -57,11 +66,14 @@ native-owned `svelte/*` rules off in ESLint so each finding fires exactly once.
 
 ## Native rules
 
-`no-at-html-tags`, `no-at-debug-tags` (autofix), `require-each-key`,
-`button-has-type`, `no-dupe-else-if-blocks`, `no-dupe-style-properties`,
-`no-object-in-text-mustaches`, `no-restricted-html-elements`. Each is a 1:1 port
-of the corresponding eslint-plugin-svelte rule and validated against that
-plugin's own fixtures by the compat oracle (`tests/eslint_plugin_oracle.rs`).
+Default-on (recommended): `no-at-html-tags`, `no-at-debug-tags` (autofix),
+`require-each-key`, `no-dupe-else-if-blocks`, `no-dupe-style-properties`,
+`no-object-in-text-mustaches`. Opt-in (off by default, matching
+eslint-plugin-svelte's `recommended: false`): `button-has-type`,
+`no-restricted-html-elements`. Each is a 1:1 port of the corresponding
+eslint-plugin-svelte rule and validated against that plugin's own fixtures by the
+compat oracle (`tests/eslint_plugin_oracle.rs`). Run `--list-rules` to see
+defaults.
 
 ## Testing
 

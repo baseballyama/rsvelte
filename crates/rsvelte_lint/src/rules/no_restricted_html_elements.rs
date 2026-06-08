@@ -15,7 +15,9 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-restricted-html-elements",
     category: RuleCategory::Style,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    // Off by default (opt-in): inert without `elements` options, and
+    // `recommended: false` upstream.
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

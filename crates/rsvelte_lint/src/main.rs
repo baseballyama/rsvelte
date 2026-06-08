@@ -178,10 +178,11 @@ fn main() -> ExitCode {
         }
     }
 
-    // Lint files in parallel; each file is independent.
+    // Lint files in parallel; each file is independent. A panic in the compiler
+    // on one pathological file must not abort the whole run — isolate per file.
     let per_file: Vec<Vec<Diagnostic>> = files
         .par_iter()
-        .map(|f| lint_file(f, &config).unwrap_or_else(|e| vec![read_error(f, &e)]))
+        .map(|f| lint_file_safe(f, &config))
         .collect();
     let all: Vec<Diagnostic> = per_file.into_iter().flatten().collect();
 
@@ -204,12 +205,27 @@ fn main() -> ExitCode {
     }
 }
 
-/// Fix a single file in place, returning the number of fixes applied.
+/// Lint a file, isolating any panic so a single pathological file can't abort
+/// the whole run; the panic surfaces as a diagnostic instead.
+fn lint_file_safe(file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+    match catch_unwind(AssertUnwindSafe(|| lint_file(file, config))) {
+        Ok(Ok(diags)) => diags,
+        Ok(Err(e)) => vec![read_error(file, &e)],
+        Err(_) => vec![internal_error(file)],
+    }
+}
+
+/// Fix a single file in place, returning the number of fixes applied. A panic
+/// while fixing is swallowed (the file is left untouched) rather than aborting.
 fn fix_one(file: &Path, config: &LintConfig) -> usize {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
     let Ok(source) = std::fs::read_to_string(file) else {
         return 0;
     };
-    let res = fix_source(&source, config);
+    let Ok(res) = catch_unwind(AssertUnwindSafe(|| fix_source(&source, config))) else {
+        return 0;
+    };
     if res.applied > 0 && res.output != source {
         let _ = std::fs::write(file, &res.output);
     }
@@ -222,6 +238,17 @@ fn read_error(file: &Path, e: &std::io::Error) -> Diagnostic {
         severity: DiagnosticSeverity::Error,
         code: Some("read-error".into()),
         message: format!("could not read file: {e}"),
+        range: None,
+        source: "svelte",
+    }
+}
+
+fn internal_error(file: &Path) -> Diagnostic {
+    Diagnostic {
+        file: file.to_path_buf(),
+        severity: DiagnosticSeverity::Error,
+        code: Some("lint-internal-error".into()),
+        message: "internal error while linting this file (skipped)".into(),
         range: None,
         source: "svelte",
     }

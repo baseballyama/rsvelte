@@ -1,0 +1,7 @@
+{
+  "extends": ["recommended"],
+  "rules": {
+    "svelte/button-has-type": ["warn", { "submit": true, "reset": true, "button": true }],
+    "svelte/no-restricted-html-elements": ["error", { "elements": ["marquee", "blink"] }]
+  }
+}

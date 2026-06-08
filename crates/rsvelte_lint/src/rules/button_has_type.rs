@@ -12,7 +12,9 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/button-has-type",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    // Off by default (opt-in): eslint-plugin-svelte marks this `recommended:
+    // false` — it is noisy on real codebases. Enable via config when wanted.
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

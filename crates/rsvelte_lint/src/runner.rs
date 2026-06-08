@@ -236,16 +236,15 @@ mod tests {
 
     #[test]
     fn button_has_type_flags_missing_and_respects_type_and_spread() {
-        let missing = lint("<button>x</button>", &LintConfig::recommended());
+        // `button-has-type` is opt-in (off by default), so enable it.
+        let cfg = LintConfig::recommended().with_override("svelte/button-has-type", Severity::Warn);
+        let missing = lint("<button>x</button>", &cfg);
         assert!(codes(&missing).contains(&"svelte/button-has-type".to_string()));
 
-        let typed = lint(
-            "<button type=\"button\">x</button>",
-            &LintConfig::recommended(),
-        );
+        let typed = lint("<button type=\"button\">x</button>", &cfg);
         assert!(!codes(&typed).contains(&"svelte/button-has-type".to_string()));
 
-        let spread = lint("<button {...rest}>x</button>", &LintConfig::recommended());
+        let spread = lint("<button {...rest}>x</button>", &cfg);
         assert!(!codes(&spread).contains(&"svelte/button-has-type".to_string()));
     }
 
@@ -341,14 +340,12 @@ mod tests {
             d.iter().map(|d| &d.message).collect::<Vec<_>>()
         );
 
-        // Invalid value regardless of options.
+        // Invalid value (rule enabled without further options).
+        let on = LintConfig::recommended().with_override("svelte/button-has-type", Severity::Error);
         assert!(
-            lint(
-                "<button type=\"foo\">x</button>",
-                &LintConfig::recommended()
-            )
-            .iter()
-            .any(|d| d.message.contains("invalid value for button type"))
+            lint("<button type=\"foo\">x</button>", &on)
+                .iter()
+                .any(|d| d.message.contains("invalid value for button type"))
         );
     }
 
