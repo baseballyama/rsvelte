@@ -395,6 +395,55 @@ fn trims_edge_whitespace(tag: &str) -> bool {
 struct Tok {
     text: String,
     space_before: bool,
+    /// For a huggable display:inline element (`<a>`, `<span>`, …) whose content
+    /// is a single line of text: `(open_without_bracket, inner_content, tag)`.
+    /// When the element is too wide for any fill line it gets the prettier
+    /// "hug" break instead of overflowing:
+    ///   <a href="…"
+    ///     >content</a
+    ///   >
+    hug: Option<(String, String, String)>,
+}
+
+/// If `node` is a huggable display:inline element — single line, simple text
+/// content (no nested element tags), an open tag ending in `>` — return its
+/// `(open_without_bracket, inner_content, tag)` for the hug break.
+fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, String)> {
+    let TemplateNode::RegularElement(e) = node else {
+        return None;
+    };
+    let tag = e.name.as_str();
+    if is_block_display(tag) || is_inline_block(tag) || trims_edge_whitespace(tag) {
+        return None;
+    }
+    let first = e.fragment.nodes.first()?;
+    let last = e.fragment.nodes.last()?;
+    let content_start = node_start(first) as usize;
+    let content_end = node_end(last) as usize;
+    let open = out.get(e.start as usize..content_start)?;
+    let content = out.get(content_start..content_end)?;
+    let close = out.get(content_end..e.end as usize)?;
+    // Single line, open tag closed by `>`, simple text content, real close tag.
+    if open.contains('\n')
+        || content.contains('\n')
+        || content.contains('<')
+        || content.is_empty()
+        || !open.ends_with('>')
+        || !close.starts_with("</")
+    {
+        return None;
+    }
+    let open_no_bracket = open[..open.len() - 1].to_string();
+    Some((open_no_bracket, content.to_string(), tag.to_string()))
+}
+
+/// Inline-block elements (prettier `CSS_DISPLAY_DEFAULTS`) — display:inline-block.
+/// They are not huggable: on overflow they block-break rather than hug.
+fn is_inline_block(tag: &str) -> bool {
+    matches!(
+        tag,
+        "input" | "button" | "select" | "object" | "video" | "audio"
+    )
 }
 
 /// Narrow mixed-inline fill: when an element with inline content (text +
@@ -466,6 +515,7 @@ fn try_fill_mixed(
                 toks.push(Tok {
                     text: w.to_string(),
                     space_before,
+                    hug: None,
                 });
                 pending_space = false;
                 has_text_word = true;
@@ -482,6 +532,7 @@ fn try_fill_mixed(
             toks.push(Tok {
                 text: span.to_string(),
                 space_before,
+                hug: element_hug_parts(out, node),
             });
             pending_space = false;
         }
@@ -496,8 +547,7 @@ fn try_fill_mixed(
         return None;
     }
     let inner_indent = format!("{indent}  ");
-    let avail = line_width.saturating_sub(inner_indent.width()).max(1);
-    let lines = fill_tokens(&toks, avail)?;
+    let lines = fill_with_hug(&toks, &inner_indent, line_width)?;
     // If everything still fits on a single content line there's nothing to gain.
     if lines.len() == 1 {
         return None;
@@ -505,10 +555,9 @@ fn try_fill_mixed(
 
     let mut broken = String::with_capacity(whole.len() + 8);
     broken.push_str(open);
-    for line in lines {
+    for line in &lines {
         broken.push('\n');
-        broken.push_str(&inner_indent);
-        broken.push_str(&line);
+        broken.push_str(line);
     }
     broken.push('\n');
     broken.push_str(indent);
@@ -516,29 +565,73 @@ fn try_fill_mixed(
     (broken != whole).then_some((start, end, broken))
 }
 
-/// Greedy-pack fill tokens into lines no wider than `width`. Glued tokens stay on
-/// the current line. Returns `None` if an element token alone exceeds `width`
-/// (it needs an internal break this pass doesn't do — leave it untouched).
-fn fill_tokens(toks: &[Tok], width: usize) -> Option<Vec<String>> {
+/// Greedy-pack fill tokens into complete lines (each already prefixed with
+/// `inner_indent`) no wider than `width`. Glued tokens (no `space_before`) stay
+/// on the current line and never break apart (`foo{bar}` / `</a>,`). A huggable
+/// element that doesn't fit any line gets the prettier hug break: its open tag
+/// (without `>`) continues the current line if it fits there, the `>content</tag`
+/// goes on the next line at `inner_indent + 2`, and the closing `>` opens the
+/// next line so following tokens keep filling after it. Returns `None` when a
+/// hug would itself overflow (the open tag or the `>content</tag` line is too
+/// wide) — those need attribute wrapping / content fill not done here.
+fn fill_with_hug(toks: &[Tok], inner_indent: &str, width: usize) -> Option<Vec<String>> {
+    let ind_w = inner_indent.width();
     let mut lines: Vec<String> = Vec::new();
-    let mut cur = String::new();
-    for (i, tok) in toks.iter().enumerate() {
-        if i == 0 || !tok.space_before {
-            if tok.text.starts_with('<') && i != 0 && tok.text.width() > width {
-                return None;
-            }
+    let mut cur = inner_indent.to_string();
+
+    for tok in toks {
+        let is_fresh = cur.width() == ind_w;
+
+        // Glued token (no whitespace before it): never a break opportunity.
+        if !tok.space_before && !is_fresh {
             cur.push_str(&tok.text);
             continue;
         }
-        if cur.width() + 1 + tok.text.width() <= width {
-            cur.push(' ');
-            cur.push_str(&tok.text);
+
+        let sep = if is_fresh || !tok.space_before {
+            ""
         } else {
-            if tok.text.starts_with('<') && tok.text.width() > width {
-                return None;
+            " "
+        };
+
+        // Whole token fits on the current line?
+        if is_fresh {
+            if tok.hug.is_none() || tok.text.width() <= width.saturating_sub(ind_w) {
+                cur.push_str(&tok.text);
+                continue;
             }
-            lines.push(std::mem::take(&mut cur));
+        } else if cur.width() + sep.width() + tok.text.width() <= width {
+            cur.push_str(sep);
             cur.push_str(&tok.text);
+            continue;
+        }
+
+        // Doesn't fit whole on the current line: break to a fresh line.
+        if !is_fresh {
+            lines.push(std::mem::take(&mut cur));
+            cur = inner_indent.to_string();
+        }
+        // On a fresh line, place the whole token if it fits there.
+        if ind_w + tok.text.width() <= width {
+            cur.push_str(&tok.text);
+            continue;
+        }
+        // Too wide even for a fresh line: hug-break a huggable element (open tag
+        // on this line, `>content</tag` indented, closing `>` opening the next
+        // line); an atomic token (word / expression tag) just overflows.
+        match &tok.hug {
+            Some((open_no_bracket, content, t)) => {
+                let content_line = format!("{inner_indent}  >{content}</{t}");
+                if content_line.width() > width || ind_w + open_no_bracket.width() > width {
+                    return None;
+                }
+                lines.push(format!("{inner_indent}{open_no_bracket}"));
+                lines.push(content_line);
+                cur = format!("{inner_indent}>");
+            }
+            None => {
+                cur.push_str(&tok.text);
+            }
         }
     }
     lines.push(cur);
