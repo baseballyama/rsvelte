@@ -136,3 +136,38 @@ fn wrapped_block_element_keeps_tags_unchanged() {
         "block element close > must not break:\n{out}"
     );
 }
+
+// ─── #795: attribute value wrap decision accounts for nesting depth ─────────
+
+#[test]
+fn attribute_object_value_breaks_by_nested_column() {
+    // The object fits at column 0 but overflows once `config` renders at the
+    // attribute column under a wrapped tag, so it must break — matching
+    // prettier-plugin-svelte (which narrows the value width by the attribute's
+    // nesting indent).
+    let out = fmt_at_width(
+        "<Comp config={{ alpha: oneValue, beta: twoValue, gamma: threeValue, delta: fourValue, epsilon: fiveValue }} />",
+        80,
+    );
+    let expected = "<Comp\n  config={{\n    alpha: oneValue,\n    beta: twoValue,\n    gamma: threeValue,\n    delta: fourValue,\n    epsilon: fiveValue,\n  }}\n/>";
+    assert_eq!(
+        out.trim_end(),
+        expected,
+        "object value should break at the nested column:\n{out}"
+    );
+    // Idempotent.
+    assert_eq!(fmt_at_width(&out, 80), out, "must be idempotent");
+}
+
+#[test]
+fn short_attribute_value_stays_inline_when_nested() {
+    // A short value still fits at the nested column, so it stays inline.
+    let out = fmt_at_width(
+        "<div data-x={shortValue} class=\"a-long-classname-to-force-the-tag-to-wrap-here\"></div>",
+        40,
+    );
+    assert!(
+        out.contains("data-x={shortValue}"),
+        "short value should stay inline:\n{out}"
+    );
+}

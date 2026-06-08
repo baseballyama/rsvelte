@@ -400,6 +400,7 @@ pub(crate) fn format_directive_value(
     expr: &Expression,
     value_end: u32,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<Option<String>, FormatError> {
     let Some(expr_start) = expr.start() else {
         return Ok(None);
@@ -436,7 +437,9 @@ pub(crate) fn format_directive_value(
     if inner.is_empty() {
         return Ok(None);
     }
-    Ok(Some(format_expression_source(inner, options)?))
+    Ok(Some(format_attribute_value_expression(
+        inner, options, attr_depth,
+    )?))
 }
 
 // ─── Expression formatter ───────────────────────────────────────────────
@@ -526,6 +529,27 @@ pub(crate) fn format_expression_source(
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
     format_expr_core(expr_source, options, options.js.line_width, false)
+}
+
+/// Format an attribute / directive value expression, narrowing the print
+/// width by the attribute's nesting depth (`attr_depth` indent levels). The
+/// value is formatted at column 0 but rendered at `attr_depth` once the open
+/// tag wraps, so a value that "fits" at column 0 but overflows once nested
+/// must break — narrowing the width makes the break decision land where
+/// prettier-plugin-svelte puts it (#795). Unlike [`format_content_expression`],
+/// this does NOT reindent: the open-tag rewrite (`crate::markup::render_multi_line`)
+/// owns pushing continuation lines out to the attribute column.
+pub(crate) fn format_attribute_value_expression(
+    expr_source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+) -> Result<String, FormatError> {
+    let indent_width = options.js.indent_width.value() as usize;
+    let narrowed =
+        (options.js.line_width.value() as usize).saturating_sub(attr_depth * indent_width);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+    format_expr_core(expr_source, options, line_width, false)
 }
 
 /// Format a block-header expression (`{#if cond}`, `{#each items …}`) onto a
