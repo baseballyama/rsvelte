@@ -123,3 +123,41 @@ fn non_ts_component_does_not_parse_ts_syntax() {
         "expected a parse error for `as` in a JS component"
     );
 }
+
+// ─── #761: <script> body long type-argument wrapping matches oxfmt ──────────
+
+#[test]
+fn script_long_type_alias_wraps_like_oxfmt() {
+    // Regression lock for #761: a long type alias must break its outer
+    // `Awaited<…>` type-argument list across lines exactly like oxfmt 0.53.
+    // The divergence was an oxc_formatter digest skew, aligned in #771; this
+    // test pins the now-matching output at the workspace's pinned rev so a
+    // future bump that regresses the wrapping is caught.
+    let src = "<script lang=\"ts\">\n  type AccountDisabledBody = Awaited<ReturnType<Extract<MfaVerifyResponse, { status: 403 }>['json']>>;\n</script>\n";
+    let out = format(
+        src,
+        &FormatOptions {
+            typescript: true,
+            ..FormatOptions::default()
+        },
+    )
+    .expect("format ok");
+    let expected = "<script lang=\"ts\">\n  type AccountDisabledBody = Awaited<\n    ReturnType<Extract<MfaVerifyResponse, { status: 403 }>[\"json\"]>\n  >;\n</script>\n";
+    assert_eq!(
+        out, expected,
+        "long type alias should wrap like oxfmt:\n{out}"
+    );
+    // Idempotent.
+    assert_eq!(
+        format(
+            &out,
+            &FormatOptions {
+                typescript: true,
+                ..FormatOptions::default()
+            }
+        )
+        .expect("fmt"),
+        out,
+        "must be idempotent"
+    );
+}
