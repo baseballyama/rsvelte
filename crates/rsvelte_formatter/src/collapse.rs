@@ -147,10 +147,6 @@ fn try_collapse(
     let (content_start, content_end) = (text_start(first)?, text_end(last)?);
     let open = out.get(s..content_start as usize)?;
     let close = out.get(content_end as usize..e)?;
-    // A wrapped (multi-line) open tag is left to the open-tag pass.
-    if open.contains('\n') {
-        return None;
-    }
 
     let raw = out.get(content_start as usize..content_end as usize)?;
     let had_lead = raw.starts_with([' ', '\t', '\n', '\r']);
@@ -181,6 +177,14 @@ fn try_collapse(
     // Only when the element sits at the start of its line (so the indent prefix
     // is whitespace we can reuse) and has non-empty content.
     if collapsed.is_empty() {
+        return None;
+    }
+    // Only break when the boundary whitespace is insignificant: the content was
+    // separated from the tags by whitespace, or the element is block/list-item
+    // (where leading/trailing whitespace is dropped anyway). Inline content that
+    // hugs its tags (`}}>text`, no surrounding whitespace) must stay hugged
+    // (markup.rs keeps the `>` glued to the text — #798).
+    if !((had_lead && had_trail) || is_block_display(tag)) {
         return None;
     }
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
