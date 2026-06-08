@@ -118,8 +118,9 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
     }
 }
 
-/// If `[start, end)` is an element whose content is pure text spanning multiple
-/// lines and whose one-line form fits, return the collapse edit.
+/// Re-lay-out a pure-text element: render it on one line when it fits, else
+/// break the content onto its own indented line(s) (word-fill). Returns the edit
+/// when the ideal layout differs from the element's current rendering in `out`.
 fn try_collapse(
     out: &str,
     tag: &str,
@@ -130,9 +131,6 @@ fn try_collapse(
 ) -> Option<(u32, u32, String)> {
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
-    if !whole.contains('\n') {
-        return None; // already on one line
-    }
     // Pure text: every child is a Text node.
     if fragment.nodes.is_empty()
         || !fragment
@@ -149,7 +147,7 @@ fn try_collapse(
     let (content_start, content_end) = (text_start(first)?, text_end(last)?);
     let open = out.get(s..content_start as usize)?;
     let close = out.get(content_end as usize..e)?;
-    // A wrapped (multi-line) open tag can't collapse.
+    // A wrapped (multi-line) open tag is left to the open-tag pass.
     if open.contains('\n') {
         return None;
     }
@@ -159,6 +157,7 @@ fn try_collapse(
     let had_trail = raw.ends_with([' ', '\t', '\n', '\r']);
     let collapsed = raw.split_whitespace().collect::<Vec<_>>().join(" ");
 
+    // One-line form.
     let mut one_line = String::with_capacity(whole.len());
     one_line.push_str(open);
     if !collapsed.is_empty() {
@@ -173,14 +172,62 @@ fn try_collapse(
     }
     one_line.push_str(close);
 
-    if one_line.contains('\n') {
-        return None;
-    }
     let column = current_column(out, start);
-    if column + one_line.width() > line_width {
+    if !one_line.contains('\n') && column + one_line.width() <= line_width {
+        return (one_line != whole).then_some((start, end, one_line));
+    }
+
+    // Doesn't fit on one line — break the content onto its own indented line(s).
+    // Only when the element sits at the start of its line (so the indent prefix
+    // is whitespace we can reuse) and has non-empty content.
+    if collapsed.is_empty() {
         return None;
     }
-    Some((start, end, one_line))
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+    let avail = line_width.saturating_sub(inner_indent.width()).max(1);
+
+    let mut broken = String::with_capacity(whole.len() + 8);
+    broken.push_str(open);
+    for line in fill(&collapsed, avail) {
+        broken.push('\n');
+        broken.push_str(&inner_indent);
+        broken.push_str(&line);
+    }
+    broken.push('\n');
+    broken.push_str(indent);
+    broken.push_str(close);
+
+    (broken != whole).then_some((start, end, broken))
+}
+
+/// Greedy word-wrap `text` into lines no wider than `width` (each line keeps at
+/// least one word). Mirrors prettier's fill for inline text content.
+fn fill(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut cur = String::new();
+    for word in text.split(' ').filter(|w| !w.is_empty()) {
+        if cur.is_empty() {
+            cur.push_str(word);
+        } else if cur.width() + 1 + word.width() <= width {
+            cur.push(' ');
+            cur.push_str(word);
+        } else {
+            lines.push(std::mem::take(&mut cur));
+            cur.push_str(word);
+        }
+    }
+    if !cur.is_empty() {
+        lines.push(cur);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
 }
 
 fn text_start(node: &TemplateNode) -> Option<u32> {
