@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/fmt-linux-x64-gnu",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Prebuilt rsvelte-fmt binary for linux-x64 (glibc)",
   "license": "MIT",
   "repository": {

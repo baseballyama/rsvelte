@@ -1,5 +1,13 @@
 # @rsvelte/fmt
 
+## 0.3.8
+
+### Patch Changes
+
+- c9303b5: fix(fmt): place the `>` correctly when a wrapped element has whitespace-sensitive inline content. When an element's open tag wraps to the multi-line shape, `render_multi_line` always emitted the closing `>` on its own line at the outer indent. For an element whose children are whitespace-sensitive inline content (e.g. text directly touching the tag, `>x</button>`), moving the `>` to its own line injects significant whitespace before the text — so prettier-plugin-svelte instead keeps the open `>` glued to the last attribute (`}}>x`) and breaks the _closing_ tag's `>` onto its own line (`</button\n>`). rsvelte now mirrors that: `push_open_tag` reports whether it wrapped, and the open `>` hugs / close `>` breaks when the content is non-whitespace-adjacent to the tag. Block content (children on their own line, whitespace before/after) is unaffected. Closes #798.
+- dcc2134: fix(fmt): keep the outer parentheses of a top-level sequence (comma) expression in a mustache, matching prettier-plugin-svelte. `oxc_formatter` intentionally re-adds the outer parens of a top-level `SequenceExpression` (its `NeedsParentheses` impl returns true for an `ExpressionStatement` parent), and prettier-plugin-svelte keeps them — but `format_expr_core` then unconditionally ran `strip_outer_parens`, peeling the parens oxc had just added. So `{((ref = cond ? a : undefined), '')}` was emitted as `{(ref = cond ? a : undefined), ''}`. The strip is now skipped when the parsed top-level expression is a `SequenceExpression`; every other expression keeps the existing redundant-paren strip (`{(a + 1)}` → `{a + 1}` is unchanged). Because the fix lives in the shared `format_expr_core`, it also covers sequences in attribute values, directives, and block headers. Closes #799.
+- 9d936d8: fix(fmt): break a long `{#snippet}` parameter list across lines like a function signature. `{#snippet name(params)}` parameters were spliced one-at-a-time and each forced onto a single line (`Expand::Never` + max width), so a long destructured/typed parameter list never wrapped — unlike prettier-plugin-svelte, which prints the snippet header as a function signature and breaks it by print width. The whole header `name<…>(params)` is now formatted as one `function name<…>(params) {}` unit with normal width-driven breaking (narrowed by the markup depth and the `{#snippet ` prefix), then reindented to the snippet's depth. The other block headers (`{#each}` / `{#await}` / `{#if}` / `{#key}`) still stay single-line — only `{#snippet}`, whose `{/snippet}` delimiter makes a multi-line header safe, breaks. Closes #797.
+
 ## 0.3.7
 
 ### Patch Changes
