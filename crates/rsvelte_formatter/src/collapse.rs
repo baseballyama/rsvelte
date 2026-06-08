@@ -418,7 +418,10 @@ fn try_fill_mixed(
     for n in &fragment.nodes {
         if !matches!(n, TemplateNode::Text(_)) {
             has_non_text = true;
-            if !is_inline_node(n) {
+            // A comment always sits on its own line(s) — never fill it inline
+            // with the surrounding prose. Leave the whole fragment to the
+            // indent pass (which keeps the comment on its own line).
+            if matches!(n, TemplateNode::Comment(_)) || !is_inline_node(n) {
                 return None;
             }
         }
