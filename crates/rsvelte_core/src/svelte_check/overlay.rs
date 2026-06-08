@@ -13,8 +13,8 @@
 //! - The emitted overlay tsconfig EXTENDS the original tsconfig.json
 //!   instead of duplicating compiler options.
 
-use std::fmt::Write as _;
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};

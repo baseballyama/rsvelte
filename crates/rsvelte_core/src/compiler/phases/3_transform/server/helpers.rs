@@ -4,11 +4,11 @@
 //! visitor implementations. These were extracted from `transform_server.rs`
 //! to keep the visitor files focused on their specific AST node handling.
 
-use std::fmt::Write as _;
 use super::types::{ConstantFoldResult, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Script, TemplateNode};
 use memchr::memmem;
 use rustc_hash::FxHashMap;
+use std::fmt::Write as _;
 
 // Re-export from sibling modules for backward compatibility
 pub(crate) use super::transform_legacy::*;
@@ -1378,8 +1378,11 @@ pub(crate) fn transform_props_spread_ex(
 
             // Case 1: Simple identifier (let props = $$props)
             if !pattern.starts_with('{') {
-                let _ = writeln!(result, "{}{} {{ {}, $$events, ...{} }} = $$props;",
-                    target_indent, decl_keyword, slots_part, pattern);
+                let _ = writeln!(
+                    result,
+                    "{}{} {{ {}, $$events, ...{} }} = $$props;",
+                    target_indent, decl_keyword, slots_part, pattern
+                );
                 continue;
             }
 
@@ -1394,11 +1397,17 @@ pub(crate) fn transform_props_spread_ex(
                     let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
 
                     if other_props.is_empty() {
-                        let _ = writeln!(result, "{}{} {{ {}, $$events, ...{} }} = $$props;",
-                            target_indent, decl_keyword, slots_part, rest_name);
+                        let _ = writeln!(
+                            result,
+                            "{}{} {{ {}, $$events, ...{} }} = $$props;",
+                            target_indent, decl_keyword, slots_part, rest_name
+                        );
                     } else {
-                        let _ = writeln!(result, "{}{} {{ {}, {}, $$events, ...{} }} = $$props;",
-                            target_indent, decl_keyword, other_props, slots_part, rest_name);
+                        let _ = writeln!(
+                            result,
+                            "{}{} {{ {}, {}, $$events, ...{} }} = $$props;",
+                            target_indent, decl_keyword, other_props, slots_part, rest_name
+                        );
                     }
                     continue;
                 }

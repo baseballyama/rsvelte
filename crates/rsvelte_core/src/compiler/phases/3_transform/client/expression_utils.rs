@@ -1,7 +1,7 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
-use std::fmt::Write as _;
 use memchr::memmem;
+use std::fmt::Write as _;
 
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
 /// Strip TypeScript generic type parameters from rune calls.

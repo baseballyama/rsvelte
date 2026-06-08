@@ -7,8 +7,8 @@
 //!
 //! Corresponds to `transform_body()` in `svelte/packages/svelte/src/compiler/phases/3-transform/shared/transform-async.js`
 
-use std::fmt::Write as _;
 use memchr::memmem;
+use std::fmt::Write as _;
 
 /// Result of the async body transformation.
 pub struct AsyncBodyResult {

@@ -3,7 +3,6 @@
 //! This module corresponds to:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-template/template.js`
 
-use std::fmt::Write as _;
 use super::fix_attribute_casing::fix_attribute_casing;
 use super::types::{Comment, Element, Node, TextNode};
 use crate::ast::template::Text;
@@ -13,6 +12,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use indexmap::IndexMap;
 use regex::Regex;
+use std::fmt::Write as _;
 use std::sync::LazyLock;
 
 // Cached regex for stripping leading newline from pre/textarea content

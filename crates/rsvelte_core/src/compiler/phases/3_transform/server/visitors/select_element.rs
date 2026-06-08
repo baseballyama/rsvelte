@@ -1,6 +1,5 @@
 //! Server-side select, textarea, and option element visitors.
 
-use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
@@ -10,6 +9,7 @@ use crate::ast::template::{
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{escape_attr, escape_js_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use std::fmt::Write as _;
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Generate <select> element using $$renderer.select().
@@ -526,8 +526,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 let expr = self.source[expr_start..expr_end]
                                                     .trim()
                                                     .to_string();
-                                                let _ = write!(value, "${{$.stringify({})}}",
-                                                    expr);
+                                                let _ = write!(value, "${{$.stringify({})}}", expr);
                                             }
                                         }
                                     }

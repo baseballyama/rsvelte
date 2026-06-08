@@ -1,8 +1,8 @@
 //! Props, exports, and component property transformations.
 
-use std::fmt::Write as _;
 use memchr::memmem;
 use rustc_hash::FxHashSet;
+use std::fmt::Write as _;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;

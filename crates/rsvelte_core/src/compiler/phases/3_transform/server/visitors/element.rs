@@ -3,7 +3,6 @@
 //! Contains generate_element() and all element-related methods including
 //! attribute generation, class/style directive handling, and spread attributes.
 
-use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{collapse_whitespace, needs_clsx, prop_string, quote_prop_name};
 use super::super::types::OutputPart;
@@ -18,6 +17,7 @@ use crate::compiler::phases::phase3_transform::shared::{
 use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
 };
+use std::fmt::Write as _;
 
 /// Compute 1-based line number and 0-based column for a byte offset in source.
 pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
@@ -267,8 +267,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                                     if matches!(eval, AttrExprEval::StringNoWrap) {
                                                         let _ = write!(tmpl, "${{{}}}", expr);
                                                     } else {
-                                                        let _ = write!(tmpl, "${{$.stringify({})}}",
-                                                            expr);
+                                                        let _ = write!(
+                                                            tmpl,
+                                                            "${{$.stringify({})}}",
+                                                            expr
+                                                        );
                                                     }
                                                 }
                                             }
@@ -2882,10 +2885,14 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 let transformed =
                                                     self.transform_store_refs(expr_src);
                                                 if matches!(eval, AttrExprEval::StringNoWrap) {
-                                                    let _ = write!(template, "${{{}}}", transformed);
+                                                    let _ =
+                                                        write!(template, "${{{}}}", transformed);
                                                 } else {
-                                                    let _ = write!(template, "${{$.stringify({})}}",
-                                                        transformed);
+                                                    let _ = write!(
+                                                        template,
+                                                        "${{$.stringify({})}}",
+                                                        transformed
+                                                    );
                                                 }
                                             }
                                         }

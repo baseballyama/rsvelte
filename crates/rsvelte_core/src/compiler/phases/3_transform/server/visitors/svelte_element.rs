@@ -1,12 +1,12 @@
 //! Server-side svelte:element (dynamic element) visitor.
 
-use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{needs_clsx, prop_string};
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
+use std::fmt::Write as _;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_element(

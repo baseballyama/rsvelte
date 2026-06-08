@@ -7,7 +7,6 @@
 //! Corresponds to `ComponentContext` and `ComponentClientTransformState` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/types.js`.
 
-use std::fmt::Write as _;
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
@@ -19,6 +18,7 @@ use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::{Cell, RefCell};
+use std::fmt::Write as _;
 use std::rc::Rc;
 
 /// Component transformation context.

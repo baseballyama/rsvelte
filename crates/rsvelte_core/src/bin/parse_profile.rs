@@ -324,7 +324,9 @@ fn create_large_file() -> String {
     );
 
     for i in 0..50 {
-        let _ = write!(s, r#"        <section class="section-{i}">
+        let _ = write!(
+            s,
+            r#"        <section class="section-{i}">
             <h2>Section {i}</h2>
             {{#if count > {i}}}
                 <div class="content active">
@@ -342,7 +344,8 @@ fn create_large_file() -> String {
                 </div>
             {{/if}}
         </section>
-"#);
+"#
+        );
     }
 
     s.push_str(
@@ -431,10 +434,13 @@ fn create_plain_html_file() -> String {
 fn create_html_with_attributes() -> String {
     let mut s = String::new();
     for i in 0..100 {
-        let _ = write!(s, r#"<div id="el-{i}" class="foo bar baz" data-index="{i}" data-active="true" role="listitem" aria-label="Item {i}">
+        let _ = write!(
+            s,
+            r#"<div id="el-{i}" class="foo bar baz" data-index="{i}" data-active="true" role="listitem" aria-label="Item {i}">
     <input type="text" name="field-{i}" placeholder="Enter..." />
 </div>
-"#);
+"#
+        );
     }
     s
 }
@@ -454,7 +460,10 @@ fn create_deeply_nested() -> String {
 fn create_many_text_nodes() -> String {
     let mut s = String::new();
     for i in 0..500 {
-        let _ = writeln!(s, "<p>This is paragraph number {i} with some text content that is reasonably long.</p>");
+        let _ = writeln!(
+            s,
+            "<p>This is paragraph number {i} with some text content that is reasonably long.</p>"
+        );
     }
     s
 }

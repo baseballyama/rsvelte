@@ -68,8 +68,11 @@ pub(crate) fn replace_store_identifier(expr: &str, store_ref: &str, store_name: 
                 };
 
                 if !prev_is_ident && !next_is_ident {
-                    let _ = write!(result, "$.store_get($$store_subs ??= {{}}, '{}', {})",
-                        store_ref, store_name);
+                    let _ = write!(
+                        result,
+                        "$.store_get($$store_subs ??= {{}}, '{}', {})",
+                        store_ref, store_name
+                    );
                     i += store_ref_len;
                     continue;
                 }
@@ -485,8 +488,11 @@ pub(crate) fn replace_store_identifier_in_script(
 
                     if !is_in_store_call && !is_shadowed && !is_param_decl && !is_in_paren_fn_param
                     {
-                        let _ = write!(result, "$.store_get($$store_subs ??= {{}}, '{}', {})",
-                            store_ref, store_name);
+                        let _ = write!(
+                            result,
+                            "$.store_get($$store_subs ??= {{}}, '{}', {})",
+                            store_ref, store_name
+                        );
                         i += store_ref_len;
                         continue;
                     }
@@ -1529,11 +1535,17 @@ fn transform_store_assignments_once(script: &str) -> String {
         match operator {
             "++" | "--" => {
                 if operator == "++" {
-                    let _ = write!(new_result, "$.update_store($$store_subs ??= {{}}, '${0}', {0})",
-                        store_name);
+                    let _ = write!(
+                        new_result,
+                        "$.update_store($$store_subs ??= {{}}, '${0}', {0})",
+                        store_name
+                    );
                 } else {
-                    let _ = write!(new_result, "$.update_store($$store_subs ??= {{}}, '${0}', {0}, -1)",
-                        store_name);
+                    let _ = write!(
+                        new_result,
+                        "$.update_store($$store_subs ??= {{}}, '${0}', {0}, -1)",
+                        store_name
+                    );
                 }
             }
             "=" => {
@@ -1569,8 +1581,11 @@ fn transform_store_assignments_once(script: &str) -> String {
                 let rest = &result[end..];
                 let value_end = find_statement_end(rest);
                 let value = rest[..value_end].trim();
-                let _ = write!(new_result, "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} {})",
-                    store_name, base_op, value);
+                let _ = write!(
+                    new_result,
+                    "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} {})",
+                    store_name, base_op, value
+                );
                 last_end = end + value_end;
                 continue;
             }
