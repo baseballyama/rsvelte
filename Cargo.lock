@@ -1990,7 +1990,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2041,7 +2041,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "anyhow",
  "clap",
