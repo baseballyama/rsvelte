@@ -1,5 +1,6 @@
 //! Server-side select, textarea, and option element visitors.
 
+use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
@@ -300,7 +301,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             // Append CSS hash: class="foo" → class="foo svelte-xxx"
                             if attr_str.ends_with('"') {
                                 let without_quote = &attr_str[..attr_str.len() - 1];
-                                tag.push_str(&format!("{} {}\"", without_quote, hash));
+                                let _ = write!(tag, "{} {}\"", without_quote, hash);
                             } else {
                                 tag.push_str(&attr_str);
                             }
@@ -380,7 +381,7 @@ impl<'a> ServerCodeGenerator<'a> {
             && let Some(hash) = self.analysis.as_ref().map(|a| a.css.hash.as_str())
         {
             // No class directives and no class attr - add CSS hash if scoped
-            tag.push_str(&format!(" class=\"{}\"", hash));
+            let _ = write!(tag, " class=\"{}\"", hash);
         }
 
         // Collect style directives and add attr_style if needed
@@ -525,10 +526,8 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 let expr = self.source[expr_start..expr_end]
                                                     .trim()
                                                     .to_string();
-                                                value.push_str(&format!(
-                                                    "${{$.stringify({})}}",
-                                                    expr
-                                                ));
+                                                let _ = write!(value, "${{$.stringify({})}}",
+                                                    expr);
                                             }
                                         }
                                     }

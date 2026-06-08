@@ -8,6 +8,7 @@
 //! the OXC AST directly. This avoids dependency on the thread-local ParseArena
 //! used by the main compiler, keeping svelte2tsx self-contained.
 
+use std::fmt::Write as _;
 use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
@@ -2560,7 +2561,7 @@ fn handle_reactive_statement(
                         // the assignment still triggers reactivity.
                         let mut decls = String::new();
                         for name in &new_names {
-                            decls.push_str(&format!("let {};\n", name));
+                            let _ = writeln!(decls, "let {};", name);
                         }
                         str.prepend_right(label_start, &decls);
                         for name in &new_names {
@@ -3395,10 +3396,8 @@ fn create_store_declarations(store_names: &[&str]) -> String {
     }
     let mut result = String::from("/*\u{03A9}ignore_start\u{03A9}*/");
     for name in store_names {
-        result.push_str(&format!(
-            ";let ${} = __sveltets_2_store_get({});",
-            name, name
-        ));
+        let _ = write!(result, ";let ${} = __sveltets_2_store_get({});",
+            name, name);
     }
     result.push_str("/*\u{03A9}ignore_end\u{03A9}*/");
     result

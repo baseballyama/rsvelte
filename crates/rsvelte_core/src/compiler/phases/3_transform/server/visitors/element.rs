@@ -3,6 +3,7 @@
 //! Contains generate_element() and all element-related methods including
 //! attribute generation, class/style directive handling, and spread attributes.
 
+use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{collapse_whitespace, needs_clsx, prop_string, quote_prop_name};
 use super::super::types::OutputPart;
@@ -264,12 +265,10 @@ impl<'a> ServerCodeGenerator<'a> {
                                                         self.source[es..ee].trim().to_string();
                                                     let expr = self.transform_store_refs(&expr);
                                                     if matches!(eval, AttrExprEval::StringNoWrap) {
-                                                        tmpl.push_str(&format!("${{{}}}", expr));
+                                                        let _ = write!(tmpl, "${{{}}}", expr);
                                                     } else {
-                                                        tmpl.push_str(&format!(
-                                                            "${{$.stringify({})}}",
-                                                            expr
-                                                        ));
+                                                        let _ = write!(tmpl, "${{$.stringify({})}}",
+                                                            expr);
                                                     }
                                                 }
                                             }
@@ -365,7 +364,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     && base_class.is_none()
                     && class_directives.is_empty()
                 {
-                    tag.push_str(&format!(" class=\"{}\"", hash));
+                    let _ = write!(tag, " class=\"{}\"", hash);
                     emitted_class_hash = true;
                 }
                 emitted_style = true;
@@ -420,7 +419,7 @@ impl<'a> ServerCodeGenerator<'a> {
             && base_class.is_none()
             && class_directives.is_empty()
         {
-            tag.push_str(&format!(" class=\"{}\"", hash));
+            let _ = write!(tag, " class=\"{}\"", hash);
         }
 
         // Emit any remaining class/style directives that weren't handled in the loop
@@ -1552,7 +1551,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 let expr = self.transform_store_refs(expr);
                                 // Wrap expressions in $.stringify() when mixed with text
                                 // This matches the official Svelte build_attribute_value behavior
-                                value.push_str(&format!("${{$.stringify({})}}", expr));
+                                let _ = write!(value, "${{$.stringify({})}}", expr);
                             }
                         }
                     }
@@ -2719,8 +2718,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if expr_end > expr_start && expr_end <= self.source.len() {
                                     let expr_src = self.source[expr_start..expr_end].trim();
                                     let transformed = self.transform_store_refs(expr_src);
-                                    template
-                                        .push_str(&format!("${{$.stringify({})}}", transformed));
+                                    let _ = write!(template, "${{$.stringify({})}}", transformed);
                                 }
                             }
                         }
@@ -2884,13 +2882,10 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 let transformed =
                                                     self.transform_store_refs(expr_src);
                                                 if matches!(eval, AttrExprEval::StringNoWrap) {
-                                                    template
-                                                        .push_str(&format!("${{{}}}", transformed));
+                                                    let _ = write!(template, "${{{}}}", transformed);
                                                 } else {
-                                                    template.push_str(&format!(
-                                                        "${{$.stringify({})}}",
-                                                        transformed
-                                                    ));
+                                                    let _ = write!(template, "${{$.stringify({})}}",
+                                                        transformed);
                                                 }
                                             }
                                         }

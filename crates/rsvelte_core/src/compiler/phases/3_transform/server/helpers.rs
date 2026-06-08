@@ -4,6 +4,7 @@
 //! visitor implementations. These were extracted from `transform_server.rs`
 //! to keep the visitor files focused on their specific AST node handling.
 
+use std::fmt::Write as _;
 use super::types::{ConstantFoldResult, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Script, TemplateNode};
 use memchr::memmem;
@@ -220,7 +221,7 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
                 } else {
                     arg.to_string()
                 };
-                result.push_str(&format!("(await $.save({}))()", transformed_arg));
+                let _ = write!(result, "(await $.save({}))()", transformed_arg);
                 // If the next character is a binary operator (not whitespace/end),
                 // add a space to maintain readable formatting.
                 if arg_end < len
@@ -1377,10 +1378,8 @@ pub(crate) fn transform_props_spread_ex(
 
             // Case 1: Simple identifier (let props = $$props)
             if !pattern.starts_with('{') {
-                result.push_str(&format!(
-                    "{}{} {{ {}, $$events, ...{} }} = $$props;\n",
-                    target_indent, decl_keyword, slots_part, pattern
-                ));
+                let _ = writeln!(result, "{}{} {{ {}, $$events, ...{} }} = $$props;",
+                    target_indent, decl_keyword, slots_part, pattern);
                 continue;
             }
 
@@ -1395,22 +1394,18 @@ pub(crate) fn transform_props_spread_ex(
                     let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
 
                     if other_props.is_empty() {
-                        result.push_str(&format!(
-                            "{}{} {{ {}, $$events, ...{} }} = $$props;\n",
-                            target_indent, decl_keyword, slots_part, rest_name
-                        ));
+                        let _ = writeln!(result, "{}{} {{ {}, $$events, ...{} }} = $$props;",
+                            target_indent, decl_keyword, slots_part, rest_name);
                     } else {
-                        result.push_str(&format!(
-                            "{}{} {{ {}, {}, $$events, ...{} }} = $$props;\n",
-                            target_indent, decl_keyword, other_props, slots_part, rest_name
-                        ));
+                        let _ = writeln!(result, "{}{} {{ {}, {}, $$events, ...{} }} = $$props;",
+                            target_indent, decl_keyword, other_props, slots_part, rest_name);
                     }
                     continue;
                 }
             }
 
             // Fallback: keep original line
-            result.push_str(&format!("{}{}\n", target_indent, trimmed));
+            let _ = writeln!(result, "{}{}", target_indent, trimmed);
             continue;
         }
 
@@ -1440,7 +1435,7 @@ pub(crate) fn transform_props_spread_ex(
                 update_template_literal_state_full(line, in_template_literal, template_brace_depth);
             in_template_literal = new_in_template;
             template_brace_depth = new_brace_depth;
-            result.push_str(&format!("{}{}\n", indent, trimmed));
+            let _ = writeln!(result, "{}{}", indent, trimmed);
         }
     }
 
@@ -2954,13 +2949,13 @@ pub(crate) fn normalize_import(import_str: &str) -> String {
         let mut result = format!("{} {{\n", prefix);
         for (i, spec) in specifiers.iter().enumerate() {
             if i < specifiers.len() - 1 {
-                result.push_str(&format!("\t{},\n", spec));
+                let _ = writeln!(result, "\t{},", spec);
             } else {
                 // Last specifier: no trailing comma
-                result.push_str(&format!("\t{}\n", spec));
+                let _ = writeln!(result, "\t{}", spec);
             }
         }
-        result.push_str(&format!("}} {}", after_brace));
+        let _ = write!(result, "}} {}", after_brace);
         if !result.ends_with(';') {
             result.push(';');
         }

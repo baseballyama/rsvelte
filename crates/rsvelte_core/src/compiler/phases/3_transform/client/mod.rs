@@ -5,6 +5,7 @@
 //! This module mirrors the official Svelte compiler structure at
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/`.
 
+use std::fmt::Write as _;
 mod ast_state_transform;
 mod class_transforms;
 mod console_dev_ast;
@@ -1816,10 +1817,8 @@ fn transform_client_with_visitors(
                 }
                 // Encode as base64 data URI
                 let b64 = super::base64_encode(css_map_json.as_bytes());
-                css_code.push_str(&format!(
-                    "\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
-                    b64
-                ));
+                let _ = write!(css_code, "\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
+                    b64);
             }
         }
         let code = b::string(css_code);
@@ -3207,13 +3206,11 @@ fn transform_destructured_state_assignments(
                                     .push(format!("{}{} = $$array[{}];", inner_indent, part, idx));
                             }
                         }
-                        result.push_str(&format!(
-                            "{}((array) => {{\n{}\n{}}})({});\n",
+                        let _ = writeln!(result, "{}((array) => {{\n{}\n{}}})({});",
                             indent,
                             body_lines.join("\n"),
                             indent,
-                            rhs
-                        ));
+                            rhs);
                         // Add blank line after the IIFE
                         result.push('\n');
                         continue;
@@ -4254,7 +4251,7 @@ fn transform_instance_script_for_visitors(
                     let call_start = pos + "$state.snapshot(".len();
                     if let Some(content_end) = find_matching_paren(&remaining[call_start..]) {
                         let content = &remaining[call_start..call_start + content_end];
-                        new_transformed.push_str(&format!("$state.snapshot({}, true)", content));
+                        let _ = write!(new_transformed, "$state.snapshot({}, true)", content);
                         remaining = &remaining[call_start + content_end + 1..];
                     } else {
                         new_transformed.push_str("$state.snapshot(");
@@ -4278,7 +4275,7 @@ fn transform_instance_script_for_visitors(
                 if vars.is_empty() {
                     result.push_str("/* $$async_noop */;\n");
                 } else {
-                    result.push_str(&format!("/* $$async_noop:{} */;\n", vars.join(",")));
+                    let _ = writeln!(result, "/* $$async_noop:{} */;", vars.join(","));
                 }
             }
             return;

@@ -7,6 +7,7 @@
 //! Corresponds to `ComponentContext` and `ComponentClientTransformState` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/types.js`.
 
+use std::fmt::Write as _;
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
@@ -2681,7 +2682,7 @@ impl TemplateBuilder {
             && last.ends_with('>')
         {
             last.pop(); // Remove the '>'
-            last.push_str(&format!(" {}=\"{}\"", name, value));
+            let _ = write!(last, " {}=\"{}\"", name, value);
             last.push('>');
         }
     }

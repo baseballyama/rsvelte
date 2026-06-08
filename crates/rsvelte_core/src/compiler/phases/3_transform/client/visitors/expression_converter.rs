@@ -6,6 +6,7 @@
 //!
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
+use std::fmt::Write as _;
 use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
@@ -3698,7 +3699,7 @@ pub fn pattern_to_string(pattern: &JsPattern) -> String {
                                         s.push('"');
                                     }
                                     JsLiteral::Number(n) => s.push_str(&n.to_string()),
-                                    _ => s.push_str(&format!("{:?}", lit)),
+                                    _ => { let _ = write!(s, "{:?}", lit); },
                                 },
                                 JsPropertyKey::Computed(_e) => {
                                     // Computed keys in destructuring patterns are unusual;

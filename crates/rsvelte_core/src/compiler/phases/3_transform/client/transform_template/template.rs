@@ -3,6 +3,7 @@
 //! This module corresponds to:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-template/template.js`
 
+use std::fmt::Write as _;
 use super::fix_attribute_casing::fix_attribute_casing;
 use super::types::{Comment, Element, Node, TextNode};
 use crate::ast::template::Text;
@@ -249,7 +250,7 @@ fn stringify(item: &Node) -> String {
                     str.push_str(key);
                 }
                 if let Some(val) = value {
-                    str.push_str(&format!("=\"{}\"", escape_attr(val)));
+                    let _ = write!(str, "=\"{}\"", escape_attr(val));
                 }
             }
 
@@ -267,7 +268,7 @@ fn stringify(item: &Node) -> String {
                         .collect::<Vec<_>>()
                         .join(""),
                 );
-                str.push_str(&format!("</{}>", element.name));
+                let _ = write!(str, "</{}>", element.name);
             }
 
             str

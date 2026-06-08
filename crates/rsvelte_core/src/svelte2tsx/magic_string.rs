@@ -5,6 +5,7 @@
 //! of the original string. Chunks can be modified (overwrite, remove, prepend, append)
 //! while preserving position information for accurate source mapping.
 
+use std::fmt::Write as _;
 use std::fmt;
 
 use rustc_hash::FxHashMap;
@@ -148,7 +149,7 @@ fn json_escape(s: &str) -> String {
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
             c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
+                let _ = write!(out, "\\u{:04x}", c as u32);
             }
             c => out.push(c),
         }

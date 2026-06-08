@@ -3,6 +3,7 @@
 //! Generates scoped CSS stylesheets with selector scoping.
 //! Preserves original whitespace from source using AST positions.
 
+use std::fmt::Write as _;
 use memchr::{memchr, memmem};
 
 use super::super::phase1_parse::parse_css;
@@ -4327,9 +4328,9 @@ fn transform_atrule_preserving<'a>(
 
         // Check if it's a global keyframe
         if let Some(keyframe_name) = prelude.strip_prefix("-global-") {
-            output.push_str(&format!("@{} {}", name, keyframe_name));
+            let _ = write!(output, "@{} {}", name, keyframe_name);
         } else {
-            output.push_str(&format!("@{} {}-{}", name, hash, prelude));
+            let _ = write!(output, "@{} {}-{}", name, hash, prelude);
         }
 
         // Copy block from source, preserving original whitespace between prelude and block
@@ -4957,7 +4958,7 @@ fn transform_complex_selector(
                     if name == " " {
                         result.push(' ');
                     } else {
-                        result.push_str(&format!(" {} ", name));
+                        let _ = write!(result, " {} ", name);
                     }
                 }
                 // Output selectors without scoping
@@ -4995,9 +4996,9 @@ fn transform_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start (e.g., "> nav" as a nested selector)
                     // Don't add leading space
-                    result.push_str(&format!("{} ", name));
+                    let _ = write!(result, "{} ", name);
                 } else {
-                    result.push_str(&format!(" {} ", name));
+                    let _ = write!(result, " {} ", name);
                 }
                 // After any combinator, subsequent selectors should use :where() for specificity preservation
                 // UNLESS the previous selector was global-like (like :host) or a :global() selector,
@@ -5727,7 +5728,7 @@ fn transform_is_not_complex_selector(
                         result.push_str(name);
                     }
                 } else {
-                    result.push_str(&format!(" {} ", name));
+                    let _ = write!(result, " {} ", name);
                 }
             }
 
@@ -5793,7 +5794,7 @@ fn transform_is_not_complex_selector(
                             if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
-                                selector_parts.push_str(&format!(":where({})", selector));
+                                let _ = write!(selector_parts, ":where({})", selector);
                             }
                             continue;
                         }
@@ -5815,7 +5816,7 @@ fn transform_is_not_complex_selector(
                             if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
-                                selector_parts.push_str(&format!(":where({})", selector));
+                                let _ = write!(selector_parts, ":where({})", selector);
                             }
                         }
                     }
@@ -5913,7 +5914,7 @@ fn get_selector_text(node: &Value) -> String {
                 if name == " " {
                     result.push(' ');
                 } else {
-                    result.push_str(&format!(" {} ", name));
+                    let _ = write!(result, " {} ", name);
                 }
             }
 

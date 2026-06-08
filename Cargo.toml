@@ -46,6 +46,11 @@ unsafe_op_in_unsafe_fn = "deny"
 # soundness. This is the project's contract for reviewing unsafe code.
 undocumented_unsafe_blocks = "deny"
 
+# Ban the `out.push_str(&format!(...))` anti-pattern: it heap-allocates a throwaway
+# `String` per call, which profiling showed dominates the codegen hot path. Use
+# `write!`/`writeln!` into the target buffer instead (zero extra allocation).
+format_push_string = "deny"
+
 # Intentional, project-wide allowances (centralised here instead of scattered as
 # inline `#[allow(...)]`, so the policy is reviewable in one place):
 #

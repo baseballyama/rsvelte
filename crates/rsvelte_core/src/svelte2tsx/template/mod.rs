@@ -6,6 +6,7 @@
 //! Each template node type has a corresponding handler that overwrites the
 //! original source range with the appropriate TypeScript/TSX code.
 
+use std::fmt::Write as _;
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
     BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag, EachBlock,
@@ -1128,7 +1129,7 @@ fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
     // argument list; `{` opens the for body.
     let mut s = format!(")){{{}", suffix);
     if let Some(ref index) = block.index {
-        s.push_str(&format!("let {} = 1;", index));
+        let _ = write!(s, "let {} = 1;", index);
     }
     if let Some(ref key) = block.key {
         let key_text = get_expression_text(key, source);
@@ -1202,7 +1203,7 @@ fn handle_each_block(
             {
                 let mut s = format!("); for(let {} of $$_each){{", context_text);
                 if let Some(ref index) = block.index {
-                    s.push_str(&format!("let {} = 1;", index));
+                    let _ = write!(s, "let {} = 1;", index);
                 }
                 if let Some(ref key) = block.key {
                     let key_text = get_expression_text(key, source);
@@ -1222,7 +1223,7 @@ fn handle_each_block(
             {
                 let mut s = format!(")){{{}", suffix);
                 if let Some(ref index) = block.index {
-                    s.push_str(&format!("let {} = 1;", index));
+                    let _ = write!(s, "let {} = 1;", index);
                 }
                 if let Some(ref key) = block.key {
                     let key_text = get_expression_text(key, source);
@@ -1989,7 +1990,7 @@ fn handle_regular_element(
             if i > 0 {
                 args.push(',');
             }
-            args.push_str(&format!("$$action_{}", i));
+            let _ = write!(args, "$$action_{}", i);
         }
         args.push(')');
         args
@@ -2226,7 +2227,7 @@ fn handle_component(
             if let Attribute::BindDirective(bind) = attr {
                 if bind.name == "this" {
                     let expr_text = get_expression_text(&bind.expression, source);
-                    out.push_str(&format!("{} = {};", expr_text, inst_var));
+                    let _ = write!(out, "{} = {};", expr_text, inst_var);
                     continue;
                 }
                 if get_set_binding_ranges(&bind.expression, source).is_some() {
@@ -2237,14 +2238,12 @@ fn handle_component(
                     // is skipped (mirrors the `if (!isGetSetBinding)` guard in
                     // upstream `handleBinding`). Only the `$$bindings` marker
                     // is emitted.
-                    out.push_str(&format!("{}.$$bindings = '{}';", inst_var, bind.name));
+                    let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
                     continue;
                 }
                 let expr_text = get_expression_text(&bind.expression, source);
-                out.push_str(&format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
-                    expr_text, inst_var, bind.name
-                ));
+                let _ = write!(out, "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
+                    expr_text, inst_var, bind.name);
             }
         }
         out
@@ -2911,10 +2910,8 @@ fn handle_svelte_component(
     // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     if has_lets_scomp {
         let destructure = build_let_destructure_string(&let_directives_scomp, source);
-        opener.push_str(&format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            destructure, inst_var
-        ));
+        let _ = write!(opener, "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            destructure, inst_var);
     }
 
     str.overwrite(comp.start, opening_tag_end, &opener);
@@ -3222,9 +3219,9 @@ fn handle_svelte_self(
         for on in &on_directives {
             if let Some(ref expr) = on.expression {
                 let expr_text = get_expression_text(expr, source);
-                opener.push_str(&format!("{}.$on(\"{}\", {}); ", name, on.name, expr_text));
+                let _ = write!(opener, "{}.$on(\"{}\", {}); ", name, on.name, expr_text);
             } else {
-                opener.push_str(&format!("{}.$on(\"{}\", () => {{}}); ", name, on.name));
+                let _ = write!(opener, "{}.$on(\"{}\", () => {{}}); ", name, on.name);
             }
         }
     }
@@ -3239,10 +3236,8 @@ fn handle_svelte_self(
         let inst_name = var_name
             .as_ref()
             .expect("let: directive requires an instance variable name");
-        opener.push_str(&format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            destructure, inst_name
-        ));
+        let _ = write!(opener, "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            destructure, inst_name);
     }
 
     if !has_closing_tag {
@@ -3670,7 +3665,7 @@ fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &str) 
         } else {
             "() => {}".to_string()
         };
-        calls.push_str(&format!("{}.$on(\"{}\", {});", inst_var, on.name, handler));
+        let _ = write!(calls, "{}.$on(\"{}\", {});", inst_var, on.name, handler);
     }
     calls
 }
@@ -4176,45 +4171,39 @@ fn build_bind_directive_suffix(
         if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
             if bind.name == "this"
                 && let Some(var) = element_var {
-                    out.push_str(&format!(
-                        "({})({});",
+                    let _ = write!(out, "({})({});",
                         &source[ss as usize..se as usize],
-                        var
-                    ));
+                        var);
                 }
             continue;
         }
         let expr_text = get_expression_text(&bind.expression, source);
         if bind.name == "this" {
             if let Some(var) = element_var {
-                out.push_str(&format!("{} = {};", expr_text, var));
+                let _ = write!(out, "{} = {};", expr_text, var);
             }
         } else if bind.name == "group" && parent_tag == "input" {
             // `bind:group` on `<input>` only gets a type-widening
             // assignment; mirrors the dedicated branch in
             // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
-            out.push_str(&format!("{} = __sveltets_2_any(null);", expr_text));
+            let _ = write!(out, "{} = __sveltets_2_any(null);", expr_text);
         } else if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
             let value = if is_ts_file {
                 format!("null as {}", ty)
             } else {
                 format!("/** @type {{{}}} */ (null)", ty)
             };
-            out.push_str(&format!(
-                "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",
-                expr_text, value
-            ));
+            let _ = write!(out, "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",
+                expr_text, value);
         } else if is_one_way_binding_attribute(&bind.name) {
             if let Some(var) = element_var {
-                out.push_str(&format!("{}= {}.{};", expr_text, var, bind.name));
+                let _ = write!(out, "{}= {}.{};", expr_text, var, bind.name);
             }
         } else {
             // Generic two-way binding: type-widener so TS doesn't infer
             // an overly-narrow type.
-            out.push_str(&format!(
-                "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/",
-                expr_text
-            ));
+            let _ = write!(out, "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/",
+                expr_text);
         }
     }
     out
@@ -4365,15 +4354,11 @@ fn build_directive_prefix_suffix(
                 let id = format!("$$action_{}", action_count);
                 action_count += 1;
                 if let Some(expr_text) = expr {
-                    prefix.push_str(&format!(
-                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}'),({})));",
-                        id, use_dir.name, tag, expr_text
-                    ));
+                    let _ = write!(prefix, "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}'),({})));",
+                        id, use_dir.name, tag, expr_text);
                 } else {
-                    prefix.push_str(&format!(
-                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}')));",
-                        id, use_dir.name, tag
-                    ));
+                    let _ = write!(prefix, "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}')));",
+                        id, use_dir.name, tag);
                 }
             }
             Attribute::TransitionDirective(t) => {

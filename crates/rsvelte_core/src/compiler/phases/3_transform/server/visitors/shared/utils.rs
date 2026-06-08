@@ -3,6 +3,7 @@
 //! This module contains helper functions used by multiple server-side visitors.
 //! It corresponds to `svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/utils.js`.
 
+use std::fmt::Write as _;
 use crate::ast::template::{AttributeValuePart, TemplateNode};
 use crate::compiler::constants::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, EMPTY_COMMENT};
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -100,7 +101,7 @@ pub fn process_children<F>(
                     quasi.cooked.push_str(&escape_html(&text.data));
                 }
                 TemplateNode::Comment(comment) => {
-                    quasi.cooked.push_str(&format!("<!--{}-->", comment.data));
+                    let _ = write!(quasi.cooked, "<!--{}-->", comment.data);
                 }
                 TemplateNode::ExpressionTag(expr_tag) => {
                     // Try to evaluate the expression at compile time (constant folding)
@@ -291,7 +292,7 @@ pub fn build_template(
                                 JsLiteral::Null => last.push_str("null"),
                                 JsLiteral::Undefined => last.push_str("undefined"),
                                 JsLiteral::Regex { pattern, flags } => {
-                                    last.push_str(&format!("/{}/{}", pattern, flags))
+                                    { let _ = write!(last, "/{}/{}", pattern, flags); }
                                 }
                             }
                         }

@@ -1,5 +1,6 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
+use std::fmt::Write as _;
 use memchr::memmem;
 
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
@@ -2661,7 +2662,7 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
 
                 if has_more_after {
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
-                    result.push_str(&format!("(await $.save({}))()", await_arg_trimmed));
+                    let _ = write!(result, "(await $.save({}))()", await_arg_trimmed);
                     i = j;
                 } else {
                     // Last expression - keep as is

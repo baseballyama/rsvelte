@@ -3,6 +3,7 @@
 //! Generates `$.slot()` calls for `<slot>` elements.
 //! Corresponds to SlotElement.js in the official Svelte compiler.
 
+use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
@@ -150,7 +151,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if end > start && end <= self.source.len() {
                                     let expr = self.source[start..end].trim();
                                     let expr = self.transform_store_refs(expr);
-                                    result.push_str(&format!("${{{}}}", expr));
+                                    let _ = write!(result, "${{{}}}", expr);
                                 }
                             }
                         }

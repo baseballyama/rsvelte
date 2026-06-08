@@ -20,6 +20,7 @@
 // is built as both rlib and cdylib, and a lib-level `#[global_allocator]`
 // is duplicated across both outputs at link time — cargo issue
 // rust-lang/cargo#6313.
+use std::fmt::Write as _;
 #[cfg(all(
     feature = "jemalloc",
     not(feature = "napi"),
@@ -302,14 +303,12 @@ fn create_medium_file() -> String {
     );
 
     for i in 0..10 {
-        s.push_str(&format!(
-            r#"        {{#if count > {i}}}
+        let _ = write!(s, r#"        {{#if count > {i}}}
             <li class="active">Item {i}</li>
         {{:else}}
             <li>Item {i}</li>
         {{/if}}
-"#
-        ));
+"#);
     }
 
     s.push_str(
@@ -373,8 +372,7 @@ fn create_large_file() -> String {
 
     // Add many elements
     for i in 0..50 {
-        s.push_str(&format!(
-            r#"        <section class="section-{i}">
+        let _ = write!(s, r#"        <section class="section-{i}">
             <h2>Section {i}</h2>
             {{#if count > {i}}}
                 <div class="content active">
@@ -392,8 +390,7 @@ fn create_large_file() -> String {
                 </div>
             {{/if}}
         </section>
-"#
-        ));
+"#);
     }
 
     s.push_str(
