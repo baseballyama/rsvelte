@@ -122,7 +122,20 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
             | TemplateNode::SvelteSelf(s)
             | TemplateNode::SvelteWindow(s) => collect(out, &s.fragment, line_width, edits),
             TemplateNode::SvelteComponent(c) => collect(out, &c.fragment, line_width, edits),
-            TemplateNode::SvelteElement(e) => collect(out, &e.fragment, line_width, edits),
+            TemplateNode::SvelteElement(e) => {
+                if let Some(edit) = try_collapse(
+                    out,
+                    e.name.as_str(),
+                    e.start,
+                    e.end,
+                    &e.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &e.fragment, line_width, edits);
+                }
+            }
             TemplateNode::IfBlock(blk) => {
                 collect(out, &blk.consequent, line_width, edits);
                 if let Some(alt) = &blk.alternate {
@@ -374,7 +387,7 @@ fn is_whitespace_preserving(tag: &str) -> bool {
 /// prettier / oxfmt also edge-trim (`<slot> x </slot>` → `<slot>x</slot>`).
 /// Everything else (inline, inline-block, table-cell, …) keeps one edge space.
 fn trims_edge_whitespace(tag: &str) -> bool {
-    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary")
+    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary" | "svelte:element")
 }
 
 /// A fill item: an inline token plus whether whitespace preceded it (a break
