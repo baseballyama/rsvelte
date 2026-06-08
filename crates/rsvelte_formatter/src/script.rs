@@ -40,7 +40,13 @@ pub(crate) fn format_script(
     let body = &source[body_start..body_end];
 
     if body.trim().is_empty() {
-        return Ok(None);
+        // A whitespace-only body (e.g. `<script>\n\t\n</script>`) collapses to a
+        // single newline so the close tag sits on its own line, matching oxfmt /
+        // prettier. A truly empty body (`<script></script>`) is left as-is.
+        if body.is_empty() {
+            return Ok(None);
+        }
+        return Ok(Some((body_start as u32, body_end as u32, "\n".to_string())));
     }
 
     let allocator = Allocator::default();
