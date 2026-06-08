@@ -17,14 +17,20 @@ fn formatter_parse_options() -> OxcParseOptions {
 
 /// Walk a `Fragment` recursively, appending `(start, end, replacement)`
 /// edits for every JS expression we can safely format.
+///
+/// `depth` is the markup nesting level at which this fragment's nodes render
+/// (root fragment is `0`, each enclosing element / block adds one). Content
+/// expressions use it to match prettier-plugin-svelte's wrap column; see
+/// [`format_content_expression`].
 pub(crate) fn collect_template_edits(
     source: &str,
     fragment: &Fragment,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     for node in &fragment.nodes {
-        collect_node_edits(source, node, options, edits)?;
+        collect_node_edits(source, node, depth, options, edits)?;
     }
     Ok(())
 }
@@ -32,12 +38,14 @@ pub(crate) fn collect_template_edits(
 fn collect_node_edits(
     source: &str,
     node: &TemplateNode,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
+    let child_depth = depth + 1;
     match node {
         TemplateNode::ExpressionTag(tag) => {
-            push_expression_tag(source, tag, options, edits)?;
+            push_expression_tag(source, tag, depth, options, edits)?;
         }
         TemplateNode::HtmlTag(tag) => {
             push_tag_form(
@@ -46,6 +54,7 @@ fn collect_node_edits(
                 tag.end,
                 "@html",
                 &tag.expression,
+                depth,
                 options,
                 edits,
             )?;
@@ -57,6 +66,7 @@ fn collect_node_edits(
                 tag.end,
                 "@render",
                 &tag.expression,
+                depth,
                 options,
                 edits,
             )?;
@@ -68,6 +78,7 @@ fn collect_node_edits(
                 tag.end,
                 "@attach",
                 &tag.expression,
+                depth,
                 options,
                 edits,
             )?;
@@ -84,16 +95,16 @@ fn collect_node_edits(
         // open-tag rewrite in `crate::markup`. Here we only recurse into
         // the children.
         TemplateNode::RegularElement(elem) => {
-            collect_template_edits(source, &elem.fragment, options, edits)?;
+            collect_template_edits(source, &elem.fragment, child_depth, options, edits)?;
         }
         TemplateNode::Component(c) => {
-            collect_template_edits(source, &c.fragment, options, edits)?;
+            collect_template_edits(source, &c.fragment, child_depth, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
-            collect_template_edits(source, &t.fragment, options, edits)?;
+            collect_template_edits(source, &t.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
-            collect_template_edits(source, &s.fragment, options, edits)?;
+            collect_template_edits(source, &s.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SvelteHead(s)
         | TemplateNode::SvelteBody(s)
@@ -103,19 +114,33 @@ fn collect_node_edits(
         | TemplateNode::SvelteOptions(s)
         | TemplateNode::SvelteSelf(s)
         | TemplateNode::SvelteWindow(s) => {
-            collect_template_edits(source, &s.fragment, options, edits)?;
+            collect_template_edits(source, &s.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
-            collect_template_edits(source, &c.fragment, options, edits)?;
+            collect_template_edits(source, &c.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
-            collect_template_edits(source, &e.fragment, options, edits)?;
+            collect_template_edits(source, &e.fragment, child_depth, options, edits)?;
         }
         TemplateNode::IfBlock(blk) => {
-            push_bare_expression(source, &blk.test, options, edits)?;
-            collect_template_edits(source, &blk.consequent, options, edits)?;
-            if let Some(alt) = &blk.alternate {
-                collect_template_edits(source, alt, options, edits)?;
+            // Walk the `{#if} / {:else if} / {:else}` chain at one consistent
+            // depth — svelte desugars `{:else if}` into an alternate fragment
+            // whose sole child is another IfBlock, so recursing naively would
+            // add a level per branch. Mirrors `crate::indent`.
+            let mut current: &rsvelte_core::ast::template::IfBlock = blk;
+            loop {
+                push_bare_expression(source, &current.test, options, edits)?;
+                collect_template_edits(source, &current.consequent, child_depth, options, edits)?;
+                match &current.alternate {
+                    Some(alt) => match crate::indent::else_if_branch(alt) {
+                        Some(chained) => current = chained,
+                        None => {
+                            collect_template_edits(source, alt, child_depth, options, edits)?;
+                            break;
+                        }
+                    },
+                    None => break,
+                }
             }
         }
         TemplateNode::EachBlock(blk) => {
@@ -126,9 +151,9 @@ fn collect_node_edits(
             if let Some(key) = &blk.key {
                 push_brace_wrapped_expression(source, key, options, edits)?;
             }
-            collect_template_edits(source, &blk.body, options, edits)?;
+            collect_template_edits(source, &blk.body, child_depth, options, edits)?;
             if let Some(fb) = &blk.fallback {
-                collect_template_edits(source, fb, options, edits)?;
+                collect_template_edits(source, fb, child_depth, options, edits)?;
             }
         }
         TemplateNode::AwaitBlock(blk) => {
@@ -140,25 +165,25 @@ fn collect_node_edits(
                 push_pattern_at_span(source, e, options, edits)?;
             }
             if let Some(frag) = &blk.pending {
-                collect_template_edits(source, frag, options, edits)?;
+                collect_template_edits(source, frag, child_depth, options, edits)?;
             }
             if let Some(frag) = &blk.then {
-                collect_template_edits(source, frag, options, edits)?;
+                collect_template_edits(source, frag, child_depth, options, edits)?;
             }
             if let Some(frag) = &blk.catch {
-                collect_template_edits(source, frag, options, edits)?;
+                collect_template_edits(source, frag, child_depth, options, edits)?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
             push_bare_expression(source, &blk.expression, options, edits)?;
-            collect_template_edits(source, &blk.fragment, options, edits)?;
+            collect_template_edits(source, &blk.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
             push_bare_expression(source, &blk.expression, options, edits)?;
             for p in &blk.parameters {
                 push_param_at_span(source, p, options, edits)?;
             }
-            collect_template_edits(source, &blk.body, options, edits)?;
+            collect_template_edits(source, &blk.body, child_depth, options, edits)?;
         }
         TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
     }
@@ -173,6 +198,7 @@ fn collect_node_edits(
 fn push_expression_tag(
     source: &str,
     tag: &ExpressionTag,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -189,19 +215,21 @@ fn push_expression_tag(
         return Ok(());
     }
 
-    let formatted = format_expression_source(inner, options)?;
+    let formatted = format_content_expression(inner, options, depth)?;
     edits.push((tag.start, tag.end, format!("{{{formatted}}}")));
     Ok(())
 }
 
 /// Replace `{@<keyword> EXPR}` (full tag span) with the formatted expression
 /// body and a single space after the keyword.
+#[allow(clippy::too_many_arguments)]
 fn push_tag_form(
     source: &str,
     tag_start: u32,
     tag_end: u32,
     keyword: &str,
     expr: &Expression,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -215,7 +243,7 @@ fn push_tag_form(
     if slice.is_empty() {
         return Ok(());
     }
-    let formatted = format_expression_source(slice, options)?;
+    let formatted = format_content_expression(slice, options, depth)?;
     edits.push((tag_start, tag_end, format!("{{{keyword} {formatted}}}")));
     Ok(())
 }
@@ -253,10 +281,9 @@ fn push_debug_tag(
 }
 
 /// Splice over an expression's enclosing `{ ... }` if the source has
-/// `{ <ws> EXPR <ws> }` around the AST expression span (directive values,
-/// `this={X}` etc.). If no such enclosure is detectable, splice just the
-/// bare expression span (block headers like `{#if EXPR}` fall into this
-/// branch — the `{#if ` keyword stops the back-scan).
+/// `{ <ws> EXPR <ws> }` around the AST expression span (the `{#each … (KEY)}`
+/// key in particular). The expression is forced onto a single line — it sits
+/// in a Svelte block header, which prettier-plugin-svelte never breaks.
 fn push_brace_wrapped_expression(
     source: &str,
     expr: &Expression,
@@ -273,7 +300,7 @@ fn push_brace_wrapped_expression(
     if slice.is_empty() {
         return Ok(());
     }
-    let formatted = format_expression_source(slice, options)?;
+    let formatted = format_inline_expression(slice, options)?;
 
     if let Some((brace_start, brace_end)) = enclosing_braces_span(source, start, end) {
         edits.push((brace_start, brace_end, format!("{{{formatted}}}")));
@@ -286,7 +313,9 @@ fn push_brace_wrapped_expression(
 /// Splice just the bare expression span — preserves whatever surrounds it
 /// in the source. Used for block-header expressions (`{#if EXPR}`,
 /// `{#each EXPR as ...}`, etc.) where the `{` is followed by a Svelte
-/// keyword (`#if` / `#each` / ...) rather than the expression itself.
+/// keyword (`#if` / `#each` / ...) rather than the expression itself. The
+/// expression is forced onto a single line: prettier-plugin-svelte keeps a
+/// block tag's expression inline regardless of width.
 fn push_bare_expression(
     source: &str,
     expr: &Expression,
@@ -303,7 +332,7 @@ fn push_bare_expression(
     if slice.is_empty() {
         return Ok(());
     }
-    let formatted = format_expression_source(slice, options)?;
+    let formatted = format_inline_expression(slice, options)?;
     edits.push((start, end, formatted));
     Ok(())
 }
@@ -406,12 +435,18 @@ pub(crate) fn format_directive_value(
 
 // ─── Expression formatter ───────────────────────────────────────────────
 
-/// Format a single JS expression source. Wraps in parens to force
-/// expression context (so object literals like `{a:1}` aren't parsed as
-/// block statements) and strips the wrapper from the output.
-pub(crate) fn format_expression_source(
+/// Format a single JS expression source at `line_width`. Wraps in parens to
+/// force expression context (so object literals like `{a:1}` aren't parsed as
+/// block statements) and strips the `( … );` wrapper from the output. With
+/// `single_line`, the formatter is held on one line (`Expand::Never` + max
+/// width) for spots where a break can't survive — block headers and the like.
+/// The result may otherwise be multi-line, with continuation lines at
+/// `oxc_formatter`'s own relative indent (measured from column 0).
+fn format_expr_core(
     expr_source: &str,
     options: &FormatOptions,
+    line_width: oxc_formatter_core::LineWidth,
+    single_line: bool,
 ) -> Result<String, FormatError> {
     let allocator = Allocator::default();
     let source_type = if options.typescript {
@@ -428,13 +463,73 @@ pub(crate) fn format_expression_source(
         return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
     }
 
-    let formatted = format_program(&allocator, &parser_ret.program, options.js.clone(), None)
+    let mut js = options.js.clone();
+    js.line_width = line_width;
+    if single_line {
+        js.expand = oxc_formatter::Expand::Never;
+    }
+    let formatted = format_program(&allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     Ok(strip_outer_parens(s).trim().to_string())
+}
+
+/// Format an attribute / directive value expression (`bind:value={ … }`) at
+/// the configured width. Attribute-position wrapping is owned by the open-tag
+/// rewrite in [`crate::markup`], so this applies no markup-depth adjustment.
+pub(crate) fn format_expression_source(
+    expr_source: &str,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    format_expr_core(expr_source, options, options.js.line_width, false)
+}
+
+/// Format a block-header expression (`{#if cond}`, `{#each items …}`) onto a
+/// single line. prettier-plugin-svelte never breaks a block tag's expression
+/// across lines regardless of width, so format at the widest line the
+/// formatter allows (`LineWidth::MAX`) with `Expand::Never` so neither a long
+/// binary chain nor a magic-comma object splits the block header.
+fn format_inline_expression(
+    expr_source: &str,
+    options: &FormatOptions,
+) -> Result<String, FormatError> {
+    let wide = oxc_formatter_core::LineWidth::try_from(oxc_formatter_core::LineWidth::MAX)
+        .unwrap_or(options.js.line_width);
+    format_expr_core(expr_source, options, wide, true)
+}
+
+/// Format a content expression (`{expr}`, `{@html e}`, `{@render e()}`) that
+/// renders at markup nesting `depth`.
+///
+/// The body is formatted at indent 0, so a wrap decision made against the full
+/// `line_width` ignores the `depth` levels of indent it will sit at once
+/// spliced — a line that "fits" at column 0 overflows once nested. Narrow the
+/// width by that lead so breaks land where prettier-plugin-svelte puts them,
+/// then push every continuation line out to the nesting depth (the first line
+/// stays inline after the opening `{`).
+fn format_content_expression(
+    expr_source: &str,
+    options: &FormatOptions,
+    depth: usize,
+) -> Result<String, FormatError> {
+    let indent_width = options.js.indent_width.value() as usize;
+    let lead = depth * indent_width;
+    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+    let formatted = format_expr_core(expr_source, options, line_width, false)?;
+    if !formatted.contains('\n') {
+        return Ok(formatted);
+    }
+    let prefix = if options.js.indent_style.is_tab() {
+        "\t".repeat(depth)
+    } else {
+        " ".repeat(lead)
+    };
+    Ok(crate::reindent::reindent(&formatted, &prefix, true))
 }
 
 /// Splice a destructuring pattern's source span with its formatted
