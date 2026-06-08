@@ -117,5 +117,27 @@ assert(
 	r.VERSION,
 );
 
+// ---------------------------------------------------------------------------
+// 7. Standalone parse surfaces — `parse` (JSON), `parseEnvelope` (raw buffer),
+//    and the `decodeParseEnvelope` decoder must all be re-exported (#792).
+// ---------------------------------------------------------------------------
+assert('parse() is re-exported', typeof r.parse === 'function');
+assert('parseEnvelope() is re-exported', typeof r.parseEnvelope === 'function');
+assert('decodeParseEnvelope() is re-exported', typeof r.decodeParseEnvelope === 'function');
+
+const parseSrc = '<script lang="ts">let x = 1;</script><h1>{x}</h1>';
+const parsedAst = JSON.parse(r.parse(parseSrc));
+assert('parse() returns a Root AST as JSON', parsedAst?.type === 'Root', parsedAst?.type);
+
+const envBuf = r.parseEnvelope(parseSrc);
+assert('parseEnvelope() returns a Buffer', Buffer.isBuffer(envBuf));
+
+const decodedAst = r.decodeParseEnvelope(envBuf);
+assert(
+	'decodeParseEnvelope() round-trips to the same Root as parse()',
+	decodedAst?.type === parsedAst?.type,
+	`${decodedAst?.type} vs ${parsedAst?.type}`,
+);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail > 0 ? 1 : 0);

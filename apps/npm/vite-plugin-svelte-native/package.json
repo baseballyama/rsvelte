@@ -23,6 +23,7 @@
   "types": "./index.d.ts",
   "files": [
     "envelope.js",
+    "parse-envelope.js",
     "index.cjs",
     "index.d.ts"
   ],
