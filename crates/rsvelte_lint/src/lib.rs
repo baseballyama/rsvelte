@@ -29,6 +29,7 @@ pub mod registry;
 pub mod rule;
 pub mod rules;
 pub mod runner;
+pub mod scope;
 pub mod suppression;
 pub mod validator;
 pub mod visitor;

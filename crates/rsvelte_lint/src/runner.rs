@@ -64,6 +64,12 @@ pub fn lint_source(
         diagnostics.push(d.to_output(file, &line_index));
     }
 
+    // 2b. Scope-based rules (Wave 2). No-op until scope rules ship; this skips
+    // the analysis pass entirely when none are enabled.
+    for d in crate::scope::scope_diagnostics(source, config) {
+        diagnostics.push(d.to_output(file, &line_index));
+    }
+
     // 3. Suppression directives (eslint-disable* + svelte-ignore).
     let suppressions = Suppressions::collect(source);
     diagnostics.retain(|d| match (&d.code, &d.range) {
