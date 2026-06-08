@@ -204,7 +204,7 @@ fn try_collapse(
     // — the `>` glues to the content so no whitespace is injected. The open tag
     // must fit on one line and the `>content</tag` line must fit; otherwise this
     // needs attribute-wrapping / content fill we don't do here.
-    if is_pure_inline_display(tag) {
+    if !is_block_display(tag) {
         if open.contains('\n') || !open.ends_with('>') {
             return None;
         }
