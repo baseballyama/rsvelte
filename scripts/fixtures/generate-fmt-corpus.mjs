@@ -264,6 +264,13 @@ async function main() {
   const blockItems = [];
   for (const absPath of mdFiles) {
     const rel = path.relative(SVELTE_DEV, absPath).split(path.sep).join('/');
+    // The `llms*.txt/` docs are auto-generated concatenations of the whole
+    // documentation; their ```svelte blocks stitch several components together
+    // with `<!-- File.svelte -->` delimiters, so they aren't single, valid
+    // Svelte sources. Skip them as block samples (they're not representative).
+    if (/(^|\/)llms[^/]*\//.test(rel) || /(^|\/)llms[^/]*\.txt/.test(rel)) {
+      continue;
+    }
     const md = fs.readFileSync(absPath, 'utf8');
     for (const b of extractSvelteBlocks(md)) {
       blockItems.push({ rel, index: b.index, raw: b.raw });
