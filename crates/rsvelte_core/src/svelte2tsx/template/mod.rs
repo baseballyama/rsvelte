@@ -317,6 +317,35 @@ fn segs_trim_start(segs: &mut Vec<Seg>) {
 /// Invariants on `segments` (debug-asserted):
 ///   - `Src(s, e)` ranges appear in strictly increasing order.
 ///   - Each `Src(s, e)` lies within `[range_start, range_end]`.
+/// Reorder-safe pre-pass for [`emit_segmented_overwrite`], which requires
+/// `Seg::Src` ranges to appear in ascending source order (a MagicString can
+/// only overwrite left-to-right). When a later segment references an earlier
+/// source position — e.g. a `class:` / `style:` directive expression that #750
+/// hoisted into the opener *suffix*, emitted *after* a following shorthand
+/// attribute's preserved chunk (`<div style:color={b} {onclick}>`, #779) — bake
+/// that out-of-order `Src` into a literal substring so the output stays valid
+/// TSX. The common in-order case is left untouched, preserving the per-character
+/// source mapping; only the rare hoisted-then-overtaken expression loses its
+/// independent mapping (it becomes baked text in the suffix statement).
+fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
+    let mut last_end: u32 = 0;
+    let mut out: Vec<Seg> = Vec::with_capacity(segs.len());
+    for seg in segs {
+        match seg {
+            Seg::Src(s, e) if s >= last_end && s < e => {
+                last_end = e;
+                out.push(Seg::Src(s, e));
+            }
+            Seg::Src(s, e) => {
+                let text = source.get(s as usize..e as usize).unwrap_or("").to_string();
+                out.push(Seg::Lit(text));
+            }
+            lit => out.push(lit),
+        }
+    }
+    out
+}
+
 fn emit_segmented_overwrite(
     str: &mut MagicString,
     range_start: u32,
@@ -1999,6 +2028,7 @@ fn handle_regular_element(
     opener_segs.push(Seg::Lit("});".to_string()));
     opener_segs.extend(class_style_suffix_segs);
     opener_segs.push(Seg::Lit(format!("{}{}", directive_suffix, bind_suffix)));
+    let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
     // Process children
@@ -2191,6 +2221,7 @@ fn handle_component(
     opener_segs.push(Seg::Lit(header_lit));
     opener_segs.extend(attr_segs);
     opener_segs.push(Seg::Lit(trailer_lit));
+    let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
 
     // Handle closing tag
