@@ -18,6 +18,7 @@ static META: RuleMeta = RuleMeta {
     },
     type_aware: false,
     docs: "Disallow use of `{@html}` to prevent XSS attacks",
+    options_schema: None,
 };
 
 #[derive(Default)]
@@ -32,7 +33,7 @@ impl Rule for NoAtHtmlTags {
         ctx.report_with_help(
             tag.start,
             tag.end,
-            "`{@html}` can lead to XSS attacks",
+            "`{@html}` can lead to XSS attack.",
             "Ensure the value is trusted/sanitized, or render it without `{@html}`.",
         );
     }

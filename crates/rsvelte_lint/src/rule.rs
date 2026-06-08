@@ -6,8 +6,8 @@
 //! only overrides what it cares about.
 
 use rsvelte_core::ast::template::{
-    AwaitBlock, Component, DebugTag, EachBlock, ExpressionTag, HtmlTag, IfBlock, RegularElement,
-    Root, SnippetBlock,
+    Attribute, AwaitBlock, Component, DebugTag, EachBlock, ExpressionTag, HtmlTag, IfBlock,
+    RegularElement, Root, SnippetBlock,
 };
 
 use crate::context::LintContext;
@@ -81,6 +81,11 @@ pub struct RuleMeta {
     pub type_aware: bool,
     /// One-line description for `--list` / docs.
     pub docs: &'static str,
+    /// Optional JSON-schema (as a string) describing the rule's options. `None`
+    /// for option-less rules. Surfaced by `--list-rules` and a hook for future
+    /// validation of user-supplied options. The parsed options themselves are
+    /// reached at run time via [`LintContext`](crate::context::LintContext).
+    pub options_schema: Option<&'static str>,
 }
 
 /// A lint rule. Implemented by a zero-sized struct per rule.
@@ -104,4 +109,9 @@ pub trait Rule: Send + Sync {
     fn check_await(&self, ctx: &mut LintContext, block: &AwaitBlock) {}
     fn check_snippet(&self, ctx: &mut LintContext, block: &SnippetBlock) {}
     fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {}
+
+    /// Called for every attribute/directive on an element or component, after
+    /// the element-level hook. Lets attribute-scoped rules avoid re-walking the
+    /// attribute list themselves.
+    fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {}
 }

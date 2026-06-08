@@ -42,7 +42,7 @@ fn native_diagnostics(source: &str, config: &LintConfig) -> Vec<LintDiagnostic> 
     let Ok(root) = parse(source, ParseOptions::default()) else {
         return Vec::new();
     };
-    let mut ctx = LintContext::new();
+    let mut ctx = LintContext::new(config, source);
     LintVisitor::new(enabled).visit_root(&mut ctx, &root);
     ctx.into_diagnostics()
 }
@@ -263,5 +263,104 @@ mod tests {
         let cfg = LintConfig::recommended().with_override("svelte/no-at-debug-tags", Severity::Off);
         let res = fix_source("{@debug foo}", &cfg);
         assert_eq!(res.applied, 0);
+    }
+
+    fn fires(src: &str, code: &str) -> bool {
+        codes(&lint(src, &LintConfig::recommended()))
+            .iter()
+            .any(|c| c == code)
+    }
+
+    #[test]
+    fn no_object_in_text_mustaches_distinguishes_object_from_identifier() {
+        // Relies on template expressions being resolved after parse() so
+        // `node_type()` is available to the rule.
+        assert!(fires("{{ a }}", "svelte/no-object-in-text-mustaches"));
+        assert!(fires("{[a]}", "svelte/no-object-in-text-mustaches"));
+        assert!(fires("{() => a}", "svelte/no-object-in-text-mustaches"));
+        assert!(!fires("{a}", "svelte/no-object-in-text-mustaches"));
+    }
+
+    #[test]
+    fn no_dupe_else_if_blocks_covers_subset_conditions() {
+        assert!(fires(
+            "{#if foo}a{:else if foo}b{/if}",
+            "svelte/no-dupe-else-if-blocks"
+        ));
+        // `a || b` then `a` — a is covered by (a || b).
+        assert!(fires(
+            "{#if a || b}1{:else if a}2{/if}",
+            "svelte/no-dupe-else-if-blocks"
+        ));
+        // Distinct conditions must not fire.
+        assert!(!fires(
+            "{#if a}1{:else if b}2{:else if c}3{/if}",
+            "svelte/no-dupe-else-if-blocks"
+        ));
+        // A fresh nested `{#if}` inside `{:else}` is a new chain, not a dupe.
+        assert!(!fires(
+            "{#if a}1{:else}{#if a}2{/if}{/if}",
+            "svelte/no-dupe-else-if-blocks"
+        ));
+    }
+
+    #[test]
+    fn no_dupe_style_properties_static_and_directive() {
+        assert!(fires(
+            "<div style=\"background: green; background: red\">x</div>",
+            "svelte/no-dupe-style-properties"
+        ));
+        assert!(fires(
+            "<div style:background=\"green\" style=\"background: red\">x</div>",
+            "svelte/no-dupe-style-properties"
+        ));
+        assert!(!fires(
+            "<div style=\"background: green; color: red\">x</div>",
+            "svelte/no-dupe-style-properties"
+        ));
+    }
+
+    #[test]
+    fn button_has_type_options_forbid_and_invalid() {
+        // Forbidden valid value via options.
+        let cfg = LintConfig::from_json_str(
+            r#"{ "rules": { "svelte/button-has-type": ["error", { "submit": false }] } }"#,
+        )
+        .unwrap();
+        let d = lint("<button type=\"submit\">x</button>", &cfg);
+        assert!(
+            d.iter()
+                .any(|d| d.message.contains("forbidden value for button type")),
+            "{:?}",
+            d.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+
+        // Invalid value regardless of options.
+        assert!(
+            lint(
+                "<button type=\"foo\">x</button>",
+                &LintConfig::recommended()
+            )
+            .iter()
+            .any(|d| d.message.contains("invalid value for button type"))
+        );
+    }
+
+    #[test]
+    fn no_restricted_html_elements_uses_options() {
+        let cfg = LintConfig::from_json_str(
+            r#"{ "rules": { "svelte/no-restricted-html-elements": ["error", "marquee"] } }"#,
+        )
+        .unwrap();
+        assert!(
+            codes(&lint("<marquee>x</marquee>", &cfg))
+                .iter()
+                .any(|c| c == "svelte/no-restricted-html-elements")
+        );
+        // Inert without options.
+        assert!(!fires(
+            "<marquee>x</marquee>",
+            "svelte/no-restricted-html-elements"
+        ));
     }
 }

@@ -2058,8 +2058,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_parser",
+ "oxc_span",
  "rayon",
  "rsvelte_core",
+ "serde",
+ "serde_json",
  "walkdir",
 ]
 

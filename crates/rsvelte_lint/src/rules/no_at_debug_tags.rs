@@ -18,6 +18,7 @@ static META: RuleMeta = RuleMeta {
     },
     type_aware: false,
     docs: "Disallow `{@debug}` tags",
+    options_schema: None,
 };
 
 #[derive(Default)]
@@ -32,9 +33,9 @@ impl Rule for NoAtDebugTags {
         ctx.report_with_fix(
             tag.start,
             tag.end,
-            "Unexpected `{@debug}` tag",
+            "Unexpected `{@debug}`.",
             Fix {
-                message: "Remove the `{@debug}` tag".to_string(),
+                message: "Remove `{@debug}` from the source".to_string(),
                 edits: vec![TextEdit {
                     start: tag.start,
                     end: tag.end,

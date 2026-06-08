@@ -110,6 +110,12 @@ impl<'r> LintVisitor<'r> {
                     ctx.enter_rule(er.meta, er.severity);
                     er.rule.check_element(ctx, el);
                 }
+                for attr in &el.attributes {
+                    for er in &self.rules {
+                        ctx.enter_rule(er.meta, er.severity);
+                        er.rule.check_attribute(ctx, attr);
+                    }
+                }
                 self.visit_fragment(ctx, &el.fragment);
             }
             TemplateNode::Component(c) => {

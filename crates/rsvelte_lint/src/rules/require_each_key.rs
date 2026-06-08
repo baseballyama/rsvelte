@@ -18,6 +18,7 @@ static META: RuleMeta = RuleMeta {
     },
     type_aware: false,
     docs: "Require keyed `{#each}` blocks",
+    options_schema: None,
 };
 
 #[derive(Default)]
@@ -29,7 +30,10 @@ impl Rule for RequireEachKey {
     }
 
     fn check_each(&self, ctx: &mut LintContext, block: &EachBlock) {
-        if block.key.is_some() {
+        // A keyless block is fine; so is the binding-less `{#each expr}` form
+        // (no `as` context), matching eslint-plugin-svelte which exempts
+        // `node.context == null`.
+        if block.key.is_some() || block.context.is_none() {
             return;
         }
         // Point at the `{#each ...iterable...}` opener rather than the whole
