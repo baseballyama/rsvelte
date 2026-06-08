@@ -34,7 +34,7 @@ use rsvelte_core::ast::template::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
-use crate::expression::{format_attribute_value_expression, format_expression_source};
+use crate::expression::format_attribute_value_expression;
 use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 

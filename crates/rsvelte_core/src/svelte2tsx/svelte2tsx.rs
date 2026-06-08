@@ -1528,9 +1528,18 @@ pub fn svelte2tsx(
                         "const {} = __sveltets_2_fn_component($$render());\n",
                         safe_name
                     ));
+                    // Carry the `generics="…"` clause onto the component type
+                    // alias so `Foo<X>` is a valid generic reference (#801).
+                    // Without the `<…>` params tsgo reports "Type
+                    // 'Foo__SvelteComponent_' is not generic".
+                    let type_params = if has_generics {
+                        format!("<{}>", generics_params)
+                    } else {
+                        String::new()
+                    };
                     closing.push_str(&format!(
-                        "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;\n",
-                        safe_name, safe_name
+                        "/*\u{03A9}ignore_start\u{03A9}*/type {}{} = ReturnType<typeof {}>;\n",
+                        safe_name, type_params, safe_name
                     ));
                     closing.push_str(&format!(
                         "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
