@@ -52,6 +52,10 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
     // The needs_props_from_events flag is set in build_event_handler when expression is None
 
     // Build the event handler
+    // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
+    // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
+    // `context` is reborrowed mutably by `build_event_handler`. The arena
+    // outlives this borrow and traversal is single-threaded (no aliasing).
     let arena_ref = unsafe { &*(&context.arena as *const _) };
     let mut handler = build_event_handler(arena_ref, node.expression.as_ref(), node, context);
 

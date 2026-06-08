@@ -2673,10 +2673,9 @@ fn extract_function_decl_name(s: &str) -> Option<String> {
         r.trim()
     } else if let Some(r) = s.strip_prefix("function*") {
         r.trim()
-    } else if let Some(r) = s.strip_prefix("function ") {
-        r.trim()
     } else {
-        return None;
+        let r = s.strip_prefix("function ")?;
+        r.trim()
     };
 
     let mut i = 0;

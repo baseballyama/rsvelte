@@ -3397,7 +3397,6 @@ impl<'a> ServerCodeGenerator<'a> {
                         let all_props = collect_all_props(props_and_spreads);
 
                         // Separate snippets into true snippets (hoisted functions) and slot children
-                        #[allow(clippy::type_complexity)]
                         let (true_snippets, slot_children_binding): (
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -3635,7 +3634,6 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Separate snippets into:
                         // 1. True snippets (SnippetBlocks - need hoisting, passed as props)
                         // 2. Slot children (inline in $$slots, may have destructured params from let directives)
-                        #[allow(clippy::type_complexity)]
                         let (true_snippets, slot_children): (
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -5928,7 +5926,6 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Build an EachBlock without surrounding `<!--[-->` / `<!--]-->` markers.
     /// Used when rendering an EachBlock inside an AsyncBlock callback,
     /// where the markers should be placed outside the callback.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_each_block_inner(
         iterable: &str,
         context_name: &Option<String>,
@@ -6539,7 +6536,6 @@ impl<'a> ServerCodeGenerator<'a> {
     /// This is the standalone extraction of the Component code generation from
     /// `build_parts_with_store_subs`. It produces the raw component call code
     /// (at indent_level=0) plus metadata about leading/trailing markers.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_component_call_code(
         name: &str,
         props_and_spreads: &[ComponentPropItem],
@@ -6567,7 +6563,6 @@ impl<'a> ServerCodeGenerator<'a> {
         let has_css_props = !css_custom_props.is_empty();
 
         if has_snippets || has_children {
-            #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children): (
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -7256,7 +7251,6 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate the JavaScript code for a ComponentWithBindings call.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_component_with_bindings_call_code(
         name: &str,
         props_and_spreads: &[ComponentPropItem],
@@ -7281,7 +7275,6 @@ impl<'a> ServerCodeGenerator<'a> {
             // snippets / slot children alongside the binding getter/setters
             // — previously this branch only emitted the bindings, silently
             // dropping everything else (issue #448, H-106).
-            #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children_binding): (
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -7443,7 +7436,6 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         } else {
             let all_props = collect_all_props(props_and_spreads);
-            #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children_binding): (
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,

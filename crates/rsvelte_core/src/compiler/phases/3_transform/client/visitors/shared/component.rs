@@ -969,6 +969,10 @@ fn process_on_directive(
     // This is handled via build_event_handler which sets needs_props_from_events
 
     // Build base event handler
+    // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
+    // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
+    // `context` is reborrowed mutably by `build_event_handler`. The arena
+    // outlives this borrow and traversal is single-threaded (no aliasing).
     let arena_local = unsafe { &*(&context.arena as *const _) };
     let mut handler = build_event_handler(
         arena_local,
@@ -1287,7 +1291,6 @@ fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> 
 }
 
 /// Process a bind directive.
-#[allow(clippy::too_many_arguments)]
 fn process_bind_directive(
     bind: &BindDirective,
     context: &mut ComponentContext,
@@ -2182,6 +2185,10 @@ fn visit_slot_children(
     use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
     use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 
+    // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
+    // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
+    // `context` is reborrowed mutably below. The arena outlives this borrow
+    // and traversal is single-threaded (no aliasing).
     let arena_local2: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
         unsafe { &*(&context.arena as *const _) };
 
@@ -2843,7 +2850,6 @@ fn build_bind_this_call(
 }
 
 /// Build component with CSS props wrapper.
-#[allow(clippy::too_many_arguments)]
 fn build_with_css_props(
     statements: &mut Vec<JsStatement>,
     context: &mut ComponentContext,

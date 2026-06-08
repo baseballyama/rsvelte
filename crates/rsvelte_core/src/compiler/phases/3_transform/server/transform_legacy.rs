@@ -529,7 +529,7 @@ fn is_string_literal(s: &str) -> bool {
 
     // Note: backtick template literals are TemplateLiteral AST nodes (not Literal), so they
     // are NOT simple by the official Svelte compiler's definition.
-    for &quote in [b'"', b'\''].iter() {
+    for &quote in b"\"'".iter() {
         if trimmed.as_bytes()[0] == quote && trimmed.as_bytes()[trimmed.len() - 1] == quote {
             let inner = &trimmed[1..trimmed.len() - 1];
             let bytes = inner.as_bytes();

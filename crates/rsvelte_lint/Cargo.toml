@@ -59,3 +59,6 @@ wasm-bindgen = { version = "0.2", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"
+
+[lints]
+workspace = true

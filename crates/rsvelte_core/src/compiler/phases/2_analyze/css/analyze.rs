@@ -429,7 +429,6 @@ fn validate_nesting_selectors(
 }
 
 /// Validate a single NestingSelector node.
-#[allow(clippy::too_many_arguments)]
 fn validate_single_nesting_selector(
     _nesting_node: &serde_json::Value,
     state: &CssAnalysisState,
@@ -845,10 +844,7 @@ fn is_relative_selector_global_strict(relative_selector: &serde_json::Value) -> 
     if !first
         .as_object()
         .is_some_and(|obj| obj.contains_key("args"))
-        || first
-            .get("args")
-            .and_then(|a| if a.is_null() { None } else { Some(a) })
-            .is_none()
+        || first.get("args").filter(|&a| !a.is_null()).is_none()
     {
         return true;
     }

@@ -399,6 +399,10 @@ pub fn analyze_component(
     // Analyze the template using visitors.
     // Take a pointer to the arena to avoid borrow conflict with &mut ast.
     let arena_ptr = &ast.arena as *const crate::ast::arena::ParseArena;
+    // SAFETY: `arena_ptr` is derived from `&ast.arena`, which is alive for the
+    // rest of this function. The raw-pointer indirection only sidesteps the
+    // borrow checker so `&ast` can be passed mutably alongside; the arena field
+    // is never mutated through `&mut ast`, so there is no aliasing conflict.
     let arena_ref = unsafe { &*arena_ptr };
     visitors::analyze_template(ast, &mut analysis, arena_ref)?;
 
@@ -3888,6 +3892,10 @@ fn mark_group_bindings_in_node(
                         let starts: Vec<String> = matched_each_ptrs
                             .iter()
                             .map(|p| {
+                                // SAFETY: `p` is a `*mut EachBlock` collected from
+                                // `ancestor_stack`, each originating from a live mutable
+                                // reference to an ancestor each block that outlives this
+                                // single-threaded traversal; we only read `start` here.
                                 let e = unsafe { &**p };
                                 e.start.to_string()
                             })
@@ -3913,6 +3921,11 @@ fn mark_group_bindings_in_node(
 
                         // Assign the SAME group name to ALL matched ancestor EachBlocks
                         for each_ptr in &matched_each_ptrs {
+                            // SAFETY: `each_ptr` is a `*mut EachBlock` from
+                            // `ancestor_stack`, derived from a live mutable reference to
+                            // an ancestor each block. Traversal is single-threaded and
+                            // each pointer is unique within the stack, so no other live
+                            // alias exists while we write its metadata here.
                             let each = unsafe { &mut **each_ptr };
                             each.metadata.contains_group_binding = true;
                             // Only set if not already set (in case multiple bind:group expressions

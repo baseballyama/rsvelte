@@ -260,6 +260,10 @@ fn visit_identifier_inner(
 
     // Track dependencies and references in the current expression
     if let Some(expression_ptr) = context.expression {
+        // SAFETY: `expression_ptr` is the `*mut ExpressionMetadata` installed on
+        // the visit context by the enclosing template-expression scope; it points
+        // at metadata on an AST node that outlives this single-threaded traversal,
+        // and that node is not otherwise borrowed here, so there is no aliasing.
         let expression = unsafe { &mut *expression_ptr };
         expression.dependencies.insert(binding_idx);
         expression.references.insert(binding_idx);

@@ -1053,7 +1053,6 @@ fn convert_select_element(
 /// Convert an `OptionElement` to `TemplateItem`s.
 ///
 /// Generates `$$renderer.option(attrs, ...)` calls with various argument formats.
-#[allow(clippy::too_many_arguments)]
 fn convert_option_element(
     attr_entries: &[String],
     body: &[OutputPart],
@@ -1552,7 +1551,6 @@ fn convert_if_block(
 ///
 /// For fallback: emits the if/else structure as a statement (with `<!--[-->` and `<!--[!-->`
 /// inside branches), then `<!--]-->` as an expression literal.
-#[allow(clippy::too_many_arguments)]
 fn convert_each_block(
     iterable: &str,
     context_name: &Option<String>,
@@ -1747,7 +1745,6 @@ fn convert_each_block(
 ///
 /// Generates the if/else structure: if the value expression is truthy, push it;
 /// otherwise push the children body.
-#[allow(clippy::too_many_arguments)]
 fn convert_content_editable_body(
     value_expr: &str,
     children_body: &[OutputPart],
@@ -1834,7 +1831,6 @@ fn convert_render_call(call_str: &str, skip_boundary: bool, items: &mut Vec<Temp
 /// Convert a SnippetFunction OutputPart to TemplateItems.
 ///
 /// Generates a function declaration with optional dev mode wrappers.
-#[allow(clippy::too_many_arguments)]
 fn convert_snippet_function(
     name: &str,
     params: &[String],
@@ -1999,7 +1995,6 @@ fn convert_slot(
 /// Convert a SvelteBoundaryWithPending OutputPart to TemplateItems.
 ///
 /// Generates: `if (pending_expr) { <!--[!--> pending_body <!--]--> } else { <!--[--> main_body <!--]--> }`
-#[allow(clippy::too_many_arguments)]
 fn convert_svelte_boundary_with_pending(
     pending_expr: &str,
     pending_body: &[OutputPart],
@@ -2067,7 +2062,6 @@ fn convert_svelte_boundary_with_pending(
 ///
 /// Generates `$.await($$renderer, promise, pending_fn, then_fn);` followed
 /// by `<!--]-->` as an expression for coalescing.
-#[allow(clippy::too_many_arguments)]
 fn convert_await_block(
     promise: &str,
     then_param: &str,

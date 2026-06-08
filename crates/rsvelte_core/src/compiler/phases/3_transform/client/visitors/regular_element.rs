@@ -248,6 +248,10 @@ pub fn visit_regular_element(
     }
 
     // Process let directives (mirrors RegularElement.js line 207)
+    // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
+    // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
+    // `context` is reborrowed mutably. The arena outlives this borrow and
+    // traversal is single-threaded (no aliasing).
     let arena_ref = unsafe { &*(&context.arena as *const _) };
     let let_directive_result =
         process_element_let_directives(arena_ref, &element_let_directives, context);
@@ -1062,6 +1066,10 @@ pub fn visit_regular_element(
         let saved_after_update = std::mem::take(&mut context.state.after_update);
 
         // Process children with the new template
+        // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`)
+        // with nodes behind stable `Box`es, so a shared `&JsArena` stays valid
+        // while `context` is reborrowed mutably by the `process_children`
+        // closure. The arena outlives this borrow; traversal is single-threaded.
         let arena_ref2 = unsafe { &*(&context.arena as *const _) };
         process_children(
             &cleaned.trimmed,
@@ -1206,6 +1214,10 @@ pub fn visit_regular_element(
             current_node = b::member(&context.arena, current_node, "content");
         }
 
+        // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`)
+        // with nodes behind stable `Box`es, so a shared `&JsArena` stays valid
+        // while `context` is reborrowed mutably by the `process_children`
+        // closure. The arena outlives this borrow; traversal is single-threaded.
         let arena_ref3 = unsafe { &*(&context.arena as *const _) };
         process_children(
             &cleaned.trimmed,

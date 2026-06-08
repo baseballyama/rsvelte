@@ -1168,6 +1168,9 @@ mod tests {
 "#;
         let mut ast = parse(source, parse_opts).unwrap();
         let options = CompileOptions::default();
+        // SAFETY: `ast` (and thus `ast.arena`) outlives the `analyze_component`
+        // call; `clear_serialize_arena()` runs before `ast` is dropped, so the
+        // installed pointer never dangles.
         unsafe { set_serialize_arena(&ast.arena as *const _) };
         let analysis = analyze_component(&mut ast, source, &options).unwrap();
         clear_serialize_arena();
@@ -1188,6 +1191,9 @@ mod tests {
 <p>{value}</p>
 "#;
         let mut ast2 = parse(source2, parse_opts).unwrap();
+        // SAFETY: `ast2` (and thus `ast2.arena`) outlives the `analyze_component`
+        // call; `clear_serialize_arena()` runs before `ast2` is dropped, so the
+        // installed pointer never dangles.
         unsafe { set_serialize_arena(&ast2.arena as *const _) };
         let analysis2 = analyze_component(&mut ast2, source2, &options).unwrap();
         clear_serialize_arena();
@@ -1212,6 +1218,9 @@ mod tests {
 <button onclick={() => $items.push('new')}>Add</button>
 "#;
         let mut ast3 = parse(source3, parse_opts).unwrap();
+        // SAFETY: `ast3` (and thus `ast3.arena`) outlives the `analyze_component`
+        // call; `clear_serialize_arena()` runs before `ast3` is dropped, so the
+        // installed pointer never dangles.
         unsafe { set_serialize_arena(&ast3.arena as *const _) };
         let analysis3 = analyze_component(&mut ast3, source3, &options).unwrap();
         clear_serialize_arena();

@@ -4007,7 +4007,6 @@ fn transform_instance_script_for_visitors(
     let mut accumulated_lines: Vec<&str> = Vec::new();
 
     // Helper closure to process accumulated lines as a complete statement
-    #[allow(clippy::too_many_arguments)]
     let process_accumulated = |accumulated: &[&str],
                                result: &mut String,
                                pending_reactive: &mut Vec<(Vec<String>, Vec<String>, String)>,

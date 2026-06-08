@@ -234,7 +234,6 @@ struct StateVarCollector<'a, 's> {
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
-    #[allow(clippy::too_many_arguments)]
     fn new(
         source: &'s str,
         state_vars: &'a FxHashSet<&'a str>,
@@ -3647,6 +3646,10 @@ pub(super) fn transform_state_vars_ast(
             {
                 i += 1;
             }
+            // SAFETY: `bytes` come from `script.as_bytes()`. The slice spans
+            // `start..i`, a run that begins at an ASCII ident-start byte and
+            // continues only over ASCII ident-continue bytes, so it is
+            // entirely ASCII and therefore valid UTF-8 on char boundaries.
             let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
             set.insert(word);
         }

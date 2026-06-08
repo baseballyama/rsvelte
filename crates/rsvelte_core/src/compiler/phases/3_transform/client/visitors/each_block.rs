@@ -34,8 +34,6 @@
 //! });
 //! ```
 
-#![allow(clippy::too_many_arguments)]
-
 use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, EachBlock, Fragment, TemplateNode};
 use crate::compiler::constants::*;

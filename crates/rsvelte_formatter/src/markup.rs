@@ -370,7 +370,6 @@ fn find_close_tag_span(source: &str, element_end: u32, tag_name: &str) -> Option
 /// Returns `true` when the open tag was rendered in the wrapped (multi-line)
 /// shape — the caller threads this into [`push_close_tag`] so the closing `>`
 /// of a whitespace-sensitive inline element can break onto its own line.
-#[allow(clippy::too_many_arguments)]
 fn push_open_tag(
     source: &str,
     element_start: u32,

@@ -1099,6 +1099,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 /// This is a fast check to avoid the expensive `to_value()` conversion for non-rune calls.
 fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context` so the shared
+    // arena reference can be held alongside other accesses. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     let check_rune_name = |name: &str| -> bool {
@@ -1175,6 +1179,9 @@ fn convert_object_member_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsObjectMember> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1358,6 +1365,9 @@ fn convert_param_pattern_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsPattern> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1416,6 +1426,9 @@ fn convert_object_pattern_property_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsObjectPatternProperty> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1459,16 +1472,14 @@ fn convert_object_pattern_property_from_node(
                         .unwrap_or(false);
 
                     let (conv_key, fallback_name) = if key_type == "Literal" {
-                        if let Some(val) = key_val.get("value") {
+                        {
+                            let val = key_val.get("value")?;
                             if let Some(s) = val.as_str() {
                                 (JsPropertyKey::Literal(JsLiteral::String(s.into())), None)
-                            } else if let Some(n) = val.as_f64() {
-                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                             } else {
-                                return None;
+                                let n = val.as_f64()?;
+                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                             }
-                        } else {
-                            return None;
                         }
                     } else if key_type == "Identifier" {
                         let name = key_val.get("name").and_then(|n| n.as_str())?;
@@ -1556,7 +1567,8 @@ fn convert_object_pattern_prop_inner(
         }
         JsNode::Raw(v) => {
             // Delegate to Value-based property key conversion
-            if let Some(obj) = v.as_object() {
+            {
+                let obj = v.as_object()?;
                 let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 if key_type == "Identifier" && !computed {
                     let name = obj
@@ -1578,8 +1590,6 @@ fn convert_object_pattern_prop_inner(
                         None,
                     )
                 }
-            } else {
-                return None;
             }
         }
         _ => {
@@ -3546,7 +3556,8 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                 // Handle Identifier keys, Literal keys, and computed keys
                                 let (key, fallback_name) = if key_type == "Literal" {
                                     // Literal key: { 'the-area': area } or { 2: sum }
-                                    if let Some(val) = key_val.get("value") {
+                                    {
+                                        let val = key_val.get("value")?;
                                         if let Some(s) = val.as_str() {
                                             (
                                                 JsPropertyKey::Literal(JsLiteral::String(
@@ -3559,13 +3570,10 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                                 JsPropertyKey::Literal(JsLiteral::Number(n as f64)),
                                                 None,
                                             )
-                                        } else if let Some(n) = val.as_f64() {
-                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                                         } else {
-                                            return None;
+                                            let n = val.as_f64()?;
+                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                                         }
-                                    } else {
-                                        return None;
                                     }
                                 } else if key_type == "Identifier" {
                                     // Identifier key: { x } or { x: y }
@@ -4546,7 +4554,6 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
 /// Check if an assignment expression's LHS is a member expression targeting a prop,
 /// and if so, return the ownership validation info (prop_alias, path array, optional source location).
 /// This works on the original JSON AST before transforms are applied.
-#[allow(clippy::type_complexity)]
 fn check_ownership_validation(
     left_json: Option<&Value>,
     context: &ComponentContext,
@@ -5712,6 +5719,9 @@ fn convert_block_statement_from_jsnode(
     context: &mut ComponentContext,
 ) -> JsBlockStatement {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
     let children: Vec<&JsNode> = pa.get_js_children(*body_range).iter().collect();
     let body: Vec<JsStatement> = children
@@ -5728,6 +5738,9 @@ fn convert_statement_from_jsnode(
     context: &mut ComponentContext,
 ) -> Option<JsStatement> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
     match node {
         JsNode::ExpressionStatement { expression, .. } => {
