@@ -1,5 +1,12 @@
 # @rsvelte/svelte-check
 
+## 0.2.5
+
+### Patch Changes
+
+- 42146ad: fix(svelte-check): resolve `Foo.svelte.ts` / `Foo.svelte.js` companion-module named imports. A component and its sibling companion module collide on the same TypeScript basename — `import X from './Foo.svelte'` and `import { y } from './Foo.svelte.js'` both resolve to the single `Foo.svelte.{ts,tsx,d.ts}` family — so the companion's named exports were invisible and TypeScript reported a spurious `TS2614: has no exported member 'y'`. The overlay now folds the companion's named exports into the component shadow (`export * from "<companion>.js"`), so the one resolvable module exposes both the component default export and the companion's named exports.
+- 42146ad: fix(svelte2tsx): keep the props object well-formed when a `class:`/`style:` directive precedes another attribute. Regression from the #750 fix: moving `class:`/`style:` directives out of the `createElement` props object into a suffix statement left their expression chunk emitted _after_ a following attribute but pointing at an _earlier_ source position, violating the ascending-order requirement of the segmented overwrite. This corrupted the props object two ways: a following **shorthand attribute** (`{onclick}`) produced a double comma `{ "class":\`c\`,, }` — invalid TSX "Property assignment expected" (#779) — and a following **`{expression}`-valued attribute** (`onclick={() => f()}`) dropped its value `{ "onclick":, }`— invalid TSX "Expression expected" (#781). Both trip the program-wide`--tsgo` suppression. The overlay now bakes such out-of-order expression chunks into literal text so the props object stays well-formed; the common in-order case keeps its per-character source mapping.
+
 ## 0.2.4
 
 ### Patch Changes
