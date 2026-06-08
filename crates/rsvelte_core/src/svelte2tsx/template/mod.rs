@@ -2141,31 +2141,6 @@ fn handle_component(
     // Check if component has meaningful children
     let has_children = has_component_slot_children(&comp.fragment, source);
 
-    // Direct `{#snippet name(..)}` children become implicit props of the
-    // component (`<List>{#snippet row(..)}…{/snippet}</List>` → `row` prop),
-    // satisfying required `Snippet` props and matching official svelte-check
-    // (0 errors). Mirrors upstream's `addImplicitSnippetProp`. Rather than
-    // relocate the snippet body *into* the props literal (which would need an
-    // insertable boundary mid-props), each snippet keeps its normal `const
-    // name = (..) => {…}` lowering and is `move_range`d to just before the
-    // component block, so a `name` shorthand prop can reference it without a
-    // temporal-dead-zone error. The const's `: ReturnType<import('svelte').
-    // Snippet>` return type keeps it assignable to the `Snippet<…>` prop.
-    // See #780 / #752.
-    let snippet_prop_children: Vec<(String, u32, u32)> = comp
-        .fragment
-        .nodes
-        .iter()
-        .filter_map(|n| match n {
-            TemplateNode::SnippetBlock(b) if b.start < b.end => Some((
-                get_expression_text(&b.expression, source).to_string(),
-                b.start,
-                b.end,
-            )),
-            _ => None,
-        })
-        .collect();
-
     // Check if any children have named slots with let: directives
     let children_have_named_slots = has_named_slot_children(&comp.fragment, source);
 
@@ -2240,21 +2215,6 @@ fn handle_component(
             prefixed.push(Seg::Lit(format!("{}{}", leading_ws, children_text)));
             prefixed.extend(attr_segs);
             attr_segs = prefixed;
-        }
-    }
-
-    // Append a `name,` shorthand prop for each direct `{#snippet}` child so the
-    // (hoisted-before-the-block) snippet declaration satisfies the component's
-    // `Snippet` prop. Added after the attribute/children props.
-    if !snippet_prop_children.is_empty() {
-        let props_lit: String = snippet_prop_children
-            .iter()
-            .map(|(name, _, _)| format!("{},", name))
-            .collect();
-        if segs_is_empty(&attr_segs) {
-            attr_segs = vec![Seg::Lit(format!(" {}", props_lit))];
-        } else {
-            attr_segs.push(Seg::Lit(props_lit));
         }
     }
 
@@ -2390,14 +2350,6 @@ fn handle_component(
     } else {
         // Simple children processing (no slot scoping needed)
         process_fragment_inplace(&comp.fragment, source, options, str, counter);
-    }
-
-    // Relocate each direct `{#snippet}` child (now lowered to a `const name =
-    // …;` declaration) to just before the component block, so the `name`
-    // shorthand prop added above references an already-declared binding rather
-    // than hitting a temporal dead zone inside the props object.
-    for (_, s, e) in &snippet_prop_children {
-        str.move_range(*s, *e, comp.start);
     }
 
     // For components with `let:` but NO children (in either bracketed
