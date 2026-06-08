@@ -116,7 +116,7 @@ function runOxfmt(source, filename) {
       { maxBuffer: 64 * 1024 * 1024 },
       (err, stdout, stderr) => {
         if (err) resolve({ ok: false, err: (stderr || err.message || '').trim() });
-        else resolve({ ok: true, out: stdout });
+        else resolve({ ok: true, out: stdout, stderr: (stderr || '').trim() });
       },
     );
     child.stdin.end(source);
@@ -263,6 +263,17 @@ async function main() {
     if (!res.ok) {
       skips.push({ id, reason: oneLine(res.err) || 'oxfmt failed' });
       if (VERBOSE) console.log(`  skip ${id}: ${oneLine(res.err)}`);
+      return;
+    }
+    // oxfmt formats `.svelte` whole-block and leaves an unparseable embedded
+    // `<script>` / `<style>` verbatim while logging the error to stderr (exit 0).
+    // Such a block is not valid, formattable Svelte — rsvelte's per-piece parse
+    // would (correctly) reject it — so exclude it from the parity corpus rather
+    // than treat the unformatted oracle as a target. These are docs snippets
+    // that intentionally show broken code.
+    if (/error/i.test(res.stderr)) {
+      skips.push({ id, reason: `oxfmt stderr: ${oneLine(res.stderr)}` });
+      if (VERBOSE) console.log(`  skip ${id}: invalid embedded code`);
       return;
     }
     writeSample(
