@@ -161,13 +161,18 @@ CI-cached by svelte.dev SHA) using the canonical config
 
 Both need a runnable `oxfmt` (env `FMT_CORPUS_OXFMT` / `OXFMT_BIN`; default
 `node_modules/.bin/oxfmt`) and no-op with a notice when the corpus or oxfmt is absent.
-Instead of a skip list they use committed **baselines** (`tests/fmt_corpus_baseline.txt`,
-`tests/fmt_corpus_markdown_baseline.txt`) and assert no NEW sample regresses; the goal is
-to shrink them to empty. **Initial: Stage 1+2 726/1148 pass** (557 files + 591 usable
-blocks), **Stage 3 638/638**, at svelte.dev@`49ee73732aef`, oxfmt 0.53.0, svelte 5.56.2.
-The dominant Stage 1+2 gap is markup indentation not normalising source tabs → spaces;
-secondary is markup line-breaking of overflowing element children. (Non-svelte code
-blocks are out of scope — both sides format them with oxfmt.)
+**Hard gate, no baseline tolerance:** every sample must match the oracle byte-for-byte,
+so any divergence fails CI — remaining gaps are fixed in the formatter, not tolerated.
+`FMT_CORPUS_SHOW=N` raises the printed-failure cap for burndown.
+
+Status at svelte.dev@`49ee73732aef`, oxfmt 0.53.0, svelte 5.56.2: **Stage 1+2 944/1148**
+(burning down from an initial 726; cleared: mustache-tag indentation, void self-closing,
+final newline, mixed-text re-indentation, block-body text re-indentation), **Stage 3
+638/638**. Remaining clusters are the harder prettier HTML layout behaviors — inline
+element collapse/keep-on-one-line (~51), long open-tag wrapping + child breaking (~26),
+pure-text collapse, plus small items (`{@const}`/`{let}` statement formatting,
+comment/element separation, a few docs blocks with intentionally-invalid code). (Non-svelte
+code blocks are out of scope — both sides format them with oxfmt.)
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
