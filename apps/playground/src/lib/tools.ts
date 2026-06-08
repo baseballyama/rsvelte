@@ -7,7 +7,13 @@
 // server) — still get a playground entry, but it explains the limitation
 // and links the guide instead of running.
 
-export type ToolId = 'compiler' | 'svelte2tsx' | 'fmt' | 'svelte-check' | 'vite-plugin-svelte';
+export type ToolId =
+	| 'compiler'
+	| 'svelte2tsx'
+	| 'fmt'
+	| 'lint'
+	| 'svelte-check'
+	| 'vite-plugin-svelte';
 
 export interface Tool {
 	/** Stable id, also the `?tool=` value and the `/docs/[slug]`. */
@@ -41,9 +47,16 @@ export const TOOLS: Tool[] = [
 	},
 	{
 		id: 'fmt',
-		label: 'fmt',
+		label: 'format',
 		pkg: '@rsvelte/fmt',
 		tagline: 'Format a .svelte file with the Rust-native formatter built on oxc.',
+		runnable: true
+	},
+	{
+		id: 'lint',
+		label: 'lint',
+		pkg: '@rsvelte/lint',
+		tagline: 'Lint a .svelte component with the Rust-native linter (compiler warnings + a11y + native rules).',
 		runnable: true
 	},
 	{
