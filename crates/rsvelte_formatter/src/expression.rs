@@ -87,9 +87,24 @@ fn collect_node_edits(
         TemplateNode::DebugTag(tag) => {
             push_debug_tag(source, tag.start, tag.end, &tag.identifiers, options, edits)?;
         }
-        TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_) => {
-            // Statement-shaped tags (`{@const x = e}`, `{let x = e}`,
-            // `{const x = e}`) — defer until statement formatting lands.
+        TemplateNode::ConstTag(tag) => {
+            // `{@const x = e}` — the declaration is an assignment expression
+            // (`x = e`); format it like any content expression so quotes /
+            // spacing normalize (`{@const foo = 'bar'}` → `{@const foo = "bar"}`).
+            push_tag_form(
+                source,
+                tag.start,
+                tag.end,
+                "@const",
+                &tag.declaration,
+                depth,
+                options,
+                edits,
+            )?;
+        }
+        TemplateNode::DeclarationTag(_) => {
+            // `{let x = e}` / `{const x = e}` — keyword-led VariableDeclaration;
+            // defer until statement formatting lands.
         }
         // For every element type, attribute lists (and `this={X}` on
         // `<svelte:component>` / `<svelte:element>`) are owned by the
