@@ -9,6 +9,7 @@
 //! 3. Collects replacements as (byte_start, byte_end, replacement_string)
 //! 4. Applies all replacements in a single pass (right-to-left to preserve offsets)
 
+use std::fmt::Write as _;
 use std::cell::RefCell;
 
 use oxc_allocator::Allocator;
@@ -234,7 +235,6 @@ struct StateVarCollector<'a, 's> {
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
-    #[allow(clippy::too_many_arguments)]
     fn new(
         source: &'s str,
         state_vars: &'a FxHashSet<&'a str>,
@@ -3113,23 +3113,19 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let length = arr.elements.len();
         let mut body = String::new();
-        body.push_str(&format!(
-            "\t\t\tvar {} = $.to_array($$value, {});\n",
-            array_name, length
-        ));
+        let _ = writeln!(body, "\t\t\tvar {} = $.to_array($$value, {});",
+            array_name, length);
 
         for (i, target) in targets.iter().enumerate() {
             match target {
                 ArrayTarget::Null => {}
                 ArrayTarget::Prop(name) => {
-                    body.push_str(&format!("\t\t\t{}({}[{}]);\n", name, array_name, i));
+                    let _ = writeln!(body, "\t\t\t{}({}[{}]);", name, array_name, i);
                 }
                 ArrayTarget::MemberOnProp { prop_name, .. } => {
                     let member_text = transformed_member_texts[i].as_ref().unwrap();
-                    body.push_str(&format!(
-                        "\t\t\t{}({} = {}[{}], true);\n",
-                        prop_name, member_text, array_name, i
-                    ));
+                    let _ = writeln!(body, "\t\t\t{}({} = {}[{}], true);",
+                        prop_name, member_text, array_name, i);
                 }
             }
         }
@@ -3647,6 +3643,10 @@ pub(super) fn transform_state_vars_ast(
             {
                 i += 1;
             }
+            // SAFETY: `bytes` come from `script.as_bytes()`. The slice spans
+            // `start..i`, a run that begins at an ASCII ident-start byte and
+            // continues only over ASCII ident-continue bytes, so it is
+            // entirely ASCII and therefore valid UTF-8 on char boundaries.
             let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
             set.insert(word);
         }

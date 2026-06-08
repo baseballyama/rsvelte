@@ -25,6 +25,7 @@ trace-fastpath = []
 # jemalloc is disabled (e.g. `--no-default-features --features napi`).
 napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
+pprof = ["dep:pprof"]
 # `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
 # module — `parse_svelte`, `compile_client`, `svelte2tsx`, …) and is what
 # `pkg/` is built with.
@@ -116,6 +117,7 @@ oxc_ast_visit = "0.134"
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = { version = "0.7", optional = true }
+pprof = { version = "0.14", default-features = false, optional = true }
 
 [build-dependencies]
 napi-build = { version = "2", optional = true }
@@ -181,3 +183,6 @@ harness = false
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[lints]
+workspace = true

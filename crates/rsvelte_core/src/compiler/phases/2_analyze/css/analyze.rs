@@ -429,7 +429,6 @@ fn validate_nesting_selectors(
 }
 
 /// Validate a single NestingSelector node.
-#[allow(clippy::too_many_arguments)]
 fn validate_single_nesting_selector(
     _nesting_node: &serde_json::Value,
     state: &CssAnalysisState,

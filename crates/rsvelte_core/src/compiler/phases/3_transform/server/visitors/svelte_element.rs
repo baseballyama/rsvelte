@@ -1,5 +1,6 @@
 //! Server-side svelte:element (dynamic element) visitor.
 
+use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{needs_clsx, prop_string};
 use super::super::types::OutputPart;
@@ -372,7 +373,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if ee > es && ee <= self.source.len() {
                                     let expr = self.source[es..ee].trim().to_string();
                                     let expr = self.transform_store_refs(&expr);
-                                    tmpl.push_str(&format!("${{$.stringify({})}}", expr));
+                                    let _ = write!(tmpl, "${{$.stringify({})}}", expr);
                                 }
                             }
                         }
@@ -484,7 +485,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             let end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if end > start && end <= self.source.len() {
                                 let expr = self.source[start..end].trim();
-                                result.push_str(&format!("${{$.stringify({})}}", expr));
+                                let _ = write!(result, "${{$.stringify({})}}", expr);
                             }
                         }
                     }

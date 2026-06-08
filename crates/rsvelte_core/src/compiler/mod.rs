@@ -198,7 +198,6 @@ pub struct CompileOptions {
     /// Root directory for relative path resolution.
     pub root_dir: Option<String>,
     /// Warning filter function.
-    #[allow(clippy::type_complexity)]
     pub warning_filter: Option<WarningFilterFn>,
     /// Experimental options.
     pub experimental: ExperimentalOptions,
@@ -780,6 +779,8 @@ pub fn compile_module(
     // outlives `_pre_move_guard`. The `?`/early-return paths only fire
     // after the program is built, so the guard always covers the parser.
     let program = {
+        // SAFETY: `arena` outlives `_pre_move_guard` — it is moved into `ast` only after
+        // the program is built, and the guard restores the prior pointer on drop.
         let _pre_move_guard = unsafe { SerializeArenaGuard::new(&arena as *const _) };
         let program = phases::phase1_parse::read::expression::parse_program(
             &arena,

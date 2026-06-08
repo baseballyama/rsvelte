@@ -1,5 +1,6 @@
 //! Props, exports, and component property transformations.
 
+use std::fmt::Write as _;
 use memchr::memmem;
 use rustc_hash::FxHashSet;
 
@@ -2260,7 +2261,7 @@ pub(super) fn wrap_prop_mutation_validation(
                 prop_alias, path_array, full_expr,
             );
             if line_num > 0 {
-                replacement.push_str(&format!(", {}, {}", line_num, col_num));
+                let _ = write!(replacement, ", {}, {}", line_num, col_num);
             }
             replacement.push(')');
             result = format!(
@@ -2476,7 +2477,7 @@ pub(super) fn wrap_prop_mutation_validation(
                 prop_alias, path_array, full_original_expr,
             );
             if line_num > 0 {
-                replacement.push_str(&format!(", {}, {}", line_num, col_num));
+                let _ = write!(replacement, ", {}, {}", line_num, col_num);
             }
             replacement.push(')');
             result = format!(

@@ -1392,7 +1392,6 @@ fn try_parse_numeric_literal(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
-#[allow(clippy::too_many_arguments)]
 pub fn parse_expression(
     arena: &ParseArena,
     content: &str,
@@ -1525,7 +1524,6 @@ pub fn parse_destructuring_pattern(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
-#[allow(clippy::too_many_arguments)]
 pub fn parse_expression_with_end(
     arena: &ParseArena,
     content: &str,
@@ -3979,7 +3977,6 @@ fn create_string_literal(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 fn create_binary_expression(
     arena: &ParseArena,
     left: &OxcExpression,
@@ -5974,7 +5971,6 @@ fn create_typed_loc_for_script(
 /// `leading_comments` are HTML comments that appeared before the script tag.
 /// `script_tag_start` and `script_tag_end` are positions for loc calculation
 /// (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end).
-#[allow(clippy::too_many_arguments)]
 pub fn parse_program(
     arena: &ParseArena,
     content: &str,

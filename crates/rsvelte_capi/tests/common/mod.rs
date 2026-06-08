@@ -31,6 +31,9 @@ fn drive(source: &str, options_json: &str, which: FnVariant) -> Value {
     let src = source.as_bytes();
     let opts = options_json.as_bytes();
 
+    // SAFETY: `src`/`opts` are valid byte slices owned by the caller for this call;
+    // we pass their pointers (or null when empty) with matching lengths, exactly as
+    // the `rsvelte_compile*` FFI contracts require.
     let buf: RsvelteBuf = unsafe {
         let src_ptr = if src.is_empty() {
             std::ptr::null()
@@ -51,7 +54,10 @@ fn drive(source: &str, options_json: &str, which: FnVariant) -> Value {
     assert!(!buf.data.is_null(), "FFI returned NULL data");
     assert!(buf.len > 0, "FFI returned zero-length buffer");
 
+    // SAFETY: the FFI call returned a non-null `buf` (asserted above) whose `data`/`len`
+    // describe a valid initialized byte buffer; we copy it out before freeing.
     let bytes = unsafe { std::slice::from_raw_parts(buf.data, buf.len) }.to_vec();
+    // SAFETY: `buf` was produced by the `rsvelte_compile*` call above and is freed exactly once here.
     unsafe { rsvelte_free(buf) };
 
     serde_json::from_slice(&bytes).unwrap_or_else(|e| {

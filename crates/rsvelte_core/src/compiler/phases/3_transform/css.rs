@@ -3,6 +3,7 @@
 //! Generates scoped CSS stylesheets with selector scoping.
 //! Preserves original whitespace from source using AST positions.
 
+use std::fmt::Write as _;
 use memchr::{memchr, memmem};
 
 use super::super::phase1_parse::parse_css;
@@ -912,7 +913,6 @@ fn transform_css<'a>(
 }
 
 /// Transform a CSS node while preserving whitespace
-#[allow(clippy::too_many_arguments)]
 fn transform_node_preserving<'a>(
     node: &'a Value,
     selector: &str,
@@ -3846,7 +3846,6 @@ fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Transform a CSS rule while preserving whitespace from source
-#[allow(clippy::too_many_arguments)]
 fn transform_rule_preserving<'a>(
     node: &'a Value,
     selector: &str,
@@ -4085,7 +4084,6 @@ fn transform_rule_preserving<'a>(
 }
 
 /// Transform a block that contains nested rules
-#[allow(clippy::too_many_arguments)]
 fn transform_block_with_nested_rules<'a>(
     block: &'a Value,
     selector: &str,
@@ -4218,7 +4216,6 @@ fn transform_block_with_nested_rules<'a>(
 }
 
 /// Transform a :global { ... } block by commenting out the :global wrapper
-#[allow(clippy::too_many_arguments)]
 fn transform_global_block(
     node: &Value,
     _selector: &str,
@@ -4296,7 +4293,6 @@ fn transform_global_block(
 }
 
 /// Transform an at-rule while preserving whitespace
-#[allow(clippy::too_many_arguments)]
 fn transform_atrule_preserving<'a>(
     node: &'a Value,
     selector: &str,
@@ -4332,9 +4328,9 @@ fn transform_atrule_preserving<'a>(
 
         // Check if it's a global keyframe
         if let Some(keyframe_name) = prelude.strip_prefix("-global-") {
-            output.push_str(&format!("@{} {}", name, keyframe_name));
+            let _ = write!(output, "@{} {}", name, keyframe_name);
         } else {
-            output.push_str(&format!("@{} {}-{}", name, hash, prelude));
+            let _ = write!(output, "@{} {}-{}", name, hash, prelude);
         }
 
         // Copy block from source, preserving original whitespace between prelude and block
@@ -4438,7 +4434,6 @@ fn transform_atrule_preserving<'a>(
 
 /// Transform a selector list
 /// Marks unused selectors inline with /* (unused) SELECTOR*/ comments.
-#[allow(clippy::too_many_arguments)]
 fn transform_selector_list(
     prelude: &Value,
     selector: &str,
@@ -4624,7 +4619,6 @@ fn transform_selector_list(
 /// Minified version of selector list transformation.
 /// Removes unused selectors entirely (no comments), matching the official Svelte
 /// MagicString-based pruning algorithm.
-#[allow(clippy::too_many_arguments)]
 fn transform_selector_list_minified(
     children: &[Value],
     selector: &str,
@@ -4827,7 +4821,6 @@ fn is_global_like(relative_selector: &Value) -> bool {
 }
 
 /// Transform a complex selector (sequence of relative selectors)
-#[allow(clippy::too_many_arguments)]
 fn transform_complex_selector(
     node: &Value,
     selector: &str,
@@ -4965,7 +4958,7 @@ fn transform_complex_selector(
                     if name == " " {
                         result.push(' ');
                     } else {
-                        result.push_str(&format!(" {} ", name));
+                        let _ = write!(result, " {} ", name);
                     }
                 }
                 // Output selectors without scoping
@@ -5003,9 +4996,9 @@ fn transform_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start (e.g., "> nav" as a nested selector)
                     // Don't add leading space
-                    result.push_str(&format!("{} ", name));
+                    let _ = write!(result, "{} ", name);
                 } else {
-                    result.push_str(&format!(" {} ", name));
+                    let _ = write!(result, " {} ", name);
                 }
                 // After any combinator, subsequent selectors should use :where() for specificity preservation
                 // UNLESS the previous selector was global-like (like :host) or a :global() selector,
@@ -5409,7 +5402,6 @@ fn format_simple_selector(sel: &Value) -> String {
 /// `use_direct_class` - When true, use direct class (e.g., .svelte-xyz) instead of :where() inside :is()/:not()/:has()
 /// `outer_specificity_bumped` - When true, the outer selector has already been scoped (specificity bumped),
 ///   so inner :has()/:is()/:not() selectors should use :where() for scoping
-#[allow(clippy::too_many_arguments)]
 fn format_simple_selector_with_scope(
     sel: &Value,
     selector: &str,
@@ -5736,7 +5728,7 @@ fn transform_is_not_complex_selector(
                         result.push_str(name);
                     }
                 } else {
-                    result.push_str(&format!(" {} ", name));
+                    let _ = write!(result, " {} ", name);
                 }
             }
 
@@ -5802,7 +5794,7 @@ fn transform_is_not_complex_selector(
                             if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
-                                selector_parts.push_str(&format!(":where({})", selector));
+                                let _ = write!(selector_parts, ":where({})", selector);
                             }
                             continue;
                         }
@@ -5824,7 +5816,7 @@ fn transform_is_not_complex_selector(
                             if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
-                                selector_parts.push_str(&format!(":where({})", selector));
+                                let _ = write!(selector_parts, ":where({})", selector);
                             }
                         }
                     }
@@ -5922,7 +5914,7 @@ fn get_selector_text(node: &Value) -> String {
                 if name == " " {
                     result.push(' ');
                 } else {
-                    result.push_str(&format!(" {} ", name));
+                    let _ = write!(result, " {} ", name);
                 }
             }
 

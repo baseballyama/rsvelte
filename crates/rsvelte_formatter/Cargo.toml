@@ -36,3 +36,6 @@ criterion = { version = "4.7.0", features = ["html_reports"], package = "codspee
 [[bench]]
 name = "formatter"
 harness = false
+
+[lints]
+workspace = true

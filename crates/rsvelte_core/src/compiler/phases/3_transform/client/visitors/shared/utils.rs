@@ -2675,7 +2675,6 @@ pub fn add_svelte_meta(
 /// and ownership tracking.
 ///
 /// Reference: utils.js add_svelte_meta function
-#[allow(clippy::too_many_arguments)]
 pub fn add_svelte_meta_dev(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     expression: JsExpr,

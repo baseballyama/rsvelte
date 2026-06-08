@@ -6,6 +6,7 @@
 //!
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
+use std::fmt::Write as _;
 use crate::ast::arena::{IdRange, ParseArena};
 use crate::ast::js::Expression;
 use crate::ast::typed_expr::{JsNode, LiteralValue};
@@ -1099,6 +1100,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 /// This is a fast check to avoid the expensive `to_value()` conversion for non-rune calls.
 fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context` so the shared
+    // arena reference can be held alongside other accesses. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     let check_rune_name = |name: &str| -> bool {
@@ -1175,6 +1180,9 @@ fn convert_object_member_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsObjectMember> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1358,6 +1366,9 @@ fn convert_param_pattern_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsPattern> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1416,6 +1427,9 @@ fn convert_object_pattern_property_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsObjectPatternProperty> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -3685,7 +3699,7 @@ pub fn pattern_to_string(pattern: &JsPattern) -> String {
                                         s.push('"');
                                     }
                                     JsLiteral::Number(n) => s.push_str(&n.to_string()),
-                                    _ => s.push_str(&format!("{:?}", lit)),
+                                    _ => { let _ = write!(s, "{:?}", lit); },
                                 },
                                 JsPropertyKey::Computed(_e) => {
                                     // Computed keys in destructuring patterns are unusual;
@@ -4541,7 +4555,6 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
 /// Check if an assignment expression's LHS is a member expression targeting a prop,
 /// and if so, return the ownership validation info (prop_alias, path array, optional source location).
 /// This works on the original JSON AST before transforms are applied.
-#[allow(clippy::type_complexity)]
 fn check_ownership_validation(
     left_json: Option<&Value>,
     context: &ComponentContext,
@@ -5707,6 +5720,9 @@ fn convert_block_statement_from_jsnode(
     context: &mut ComponentContext,
 ) -> JsBlockStatement {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
     let children: Vec<&JsNode> = pa.get_js_children(*body_range).iter().collect();
     let body: Vec<JsStatement> = children
@@ -5723,6 +5739,9 @@ fn convert_statement_from_jsnode(
     context: &mut ComponentContext,
 ) -> Option<JsStatement> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
     match node {
         JsNode::ExpressionStatement { expression, .. } => {

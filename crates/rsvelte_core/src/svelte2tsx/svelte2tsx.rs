@@ -3,6 +3,7 @@
 //! Converts Svelte component source files into TypeScript/TSX for type checking.
 //! This is a Rust port of the `svelte2tsx` package used by the Svelte language server.
 
+use std::fmt::Write as _;
 use std::fmt;
 
 use crate::ast::template::Root;
@@ -275,8 +276,8 @@ pub fn svelte2tsx(
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
     // so we need to handle it separately.
-    if let Some(ref options_node) = ast.options {
-        if options_node.start < options_node.end {
+    if let Some(ref options_node) = ast.options
+        && options_node.start < options_node.end {
             // Build attribute string from options attributes
             let mut attrs_parts = Vec::new();
             let mut has_expression_attr = false;
@@ -314,7 +315,6 @@ pub fn svelte2tsx(
             );
             str.overwrite(options_node.start, options_node.end, &replacement);
         }
-    }
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
     //
@@ -323,8 +323,8 @@ pub fn svelte2tsx(
     // Then ALWAYS run the fallback scanner to catch style tags the parser
     // did not capture (e.g., <style global>, custom attributes).
     let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
-    if let Some(ref css) = ast.css {
-        if css.start < css.end {
+    if let Some(ref css) = ast.css
+        && css.start < css.end {
             // Also blank any trailing whitespace after the style tag
             let mut blank_end = css.end;
             let bytes = source.as_bytes();
@@ -339,7 +339,6 @@ pub fn svelte2tsx(
             str.overwrite(css.start, blank_end, "");
             blanked_style_ranges.push((css.start as usize, blank_end as usize));
         }
-    }
     {
         // Fallback: scan source for <style tags that the parser didn't
         // capture in ast.css (e.g., <style global>, <style lang="...">).
@@ -385,14 +384,13 @@ pub fn svelte2tsx(
             let after_tag = abs_start + 6;
             if after_tag < bytes.len() {
                 let next_ch = bytes[after_tag];
-                if next_ch == b' '
+                if (next_ch == b' '
                     || next_ch == b'>'
                     || next_ch == b'\n'
                     || next_ch == b'\r'
                     || next_ch == b'\t'
-                    || next_ch == b'/'
-                {
-                    if let Some(close_off) = source[abs_start..].find("</style>") {
+                    || next_ch == b'/')
+                    && let Some(close_off) = source[abs_start..].find("</style>") {
                         let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
                         let mut blank_end = abs_end as u32;
                         while (blank_end as usize) < bytes.len() {
@@ -407,7 +405,6 @@ pub fn svelte2tsx(
                         search_from = abs_end;
                         continue;
                     }
-                }
             }
             search_from = abs_start + 1;
         }
@@ -608,10 +605,8 @@ pub fn svelte2tsx(
             .iter()
             .map(|name| format!("'{}': ''", escape_js_single_quoted(name)))
             .collect();
-        dollar_decls.push_str(&format!(
-            " let $$slots = __sveltets_2_slotsType({{{}}});",
-            slots_obj.join(", ")
-        ));
+        let _ = write!(dollar_decls, " let $$slots = __sveltets_2_slotsType({{{}}});",
+            slots_obj.join(", "));
     }
 
     // Detect generics attribute from the script tag (available for component export)
@@ -984,8 +979,8 @@ pub fn svelte2tsx(
                 );
             }
 
-            if inline_type_at_let {
-                if let (Some(let_pos), Some(type_text)) = (
+            if inline_type_at_let
+                && let (Some(let_pos), Some(type_text)) = (
                     exported_names.props_let_abs_pos,
                     exported_names.props_type_text.as_ref(),
                 ) {
@@ -1001,7 +996,6 @@ pub fn svelte2tsx(
                     };
                     str.append_left(let_pos, &snippet);
                 }
-            }
         } else {
             // No imports: overwrite the entire <script> tag at once
             let force_inside_render_no_imports = exported_names.has_component_props_typedef
@@ -1167,8 +1161,8 @@ pub fn svelte2tsx(
                 );
             }
 
-            if inline_type_at_let {
-                if let (Some(let_pos), Some(type_text)) = (
+            if inline_type_at_let
+                && let (Some(let_pos), Some(type_text)) = (
                     exported_names.props_let_abs_pos,
                     exported_names.props_type_text.as_ref(),
                 ) {
@@ -1182,7 +1176,6 @@ pub fn svelte2tsx(
                     };
                     str.append_left(let_pos, &snippet);
                 }
-            }
         }
 
         // Overwrite `</script>` with slot declaration + `async () => {`.
@@ -1431,10 +1424,8 @@ pub fn svelte2tsx(
 
     let mut closing = String::new();
     closing.push_str("};\n");
-    closing.push_str(&format!(
-        "return {{ props: {}{}{}, slots: {}, events: {} }}}}\n",
-        props_str, exports_str, bindings_str, slots_str, events_str,
-    ));
+    let _ = writeln!(closing, "return {{ props: {}{}{}, slots: {}, events: {} }}}}",
+        props_str, exports_str, bindings_str, slots_str, events_str,);
 
     // Add component documentation as JSDoc comment before the component export
     if let Some(ref doc) = component_doc {
@@ -1501,28 +1492,20 @@ pub fn svelte2tsx(
     match options.version {
         SvelteVersion::V4 => {
             let prop_def = build_prop_def(&exported_names);
-            closing.push_str(&format!(
-                "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent({}) {{\n}}",
-                safe_name, prop_def
-            ));
+            let _ = write!(closing, "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent({}) {{\n}}",
+                safe_name, prop_def);
         }
         SvelteVersion::V5 => {
             let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
             if exported_names.is_runes_mode() {
                 if !use_ts_syntax {
                     // JS files with emitJsDoc: use `export const` and JSDoc typedef
-                    closing.push_str(&format!(
-                        "export const {} = __sveltets_2_fn_component($$render());\n",
-                        safe_name
-                    ));
-                    closing.push_str(&format!(
-                        "/*\u{03A9}ignore_start\u{03A9}*//** @typedef {{ReturnType<typeof {}>}} {} */\n",
-                        safe_name, safe_name
-                    ));
-                    closing.push_str(&format!(
-                        "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                        safe_name
-                    ));
+                    let _ = writeln!(closing, "export const {} = __sveltets_2_fn_component($$render());",
+                        safe_name);
+                    let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*//** @typedef {{ReturnType<typeof {}>}} {} */",
+                        safe_name, safe_name);
+                    let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                        safe_name);
                 } else if has_generics {
                     // Runes + generics: `__sveltets_2_fn_component($$render())`
                     // discards `T` ($$render is called without `<T>` and the
@@ -1556,18 +1539,12 @@ pub fn svelte2tsx(
                         has_slot_elements,
                     );
                 } else {
-                    closing.push_str(&format!(
-                        "const {} = __sveltets_2_fn_component($$render());\n",
-                        safe_name
-                    ));
-                    closing.push_str(&format!(
-                        "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;\n",
-                        safe_name, safe_name
-                    ));
-                    closing.push_str(&format!(
-                        "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                        safe_name
-                    ));
+                    let _ = writeln!(closing, "const {} = __sveltets_2_fn_component($$render());",
+                        safe_name);
+                    let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;",
+                        safe_name, safe_name);
+                    let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                        safe_name);
                 }
             } else if has_generics {
                 // Generics component export: __sveltets_Render + $$IsomorphicComponent
@@ -1584,24 +1561,20 @@ pub fn svelte2tsx(
                 let has_real_exports = raw_exports == "$$HAS_EXPORTS$$";
 
                 // Build __sveltets_Render class
-                closing.push_str(&format!("class __sveltets_Render<{}> {{\n", gp));
-                closing.push_str(&format!(
-                    "    props() {{\n        return $$render<{}>().props;\n    }}\n",
-                    gn
-                ));
-                closing.push_str(&format!("    events() {{\n        return __sveltets_2_with_any_event($$render<{}>()).events;\n    }}\n", gn));
-                closing.push_str(&format!(
-                    "    slots() {{\n        return $$render<{}>().slots;\n    }}\n",
-                    gn
-                ));
-                closing.push_str(&format!("    bindings() {{ return {}; }}\n", raw_bindings));
+                let _ = writeln!(closing, "class __sveltets_Render<{}> {{", gp);
+                let _ = writeln!(closing, "    props() {{\n        return $$render<{}>().props;\n    }}",
+                    gn);
+                let _ = writeln!(closing, "    events() {{\n        return __sveltets_2_with_any_event($$render<{}>()).events;\n    }}", gn);
+                let _ = writeln!(closing, "    slots() {{\n        return $$render<{}>().slots;\n    }}",
+                    gn);
+                let _ = writeln!(closing, "    bindings() {{ return {}; }}", raw_bindings);
                 // exports() returns $$render().exports if there are real exports, {} otherwise
                 let exports_return = if has_real_exports {
                     format!("$$render<{}>().exports", gn)
                 } else {
                     raw_exports.clone()
                 };
-                closing.push_str(&format!("    exports() {{ return {}; }}\n", exports_return));
+                let _ = writeln!(closing, "    exports() {{ return {}; }}", exports_return);
                 closing.push_str("}\n\n");
 
                 // Build `any` type params string: one `any` per generic param
@@ -1620,10 +1593,8 @@ pub fn svelte2tsx(
 
                 // Build $$IsomorphicComponent interface
                 closing.push_str("interface $$IsomorphicComponent {\n");
-                closing.push_str(&format!(
-                    "    new <{}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{}>['props']>{}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{}>['props']>, ReturnType<__sveltets_Render<{}>['events']>, ReturnType<__sveltets_Render<{}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{}>['bindings']> }} & ReturnType<__sveltets_Render<{}>['exports']>;\n",
-                    gp, gn, children_type_suffix, gn, gn, gn, gn, gn
-                ));
+                let _ = writeln!(closing, "    new <{}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{}>['props']>{}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{}>['props']>, ReturnType<__sveltets_Render<{}>['events']>, ReturnType<__sveltets_Render<{}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{}>['bindings']> }} & ReturnType<__sveltets_Render<{}>['exports']>;",
+                    gp, gn, children_type_suffix, gn, gn, gn, gn, gn);
                 // Functional call signature: add $$slots and children only when component has slots
                 let slots_children_suffix = if has_slot_elements {
                     format!(
@@ -1633,29 +1604,19 @@ pub fn svelte2tsx(
                 } else {
                     String::new()
                 };
-                closing.push_str(&format!(
-                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;\n",
-                    gp, gn, gn, slots_children_suffix, gn
-                ));
-                closing.push_str(&format!(
-                    "    z_$$bindings?: ReturnType<__sveltets_Render<{}>['bindings']>;\n",
-                    any_params
-                ));
+                let _ = writeln!(closing, "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
+                    gp, gn, gn, slots_children_suffix, gn);
+                let _ = writeln!(closing, "    z_$$bindings?: ReturnType<__sveltets_Render<{}>['bindings']>;",
+                    any_params);
                 closing.push_str("}\n");
 
                 // Component export
-                closing.push_str(&format!(
-                    "const {}: $$IsomorphicComponent = null as any;\n",
-                    safe_name
-                ));
-                closing.push_str(&format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/type {}<{}> = InstanceType<typeof {}<{}>>;\n",
-                    safe_name, gp, safe_name, gn
-                ));
-                closing.push_str(&format!(
-                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                    safe_name
-                ));
+                let _ = writeln!(closing, "const {}: $$IsomorphicComponent = null as any;",
+                    safe_name);
+                let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {}<{}> = InstanceType<typeof {}<{}>>;",
+                    safe_name, gp, safe_name, gn);
+                let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                    safe_name);
             } else {
                 let prop_def = build_prop_def(&exported_names);
                 let has_non_empty_slots = !template_info.slots.is_empty();
@@ -1664,18 +1625,12 @@ pub fn svelte2tsx(
                 } else {
                     "__sveltets_2_isomorphic_component"
                 };
-                closing.push_str(&format!(
-                    "const {} = {}({});\n",
-                    safe_name, component_fn, prop_def
-                ));
-                closing.push_str(&format!(
-                    "/*\u{03A9}ignore_start\u{03A9}*/type {} = InstanceType<typeof {}>;\n",
-                    safe_name, safe_name
-                ));
-                closing.push_str(&format!(
-                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                    safe_name
-                ));
+                let _ = writeln!(closing, "const {} = {}({});",
+                    safe_name, component_fn, prop_def);
+                let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {} = InstanceType<typeof {}>;",
+                    safe_name, safe_name);
+                let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
+                    safe_name);
             }
         }
     }
@@ -1741,18 +1696,12 @@ fn emit_runes_generics_component(
     exports_return: &str,
     has_slot_elements: bool,
 ) {
-    closing.push_str(&format!("class __sveltets_Render<{gp}> {{\n"));
-    closing.push_str(&format!(
-        "    props(): ReturnType<typeof $$render<{gn}>>['props'] {{ return null as any; }}\n"
-    ));
-    closing.push_str(&format!(
-        "    events(): ReturnType<typeof $$render<{gn}>>['events'] {{ return null as any; }}\n"
-    ));
-    closing.push_str(&format!(
-        "    slots(): ReturnType<typeof $$render<{gn}>>['slots'] {{ return null as any; }}\n"
-    ));
-    closing.push_str(&format!("    bindings() {{ return {raw_bindings}; }}\n"));
-    closing.push_str(&format!("    exports() {{ return {exports_return}; }}\n"));
+    let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
+    let _ = writeln!(closing, "    props(): ReturnType<typeof $$render<{gn}>>['props'] {{ return null as any; }}");
+    let _ = writeln!(closing, "    events(): ReturnType<typeof $$render<{gn}>>['events'] {{ return null as any; }}");
+    let _ = writeln!(closing, "    slots(): ReturnType<typeof $$render<{gn}>>['slots'] {{ return null as any; }}");
+    let _ = writeln!(closing, "    bindings() {{ return {raw_bindings}; }}");
+    let _ = writeln!(closing, "    exports() {{ return {exports_return}; }}");
     closing.push_str("}\n\n");
 
     let any_params = gn.split(',').map(|_| "any").collect::<Vec<_>>().join(",");
@@ -1763,31 +1712,19 @@ fn emit_runes_generics_component(
     };
 
     closing.push_str("interface $$IsomorphicComponent {\n");
-    closing.push_str(&format!(
-        "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;\n"
-    ));
+    let _ = writeln!(closing, "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;");
     let slots_children_suffix = if has_slot_elements {
         format!(", $$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>, children?: any")
     } else {
         String::new()
     };
-    closing.push_str(&format!(
-        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;\n"
-    ));
-    closing.push_str(&format!(
-        "    z_$$bindings?: ReturnType<__sveltets_Render<{any_params}>['bindings']>;\n"
-    ));
+    let _ = writeln!(closing, "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;");
+    let _ = writeln!(closing, "    z_$$bindings?: ReturnType<__sveltets_Render<{any_params}>['bindings']>;");
     closing.push_str("}\n");
 
-    closing.push_str(&format!(
-        "const {safe_name}: $$IsomorphicComponent = null as any;\n"
-    ));
-    closing.push_str(&format!(
-        "/*\u{03A9}ignore_start\u{03A9}*/type {safe_name}<{gp}> = InstanceType<typeof {safe_name}<{gn}>>;\n"
-    ));
-    closing.push_str(&format!(
-        "/*\u{03A9}ignore_end\u{03A9}*/export default {safe_name};"
-    ));
+    let _ = writeln!(closing, "const {safe_name}: $$IsomorphicComponent = null as any;");
+    let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {safe_name}<{gp}> = InstanceType<typeof {safe_name}<{gn}>>;");
+    let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {safe_name};");
 }
 
 /// Escape a string for use as the body of a single-quoted JS string literal.
@@ -1804,7 +1741,7 @@ fn escape_js_single_quoted(s: &str) -> String {
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
             c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
+                let _ = write!(out, "\\u{:04x}", c as u32);
             }
             c => out.push(c),
         }
@@ -1817,7 +1754,7 @@ fn escape_js_single_quoted(s: &str) -> String {
 /// Walks the fragment tree looking for `<slot>` elements and collects their names.
 /// A slot without a `name` attribute is the "default" slot.
 fn collect_slot_names_from_ast(fragment: &crate::ast::template::Fragment) -> Vec<String> {
-    use crate::ast::template::TemplateNode;
+    
     let mut names = Vec::new();
     collect_slot_names_recursive(&fragment.nodes, &mut names);
     // Deduplicate while preserving order
@@ -1837,9 +1774,9 @@ fn collect_slot_names_recursive(
                 // Get slot name from the `name` attribute
                 let mut slot_name = "default".to_string();
                 for attr in &el.attributes {
-                    if let crate::ast::template::Attribute::Attribute(node) = attr {
-                        if node.name == "name" {
-                            if let crate::ast::template::AttributeValue::Sequence(parts) =
+                    if let crate::ast::template::Attribute::Attribute(node) = attr
+                        && node.name == "name"
+                            && let crate::ast::template::AttributeValue::Sequence(parts) =
                                 &node.value
                             {
                                 for part in parts {
@@ -1850,8 +1787,6 @@ fn collect_slot_names_recursive(
                                     }
                                 }
                             }
-                        }
-                    }
                 }
                 names.push(slot_name);
                 collect_slot_names_recursive(&el.fragment.nodes, names);
@@ -2540,8 +2475,8 @@ fn is_snippet_module_hoistable(
         if params_set.contains(&ident) {
             continue;
         }
-        if let Some(stripped) = ident.strip_prefix('$') {
-            if !stripped.is_empty() && !stripped.starts_with('$') {
+        if let Some(stripped) = ident.strip_prefix('$')
+            && !stripped.is_empty() && !stripped.starts_with('$') {
                 // Auto-store subscription targets — `addDisallowed(getAccessedStores())`
                 // in the JS reference is component-wide, so check both module
                 // and instance scopes.
@@ -2553,7 +2488,6 @@ fn is_snippet_module_hoistable(
                     return false;
                 }
             }
-        }
         if exported_names.instance_value_names.contains(&ident)
             && !exported_names.instance_import_names.contains(&ident)
         {
@@ -2761,18 +2695,16 @@ fn detect_top_level_await(content: &str) -> bool {
         match stmt {
             oxc::Statement::VariableDeclaration(decl) => {
                 for declarator in decl.declarations.iter() {
-                    if let Some(ref init) = declarator.init {
-                        if contains_await_expression(init) {
+                    if let Some(ref init) = declarator.init
+                        && contains_await_expression(init) {
                             return true;
                         }
-                    }
                 }
             }
-            oxc::Statement::ExpressionStatement(expr) => {
-                if contains_await_expression(&expr.expression) {
+            oxc::Statement::ExpressionStatement(expr)
+                if contains_await_expression(&expr.expression) => {
                     return true;
                 }
-            }
             _ => {}
         }
     }

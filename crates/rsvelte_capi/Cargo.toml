@@ -34,3 +34,6 @@ cbindgen = "0.29"
 cbindgen = "0.29"
 serde_json = "1.0"
 
+
+[lints]
+workspace = true

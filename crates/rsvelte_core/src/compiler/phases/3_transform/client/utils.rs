@@ -124,6 +124,10 @@ fn extract_identifiers(text: &str) -> FxHashSet<&str> {
         while i < len && is_ident_continue_byte(bytes[i]) {
             i += 1;
         }
+        // SAFETY: `bytes` come from `text.as_bytes()`. The slice spans
+        // `start..i`, a run that begins at an ASCII ident-start byte and
+        // continues only over ASCII ident-continue bytes, so it is entirely
+        // ASCII and therefore valid UTF-8 lying on char boundaries.
         let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
         set.insert(word);
     }

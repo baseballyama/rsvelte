@@ -7,6 +7,7 @@
 //! ≈170-fixture gap that existed when the standalone runner used
 //! aggressive normalisers but the dashboard used strict equality.
 
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -618,17 +619,17 @@ pub fn first_diff_snippet(actual: &str, expected: &str, context_lines: usize) ->
     match diff_line {
         Some(line_idx) => {
             let mut out = String::new();
-            out.push_str(&format!("  First difference at line {}:\n", line_idx + 1));
+            let _ = writeln!(out, "  First difference at line {}:", line_idx + 1);
             let start = line_idx.saturating_sub(1);
             let end = (line_idx + context_lines).min(max_len);
             for i in start..end {
                 let a = actual_lines.get(i).copied().unwrap_or("<missing>");
                 let e = expected_lines.get(i).copied().unwrap_or("<missing>");
                 if a == e {
-                    out.push_str(&format!("    {}: {}\n", i + 1, a));
+                    let _ = writeln!(out, "    {}: {}", i + 1, a);
                 } else {
-                    out.push_str(&format!("  - {}: {}\n", i + 1, e));
-                    out.push_str(&format!("  + {}: {}\n", i + 1, a));
+                    let _ = writeln!(out, "  - {}: {}", i + 1, e);
+                    let _ = writeln!(out, "  + {}: {}", i + 1, a);
                 }
             }
             out

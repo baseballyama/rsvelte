@@ -6,6 +6,7 @@
 //! `<style>` body and the markup, and reassembles the output — so these
 //! numbers cover the full format pipeline, not just the JS pass.
 
+use std::fmt::Write as _;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fs;
 use std::hint::black_box;
@@ -72,15 +73,11 @@ fn get_sample_files() -> Vec<(String, String)> {
 fn create_script_heavy_file() -> (String, String) {
     let mut src = String::from("<script>\n    let count = $state(0);\n");
     for i in 0..60 {
-        src.push_str(&format!(
-            "    function handler_{i}(event){{const a={i};const b=a*2;let total=a+b;if(total>{i}){{count=total;}}else{{count=a;}}return count;}}\n"
-        ));
+        let _ = writeln!(src, "    function handler_{i}(event){{const a={i};const b=a*2;let total=a+b;if(total>{i}){{count=total;}}else{{count=a;}}return count;}}");
     }
     src.push_str("</script>\n\n");
     for i in 0..30 {
-        src.push_str(&format!(
-            "<button onclick={{handler_{i}}}>Item {i}: {{count}}</button>\n"
-        ));
+        let _ = writeln!(src, "<button onclick={{handler_{i}}}>Item {i}: {{count}}</button>");
     }
     ("synthetic-script-heavy".to_string(), src)
 }
@@ -90,9 +87,7 @@ fn create_script_heavy_file() -> (String, String) {
 fn create_markup_heavy_file() -> (String, String) {
     let mut src = String::from("<script>\n  let count = $state(0);\n</script>\n\n");
     for i in 0..80 {
-        src.push_str(&format!(
-            "<div class=\"item-{i}\" data-index={{ {i} }} aria-label=\"row {i}\"><span>Item {i}: {{count + {i}}}</span>{{#if count > {i}}}<strong>on</strong>{{:else}}<em>off</em>{{/if}}</div>\n"
-        ));
+        let _ = writeln!(src, "<div class=\"item-{i}\" data-index={{ {i} }} aria-label=\"row {i}\"><span>Item {i}: {{count + {i}}}</span>{{#if count > {i}}}<strong>on</strong>{{:else}}<em>off</em>{{/if}}</div>");
     }
     ("synthetic-markup-heavy".to_string(), src)
 }

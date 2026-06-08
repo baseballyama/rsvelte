@@ -229,7 +229,6 @@ fn push_expression_tag(
 
 /// Replace `{@<keyword> EXPR}` (full tag span) with the formatted expression
 /// body and a single space after the keyword.
-#[allow(clippy::too_many_arguments)]
 fn push_tag_form(
     source: &str,
     tag_start: u32,

@@ -236,7 +236,6 @@ pub(super) fn sort_reactive_statements(
     }
 
     // Reconstruct the result in sorted order
-    #[allow(clippy::type_complexity)]
     let mut statements_opt: Vec<Option<(Vec<String>, Vec<String>, String)>> =
         statements.into_iter().map(Some).collect();
     let mut result = Vec::with_capacity(n);
@@ -263,7 +262,6 @@ pub(super) fn sort_reactive_statements(
 /// The second thunk contains the body of the reactive statement.
 ///
 /// Reference: `LabeledStatement.js` in `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/`
-#[allow(clippy::too_many_arguments)]
 pub(super) fn transform_reactive_statement(
     statement: &str,
     state_vars: &[String],

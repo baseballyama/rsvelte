@@ -7,8 +7,7 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-#[allow(unused_imports)]
-use super::types::{Location, MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
+use super::types::{MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
 
 // Cached regex for tokenizing lines (for source map generation)
 static REGEX_LINE_TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\w\s]|\s+)").unwrap());
@@ -374,6 +373,7 @@ fn merge_tables<T: Clone + Eq>(this_table: &[T], other_table: &[T]) -> (Vec<T>, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::types::Location;
     use std::sync::Arc;
 
     fn create_test_source(code: &str) -> Source {

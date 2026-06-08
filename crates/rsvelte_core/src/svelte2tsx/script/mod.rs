@@ -8,6 +8,7 @@
 //! the OXC AST directly. This avoids dependency on the thread-local ParseArena
 //! used by the main compiler, keeping svelte2tsx self-contained.
 
+use std::fmt::Write as _;
 use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
@@ -282,11 +283,10 @@ impl ExportedNames {
             }
 
             // JSDoc named type case: `/** @type {SomeType} */` → `/** @type {SomeType} */({})`
-            if let Some(ref jsdoc_type) = self.props_jsdoc_type {
-                if !self.has_component_props_typedef {
+            if let Some(ref jsdoc_type) = self.props_jsdoc_type
+                && !self.has_component_props_typedef {
                     return format!("/** @type {} */({{}})", jsdoc_type);
                 }
-            }
 
             // Otherwise, list the prop entries from $props() destructuring
             // In runes mode, named exports (export { x as y }) are NOT props
@@ -566,9 +566,7 @@ impl ComponentEvents {
     /// Returns (name, value) pairs like ("hi", "__sveltets_2_customEvent").
     pub fn get_event_entries(&self) -> Vec<(String, String)> {
         let mut entries: Vec<(String, String)> = self
-            .events
-            .iter()
-            .map(|(name, _info)| (name.clone(), "__sveltets_2_customEvent".to_string()))
+            .events.keys().map(|name| (name.clone(), "__sveltets_2_customEvent".to_string()))
             .collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
         entries
@@ -968,8 +966,8 @@ pub fn process_instance_script(
         let raw_content = &source[content_start..content_end];
 
         for stmt in program.body.iter() {
-            if let oxc::Statement::LabeledStatement(labeled) = stmt {
-                if labeled.label.name == "$" {
+            if let oxc::Statement::LabeledStatement(labeled) = stmt
+                && labeled.label.name == "$" {
                     handle_reactive_statement(
                         labeled,
                         offset,
@@ -979,7 +977,6 @@ pub fn process_instance_script(
                         &mut reactive_declared_names,
                     );
                 }
-            }
         }
 
         // Snapshot instance-script value declarations so callers (in particular
@@ -1593,12 +1590,12 @@ fn resolve_hoistable_type_decls(
                 return g;
             }
             let header_end = raw_content[s..e]
-                .find(|ch: char| ch == '{' || ch == '=')
+                .find(['{', '='])
                 .map(|p| s + p)
                 .unwrap_or(e);
             let header = &raw_content[s..header_end];
-            if let (Some(lt), Some(gt)) = (header.find('<'), header.rfind('>')) {
-                if lt < gt {
+            if let (Some(lt), Some(gt)) = (header.find('<'), header.rfind('>'))
+                && lt < gt {
                     let inner = &header[lt + 1..gt];
                     for part in inner.split(',') {
                         let trimmed = part.trim();
@@ -1611,7 +1608,6 @@ fn resolve_hoistable_type_decls(
                         }
                     }
                 }
-            }
             g
         })
         .collect();
@@ -1779,7 +1775,7 @@ fn is_ident_char_for_str(ch: char) -> bool {
 /// hoisting, the constraint references the type before it's defined.
 fn hoist_dollar_generic_referenced_types(
     candidates: &[HoistCandidate],
-    raw_content: &str,
+    _raw_content: &str,
     offset: u32,
     exported_names: &mut ExportedNames,
 ) {
@@ -2129,15 +2125,14 @@ fn collect_ts_type_assertions_stmt(stmt: &oxc::Statement, out: &mut Vec<(u32, u3
             collect_ts_type_assertions_expr(&es.expression, out);
         }
         oxc::Statement::ExportNamedDeclaration(export) => {
-            if let Some(decl) = &export.declaration {
-                if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
+            if let Some(decl) = &export.declaration
+                && let oxc::Declaration::VariableDeclaration(var_decl) = decl {
                     for declarator in var_decl.declarations.iter() {
                         if let Some(init) = &declarator.init {
                             collect_ts_type_assertions_expr(init, out);
                         }
                     }
                 }
-            }
         }
         _ => {
             // Other statement kinds (functions, classes, ifs, blocks…) are not
@@ -2315,13 +2310,11 @@ fn handle_export_named_decl(
                             false,
                         );
                         // Update the type annotation on the exported name
-                        if let Some(ref ta_text) = type_annotation_text {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-                                if let Some(info) = exported_names.get_mut(&name) {
+                        if let Some(ref ta_text) = type_annotation_text
+                            && let Some(name) = binding_pattern_simple_name(&declarator.id)
+                                && let Some(info) = exported_names.get_mut(&name) {
                                     info.type_annotation = Some(ta_text.clone());
                                 }
-                            }
-                        }
 
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
@@ -2355,15 +2348,14 @@ fn handle_export_named_decl(
                             .init
                             .as_ref()
                             .is_some_and(|init| matches!(init, oxc::Expression::BooleanLiteral(_)));
-                        if is_prop && (!has_default || has_type_annotation || has_boolean_init) {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                        if is_prop && (!has_default || has_type_annotation || has_boolean_init)
+                            && let Some(name) = binding_pattern_simple_name(&declarator.id) {
                                 let inject = format!(
                                     "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
                                 );
                                 let inject_pos = declarator.span.end + offset;
                                 str.append_left(inject_pos, &inject);
                             }
-                        }
 
                         // SvelteKit `+page.svelte` / `+layout.svelte`: inject
                         // `import('./$types.js').*` annotations on the
@@ -2373,8 +2365,7 @@ fn handle_export_named_decl(
                         if is_instance
                             && classify_kit_route_file(basename).is_some()
                             && !has_type_annotation
-                        {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                            && let Some(name) = binding_pattern_simple_name(&declarator.id) {
                                 let kit_layout = classify_kit_route_file(basename);
                                 let inject_type: Option<&str> = if !is_let {
                                     // `export const snapshot = ...`
@@ -2403,8 +2394,8 @@ fn handle_export_named_decl(
                                         _ => None,
                                     }
                                 };
-                                if let Some(kit_type) = inject_type {
-                                    if let oxc::BindingPattern::BindingIdentifier(id) =
+                                if let Some(kit_type) = inject_type
+                                    && let oxc::BindingPattern::BindingIdentifier(id) =
                                         &declarator.id
                                     {
                                         let name_start = id.span.start + offset;
@@ -2420,9 +2411,7 @@ fn handle_export_named_decl(
                                             str.append_left(name_end, &inject);
                                         }
                                     }
-                                }
                             }
-                        }
                     }
                 }
             }
@@ -2468,14 +2457,13 @@ fn handle_export_named_decl(
             // 2. Have a type annotation (export { x } where x: Type = value)
             if is_instance && is_let {
                 let has_ta = possible.map(|p| p.has_type_annotation).unwrap_or(false);
-                if !has_init || has_ta {
-                    if let Some(pe) = possible {
+                if (!has_init || has_ta)
+                    && let Some(pe) = possible {
                         let inject = format!(
                             "/*\u{03A9}ignore_start\u{03A9}*/;{local} = __sveltets_2_any({local});/*\u{03A9}ignore_end\u{03A9}*/"
                         );
                         str.append_left(pe.decl_end + offset, &inject);
                     }
-                }
             }
         }
     }
@@ -2573,7 +2561,7 @@ fn handle_reactive_statement(
                         // the assignment still triggers reactivity.
                         let mut decls = String::new();
                         for name in &new_names {
-                            decls.push_str(&format!("let {};\n", name));
+                            let _ = writeln!(decls, "let {};", name);
                         }
                         str.prepend_right(label_start, &decls);
                         for name in &new_names {
@@ -2662,10 +2650,10 @@ fn detect_runes_call(
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
-    if let Some(ref init) = declarator.init {
-        if let oxc::Expression::CallExpression(call) = init {
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                if matches!(callee.name.as_str(), "$state" | "$derived" | "$effect") {
+    if let Some(ref init) = declarator.init
+        && let oxc::Expression::CallExpression(call) = init
+            && let oxc::Expression::Identifier(ref callee) = call.callee
+                && matches!(callee.name.as_str(), "$state" | "$derived" | "$effect") {
                     // Don't treat as rune if the base name (without $) is already declared
                     // (e.g., `import { derived } from 'svelte/store'` means $derived is a store)
                     let base_name = &callee.name[1..];
@@ -2673,9 +2661,6 @@ fn detect_runes_call(
                         exported_names.set_uses_runes(true);
                     }
                 }
-            }
-        }
-    }
 }
 
 /// Detect `createEventDispatcher<Type>()` calls and extract the generic type.
@@ -2687,13 +2672,13 @@ fn detect_create_event_dispatcher(
     raw_content: &str,
     events: &mut ComponentEvents,
 ) {
-    if let Some(ref init) = declarator.init {
-        if let oxc::Expression::CallExpression(call) = init {
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                if callee.name == "createEventDispatcher" {
+    if let Some(ref init) = declarator.init
+        && let oxc::Expression::CallExpression(call) = init
+            && let oxc::Expression::Identifier(ref callee) = call.callee
+                && callee.name == "createEventDispatcher" {
                     // Check for type arguments: createEventDispatcher<Type>()
-                    if let Some(ref type_args) = call.type_arguments {
-                        if let Some(first_param) = type_args.params.first() {
+                    if let Some(ref type_args) = call.type_arguments
+                        && let Some(first_param) = type_args.params.first() {
                             let start = first_param.span().start as usize;
                             let end = first_param.span().end as usize;
                             if start < end && end <= raw_content.len() {
@@ -2701,24 +2686,18 @@ fn detect_create_event_dispatcher(
                                 events.dispatcher_generic_type = Some(type_text);
                             }
                         }
-                    }
                     // Also detect dispatch('eventName') calls for individual events
                     // (but that requires analyzing all call sites, which we skip here)
                 }
-            }
-        }
-    }
 }
 
 /// Check if a variable declarator's init is a `$props()` call.
 fn is_props_call_oxc(declarator: &oxc::VariableDeclarator) -> bool {
-    if let Some(ref init) = declarator.init {
-        if let oxc::Expression::CallExpression(call) = init {
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
+    if let Some(ref init) = declarator.init
+        && let oxc::Expression::CallExpression(call) = init
+            && let oxc::Expression::Identifier(ref callee) = call.callee {
                 return callee.name == "$props";
             }
-        }
-    }
     false
 }
 
@@ -2756,9 +2735,9 @@ fn is_bindable_call(expr: &oxc::Expression, raw_content: &str) -> (bool, Option<
         oxc::Expression::TSAsExpression(ts_as) => &ts_as.expression,
         other => other,
     };
-    if let oxc::Expression::CallExpression(call) = inner {
-        if let oxc::Expression::Identifier(ref callee) = call.callee {
-            if callee.name == "$bindable" {
+    if let oxc::Expression::CallExpression(call) = inner
+        && let oxc::Expression::Identifier(ref callee) = call.callee
+            && callee.name == "$bindable" {
                 // Get the first argument if any (for type inference)
                 let arg_text = call.arguments.first().map(|arg| {
                     let start = arg.span().start as usize;
@@ -2767,8 +2746,6 @@ fn is_bindable_call(expr: &oxc::Expression, raw_content: &str) -> (bool, Option<
                 });
                 return (true, arg_text);
             }
-        }
-    }
     (false, None)
 }
 
@@ -2805,8 +2782,8 @@ fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String 
         }
         oxc::Expression::CallExpression(call) => {
             // Check for $bindable() - extract inner type
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                if callee.name == "$bindable" {
+            if let oxc::Expression::Identifier(ref callee) = call.callee
+                && callee.name == "$bindable" {
                     if let Some(first_arg) = call.arguments.first() {
                         if let oxc::Argument::SpreadElement(_) = first_arg {
                             return "any".to_string();
@@ -2815,7 +2792,6 @@ fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String 
                     }
                     return "any".to_string();
                 }
-            }
             "any".to_string()
         }
         oxc::Expression::TSAsExpression(ts_as) => {
@@ -3081,25 +3057,23 @@ fn extract_names_from_binding_pattern(
             }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
-            for element in arr_pat.elements.iter() {
-                if let Some(el) = element {
-                    match el {
-                        oxc::BindingPattern::AssignmentPattern(assign) => {
-                            extract_names_from_binding_pattern(
-                                &assign.left,
-                                exported_names,
-                                true,
-                                is_prop,
-                            );
-                        }
-                        _ => {
-                            extract_names_from_binding_pattern(
-                                el,
-                                exported_names,
-                                has_default,
-                                is_prop,
-                            );
-                        }
+            for el in arr_pat.elements.iter().flatten() {
+                match el {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        extract_names_from_binding_pattern(
+                            &assign.left,
+                            exported_names,
+                            true,
+                            is_prop,
+                        );
+                    }
+                    _ => {
+                        extract_names_from_binding_pattern(
+                            el,
+                            exported_names,
+                            has_default,
+                            is_prop,
+                        );
                     }
                 }
             }
@@ -3158,29 +3132,27 @@ fn extract_names_from_binding_pattern_full(
             }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
-            for element in arr_pat.elements.iter() {
-                if let Some(el) = element {
-                    match el {
-                        oxc::BindingPattern::AssignmentPattern(assign) => {
-                            extract_names_from_binding_pattern_full(
-                                &assign.left,
-                                exported_names,
-                                true,
-                                is_prop,
-                                is_let,
-                                is_named_export,
-                            );
-                        }
-                        _ => {
-                            extract_names_from_binding_pattern_full(
-                                el,
-                                exported_names,
-                                has_default,
-                                is_prop,
-                                is_let,
-                                is_named_export,
-                            );
-                        }
+            for el in arr_pat.elements.iter().flatten() {
+                match el {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        extract_names_from_binding_pattern_full(
+                            &assign.left,
+                            exported_names,
+                            true,
+                            is_prop,
+                            is_let,
+                            is_named_export,
+                        );
+                    }
+                    _ => {
+                        extract_names_from_binding_pattern_full(
+                            el,
+                            exported_names,
+                            has_default,
+                            is_prop,
+                            is_let,
+                            is_named_export,
+                        );
                     }
                 }
             }
@@ -3334,10 +3306,8 @@ fn collect_binding_names(pattern: &oxc::BindingPattern, names: &mut Vec<String>)
             }
         }
         oxc::BindingPattern::ArrayPattern(arr) => {
-            for el in arr.elements.iter() {
-                if let Some(el) = el {
-                    collect_binding_names(el, names);
-                }
+            for el in arr.elements.iter().flatten() {
+                collect_binding_names(el, names);
             }
             if let Some(ref rest) = arr.rest {
                 collect_binding_names(&rest.argument, names);
@@ -3395,18 +3365,16 @@ fn collect_assignment_target_names(target: &oxc::AssignmentTarget, names: &mut V
             }
         }
         oxc::AssignmentTarget::ArrayAssignmentTarget(arr) => {
-            for el in arr.elements.iter() {
-                if let Some(el) = el {
-                    match el {
-                        oxc::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
-                            with_default,
-                        ) => {
-                            collect_assignment_target_names(&with_default.binding, names);
-                        }
-                        _ => {
-                            if let Some(target) = el.as_assignment_target() {
-                                collect_assignment_target_names(target, names);
-                            }
+            for el in arr.elements.iter().flatten() {
+                match el {
+                    oxc::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+                        with_default,
+                    ) => {
+                        collect_assignment_target_names(&with_default.binding, names);
+                    }
+                    _ => {
+                        if let Some(target) = el.as_assignment_target() {
+                            collect_assignment_target_names(target, names);
                         }
                     }
                 }
@@ -3428,10 +3396,8 @@ fn create_store_declarations(store_names: &[&str]) -> String {
     }
     let mut result = String::from("/*\u{03A9}ignore_start\u{03A9}*/");
     for name in store_names {
-        result.push_str(&format!(
-            ";let ${} = __sveltets_2_store_get({});",
-            name, name
-        ));
+        let _ = write!(result, ";let ${} = __sveltets_2_store_get({});",
+            name, name);
     }
     result.push_str("/*\u{03A9}ignore_end\u{03A9}*/");
     result
@@ -3503,8 +3469,8 @@ fn inject_store_subscriptions_with_program(
             }
 
             oxc::Statement::ExportNamedDeclaration(export) => {
-                if let Some(ref decl) = export.declaration {
-                    if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
+                if let Some(ref decl) = export.declaration
+                    && let oxc::Declaration::VariableDeclaration(var_decl) = decl {
                         let last_decl_end = var_decl
                             .declarations
                             .last()
@@ -3527,11 +3493,10 @@ fn inject_store_subscriptions_with_program(
                             }
                         }
                     }
-                }
             }
 
-            oxc::Statement::LabeledStatement(labeled) => {
-                if labeled.label.name == "$" {
+            oxc::Statement::LabeledStatement(labeled)
+                if labeled.label.name == "$" => {
                     let names = extract_names_from_labeled_body(&labeled.body);
                     let matching: Vec<String> = names
                         .into_iter()
@@ -3545,7 +3510,6 @@ fn inject_store_subscriptions_with_program(
                         str.append_left(inject_pos, &store_decls);
                     }
                 }
-            }
 
             _ => {}
         }

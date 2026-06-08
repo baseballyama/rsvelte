@@ -4,6 +4,7 @@
 //! for server-side code generation, including `export let` declarations, reactive
 //! `$:` statements, and related helper utilities.
 
+use std::fmt::Write as _;
 use memchr::memmem;
 
 /// Check if the declaration string contains a semicolon at depth 0 (not inside braces/parens/brackets).
@@ -301,7 +302,7 @@ fn transform_single_export_let(declaration: &str) -> String {
             result.push_str(&transformed_default);
         } else {
             let name = declarator.trim();
-            result.push_str(&format!("let {} = $$props['{}'];", name, name));
+            let _ = write!(result, "let {} = $$props['{}'];", name, name);
         }
         result.push('\n');
     }

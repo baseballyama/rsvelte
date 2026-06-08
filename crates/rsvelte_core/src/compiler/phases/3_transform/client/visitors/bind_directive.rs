@@ -197,6 +197,10 @@ pub fn unified_build_bind_this(
         ) {
             if let JsExpr::Member(member) = expr {
                 member.optional = true;
+                // SAFETY: `take_expr` requires no live alias to the slot. The
+                // `member.object` id is owned solely by this `member`; we take
+                // it out, recurse, and reinstall a fresh id, so no other
+                // reference to that slot is live during the replacement.
                 let mut inner = unsafe { arena.take_expr(member.object) };
                 make_optional(arena, &mut inner);
                 member.object = arena.alloc_expr(inner);

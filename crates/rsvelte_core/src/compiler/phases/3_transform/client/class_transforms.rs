@@ -1,5 +1,6 @@
 //! Class field transformations for $state and $derived runes.
 
+use std::fmt::Write as _;
 use memchr::memmem;
 
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
@@ -38,26 +39,20 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
     let private_name = format!("#{}", field.private_backing_name);
 
     if field.constructor_declared {
-        output.push_str(&format!("\t\t{};\n", private_name));
+        let _ = writeln!(output, "\t\t{};", private_name);
         if !field.is_private {
             let is_derived = field.rune_type == "$derived" || field.rune_type == "$derived.by";
             let is_raw = field.rune_type == "$state.raw" || field.rune_type == "$state.frozen";
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                field.name, private_name
-            ));
+            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                field.name, private_name);
             output.push('\n');
             if is_derived || is_raw {
-                output.push_str(&format!(
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                    field.name, private_name
-                ));
+                let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                    field.name, private_name);
             } else {
-                output.push_str(&format!(
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
-                    field.name, private_name
-                ));
+                let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
+                    field.name, private_name);
             }
         }
     } else if field.rune_type == "$state" {
@@ -68,40 +63,28 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         } else {
             field.value.clone()
         };
-        output.push_str(&format!(
-            "\t\t{} = $.state({});\n",
-            private_name, wrapped_value
-        ));
+        let _ = writeln!(output, "\t\t{} = $.state({});",
+            private_name, wrapped_value);
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
+                getter_name, private_name);
         }
     } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
-        output.push_str(&format!(
-            "\t\t{} = $.state({});\n",
-            private_name, field.value
-        ));
+        let _ = writeln!(output, "\t\t{} = $.state({});",
+            private_name, field.value);
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                getter_name, private_name);
         }
     } else if field.rune_type == "$derived" {
         // Transform private field accesses inside the derived expression
@@ -120,22 +103,16 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         } else {
             format!("() => {}", derived_expr)
         };
-        output.push_str(&format!(
-            "\t\t{} = $.derived({});\n",
-            private_name, wrapped_value
-        ));
+        let _ = writeln!(output, "\t\t{} = $.derived({});",
+            private_name, wrapped_value);
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                getter_name, private_name);
         }
     } else if field.rune_type == "$derived.by" {
         let mut derived_expr = field.value.clone();
@@ -148,22 +125,16 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
                 }
             }
         }
-        output.push_str(&format!(
-            "\t\t{} = $.derived({});\n",
-            private_name, derived_expr
-        ));
+        let _ = writeln!(output, "\t\t{} = $.derived({});",
+            private_name, derived_expr);
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name);
             output.push('\n');
-            output.push_str(&format!(
-                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                getter_name, private_name
-            ));
+            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                getter_name, private_name);
         }
     }
 
@@ -403,7 +374,7 @@ pub(super) fn transform_constructor_private_reads(
                 }
 
                 new_result.push_str(&result[last_end..abs_pos]);
-                new_result.push_str(&format!("$.get({})", private_ref));
+                let _ = write!(new_result, "$.get({})", private_ref);
                 last_end = after_pos;
                 search_from = after_pos;
             }
@@ -793,7 +764,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     }
                 }
                 new_class_body.push('\n');
-                new_class_body.push_str(&format!("\t\tconstructor({}) {{\n", constructor_params));
+                let _ = writeln!(new_class_body, "\t\tconstructor({}) {{", constructor_params);
 
                 let mut ctor_body = String::new();
                 for line in constructor_content.lines() {
@@ -803,7 +774,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     }
 
                     let transformed_line = transform_constructor_assignment(trimmed, &fields);
-                    ctor_body.push_str(&format!("\t\t\t{}\n", transformed_line));
+                    let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
                 }
 
                 let ctor_transformed = transform_class_methods_non_this(&ctor_body, &fields);

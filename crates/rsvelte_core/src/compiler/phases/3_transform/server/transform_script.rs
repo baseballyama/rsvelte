@@ -4,6 +4,7 @@
 //! for server-side code generation, including rune transformations, class field transforms,
 //! and effect block removal.
 
+use std::fmt::Write as _;
 use super::helpers::sanitize_identifier;
 use super::transform_legacy::transform_export_let_declarations;
 use super::transform_store::{
@@ -559,32 +560,25 @@ pub(crate) fn transform_reassigned_destructures(
         for prop in &props {
             match prop {
                 ObjectPatternProp::Simple(name) => {
-                    transformed
-                        .push_str(&format!(",\n{}\t{} = {}.{}", indent, name, tmp_name, name));
+                    let _ = write!(transformed, ",\n{}\t{} = {}.{}", indent, name, tmp_name, name);
                 }
                 ObjectPatternProp::Renamed { key, value } => {
-                    transformed
-                        .push_str(&format!(",\n{}\t{} = {}.{}", indent, value, tmp_name, key));
+                    let _ = write!(transformed, ",\n{}\t{} = {}.{}", indent, value, tmp_name, key);
                 }
                 ObjectPatternProp::WithDefault { name, default } => {
-                    transformed.push_str(&format!(
-                        ",\n{}\t{} = {}.{} ?? {}",
-                        indent, name, tmp_name, name, default
-                    ));
+                    let _ = write!(transformed, ",\n{}\t{} = {}.{} ?? {}",
+                        indent, name, tmp_name, name, default);
                 }
                 ObjectPatternProp::RenamedWithDefault {
                     key,
                     value,
                     default,
                 } => {
-                    transformed.push_str(&format!(
-                        ",\n{}\t{} = {}.{} ?? {}",
-                        indent, value, tmp_name, key, default
-                    ));
+                    let _ = write!(transformed, ",\n{}\t{} = {}.{} ?? {}",
+                        indent, value, tmp_name, key, default);
                 }
                 ObjectPatternProp::Rest(name) => {
-                    transformed
-                        .push_str(&format!(",\n{}\t{} = {}.{}", indent, name, tmp_name, name));
+                    let _ = write!(transformed, ",\n{}\t{} = {}.{}", indent, name, tmp_name, name);
                 }
             }
         }
@@ -742,18 +736,16 @@ fn transform_object_destructure_state(script: &str) -> String {
                 match prop {
                     ObjectPatternProp::Simple(name) => {
                         // { a } -> a = tmp.a
-                        transformed.push_str(&format!(", {} = {}.{}", name, tmp_name, name));
+                        let _ = write!(transformed, ", {} = {}.{}", name, tmp_name, name);
                     }
                     ObjectPatternProp::Renamed { key, value } => {
                         // { a: x } -> x = tmp.a
-                        transformed.push_str(&format!(", {} = {}.{}", value, tmp_name, key));
+                        let _ = write!(transformed, ", {} = {}.{}", value, tmp_name, key);
                     }
                     ObjectPatternProp::WithDefault { name, default } => {
                         // { a = 5 } -> a = tmp.a ?? 5
-                        transformed.push_str(&format!(
-                            ", {} = {}.{} ?? {}",
-                            name, tmp_name, name, default
-                        ));
+                        let _ = write!(transformed, ", {} = {}.{} ?? {}",
+                            name, tmp_name, name, default);
                     }
                     ObjectPatternProp::RenamedWithDefault {
                         key,
@@ -761,14 +753,12 @@ fn transform_object_destructure_state(script: &str) -> String {
                         default,
                     } => {
                         // { a: x = 5 } -> x = tmp.a ?? 5
-                        transformed.push_str(&format!(
-                            ", {} = {}.{} ?? {}",
-                            value, tmp_name, key, default
-                        ));
+                        let _ = write!(transformed, ", {} = {}.{} ?? {}",
+                            value, tmp_name, key, default);
                     }
                     ObjectPatternProp::Rest(name) => {
                         // TODO: Handle rest pattern if needed
-                        transformed.push_str(&format!(", {} = {}.{}", name, tmp_name, name));
+                        let _ = write!(transformed, ", {} = {}.{}", name, tmp_name, name);
                     }
                 }
             }
@@ -909,33 +899,27 @@ fn transform_array_destructure_state(script: &str) -> String {
             let mut transformed = format!("{}let tmp = {},\n", indent, value);
 
             if has_rest {
-                transformed.push_str(&format!("{}\t$$array = $.to_array(tmp)", indent));
+                let _ = write!(transformed, "{}\t$$array = $.to_array(tmp)", indent);
             } else {
-                transformed.push_str(&format!(
-                    "{}\t$$array = $.to_array(tmp, {})",
+                let _ = write!(transformed, "{}\t$$array = $.to_array(tmp, {})",
                     indent,
-                    vars.len()
-                ));
+                    vars.len());
             }
 
             for (i, var) in vars.iter().enumerate() {
                 let var = var.trim();
                 if var.starts_with("...") {
                     let rest_name = var.trim_start_matches("...");
-                    transformed.push_str(&format!(
-                        ",\n{}\t{} = $$array.slice({})",
-                        indent, rest_name, i
-                    ));
+                    let _ = write!(transformed, ",\n{}\t{} = $$array.slice({})",
+                        indent, rest_name, i);
                 } else if var.contains('=') {
                     let parts: Vec<&str> = var.splitn(2, '=').collect();
                     let name = parts[0].trim();
                     let default = parts.get(1).map(|s| s.trim()).unwrap_or("void 0");
-                    transformed.push_str(&format!(
-                        ",\n{}\t{} = $$array[{}] ?? {}",
-                        indent, name, i, default
-                    ));
+                    let _ = write!(transformed, ",\n{}\t{} = $$array[{}] ?? {}",
+                        indent, name, i, default);
                 } else {
-                    transformed.push_str(&format!(",\n{}\t{} = $$array[{}]", indent, var, i));
+                    let _ = write!(transformed, ",\n{}\t{} = $$array[{}]", indent, var, i);
                 }
             }
 
@@ -1150,29 +1134,25 @@ pub(crate) fn flatten_store_get_destructures(script: &str) -> String {
             for prop in &props {
                 match prop {
                     ObjectPatternProp::Simple(name) => {
-                        transformed.push_str(&format!(",\n{}\t{} = tmp.{}", indent, name, name));
+                        let _ = write!(transformed, ",\n{}\t{} = tmp.{}", indent, name, name);
                     }
                     ObjectPatternProp::Renamed { key, value } => {
-                        transformed.push_str(&format!(",\n{}\t{} = tmp.{}", indent, value, key));
+                        let _ = write!(transformed, ",\n{}\t{} = tmp.{}", indent, value, key);
                     }
                     ObjectPatternProp::WithDefault { name, default } => {
-                        transformed.push_str(&format!(
-                            ",\n{}\t{} = tmp.{} ?? {}",
-                            indent, name, name, default
-                        ));
+                        let _ = write!(transformed, ",\n{}\t{} = tmp.{} ?? {}",
+                            indent, name, name, default);
                     }
                     ObjectPatternProp::RenamedWithDefault {
                         key,
                         value,
                         default,
                     } => {
-                        transformed.push_str(&format!(
-                            ",\n{}\t{} = tmp.{} ?? {}",
-                            indent, value, key, default
-                        ));
+                        let _ = write!(transformed, ",\n{}\t{} = tmp.{} ?? {}",
+                            indent, value, key, default);
                     }
                     ObjectPatternProp::Rest(name) => {
-                        transformed.push_str(&format!(",\n{}\t{} = tmp.{}", indent, name, name));
+                        let _ = write!(transformed, ",\n{}\t{} = tmp.{}", indent, name, name);
                     }
                 }
             }
@@ -4878,17 +4858,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         let sanitized_name = sanitize_identifier(&field.name);
         let private_name = format!("#{}", sanitized_name);
 
-        new_class_body.push_str(&format!("\t\t{};\n", private_name));
+        let _ = writeln!(new_class_body, "\t\t{};", private_name);
         new_class_body.push('\n');
-        new_class_body.push_str(&format!(
-            "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
-            field.name, private_name
-        ));
+        let _ = writeln!(new_class_body, "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}",
+            field.name, private_name);
         new_class_body.push('\n');
-        new_class_body.push_str(&format!(
-            "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}\n",
-            field.name, private_name
-        ));
+        let _ = writeln!(new_class_body, "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}",
+            field.name, private_name);
     }
 
     for member in &members {
@@ -4921,7 +4897,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 } else {
                     format!("{};", line)
                 };
-                new_class_body.push_str(&format!("\t\t{}\n", line_with_semi));
+                let _ = writeln!(new_class_body, "\t\t{}", line_with_semi);
                 for field in derived_fields
                     .iter()
                     .filter(|f| !f.constructor_declared && !f.is_private)
@@ -4937,15 +4913,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                             .is_some_and(|c| c.is_alphanumeric() || c == '_');
                     if is_exact_match {
                         new_class_body.push('\n');
-                        new_class_body.push_str(&format!(
-                            "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
-                            field.name, private_name
-                        ));
+                        let _ = writeln!(new_class_body, "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}",
+                            field.name, private_name);
                         new_class_body.push('\n');
-                        new_class_body.push_str(&format!(
-                            "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}\n",
-                            field.name, private_name
-                        ));
+                        let _ = writeln!(new_class_body, "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}",
+                            field.name, private_name);
                     }
                 }
             }
@@ -4997,8 +4969,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
 
                             if let Some(end) = value_end {
                                 let value = after_assign[..end].trim();
-                                new_transformed
-                                    .push_str(&format!("this.{}({});", private_name, value));
+                                let _ = write!(new_transformed, "this.{}({});", private_name, value);
                                 remaining = &after_assign[end + 1..];
                             } else {
                                 // No semicolon found, leave as-is
@@ -5267,17 +5238,13 @@ fn transform_inspect_to_console_log(script: &str) -> String {
 
                     if let Some(callback) = with_callback {
                         // $inspect(args).with(fn) => (fn)('init', args)
-                        result.push_str(&format!(
-                            "({})('init', {});\n",
+                        let _ = writeln!(result, "({})('init', {});",
                             callback.trim(),
-                            args_str.trim()
-                        ));
+                            args_str.trim());
                     } else {
                         // $inspect(args) => console.log('$inspect(', args, ')')
-                        result.push_str(&format!(
-                            "console.log('$inspect(', {}, ')');\n",
-                            args_str.trim()
-                        ));
+                        let _ = writeln!(result, "console.log('$inspect(', {}, ')');",
+                            args_str.trim());
                     }
                     i = end;
                     continue;
@@ -5654,12 +5621,10 @@ fn transform_reexported_prop_declarations(
                                 .iter()
                                 .find(|(local, _)| local == part_name)
                             {
-                                result.push_str(&format!(
-                                    "{}let {} = $$props['{}'];",
-                                    indent, part_name, prop_name
-                                ));
+                                let _ = write!(result, "{}let {} = $$props['{}'];",
+                                    indent, part_name, prop_name);
                             } else {
-                                result.push_str(&format!("{}let {};", indent, part_name));
+                                let _ = write!(result, "{}let {};", indent, part_name);
                             }
                             result.push('\n');
                         }
@@ -5669,10 +5634,8 @@ fn transform_reexported_prop_declarations(
                     reexported_props.iter().find(|(local, _)| local == name)
                 {
                     let indent = &line[..line.len() - trimmed.len()];
-                    result.push_str(&format!(
-                        "{}let {} = $$props['{}'];",
-                        indent, name, prop_name
-                    ));
+                    let _ = write!(result, "{}let {} = $$props['{}'];",
+                        indent, name, prop_name);
                     result.push('\n');
                     continue;
                 }

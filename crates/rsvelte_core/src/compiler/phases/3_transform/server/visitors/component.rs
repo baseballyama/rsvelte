@@ -529,7 +529,6 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Snippets are tuples of (name, params, body_parts, is_true_snippet)
     /// - is_true_snippet=true means it's a SnippetBlock (needs hoisting)
     /// - is_true_snippet=false means it's a slot child (inline in $$slots with destructured params)
-    #[allow(clippy::type_complexity)]
     pub(crate) fn generate_component_children_with_snippets(
         &mut self,
         fragment: &Fragment,

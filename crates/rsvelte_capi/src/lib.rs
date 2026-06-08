@@ -88,6 +88,8 @@ pub extern "C" fn rsvelte_version() -> *const c_char {
 /// `buf` must be a value previously returned by an `rsvelte_*` call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rsvelte_free(buf: RsvelteBuf) {
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     unsafe { rsvelte_free_raw(buf.data, buf.len, buf.cap) }
 }
 
@@ -128,9 +130,13 @@ pub unsafe extern "C" fn rsvelte_compile(
     options_json: *const u8,
     options_len: usize,
 ) -> RsvelteBuf {
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
         return error_envelope("source is not valid UTF-8 or pointer is null");
     };
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     let opts = match unsafe { parse_compile_options(options_json, options_len) } {
         Ok(o) => o,
         Err(msg) => return error_envelope(&msg),
@@ -155,9 +161,13 @@ pub unsafe extern "C" fn rsvelte_compile_module(
     options_json: *const u8,
     options_len: usize,
 ) -> RsvelteBuf {
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     let Some(source_str) = (unsafe { borrow_utf8(source, source_len) }) else {
         return error_envelope("source is not valid UTF-8 or pointer is null");
     };
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     let opts = match unsafe { parse_module_options(options_json, options_len) } {
         Ok(o) => o,
         Err(msg) => return error_envelope(&msg),
@@ -188,7 +198,11 @@ pub unsafe extern "C" fn rsvelte_compile_into(
     if out.is_null() {
         return;
     }
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     let buf = unsafe { rsvelte_compile(source, source_len, options_json, options_len) };
+    // SAFETY: `out` was null-checked above and is a writable `RsvelteBuf` per the
+    // caller's `# Safety` contract; `write` moves `buf` in without reading the old value.
     unsafe { std::ptr::write(out, buf) };
 }
 
@@ -208,7 +222,11 @@ pub unsafe extern "C" fn rsvelte_compile_module_into(
     if out.is_null() {
         return;
     }
+    // SAFETY: upheld by this function's documented `# Safety` contract
+    // (valid pointers/lengths and a writable out-pointer supplied by the caller).
     let buf = unsafe { rsvelte_compile_module(source, source_len, options_json, options_len) };
+    // SAFETY: `out` was null-checked above and is a writable `RsvelteBuf` per the
+    // caller's `# Safety` contract; `write` moves `buf` in without reading the old value.
     unsafe { std::ptr::write(out, buf) };
 }
 
@@ -304,6 +322,8 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     let raw: CapiCompileOptionsJson = if len == 0 {
         CapiCompileOptionsJson::default()
     } else {
+        // SAFETY: upheld by this function's documented `# Safety` contract
+        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
         let s = unsafe { borrow_utf8(ptr, len) }
             .ok_or_else(|| "options_json is not valid UTF-8".to_string())?;
         serde_json::from_str(s).map_err(|e| format!("options_json parse error: {e}"))?
@@ -418,6 +438,8 @@ unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompi
     let raw: CapiModuleCompileOptionsJson = if len == 0 {
         CapiModuleCompileOptionsJson::default()
     } else {
+        // SAFETY: upheld by this function's documented `# Safety` contract
+        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
         let s = unsafe { borrow_utf8(ptr, len) }
             .ok_or_else(|| "options_json is not valid UTF-8".to_string())?;
         serde_json::from_str(s).map_err(|e| format!("options_json parse error: {e}"))?

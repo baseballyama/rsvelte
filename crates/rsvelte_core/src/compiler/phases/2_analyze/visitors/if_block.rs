@@ -106,6 +106,10 @@ fn analyze_test_expression(
 ) -> Result<(), AnalysisError> {
     // Get the current expression metadata if set
     if let Some(metadata_ptr) = context.expression {
+        // SAFETY: `metadata_ptr` is the `*mut ExpressionMetadata` installed on the
+        // visit context by the enclosing if-block scope; it points at metadata on
+        // an AST node that outlives this single-threaded traversal, and that node
+        // is not otherwise borrowed here, so there is no aliasing.
         let metadata = unsafe { &mut *metadata_ptr };
 
         // Walk the JS AST to detect expression features

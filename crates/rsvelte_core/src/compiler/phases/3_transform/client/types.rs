@@ -7,6 +7,7 @@
 //! Corresponds to `ComponentContext` and `ComponentClientTransformState` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/types.js`.
 
+use std::fmt::Write as _;
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
@@ -1057,6 +1058,11 @@ impl<'a> ComponentContext<'a> {
                     // Use the memoizer callback: if expression has_call or has_await,
                     // memoize it and replace with $.get($N)
                     let memo_idx_start = memo_entries.len();
+                    // SAFETY: `JsArena` allocates via interior mutability
+                    // (`UnsafeCell`) with nodes behind stable `Box`es, so a
+                    // shared `&JsArena` stays valid while `self` is reborrowed
+                    // mutably in the closure. The arena outlives this borrow and
+                    // traversal is single-threaded, so there is no aliasing.
                     let arena_ref = unsafe { &*(&self.arena as *const _) };
                     let result = build_attribute_value(&attr.value, self, |value, metadata| {
                         let has_call = metadata.has_call();
@@ -2566,7 +2572,6 @@ pub struct IdentifierTransform {
     /// - identifier: The identifier being assigned to
     /// - value: The value being assigned
     /// - needs_proxy: Whether the value needs to be proxified
-    #[allow(clippy::type_complexity)]
     pub assign: Option<fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
 
     /// How to handle mutations to the identifier
@@ -2584,7 +2589,6 @@ pub struct IdentifierTransform {
     /// - operator: The update operator (++ or --)
     /// - argument: The identifier being updated
     /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
-    #[allow(clippy::type_complexity)]
     pub update: Option<fn(&JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
 
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
@@ -2678,7 +2682,7 @@ impl TemplateBuilder {
             && last.ends_with('>')
         {
             last.pop(); // Remove the '>'
-            last.push_str(&format!(" {}=\"{}\"", name, value));
+            let _ = write!(last, " {}=\"{}\"", name, value);
             last.push('>');
         }
     }
