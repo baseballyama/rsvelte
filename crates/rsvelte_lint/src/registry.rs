@@ -45,9 +45,11 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
 /// ESTree program rather than the template tree).
 pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_inner_declarations::NoInnerDeclarations;
+    use crate::rules::no_store_async::NoStoreAsync;
     use crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity;
     vec![
         Box::new(NoInnerDeclarations),
         Box::new(PreferSvelteReactivity),
+        Box::new(NoStoreAsync),
     ]
 }

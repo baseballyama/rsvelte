@@ -92,6 +92,7 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/prefer-svelte-reactivity",
         false,
     ),
+    ("no-store-async", "svelte/no-store-async", false),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
@@ -109,6 +110,10 @@ const SKIP: &[&str] = &[
     // semantics). rsvelte mirrors the ESLint ≥9 rule, exercised by the
     // sibling non-`v8` fixtures.
     "no-inner-declarations/invalid/v8",
+    // `prefer-svelte-reactivity` exported-instance fixtures are `.svelte.js`
+    // modules exercising the export path (flag exported `new X()` even without
+    // mutation), which is not ported — the mutation path covers the rest.
+    "prefer-svelte-reactivity/invalid/exports",
 ];
 
 /// One expected error from a `*-errors.yaml` file.
@@ -158,8 +163,10 @@ fn collect_inputs(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 fn is_input(name: &str) -> bool {
-    let is_svelte = name.ends_with(".svelte") || name.ends_with(".svelte.ts");
-    if !is_svelte {
+    // `.svelte` components plus standalone JS/TS module fixtures
+    // (`*.svelte.js`, `*.svelte.ts`, `*.js`, `*.ts`).
+    let is_lintable = name.ends_with(".svelte") || name.ends_with(".js") || name.ends_with(".ts");
+    if !is_lintable {
         return false;
     }
     // stem (minus all extensions) ends with `input`, or a SvelteKit `+page` etc.
@@ -250,20 +257,21 @@ fn svelte5_in_range(range: &str) -> bool {
     !(r.contains('3') || r.contains('4'))
 }
 
-fn findings_for(source: &str, code: &str, options: &Option<Value>) -> Vec<Diagnostic> {
+fn findings_for(source: &str, file: &Path, code: &str, options: &Option<Value>) -> Vec<Diagnostic> {
     let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
     if let Some(opts) = options {
         cfg = cfg.with_options(code, opts.clone());
     }
-    lint_source(
-        source,
-        &PathBuf::from("Fixture.svelte"),
-        &CompileOptions::default(),
-        &cfg,
-    )
-    .into_iter()
-    .filter(|d| d.code.as_deref() == Some(code))
-    .collect()
+    // Use the fixture's real filename so the linter classifies `.js`/`.ts`
+    // module fixtures (not just `.svelte` components) correctly.
+    let name = file
+        .file_name()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("Fixture.svelte"));
+    lint_source(source, &name, &CompileOptions::default(), &cfg)
+        .into_iter()
+        .filter(|d| d.code.as_deref() == Some(code))
+        .collect()
 }
 
 /// `(line, column-1-based, message)` for an emitted diagnostic.
@@ -301,7 +309,7 @@ fn oracle_strict_parity() {
             let Ok(src) = std::fs::read_to_string(&input) else {
                 continue;
             };
-            let found = findings_for(&src, code, &load_options(&input));
+            let found = findings_for(&src, &input, code, &load_options(&input));
             checked += 1;
             if !found.is_empty() {
                 failures.push(format!(
@@ -338,10 +346,11 @@ fn oracle_strict_parity() {
                 .iter()
                 .map(|e| (e.line, e.column, e.message.clone()))
                 .collect();
-            let mut act: Vec<(u32, u32, String)> = findings_for(&src, code, &load_options(&input))
-                .iter()
-                .map(actual_tuple)
-                .collect();
+            let mut act: Vec<(u32, u32, String)> =
+                findings_for(&src, &input, code, &load_options(&input))
+                    .iter()
+                    .map(actual_tuple)
+                    .collect();
             exp.sort();
             act.sort();
             if exp != act {
