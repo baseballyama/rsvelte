@@ -125,6 +125,85 @@ fn get_expression_range(expr: &crate::ast::js::Expression) -> Option<(u32, u32)>
     Some((start, end))
 }
 
+/// For a Svelte 5 function binding `bind:prop={getFn, setFn}`, the directive
+/// value is a `SequenceExpression` of exactly two expressions (the getter and
+/// the setter). Returns the source byte ranges of the getter and setter,
+/// `((get_start, get_end), (set_start, set_end))`.
+///
+/// The template-expression arena isn't resolvable in the svelte2tsx parse
+/// path (`expr.as_json()` yields no children), so the split is done on the
+/// source text by scanning for the first top-level comma — the comma that
+/// separates the two expressions in `getFn, setFn`. This mirrors the
+/// `isGetSetBinding` branch in upstream `htmlxtojsx_v2/nodes/Binding.ts`,
+/// which reads `attr.expression.expressions[0]`/`[1]`.
+fn get_set_binding_ranges(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+) -> Option<((u32, u32), (u32, u32))> {
+    if expr.node_type() != Some("SequenceExpression") {
+        return None;
+    }
+    let (start, end) = get_expression_range(expr)?;
+    let (us, ue) = (start as usize, end as usize);
+    if ue > source.len() || us >= ue {
+        return None;
+    }
+    let text = &source[us..ue];
+    let bytes = text.as_bytes();
+    let mut depth: i32 = 0;
+    let mut string: Option<u8> = None; // active quote char: ' " `
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => string = Some(c),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => {
+                // Top-level comma: getter is [start, here), setter is
+                // (here, end). Trim surrounding whitespace from each half so
+                // the emitted ranges line up with the actual expressions.
+                let get_end = us + i;
+                let set_start = us + i + 1;
+                let get = trim_range(source, us, get_end)?;
+                let set = trim_range(source, set_start, ue)?;
+                return Some((get, set));
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Trim leading/trailing ASCII whitespace from a `[start, end)` source range,
+/// returning the tightened `(start, end)` (or `None` if empty after trimming).
+fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32, u32)> {
+    let bytes = source.as_bytes();
+    while start < end && bytes[start].is_ascii_whitespace() {
+        start += 1;
+    }
+    while end > start && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    if start >= end {
+        None
+    } else {
+        Some((start as u32, end as u32))
+    }
+}
+
 /// Get the expression source text from the original source.
 fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     if let Some((start, end)) = get_expression_range(expr) {
@@ -238,6 +317,35 @@ fn segs_trim_start(segs: &mut Vec<Seg>) {
 /// Invariants on `segments` (debug-asserted):
 ///   - `Src(s, e)` ranges appear in strictly increasing order.
 ///   - Each `Src(s, e)` lies within `[range_start, range_end]`.
+/// Reorder-safe pre-pass for [`emit_segmented_overwrite`], which requires
+/// `Seg::Src` ranges to appear in ascending source order (a MagicString can
+/// only overwrite left-to-right). When a later segment references an earlier
+/// source position — e.g. a `class:` / `style:` directive expression that #750
+/// hoisted into the opener *suffix*, emitted *after* a following shorthand
+/// attribute's preserved chunk (`<div style:color={b} {onclick}>`, #779) — bake
+/// that out-of-order `Src` into a literal substring so the output stays valid
+/// TSX. The common in-order case is left untouched, preserving the per-character
+/// source mapping; only the rare hoisted-then-overtaken expression loses its
+/// independent mapping (it becomes baked text in the suffix statement).
+fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
+    let mut last_end: u32 = 0;
+    let mut out: Vec<Seg> = Vec::with_capacity(segs.len());
+    for seg in segs {
+        match seg {
+            Seg::Src(s, e) if s >= last_end && s < e => {
+                last_end = e;
+                out.push(Seg::Src(s, e));
+            }
+            Seg::Src(s, e) => {
+                let text = source.get(s as usize..e as usize).unwrap_or("").to_string();
+                out.push(Seg::Lit(text));
+            }
+            lit => out.push(lit),
+        }
+    }
+    out
+}
+
 fn emit_segmented_overwrite(
     str: &mut MagicString,
     range_start: u32,
@@ -1324,7 +1432,18 @@ fn handle_await_block(
                 if expr_end < pending_start {
                     str.overwrite(expr_end, pending_start, "");
                 }
-                str.prepend_right(expr_start, "const $$_value = await (");
+                // When a `catch` (or error variable) is present, the await
+                // must be wrapped in a `try {` so the later `} catch(...) {`
+                // is balanced. Mirrors upstream `handleAwait` emitting
+                // `try { ` whenever `error || !catch.skip`.
+                str.prepend_right(
+                    expr_start,
+                    if has_catch {
+                        "try { const $$_value = await ("
+                    } else {
+                        "const $$_value = await ("
+                    },
+                );
                 let suffix = if !value_text.is_empty() {
                     format!(");{{ const {} = $$_value; ", value_text)
                 } else {
@@ -1340,20 +1459,22 @@ fn handle_await_block(
                 // the original monolithic bake.
                 str.overwrite(block.start, pending_start, "   { ");
                 process_fragment_inplace(pending, source, options, str, counter);
+                // `try { ` wrapper when a catch/error is present (see above).
+                let try_prefix = if has_catch { "try { " } else { "" };
                 if !value_text.is_empty() {
                     str.overwrite(
                         prev_end,
                         then_start,
                         &format!(
-                            "const $$_value = await ({});{{ const {} = $$_value; ",
-                            expr_text, value_text
+                            "{}const $$_value = await ({});{{ const {} = $$_value; ",
+                            try_prefix, expr_text, value_text
                         ),
                     );
                 } else {
                     str.overwrite(
                         prev_end,
                         then_start,
-                        &format!("const $$_value = await ({});{{ ", expr_text),
+                        &format!("{}const $$_value = await ({});{{ ", try_prefix, expr_text),
                     );
                 }
             }
@@ -1384,7 +1505,11 @@ fn handle_await_block(
                         ),
                     );
                 } else {
-                    str.overwrite(then_end, catch_start, "}}} catch {");
+                    // Variable-less `{:catch}` — close the value block + `try`
+                    // (two `}`) and open the catch. Always emit the `($$_e)`
+                    // binding so the braces stay balanced and the shape matches
+                    // the with-variable case; upstream does the same.
+                    str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
                 }
 
                 process_fragment_inplace(catch, source, options, str, counter);
@@ -1410,14 +1535,55 @@ fn handle_await_block(
                 }
             }
         } else {
-            // No then after pending
+            // No `:then` after the pending block. Covers
+            // `{#await p}pending{/await}` (pending only) and
+            // `{#await p}pending{:catch e}…{/await}` (pending + catch, no then).
+            // Previously this branch emitted only a trailing `}` — it never
+            // opened the block, dropped the `await(promise)` entirely, and
+            // ignored the catch, producing brace-unbalanced / invalid TSX.
+            // Mirror upstream `handleAwait`: `{ <pending> [try {] await(p);
+            // [} catch($$_e) { … }] }`.
             let pending_end = if !pending.nodes.is_empty() {
                 pending.nodes.last().unwrap().end()
             } else {
                 pending_start
             };
-            if pending_end < block.end {
-                str.overwrite(pending_end, block.end, "}");
+
+            // Opening `{ ` — consume the `{#await PROMISE}` opener (PROMISE is
+            // re-emitted as `await(...)` after the pending body).
+            str.overwrite(block.start, pending_start, "   { ");
+            process_fragment_inplace(pending, source, options, str, counter);
+
+            if let Some(ref catch) = block.catch {
+                let catch_start = if !catch.nodes.is_empty() {
+                    catch.nodes[0].start()
+                } else {
+                    block.end
+                };
+                let header = if !error_text.is_empty() {
+                    format!(
+                        "try {{ await ({});}} catch($$_e) {{ const {} = __sveltets_2_any();",
+                        expr_text, error_text
+                    )
+                } else {
+                    format!("try {{ await ({});}} catch($$_e) {{ ", expr_text)
+                };
+                if pending_end < catch_start {
+                    str.overwrite(pending_end, catch_start, &header);
+                } else {
+                    str.append_left(pending_end, &header);
+                }
+                process_fragment_inplace(catch, source, options, str, counter);
+                let catch_end = if !catch.nodes.is_empty() {
+                    catch.nodes.last().unwrap().end()
+                } else {
+                    catch_start
+                };
+                if catch_end < block.end {
+                    str.overwrite(catch_end, block.end, "}}");
+                }
+            } else if pending_end < block.end {
+                str.overwrite(pending_end, block.end, &format!("await ({});}}", expr_text));
             }
         }
     } else if has_then {
@@ -1498,7 +1664,11 @@ fn handle_await_block(
                     ),
                 );
             } else {
-                str.overwrite(then_end, catch_start, "}}} catch {");
+                // Variable-less `{:catch}` — close the value block + `try`
+                // (two `}`) and open the catch. Always emit the `($$_e)`
+                // binding so the braces stay balanced and the shape matches
+                // the with-variable case; upstream does the same.
+                str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
             }
 
             process_fragment_inplace(catch, source, options, str, counter);
@@ -1532,7 +1702,7 @@ fn handle_await_block(
                     error_text
                 )
             } else {
-                ");} catch {".to_string()
+                ");} catch($$_e) { ".to_string()
             },
         );
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
@@ -1555,7 +1725,7 @@ fn handle_await_block(
             str.overwrite(
                 block.start,
                 catch_start,
-                &format!("   {{ try {{ await ({});}} catch {{", expr_text),
+                &format!("   {{ try {{ await ({});}} catch($$_e) {{ ", expr_text),
             );
         }
 
@@ -1638,6 +1808,36 @@ fn handle_snippet_block(
     str: &mut MagicString,
     counter: &mut Counter,
 ) {
+    handle_snippet_block_inner(block, source, options, str, counter, false);
+}
+
+/// Transform a `{#snippet name(params)}` block that is a direct child of a
+/// component into an **implicit prop**: `name:(params) => { async () => { …body…
+/// };return __sveltets_2_any(0)},`. Unlike the standalone form there is no
+/// leading `const`, no `: ReturnType<…>` annotation, and the closing ends in a
+/// `,` so the result drops straight into the component's `props: { … }` object
+/// literal (the caller relocates the range there via `move_range`). This mirrors
+/// upstream svelte2tsx `addImplicitSnippetProp`, and lets TypeScript
+/// contextually type the snippet's parameters from the prop's `Snippet<[T]>`
+/// type while satisfying required snippet props (#780).
+fn handle_snippet_block_as_component_prop(
+    block: &SnippetBlock,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    handle_snippet_block_inner(block, source, options, str, counter, true);
+}
+
+fn handle_snippet_block_inner(
+    block: &SnippetBlock,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+    as_component_prop: bool,
+) {
     if block.start >= block.end {
         return;
     }
@@ -1678,7 +1878,17 @@ fn handle_snippet_block(
         (true, Some(tp)) => format!("<{}>", tp),
         _ => String::new(),
     };
-    let header = if use_ts_syntax {
+    // Implicit-prop form (`name:(params) => …`) vs standalone declaration
+    // (`const name = (params): ReturnType<…> => …`). The implicit form omits the
+    // leading `const`, the return-type annotation, and the generic `<typeParams>`
+    // — mirroring upstream's `addImplicitSnippetProp` transforms — and closes
+    // with a trailing `,` so it slots into the component `props` object literal.
+    let header = if as_component_prop {
+        format!(
+            "{}:({}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            name_text, params_text
+        )
+    } else if use_ts_syntax {
         format!(
             "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
             name_text, type_params_str, params_text
@@ -1692,6 +1902,11 @@ fn handle_snippet_block(
             name_text, params_text
         )
     };
+    let closing = if as_component_prop {
+        "};return __sveltets_2_any(0)},"
+    } else {
+        "};return __sveltets_2_any(0)};"
+    };
     if has_body_nodes {
         str.overwrite(block.start, body_start, &header);
         // Process body
@@ -1700,7 +1915,7 @@ fn handle_snippet_block(
         let body_end = block.body.nodes.last().unwrap().end();
         if body_end < block.end {
             // Overwrite `{/snippet}` with closing
-            str.overwrite(body_end, block.end, "};return __sveltets_2_any(0)};");
+            str.overwrite(body_end, block.end, closing);
         }
     } else {
         // Empty body: collapse the whole `{#snippet name(params)}{/snippet}`
@@ -1708,7 +1923,7 @@ fn handle_snippet_block(
         // `};return __sveltets_2_any(0)};` was never emitted because both the
         // body-start overwrite and the would-be closing overwrite landed at
         // the same offset.
-        let combined = format!("{}}};return __sveltets_2_any(0)}};", header);
+        let combined = format!("{}{}", header, closing);
         str.overwrite(block.start, block.end, &combined);
     }
 }
@@ -1809,10 +2024,17 @@ fn handle_regular_element(
         options.is_ts_file,
     );
 
-    // When all surviving props are empty but a `bind:` directive was
-    // stripped, JS reference still leaves whitespace inside `{ }`. Add a
-    // single space so `createElement("div", { })` matches.
-    if segs_is_empty(&attr_segs) && !bind_suffix.is_empty() {
+    // `class:` / `style:` directives are lowered to statements appended after
+    // the `createElement(...)` call (NOT as typed props keys). See
+    // `build_class_style_directive_suffix_segments`.
+    let class_style_suffix_segs =
+        build_class_style_directive_suffix_segments(&el.attributes, source);
+
+    // When all surviving props are empty but a `bind:` / `class:` / `style:`
+    // directive was stripped, JS reference still leaves whitespace inside
+    // `{ }`. Add a single space so `createElement("div", { })` matches.
+    if segs_is_empty(&attr_segs) && (!bind_suffix.is_empty() || !class_style_suffix_segs.is_empty())
+    {
         attr_segs.push(Seg::Lit(" ".into()));
     }
 
@@ -1826,27 +2048,32 @@ fn handle_regular_element(
     } else {
         String::new()
     };
-    let (header_lit, trailer_lit) = if !directive_prefix.is_empty() {
-        (
-            format!(
-                " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
-                directive_prefix, element_var_decl, el.name, actions_arg,
-            ),
-            format!("}});{}{}", directive_suffix, bind_suffix),
+    let header_lit = if !directive_prefix.is_empty() {
+        format!(
+            " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            directive_prefix, element_var_decl, el.name, actions_arg,
         )
     } else {
-        (
-            format!(
-                " {{ {}svelteHTML.createElement(\"{}\"{}, {{",
-                element_var_decl, el.name, actions_arg,
-            ),
-            format!("}});{}{}", directive_suffix, bind_suffix),
+        format!(
+            " {{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            element_var_decl, el.name, actions_arg,
         )
     };
-    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+    // The trailer closes the props object + createElement call (`}});`), then
+    // appends the `class:` / `style:` directive statements (segmented, so their
+    // expression chunks keep their source mapping), then the transition/animate
+    // (`directive_suffix`) and `bind:` (`bind_suffix`) suffixes.
+    let mut opener_segs: Vec<Seg> =
+        Vec::with_capacity(attr_segs.len() + class_style_suffix_segs.len() + 3);
     opener_segs.push(Seg::Lit(header_lit));
     opener_segs.extend(attr_segs);
-    opener_segs.push(Seg::Lit(trailer_lit));
+    // Close the props object + createElement call: `});` (one `}` for the
+    // props brace, then `)` + `;`). The outer block `{` is closed after the
+    // children by the closing-tag overwrite.
+    opener_segs.push(Seg::Lit("});".to_string()));
+    opener_segs.extend(class_style_suffix_segs);
+    opener_segs.push(Seg::Lit(format!("{}{}", directive_suffix, bind_suffix)));
+    let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
     // Process children
@@ -1923,6 +2150,21 @@ fn handle_component(
     // - there are children with slot="name" that have let: directives
     let needs_instance = has_events || has_lets || children_have_named_slots;
 
+    // Named `{#snippet}` blocks that are direct children of a component are
+    // passed as *implicit props* (`props: { name: (params) => … }`), not as
+    // standalone `const name = …` declarations, so that TypeScript both
+    // satisfies required snippet props and contextually types the snippet's
+    // parameters from the prop's `Snippet<[T]>` type (#780). This relocation is
+    // only wired through the simple-children path; when the component also uses
+    // `let:` / named slots the children go through `process_component_children_with_slots`,
+    // which owns its own block scoping, so the snippets stay standalone there.
+    let use_snippet_props = !(has_lets || children_have_named_slots)
+        && comp
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+
     // Check if Svelte 5 children prop is needed
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
 
@@ -1993,6 +2235,17 @@ fn handle_component(
                     out.push_str(&format!("{} = {};", expr_text, inst_var));
                     continue;
                 }
+                if get_set_binding_ranges(&bind.expression, source).is_some() {
+                    // Function binding `bind:foo={getFn, setFn}`: the get/set
+                    // pair is already type-checked via
+                    // `__sveltets_2_get_set_binding(...)` in the props literal,
+                    // so the `() => expr = __sveltets_2_any(null)` type-widener
+                    // is skipped (mirrors the `if (!isGetSetBinding)` guard in
+                    // upstream `handleBinding`). Only the `$$bindings` marker
+                    // is emitted.
+                    out.push_str(&format!("{}.$$bindings = '{}';", inst_var, bind.name));
+                    continue;
+                }
                 let expr_text = get_expression_text(&bind.expression, source);
                 out.push_str(&format!(
                     "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
@@ -2027,7 +2280,13 @@ fn handle_component(
     let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
     opener_segs.push(Seg::Lit(header_lit));
     opener_segs.extend(attr_segs);
-    opener_segs.push(Seg::Lit(trailer_lit));
+    if !use_snippet_props {
+        // The snippet-prop path leaves the `props: { … ` object literal open so
+        // the relocated `{#snippet}` props can be appended inside it; the trailer
+        // (which closes the object) is emitted after the moves (see below).
+        opener_segs.push(Seg::Lit(trailer_lit.clone()));
+    }
+    let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
 
     // Handle closing tag
@@ -2046,6 +2305,48 @@ fn handle_component(
             str,
             counter,
         );
+    } else if use_snippet_props {
+        // Process children, turning each direct `{#snippet}` child into an
+        // implicit prop relocated into the still-open `props: { … }` object.
+        //
+        // `move_range(s.start, s.end, anchor)` detaches the transformed snippet
+        // chunk and re-links it immediately before the chunk that *starts* at
+        // `anchor`. Moving snippets in source order to a fixed `anchor` preserves
+        // their order (each new one lands right before the anchor chunk, i.e.
+        // after the previously moved one). A leading run of snippets that sit
+        // natively at the anchor (no intervening whitespace) is already in the
+        // right place — moving them would be a no-op self-move (which the API
+        // forbids) — so we just advance the anchor past them. The trailer that
+        // closes the props object is appended after the final snippet.
+        let mut anchor = opening_tag_end;
+        let mut last_snippet_end: Option<u32> = None;
+        for node in &comp.fragment.nodes {
+            if let TemplateNode::SnippetBlock(s) = node {
+                if s.start >= s.end {
+                    continue;
+                }
+                handle_snippet_block_as_component_prop(s, source, options, str, counter);
+                if s.start == anchor {
+                    anchor = s.end;
+                } else {
+                    str.move_range(s.start, s.end, anchor);
+                }
+                last_snippet_end = Some(s.end);
+            } else {
+                process_node_inplace(node, source, options, str, counter);
+            }
+        }
+        // Close the props object right after the last relocated snippet.
+        match last_snippet_end {
+            Some(end) => {
+                str.append_left(end, &trailer_lit);
+            }
+            None => {
+                // No usable snippet after all (e.g. only empty-named blocks);
+                // close the props object at the opening-tag boundary.
+                str.prepend_right(opening_tag_end, &trailer_lit);
+            }
+        }
     } else {
         // Simple children processing (no slot scoping needed)
         process_fragment_inplace(&comp.fragment, source, options, str, counter);
@@ -2102,6 +2403,14 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
                     }
                 }
             }
+            // `{#snippet}` blocks are passed as implicit *props*, not as
+            // default-slot content, so they must not trigger the synthetic
+            // `children` prop (which would otherwise produce a false
+            // `'children' does not exist in type '$$ComponentProps'`).
+            // Comments are likewise ignorable. Mirrors upstream
+            // `handleImplicitChildren`, which skips `SnippetBlock` / `Comment`
+            // and only fakes a `children` prop for a real default-slot child.
+            TemplateNode::SnippetBlock(_) | TemplateNode::Comment(_) => {}
             _ => return true,
         }
     }
@@ -3072,15 +3381,15 @@ fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: 
                 push_with_separator(&mut segs, part);
                 any_pushed = true;
             }
-            Attribute::ClassDirective(class) => {
-                let part = format_class_directive_segments(class, source);
-                push_with_separator(&mut segs, part);
-                any_pushed = true;
-            }
-            Attribute::StyleDirective(style) => {
-                let part = format_style_directive_segments(style, source);
-                push_with_separator(&mut segs, part);
-                any_pushed = true;
+            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
+                // `class:`/`style:` are directives, not attributes — they must
+                // NOT be emitted as `HTMLProps` keys (the props object is
+                // type-checked against `HTMLProps<tag, …>`, which has no
+                // `class:NAME` / `style:PROP` keys, so they would trip the
+                // excess-property check). They are lowered to statements
+                // appended *after* the `createElement(...)` call by
+                // `build_class_style_directive_suffix_segments`, mirroring
+                // upstream `htmlxtojsx_v2/nodes/{Class,StyleDirective}.ts`.
             }
             Attribute::TransitionDirective(_)
             | Attribute::UseDirective(_)
@@ -3276,7 +3585,21 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 // Component-side bind:foo={expr} → foo:expr, (no quotes,
                 // no `bind:` prefix). Mirrors the JS reference.
                 segs_push_lit(&mut inner, &format!("{}:", bind.name));
-                if let Some((s, e)) = get_expression_range(&bind.expression) {
+                if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source)
+                {
+                    // Svelte 5 function binding `bind:foo={getFn, setFn}` →
+                    // `foo:__sveltets_2_get_set_binding(getFn, setFn),` so both
+                    // callables are type-checked against the bindable prop type
+                    // (mirrors `handleBinding`'s `isGetSetBinding` branch in
+                    // `htmlxtojsx_v2/nodes/Binding.ts`). Splicing the raw
+                    // `getFn, setFn` tuple into the props literal would produce
+                    // invalid TSX (issue #726).
+                    segs_push_lit(&mut inner, "__sveltets_2_get_set_binding(");
+                    segs_push_src(&mut inner, gs, ge);
+                    segs_push_lit(&mut inner, ",");
+                    segs_push_src(&mut inner, ss, se);
+                    segs_push_lit(&mut inner, ")");
+                } else if let Some((s, e)) = get_expression_range(&bind.expression) {
                     segs_push_src(&mut inner, s, e);
                 } else {
                     segs_push_lit(&mut inner, get_expression_text(&bind.expression, source));
@@ -3519,7 +3842,16 @@ fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> O
 fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
     segs_push_lit(&mut out, &format!("\"bind:{}\":", bind.name));
-    if let Some((s, e)) = get_expression_range(&bind.expression) {
+    if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+        // Svelte 5 function binding on an element: `bind:value={getFn, setFn}`
+        // → `"bind:value":__sveltets_2_get_set_binding(getFn, setFn),`
+        // (mirrors the `isGetSetBinding` branch in upstream Binding.ts).
+        segs_push_lit(&mut out, "__sveltets_2_get_set_binding(");
+        segs_push_src(&mut out, gs, ge);
+        segs_push_lit(&mut out, ",");
+        segs_push_src(&mut out, ss, se);
+        segs_push_lit(&mut out, ")");
+    } else if let Some((s, e)) = get_expression_range(&bind.expression) {
         segs_push_src(&mut out, s, e);
     } else {
         segs_push_lit(&mut out, get_expression_text(&bind.expression, source));
@@ -3542,6 +3874,83 @@ fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
     } else {
         // Event forwarding has no expression to preserve.
         segs_push_lit(&mut out, &format!("\"on:{}\":undefined,", on.name));
+    }
+    out
+}
+
+/// Lower `class:` / `style:` directives as statements appended *after* the
+/// element's `svelteHTML.createElement(...)` call, instead of as keys in the
+/// (typed) props object. Mirrors upstream `htmlxtojsx_v2/nodes/Class.ts`
+/// (`class:xx={yyy}` → `yyy;`) and `StyleDirective.ts`
+/// (`style:xx={yy}` → `__sveltets_2_ensureType(String, Number, yy);`). The
+/// expression chunks are preserved as `Seg::Src` so type errors map back to
+/// the original column.
+fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source: &str) -> Vec<Seg> {
+    let mut out: Vec<Seg> = Vec::new();
+    for attr in attributes {
+        match attr {
+            Attribute::ClassDirective(class) => {
+                // `class:xx={expr}` → ` expr;` — type-check the toggle
+                // expression as a standalone statement.
+                segs_push_lit(&mut out, " ");
+                if let Some((s, e)) = get_expression_range(&class.expression) {
+                    segs_push_src(&mut out, s, e);
+                } else {
+                    segs_push_lit(&mut out, get_expression_text(&class.expression, source));
+                }
+                segs_push_lit(&mut out, ";");
+            }
+            Attribute::StyleDirective(style) => {
+                // `style:xx={expr}` → ` __sveltets_2_ensureType(String, Number, expr);`
+                segs_push_lit(&mut out, " __sveltets_2_ensureType(String, Number, ");
+                match &style.value {
+                    AttributeValue::True(_) => {
+                        // Shorthand `style:color` → `…, color);` (implicit
+                        // reference to the `color` binding; synthesised from
+                        // the directive name, so no source range to pin).
+                        segs_push_lit(&mut out, &style.name);
+                    }
+                    AttributeValue::Expression(expr) => {
+                        if let Some((s, e)) = get_expression_range(&expr.expression) {
+                            segs_push_src(&mut out, s, e);
+                        } else {
+                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                        }
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        // `style:xx="a{b}"` → a template string `` `a${b}` ``.
+                        segs_push_lit(&mut out, "`");
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    let escaped = text
+                                        .raw
+                                        .replace('\\', "\\\\")
+                                        .replace('`', "\\`")
+                                        .replace('$', "\\$");
+                                    segs_push_lit(&mut out, &escaped);
+                                }
+                                AttributeValuePart::ExpressionTag(expr) => {
+                                    segs_push_lit(&mut out, "${");
+                                    if let Some((s, e)) = get_expression_range(&expr.expression) {
+                                        segs_push_src(&mut out, s, e);
+                                    } else {
+                                        segs_push_lit(
+                                            &mut out,
+                                            get_expression_text(&expr.expression, source),
+                                        );
+                                    }
+                                    segs_push_lit(&mut out, "}");
+                                }
+                            }
+                        }
+                        segs_push_lit(&mut out, "`");
+                    }
+                }
+                segs_push_lit(&mut out, ");");
+            }
+            _ => {}
+        }
     }
     out
 }
@@ -3677,8 +4086,18 @@ fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<Str
     Some(format!("...{},", expr_text))
 }
 
-/// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`
+/// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`. A Svelte
+/// 5 function binding `bind:name={getFn, setFn}` becomes
+/// `"bind:name":__sveltets_2_get_set_binding(getFn, setFn),`.
 fn format_bind_directive(bind: &BindDirective, source: &str) -> String {
+    if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+        return format!(
+            "\"bind:{}\":__sveltets_2_get_set_binding({},{}),",
+            bind.name,
+            &source[gs as usize..ge as usize],
+            &source[ss as usize..se as usize],
+        );
+    }
     let expr_text = get_expression_text(&bind.expression, source);
     format!("\"bind:{}\":{},", bind.name, expr_text)
 }
@@ -3759,6 +4178,24 @@ fn build_bind_directive_suffix(
         let Attribute::BindDirective(bind) = attr else {
             continue;
         };
+        // Svelte 5 function binding `bind:foo={getFn, setFn}`: the get/set
+        // pair is checked via `__sveltets_2_get_set_binding(...)` in the
+        // attribute list, so the one-way / group / generic type-widener
+        // suffixes (all guarded by `if (!isGetSetBinding)` upstream) are
+        // skipped. `bind:this={getFn, setFn}` instead invokes the setter
+        // with the element instance: `(setFn)(var);` (mirrors Binding.ts).
+        if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+            if bind.name == "this" {
+                if let Some(var) = element_var {
+                    out.push_str(&format!(
+                        "({})({});",
+                        &source[ss as usize..se as usize],
+                        var
+                    ));
+                }
+            }
+            continue;
+        }
         let expr_text = get_expression_text(&bind.expression, source);
         if bind.name == "this" {
             if let Some(var) = element_var {

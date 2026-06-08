@@ -28,12 +28,14 @@
 use oxc_formatter::JsFormatOptions;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment, IfBlock,
     SpreadAttribute, TemplateNode,
 };
+use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::expression::format_expression_source;
+use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
 /// Walk a `Fragment` recursively and append open-tag rewrite edits for
@@ -168,9 +170,23 @@ fn collect_node_open_tag_edits(
         // Blocks have child fragments but no attributes themselves.
         // Their bodies are conceptually one level deeper than the block.
         TemplateNode::IfBlock(blk) => {
-            collect_open_tag_edits(source, &blk.consequent, depth + 1, options, edits)?;
-            if let Some(alt) = &blk.alternate {
-                collect_open_tag_edits(source, alt, depth + 1, options, edits)?;
+            // `{:else if}` chains stay at the same depth as the opening `{#if}`
+            // (svelte nests them as `elseif` IfBlocks in the alternate); follow
+            // the chain instead of recursing so attributes don't gain an extra
+            // indent level per branch. See `indent.rs::else_if_branch`.
+            let mut current: &IfBlock = blk;
+            loop {
+                collect_open_tag_edits(source, &current.consequent, depth + 1, options, edits)?;
+                match &current.alternate {
+                    Some(alt) => match else_if_branch(alt) {
+                        Some(chained) => current = chained,
+                        None => {
+                            collect_open_tag_edits(source, alt, depth + 1, options, edits)?;
+                            break;
+                        }
+                    },
+                    None => break,
+                }
             }
         }
         TemplateNode::EachBlock(blk) => {
@@ -468,7 +484,9 @@ fn render_multi_line(
         // …) is formatted at column 0 by the delegated expression formatter;
         // re-indent its continuation lines to the attribute column so they
         // align under the attribute instead of collapsing to column 0 (#692).
-        out.push_str(&reindent_continuation(a, &inner_indent));
+        // `skip_first` leaves the value's first line alone — the attribute
+        // indent was already emitted before it.
+        out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
     }
     out.push('\n');
     out.push_str(&outer_indent);
@@ -477,197 +495,6 @@ fn render_multi_line(
     } else {
         out.push('>');
     }
-    out
-}
-
-/// One level of the scanner stack used by [`reindent_continuation`]. We only
-/// need to know whether a line begins inside template-literal *quasi* text
-/// (raw string content) versus ordinary code — the latter is re-indented, the
-/// former is left verbatim.
-enum AttrFrame {
-    /// Inside `` `…` `` quasi text (between backticks, outside `${}`).
-    Template,
-    /// Inside a `${ … }` substitution. The `u32` is the `{`-nesting depth
-    /// within the substitution, so the matching `}` is recognised.
-    Subst(u32),
-}
-
-/// Prefix every continuation line (every line after the first) of a rendered
-/// attribute value with `indent`, so a multi-line expression aligns under its
-/// attribute in the multi-line tag layout. The first line is left alone — the
-/// caller has already emitted the attribute indent before it. Empty lines are
-/// not indented (no trailing whitespace). See #692.
-///
-/// Lines that begin *inside* multi-line template-literal quasi text are left
-/// verbatim — their leading whitespace is part of the runtime string value, so
-/// re-indenting them would both mutate the string and make formatting
-/// non-idempotent (every pass would add another level) (#698). The scanner
-/// tracks template-literal / `${}` nesting plus string and comment context so
-/// backticks, `${`, and braces inside strings or comments aren't misread.
-fn reindent_continuation(rendered: &str, indent: &str) -> String {
-    if !rendered.contains('\n') {
-        return rendered.to_string();
-    }
-    let chars: Vec<char> = rendered.chars().collect();
-    let n = chars.len();
-    let mut out = String::with_capacity(rendered.len() + indent.len() * 2);
-    let mut stack: Vec<AttrFrame> = Vec::new();
-    let mut line_comment = false;
-    let mut block_comment = false;
-    let mut string: Option<char> = None;
-    // The first line is emitted without an indent prefix (the caller already
-    // wrote the attribute indent before it), so we start past the line-start
-    // handling for line 0.
-    let mut at_line_start = false;
-    let mut i = 0;
-
-    while i < n {
-        let c = chars[i];
-
-        if at_line_start {
-            let in_quasi = matches!(stack.last(), Some(AttrFrame::Template));
-            if c != '\n' && !in_quasi {
-                out.push_str(indent);
-            }
-            at_line_start = false;
-        }
-
-        // Line comment: runs to end of line.
-        if line_comment {
-            out.push(c);
-            i += 1;
-            if c == '\n' {
-                line_comment = false;
-                at_line_start = true;
-            }
-            continue;
-        }
-
-        // Block comment: runs to `*/`. Interior lines are still re-indented
-        // (code context), matching the expression formatter's own alignment.
-        if block_comment {
-            if c == '*' && chars.get(i + 1) == Some(&'/') {
-                out.push('*');
-                out.push('/');
-                i += 2;
-                block_comment = false;
-                continue;
-            }
-            out.push(c);
-            i += 1;
-            if c == '\n' {
-                at_line_start = true;
-            }
-            continue;
-        }
-
-        // Regular string: consumes its own escapes; can't span lines in
-        // well-formed formatter output.
-        if let Some(q) = string {
-            out.push(c);
-            if c == '\\' {
-                if i + 1 < n {
-                    out.push(chars[i + 1]);
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-                continue;
-            }
-            i += 1;
-            if c == q {
-                string = None;
-            }
-            continue;
-        }
-
-        if matches!(stack.last(), Some(AttrFrame::Template)) {
-            // Inside template-literal quasi text.
-            match c {
-                '`' => {
-                    stack.pop();
-                    out.push(c);
-                    i += 1;
-                }
-                '\\' => {
-                    out.push(c);
-                    if i + 1 < n {
-                        out.push(chars[i + 1]);
-                        i += 2;
-                    } else {
-                        i += 1;
-                    }
-                }
-                '$' if chars.get(i + 1) == Some(&'{') => {
-                    stack.push(AttrFrame::Subst(0));
-                    out.push('$');
-                    out.push('{');
-                    i += 2;
-                }
-                '\n' => {
-                    out.push(c);
-                    at_line_start = true;
-                    i += 1;
-                }
-                _ => {
-                    out.push(c);
-                    i += 1;
-                }
-            }
-        } else {
-            // Ordinary code context (top level or inside `${ … }`).
-            match c {
-                '`' => {
-                    stack.push(AttrFrame::Template);
-                    out.push(c);
-                    i += 1;
-                }
-                '\'' | '"' => {
-                    string = Some(c);
-                    out.push(c);
-                    i += 1;
-                }
-                '/' if chars.get(i + 1) == Some(&'/') => {
-                    line_comment = true;
-                    out.push('/');
-                    out.push('/');
-                    i += 2;
-                }
-                '/' if chars.get(i + 1) == Some(&'*') => {
-                    block_comment = true;
-                    out.push('/');
-                    out.push('*');
-                    i += 2;
-                }
-                '{' => {
-                    if let Some(AttrFrame::Subst(d)) = stack.last_mut() {
-                        *d += 1;
-                    }
-                    out.push(c);
-                    i += 1;
-                }
-                '}' => {
-                    if matches!(stack.last(), Some(AttrFrame::Subst(0))) {
-                        stack.pop();
-                    } else if let Some(AttrFrame::Subst(d)) = stack.last_mut() {
-                        *d -= 1;
-                    }
-                    out.push(c);
-                    i += 1;
-                }
-                '\n' => {
-                    out.push(c);
-                    at_line_start = true;
-                    i += 1;
-                }
-                _ => {
-                    out.push(c);
-                    i += 1;
-                }
-            }
-        }
-    }
-
     out
 }
 
@@ -686,11 +513,13 @@ fn indent_visual_width(level: usize, js_opts: &JsFormatOptions) -> usize {
     level * js_opts.indent_width.value() as usize
 }
 
-/// Visual width of a rendered string. Today we count chars (close
-/// enough for ASCII attribute names + values). A proper grapheme /
-/// wide-char-aware count can drop in later if needed.
+/// Visual width of a rendered string, matching how `oxfmt` / prettier measure
+/// line length: East Asian Wide and Fullwidth characters (CJK text, fullwidth
+/// punctuation, …) count as two columns and combining marks as zero. Counting
+/// bare `chars()` under-measured CJK-heavy open tags, so they never crossed
+/// `printWidth` and never wrapped even when `oxfmt` would (#762).
 fn visual_width(s: &str) -> usize {
-    s.chars().count()
+    UnicodeWidthStr::width(s)
 }
 
 // ─── source-scan helpers ────────────────────────────────────────────────

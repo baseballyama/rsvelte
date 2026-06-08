@@ -325,6 +325,19 @@ fn is_direct_only_disallowed(ancestor_tag: &str) -> bool {
     )
 }
 
+/// Tags that "reset" a disallowed-descendant rule for `ancestor_tag`, mirroring
+/// upstream `autoclosing_children[tag].reset_by` in `html-tree-validation.js`.
+///
+/// `<dt>`/`<dd>` may not be descendants of `<dt>`/`<dd>`, *but* a nested `<dl>`
+/// between them resets the rule (a `<dl>` re-opens a valid description-list
+/// context). So a valid nested `<dl>` inside a `<dd>` must not error (#721).
+fn get_descendant_reset_by(ancestor_tag: &str) -> Option<&'static [&'static str]> {
+    match ancestor_tag {
+        "dt" | "dd" => Some(&["dl"]),
+        _ => None,
+    }
+}
+
 /// Check if a tag is valid with an ancestor.
 /// Returns an error message if invalid, or None if valid.
 fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<String> {
@@ -439,6 +452,7 @@ pub fn visit(
     let mut dynamic_attribute_names: FxHashSet<String> = FxHashSet::default();
     let mut has_spread = false;
     let mut has_class_directive = false;
+    let mut class_directive_names: FxHashSet<String> = FxHashSet::default();
     let mut has_style_directive = false;
 
     // Track class names and IDs from attributes
@@ -686,17 +700,32 @@ pub fn visit(
                     }
                 }
                 "id" => {
-                    // Extract ID from attribute value
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                let id = text.data.trim();
-                                if !id.is_empty() {
-                                    context.analysis.css.used_ids.insert(id.to_string());
-                                    element_id = Some(id.to_string());
+                    match &attr_node.value {
+                        AttributeValue::Sequence(parts) => {
+                            // An interpolated id (`id="a{x}"`) has an unknown runtime
+                            // value, so it could match any #id selector.
+                            let has_dynamic_part = parts
+                                .iter()
+                                .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                            if has_dynamic_part {
+                                context.analysis.css.has_dynamic_ids = true;
+                            } else {
+                                for part in parts {
+                                    if let AttributeValuePart::Text(text) = part {
+                                        let id = text.data.trim();
+                                        if !id.is_empty() {
+                                            context.analysis.css.used_ids.insert(id.to_string());
+                                            element_id = Some(id.to_string());
+                                        }
+                                    }
                                 }
                             }
                         }
+                        // `id={expr}` or the `{id}` shorthand: dynamic, unknown value.
+                        AttributeValue::Expression(_) => {
+                            context.analysis.css.has_dynamic_ids = true;
+                        }
+                        _ => {}
                     }
                 }
                 _ => {}
@@ -708,8 +737,9 @@ pub fn visit(
         } else if let Attribute::BindDirective(bind) = attr {
             // bind:name is a dynamic attribute
             dynamic_attribute_names.insert(bind.name.to_string());
-        } else if let Attribute::ClassDirective(_) = attr {
+        } else if let Attribute::ClassDirective(class_dir) = attr {
             has_class_directive = true;
+            class_directive_names.insert(class_dir.name.to_string());
         } else if let Attribute::StyleDirective(_) = attr {
             has_style_directive = true;
         }
@@ -891,6 +921,19 @@ pub fn visit(
                     continue;
                 }
 
+                // `reset_by` rules: if any element between this ancestor and the
+                // current element re-opens the context (e.g. a nested `<dl>`
+                // between an outer `<dd>` and an inner `<dt>`), the descendant
+                // restriction no longer applies. Mirrors upstream's `reset_by`
+                // walk in `is_tag_valid_with_ancestor` (#721).
+                if let Some(reset_by) = get_descendant_reset_by(ancestor_name)
+                    && context.element_ancestors[i + 1..]
+                        .iter()
+                        .any(|a| reset_by.contains(&a.as_str()))
+                {
+                    continue;
+                }
+
                 let message = format!(
                     "`<{}>` cannot be a descendant of `<{}>`",
                     element.name, ancestor_name
@@ -958,6 +1001,7 @@ pub fn visit(
         dynamic_attribute_names,
         has_spread,
         has_class_directive,
+        class_directive_names,
         has_style_directive,
         parent_idx,
         children_idx: Vec::new(),

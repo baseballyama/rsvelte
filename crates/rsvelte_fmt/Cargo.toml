@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_fmt"
-version = "0.1.0"
+version = "0.3.7"
 edition = "2024"
 rust-version = "1.90"
 description = "Fast Svelte + JS/TS/CSS formatter — dispatches .svelte to rsvelte_formatter and other files to oxfmt"
@@ -21,10 +21,11 @@ path = "src/bin/fmt_benchmark_runner.rs"
 
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "187e1a52c1e16c43c50c435579e1e2c2173e690f" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "187e1a52c1e16c43c50c435579e1e2c2173e690f" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 rayon = "1.10"
 anyhow = "1.0"
 serde_json = "1.0"
+ignore = "0.4.25"

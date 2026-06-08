@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_core"
-version = "0.7.1"
+version = "0.7.5"
 edition = "2024"
 rust-version = "1.90"
 description = "A high-performance Rust implementation of the Svelte compiler"
@@ -25,7 +25,16 @@ trace-fastpath = []
 # jemalloc is disabled (e.g. `--no-default-features --features napi`).
 napi = ["dep:napi", "dep:napi-derive", "dep:napi-build", "tikv-jemallocator?/disable_initial_exec_tls"]
 jemalloc = ["dep:tikv-jemallocator"]
-wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
+# `wasm` exports this crate's own `#[wasm_bindgen]` surface (the `wasm`
+# module — `parse_svelte`, `compile_client`, `svelte2tsx`, …) and is what
+# `pkg/` is built with.
+wasm = ["wasm-deps"]
+# `wasm-deps` pulls only the wasm-bindgen toolchain + the wasm `getrandom`
+# backend, *without* enabling the `wasm` bindings module. Downstream wasm
+# crates (e.g. `rsvelte_fmt_wasm`) depend on `rsvelte_core` with this
+# feature so they reuse the parser on a wasm target without re-exporting
+# `rsvelte_core`'s `#[wasm_bindgen]` symbols (which collide at link time).
+wasm-deps = ["wasm-bindgen", "console_error_panic_hook", "getrandom/wasm_js"]
 
 [dependencies]
 # Serialization
@@ -54,7 +63,7 @@ oxc_syntax = "0.134"
 oxc_semantic = "0.134"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "187e1a52c1e16c43c50c435579e1e2c2173e690f" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
 
 # Error handling
 thiserror = "2.0"

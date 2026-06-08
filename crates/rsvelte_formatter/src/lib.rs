@@ -17,6 +17,7 @@ mod expression;
 mod indent;
 mod markup;
 mod options;
+mod reindent;
 mod script;
 mod style;
 
@@ -72,10 +73,10 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // spans including their attribute lists. The expression and indent
     // passes below target spans outside those rewritten regions.
     markup::collect_open_tag_edits(source, &root.fragment, 0, options, &mut edits)?;
-    expression::collect_template_edits(source, &root.fragment, options, &mut edits)?;
+    expression::collect_template_edits(source, &root.fragment, 0, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
     if let Some(css) = &root.css {
-        style::collect_style_edit(css, options, &mut edits)?;
+        style::collect_style_edit(source, css, options, &mut edits)?;
     }
 
     // Apply edits from the back so earlier offsets remain valid.

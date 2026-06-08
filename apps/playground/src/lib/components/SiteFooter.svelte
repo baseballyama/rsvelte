@@ -53,7 +53,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.55rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.74rem;
 		color: var(--ink-soft);
 		flex-wrap: wrap;

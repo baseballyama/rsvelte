@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:wasm": "wasm-pack build crates/rsvelte_lint --out-dir ../../pkg --target web --release -- --features wasm --no-default-features",
+    "build:wasm": "pnpm run build:wasm:core && pnpm run build:wasm:fmt",
+    "build:wasm:core": "wasm-pack build crates/rsvelte_lint --out-dir ../../pkg --target web --release -- --features wasm --no-default-features",
+    "build:wasm:fmt": "wasm-pack build crates/rsvelte_fmt_wasm --out-dir ../../pkg-fmt --target web --release",
     "build:wasm:clean": "cargo clean && pnpm run build:wasm",
     "clean:cache": "rm -rf apps/playground/node_modules/.vite",
     "dev": "pnpm run build:wasm && pnpm run clean:cache && cd apps/playground && pnpm run dev",

@@ -383,7 +383,7 @@
 
 	code,
 	pre {
-		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+		font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 	}
 
 	/* HERO */
@@ -405,7 +405,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.7rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.75rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -421,7 +421,7 @@
 	}
 
 	.title {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		font-size: clamp(2.3rem, 6.2vw, 4.6rem);
 		line-height: 1.02;
@@ -468,7 +468,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.78rem 1.25rem;
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 600;
 		font-size: 0.95rem;
 		border-radius: 4px;
@@ -507,7 +507,7 @@
 	}
 
 	.install {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.9rem;
 		color: var(--ink-soft);
 		margin-top: 2.2rem;
@@ -547,7 +547,7 @@
 	}
 
 	.section-head .num {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
 		letter-spacing: 0.18em;
 		color: var(--rust);
@@ -556,7 +556,7 @@
 	}
 
 	.section-head h2 {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: clamp(1.65rem, 3.2vw, 2.6rem);
 		line-height: 1.1;
@@ -576,7 +576,7 @@
 	.section-head h2 code,
 	.compat .lede code,
 	.perf .lede code {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.78em;
 		font-weight: 500;
 		padding: 0.1em 0.45em;
@@ -624,7 +624,7 @@
 	}
 
 	.bars-sub {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.72rem;
 		color: var(--ink-soft);
 	}
@@ -651,7 +651,7 @@
 	}
 
 	.bar-k {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.78rem;
 		font-weight: 500;
 		color: var(--ink);
@@ -659,7 +659,7 @@
 	}
 
 	.bar-s {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.66rem;
 		color: var(--ink-faint);
 		letter-spacing: 0.02em;
@@ -711,7 +711,7 @@
 	}
 
 	.bar-t {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.82rem;
 		color: var(--ink);
 		font-variant-numeric: tabular-nums;
@@ -725,7 +725,7 @@
 		gap: 0.55rem;
 		flex-wrap: wrap;
 		padding: 0.85rem 1.25rem 1rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.7rem;
 		color: var(--ink-faint);
 		border-top: 1px solid var(--rule);
@@ -742,7 +742,7 @@
 
 	.bars-empty {
 		padding: 2rem 1.25rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.85rem;
 		color: var(--ink-faint);
 	}
@@ -759,7 +759,7 @@
 	}
 
 	.toolchain-k {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.66rem;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
@@ -794,19 +794,19 @@
 	}
 
 	.tc-name {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.8rem;
 		color: var(--ink);
 	}
 
 	.tc-sub {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.66rem;
 		color: var(--ink-faint);
 	}
 
 	.tc-x {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		font-size: 1.45rem;
 		line-height: 1;
@@ -816,7 +816,7 @@
 	}
 
 	.tc-x .x {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-weight: 500;
 		font-size: 0.42em;
 		margin-left: 0.1em;
@@ -825,14 +825,14 @@
 	}
 
 	.toolchain-empty {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		color: var(--ink-faint);
 		padding: 1rem 0;
 	}
 
 	.toolchain-link {
 		margin-top: 0.9rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.78rem;
 		color: var(--ink-soft);
 		display: inline-flex;
@@ -878,7 +878,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 600;
 		font-size: 0.95rem;
 		color: var(--svelte);
@@ -908,7 +908,7 @@
 		background: var(--paper);
 		border: 1px solid var(--rule);
 		border-radius: 6px;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		overflow: hidden;
 	}
 
@@ -986,7 +986,7 @@
 	}
 
 	.capi-tag {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.78rem;
 		letter-spacing: 0.02em;
 		color: var(--ink);
@@ -995,7 +995,7 @@
 	}
 
 	.capi-langs code {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.85em;
 		color: var(--ink);
 	}
@@ -1015,7 +1015,7 @@
 	}
 
 	.big-pct {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 800;
 		color: var(--ink);
 		letter-spacing: -0.01em;
@@ -1071,14 +1071,14 @@
 	.spec-pct {
 		margin-left: auto;
 		padding-left: 0.85rem;
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.82rem;
 		color: var(--ink);
 		font-variant-numeric: tabular-nums;
 	}
 
 	.spec-n {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: 1.15rem;
 		color: var(--ink);
@@ -1097,7 +1097,7 @@
 	}
 
 	.spec-s {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.74rem;
 		color: var(--ink-soft);
 	}
@@ -1145,14 +1145,14 @@
 	}
 
 	.why-n {
-		font-family: 'Fira Mono', monospace;
+		font-family: 'JetBrains Mono', monospace;
 		font-size: 0.72rem;
 		letter-spacing: 0.16em;
 		color: var(--rust);
 	}
 
 	.why-body h3 {
-		font-family: 'Overpass', sans-serif;
+		font-family: 'Hanken Grotesk', sans-serif;
 		font-weight: 700;
 		font-size: 1.18rem;
 		letter-spacing: -0.015em;

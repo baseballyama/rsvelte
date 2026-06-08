@@ -103,3 +103,40 @@ fn h053_special_element_event_capture_excludes_pointercapture() {
         "got:\n{out}"
     );
 }
+
+// --- #721: <dt>/<dd> placement uses the parent-based reset_by rule ----------
+
+#[test]
+fn issue721_nested_dl_inside_dd_compiles() {
+    // A valid nested `<dl>` inside a `<dd>` must NOT error: the inner `<dt>`/`<dd>`
+    // are direct children of the inner `<dl>`, which resets the descendant rule.
+    // Mirrors upstream `autoclosing_children.dt/dd.reset_by = ['dl']`.
+    try_compile(
+        r#"<dl>
+  <dt>term</dt>
+  <dd>
+    <dl>
+      <dt>nested term</dt>
+      <dd>nested desc</dd>
+    </dl>
+  </dd>
+</dl>"#,
+    )
+    .expect("nested <dl> inside <dd> should compile");
+}
+
+#[test]
+fn issue721_dt_dd_inside_div_inside_dl_compiles() {
+    // `<dl><div><dt>/<dd></div></dl>` is valid HTML; `<div>` does not restrict
+    // `<dt>`/`<dd>` and there is no `<dt>`/`<dd>` ancestor, so no error.
+    try_compile(r#"<dl><div><dt>term</dt><dd>desc</dd></div></dl>"#)
+        .expect("<dt>/<dd> inside <div> inside <dl> should compile");
+}
+
+#[test]
+fn issue721_dt_descendant_of_dd_without_reset_still_errors() {
+    // No `<dl>` resets the context between the outer `<dd>` and the inner `<dt>`,
+    // so the descendant restriction still applies (don't over-suppress).
+    let err = try_compile(r#"<dd><span><dt>x</dt></span></dd>"#).expect_err("should error");
+    assert_eq!(err, "node_invalid_placement", "got `{err}`");
+}

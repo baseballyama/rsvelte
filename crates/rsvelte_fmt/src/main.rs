@@ -10,12 +10,14 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Parser;
+use ignore::WalkBuilder;
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rayon::prelude::*;
 use rsvelte_formatter::{FormatOptions, format};
 
 mod config;
+mod oxfmt_ignore;
 mod style_cache;
 use config::OxfmtConfig;
 use style_cache::StyleCache;
@@ -161,7 +163,8 @@ fn run() -> Result<ExitCode> {
         ));
     }
 
-    let (svelte, oxfmt_paths) = partition_files(&cli.paths)?;
+    let ignore = oxfmt_ignore::SvelteIgnore::from_config(&cwd, &cfg)?;
+    let (svelte, oxfmt_paths) = partition_files(&cli.paths, &ignore, &cwd)?;
 
     let mode = if cli.check { Mode::Check } else { Mode::Write };
 
@@ -400,45 +403,68 @@ fn oxfmt_stdin(
 /// …) — the same coverage as `oxfmt .` — while a `!**/*.svelte` exclude (added
 /// in [`run_oxfmt`]) keeps the Svelte files for us. Non-`.svelte` file
 /// arguments are passed straight through. See #694.
-fn partition_files(roots: &[PathBuf]) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+fn partition_files(
+    roots: &[PathBuf],
+    ignore: &oxfmt_ignore::SvelteIgnore,
+    cwd: &Path,
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let mut svelte = Vec::new();
     let mut oxfmt_paths = Vec::new();
     for root in roots {
         let meta = std::fs::metadata(root)
             .with_context(|| format!("reading {} — no such file or directory", root.display()))?;
         if meta.is_dir() {
-            // Enumerate `.svelte` files ourselves; oxfmt walks the rest.
-            for entry in walkdir::WalkDir::new(root)
-                .follow_links(false)
-                .into_iter()
-                .filter_entry(|e| !is_hidden(e.path()) && !is_ignored_dir(e.path()))
-            {
+            // Enumerate `.svelte` files ourselves (oxfmt walks the rest),
+            // honoring the same `.gitignore` / `.prettierignore` / `.oxfmtrc`
+            // `ignorePatterns` oxfmt applies to the files it walks. Walk from an
+            // absolute root so entry paths can be matched against the
+            // (absolute-rooted) ignore matchers.
+            let abs_root = if root.is_absolute() {
+                root.clone()
+            } else if root.as_os_str() == "." {
+                // `.` and cwd differ as paths; normalize so entry paths don't
+                // carry a `.` component that would break ignore matching.
+                cwd.to_path_buf()
+            } else {
+                cwd.join(root)
+            };
+            let has_vcs_boundary =
+                oxfmt_ignore::all_paths_have_vcs_boundary(std::slice::from_ref(&abs_root), cwd);
+            let mut builder = WalkBuilder::new(&abs_root);
+            builder.follow_links(false);
+            oxfmt_ignore::configure_walk_builder(&mut builder, has_vcs_boundary);
+            builder.filter_entry(|entry| {
+                // `.gitignore` is applied by the walker; here we only skip VCS
+                // internals and `node_modules`. File-level ignores are below.
+                !(entry.file_type().is_some_and(|ft| ft.is_dir())
+                    && oxfmt_ignore::is_ignored_dir(entry.file_name()))
+            });
+            for entry in builder.build() {
                 let entry = entry.context("walking input tree")?;
-                if entry.file_type().is_file() && is_svelte(entry.path()) {
+                let path = entry.path();
+                if entry.file_type().is_some_and(|ft| ft.is_file())
+                    && is_svelte(path)
+                    && !ignore.is_ignored(path, false)
+                {
                     svelte.push(entry.into_path());
                 }
             }
             oxfmt_paths.push(root.clone());
         } else if is_svelte(root) {
-            svelte.push(root.clone());
+            // Single explicit `.svelte` file — apply the same ignore rules.
+            let abs = if root.is_absolute() {
+                root.clone()
+            } else {
+                cwd.join(root)
+            };
+            if !ignore.is_ignored(&abs, false) {
+                svelte.push(root.clone());
+            }
         } else {
             oxfmt_paths.push(root.clone());
         }
     }
     Ok((svelte, oxfmt_paths))
-}
-
-fn is_hidden(p: &Path) -> bool {
-    p.file_name()
-        .and_then(OsStr::to_str)
-        .is_some_and(|n| n.starts_with('.') && n != "." && n != "..")
-}
-
-fn is_ignored_dir(p: &Path) -> bool {
-    matches!(
-        p.file_name().and_then(OsStr::to_str),
-        Some("node_modules" | "target" | "dist" | "build")
-    )
 }
 
 fn is_svelte(p: &Path) -> bool {

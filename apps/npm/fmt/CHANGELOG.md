@@ -1,5 +1,78 @@
 # @rsvelte/fmt
 
+## 0.3.7
+
+### Patch Changes
+
+- 553a26e: Keep a `<script>` body indented after a regex literal that contains quotes.
+
+  The body is formatted at indent 0 then re-indented one level under `<script>`. The re-indent scanner tracks string / comment / template context to avoid misreading a quote or `${` that sits inside one, but it doesn't lex regex literals — so quotes inside a regex (`/["']x/`) opened a string that never closed. The spuriously-open string then swallowed every following newline, and the rest of the body collapsed to column 0 (idempotent and still valid JS, so earlier break/idempotency checks didn't catch it; it surfaced as an `oxfmt` divergence). The scanner now treats a raw newline inside a string as a desync and recovers at the line boundary, so the body stays correctly indented.
+
+  The attribute-value re-indent in `markup.rs` carried a byte-for-byte copy of the same scanner (with the same latent bug); it now shares the fixed `reindent` helper instead.
+
+## 0.3.6
+
+### Patch Changes
+
+- 0a89cde: Wrap markup expressions by the column they render at, matching `prettier-plugin-svelte` (which `oxfmt` delegates `.svelte` to).
+
+  Every JS expression was formatted at indent 0 and then spliced into the markup, so wrap decisions used the full print width regardless of nesting: a line that fit at column 0 silently overflowed once nested, and continuation lines stuck at column 0 instead of aligning to the nesting depth.
+  - `<script>` bodies are narrowed by one indent level before formatting (the body is nested one level under `<script>`).
+  - Content expressions (`{expr}`, `{@html}`, `{@render}`, `{@attach}`) thread the markup nesting depth through the walk, narrow the width by `depth × indentWidth`, and re-indent continuation lines to that depth.
+  - Block-header expressions (`{#if}`, `{#each}`, `{:else if}`, `{#key}`, `{#await}`, snippet name) are forced onto a single line — `prettier-plugin-svelte` never breaks a block tag's expression regardless of width.
+
+  On a 1,115-file Svelte corpus this brings `oxfmt`-divergent files from 180 to ~111, with zero idempotency breaks and zero `svelte` parse breaks. The remaining diffs are attribute-value wrapping, close-tag placement, and snippet-parameter expansion, tracked for follow-up.
+
+## 0.3.5
+
+### Patch Changes
+
+- bde55be: chore(deps): align all workspace `oxc` / `oxc_formatter` / `oxc_formatter_core` git deps to a single newer revision (71e489a). The split renovate bumps (#675/#676) fail CI because they move only `oxc_formatter`, leaving the ~15 other workspace `oxc` crates on the old revision — producing a duplicate `oxc_allocator` and an `E0308` mismatch. Unifying every `oxc` dep to the same revision fixes that; verified compiler-safe (compatibility report passes) and formatter-safe (all fmt fixtures pass). Step toward oxfmt parity for `<script>` formatting (refs #761).
+
+## 0.3.4
+
+### Patch Changes
+
+- 63d31a2: Decide open-tag attribute wrapping by visual (East Asian) width, matching `oxfmt` / prettier.
+
+  `visual_width` counted bare `chars()`, so CJK-heavy tags were under-measured: fullwidth text (Japanese, fullwidth punctuation, …) is two display columns each but counted as one, so a tag that exceeded `printWidth` on screen stayed on a single line instead of wrapping. Width is now measured with `unicode-width`, so an attribute list whose visual width crosses `printWidth` wraps one-per-line as `oxfmt` does.
+
+  On a 1,115-file Svelte corpus this brings oxfmt-divergent files from 208 to 179. (The remaining attribute diffs are expression wrapping _inside_ attribute values, which is `oxc_formatter`-driven and tracked in #761.)
+
+## 0.3.3
+
+### Patch Changes
+
+- f680806: Keep `{:else if}` branches at the same indent as the opening `{#if}`, matching `oxfmt` / prettier-plugin-svelte.
+
+  svelte desugars `{:else if}` into an `elseif` `IfBlock` nested inside the alternate fragment. Both the whitespace re-indent pass (`indent.rs`) and the open-tag pass (`markup.rs`) recursed into that nested block, adding one extra indent level per chained branch — so `{:else if}` / `{:else}` bodies (and their wrapped attributes) drifted one level deeper than `oxfmt` on every chain. They now follow the chain at the opening `{#if}`'s depth. A plain `{:else}` whose body merely starts with an `{#if}` is unaffected (it still nests one level deeper).
+
+  On a 1,115-file Svelte corpus this brings oxfmt-divergent files from 264 to 208.
+
+## 0.3.2
+
+### Patch Changes
+
+- 9de2073: Match `oxfmt` / prettier-plugin-svelte for `<style>` indentation and blank lines, so `rsvelte-fmt` output round-trips through `oxfmt --check`.
+  - **`<style>` re-indentation**: the formatted CSS body is now re-indented one level under the `<style>` tag and placed on its own lines, instead of being glued onto the open tag (`<style>.foo {`). The body is dedented before formatting so repeated runs stay idempotent (multi-line comments / strings no longer accumulate indentation).
+  - **Blank lines**: a single blank line is now preserved between markup siblings and where markup abuts the root `<script>` / `<style>` (the conventional blank line after `</script>`). Runs of blank lines collapse to one, and leading/trailing blanks just inside an element are removed.
+
+  On a 1,115-file Svelte corpus this cut the files that differ from `oxfmt` from 1,095 to 270 (the remainder is `<script>`/markup divergence tracked separately), with zero parse failures and full idempotency.
+
+## 0.3.1
+
+### Patch Changes
+
+- 193e184: fix(release): sync the Rust crate version into `crates/rsvelte_fmt/Cargo.toml` (and `Cargo.lock`) during the release, so `rsvelte-fmt --version` matches the published `@rsvelte/fmt` package instead of reporting a stale `0.1.0`. `sync-version.mjs` previously only mirrored `@rsvelte/compiler` → `rsvelte_core`; it now also mirrors `@rsvelte/fmt` → `rsvelte_fmt` (#745)
+
+## 0.3.0
+
+### Minor Changes
+
+- 151fe49: Respect `.gitignore`, `.prettierignore`, and `.oxfmtrc` `ignorePatterns` when discovering `.svelte` files, matching `oxfmt` (which already honors them for the non-`.svelte` files it walks).
+
+  Previously the in-process Svelte walker only skipped a hardcoded set of directories (`node_modules`, `target`, `dist`, `build`, hidden dirs), so `.svelte` files excluded by these ignore sources — e.g. test fixtures listed in `.oxfmtrc` `ignorePatterns` — were still reformatted. The walker now uses the `ignore` crate with the same gitignore semantics as `oxfmt`, and `OxfmtConfig` parses `ignorePatterns`, so `rsvelte-fmt .` and `oxfmt .` skip exactly the same `.svelte` files.
+
 ## 0.2.1
 
 ### Patch Changes

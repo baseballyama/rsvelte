@@ -13,8 +13,9 @@ pub fn visit(
     attribute: &SpreadAttribute,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // Spreads can contain class/style, so we can't safely prune CSS
+    // Spreads can contain class/style/id, so we can't safely prune CSS
     context.analysis.css.has_dynamic_classes = true;
+    context.analysis.css.has_dynamic_ids = true;
 
     // Check if this is a $$restProps or $$props spread (for legacy mode)
     if !context.analysis.runes

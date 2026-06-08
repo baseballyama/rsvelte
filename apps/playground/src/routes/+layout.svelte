@@ -12,7 +12,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
-		href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700;800&family=Fira+Mono:wght@400;500;700&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
 		rel="stylesheet"
 	/>
 </svelte:head>
@@ -40,59 +40,66 @@
 	:global(:root),
 	:global(:root[data-theme='light']) {
 		--bg: #ffffff;
-		--paper: #faf9f5;
-		--paper-2: #f3f1e9;
-		--ink: #14130f;
-		--ink-soft: #5a5750;
-		--ink-faint: #97938a;
-		--rule: #ececdf;
-		--rule-strong: #d8d4c4;
-		--selection: #ffe9d6;
+		--paper: #f7f8fa;
+		--paper-2: #eef1f4;
+		--ink: #0f1419;
+		--ink-soft: #4a5560;
+		--ink-faint: #8b96a2;
+		--rule: #e7eaee;
+		--rule-strong: #d2d7dd;
+		--selection: #ffe0cc;
 
 		--svelte: #ff3e00;
 		--svelte-hover: #e83700;
-		--rust: #b7410e;
-		--rust-soft: #cf7a4a;
+		/* Single accent is the Svelte orange; the former "rust" hue is now a
+		   restrained cool slate so eyebrows / labels read as neutral. */
+		--rust: #5c6773;
+		--rust-soft: #8b96a2;
 
-		--ok: #2c7a3a;
+		--ok: #1f9d55;
 		--warn: #b07a00;
-		--bad: #b1280a;
+		--bad: #d23a1f;
 
-		/* Editor / monaco surface — slightly off-white in light, lifted ink in dark */
-		--editor-bg: #fbf9f2;
-		--editor-ink: #14130f;
+		/* Editor / monaco surface — cool off-white in light, lifted ink in dark */
+		--editor-bg: #f7f8fa;
+		--editor-ink: #0f1419;
+
+		/* Blueprint-grid hairline, used for subtle technical backgrounds. */
+		--grid: #eceff3;
 
 		color-scheme: light;
 	}
 
 	:global(:root[data-theme='dark']) {
-		--bg: #0d0c09;
-		--paper: #16140f;
-		--paper-2: #1d1a13;
-		--ink: #f1ecdf;
-		--ink-soft: #b0a994;
-		--ink-faint: #75705f;
-		--rule: #2a2620;
-		--rule-strong: #3a3528;
+		--bg: #0e1116;
+		--paper: #161b22;
+		--paper-2: #1c232c;
+		--ink: #e6edf3;
+		--ink-soft: #9aa7b4;
+		--ink-faint: #6b7681;
+		--rule: #232b34;
+		--rule-strong: #313b45;
 		--selection: #5a2a10;
 
-		--svelte: #ff6634;
-		--svelte-hover: #ff7d50;
-		--rust: #e58050;
-		--rust-soft: #c46640;
+		--svelte: #ff6a39;
+		--svelte-hover: #ff855c;
+		--rust: #8b96a2;
+		--rust-soft: #6b7681;
 
-		--ok: #6cc870;
+		--ok: #3fb950;
 		--warn: #e0b240;
-		--bad: #e85a3c;
+		--bad: #f0613f;
 
-		--editor-bg: #14110b;
-		--editor-ink: #efe9da;
+		--editor-bg: #0f141a;
+		--editor-ink: #e6edf3;
+
+		--grid: #1a212a;
 
 		color-scheme: dark;
 	}
 
 	:global(body) {
-		font-family: 'Overpass', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+		font-family: 'Hanken Grotesk', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
 		background: var(--bg);
 		color: var(--ink);
 		line-height: 1.6;
@@ -110,7 +117,7 @@
 
 	:global(code),
 	:global(pre) {
-		font-family: 'Fira Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+		font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 	}
 
 	:global(::selection) {

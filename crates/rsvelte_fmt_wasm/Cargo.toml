@@ -1,0 +1,21 @@
+[package]
+name = "rsvelte_fmt_wasm"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+description = "WebAssembly bindings for the rsvelte Svelte formatter"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Pull the formatter on its wasm backend so `rsvelte_core` links without
+# rayon / jemalloc and without re-exporting `rsvelte_core`'s own
+# `#[wasm_bindgen]` surface (which would collide with this crate's).
+rsvelte_formatter = { path = "../rsvelte_formatter", default-features = false, features = ["wasm"] }
+wasm-bindgen = "0.2"
+serde_json = "1.0"
+console_error_panic_hook = "0.1"
+getrandom = { version = "0.4", features = ["wasm_js"] }

@@ -32,7 +32,8 @@ use rsvelte_core::svelte_check::{
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "svelte-check",
+    name = "rsvelte-check",
+    bin_name = "rsvelte-check",
     about = "Type-check & diagnose Svelte projects (Rust port of @sveltejs/svelte-check)",
     long_about = None
 )]
@@ -158,12 +159,23 @@ fn main() -> ExitCode {
         if let Err(err) = run_watch(options, watch_opts, |run_result| {
             print_run(run_result, &workspace_for_print, format);
         }) {
-            eprintln!("svelte-check: watch mode failed to start: {err}");
+            eprintln!("rsvelte-check: watch mode failed to start: {err}");
             return ExitCode::from(2);
         }
         ExitCode::SUCCESS
     } else {
         let result = run(&options);
+        // Finding nothing is almost always a misconfigured workspace path, not
+        // a clean project. Surface it on stderr (never stdout, so machine
+        // formats stay parseable) so "checked nothing" can't masquerade as
+        // "passed" (issue #718).
+        if result.files_checked == 0 {
+            eprintln!(
+                "rsvelte-check: warning: no .svelte files found under {} — nothing was checked. \
+                 Is the --workspace path correct?",
+                workspace.display()
+            );
+        }
         print_run(&result, &workspace, format);
         ExitCode::from(result.exit_code(cli.fail_on_warnings) as u8)
     }

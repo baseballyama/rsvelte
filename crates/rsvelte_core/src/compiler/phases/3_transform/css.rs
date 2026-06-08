@@ -26,6 +26,9 @@ struct CssContext<'a> {
     has_dynamic_elements: bool,
     /// Whether there are dynamic class expressions
     has_dynamic_classes: bool,
+    /// Whether any element has a dynamically-valued `id` (so `#id` selectors
+    /// cannot be pruned — a dynamic id can resolve to any value at runtime)
+    has_dynamic_ids: bool,
     /// Whether template has control flow (if/each/await/snippet/slot)
     has_control_flow: bool,
     /// Whether template has opaque elements (slots/snippets/render tags) or
@@ -77,6 +80,7 @@ pub fn collect_css_unused_warnings(
         used_ids: &analysis.css.used_ids,
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
+        has_dynamic_ids: analysis.css.has_dynamic_ids,
         has_control_flow: analysis.css.has_control_flow,
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
@@ -105,6 +109,29 @@ pub fn collect_css_unused_warnings(
 ///
 /// For example, `x :is(y, .unused)` - if the overall selector is used but `.unused`
 /// inside :is() doesn't match any DOM element, report it.
+/// Clone `complex` and replace the simple selector at `children[ri].selectors[si]`
+/// (a `:is()` / `:where()` pseudo-class) with `branch_selectors` — the simple
+/// selectors of one of its single-compound argument branches. The rest of the
+/// compound (combinators, sibling/descendant relations, other simple selectors)
+/// is preserved, so the result can be reachability-checked as if that branch
+/// had been written in place of the `:is()`.
+fn substitute_is_branch(
+    complex: &Value,
+    ri: usize,
+    si: usize,
+    branch_selectors: &[Value],
+) -> Value {
+    let mut synth = complex.clone();
+    if let Some(children) = synth.get_mut("children").and_then(|c| c.as_array_mut())
+        && let Some(rel) = children.get_mut(ri)
+        && let Some(sels) = rel.get_mut("selectors").and_then(|s| s.as_array_mut())
+        && si < sels.len()
+    {
+        sels.splice(si..si + 1, branch_selectors.iter().cloned());
+    }
+    synth
+}
+
 fn collect_is_where_unused_warnings(
     complex_selector: &Value,
     css_source: &str,
@@ -117,13 +144,13 @@ fn collect_is_where_unused_warnings(
         None => return,
     };
 
-    for rel in rel_selectors {
+    for (ri, rel) in rel_selectors.iter().enumerate() {
         let selectors = match rel.get("selectors").and_then(|s| s.as_array()) {
             Some(s) => s,
             None => continue,
         };
 
-        for sel in selectors {
+        for (si, sel) in selectors.iter().enumerate() {
             let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
             let sel_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
@@ -147,7 +174,34 @@ fn collect_is_where_unused_warnings(
                         continue;
                     }
 
-                    if is_complex_selector_unused(inner_complex, ctx) {
+                    // Evaluate the branch IN THE CONTEXT of the surrounding
+                    // compound, not in isolation: substitute the branch's
+                    // simple selectors in place of the `:is()` / `:where()` in
+                    // the parent complex selector and check whether the whole
+                    // substituted selector is reachable. This catches branches
+                    // that are unreachable only because of a combinator — e.g.
+                    // for `:is(.a, .b) + .c` where `.c` never immediately
+                    // follows `.a`, the `.a` branch is unused even though a
+                    // bare `.a` element exists. Mirrors upstream marking each
+                    // `:is` argument's `metadata.used` during the real walk.
+                    let branch_selectors = inner_complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .and_then(|a| a.first())
+                        .and_then(|r| r.get("selectors"))
+                        .and_then(|s| s.as_array());
+
+                    let unused = match branch_selectors {
+                        Some(bs) => {
+                            let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                            is_complex_selector_unused(&synth, ctx)
+                        }
+                        // Empty branch (e.g. `:is()`) — fall back to the
+                        // isolated check.
+                        None => is_complex_selector_unused(inner_complex, ctx),
+                    };
+
+                    if unused {
                         let start = inner_complex
                             .get("start")
                             .and_then(|s| s.as_u64())
@@ -333,6 +387,7 @@ fn render_stylesheet_internal(
         used_ids: &analysis.css.used_ids,
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
+        has_dynamic_ids: analysis.css.has_dynamic_ids,
         has_control_flow: analysis.css.has_control_flow,
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
@@ -1605,10 +1660,14 @@ fn is_nesting_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool
 
             // Check if any DOM element satisfies ALL the combined constraints
             let any_element_matches = ctx.dom_structure.elements.iter().any(|elem| {
-                // Check all required classes are present on the element
-                let classes_match = all_required_classes
-                    .iter()
-                    .all(|c| elem.classes.contains(*c));
+                // Check all required classes are present on the element. A class may
+                // be carried statically (`class="..."`), via a `class:NAME` directive,
+                // or potentially via a spread (`{...rest}`), which could set anything.
+                let classes_match = all_required_classes.iter().all(|c| {
+                    elem.has_spread
+                        || elem.classes.contains(*c)
+                        || elem.class_directive_names.contains(*c)
+                });
 
                 // Check all required ids match
                 let ids_match = all_required_ids
@@ -2290,45 +2349,75 @@ struct SelectorInfo {
     classes: Vec<String>,
     id: Option<String>,
     is_universal: bool,
+    /// `:is(...)` / `:where(...)` argument groups present in this compound. Each
+    /// group is the set of branch selectors; the group is satisfied when **any**
+    /// branch matches the element (an OR set), mirroring CSS `:is()` semantics.
+    /// A multi-part branch (one containing combinators) is recorded as a
+    /// universal branch so it conservatively matches, matching upstream's
+    /// treatment of complex `:is()` arguments as used.
+    is_groups: Vec<Vec<SelectorInfo>>,
 }
 
 fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
-    let mut info = SelectorInfo {
-        tag_name: None,
-        classes: Vec::new(),
-        id: None,
-        is_universal: false,
-    };
-
     if let Some(selectors) = rel_selector.get("selectors").and_then(|s| s.as_array()) {
-        for sel in selectors {
-            let sel_type = sel.get("type").and_then(|t| t.as_str());
-            match sel_type {
-                Some("TypeSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        if name == "*" {
-                            info.is_universal = true;
-                        } else {
-                            info.tag_name = Some(name.to_string());
-                        }
-                    }
-                }
-                Some("ClassSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        info.classes.push(name.to_string());
-                    }
-                }
-                Some("IdSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        info.id = Some(name.to_string());
-                    }
-                }
-                _ => {}
-            }
+        extract_selector_info_from_selectors(selectors)
+    } else {
+        SelectorInfo {
+            tag_name: None,
+            classes: Vec::new(),
+            id: None,
+            is_universal: false,
+            is_groups: Vec::new(),
         }
     }
+}
 
-    info
+/// Build `:is(...)` / `:where(...)` OR-groups from a compound's simple selectors.
+/// Each returned group is the set of branch [`SelectorInfo`]s; the group is
+/// satisfied when any branch matches (see [`selector_matches_element`]).
+fn extract_is_groups(selectors: &[Value]) -> Vec<Vec<SelectorInfo>> {
+    let mut groups = Vec::new();
+    for sel in selectors {
+        if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+            continue;
+        }
+        let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        if name != "is" && name != "where" {
+            continue;
+        }
+        let Some(children) = sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+        else {
+            continue;
+        };
+        let mut branches: Vec<SelectorInfo> = Vec::new();
+        for branch in children {
+            let rels = branch.get("children").and_then(|c| c.as_array());
+            match rels {
+                // Single compound (no combinator): match against its constraints.
+                Some(rs) if rs.len() == 1 => {
+                    if let Some(inner) = rs[0].get("selectors").and_then(|s| s.as_array()) {
+                        branches.push(extract_selector_info_from_selectors(inner));
+                    }
+                }
+                // Multi-part or empty branch: conservatively treat as matching,
+                // mirroring upstream marking complex `:is()` args as used.
+                _ => branches.push(SelectorInfo {
+                    tag_name: None,
+                    classes: Vec::new(),
+                    id: None,
+                    is_universal: true,
+                    is_groups: Vec::new(),
+                }),
+            }
+        }
+        if !branches.is_empty() {
+            groups.push(branches);
+        }
+    }
+    groups
 }
 
 fn selector_matches_element(
@@ -2362,8 +2451,23 @@ fn selector_matches_element(
         return false;
     }
 
+    // Check `:is()` / `:where()` groups: each group must have at least one
+    // branch that matches the element (OR within a group, AND across groups).
+    for group in &info.is_groups {
+        if !group
+            .iter()
+            .any(|branch| selector_matches_element(branch, el))
+        {
+            return false;
+        }
+    }
+
     // If no selector specified, it matches nothing specific
-    info.tag_name.is_some() || !info.classes.is_empty() || info.id.is_some() || info.is_universal
+    info.tag_name.is_some()
+        || !info.classes.is_empty()
+        || info.id.is_some()
+        || info.is_universal
+        || !info.is_groups.is_empty()
 }
 
 fn has_sibling_match(
@@ -3247,6 +3351,7 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
         classes: Vec::new(),
         id: None,
         is_universal: false,
+        is_groups: extract_is_groups(selectors),
     };
 
     for sel in selectors {
@@ -3271,7 +3376,8 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
                     info.id = Some(decode_css_escape(name));
                 }
             }
-            // Skip pseudo-classes like :has(), :not(), etc.
+            // `:is()` / `:where()` handled via is_groups; skip other pseudo-classes
+            // (`:has()`, `:not()`, etc.).
             _ => {}
         }
     }
@@ -3314,6 +3420,11 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
         }
         Some("IdSelector") => {
             if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                // If any element has a dynamically-valued id, it could resolve to
+                // any value at runtime, so any #id selector is potentially used.
+                if ctx.has_dynamic_ids {
+                    return false;
+                }
                 // Decode CSS escape sequences for comparison
                 let decoded = decode_css_escape(name);
                 return !ctx.used_ids.contains(&decoded);
@@ -3713,6 +3824,9 @@ fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
                         }
                     }
                     Some("IdSelector") => {
+                        if ctx.has_dynamic_ids {
+                            return false;
+                        }
                         if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
                             let decoded = decode_css_escape(name);
                             if !ctx.used_ids.contains(&decoded) {
@@ -5903,6 +6017,7 @@ mod tests {
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                has_dynamic_ids: false,
                 has_control_flow: false,
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
@@ -5945,6 +6060,7 @@ mod tests {
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                has_dynamic_ids: false,
                 has_control_flow: false,
                 has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
