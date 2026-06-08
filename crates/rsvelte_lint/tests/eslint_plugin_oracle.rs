@@ -53,6 +53,32 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-restricted-html-elements",
         false,
     ),
+    (
+        "no-raw-special-elements",
+        "svelte/no-raw-special-elements",
+        true,
+    ),
+    (
+        "no-useless-children-snippet",
+        "svelte/no-useless-children-snippet",
+        false,
+    ),
+    ("valid-each-key", "svelte/valid-each-key", false),
+    (
+        "no-dupe-on-directives",
+        "svelte/no-dupe-on-directives",
+        false,
+    ),
+    (
+        "no-dupe-use-directives",
+        "svelte/no-dupe-use-directives",
+        false,
+    ),
+    (
+        "no-not-function-handler",
+        "svelte/no-not-function-handler",
+        false,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
