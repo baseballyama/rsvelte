@@ -79,6 +79,9 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-not-function-handler",
         false,
     ),
+    ("no-svelte-internal", "svelte/no-svelte-internal", false),
+    ("no-inspect", "svelte/no-inspect", false),
+    ("no-useless-mustaches", "svelte/no-useless-mustaches", true),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
