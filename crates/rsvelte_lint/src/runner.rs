@@ -86,9 +86,12 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
 
-    // Gather candidate edits from non-suppressed fixable findings.
+    // Gather candidate edits from non-suppressed fixable findings — from both
+    // the template-walk rules and the script-AST rules (e.g. the autofix of
+    // `$derived.by(() => x)` → `$derived(x)`).
     let mut edits: Vec<TextEdit> = run_native_rules(source, config)
         .into_iter()
+        .chain(run_script_rules(source, config))
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
         .filter_map(|d| d.fix)
         .flat_map(|f| f.edits)

@@ -1603,10 +1603,9 @@ fn build_bind_this_each_block(
     let property_path =
         if let Some(stripped) = get_str.strip_prefix(&format!("$.get({})", item_name)) {
             stripped.trim_start_matches('.').to_string()
-        } else if let Some(stripped) = get_str.strip_prefix(&format!("{}.", item_name)) {
-            stripped.to_string()
         } else {
-            return None;
+            let stripped = get_str.strip_prefix(&format!("{}.", item_name))?;
+            stripped.to_string()
         };
 
     if property_path.is_empty() {

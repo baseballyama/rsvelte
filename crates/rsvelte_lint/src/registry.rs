@@ -13,7 +13,7 @@ use crate::rules::{
     no_object_in_text_mustaches::NoObjectInTextMustaches,
     no_raw_special_elements::NoRawSpecialElements,
     no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
-    no_useless_children_snippet::NoUselessChildrenSnippet,
+    no_target_blank::NoTargetBlank, no_useless_children_snippet::NoUselessChildrenSnippet,
     no_useless_mustaches::NoUselessMustaches, require_each_key::RequireEachKey,
     valid_each_key::ValidEachKey,
 };
@@ -38,18 +38,23 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoSvelteInternal),
         Box::new(NoInspect),
         Box::new(NoUselessMustaches),
+        Box::new(NoTargetBlank),
     ]
 }
 
 /// Construct the full set of script-AST rules (rules that walk the `<script>`
 /// ESTree program rather than the template tree).
 pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
+    use crate::rules::no_add_event_listener::NoAddEventListener;
     use crate::rules::no_inner_declarations::NoInnerDeclarations;
     use crate::rules::no_store_async::NoStoreAsync;
+    use crate::rules::prefer_derived_over_derived_by::PreferDerivedOverDerivedBy;
     use crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity;
     vec![
         Box::new(NoInnerDeclarations),
         Box::new(PreferSvelteReactivity),
         Box::new(NoStoreAsync),
+        Box::new(NoAddEventListener),
+        Box::new(PreferDerivedOverDerivedBy),
     ]
 }

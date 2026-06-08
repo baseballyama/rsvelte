@@ -1035,11 +1035,10 @@ pub(super) fn parse_constructor_state_assignment(
     } else if let Some(rest) = rhs.strip_prefix("$derived.by(") {
         let end = find_matching_paren_lexical(rest)?;
         ("$derived.by", rest[..end].to_string())
-    } else if let Some(rest) = rhs.strip_prefix("$derived(") {
+    } else {
+        let rest = rhs.strip_prefix("$derived(")?;
         let end = find_matching_paren_lexical(rest)?;
         ("$derived", rest[..end].to_string())
-    } else {
-        return None;
     };
     // Strip quotes from name for private backing name generation
     // e.g., "'1'" -> "1" -> "_" (sanitized)
