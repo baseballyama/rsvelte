@@ -1,2 +1,8 @@
 packages:
   - 'apps/npm/*'
+# Build scripts allowed to run on install (pnpm 11 blocks unlisted ones).
+# Pulled in transitively by the `@rsvelte/vite-plugin-svelte` devDependency
+# on vite; allowed so vite works if invoked locally.
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true

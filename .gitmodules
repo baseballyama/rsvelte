@@ -2,10 +2,6 @@
 	path = submodules/svelte
 	url = https://github.com/sveltejs/svelte.git
 	ignore = dirty
-[submodule "vite-plugin-svelte"]
-	path = submodules/vite-plugin-svelte
-	url = git@github.com:baseballyama/vite-plugin-svelte.git
-	branch = rsvelte
 [submodule "language-tools"]
 	path = submodules/language-tools
 	url = https://github.com/sveltejs/language-tools.git

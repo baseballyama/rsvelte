@@ -8,13 +8,10 @@
 #   4. @rsvelte/svelte-check                                (loader; optionalDeps -> 5 triples)
 #   5. @rsvelte/vite-plugin-svelte-native-<5 triples>       (per-platform NAPI .node)
 #   6. @rsvelte/vite-plugin-svelte-native                   (loader; optionalDeps -> 5 triples)
-#   7. @rsvelte/vite-plugin-svelte                          (submodule fork; depends on #1 + #6)
+#   7. @rsvelte/vite-plugin-svelte                          (JS shim; depends on #6)
 #
 # Versions are taken from the on-disk package.json files — bump those BEFORE
-# running this. The script does not modify any version field except the
-# submodule's `@rsvelte/vite-plugin-svelte` (which it bumps to match the
-# `VPS_VERSION` constant below, since the submodule lives in a separate
-# repo).
+# running this. The script does not modify any version field.
 #
 # Re-runnable: `pnpm publish` skips versions already on the registry, so a
 # mid-flight failure can be recovered by re-running.
@@ -23,10 +20,6 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
-
-# Bump this when you want a new submodule-side publish. The script writes
-# this into the submodule's package.json and commits before publishing.
-VPS_VERSION="0.3.0"
 
 # Native-binary triples to build for both svelte-check and vps-native. Keep
 # in sync with .github/workflows/release.yml's matrix.
@@ -111,7 +104,7 @@ EXPECTED_PUBLISHES=$((
   1 +                                              # svelte2tsx
   ${#TRIPLES[@]} + 1 +                             # svelte-check 5 platforms + loader
   ${#TRIPLES[@]} + 1 +                             # vps-native 5 platforms + loader
-  1                                                # vps shim (submodule)
+  1                                                # vps shim
 ))
 
 case "$TFA_MODE" in
@@ -172,12 +165,6 @@ rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 if ! command -v wasm-pack >/dev/null 2>&1; then
   log "installing wasm-pack (one-time)…"
   curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
-fi
-
-# Submodule must be initialized for the @rsvelte/vite-plugin-svelte publish.
-if [ ! -f submodules/vite-plugin-svelte/packages/vite-plugin-svelte/package.json ]; then
-  log "initializing vite-plugin-svelte submodule…"
-  git submodule update --init submodules/vite-plugin-svelte
 fi
 
 log "Pre-flight OK."
@@ -370,94 +357,19 @@ done
 publish_if_new apps/npm/vite-plugin-svelte-native
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Phase 6: submodule — @rsvelte/vite-plugin-svelte (JS shim)
+# Phase 6: @rsvelte/vite-plugin-svelte (JS shim)
 # ─────────────────────────────────────────────────────────────────────────────
-# The shim lives in a separate repo. We bump its package.json to
-# $VPS_VERSION, install deps, publish, then push the version commit to the
-# submodule's `rsvelte` branch so the change is durable.
+# The shim is a normal workspace package (apps/npm/vite-plugin-svelte). It is a
+# pure-ESM package with no build step, and its `@rsvelte/vite-plugin-svelte-native`
+# dependency uses `workspace:^`, which `pnpm publish` rewrites to the concrete
+# version at publish time — so it publishes exactly like the other packages.
 
 log ""
 log "═════════════════════════════════════════════════════════════════════"
-log " Phase 6/6: @rsvelte/vite-plugin-svelte (submodule fork)"
+log " Phase 6/6: @rsvelte/vite-plugin-svelte (JS shim)"
 log "═════════════════════════════════════════════════════════════════════"
 
-SUBMODULE_PATH="submodules/vite-plugin-svelte"
-SHIM_DIR="$SUBMODULE_PATH/packages/vite-plugin-svelte"
-
-# Skip the whole submodule dance if VPS_VERSION is already published.
-if npm view "@rsvelte/vite-plugin-svelte@$VPS_VERSION" version >/dev/null 2>&1; then
-  log "↻ @rsvelte/vite-plugin-svelte@$VPS_VERSION already on npm — skipping submodule publish"
-else
-  # Make sure we're on the `rsvelte` branch (the submodule is checked out
-  # at a detached HEAD by default). `checkout` is idempotent on a branch
-  # we're already on.
-  log "switching submodule to rsvelte branch"
-  (cd "$SUBMODULE_PATH" && git checkout rsvelte && git pull origin rsvelte --ff-only)
-
-  # Bump version + pin dependency floors to what we just published. The shim's
-  # package.json already names @rsvelte/vite-plugin-svelte-native and
-  # @rsvelte/compiler in dependencies; we just patch the version specifiers.
-  # `jq` rewrite is idempotent — if the file is already at the target shape,
-  # `git diff --quiet` later short-circuits the commit step.
-  log "patching $SHIM_DIR/package.json to v$VPS_VERSION"
-  SHIM_PKG="$SHIM_DIR/package.json"
-  COMPILER_VERSION="$(jq -r .version "$REPO_ROOT/apps/npm/compiler/package.json")"
-  VPS_NATIVE_VERSION="$(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte-native/package.json")"
-  jq \
-    --arg v       "$VPS_VERSION" \
-    --arg compv   ">=$COMPILER_VERSION" \
-    --arg natv    ">=$VPS_NATIVE_VERSION" \
-    '.version = $v
-     | .dependencies["@rsvelte/compiler"] = $compv
-     | .dependencies["@rsvelte/vite-plugin-svelte-native"] = $natv' \
-    "$SHIM_PKG" > "$SHIM_PKG.tmp" && mv "$SHIM_PKG.tmp" "$SHIM_PKG"
-
-  # The submodule's pnpm workspace still has e2e-tests packages that
-  # depend on `@sveltejs/vite-plugin-svelte@workspace:^`. The shim was
-  # renamed to `@rsvelte/vite-plugin-svelte` (PR #2/#3 on the fork), so
-  # a normal `pnpm install` from the shim dir resolves the whole
-  # workspace and 500s on the now-dangling e2e workspace deps. Install
-  # the shim as a standalone package with `--ignore-workspace`.
-  step "install submodule shim deps (standalone, ignore-workspace)" \
-    bash -c "cd '$SHIM_DIR' && pnpm install --no-frozen-lockfile --ignore-workspace"
-
-  # Regenerate types only if they aren't already present from a prior
-  # build. The `types/index.d.ts` is checked in to the fork, so for a
-  # plain "publish today's fork HEAD" run this step is a no-op.
-  if [ -f "$SHIM_DIR/types/index.d.ts" ]; then
-    log "↻ $SHIM_DIR/types/index.d.ts already exists — skipping type regen"
-  else
-    step "generate shim types" \
-      bash -c "cd '$SHIM_DIR' && pnpm run check:types && pnpm run generate:types || true"
-  fi
-
-  step "publish @rsvelte/vite-plugin-svelte" \
-    bash -c "cd '$SHIM_DIR' && pnpm publish --access public --no-git-checks"
-
-  # Commit + push the version bump in the submodule. Both steps are
-  # no-ops if there's nothing new to commit / nothing new to push, which
-  # is exactly what we want on a re-run after a partial failure.
-  log "committing version bump in submodule"
-  (cd "$SUBMODULE_PATH"
-    git add packages/vite-plugin-svelte/package.json
-    if ! git diff --cached --quiet; then
-      git commit -m "chore(release): @rsvelte/vite-plugin-svelte $VPS_VERSION"
-    else
-      log "  ↻ no submodule changes to commit"
-    fi
-    git push origin rsvelte || log "  ↻ submodule push: nothing to push"
-  )
-
-  # Bump the submodule pointer in the parent repo so the new SHA is what
-  # everyone else's checkout uses. `git diff --cached --quiet` skips the
-  # commit on re-runs where the pointer is already up to date.
-  git add "$SUBMODULE_PATH"
-  if ! git diff --cached --quiet -- "$SUBMODULE_PATH"; then
-    git commit -m "chore: bump vite-plugin-svelte submodule to $VPS_VERSION"
-  else
-    log "↻ submodule pointer already up to date in parent repo"
-  fi
-fi
+publish_if_new apps/npm/vite-plugin-svelte
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Done
@@ -473,7 +385,4 @@ log "  npm view @rsvelte/compiler version                   # $(jq -r .version "
 log "  npm view @rsvelte/svelte2tsx version                 # $(jq -r .version "$REPO_ROOT/apps/npm/svelte2tsx/package.json")"
 log "  npm view @rsvelte/svelte-check version               # $(jq -r .version "$REPO_ROOT/apps/npm/svelte-check/package.json")"
 log "  npm view @rsvelte/vite-plugin-svelte-native version  # $(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte-native/package.json")"
-log "  npm view @rsvelte/vite-plugin-svelte version         # $VPS_VERSION"
-log ""
-log "Don't forget to push the submodule-pointer commit to main:"
-log "  git push"
+log "  npm view @rsvelte/vite-plugin-svelte version         # $(jq -r .version "$REPO_ROOT/apps/npm/vite-plugin-svelte/package.json")"

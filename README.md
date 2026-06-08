@@ -38,7 +38,7 @@ All packages ship under the `@rsvelte` scope on npm.
 | [`@rsvelte/compiler`](apps/npm/compiler) | [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler) (wasm) | ✅ 100% test compat ([details](#compatibility)) |
 | [`@rsvelte/svelte2tsx`](apps/npm/svelte2tsx) | [`svelte2tsx`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte2tsx) | ✅ 245 / 245 fixtures |
 | [`@rsvelte/svelte-check`](apps/npm/svelte-check) | [`svelte-check`](https://github.com/sveltejs/language-tools/tree/master/packages/svelte-check) CLI | ✅ v1.0 — walker + overlay + tsgo backend + incremental + watch |
-| [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/vite-plugin-svelte/tree/rsvelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) | ✅ v1.0 — fork that routes through the NAPI compiler |
+| [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte) | [`@sveltejs/vite-plugin-svelte`](https://github.com/sveltejs/vite-plugin-svelte) | ✅ v1.0 — fork that routes through the NAPI compiler |
 | [`@rsvelte/vite-plugin-svelte-native`](apps/npm/vite-plugin-svelte-native) | — | NAPI bindings the Vite plugin and other Node tools consume |
 
 See [`docs/ecosystem-implementation-plan.md`](docs/ecosystem-implementation-plan.md) for the full ecosystem port plan, including which upstream tools are intentionally **out of scope** (and where they're being routed instead — usually back to OXC).
@@ -79,7 +79,7 @@ The public surface mirrors [`svelte/compiler`](https://svelte.dev/docs/svelte-co
 
 ### Use with Vite
 
-[`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/vite-plugin-svelte/tree/rsvelte) is a fork of `@sveltejs/vite-plugin-svelte` that swaps in the rsvelte compiler. The public API matches upstream exactly — your `vite.config.js` doesn't need to change.
+[`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte) is a fork of `@sveltejs/vite-plugin-svelte` that swaps in the rsvelte compiler. The public API matches upstream exactly — your `vite.config.js` doesn't need to change.
 
 ```bash
 npm install -D @rsvelte/vite-plugin-svelte

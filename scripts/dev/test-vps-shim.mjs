@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 // Smoke test for the @rsvelte/vite-plugin-svelte-native NAPI surface.
 //
-// Wave 3 acceptance hinges on the JS shim (forked vite-plugin-svelte) being
-// able to call into the rsvelte NAPI bindings end-to-end. The shim itself
-// lives in `submodules/vite-plugin-svelte` and is tested there; this script
-// is a fast, dependency-light guard that runs in CI without needing the
-// upstream pnpm workspace.
+// Wave 3 acceptance hinges on the JS shim (`@rsvelte/vite-plugin-svelte`,
+// vendored at `apps/npm/vite-plugin-svelte`) being able to call into the
+// rsvelte NAPI bindings end-to-end. This script is a fast, dependency-light
+// guard that runs in CI by exercising the NAPI surface directly.
 //
 // Run: `node scripts/dev/test-vps-shim.mjs` (after `cargo build --release
 // --features napi --lib` and `cp target/release/librsvelte_core.dylib

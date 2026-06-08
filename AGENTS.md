@@ -28,9 +28,11 @@ Upstream reference repos live under `submodules/`:
 submodules/
 ├── svelte/                  # Svelte 5 compiler (mirror target)
 ├── language-tools/          # svelte2tsx, language-server, svelte-check, typescript-plugin, svelte-vscode
-├── vite-plugin-svelte/      # Vite integration
 └── typescript-go/           # tsgo — type-check backend for Wave 2 svelte-check
 ```
+
+The `@rsvelte/vite-plugin-svelte` Vite plugin (a fork of `@sveltejs/vite-plugin-svelte`)
+is vendored as a workspace package at `apps/npm/vite-plugin-svelte`, not a submodule.
 
 See `docs/ecosystem-implementation-plan.md` for the multi-wave plan to port
 the Svelte ecosystem (svelte2tsx, svelte-check, vite-plugin-svelte) on top
@@ -163,7 +165,7 @@ Source: `pnpm run compatibility-report` (generated 2026-06-06, Svelte commit `51
 |---|---|---|
 | 1 | svelte2tsx | ✅ 245/245 (100%), wired into compatibility report |
 | 2 | svelte-check | ✅ v1.0 — walker + overlay + tsgo + incremental cache (incl. per-file warning cache at `<cacheDir>/warnings.json`) + watch + parallel compile + hires svelte2tsx source maps + SvelteKit kit-file `addedCode` augmentation for both `.ts` (TS annotations) and `.js` (JSDoc) files. `svelte.config.js` `kit.files` overrides are statically parsed and applied. Each / await (no-pending) / key / await-with-pending template wrappers preserve the expression chunk; each-block context bindings relocate via `MagicString::move_range` to keep destructure-pattern columns. Element-opener attribute bake is now structured (`Seg::Lit`/`Seg::Src`) so every attribute / `on:` / `class:` / `style:` / spread / `@attach` expression survives as an unedited MagicString chunk — column-accurate TS diagnostics on `<Component a={x} />`. |
-| 3 | vite-plugin-svelte NAPI shim | 🟢 v1.0 — Rust-side `hmr_diff` + `resolve_id` + `preprocess` NAPI bindings + `@rsvelte/vite-plugin-svelte` JS shim forked in `submodules/vite-plugin-svelte` on `rsvelte-import-vps-native`. Every Vite `transform` / `hotUpdate` / preprocess call routes through the NAPI bindings. `pnpm run test:vps` (shim + fixture; 15 assertions) covers the surface end-to-end after `pnpm run build:vps-native`. SvelteKit HMR-latency bench is the one remaining open item. |
+| 3 | vite-plugin-svelte NAPI shim | 🟢 v1.0 — Rust-side `hmr_diff` + `resolve_id` + `preprocess` NAPI bindings + `@rsvelte/vite-plugin-svelte` JS shim **vendored as a workspace package at `apps/npm/vite-plugin-svelte`** (a fork of `@sveltejs/vite-plugin-svelte` whose compiler calls route through the NAPI bindings; published by the normal changeset Release flow like every other `apps/npm/*` package). Every Vite `transform` / `hotUpdate` / preprocess call routes through the NAPI bindings. `pnpm run test:vps` (shim + fixture; 15 assertions) covers the surface end-to-end after `pnpm run build:vps-native`. Supports Vite 6/7/8. SvelteKit HMR-latency bench is the one remaining open item. |
 | 4 | svelte-language-server | ⛔ Deferred — CLI-side type checking is fully covered by `svelte-check` (Wave 2). LSP (editor hover/completion) waits on tsgo `tsserver` mode upstream. |
 
 `migrate` (Svelte 4→5 migrator) remains intentionally out of scope.

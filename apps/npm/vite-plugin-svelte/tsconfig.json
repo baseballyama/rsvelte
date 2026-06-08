@@ -1,0 +1,18 @@
+{
+	"include": ["src"],
+	"compilerOptions": {
+		"noEmit": true,
+		"target": "ES2022",
+		"module": "Node16",
+		"moduleResolution": "Node16",
+		"strict": true,
+		"noUnusedLocals": true,
+		"baseUrl": ".",
+		"resolveJsonModule": true,
+		// see https://devblogs.microsoft.com/typescript/announcing-typescript-4-4-beta/#use-unknown-catch-variables
+		"useUnknownInCatchVariables": false,
+		"allowJs": true,
+		"checkJs": true,
+		"allowSyntheticDefaultImports": true
+	}
+}

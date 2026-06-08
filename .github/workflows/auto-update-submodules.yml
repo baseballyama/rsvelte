@@ -43,8 +43,6 @@ jobs:
             path: submodules/language-tools
           - name: typescript-go
             path: submodules/typescript-go
-          - name: vite-plugin-svelte
-            path: submodules/vite-plugin-svelte
           - name: vize
             path: submodules/vize
           - name: corsa-bind
