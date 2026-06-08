@@ -45,9 +45,10 @@ pub(crate) fn collect_indent_edits(
         let last = fragment.nodes.len().saturating_sub(1);
 
         for (i, node) in fragment.nodes.iter().enumerate() {
-            if let TemplateNode::Text(t) = node
-                && is_whitespace_only(t.data.as_str())
-            {
+            let TemplateNode::Text(t) = node else {
+                continue;
+            };
+            if is_whitespace_only(t.data.as_str()) {
                 // Keep a single blank line where prettier-plugin-svelte / oxfmt
                 // would: between siblings, and at the document root where the
                 // whitespace abuts a sibling `<script>` / `<style>`. Leading and
@@ -61,6 +62,23 @@ pub(crate) fn collect_indent_edits(
                     format!("{lead}\n{child_indent}")
                 };
                 edits.push((t.start, t.end, replacement));
+            } else if t.data.contains('\n') {
+                // Mixed text (text alongside tags/elements) that stays on its
+                // own line(s): normalize the per-line leading indentation to the
+                // children's depth, keeping the text content. Inline text (no
+                // newline) is left untouched. The node's trailing indentation is
+                // the next node's lead — children depth, or the parent's depth
+                // when this is the fragment's last node (it abuts the close tag).
+                let trailing_indent = if i == last {
+                    &parent_indent
+                } else {
+                    &child_indent
+                };
+                let reindented =
+                    reindent_text_lines(t.data.as_str(), &child_indent, trailing_indent);
+                if reindented != t.data.as_str() {
+                    edits.push((t.start, t.end, reindented));
+                }
             }
         }
     }
@@ -219,6 +237,38 @@ fn is_indent_provoking(node: &TemplateNode) -> bool {
 
 fn is_whitespace_only(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_whitespace())
+}
+
+/// Re-indent the per-line leading whitespace of a mixed text node (text that
+/// sits alongside tag/element siblings and stays multi-line). The first segment
+/// — the run before the first newline, i.e. content continuing the open-tag line
+/// — is kept verbatim. Content lines get `child_indent`. The final segment is
+/// the indentation that leads into the following node (or the close tag), so a
+/// whitespace-only last line is rewritten to `trailing_indent`. Genuinely blank
+/// interior lines collapse to a bare newline (no trailing space).
+fn reindent_text_lines(data: &str, child_indent: &str, trailing_indent: &str) -> String {
+    let lines: Vec<&str> = data.split('\n').collect();
+    let n = lines.len();
+    let mut out = String::with_capacity(data.len());
+    for (i, line) in lines.iter().enumerate() {
+        if i == 0 {
+            out.push_str(line);
+            continue;
+        }
+        out.push('\n');
+        let content = line.trim_start_matches([' ', '\t']);
+        if content.is_empty() {
+            // The last line's whitespace leads into the next node / close tag.
+            if i == n - 1 {
+                out.push_str(trailing_indent);
+            }
+            // Interior blank line → bare newline.
+        } else {
+            out.push_str(child_indent);
+            out.push_str(content);
+        }
+    }
+    out
 }
 
 /// Whether a blank line may survive at this whitespace position, matching
