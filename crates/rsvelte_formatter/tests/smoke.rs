@@ -30,9 +30,10 @@ fn passes_through_when_no_script() {
 fn passes_through_empty_script() {
     let source = "<script></script>\n<p>x</p>";
     let out = format(source, &FormatOptions::default()).expect("format ok");
-    // The formatter ends every file with exactly one newline (prettier /
-    // oxfmt `insertFinalNewline`), so the only change here is that newline.
-    assert_eq!(out, "<script></script>\n<p>x</p>\n");
+    // prettier / oxfmt separate the `<script>` block from the following markup
+    // with one blank line (even when the script is empty), and end the file with
+    // exactly one newline (`insertFinalNewline`).
+    assert_eq!(out, "<script></script>\n\n<p>x</p>\n");
 }
 
 #[test]

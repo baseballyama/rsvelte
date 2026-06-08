@@ -86,8 +86,17 @@ fn collect_indent_edits_inner(
                 // would: between siblings, and at the document root where the
                 // whitespace abuts a sibling `<script>` / `<style>`. Leading and
                 // trailing blanks inside an element are collapsed away.
-                let keep_blank = t.data.matches('\n').count() >= 2
-                    && blank_line_allowed(source, t.start, t.end, i, last, child_depth);
+                // A blank line is kept where there already is one (between
+                // siblings, or before a sibling `<script>` / `<style>` at the
+                // root — see `blank_line_allowed`), and is *forced* — even from
+                // a single newline — right after a closing `</script>` /
+                // `</style>`, because prettier / oxfmt always separate such a
+                // block from the markup that follows with one blank line. A
+                // blank is NOT forced *before* an opening `<script>` / `<style>`:
+                // a leading `<!--@component-->` doc comment stays glued to it.
+                let keep_blank = (child_depth == 0 && section_close_before(source, t.start))
+                    || (t.data.matches('\n').count() >= 2
+                        && blank_line_allowed(source, t.start, t.end, i, last, child_depth));
                 let lead = if keep_blank { "\n" } else { "" };
                 let replacement = if i == last {
                     format!("{lead}\n{parent_indent}")
@@ -337,12 +346,31 @@ fn blank_line_allowed(
         return false;
     }
     if i == 0 {
+        // A blank that abuts a hoisted `<script>` / `<style>` on either side is
+        // kept: after a closing tag (the conventional blank under `</script>`),
+        // or before an opening tag (e.g. `<svelte:options>` then a blank then
+        // `<script>`, where `<svelte:options>` is hoisted so this is node 0).
         let before = source[..start as usize].trim_end();
-        before.ends_with("</script>") || before.ends_with("</style>")
+        let after = source[end as usize..].trim_start();
+        before.ends_with("</script>")
+            || before.ends_with("</style>")
+            || after.starts_with("<script")
+            || after.starts_with("<style")
     } else {
         let after = source[end as usize..].trim_start();
         after.starts_with("<style") || after.starts_with("<script")
     }
+}
+
+/// Whether a document-root whitespace node immediately follows a closing
+/// `</script>` / `</style>`. These blocks are hoisted out of the fragment, so
+/// the following whitespace text node abuts them in the source. prettier /
+/// oxfmt always separate such a block from the markup that follows with exactly
+/// one blank line, so the blank is forced here regardless of how many newlines
+/// the source had.
+fn section_close_before(source: &str, start: u32) -> bool {
+    let before = source[..start as usize].trim_end();
+    before.ends_with("</script>") || before.ends_with("</style>")
 }
 
 /// Elements whose interior whitespace is meaningful and must survive

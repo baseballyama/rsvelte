@@ -93,6 +93,14 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // Post-pass: collapse pure-text elements onto one line when they fit.
     out = collapse::collapse_pure_text_elements(&out, options)?;
 
+    // Start the file at content: prettier / oxfmt strip leading blank lines and
+    // indentation before the first node (e.g. a markdown code block that begins
+    // with a blank line, or a leading newline before `<svelte:options>`).
+    let lead = out.len() - out.trim_start_matches([' ', '\t', '\r', '\n']).len();
+    if lead > 0 {
+        out.drain(..lead);
+    }
+
     // End the file with exactly one newline (prettier / oxfmt `insertFinalNewline`).
     let trimmed_len = out.trim_end_matches([' ', '\t', '\r', '\n']).len();
     out.truncate(trimmed_len);
