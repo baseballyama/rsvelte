@@ -87,6 +87,23 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         // Regular string: consumes its own escapes; can't span lines in
         // well-formed formatter output.
         if let Some(q) = string {
+            // A regular string never spans a line in valid formatter output, so
+            // a raw newline here means string tracking desynced — most often
+            // quotes inside a regex literal (`/["']x/`), which this scanner
+            // doesn't lex. Recover: close the string and treat the newline as an
+            // ordinary line boundary. Otherwise the spuriously-open string
+            // swallows every following line and they all lose their indent
+            // prefix (a script body de-indents after such a regex). The
+            // mis-scanned tail sits on the already-prefixed line, so the visible
+            // indentation is unaffected.
+            if c == '\n' {
+                out.push(c);
+                string = None;
+                at_line_start = true;
+                seen_newline = true;
+                i += 1;
+                continue;
+            }
             out.push(c);
             if c == '\\' {
                 if i + 1 < n {
