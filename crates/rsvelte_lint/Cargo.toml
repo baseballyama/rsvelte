@@ -28,3 +28,6 @@ oxc_parser = "0.134"
 oxc_ast = "0.134"
 oxc_ast_visit = "0.134"
 oxc_span = "0.134"
+
+[dev-dependencies]
+serde_json = "1.0"
