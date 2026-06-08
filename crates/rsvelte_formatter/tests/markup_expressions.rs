@@ -244,3 +244,62 @@ fn end_to_end_mix() {
     );
     assert!(out.contains("{item}"), "each-body:\n{out}");
 }
+
+// ─── #799: outer parens of a top-level sequence expression are preserved ──
+// prettier-plugin-svelte keeps the redundant outer parens of a sequence
+// (comma) expression in a mustache; only non-sequence redundant parens strip.
+
+#[test]
+fn sequence_keeps_outer_parens_in_mustache() {
+    let out = fmt("{((a = 1), '')}");
+    assert!(
+        out.contains("{((a = 1), \"\")}"),
+        "expected sequence outer parens kept:\n{out}"
+    );
+}
+
+#[test]
+fn bare_sequence_gains_outer_parens() {
+    let out = fmt("<p>{a, b}</p>");
+    assert!(out.contains("{(a, b)}"), "expected (a, b) wrapped:\n{out}");
+}
+
+#[test]
+fn sequence_of_assignments_keeps_parens() {
+    let out = fmt("{(a = 1, b = 2)}");
+    assert!(
+        out.contains("{((a = 1), (b = 2))}"),
+        "expected each assignment + outer wrapped:\n{out}"
+    );
+}
+
+#[test]
+fn non_sequence_redundant_parens_still_strip() {
+    let out = fmt("<p>{(a + 1)}</p>");
+    assert!(
+        out.contains("{a + 1}"),
+        "expected redundant parens stripped:\n{out}"
+    );
+    assert!(
+        !out.contains("{(a + 1)}"),
+        "non-sequence outer parens must still strip:\n{out}"
+    );
+}
+
+#[test]
+fn sequence_in_attribute_value_keeps_parens() {
+    let out = fmt("<div class={(a, b)}></div>");
+    assert!(
+        out.contains("class={(a, b)}"),
+        "expected attr sequence parens kept:\n{out}"
+    );
+}
+
+#[test]
+fn sequence_in_block_header_keeps_parens() {
+    let out = fmt("{#if (a, b)}x{/if}");
+    assert!(
+        out.contains("{#if (a, b)}"),
+        "expected block-header sequence parens kept:\n{out}"
+    );
+}
