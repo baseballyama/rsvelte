@@ -4,6 +4,8 @@
 //! fixes intact). Compiler/validator findings are layered on top by the
 //! native-only [`runner`](crate::runner).
 
+use std::path::Path;
+
 use rsvelte_core::{ParseOptions, parse};
 
 use crate::config::LintConfig;
@@ -13,8 +15,15 @@ use crate::registry::all_rules;
 use crate::rule::Severity;
 use crate::visitor::{EnabledRule, LintVisitor};
 
-/// Run every enabled native rule over `source`, returning raw findings.
-pub fn run_native_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
+/// Run every enabled native rule over `source`, returning raw findings. `path`
+/// is the file being linted when known (`None` for in-memory / wasm linting);
+/// filesystem-aware rules (e.g. `svelte/no-companion-module-shadow`) use it and
+/// no-op when it is `None`.
+pub fn run_native_rules(
+    source: &str,
+    config: &LintConfig,
+    path: Option<&Path>,
+) -> Vec<LintDiagnostic> {
     let rules = all_rules();
     let enabled: Vec<EnabledRule> = rules
         .iter()
@@ -38,7 +47,7 @@ pub fn run_native_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic
     let Ok(root) = parse(source, ParseOptions::default()) else {
         return Vec::new();
     };
-    let mut ctx = LintContext::new(config, source);
+    let mut ctx = LintContext::new(config, source).with_path(path);
     LintVisitor::new(enabled).visit_root(&mut ctx, &root);
     ctx.into_diagnostics()
 }

@@ -106,8 +106,9 @@ pub fn lint(source: &str, filename: &str) -> String {
         }),
     }
 
-    // 2. Native rules.
-    for d in run_native_rules(source, &config) {
+    // 2. Native rules. No filesystem in wasm, so no path is threaded (any
+    // filesystem-aware rule no-ops here).
+    for d in run_native_rules(source, &config, None) {
         let (l, c) = line_index.position(d.start);
         if suppressions.is_suppressed(&d.rule, l) {
             continue;

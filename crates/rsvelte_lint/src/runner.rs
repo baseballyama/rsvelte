@@ -25,7 +25,7 @@ pub fn lint_source(
     let mut diagnostics = crate::validator::validator_diagnostics(source, file, options, config);
 
     // 2. Native rule engine — single shared DFS over the template AST.
-    for d in run_native_rules(source, config) {
+    for d in run_native_rules(source, config, Some(file)) {
         diagnostics.push(d.to_output(file, &line_index));
     }
 
@@ -66,8 +66,9 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
 
-    // Gather candidate edits from non-suppressed fixable findings.
-    let mut edits: Vec<TextEdit> = run_native_rules(source, config)
+    // Gather candidate edits from non-suppressed fixable findings. Fixes never
+    // come from filesystem-aware rules, so no path is threaded here.
+    let mut edits: Vec<TextEdit> = run_native_rules(source, config, None)
         .into_iter()
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
         .filter_map(|d| d.fix)

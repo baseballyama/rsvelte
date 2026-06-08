@@ -6,6 +6,8 @@
 //! also borrows the resolved [`LintConfig`] so a rule can read its own parsed
 //! options via [`LintContext::option_bool`] / [`LintContext::option_str_list`].
 
+use std::path::Path;
+
 use serde_json::Value;
 
 use crate::config::LintConfig;
@@ -19,6 +21,11 @@ pub struct LintContext<'a> {
     cur_severity: Severity,
     config: &'a LintConfig,
     source: &'a str,
+    /// Path of the file being linted, when known. `None` in contexts with no
+    /// filesystem (the wasm playground, or linting an in-memory string). Rules
+    /// that inspect sibling files on disk (e.g.
+    /// `svelte/no-companion-module-shadow`) must no-op when this is `None`.
+    path: Option<&'a Path>,
 }
 
 impl<'a> LintContext<'a> {
@@ -29,7 +36,21 @@ impl<'a> LintContext<'a> {
             cur_severity: Severity::Warn,
             config,
             source,
+            path: None,
         }
+    }
+
+    /// Attach the path of the file being linted (builder style). Left `None` by
+    /// default so string / wasm callers are unaffected.
+    pub fn with_path(mut self, path: Option<&'a Path>) -> Self {
+        self.path = path;
+        self
+    }
+
+    /// The path of the file being linted, when known. `None` for in-memory /
+    /// wasm linting (no filesystem).
+    pub fn path(&self) -> Option<&'a Path> {
+        self.path
     }
 
     /// The full source text of the file being linted.

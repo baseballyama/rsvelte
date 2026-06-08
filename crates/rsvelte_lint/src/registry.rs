@@ -7,7 +7,8 @@
 use crate::rule::Rule;
 use crate::rules::{
     button_has_type::ButtonHasType, no_at_debug_tags::NoAtDebugTags, no_at_html_tags::NoAtHtmlTags,
-    no_dupe_else_if_blocks::NoDupeElseIfBlocks, no_dupe_style_properties::NoDupeStyleProperties,
+    no_companion_module::NoCompanionModuleShadow, no_dupe_else_if_blocks::NoDupeElseIfBlocks,
+    no_dupe_style_properties::NoDupeStyleProperties,
     no_object_in_text_mustaches::NoObjectInTextMustaches,
     no_restricted_html_elements::NoRestrictedHtmlElements, require_each_key::RequireEachKey,
 };
@@ -23,5 +24,6 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoDupeStyleProperties),
         Box::new(NoObjectInTextMustaches),
         Box::new(NoRestrictedHtmlElements),
+        Box::new(NoCompanionModuleShadow),
     ]
 }
