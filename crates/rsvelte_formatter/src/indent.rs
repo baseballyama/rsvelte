@@ -182,7 +182,20 @@ pub(crate) fn else_if_branch(alt: &Fragment) -> Option<&IfBlock> {
 fn is_indent_provoking(node: &TemplateNode) -> bool {
     matches!(
         node,
-        TemplateNode::RegularElement(_)
+        // Mustache tags and comments sit on their own line just like elements
+        // and blocks, so a fragment containing one needs its whitespace-only
+        // Text nodes re-indented to the configured unit (prettier-plugin-svelte
+        // keeps a standalone `{expr}` / `{@render …}` / `<!-- … -->` on its own
+        // line at the children's depth).
+        TemplateNode::ExpressionTag(_)
+            | TemplateNode::HtmlTag(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::RenderTag(_)
+            | TemplateNode::AttachTag(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::RegularElement(_)
             | TemplateNode::Component(_)
             | TemplateNode::TitleElement(_)
             | TemplateNode::SlotElement(_)
