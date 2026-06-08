@@ -232,7 +232,20 @@ pub fn materialize_overlay_with(
                 file: abs_source.clone(),
                 message: format!("{e}"),
             })?;
-            fs::write(&tsx_path, &result.code)?;
+            // A sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`
+            // next to `Foo.svelte`) collides with the component shadow on the
+            // same TypeScript basename: `import X from './Foo.svelte'` and
+            // `import { y } from './Foo.svelte.js'` both resolve to the single
+            // `Foo.svelte.{ts,tsx,d.ts}` family. Rather than emit a competing
+            // `Foo.svelte.ts` (which would win the `.svelte`-strip fallback and
+            // hide the component's default export), fold the companion's named
+            // exports into the component shadow so the one resolvable module
+            // exposes both the component default and the companion's exports.
+            let mut tsx_code = result.code.clone();
+            if let Some(spec) = companion_reexport_specifier(abs_source, &tsx_path) {
+                tsx_code.push_str(&format!("\nexport * from \"{spec}\";\n"));
+            }
+            fs::write(&tsx_path, &tsx_code)?;
 
             // `<name>.svelte.d.ts` re-exports default + named so module
             // resolution by `import Foo from './Foo.svelte'` still works.
@@ -802,6 +815,33 @@ fn resolve_root_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
 
 /// POSIX-style relative path from `from_dir` to `to_path` (so the
 /// generated tsconfig is consumable on every platform).
+/// If `abs_source` (`…/Foo.svelte`) has a sibling companion module
+/// (`Foo.svelte.ts` or `Foo.svelte.js`), return a module specifier — relative
+/// to the component shadow's directory and ending in `.js` so TS strips it and
+/// finds the real file — suitable for an `export * from "…"` re-export appended
+/// to the shadow `.tsx`. Returns `None` when no companion exists.
+fn companion_reexport_specifier(abs_source: &Path, tsx_path: &Path) -> Option<String> {
+    let from_dir = tsx_path.parent()?;
+    for ext in [".ts", ".js"] {
+        let mut cand = abs_source.as_os_str().to_os_string();
+        cand.push(ext);
+        let cand = PathBuf::from(cand);
+        if cand.is_file() {
+            let mut spec = path_relative(from_dir, &cand);
+            if !spec.starts_with('.') {
+                spec = format!("./{spec}");
+            }
+            // TS resolves `./x.svelte.js` by stripping `.js` and finding the
+            // real `.ts`/`.js`; normalise a `.ts` companion's specifier to `.js`.
+            if let Some(stripped) = spec.strip_suffix(".ts") {
+                spec = format!("{stripped}.js");
+            }
+            return Some(spec);
+        }
+    }
+    None
+}
+
 fn path_relative(from_dir: &Path, to_path: &Path) -> String {
     use std::path::Component;
     let from_abs = from_dir
