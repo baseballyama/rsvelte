@@ -86,12 +86,38 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                     collect(out, &t.fragment, line_width, edits);
                 }
             }
-            TemplateNode::SlotElement(s) => collect(out, &s.fragment, line_width, edits),
+            TemplateNode::SlotElement(s) => {
+                if let Some(edit) = try_collapse(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &s.fragment, line_width, edits);
+                }
+            }
+            TemplateNode::SvelteBoundary(s) => {
+                if let Some(edit) = try_collapse(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &s.fragment, line_width, edits);
+                }
+            }
             TemplateNode::SvelteHead(s)
             | TemplateNode::SvelteBody(s)
             | TemplateNode::SvelteDocument(s)
             | TemplateNode::SvelteFragment(s)
-            | TemplateNode::SvelteBoundary(s)
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteSelf(s)
             | TemplateNode::SvelteWindow(s) => collect(out, &s.fragment, line_width, edits),
@@ -166,7 +192,7 @@ fn try_collapse(
     let mut one_line = String::with_capacity(whole.len());
     one_line.push_str(open);
     if !collapsed.is_empty() {
-        let edge = !is_block_display(tag); // inline-ish keeps an edge space
+        let edge = !trims_edge_whitespace(tag); // inline-ish keeps an edge space
         if edge && had_lead {
             one_line.push(' ');
         }
@@ -204,7 +230,7 @@ fn try_collapse(
     // — the `>` glues to the content so no whitespace is injected. The open tag
     // must fit on one line and the `>content</tag` line must fit; otherwise this
     // needs attribute-wrapping / content fill we don't do here.
-    if !is_block_display(tag) {
+    if !trims_edge_whitespace(tag) {
         if open.contains('\n') || !open.ends_with('>') {
             return None;
         }
@@ -220,7 +246,7 @@ fn try_collapse(
     // Block / inline-block: break the content onto its own line(s). Only when the
     // boundary whitespace is insignificant (content separated from the tags, or
     // a block/list-item element) so hugged inline text stays hugged (#798).
-    if !((had_lead && had_trail) || is_block_display(tag)) {
+    if !((had_lead && had_trail) || trims_edge_whitespace(tag)) {
         return None;
     }
     let avail = line_width.saturating_sub(inner_indent.width()).max(1);
@@ -340,6 +366,15 @@ fn is_block_display(tag: &str) -> bool {
 
 fn is_whitespace_preserving(tag: &str) -> bool {
     matches!(tag, "pre" | "textarea")
+}
+
+/// Tags whose text content has its leading/trailing whitespace trimmed when
+/// collapsed onto one line: block / list-item elements (CSS_DISPLAY_DEFAULTS),
+/// plus the `display:contents` elements `<slot>` / `<svelte:boundary>`, which
+/// prettier / oxfmt also edge-trim (`<slot> x </slot>` → `<slot>x</slot>`).
+/// Everything else (inline, inline-block, table-cell, …) keeps one edge space.
+fn trims_edge_whitespace(tag: &str) -> bool {
+    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary")
 }
 
 /// A fill item: an inline token plus whether whitespace preceded it (a break
