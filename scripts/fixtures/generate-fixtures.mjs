@@ -15,10 +15,18 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Import Svelte compiler functions
-import { parse } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
-import pkg from '../../submodules/svelte/packages/svelte/compiler/index.js';
-const { compile, compileModule } = pkg;
+// Import Svelte compiler functions from source (the pinned submodule's
+// `src/compiler`), not the pre-built `compiler/index.js` bundle. The checked-in
+// bundle can lag behind the source — e.g. it still infinite-loops on the
+// `declaration-tag-trailing-slash` error fixture (`{let x = a /`) that the
+// source fixed in #18350 — which would hang fixture generation. The source is
+// the reference rsvelte is ported against, so generating expected output from it
+// is also strictly more correct.
+import {
+  parse,
+  compile,
+  compileModule,
+} from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
