@@ -413,21 +413,37 @@ Each high/medium concern with a mitigation, a gate, or an explicit accepted-risk
 
 ## Implementation status
 
-### Wave 1 — landed (`crates/rsvelte_lint`)
+### Wave 1 (+ tail) and Wave-2 groundwork — landed (`crates/rsvelte_lint`)
 
-The first slice is implemented and tested (validates Decisions A, C, parts of D/E):
+Implemented and tested (validates Decisions A, C, D, parts of E):
 
-- **Rule engine** — `Rule` trait + `&'static RuleMeta` (`rule.rs`), single shared DFS `LintVisitor` (`visitor.rs`), `RuleRegistry` (`registry.rs`), `LintContext` with central `report*`/severity resolution (`context.rs`). Hooks: `check_root`/`element`/`component`/`html_tag`/`expression_tag`/`each`/`if`/`await`/`snippet`/`debug_tag`.
+- **Rule engine** — `Rule` trait + `&'static RuleMeta` (`rule.rs`), single shared DFS `LintVisitor` (`visitor.rs`), `RuleRegistry` (`registry.rs`), `LintContext` with central `report*`/severity resolution + parsed per-rule options + source access (`context.rs`). Hooks: `check_root`/`element`/`component`/`html_tag`/`expression_tag`/`each`/`if`/`await`/`snippet`/`debug_tag`/`attribute`.
 - **Validator wrap** (`validator.rs`) — compiles with `GenerateMode::None` and surfaces the compiler's warnings/errors/`a11y_*` codes as lint diagnostics; config overrides apply by code. The §D "single biggest lever".
-- **Native rules** (`rules/`) — `svelte/no-at-html-tags`, `svelte/require-each-key`, `svelte/no-at-debug-tags` (autofixable), `svelte/button-has-type`.
-- **Config** (`config.rs`) — per-rule severity overrides (off/warn/error) over rule defaults. *Not yet:* per-rule options, globs, `extends`, `eslint.config.js` import (Wave 1 tail / Wave 2).
-- **Suppression** (`suppression.rs`) — dual `eslint-disable*` + `svelte-ignore` directives, line-based v1 (block-range tracking deferred to Wave 2).
+- **Native rules** (`rules/`) — `no-at-html-tags`, `require-each-key`, `no-at-debug-tags` (autofixable), `button-has-type` (now options-driven with invalid/forbidden/empty handling), `no-dupe-else-if-blocks` (full OR/AND subset analysis), `no-dupe-style-properties`, `no-object-in-text-mustaches`, `no-restricted-html-elements` (options-driven). Messages aligned with eslint-plugin-svelte for oracle parity.
+- **Config** (`config.rs`) — `LintConfig::from_json_str` (`rsvelte-lint.json`) with `extends` preset selection, per-rule severity **and variadic options**, and `files`/`ignores` globs (self-contained matcher). `--config` + upward auto-discovery in the CLI.
+- **`eslint.config.js` importer** (`eslint_import.rs`) — `--config-from-eslint` statically extracts `svelte/*` severities via OXC (mjs/cjs).
+- **Suppression** (`suppression.rs`) — dual `eslint-disable*` + `svelte-ignore`, now including **block-range** `eslint-disable`/`eslint-enable` tracking.
 - **Autofix** (`fix_source` in `runner.rs`) — non-overlapping `Code`-tier edits, suppression-aware; `--fix` writes in place.
-- **Output** — reuses `svelte_check` `Diagnostic` + writers (human / machine / github-actions).
-- **CLI** `rsvelte-lint` — rayon per-file parallelism, `--off`/`--error`/`--fix`/`--format`/`--max-warnings`, ESLint-style exit codes.
+- **Output** (`output.rs`) — reuses `svelte_check` writers (human / machine / github-actions) and adds a lint-local **SARIF 2.1.0** writer + an `rsvelte-lint` summary line.
+- **Coexistence** (`presets.rs`) — `--print-eslint-config` emits a flat-config disabling the native-owned rules (one engine per id); `--list-rules` lists the set.
+- **Compat oracle** (`tests/eslint_plugin_oracle.rs`) — drives the real eslint-plugin-svelte fixtures (added as a reference submodule) through the ported rules: valid ⇒ 0 findings, invalid ⇒ ≥1. Skips gracefully when the submodule is absent.
+- **Wave-2 scope groundwork** (`scope.rs`) — `analyze_scope()` threads `ScopeRoot` into the linter; a `ScopeRule` trait + guarded pass; and the **R9 audit** (see below).
+- **CLI** `rsvelte-lint` — rayon per-file parallelism, `--off`/`--error`/`--fix`/`--format`/`--max-warnings`/`--config`/`--config-from-eslint`/`--list-rules`/`--print-eslint-config`, ESLint-style exit codes.
+
+### R9 audit result (gating Wave-2 scope rules)
+
+The scope tree **retains template reads** (`is_template_reference`), the
+**`reassigned`/`mutated` flags**, and each binding's **kind/declaration_kind** —
+enough for `prefer-const`-style and template-unused rules. Two concrete gaps the
+next increment must budget for: (1) `Mutation.start/end` are stubbed to `0`
+upstream (report at the binding, not the mutation site); (2) the declarator
+identifier is recorded as a reference **without** `is_self_declaration`, so an
+unused-binding rule must exclude `declaration_start` or `scope_builder.rs` must
+set the self flag. Both are pinned by `scope.rs` tests.
 
 ### Not yet started
 
-- **Scope-based rules** — gated on the §E / R9 scope-completeness audit before threading `ComponentAnalysis`/`ScopeRoot` into `RuleContext`.
-- Wave 1 tail: config file + `eslint.config.js` import, per-rule options, SARIF, minimal LSP, broader native rule set.
-- Waves 2–5 as described above.
+- **Scope rule port** — the ~19 plugin scope rules onto `scope.rs` (plumbing + R9 audit are done; the `scope_builder.rs` self-flag work above is the first task).
+- **`no-useless-mustaches`** — needs attribute-position mustache handling + the conditional autofix (string-escape classification, HTML-entity encoding).
+- Remaining Wave 1 tail: minimal **LSP** diagnostics path.
+- **Waves 3–5 (gated)** — the typed-rule spike (Gate 0/1, corsa), daemon/watch, and the `parseForESLint` compat shim remain as specified above; none are started, and the typed path stays gated behind the forward-anchor + serial-probe spikes.
