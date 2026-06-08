@@ -40,3 +40,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoUselessMustaches),
     ]
 }
+
+/// Construct the full set of script-AST rules (rules that walk the `<script>`
+/// ESTree program rather than the template tree).
+pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
+    vec![]
+}

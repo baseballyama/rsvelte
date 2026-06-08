@@ -28,6 +28,7 @@ pub mod registry;
 pub mod rule;
 pub mod rules;
 pub mod scope;
+pub mod script;
 pub mod suppression;
 pub mod visitor;
 
