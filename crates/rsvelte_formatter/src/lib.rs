@@ -68,6 +68,9 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         if let Some((start, end, formatted)) = script::format_script(source, script, options)? {
             edits.push((start, end, formatted));
         }
+        if let Some(edit) = script::format_open_tag(source, script.start, script.end) {
+            edits.push(edit);
+        }
     }
 
     // Open-tag and close-tag rewrites first — they own the element-tag

@@ -88,6 +88,53 @@ pub(crate) fn format_script(
     Ok(Some((body_start as u32, body_end as u32, wrapped)))
 }
 
+/// Normalize whitespace in a `<script …>` / `<style …>` opening tag: collapse
+/// runs of whitespace (outside attribute-value quotes) to a single space and
+/// drop space before the closing `>` (`<script  module>` → `<script module>`).
+/// Returns the edit only when it changes something.
+pub(crate) fn format_open_tag(source: &str, start: u32, end: u32) -> Option<(u32, u32, String)> {
+    let block = source.get(start as usize..end as usize)?;
+    let tag_end_rel = block.find('>')? + 1;
+    let tag = &block[..tag_end_rel];
+    let normalized = normalize_open_tag(tag);
+    if normalized == tag {
+        return None;
+    }
+    Some((start, start + tag_end_rel as u32, normalized))
+}
+
+fn normalize_open_tag(tag: &str) -> String {
+    let mut out = String::with_capacity(tag.len());
+    let mut quote: Option<char> = None;
+    let mut pending_space = false;
+    for c in tag.chars() {
+        if let Some(q) = quote {
+            out.push(c);
+            if c == q {
+                quote = None;
+            }
+            continue;
+        }
+        if c == '"' || c == '\'' {
+            if pending_space {
+                out.push(' ');
+                pending_space = false;
+            }
+            out.push(c);
+            quote = Some(c);
+        } else if c.is_whitespace() {
+            pending_space = true;
+        } else {
+            if pending_space && c != '>' {
+                out.push(' ');
+            }
+            pending_space = false;
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// Compute the byte range of the script BODY (between the opening tag's
 /// `>` and the closing `</script>`). Falls back to scanning the source
 /// slice when `Script.raw_content` is empty (eager-parse path).
