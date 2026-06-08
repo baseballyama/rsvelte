@@ -16,6 +16,7 @@
 	} from '$lib/compiler';
 	import { initFmt, formatSvelte, getFmtVersion } from '$lib/fmt';
 	import { generatePreviewHtml } from '$lib/preview';
+	import { encodeCode, readSharedCode } from '$lib/share';
 	import { DEFAULT_EXAMPLE } from '$lib/examples';
 	import { TOOLS, toolById, isToolId, type ToolId } from '$lib/tools';
 	import MonacoEditor from '$lib/monaco/MonacoEditor.svelte';
@@ -57,7 +58,40 @@
 
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
+	// ── share ─────────────────────────────────────────
+	let copied = $state(false);
+	let copyTimer: ReturnType<typeof setTimeout>;
+
 	const currentTool = $derived(toolById(tool)!);
+
+	// Reflect the current tool + editor contents into the URL so the page can be
+	// shared by copying the link. The source rides in the hash (`#code=…`) to
+	// keep it off the server and free of length limits; the tool stays a query
+	// param for backwards-compatible deep links.
+	function syncUrl() {
+		try {
+			const url = new URL(page.url);
+			url.searchParams.set('tool', tool);
+			url.hash = input ? `code=${encodeCode(input)}` : '';
+			replaceState(url, page.state);
+		} catch {
+			// replaceState can throw if the router isn't ready yet — the in-memory
+			// state still drives the UI, so URL sync is best-effort.
+		}
+	}
+
+	async function copyShareLink() {
+		syncUrl();
+		try {
+			await navigator.clipboard.writeText(location.href);
+			copied = true;
+			clearTimeout(copyTimer);
+			copyTimer = setTimeout(() => (copied = false), 1500);
+		} catch {
+			// Clipboard can be blocked (insecure context / permissions); the URL
+			// in the address bar is already up to date, so this is non-fatal.
+		}
+	}
 
 	// ── compiler ──────────────────────────────────────
 	function compile() {
@@ -166,12 +200,7 @@
 	async function selectTool(next: ToolId) {
 		if (next === tool) return;
 		tool = next;
-		try {
-			replaceState(`${base}/playground?tool=${next}`, page.state);
-		} catch {
-			// replaceState can throw if the router isn't ready yet — the in-memory
-			// `tool` state still drives the UI, so the deep link is best-effort.
-		}
+		syncUrl();
 		if (next === 'fmt') await ensureFmt();
 		run();
 	}
@@ -180,12 +209,16 @@
 		if (fmtOutput) {
 			input = fmtOutput;
 			fmtChanged = false;
+			syncUrl();
 		}
 	}
 
 	function handleInputChange() {
 		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(run, 300);
+		debounceTimer = setTimeout(() => {
+			run();
+			syncUrl();
+		}, 300);
 	}
 
 	function handleCursorPositionChange(offset: number) {
@@ -200,6 +233,8 @@
 	onMount(async () => {
 		const t = page.url.searchParams.get('tool');
 		if (t && isToolId(t)) tool = t;
+		const shared = readSharedCode(page.url.hash);
+		if (shared !== null) input = shared;
 		try {
 			await initCompiler();
 			wasmReady = true;
@@ -272,20 +307,33 @@
 			{/if}
 		</div>
 
-		<div class="tool-switch" role="tablist" aria-label="Tool">
-			{#each TOOLS as t (t.id)}
+		<div class="head-r">
+			<div class="tool-switch" role="tablist" aria-label="Tool">
+				{#each TOOLS as t (t.id)}
+					<button
+						role="tab"
+						aria-selected={tool === t.id}
+						class:active={tool === t.id}
+						class:muted={!t.runnable}
+						title={t.tagline}
+						onclick={() => selectTool(t.id)}
+					>
+						{t.label}
+						{#if !t.runnable}<span class="cli-dot" aria-hidden="true">CLI</span>{/if}
+					</button>
+				{/each}
+			</div>
+
+			{#if currentTool.runnable}
 				<button
-					role="tab"
-					aria-selected={tool === t.id}
-					class:active={tool === t.id}
-					class:muted={!t.runnable}
-					title={t.tagline}
-					onclick={() => selectTool(t.id)}
+					class="share"
+					class:copied
+					onclick={copyShareLink}
+					title="Copy a link to this code"
 				>
-					{t.label}
-					{#if !t.runnable}<span class="cli-dot" aria-hidden="true">CLI</span>{/if}
+					{copied ? 'Link copied' : 'Share'}
 				</button>
-			{/each}
+			{/if}
 		</div>
 	</header>
 
@@ -553,6 +601,40 @@
 		border: 1px solid currentColor;
 		border-radius: 2px;
 		line-height: 1;
+	}
+
+	.head-r {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+
+	/* SHARE */
+	.share {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.76rem;
+		padding: 0.45rem 0.85rem;
+		border: 1px solid var(--rule-strong);
+		border-radius: 6px;
+		background: var(--paper);
+		color: var(--ink-soft);
+		cursor: pointer;
+		white-space: nowrap;
+		transition:
+			background 0.16s,
+			color 0.16s,
+			border-color 0.16s;
+	}
+
+	.share:hover {
+		color: var(--ink);
+		border-color: var(--ink);
+	}
+
+	.share.copied {
+		color: var(--ok);
+		border-color: var(--ok);
 	}
 
 	/* TOOL SWITCHER */
