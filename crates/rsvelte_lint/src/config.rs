@@ -12,7 +12,8 @@
 //! A config can be authored programmatically (the `with_*` builders) or loaded
 //! from a JSON file (`rsvelte-lint.json` / `.rsvelte-lintrc.json`) via
 //! [`LintConfig::from_json_str`]. The resolution contract used by
-//! [`LintContext`] never changes — only the inputs grow.
+//! [`LintContext`](crate::context::LintContext) never changes — only the inputs
+//! grow.
 
 use std::collections::HashMap;
 

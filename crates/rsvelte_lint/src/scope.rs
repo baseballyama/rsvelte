@@ -2,7 +2,7 @@
 //!
 //! Scope-based plugin rules (`prefer-const`-style, unused-binding, store/reactive
 //! rules) need the component's lexical scope, not just the template tree. This
-//! module threads `analyze_component`'s [`ScopeRoot`] into the linter and
+//! module threads `analyze_component`'s `ScopeRoot` into the linter and
 //! defines the [`ScopeRule`] contract for rules that visit bindings.
 //!
 //! **R9 audit (gating step, see the unit tests below).** Before committing to
@@ -55,8 +55,7 @@ pub fn scope_rules() -> Vec<Box<dyn ScopeRule>> {
 }
 
 /// Parse + analyze a component, returning its full [`ComponentAnalysis`]
-/// (which owns the [`ScopeRoot`](rsvelte_core::compiler::phases::phase2_analyze::ScopeRoot)).
-/// Returns `None` on parse/analysis failure.
+/// (which owns the `ScopeRoot`). Returns `None` on parse/analysis failure.
 pub fn analyze_scope(source: &str) -> Option<ComponentAnalysis> {
     let mut root = rsvelte_core::parse(source, ParseOptions::default()).ok()?;
     analyze_component(&mut root, source, &CompileOptions::default()).ok()

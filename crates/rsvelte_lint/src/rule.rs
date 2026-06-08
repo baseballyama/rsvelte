@@ -84,7 +84,7 @@ pub struct RuleMeta {
     /// Optional JSON-schema (as a string) describing the rule's options. `None`
     /// for option-less rules. Surfaced by `--list-rules` and a hook for future
     /// validation of user-supplied options. The parsed options themselves are
-    /// reached at run time via [`LintContext`](crate::context::LintContext).
+    /// reached at run time via [`LintContext`].
     pub options_schema: Option<&'static str>,
 }
 
