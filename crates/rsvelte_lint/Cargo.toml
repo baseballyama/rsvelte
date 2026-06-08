@@ -3,31 +3,59 @@ name = "rsvelte_lint"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
-description = "Fast native Svelte linter built on the rsvelte compiler (Wave 1: validator wrap + native rule engine)"
+description = "Fast native Svelte linter built on the rsvelte compiler (validator wrap + native rule engine)"
 license = "MIT"
 publish = false
+
+[lib]
+# `cdylib` for the wasm build (playground), `rlib` for the bin + tests.
+crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "rsvelte-lint"
 path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+# The CLI: native compiler backend + ESLint-config import + the bin's runtime
+# deps (clap/walkdir/rayon).
+cli = ["native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
+# Native backend — pulls in rsvelte_core's `native` feature (svelte_check etc.).
+native = ["rsvelte_core/native"]
+# `--config-from-eslint` importer (OXC). Off in the wasm build.
+eslint-import = [
+    "dep:oxc_allocator",
+    "dep:oxc_parser",
+    "dep:oxc_ast",
+    "dep:oxc_ast_visit",
+    "dep:oxc_span",
+]
+# Browser build: the svelte_check-free rule engine compiled to wasm for the
+# playground, alongside rsvelte_core's compiler wasm exports.
+wasm = ["rsvelte_core/wasm", "dep:wasm-bindgen"]
 
 [dependencies]
-# Default features include `native`, which compiles the `svelte_check`
-# module we reuse for `Diagnostic` + output writers.
-rsvelte_core = { path = "../rsvelte_core" }
-clap = { version = "4.5", features = ["derive"] }
-walkdir = "2.5"
+rsvelte_core = { path = "../rsvelte_core", default-features = false }
 anyhow = "1.0"
-rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# CLI-only runtime deps (off in the wasm build).
+clap = { version = "4.5", features = ["derive"], optional = true }
+walkdir = { version = "2.5", optional = true }
+rayon = { version = "1.10", optional = true }
+
 # OXC — same git rev as rsvelte_core (unified by the workspace `[patch]`),
 # used only to statically parse `eslint.config.js` for the config importer.
-oxc_allocator = "0.134"
-oxc_parser = "0.134"
-oxc_ast = "0.134"
-oxc_ast_visit = "0.134"
-oxc_span = "0.134"
+oxc_allocator = { version = "0.134", optional = true }
+oxc_parser = { version = "0.134", optional = true }
+oxc_ast = { version = "0.134", optional = true }
+oxc_ast_visit = { version = "0.134", optional = true }
+oxc_span = { version = "0.134", optional = true }
+
+# wasm-only.
+wasm-bindgen = { version = "0.2", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"

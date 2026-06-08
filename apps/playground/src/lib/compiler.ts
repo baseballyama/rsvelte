@@ -1,6 +1,6 @@
-import type { ParseResultWasm, CompileResultWasm } from '../../../../pkg/rsvelte_core';
+import type { ParseResultWasm, CompileResultWasm } from '../../../../pkg/rsvelte_lint';
 
-let wasmModule: typeof import('../../../../pkg/rsvelte_core') | null = null;
+let wasmModule: typeof import('../../../../pkg/rsvelte_lint') | null = null;
 let initPromise: Promise<void> | null = null;
 
 export async function initCompiler(): Promise<void> {
@@ -8,7 +8,7 @@ export async function initCompiler(): Promise<void> {
 	if (initPromise) return initPromise;
 
 	initPromise = (async () => {
-		const wasm = await import('../../../../pkg/rsvelte_core');
+		const wasm = await import('../../../../pkg/rsvelte_lint');
 		await wasm.default();
 		wasmModule = wasm;
 	})();
@@ -36,8 +36,31 @@ export function compileServer(source: string, name: string): CompileResultWasm {
 	return wasmModule.compile_server(source, name);
 }
 
+/** A single lint finding, as emitted by `rsvelte_lint::wasm::lint`. */
+export interface LintDiagnostic {
+	severity: 'error' | 'warning';
+	/** 1-indexed line. */
+	line: number;
+	/** 0-indexed (UTF-16) column. */
+	column: number;
+	endLine: number;
+	endColumn: number;
+	/** Rule id or compiler code, e.g. `svelte/no-at-html-tags` or `a11y_missing_attribute`. */
+	code: string;
+	message: string;
+}
+
+export function lint(source: string, filename = 'Component.svelte'): LintDiagnostic[] {
+	if (!wasmModule) throw new Error('WASM not initialized');
+	try {
+		return JSON.parse(wasmModule.lint(source, filename)) as LintDiagnostic[];
+	} catch {
+		return [];
+	}
+}
+
 export type CompileMode = 'client' | 'server';
-export type OutputTab = 'result' | 'js' | 'css' | 'ast';
+export type OutputTab = 'result' | 'js' | 'css' | 'ast' | 'lint';
 
 export interface CompileStats {
 	compileTime: number;

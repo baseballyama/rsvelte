@@ -21,21 +21,38 @@
 pub mod config;
 pub mod context;
 pub mod diagnostic;
-pub mod eslint_import;
+pub mod engine;
 pub mod line_index;
-pub mod output;
 pub mod presets;
 pub mod registry;
 pub mod rule;
 pub mod rules;
-pub mod runner;
 pub mod scope;
 pub mod suppression;
-pub mod validator;
 pub mod visitor;
+
+// `--config-from-eslint` importer (OXC). Excluded from the wasm build.
+#[cfg(feature = "eslint-import")]
+pub mod eslint_import;
+
+// Native-only: these reuse `rsvelte_core::svelte_check` (Diagnostic + writers),
+// which is itself a native-only module.
+#[cfg(feature = "native")]
+pub mod output;
+#[cfg(feature = "native")]
+pub mod runner;
+#[cfg(feature = "native")]
+pub mod validator;
+
+// Browser build: the rule engine compiled to wasm for the playground.
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use config::LintConfig;
 pub use diagnostic::{Fix, LintDiagnostic, TextEdit};
-pub use output::{LintFormat, render};
 pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+
+#[cfg(feature = "native")]
+pub use output::{LintFormat, render};
+#[cfg(feature = "native")]
 pub use runner::{FixResult, fix_source, lint_file, lint_source};

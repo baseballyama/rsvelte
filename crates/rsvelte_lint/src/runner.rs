@@ -3,49 +3,14 @@
 
 use std::path::Path;
 
+use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
-use rsvelte_core::{CompileOptions, ParseOptions, parse};
 
 use crate::config::LintConfig;
-use crate::context::LintContext;
-use crate::diagnostic::{LintDiagnostic, TextEdit};
+use crate::diagnostic::TextEdit;
+use crate::engine::run_native_rules;
 use crate::line_index::LineIndex;
-use crate::registry::all_rules;
-use crate::rule::Severity;
 use crate::suppression::Suppressions;
-use crate::visitor::{EnabledRule, LintVisitor};
-
-/// Run the native rule engine, returning raw [`LintDiagnostic`]s (byte offsets,
-/// fixes intact). Validator-wrapped compiler diagnostics are *not* included —
-/// they're added by [`lint_source`] and are never autofixable.
-fn native_diagnostics(source: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
-    let rules = all_rules();
-    let enabled: Vec<EnabledRule> = rules
-        .iter()
-        .filter_map(|r| {
-            let meta = r.meta();
-            let severity = config.severity_for(meta);
-            if severity == Severity::Off {
-                return None;
-            }
-            Some(EnabledRule {
-                rule: r.as_ref(),
-                meta,
-                severity,
-            })
-        })
-        .collect();
-
-    if enabled.is_empty() {
-        return Vec::new();
-    }
-    let Ok(root) = parse(source, ParseOptions::default()) else {
-        return Vec::new();
-    };
-    let mut ctx = LintContext::new(config, source);
-    LintVisitor::new(enabled).visit_root(&mut ctx, &root);
-    ctx.into_diagnostics()
-}
 
 /// Lint a single source string. `file` is used only for diagnostic paths.
 pub fn lint_source(
@@ -60,7 +25,7 @@ pub fn lint_source(
     let mut diagnostics = crate::validator::validator_diagnostics(source, file, options, config);
 
     // 2. Native rule engine — single shared DFS over the template AST.
-    for d in native_diagnostics(source, config) {
+    for d in run_native_rules(source, config) {
         diagnostics.push(d.to_output(file, &line_index));
     }
 
@@ -102,7 +67,7 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let suppressions = Suppressions::collect(source);
 
     // Gather candidate edits from non-suppressed fixable findings.
-    let mut edits: Vec<TextEdit> = native_diagnostics(source, config)
+    let mut edits: Vec<TextEdit> = run_native_rules(source, config)
         .into_iter()
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
         .filter_map(|d| d.fix)
@@ -153,6 +118,7 @@ pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagno
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rule::Severity;
     use rsvelte_core::svelte_check::diagnostic::DiagnosticSeverity;
     use std::path::PathBuf;
 

@@ -1,10 +1,13 @@
 //! The lint diagnostic model and its conversion to the shared
 //! `rsvelte_core::svelte_check` [`Diagnostic`] used by the output writers.
 
+#[cfg(feature = "native")]
 use std::path::Path;
 
+#[cfg(feature = "native")]
 use rsvelte_core::svelte_check::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 
+#[cfg(feature = "native")]
 use crate::line_index::LineIndex;
 use crate::rule::Severity;
 
@@ -60,6 +63,7 @@ pub struct LintDiagnostic {
     pub fix: Option<Fix>,
 }
 
+#[cfg(feature = "native")]
 impl LintDiagnostic {
     /// Convert to the shared output diagnostic. `Off`-severity findings should
     /// already have been filtered out; they map to `Warning` defensively.
