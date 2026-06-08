@@ -57,7 +57,7 @@ impl Rule for NoDupeElseIfBlocks {
             };
             tests.push(ctx.slice(s, e).to_string());
             spans.push((s, e));
-            cur = next_elseif(c);
+            cur = next_link(c);
         }
 
         // Pre-split every earlier condition into OR-of-AND operand sets.
@@ -91,16 +91,17 @@ impl Rule for NoDupeElseIfBlocks {
     }
 }
 
-/// If `block.alternate` is exactly a single `{:else if}`, return it.
-fn next_elseif(block: &IfBlock) -> Option<&IfBlock> {
+/// The next link in the `{#if}` chain: the first `{#if}` inside `block`'s
+/// alternate. This covers both `{:else if}` (alternate is `[IfBlock elseif]`)
+/// and a bare `{#if}` nested in an `{:else}` block — eslint-plugin-svelte treats
+/// the latter as a chain continuation too (its `iterateIfElseIf` walks up
+/// through any `SvelteElseBlock` whose child is an `{#if}`).
+fn next_link(block: &IfBlock) -> Option<&IfBlock> {
     let alt = block.alternate.as_ref()?;
-    if alt.nodes.len() != 1 {
-        return None;
-    }
-    match &alt.nodes[0] {
-        TemplateNode::IfBlock(n) if n.elseif => Some(n),
+    alt.nodes.iter().find_map(|n| match n {
+        TemplateNode::IfBlock(b) => Some(&**b),
         _ => None,
-    }
+    })
 }
 
 /// `prev_and ⊆ or_op`: every operand of `prev_and` appears in `or_op`.

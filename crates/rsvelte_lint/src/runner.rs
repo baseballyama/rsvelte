@@ -268,9 +268,15 @@ mod tests {
             "{#if a}1{:else if b}2{:else if c}3{/if}",
             "svelte/no-dupe-else-if-blocks"
         ));
-        // A fresh nested `{#if}` inside `{:else}` is a new chain, not a dupe.
-        assert!(!fires(
+        // A bare `{#if}` nested in an `{:else}` continues the chain (matching
+        // eslint-plugin-svelte), so a condition it repeats is flagged.
+        assert!(fires(
             "{#if a}1{:else}{#if a}2{/if}{/if}",
+            "svelte/no-dupe-else-if-blocks"
+        ));
+        // …but a genuinely new condition in the nested `{#if}` is fine.
+        assert!(!fires(
+            "{#if a}1{:else}{#if b}2{/if}{/if}",
             "svelte/no-dupe-else-if-blocks"
         ));
     }
