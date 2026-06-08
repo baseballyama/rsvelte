@@ -1506,20 +1506,43 @@ pub fn svelte2tsx(
                         safe_name, safe_name);
                     let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
                         safe_name);
+                } else if has_generics {
+                    // Runes + generics: `__sveltets_2_fn_component($$render())`
+                    // discards `T` ($$render is called without `<T>` and the
+                    // component type alias never consumes its own `<T>`), so a
+                    // generic component's `T` could not be inferred at the call
+                    // site and `T`-dependent sibling props (callbacks, snippet
+                    // params) collapsed to `unknown` (#923). The #801 fix only
+                    // made `Foo<X>` a valid *reference*. Emit the upstream
+                    // `__sveltets_Render<T>` + `$$IsomorphicComponent` shape
+                    // instead, which threads `T` through generic constructor /
+                    // call signatures so TypeScript infers it from the props.
+                    let gn = &generics_names;
+                    let raw_bindings = exported_names.create_raw_bindings_str(is_svelte5);
+                    let raw_exports = exported_names.create_raw_exports_str(
+                        is_svelte5,
+                        effective_accessors,
+                        options.is_ts_file,
+                    );
+                    let exports_return = if raw_exports == "$$HAS_EXPORTS$$" {
+                        format!("$$render<{gn}>().exports")
+                    } else {
+                        raw_exports.clone()
+                    };
+                    emit_runes_generics_component(
+                        &mut closing,
+                        &safe_name,
+                        &generics_params,
+                        gn,
+                        &raw_bindings,
+                        &exports_return,
+                        has_slot_elements,
+                    );
                 } else {
                     let _ = writeln!(closing, "const {} = __sveltets_2_fn_component($$render());",
                         safe_name);
-                    // Carry the `generics="…"` clause onto the component type
-                    // alias so `Foo<X>` is a valid generic reference (#801).
-                    // Without the `<…>` params tsgo reports "Type
-                    // 'Foo__SvelteComponent_' is not generic".
-                    let type_params = if has_generics {
-                        format!("<{}>", generics_params)
-                    } else {
-                        String::new()
-                    };
-                    let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {}{} = ReturnType<typeof {}>;",
-                        safe_name, type_params, safe_name);
+                    let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {} = ReturnType<typeof {}>;",
+                        safe_name, safe_name);
                     let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
                         safe_name);
                 }
@@ -1648,6 +1671,60 @@ pub fn svelte2tsx(
         exported_names,
         events,
     })
+}
+
+/// Emit the `__sveltets_Render<T>` + `$$IsomorphicComponent` component export
+/// for a **runes-mode generic** component (`<script generics="T">` + runes).
+///
+/// Unlike a non-generic runes component (which uses
+/// `__sveltets_2_fn_component($$render())`), this threads the generic params
+/// through a generic constructor / call signature so TypeScript can *infer* `T`
+/// from the props supplied at the call site and flow it into sibling
+/// `T`-dependent prop types (callback params, `Snippet<[…T…]>` params). The
+/// `fn_component` form discards `T` (`$$render()` is called without `<T>` and
+/// the component type alias never uses its own `<T>`), so those prop params
+/// collapsed to `unknown` (#923). The shape mirrors upstream svelte2tsx's
+/// `addComponentExport` for Svelte 5 runes generics — the render-class methods
+/// carry explicit `ReturnType<typeof $$render<T>>[…]` annotations.
+#[allow(clippy::too_many_arguments)]
+fn emit_runes_generics_component(
+    closing: &mut String,
+    safe_name: &str,
+    gp: &str,
+    gn: &str,
+    raw_bindings: &str,
+    exports_return: &str,
+    has_slot_elements: bool,
+) {
+    let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
+    let _ = writeln!(closing, "    props(): ReturnType<typeof $$render<{gn}>>['props'] {{ return null as any; }}");
+    let _ = writeln!(closing, "    events(): ReturnType<typeof $$render<{gn}>>['events'] {{ return null as any; }}");
+    let _ = writeln!(closing, "    slots(): ReturnType<typeof $$render<{gn}>>['slots'] {{ return null as any; }}");
+    let _ = writeln!(closing, "    bindings() {{ return {raw_bindings}; }}");
+    let _ = writeln!(closing, "    exports() {{ return {exports_return}; }}");
+    closing.push_str("}\n\n");
+
+    let any_params = gn.split(',').map(|_| "any").collect::<Vec<_>>().join(",");
+    let children_type_suffix = if has_slot_elements {
+        "& {children?: any}"
+    } else {
+        ""
+    };
+
+    closing.push_str("interface $$IsomorphicComponent {\n");
+    let _ = writeln!(closing, "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;");
+    let slots_children_suffix = if has_slot_elements {
+        format!(", $$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>, children?: any")
+    } else {
+        String::new()
+    };
+    let _ = writeln!(closing, "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;");
+    let _ = writeln!(closing, "    z_$$bindings?: ReturnType<__sveltets_Render<{any_params}>['bindings']>;");
+    closing.push_str("}\n");
+
+    let _ = writeln!(closing, "const {safe_name}: $$IsomorphicComponent = null as any;");
+    let _ = writeln!(closing, "/*\u{03A9}ignore_start\u{03A9}*/type {safe_name}<{gp}> = InstanceType<typeof {safe_name}<{gn}>>;");
+    let _ = write!(closing, "/*\u{03A9}ignore_end\u{03A9}*/export default {safe_name};");
 }
 
 /// Escape a string for use as the body of a single-quoted JS string literal.

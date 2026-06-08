@@ -50,7 +50,14 @@ impl Rule for NoDupeStyleProperties {
                     }
                 }
                 Attribute::StyleDirective(d) => {
-                    occ.push((d.name.to_string(), d.start, d.end));
+                    // Report at the property name (after the `style:` prefix),
+                    // matching eslint-plugin-svelte's `key.name` location.
+                    let name_start = d.start + "style:".len() as u32;
+                    occ.push((
+                        d.name.to_string(),
+                        name_start,
+                        name_start + d.name.len() as u32,
+                    ));
                 }
                 _ => {}
             }

@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_lint"
-version = "0.1.0"
+version = "0.7.8"
 edition = "2024"
 rust-version = "1.90"
 description = "Fast native Svelte linter built on the rsvelte compiler (validator wrap + native rule engine)"
@@ -59,6 +59,8 @@ wasm-bindgen = { version = "0.2", optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"
+# Parse eslint-plugin-svelte `*-errors.yaml` fixtures in the compat oracle.
+serde_yaml = "0.9"
 
 [lints]
 workspace = true

@@ -1,13 +1,23 @@
 #!/usr/bin/env node
-// `wasm-pack build` writes `pkg/package.json` based on the Cargo crate name
-// (`rsvelte_core`). We publish under the scoped npm name
-// `@rsvelte/compiler`, so we overlay the npm-side metadata here after the
-// wasm build completes and before `pnpm publish` reads it.
+// `wasm-pack build` writes `pkg/package.json` based on the Cargo crate it
+// builds (currently `rsvelte_lint`, which re-exports the `rsvelte_core`
+// compiler wasm exports — see `crates/rsvelte_lint/src/wasm.rs`). We publish
+// under the scoped npm name `@rsvelte/compiler`, so we overlay the npm-side
+// metadata here after the wasm build completes and before `pnpm publish`
+// reads it.
 //
-// The version is intentionally left as wasm-pack produced it: that comes from
-// `Cargo.toml`, which `sync-version.mjs` has already aligned with the version
-// in `apps/npm/compiler/package.json`. Keeping wasm-pack as the version writer
-// avoids a second source of truth.
+// The version is the changeset-managed `apps/npm/compiler/package.json`
+// version — the single source of truth. We force it here rather than trusting
+// whatever wasm-pack derived from the built crate's `Cargo.toml`, because the
+// built crate is decoupled from the published package's version: when the
+// build switched from `rsvelte_core` to `rsvelte_lint` (#724), wasm-pack
+// started stamping `pkg/package.json` with `rsvelte_lint`'s crate version
+// (`0.1.0`) instead of the release version. That shipped `@rsvelte/compiler`
+// as `0.1.0`, which npm rejected as already-published (E403) and crashed the
+// changesets publish. Owning the version here keeps the published tarball
+// correct no matter which crate the wasm build targets, and is also what
+// `workspace:^` consumers (e.g. `@rsvelte/svelte2tsx`) read when pnpm rewrites
+// their dependency range at publish time.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +35,15 @@ const source = JSON.parse(readFileSync(sourceJsonPath, 'utf8'));
 // redirect into the published package — once pnpm packs from `pkg/`, that
 // field would only confuse downstream consumers if it shipped to the registry.
 generated.name = source.name;
+// Surface any drift between the built crate's version and the release version
+// so a future build-crate swap that desyncs `sync-version.mjs` is debuggable.
+if (generated.version !== source.version) {
+	console.warn(
+		`finalize-pkg: overriding wasm-pack version ${generated.version} -> ${source.version} ` +
+			`(from apps/npm/compiler/package.json). If unexpected, check sync-version.mjs covers the built crate.`,
+	);
+}
+generated.version = source.version;
 if (source.repository) generated.repository = source.repository;
 if (source.homepage) generated.homepage = source.homepage;
 if (source.bugs) generated.bugs = source.bugs;

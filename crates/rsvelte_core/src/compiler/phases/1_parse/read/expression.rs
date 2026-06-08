@@ -2490,10 +2490,22 @@ fn convert_formal_parameter_inner(
             }
         }
         BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets)
+            let expr =
+                convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets);
+            // A destructuring param can carry a type annotation on the
+            // FormalParameter (`{ a }: { a?: string }`), but the pattern's own
+            // span stops at the closing `}`. The BindingIdentifier branch above
+            // already folds the annotation into its span + attaches
+            // `typeAnnotation`; mirror that for object patterns so the param's
+            // `end` covers the annotation. svelte2tsx slices the snippet
+            // parameter's source by this span — without it the explicit type and
+            // its optionality are lost and the member is inferred as `any` /
+            // required (#912).
+            attach_param_type_annotation(expr, param, adjusted_offset, line_offsets)
         }
         BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern_to_expr(arena, arr_pat, adjusted_offset, line_offsets)
+            let expr = convert_array_pattern_to_expr(arena, arr_pat, adjusted_offset, line_offsets);
+            attach_param_type_annotation(expr, param, adjusted_offset, line_offsets)
         }
         BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern_to_expr(arena, assign_pat, adjusted_offset, line_offsets)
@@ -2516,6 +2528,39 @@ fn convert_formal_parameter_inner(
     }
 
     pattern_expr
+}
+
+/// Fold a FormalParameter's type annotation into a destructuring-pattern
+/// expression: extend the node's `end` to cover the annotation and attach a
+/// `typeAnnotation` field (mirroring the `BindingIdentifier` branch of
+/// `convert_formal_parameter_inner`). No-op when the parameter is untyped.
+///
+/// `adjusted_offset` is the offset already applied to the pattern's own spans
+/// (the OXC span is relative to the parser's wrapped source); the annotation's
+/// spans use the same base, so callers needing original-source positions
+/// (e.g. the optional-marker remap path) still remap the top-level `end`.
+fn attach_param_type_annotation(
+    expr: Expression,
+    param: &oxc_ast::ast::FormalParameter,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let Some(type_ann) = &param.type_annotation else {
+        return expr;
+    };
+    let mut json = expr.as_json().clone();
+    if let Some(obj) = json.as_object_mut() {
+        let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let end = adjusted_offset + type_ann.span.end as usize;
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        if let Some(loc) = create_loc(start, end, line_offsets) {
+            obj.insert("loc".to_string(), loc);
+        }
+        let type_ann_obj =
+            convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
+        obj.insert("typeAnnotation".to_string(), type_ann_obj);
+    }
+    Expression::Value(json)
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
@@ -7082,7 +7127,12 @@ fn convert_statement_for_program(
             let end = offset + switch_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let discriminant = expr_to_node(convert_expression(
+            // Program context: the offset is already program-adjusted, so use
+            // `convert_expression_for_program` (no `-1` paren shift) like every
+            // other statement here. Using `convert_expression` double-counts the
+            // paren and shifts the discriminant span one unit left onto the `(`
+            // (#916).
+            let discriminant = expr_to_node(convert_expression_for_program(
                 arena,
                 &switch_stmt.discriminant,
                 offset,
@@ -7098,7 +7148,7 @@ fn convert_statement_for_program(
                     let case_loc = create_typed_loc(case_start, case_end, line_offsets);
 
                     let test = case.test.as_ref().map(|test| {
-                        arena.alloc_js_node(expr_to_node(convert_expression(
+                        arena.alloc_js_node(expr_to_node(convert_expression_for_program(
                             arena,
                             test,
                             offset,
@@ -7137,7 +7187,7 @@ fn convert_statement_for_program(
             let end = offset + do_while_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let test = expr_to_node(convert_expression(
+            let test = expr_to_node(convert_expression_for_program(
                 arena,
                 &do_while_stmt.test,
                 offset,
@@ -8967,7 +9017,13 @@ fn convert_assignment_pattern(
             offset,
             line_offsets,
         )),
-        right: arena.alloc_js_node(expr_to_node(convert_expression(
+        // Program context: `offset` is already program-adjusted (the pattern's
+        // own `start`/`end` and `left` use it raw), so the default value must
+        // also use `convert_expression_for_program`. `convert_expression` would
+        // re-apply the synthetic-paren `-1`, shifting the default expression one
+        // unit left — e.g. the `$bindable` callee in `let { open = $bindable() }`
+        // spanned ` $bindabl` (#916).
+        right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
             arena,
             &assign_pat.right,
             offset,

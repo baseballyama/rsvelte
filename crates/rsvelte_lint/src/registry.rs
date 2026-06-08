@@ -7,9 +7,15 @@
 use crate::rule::Rule;
 use crate::rules::{
     button_has_type::ButtonHasType, no_at_debug_tags::NoAtDebugTags, no_at_html_tags::NoAtHtmlTags,
-    no_dupe_else_if_blocks::NoDupeElseIfBlocks, no_dupe_style_properties::NoDupeStyleProperties,
+    no_dupe_else_if_blocks::NoDupeElseIfBlocks, no_dupe_on_directives::NoDupeOnDirectives,
+    no_dupe_style_properties::NoDupeStyleProperties, no_dupe_use_directives::NoDupeUseDirectives,
+    no_inspect::NoInspect, no_not_function_handler::NoNotFunctionHandler,
     no_object_in_text_mustaches::NoObjectInTextMustaches,
-    no_restricted_html_elements::NoRestrictedHtmlElements, require_each_key::RequireEachKey,
+    no_raw_special_elements::NoRawSpecialElements,
+    no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
+    no_useless_children_snippet::NoUselessChildrenSnippet,
+    no_useless_mustaches::NoUselessMustaches, require_each_key::RequireEachKey,
+    valid_each_key::ValidEachKey,
 };
 
 /// Construct the full set of native rules.
@@ -23,5 +29,27 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoDupeStyleProperties),
         Box::new(NoObjectInTextMustaches),
         Box::new(NoRestrictedHtmlElements),
+        Box::new(NoDupeOnDirectives),
+        Box::new(NoDupeUseDirectives),
+        Box::new(NoRawSpecialElements),
+        Box::new(NoUselessChildrenSnippet),
+        Box::new(ValidEachKey),
+        Box::new(NoNotFunctionHandler),
+        Box::new(NoSvelteInternal),
+        Box::new(NoInspect),
+        Box::new(NoUselessMustaches),
+    ]
+}
+
+/// Construct the full set of script-AST rules (rules that walk the `<script>`
+/// ESTree program rather than the template tree).
+pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
+    use crate::rules::no_inner_declarations::NoInnerDeclarations;
+    use crate::rules::no_store_async::NoStoreAsync;
+    use crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity;
+    vec![
+        Box::new(NoInnerDeclarations),
+        Box::new(PreferSvelteReactivity),
+        Box::new(NoStoreAsync),
     ]
 }

@@ -2049,7 +2049,23 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
                 }
             }
             let mut shim = A(w);
-            serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
+            if offset_remap_active() {
+                // A `Raw` sub-tree (e.g. a typed function parameter, or a whole
+                // typed arrow lowered to legacy JSON) carries byte offsets too.
+                // Remap them to UTF-16 so the envelope stays consistent with the
+                // JSON `parse` path (#793, #908). Without this, every descendant
+                // of a typed-parameter arrow keeps its byte offsets and drifts
+                // past any preceding non-ASCII source.
+                let mut json_value = value.clone();
+                OFFSET_CONV.with(|c| {
+                    if let Some(conv) = &*c.borrow() {
+                        crate::compiler::legacy::convert_positions_to_utf16(&mut json_value, conv);
+                    }
+                });
+                serde_json::to_writer(&mut shim, &json_value).map_err(std::io::Error::other)?;
+            } else {
+                serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
+            }
             let p1 = shim.0.position();
             w.patch_u32(len_slot, (p1 - p0) as u32);
         }
@@ -2185,6 +2201,88 @@ mod tests {
         let root_off = u32::from_le_bytes(buf[12..16].try_into().unwrap()) as usize;
         // Root must be the binary TAG_ROOT, not the JSON fallback.
         assert_eq!(buf[root_off], TAG_ROOT);
+    }
+
+    /// #908: a typed arrow parameter (`(r: number[]) => …`) is lowered to a
+    /// `JsNode::Raw` JSON sub-tree. That JSON carries byte offsets, which must
+    /// be remapped to UTF-16 like every other span when the source contains
+    /// non-ASCII characters — otherwise the whole arrow (params + body) drifts
+    /// past the preceding multibyte text and `source.slice(start, end)` breaks.
+    #[test]
+    fn typed_arrow_raw_json_offsets_are_utf16() {
+        use std::collections::HashSet;
+
+        // 4 multibyte chars precede the typed arrow, so a leaked byte offset
+        // would be shifted by +8 (4 chars × 2 extra bytes) versus UTF-16.
+        let src = concat!(
+            "<script lang=\"ts\">\n",
+            "  const \u{30E9}\u{30D9}\u{30EB} = \"\u{3042}\";\n",
+            "  let last = 0;\n",
+            "  const set = (r: number[]) => { last = r.length; };\n",
+            "</script>\n",
+            "<p>{\u{30E9}\u{30D9}\u{30EB}}{last}{set}</p>",
+        );
+        let ast = parse(src, ParseOptions::default()).unwrap();
+
+        // Canonical UTF-16 offsets — exactly what the JSON `parse` path emits.
+        let valid: HashSet<i64> = crate::ast::arena::with_serialize_arena(&ast.arena, || {
+            let mut value = serde_json::to_value(&ast).unwrap();
+            let conv = crate::compiler::legacy::Utf8ToUtf16::new(src);
+            crate::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
+            let mut set = HashSet::new();
+            collect_offsets(&value, &mut set);
+            set
+        });
+
+        let buf = encode_root_to_vec(&ast, src);
+        // Raw-JSON sub-trees are the only place `"start":`/`"end":` appears as
+        // text in the binary envelope (typed nodes store offsets as raw u32).
+        let text = String::from_utf8_lossy(&buf);
+        let mut checked = 0usize;
+        for key in ["\"start\":", "\"end\":"] {
+            let mut from = 0;
+            while let Some(rel) = text[from..].find(key) {
+                let num_start = from + rel + key.len();
+                let digits: String = text[num_start..]
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect();
+                from = num_start;
+                if let Ok(n) = digits.parse::<i64>() {
+                    assert!(
+                        valid.contains(&n),
+                        "envelope raw-JSON offset {n} is not a UTF-16 node offset \
+                         (byte offsets leaked — #908)"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(
+            checked > 0,
+            "expected the typed arrow to produce raw-JSON offsets to check"
+        );
+    }
+
+    fn collect_offsets(value: &serde_json::Value, out: &mut std::collections::HashSet<i64>) {
+        match value {
+            serde_json::Value::Object(map) => {
+                for (k, v) in map {
+                    if (k == "start" || k == "end")
+                        && let Some(n) = v.as_i64()
+                    {
+                        out.insert(n);
+                    }
+                    collect_offsets(v, out);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for it in items {
+                    collect_offsets(it, out);
+                }
+            }
+            _ => {}
+        }
     }
 
     #[test]

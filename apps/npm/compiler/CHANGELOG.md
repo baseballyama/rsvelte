@@ -1,5 +1,22 @@
 # @rsvelte/compiler
 
+## 0.7.8
+
+### Patch Changes
+
+- e4c82de: fix(parse): give `switch` discriminants and assignment-pattern defaults exact identifier spans (#916). In program/script context the statement converter routed a `switch (X)` discriminant, a `case X:` test, a `do … while (X)` test, and the default value of a destructuring `AssignmentPattern` through `convert_expression` (which subtracts the synthetic-paren offset) instead of `convert_expression_for_program`. That shifted those spans one code unit to the left — `switch (x)` spanned the `x` as `(`, and the `$bindable` callee in `let { open = $bindable(false) }` spanned as ` $bindabl` — so span-based edits (`magic-string`, svelte-shaker) corrupted the source. All four now use the program-context converter, so every identifier satisfies `source.slice(start, end) === name`.
+
+## 0.7.7
+
+### Patch Changes
+
+- 26aeb22: Republish at the correct release version. The previous `0.7.6` publish never
+  reached npm: the wasm `pkg/` was stamped with the build crate's version
+  (`0.1.0`) instead of the release version, so `changeset publish` attempted
+  `@rsvelte/compiler@0.1.0`, hit npm's already-published guard (E403), and
+  crashed the Release run. This ships the same compiler at a correctly-versioned
+  package — there is no functional change to the compiler itself.
+
 ## 0.7.6
 
 ### Patch Changes
