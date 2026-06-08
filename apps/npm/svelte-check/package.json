@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte-check",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Rust-powered svelte-check CLI — type-checks and diagnoses Svelte projects",
   "license": "MIT",
   "repository": {
