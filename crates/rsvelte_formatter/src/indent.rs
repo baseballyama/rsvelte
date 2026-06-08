@@ -30,7 +30,23 @@ pub(crate) fn collect_indent_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    let has_block_children = fragment.nodes.iter().any(is_indent_provoking);
+    collect_indent_edits_inner(source, fragment, child_depth, false, options, edits)
+}
+
+/// `force` makes the fragment re-indent its children even when it holds only
+/// text — used for block bodies (`{#if}` / `{:else}` / `{#each}` / …), which
+/// always render their content on its own line(s). Element children instead pass
+/// `force = false`: a pure-text element collapses to one line and is handled
+/// elsewhere, not re-indented here.
+fn collect_indent_edits_inner(
+    source: &str,
+    fragment: &Fragment,
+    child_depth: usize,
+    force: bool,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let has_block_children = force || fragment.nodes.iter().any(is_indent_provoking);
 
     if has_block_children {
         let child_indent = indent_for_level(child_depth, &options.js);
@@ -144,12 +160,21 @@ fn recurse_into_children(
             // would add one level per `{:else if}`).
             let mut current: &IfBlock = blk;
             loop {
-                collect_indent_edits(source, &current.consequent, next_depth, options, edits)?;
+                collect_indent_edits_inner(
+                    source,
+                    &current.consequent,
+                    next_depth,
+                    true,
+                    options,
+                    edits,
+                )?;
                 match &current.alternate {
                     Some(alt) => match else_if_branch(alt) {
                         Some(chained) => current = chained,
                         None => {
-                            collect_indent_edits(source, alt, next_depth, options, edits)?;
+                            collect_indent_edits_inner(
+                                source, alt, next_depth, true, options, edits,
+                            )?;
                             break;
                         }
                     },
@@ -158,27 +183,27 @@ fn recurse_into_children(
             }
         }
         TemplateNode::EachBlock(blk) => {
-            collect_indent_edits(source, &blk.body, next_depth, options, edits)?;
+            collect_indent_edits_inner(source, &blk.body, next_depth, true, options, edits)?;
             if let Some(fb) = &blk.fallback {
-                collect_indent_edits(source, fb, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, fb, next_depth, true, options, edits)?;
             }
         }
         TemplateNode::AwaitBlock(blk) => {
             if let Some(frag) = &blk.pending {
-                collect_indent_edits(source, frag, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
             }
             if let Some(frag) = &blk.then {
-                collect_indent_edits(source, frag, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
             }
             if let Some(frag) = &blk.catch {
-                collect_indent_edits(source, frag, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
-            collect_indent_edits(source, &blk.fragment, next_depth, options, edits)?;
+            collect_indent_edits_inner(source, &blk.fragment, next_depth, true, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
-            collect_indent_edits(source, &blk.body, next_depth, options, edits)?;
+            collect_indent_edits_inner(source, &blk.body, next_depth, true, options, edits)?;
         }
         _ => {}
     }
