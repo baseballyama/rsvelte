@@ -8,7 +8,7 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
 use crate::diagnostic::TextEdit;
-use crate::engine::run_native_rules;
+use crate::engine::{run_native_rules, run_script_rules};
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
 
@@ -21,19 +21,39 @@ pub fn lint_source(
 ) -> Vec<Diagnostic> {
     let line_index = LineIndex::new(source);
 
-    // 1. Validator wrap — compiler warnings/errors/a11y (config applied inside).
-    let mut diagnostics = crate::validator::validator_diagnostics(source, file, options, config);
+    let mut diagnostics = match crate::engine::classify_source(&file.to_string_lossy()) {
+        // A standalone JS/TS module file (`*.svelte.js` / `*.svelte.ts` / `*.js`
+        // / `*.ts`): no template or compiler-warning pass — only script-AST rules
+        // run, over the whole-file module program.
+        crate::engine::SourceKind::Module { ts } => {
+            let mut diags = Vec::new();
+            for d in crate::engine::run_script_rules_module(source, ts, config) {
+                diags.push(d.to_output(file, &line_index));
+            }
+            diags
+        }
+        crate::engine::SourceKind::Svelte => {
+            // 1. Validator wrap — compiler warnings/errors/a11y (config applied inside).
+            let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
 
-    // 2. Native rule engine — single shared DFS over the template AST.
-    for d in run_native_rules(source, config) {
-        diagnostics.push(d.to_output(file, &line_index));
-    }
+            // 2. Native rule engine — single shared DFS over the template AST.
+            for d in run_native_rules(source, config) {
+                diags.push(d.to_output(file, &line_index));
+            }
 
-    // 2b. Scope-based rules (Wave 2). No-op until scope rules ship; this skips
-    // the analysis pass entirely when none are enabled.
-    for d in crate::scope::scope_diagnostics(source, config) {
-        diagnostics.push(d.to_output(file, &line_index));
-    }
+            // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
+            for d in run_script_rules(source, config) {
+                diags.push(d.to_output(file, &line_index));
+            }
+
+            // 2b. Scope-based rules (Wave 2). No-op until scope rules ship; this
+            // skips the analysis pass entirely when none are enabled.
+            for d in crate::scope::scope_diagnostics(source, config) {
+                diags.push(d.to_output(file, &line_index));
+            }
+            diags
+        }
+    };
 
     // 3. Suppression directives (eslint-disable* + svelte-ignore).
     let suppressions = Suppressions::collect(source);

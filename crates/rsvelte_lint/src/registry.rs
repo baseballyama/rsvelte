@@ -40,3 +40,16 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoUselessMustaches),
     ]
 }
+
+/// Construct the full set of script-AST rules (rules that walk the `<script>`
+/// ESTree program rather than the template tree).
+pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
+    use crate::rules::no_inner_declarations::NoInnerDeclarations;
+    use crate::rules::no_store_async::NoStoreAsync;
+    use crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity;
+    vec![
+        Box::new(NoInnerDeclarations),
+        Box::new(PreferSvelteReactivity),
+        Box::new(NoStoreAsync),
+    ]
+}
