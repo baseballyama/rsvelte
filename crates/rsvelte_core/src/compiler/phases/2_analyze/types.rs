@@ -1332,7 +1332,8 @@ fn collect_ts_removals_from_binding_pattern(
 ) {
     match pattern {
         oxc_ast::ast::BindingPattern::BindingIdentifier(_) => {
-            // No type annotation on BindingIdentifier in OXC 0.107
+            // A `BindingIdentifier` carries no type annotation of its own in OXC's
+            // AST (the annotation lives on the enclosing pattern), so nothing to strip.
         }
         oxc_ast::ast::BindingPattern::ObjectPattern(obj) => {
             for prop in &obj.properties {

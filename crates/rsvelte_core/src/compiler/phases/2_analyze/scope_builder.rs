@@ -5287,69 +5287,6 @@ pub fn build_scopes(
     builder.build(ast)
 }
 
-// TODO: Re-enable tests after fixing Expression clone issue with OXC 0.107
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn test_detect_binding_kind_from_expr() {
-//         use oxc_allocator::Allocator;
-//         use oxc_parser::Parser;
-//
-//         let builder = ScopeBuilder::new("");
-//
-//         // Helper to parse an expression
-//         let parse_expr = |code: &str| -> Expression {
-//             let allocator = Allocator::default();
-//             let source_type = SourceType::default();
-//             let ret = Parser::new(&allocator, code, source_type).parse();
-//             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-//                 ret.program.body.first()
-//             {
-//                 expr_stmt.expression.clone() // clone() doesn't exist in OXC 0.107
-//             } else {
-//                 panic!("Failed to parse expression: {}", code);
-//             }
-//         };
-//
-//         // Test $state()
-//         let expr = parse_expr("$state(0)");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::State
-//         );
-//
-//         // Test $state.raw()
-//         let expr = parse_expr("$state.raw({})");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::RawState
-//         );
-//
-//         // Test $derived()
-//         let expr = parse_expr("$derived(count * 2)");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::Derived
-//         );
-//
-//         // Test $props()
-//         let expr = parse_expr("$props()");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::Prop
-//         );
-//
-//         // Test normal expression
-//         let expr = parse_expr("42");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::Normal
-//         );
-//     }
-// }
-
 /// Recursively collect identifier names from arrow function parameters in a JSON AST.
 /// This walks the entire expression tree looking for ArrowFunctionExpression and
 /// FunctionExpression nodes, then extracts parameter identifier names.
