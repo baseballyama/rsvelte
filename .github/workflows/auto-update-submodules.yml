@@ -47,6 +47,13 @@ jobs:
             path: submodules/vize
           - name: corsa-bind
             path: submodules/corsa-bind
+          # svelte.dev drives the formatter parity corpus (CI regenerates the
+          # oracle per svelte.dev SHA and runs tests/svelte_dev_corpus.rs +
+          # svelte_dev_markdown.rs). Unlike pure tooling bumps, a content change
+          # can introduce new corpus samples that fail the parity baselines, so
+          # this PR may be red until the baselines are triaged.
+          - name: svelte.dev
+            path: submodules/svelte.dev
     concurrency:
       group: auto-update-submodules-${{ matrix.name }}
       cancel-in-progress: false
