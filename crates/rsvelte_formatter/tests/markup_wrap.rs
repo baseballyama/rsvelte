@@ -171,3 +171,46 @@ fn short_attribute_value_stays_inline_when_nested() {
         "short value should stay inline:\n{out}"
     );
 }
+
+// ─── #795 sub-case (b): function-binding brace break ────────────────────────
+
+#[test]
+fn function_binding_breaks_braces_when_multiline() {
+    // A Svelte 5 function binding `bind:value={get, set}` whose setter has a
+    // block body can't sit on one line; prettier-plugin-svelte breaks the
+    // `{` / `}` onto their own lines (no outer parens) with each member
+    // indented one level.
+    let out = fmt_at_width(
+        "<TextInput bind:value={() => model.data.samlMetadataUrl ?? '', (value) => { model.data.samlMetadataUrl = value; }} />",
+        80,
+    );
+    let expected = "<TextInput
+  bind:value={
+    () => model.data.samlMetadataUrl ?? \"\",
+    (value) => {
+      model.data.samlMetadataUrl = value;
+    }
+  }
+/>";
+    assert_eq!(
+        out.trim_end(),
+        expected,
+        "function binding should break its braces:\n{out}"
+    );
+    // Idempotent.
+    assert_eq!(fmt_at_width(&out, 80), out, "must be idempotent");
+}
+
+#[test]
+fn short_function_binding_stays_inline_without_parens() {
+    // A short function binding fits on one line and stays inline — and must
+    // NOT gain the outer parens a mustache sequence keeps (#799 is a separate
+    // path).
+    let out = fmt_at_width("<X bind:value={() => a, (v) => (a = v)} />", 80);
+    assert_eq!(
+        out.trim_end(),
+        "<X bind:value={() => a, (v) => (a = v)} />",
+        "short function binding stays inline:\n{out}"
+    );
+    assert_eq!(fmt_at_width(&out, 80), out, "must be idempotent");
+}

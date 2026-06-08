@@ -4,6 +4,7 @@ use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_span::SourceType;
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{ExpressionTag, Fragment, TemplateNode};
+use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
@@ -402,15 +403,35 @@ pub(crate) fn format_directive_value(
     options: &FormatOptions,
     attr_depth: usize,
 ) -> Result<Option<String>, FormatError> {
-    let Some(expr_start) = expr.start() else {
+    let Some(inner) = directive_brace_inner(source, expr, value_end) else {
         return Ok(None);
     };
+    let inner = inner.trim();
+    if inner.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(format_attribute_value_expression(
+        inner, options, attr_depth,
+    )?))
+}
+
+/// Locate a directive value's `{ … }` braces and return the raw inner source.
+/// The opening brace is found by a whitespace-only back-scan from the
+/// expression start; the closing brace is the byte just before `value_end`
+/// (the directive node's `end`). Returns `None` when the braces can't be
+/// located (e.g. a shorthand `bind:value` with no value).
+fn directive_brace_inner<'a>(
+    source: &'a str,
+    expr: &Expression,
+    value_end: u32,
+) -> Option<&'a str> {
+    let expr_start = expr.start()?;
     let bytes = source.as_bytes();
 
     // Closing brace: the directive node ends just past it.
     let end = value_end as usize;
     if end == 0 || bytes.get(end - 1) != Some(&b'}') {
-        return Ok(None);
+        return None;
     }
     let close = end - 1;
 
@@ -428,18 +449,121 @@ pub(crate) fn format_directive_value(
             _ => break,
         }
     }
-    let Some(open) = open else { return Ok(None) };
+    let open = open?;
     if open >= close {
-        return Ok(None);
+        return None;
     }
+    source.get(open + 1..close)
+}
 
-    let inner = source.get(open + 1..close).unwrap_or("").trim();
+/// Format a Svelte 5 **function binding** — `bind:value={get, set}`, whose value
+/// is a top-level sequence (comma) expression — as the value part (including the
+/// surrounding `{ … }`).
+///
+/// Unlike a mustache sequence (`{(a, b)}`, which keeps its outer parens — #799),
+/// prettier-plugin-svelte prints a function binding *without* the parens and,
+/// when the members don't fit on the attribute line (or any member is itself
+/// multi-line), breaks the `{` / `}` onto their own lines with each member
+/// indented one level (#795 sub-case b):
+///
+/// ```svelte
+/// bind:value={
+///   () => model.x ?? '',
+///   (value) => {
+///     model.x = value;
+///   }
+/// }
+/// ```
+///
+/// Returns `None` when the value is not a top-level sequence — the caller then
+/// falls back to the normal single-expression directive path. `lead_cols` is the
+/// visual column at which the value's opening `{` lands once the open tag wraps
+/// (`attr_depth` indent + `bind:name=` prefix), used for the inline-fit check.
+pub(crate) fn format_function_binding(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+    attr_depth: usize,
+    lead_cols: usize,
+) -> Result<Option<String>, FormatError> {
+    use oxc_span::GetSpan;
+
+    let Some(inner) = directive_brace_inner(source, expr, value_end) else {
+        return Ok(None);
+    };
+    let inner = inner.trim();
     if inner.is_empty() {
         return Ok(None);
     }
-    Ok(Some(format_attribute_value_expression(
-        inner, options, attr_depth,
-    )?))
+
+    // Detect a top-level sequence and recover each member's source span.
+    let allocator = Allocator::default();
+    let source_type = if options.typescript {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let wrapped = format!("({inner});");
+    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.errors.is_empty() {
+        return Ok(None);
+    }
+    let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parser_ret.program.body.first()
+    else {
+        return Ok(None);
+    };
+    let oxc_ast::ast::Expression::SequenceExpression(seq) = &stmt.expression else {
+        return Ok(None);
+    };
+
+    // Members render one level deeper than the brace line, so narrow each
+    // member's wrap width by that extra level.
+    let members: Vec<String> = seq
+        .expressions
+        .iter()
+        .map(|e| {
+            let span = e.span();
+            let member_src = wrapped
+                .get(span.start as usize..span.end as usize)
+                .unwrap_or("")
+                .trim();
+            format_attribute_value_expression(member_src, options, attr_depth + 1)
+        })
+        .collect::<Result<_, _>>()?;
+
+    let indent_width = options.js.indent_width.value() as usize;
+    let line_width = options.js.line_width.value() as usize;
+    let any_multiline = members.iter().any(|m| m.contains('\n'));
+
+    // Inline candidate: `{m1, m2}` on one line. Keep it inline only when no
+    // member is multi-line and the whole value fits at its rendered column.
+    let inline = members.join(", ");
+    let inline_cols = lead_cols + 1 + UnicodeWidthStr::width(inline.as_str()) + 1;
+    if !any_multiline && inline_cols <= line_width {
+        return Ok(Some(format!("{{{inline}}}")));
+    }
+
+    // Broken form: each member on its own line, indented one level, braces on
+    // their own lines. The caller's open-tag rewrite re-indents these
+    // continuation lines out to the attribute column.
+    let one_level = if options.js.indent_style.is_tab() {
+        "\t".to_string()
+    } else {
+        " ".repeat(indent_width)
+    };
+    let mut out = String::from("{\n");
+    for (i, m) in members.iter().enumerate() {
+        out.push_str(&crate::reindent::reindent(m, &one_level, false));
+        if i + 1 < members.len() {
+            out.push(',');
+        }
+        out.push('\n');
+    }
+    out.push('}');
+    Ok(Some(out))
 }
 
 // ─── Expression formatter ───────────────────────────────────────────────

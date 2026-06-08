@@ -744,8 +744,23 @@ fn render_attribute(
             Ok(format!("{{@attach {inner}}}"))
         }
         Attribute::BindDirective(d) => {
-            let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
             let modifiers = render_modifiers(&d.modifiers);
+            // A Svelte 5 function binding `bind:value={get, set}` (a top-level
+            // sequence expression) renders without outer parens and breaks its
+            // braces onto their own lines when the members don't fit (#795b).
+            let lead_cols = attr_depth * options.js.indent_width.value() as usize
+                + visual_width(&format!("bind:{}{modifiers}=", d.name));
+            if let Some(value) = crate::expression::format_function_binding(
+                source,
+                &d.expression,
+                d.end,
+                options,
+                attr_depth,
+                lead_cols,
+            )? {
+                return Ok(format!("bind:{}{modifiers}={value}", d.name));
+            }
+            let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
             if inner == d.name.as_str() && modifiers.is_empty() {
                 Ok(format!("bind:{}", d.name))
             } else {
