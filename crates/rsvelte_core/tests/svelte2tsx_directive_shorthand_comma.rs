@@ -1,14 +1,17 @@
-//! Regression test for issue #779.
+//! Regression test for issues #779 and #781.
 //!
 //! After #750 moved `class:` / `style:` directives out of the `createElement`
 //! props object and into a suffix statement, a directive immediately followed
 //! by a **shorthand attribute** (`{onclick}`) produced a double comma in the
 //! props object (`{ "class":`c`,, }`) — invalid TSX ("Property assignment
-//! expected"), which then trips the program-wide `--tsgo` suppression. The
-//! cause: the hoisted directive's expression chunk is emitted *after* the
-//! shorthand's preserved source chunk, but references an *earlier* source
-//! position, violating the ascending-order requirement of the segmented
-//! overwrite. The fix bakes such out-of-order chunks into literal text.
+//! expected") (#779) — and a directive followed by an attribute whose value is
+//! an `{expression}` (`onclick={() => f()}`) dropped the attribute's value
+//! (`{ "onclick":, }`) — invalid TSX ("Expression expected") (#781). Both trip
+//! the program-wide `--tsgo` suppression. The shared cause: the hoisted
+//! directive's expression chunk is emitted *after* the following attribute's
+//! preserved source chunk, but references an *earlier* source position,
+//! violating the ascending-order requirement of the segmented overwrite. The
+//! fix bakes such out-of-order chunks into literal text.
 
 use rsvelte_core::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
@@ -106,6 +109,68 @@ fn no_directive_shorthands_unchanged() {
         op.contains("onclick,disabled,"),
         "both shorthands should survive in order:\n{op}"
     );
+}
+
+// ---- #781: directive immediately followed by an `{expression}`-valued attr ----
+
+#[test]
+fn style_directive_then_expr_attr_keeps_value() {
+    // #781: `style:color={c} onclick={() => f()}` dropped the `onclick` value,
+    // emitting `{ "onclick":, }`.
+    let src = "<script lang=\"ts\">let c='red'; const f=()=>{};</script>\n\
+               <button style:color={c} onclick={() => f()}>x</button>";
+    let op = opener(src);
+    assert!(!op.contains("\":,"), "attr value dropped (\":,\"):\n{op}");
+    assert!(
+        op.contains("\"onclick\":() => f(),"),
+        "onclick value lost:\n{op}"
+    );
+    assert!(
+        op.contains("__sveltets_2_ensureType(String, Number, c);"),
+        "style directive suffix missing:\n{op}"
+    );
+}
+
+#[test]
+fn class_directive_then_expr_attr_keeps_value() {
+    let src = "<script lang=\"ts\">let d=false; const f=()=>{};</script>\n\
+               <button class:on={d} onclick={() => f()}>x</button>";
+    let op = opener(src);
+    assert!(!op.contains("\":,"), "attr value dropped (\":,\"):\n{op}");
+    assert!(
+        op.contains("\"onclick\":() => f(),"),
+        "onclick value lost:\n{op}"
+    );
+    assert!(op.contains("d;"), "class directive suffix missing:\n{op}");
+}
+
+#[test]
+fn expr_attr_alone_unchanged() {
+    // Guard: the standalone (no directive) case is untouched.
+    let src = "<script lang=\"ts\">const f=()=>{};</script>\n\
+               <button onclick={() => f()}>x</button>";
+    let op = opener(src);
+    assert!(
+        op.contains("\"onclick\":() => f(),"),
+        "standalone expr attr should survive:\n{op}"
+    );
+}
+
+#[test]
+fn directive_then_expr_attr_overlay_brace_balanced() {
+    let src = "<script lang=\"ts\">let c='red'; const f=()=>{};</script>\n\
+               <button style:color={c} onclick={() => f()}>x</button>";
+    let code = svelte2tsx(
+        src,
+        Svelte2TsxOptions {
+            filename: "T.svelte".into(),
+            is_ts_file: true,
+            ..Default::default()
+        },
+    )
+    .expect("svelte2tsx")
+    .code;
+    assert!(braces_balanced(&code), "unbalanced overlay:\n{code}");
 }
 
 #[test]
