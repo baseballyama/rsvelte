@@ -342,43 +342,6 @@ fn is_whitespace_preserving(tag: &str) -> bool {
     matches!(tag, "pre" | "textarea")
 }
 
-/// Whether an element's default CSS display is plain `inline` (`<a>`, `<span>`,
-/// `<em>`, …) — i.e. NOT one of prettier's non-inline categories (block,
-/// list-item, inline-block, table*, none, contents, ruby). Such elements are
-/// whitespace-sensitive and use the hug break instead of putting content on its
-/// own line. Mirrors the complement of prettier's `CSS_DISPLAY_DEFAULTS`.
-fn is_pure_inline_display(tag: &str) -> bool {
-    // Components / custom elements (uppercase or containing `-` / `.`) aren't
-    // plain inline HTML elements — don't hug them.
-    if tag.contains(['-', '.', ':']) || tag.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
-        return false;
-    }
-    !matches!(
-        tag,
-        // none
-        "area" | "base" | "basefont" | "datalist" | "head" | "link" | "meta"
-            | "noembed" | "noframes" | "rp" | "style" | "title"
-            // block
-            | "param" | "script" | "html" | "body" | "address" | "blockquote"
-            | "center" | "dialog" | "div" | "figure" | "figcaption" | "footer"
-            | "form" | "header" | "hr" | "legend" | "listing" | "main" | "p"
-            | "plaintext" | "search" | "xmp" | "article" | "aside" | "h1" | "h2"
-            | "h3" | "h4" | "h5" | "h6" | "hgroup" | "nav" | "section" | "dir"
-            | "dd" | "dl" | "dt" | "menu" | "ol" | "ul" | "fieldset" | "details"
-            | "summary" | "source" | "track" | "option" | "optgroup"
-            // contents / ruby / list-item
-            | "slot" | "ruby" | "rt" | "li"
-            // table family
-            | "table" | "caption" | "colgroup" | "col" | "thead" | "tbody"
-            | "tfoot" | "tr" | "td" | "th"
-            // inline-block
-            | "input" | "button" | "marquee" | "select" | "meter" | "progress"
-            | "object" | "video" | "audio"
-            // whitespace-preserving (handled elsewhere, never hug)
-            | "pre" | "textarea"
-    )
-}
-
 /// A fill item: an inline token plus whether whitespace preceded it (a break
 /// opportunity). Glued tokens (no space) never break apart (`foo{bar}`).
 struct Tok {
