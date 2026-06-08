@@ -463,6 +463,19 @@ fn format_expr_core(
         return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
     }
 
+    // Detect a top-level sequence (comma) expression before `program` is
+    // borrowed by `format_program`. oxc_formatter intentionally re-adds the
+    // outer parens of a top-level `SequenceExpression` (its `NeedsParentheses`
+    // impl returns true for an `ExpressionStatement` parent), and
+    // prettier-plugin-svelte keeps them — so `{((a = 1), '')}` must stay
+    // parenthesized. Stripping them below would wrongly emit `{(a = 1), ''}`
+    // (#799). Every other expression keeps the normal outer-paren strip.
+    let is_top_sequence = matches!(
+        parser_ret.program.body.first(),
+        Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+            if matches!(stmt.expression, oxc_ast::ast::Expression::SequenceExpression(_))
+    );
+
     let mut js = options.js.clone();
     js.line_width = line_width;
     if single_line {
@@ -474,7 +487,29 @@ fn format_expr_core(
         .into_code();
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
-    Ok(strip_outer_parens(s).trim().to_string())
+    // prettier-plugin-svelte keeps exactly ONE set of outer parens around a
+    // top-level sequence (comma) expression in a mustache / attribute value
+    // (e.g. `{((ref = …), '')}`). These callers slice the full brace-enclosed
+    // source, so the parens belong to the replaced span — normalise to exactly
+    // one pair: strip every redundant outer pair, then re-wrap once. (Member
+    // parens like `(a = 1)` inside `((a = 1), "")` are not outer pairs and
+    // survive.) Block headers (`single_line`) slice the expression span
+    // *without* its surrounding source parens, so wrapping here would
+    // double-wrap (`{#if ((a, b))}`); they keep the plain strip, which leaves
+    // the source parens intact. (#799)
+    if is_top_sequence && !single_line {
+        let mut inner = s.trim();
+        loop {
+            let stripped = strip_outer_parens(inner).trim();
+            if stripped == inner {
+                break;
+            }
+            inner = stripped;
+        }
+        Ok(format!("({inner})"))
+    } else {
+        Ok(strip_outer_parens(s).trim().to_string())
+    }
 }
 
 /// Format an attribute / directive value expression (`bind:value={ … }`) at
