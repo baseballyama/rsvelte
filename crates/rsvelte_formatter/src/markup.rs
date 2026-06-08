@@ -34,7 +34,7 @@ use rsvelte_core::ast::template::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
-use crate::expression::format_expression_source;
+use crate::expression::{format_attribute_value_expression, format_expression_source};
 use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
@@ -410,8 +410,13 @@ fn push_open_tag(
     // dropped if we rebuilt the tag from the attribute list alone (#685).
     let mut items: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
 
+    // When the open tag wraps, each attribute renders at `depth + 1` indent, so
+    // its value expression must make its wrap decision against a width narrowed
+    // by that lead (#795).
+    let attr_depth = depth + 1;
+
     if let Some(expr) = this_expression
-        && let Some(formatted) = format_expression_at(source, expr, options)?
+        && let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
     {
         // `this={X}` is emitted first regardless of source position.
         items.push((element_start, format!("this={{{formatted}}}")));
@@ -419,7 +424,10 @@ fn push_open_tag(
 
     for attr in attributes {
         let (attr_start, _) = attribute_span(attr);
-        items.push((attr_start, render_attribute(attr, source, options)?));
+        items.push((
+            attr_start,
+            render_attribute(attr, source, options, attr_depth)?,
+        ));
     }
 
     let comments = collect_open_tag_comments(source, element_start, open_tag_end, attributes);
@@ -725,17 +733,18 @@ fn render_attribute(
     attr: &Attribute,
     source: &str,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<String, FormatError> {
     match attr {
-        Attribute::Attribute(node) => render_attribute_node(node, source, options),
-        Attribute::SpreadAttribute(spread) => render_spread(spread, source, options),
+        Attribute::Attribute(node) => render_attribute_node(node, source, options, attr_depth),
+        Attribute::SpreadAttribute(spread) => render_spread(spread, source, options, attr_depth),
         Attribute::AttachTag(attach) => {
-            let inner =
-                format_expression_at(source, &attach.expression, options)?.unwrap_or_default();
+            let inner = format_expression_at(source, &attach.expression, options, attr_depth)?
+                .unwrap_or_default();
             Ok(format!("{{@attach {inner}}}"))
         }
         Attribute::BindDirective(d) => {
-            let inner = render_directive_value(source, &d.expression, d.end, options)?;
+            let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
             let modifiers = render_modifiers(&d.modifiers);
             if inner == d.name.as_str() && modifiers.is_empty() {
                 Ok(format!("bind:{}", d.name))
@@ -744,7 +753,7 @@ fn render_attribute(
             }
         }
         Attribute::ClassDirective(d) => {
-            let inner = render_directive_value(source, &d.expression, d.end, options)?;
+            let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
             if inner == d.name.as_str() {
                 Ok(format!("class:{}", d.name))
             } else {
@@ -754,7 +763,7 @@ fn render_attribute(
         Attribute::OnDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options)?;
+                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
                 Ok(format!("on:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("on:{}{modifiers}", d.name))
@@ -770,7 +779,7 @@ fn render_attribute(
             };
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options)?;
+                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
                 Ok(format!("{prefix}:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("{prefix}:{}{modifiers}", d.name))
@@ -778,7 +787,7 @@ fn render_attribute(
         }
         Attribute::AnimateDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options)?;
+                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
                 Ok(format!("animate:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("animate:{}", d.name))
@@ -786,7 +795,7 @@ fn render_attribute(
         }
         Attribute::UseDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options)?;
+                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
                 Ok(format!("use:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("use:{}", d.name))
@@ -794,7 +803,8 @@ fn render_attribute(
         }
         Attribute::StyleDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
-            let value = render_attribute_value_for_directive(&d.value, source, options)?;
+            let value =
+                render_attribute_value_for_directive(&d.value, source, options, attr_depth)?;
             if value.is_empty() {
                 Ok(format!("style:{}{modifiers}", d.name))
             } else {
@@ -846,6 +856,7 @@ fn render_attribute_node(
     node: &AttributeNode,
     source: &str,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<String, FormatError> {
     match &node.value {
         AttributeValue::True(_) => Ok(node.name.to_string()),
@@ -854,7 +865,7 @@ fn render_attribute_node(
             if inner_src.is_empty() {
                 return Ok(format!("{}={{}}", node.name));
             }
-            let formatted = format_expression_source(inner_src, options)?;
+            let formatted = format_attribute_value_expression(inner_src, options, attr_depth)?;
             // Svelte attribute shorthand: `name={name}` → `{name}`.
             if formatted == node.name.as_str() {
                 Ok(format!("{{{formatted}}}"))
@@ -863,7 +874,7 @@ fn render_attribute_node(
             }
         }
         AttributeValue::Sequence(parts) => {
-            let body = render_attribute_value_sequence(parts, source, options)?;
+            let body = render_attribute_value_sequence(parts, source, options, attr_depth)?;
             Ok(format!("{}=\"{}\"", node.name, body))
         }
     }
@@ -873,6 +884,7 @@ fn render_attribute_value_for_directive(
     value: &AttributeValue,
     source: &str,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<String, FormatError> {
     match value {
         AttributeValue::True(_) => Ok(String::new()),
@@ -881,11 +893,11 @@ fn render_attribute_value_for_directive(
             if inner_src.is_empty() {
                 return Ok("{}".to_string());
             }
-            let formatted = format_expression_source(inner_src, options)?;
+            let formatted = format_attribute_value_expression(inner_src, options, attr_depth)?;
             Ok(format!("{{{formatted}}}"))
         }
         AttributeValue::Sequence(parts) => {
-            let body = render_attribute_value_sequence(parts, source, options)?;
+            let body = render_attribute_value_sequence(parts, source, options, attr_depth)?;
             Ok(format!("\"{body}\""))
         }
     }
@@ -895,6 +907,7 @@ fn render_attribute_value_sequence(
     parts: &[AttributeValuePart],
     source: &str,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<String, FormatError> {
     let mut out = String::new();
     for part in parts {
@@ -910,7 +923,8 @@ fn render_attribute_value_sequence(
                 if inner_src.is_empty() {
                     out.push_str("{}");
                 } else {
-                    let formatted = format_expression_source(inner_src, options)?;
+                    let formatted =
+                        format_attribute_value_expression(inner_src, options, attr_depth)?;
                     out.push('{');
                     out.push_str(&formatted);
                     out.push('}');
@@ -925,8 +939,10 @@ fn render_spread(
     spread: &SpreadAttribute,
     source: &str,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<String, FormatError> {
-    let inner = format_expression_at(source, &spread.expression, options)?.unwrap_or_default();
+    let inner =
+        format_expression_at(source, &spread.expression, options, attr_depth)?.unwrap_or_default();
     Ok(format!("{{...{inner}}}"))
 }
 
@@ -955,17 +971,21 @@ fn render_directive_value(
     expr: &Expression,
     value_end: u32,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<String, FormatError> {
-    if let Some(s) = crate::expression::format_directive_value(source, expr, value_end, options)? {
+    if let Some(s) =
+        crate::expression::format_directive_value(source, expr, value_end, options, attr_depth)?
+    {
         return Ok(s);
     }
-    Ok(format_expression_at(source, expr, options)?.unwrap_or_default())
+    Ok(format_expression_at(source, expr, options, attr_depth)?.unwrap_or_default())
 }
 
 fn format_expression_at(
     source: &str,
     expr: &Expression,
     options: &FormatOptions,
+    attr_depth: usize,
 ) -> Result<Option<String>, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
         return Ok(None);
@@ -977,5 +997,7 @@ fn format_expression_at(
     if raw.is_empty() {
         return Ok(None);
     }
-    Ok(Some(format_expression_source(raw, options)?))
+    Ok(Some(format_attribute_value_expression(
+        raw, options, attr_depth,
+    )?))
 }

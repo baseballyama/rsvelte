@@ -1,0 +1,5 @@
+---
+"@rsvelte/fmt": patch
+---
+
+fix(fmt): wrap attribute-value expressions by their rendered column, not column 0. Attribute and directive values were formatted at column 0 with the full print width, so a value that fits at column 0 but overflows once the open tag wraps and the attribute renders at its nesting indent stayed inline — diverging from prettier-plugin-svelte, which narrows the value's print width by the attribute's nesting depth. The open-tag rewrite now threads the attribute depth (`depth + 1`) into every value formatter (`render_attribute` → `render_attribute_node` / directive / spread / sequence paths) via a new `format_attribute_value_expression`, so e.g. a long `config={{ … }}` object now breaks across lines (with the existing `render_multi_line` reindent owning the continuation columns) exactly like oxfmt. This is sub-case (a) of #795 (the depth-unaware wrap decision, ~69 of 110 divergent files). Sub-case (b) — the Svelte-5 function-binding `bind:value={getter, setter}` softline brace shape — is left for a follow-up: it needs reconciling oxc's sequence-continuation indent with prettier's, which is a separate change. Partially addresses #795.
