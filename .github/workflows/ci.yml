@@ -211,6 +211,29 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
+      - name: Install root deps (oxfmt + svelte for the formatter parity corpus)
+        # The svelte.dev formatter corpus (tests/svelte_dev_corpus.rs) and its
+        # generator need the root node_modules/.bin/oxfmt plus a resolvable
+        # `svelte` (oxfmt's `svelte: true` mode runs prettier-plugin-svelte).
+        # `--ignore-workspace` keeps this to the root package.json deps.
+        run: pnpm install --frozen-lockfile --ignore-workspace
+
+      - name: Resolve svelte.dev submodule SHA
+        id: svelte-dev-sha
+        shell: bash
+        run: echo "sha=$(git submodule status submodules/svelte.dev | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache formatter parity corpus
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          # Oracle outputs keyed on the svelte.dev SHA + the canonical config.
+          path: fixtures/fmt-corpus
+          key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
+
+      - name: Generate formatter parity corpus
+        run: pnpm run generate-fmt-corpus
+        timeout-minutes: 15
+
       - name: Run tests
         # `--all-features` would enable `napi`, which only links cleanly when
         # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:

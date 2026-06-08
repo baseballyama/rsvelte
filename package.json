@@ -18,6 +18,8 @@
     "generate-fixtures": "node scripts/fixtures/generate-fixtures.mjs",
     "generate-fixtures:force": "node scripts/fixtures/generate-fixtures.mjs --force",
     "generate-fixtures:verbose": "node scripts/fixtures/generate-fixtures.mjs --verbose",
+    "generate-fmt-corpus": "node scripts/fixtures/generate-fmt-corpus.mjs",
+    "generate-fmt-corpus:force": "node scripts/fixtures/generate-fmt-corpus.mjs --force",
     "test-results": "cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json",
     "generate-benchmark": "node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json",
     "compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",

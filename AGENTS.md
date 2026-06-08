@@ -140,6 +140,35 @@ Source: `pnpm run compatibility-report` (generated 2026-06-08, Svelte commit `a9
 
 **Compatibility report total (Svelte 5.56.3): all in-scope-run fixtures passing (100.0%, 0 failures, 0 errors). 5.56.3 is a runtime/types-only patch — svelte#18384 (guard that a boundary exists before calling its error handler in an async derived) and #18388 (`$state.snapshot` bigint `Primitive` type), both under `internal/client` / `ambient.d.ts` — with no changes under `packages/svelte/src/compiler/`. The compiler output is therefore unchanged from 5.56.2: fixtures regenerate identically and every category stays at 100%. The 76 `migrate` fixtures are intentionally out of scope.**
 
+### Formatter parity corpus (svelte.dev)
+
+Asserts rsvelte formats real svelte.dev sources byte-for-byte like an
+**oxfmt(`svelte: true`)** oracle — `prettier-plugin-svelte` for the Svelte structure +
+the oxc engine for embedded JS/CSS, the exact layering rsvelte-fmt uses, so a diff
+isolates rsvelte's Svelte-structure formatting. Oracle outputs are precomputed by
+`pnpm run generate-fmt-corpus` into `fixtures/fmt-corpus/<svelte.dev-sha>/` (gitignored,
+CI-cached by svelte.dev SHA) using the canonical config
+`scripts/fixtures/fmt-corpus.oxfmtrc.json` (spaces/2/80 = rsvelte defaults). Three stages:
+
+- **Stage 1+2** — `crates/rsvelte_formatter/tests/svelte_dev_corpus.rs`: every `.svelte`
+  file (`files/…`) **and** every ` ```svelte ` code block in markdown (`blocks/…`, with
+  svelte.dev highlight markers `/// file:` / `+++` / `---` / `// ---cut---` stripped;
+  unparseable blocks skipped). Formats via `rsvelte_formatter::format` with an
+  oxfmt-backed `<style>` callback.
+- **Stage 3** — `crates/rsvelte_fmt/tests/svelte_dev_markdown.rs`: runs the real
+  `rsvelte-fmt` CLI on each whole `.md` (`markdown/…`) vs a direct-oxfmt oracle —
+  guards that `.md` delegation + config forwarding stay a faithful pass-through.
+
+Both need a runnable `oxfmt` (env `FMT_CORPUS_OXFMT` / `OXFMT_BIN`; default
+`node_modules/.bin/oxfmt`) and no-op with a notice when the corpus or oxfmt is absent.
+Instead of a skip list they use committed **baselines** (`tests/fmt_corpus_baseline.txt`,
+`tests/fmt_corpus_markdown_baseline.txt`) and assert no NEW sample regresses; the goal is
+to shrink them to empty. **Initial: Stage 1+2 726/1148 pass** (557 files + 591 usable
+blocks), **Stage 3 638/638**, at svelte.dev@`49ee73732aef`, oxfmt 0.53.0, svelte 5.56.2.
+The dominant Stage 1+2 gap is markup indentation not normalising source tabs → spaces;
+secondary is markup line-breaking of overflowing element children. (Non-svelte code
+blocks are out of scope — both sides format them with oxfmt.)
+
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 
 - **HtmlTag `is_controlled`** (Svelte 5.53.8 `0206a2019`) — fragment / html_tag visitor branches in `crates/rsvelte_core/src/compiler/phases/3_transform/client/visitors/{html_tag.rs,shared/fragment.rs}`. Unblocked 11 fixtures across runtime-runes, runtime-legacy, hydration.
