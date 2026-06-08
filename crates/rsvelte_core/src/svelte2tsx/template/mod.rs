@@ -2144,12 +2144,6 @@ fn handle_component(
     // Check if any children have named slots with let: directives
     let children_have_named_slots = has_named_slot_children(&comp.fragment, source);
 
-    // An instance variable is needed when:
-    // - there are on: directives
-    // - there are let: directives on the component
-    // - there are children with slot="name" that have let: directives
-    let needs_instance = has_events || has_lets || children_have_named_slots;
-
     // Named `{#snippet}` blocks that are direct children of a component are
     // passed as *implicit props* (`props: { name: (params) => … }`), not as
     // standalone `const name = …` declarations, so that TypeScript both
@@ -2164,6 +2158,19 @@ fn handle_component(
             .nodes
             .iter()
             .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+
+    // An instance variable is needed when:
+    // - there are on: directives
+    // - there are let: directives on the component
+    // - there are children with slot="name" that have let: directives
+    // - a named `{#snippet}` child is passed as an implicit prop: official
+    //   svelte2tsx assigns the component instance to a const and then
+    //   destructures the snippet from `inst.$$prop_def` to anchor the snippet's
+    //   parameter types. Without that anchor a snippet on a component whose type
+    //   comes from a value (e.g. Storybook's `const { Story } = defineMeta(…)`)
+    //   does not pick up its contextual `Snippet<[Args]>` type and the snippet
+    //   parameter falls back to implicit `any` (#796).
+    let needs_instance = has_events || has_lets || children_have_named_slots || use_snippet_props;
 
     // Check if Svelte 5 children prop is needed
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
@@ -2320,11 +2327,13 @@ fn handle_component(
         // closes the props object is appended after the final snippet.
         let mut anchor = opening_tag_end;
         let mut last_snippet_end: Option<u32> = None;
+        let mut snippet_names: Vec<String> = Vec::new();
         for node in &comp.fragment.nodes {
             if let TemplateNode::SnippetBlock(s) = node {
                 if s.start >= s.end {
                     continue;
                 }
+                snippet_names.push(get_expression_text(&s.expression, source).to_string());
                 handle_snippet_block_as_component_prop(s, source, options, str, counter);
                 if s.start == anchor {
                     anchor = s.end;
@@ -2336,15 +2345,32 @@ fn handle_component(
                 process_node_inplace(node, source, options, str, counter);
             }
         }
+        // After closing the `new Component({ props: { … } })` statement,
+        // destructure each relocated snippet from the instance's `$$prop_def`
+        // (wrapped in ignore-markers so it never surfaces as a diagnostic). This
+        // mirrors official svelte2tsx and anchors the snippet props' types — in
+        // particular the snippet's `Snippet<[Args]>` parameter type — so the
+        // snippet's parameters are inferred even when the component's type comes
+        // from a value rather than an imported `.svelte` module (#796).
+        let prop_def_suffix = if snippet_names.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "/*\u{03A9}ignore_start\u{03A9}*/const {{{}}} = {}.$$prop_def;/*\u{03A9}ignore_end\u{03A9}*/",
+                snippet_names.join(", "),
+                inst_var
+            )
+        };
+        let closing = format!("{trailer_lit}{prop_def_suffix}");
         // Close the props object right after the last relocated snippet.
         match last_snippet_end {
             Some(end) => {
-                str.append_left(end, &trailer_lit);
+                str.append_left(end, &closing);
             }
             None => {
                 // No usable snippet after all (e.g. only empty-named blocks);
                 // close the props object at the opening-tag boundary.
-                str.prepend_right(opening_tag_end, &trailer_lit);
+                str.prepend_right(opening_tag_end, &closing);
             }
         }
     } else {
