@@ -12,6 +12,7 @@
 //! source is passed through unchanged. Subsequent iterations will add
 //! CSS formatting and markup Doc IR composition.
 
+mod collapse;
 mod error;
 mod expression;
 mod indent;
@@ -85,6 +86,9 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     for (start, end, new_text) in edits {
         out.replace_range(start as usize..end as usize, &new_text);
     }
+
+    // Post-pass: collapse pure-text elements onto one line when they fit.
+    out = collapse::collapse_pure_text_elements(&out, options)?;
 
     // End the file with exactly one newline (prettier / oxfmt `insertFinalNewline`).
     let trimmed_len = out.trim_end_matches([' ', '\t', '\r', '\n']).len();
