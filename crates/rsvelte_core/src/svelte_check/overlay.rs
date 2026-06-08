@@ -298,8 +298,19 @@ pub fn materialize_overlay_with(
         fs::write(cache_dir.join(name), contents)?;
     }
 
+    // External (workspace-sibling) `.svelte` packages reachable via node_modules
+    // symlinks: emit shadows into per-package cache mirrors and collect the
+    // (real-dir, mirror-dir) `rootDirs` pairs that bridge them (#782).
+    let external = discover_external_svelte_packages(workspace, &cache_dir);
+    let mut ext_root_dir_pairs: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(external.len());
+    for pkg in &external {
+        emit_external_shadows(pkg)?;
+        ext_root_dir_pairs.push((pkg.real_dir.clone(), pkg.mirror_dir.clone()));
+    }
+
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
-    let tsconfig_json = build_overlay_tsconfig(&cache_dir, tsconfig_path, workspace);
+    let tsconfig_json =
+        build_overlay_tsconfig(&cache_dir, tsconfig_path, workspace, &ext_root_dir_pairs);
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
     if incremental {
@@ -314,6 +325,138 @@ pub fn materialize_overlay_with(
         entries,
         kit_entries: Vec::new(),
     })
+}
+
+/// An external (out-of-workspace) package — typically a workspace sibling
+/// symlinked into `node_modules` — whose `.svelte` files are referenced by the
+/// project under check. Its shadows are emitted under `<cache>/ext/<id>/` and
+/// bridged to the real source dir via a `rootDirs` pair, so a cross-package
+/// `import { x } from '@scope/pkg/…'` resolves to the component's real module
+/// (its `<script module>` named exports + default) instead of the ambient
+/// `*.svelte` wildcard (default-only) — the #782 false "has no exported member".
+struct ExternalPackage {
+    /// Canonical (symlink-resolved) source dir of the package.
+    real_dir: PathBuf,
+    /// Cache mirror dir that holds the emitted shadows.
+    mirror_dir: PathBuf,
+    svelte_files: Vec<PathBuf>,
+}
+
+/// Discover workspace-sibling packages reachable through the project's
+/// `node_modules` symlinks (pnpm / npm / yarn link a monorepo package's real
+/// source dir into `node_modules/<name>`). Registry deps — whose realpath stays
+/// inside a `node_modules` store — and in-workspace targets are skipped; only
+/// packages that actually contain `.svelte` files are returned. Each gets a
+/// distinct `<cache>/ext/<n>` mirror dir.
+fn discover_external_svelte_packages(workspace: &Path, cache_dir: &Path) -> Vec<ExternalPackage> {
+    let nm = workspace.join("node_modules");
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(rd) = fs::read_dir(&nm) {
+        for e in rd.flatten() {
+            let name = e.file_name();
+            let name = name.to_string_lossy();
+            if name == ".bin" || name == ".pnpm" || name == ".cache" {
+                continue;
+            }
+            let p = e.path();
+            if name.starts_with('@') {
+                // Scoped: descend one level (`@scope/<pkg>`).
+                if let Ok(scoped) = fs::read_dir(&p) {
+                    for se in scoped.flatten() {
+                        candidates.push(se.path());
+                    }
+                }
+            } else {
+                candidates.push(p);
+            }
+        }
+    }
+    let ws_real = fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
+    let mut out: Vec<ExternalPackage> = Vec::new();
+    let mut seen: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
+    for cand in candidates {
+        // Resolve symlinks: workspace deps point at the package's real source.
+        let Ok(real) = fs::canonicalize(&cand) else {
+            continue;
+        };
+        // A registry dep's realpath stays inside a `node_modules` store — its
+        // own `.d.ts` ships with it, so don't shadow it.
+        if real.components().any(|c| c.as_os_str() == "node_modules") {
+            continue;
+        }
+        // In-workspace targets are already covered by the primary overlay.
+        if real.starts_with(&ws_real) {
+            continue;
+        }
+        if !seen.insert(real.clone()) {
+            continue;
+        }
+        let svelte_files = super::walker::find_svelte_files(&real, &[]);
+        if svelte_files.is_empty() {
+            continue;
+        }
+        let mirror_dir = cache_dir.join("ext").join(out.len().to_string());
+        out.push(ExternalPackage {
+            real_dir: real,
+            mirror_dir,
+            svelte_files,
+        });
+    }
+    out
+}
+
+/// Emit `.tsx` + `.d.ts` shadows for one external package's `.svelte` files into
+/// its cache mirror, preserving each file's path relative to the package root.
+/// Non-incremental (external packages change rarely and are bounded by the
+/// dependency set).
+fn emit_external_shadows(pkg: &ExternalPackage) -> Result<(), OverlayError> {
+    for abs_source in &pkg.svelte_files {
+        let rel = abs_source.strip_prefix(&pkg.real_dir).unwrap_or(abs_source);
+        let tsx_path = pkg.mirror_dir.join(append_extension(rel, ".tsx"));
+        let dts_path = pkg.mirror_dir.join(append_extension(rel, ".d.ts"));
+        if let Some(parent) = tsx_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let source = fs::read_to_string(abs_source)?;
+        let is_ts_file = looks_like_ts_svelte(&source);
+        let opts = Svelte2TsxOptions {
+            filename: abs_source.display().to_string(),
+            is_ts_file,
+            mode: Svelte2TsxMode::Ts,
+            accessors: false,
+            namespace: Svelte2TsxNamespace::Html,
+            version: SvelteVersion::V5,
+            runes: None,
+            emit_jsdoc: true,
+            // Imports that stay within the external package keep resolving via
+            // the package↔mirror `rootDirs` pair; only imports escaping the
+            // package get rebased.
+            rewrite_external_imports: Some(RewriteExternalImportsOptions {
+                source_path: abs_source.display().to_string(),
+                generated_path: tsx_path.display().to_string(),
+                workspace_path: pkg.real_dir.display().to_string(),
+            }),
+        };
+        let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
+            file: abs_source.clone(),
+            message: format!("{e}"),
+        })?;
+        let mut tsx_code = result.code.clone();
+        if let Some(spec) = companion_reexport_specifier(abs_source, &tsx_path) {
+            tsx_code.push_str(&format!("\nexport * from \"{spec}\";\n"));
+        }
+        fs::write(&tsx_path, &tsx_code)?;
+        let import_basename = tsx_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("missing.tsx");
+        let dts_content = format!(
+            "export {{ default }} from \"./{0}\";\nexport * from \"./{0}\";\n",
+            import_basename
+        );
+        fs::write(&dts_path, dts_content)?;
+    }
+    Ok(())
 }
 
 fn materialize_kit_files(
@@ -374,7 +517,12 @@ fn looks_like_ts_svelte(source: &str) -> bool {
     lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
 }
 
-fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, _workspace: &Path) -> String {
+fn build_overlay_tsconfig(
+    cache_dir: &Path,
+    original: Option<&Path>,
+    _workspace: &Path,
+    ext_root_dir_pairs: &[(PathBuf, PathBuf)],
+) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
         let rel = path_relative(cache_dir, orig);
@@ -402,6 +550,14 @@ fn build_overlay_tsconfig(cache_dir: &Path, original: Option<&Path>, _workspace:
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| vec![cache_dir.to_path_buf()]);
     root_dirs_abs.push(cache_dir.join("svelte"));
+    // Each external package contributes a `rootDirs` pair: its real source dir
+    // and the cache mirror holding its shadows. TypeScript then treats both as
+    // the same virtual dir, so `import … from '@scope/pkg/Foo.svelte'` (resolved
+    // through the package's real source) finds `Foo.svelte.tsx` in the mirror.
+    for (real_dir, mirror_dir) in ext_root_dir_pairs {
+        root_dirs_abs.push(real_dir.clone());
+        root_dirs_abs.push(mirror_dir.clone());
+    }
     let mut root_dirs: Vec<String> = root_dirs_abs
         .iter()
         .map(|p| path_relative(cache_dir, p))

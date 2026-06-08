@@ -3,6 +3,7 @@
 // dependency that ships a single `rsvelte.node` artifact.
 
 const { decodeEnvelope, decodeBatch } = require('./envelope.js');
+const { decodeParseEnvelope } = require('./parse-envelope.js');
 
 const { platform, arch } = process;
 
@@ -127,6 +128,13 @@ module.exports.preprocess = binding.preprocess;
 module.exports.svelte2tsx = binding.svelte2tsx;
 module.exports.hmrDiff = binding.hmrDiff;
 module.exports.resolveId = binding.resolveId;
+// Standalone parse surfaces. `parse` returns a JSON string (decode with
+// `JSON.parse`); `parseEnvelope` returns the raw-transfer Buffer that skips
+// `JSON.parse` entirely — decode it with `decodeParseEnvelope` (re-exported
+// below). Both mirror `src/napi.rs`'s `#[napi(js_name = "parse"/"parseEnvelope")]`.
+module.exports.parse = binding.parse;
+module.exports.parseEnvelope = binding.parseEnvelope;
+module.exports.decodeParseEnvelope = decodeParseEnvelope;
 // Upstream Svelte version this binding emits code for — used by
 // downstream consumers (the `@rsvelte/vite-plugin-svelte` fork, etc.)
 // for `gte(VERSION, '5.36.0')`-style feature detection. Synced
