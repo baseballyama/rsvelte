@@ -18,5 +18,6 @@ pub mod no_restricted_html_elements;
 pub mod no_svelte_internal;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
+pub mod prefer_svelte_reactivity;
 pub mod require_each_key;
 pub mod valid_each_key;

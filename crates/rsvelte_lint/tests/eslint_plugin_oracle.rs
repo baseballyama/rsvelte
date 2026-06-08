@@ -87,6 +87,11 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-inner-declarations",
         false,
     ),
+    (
+        "prefer-svelte-reactivity",
+        "svelte/prefer-svelte-reactivity",
+        false,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
