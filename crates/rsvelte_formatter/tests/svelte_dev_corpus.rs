@@ -8,10 +8,9 @@
 //! by `pnpm run generate-fmt-corpus`.
 //!
 //! Because real-world components surface many not-yet-implemented gaps, the
-//! suite uses a committed *baseline* of currently-failing samples
-//! (`tests/fmt_corpus_baseline.txt`) rather than a skip list. It asserts only
-//! that no NEW sample regresses (current failures ⊆ baseline) and reports
-//! baseline entries that now pass (remove them as the gap is closed).
+//! suite is a hard gate: EVERY sample must match the oracle byte-for-byte, so
+//! any formatting divergence fails CI (no baseline tolerance). Remaining gaps
+//! are fixed in the formatter, not tolerated.
 //!
 //! Requirements at test time:
 //! - the corpus fixtures must exist (run the generator); otherwise the test
@@ -20,7 +19,6 @@
 //!   `FMT_CORPUS_OXFMT` (falls back to `OXFMT_BIN`, then `node_modules/.bin/oxfmt`).
 //!   If oxfmt cannot run, the test no-ops with a notice.
 
-use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -172,18 +170,6 @@ fn collect_samples(files_root: &Path) -> Vec<Sample> {
     out
 }
 
-fn load_baseline() -> BTreeSet<String> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fmt_corpus_baseline.txt");
-    let Ok(text) = std::fs::read_to_string(&path) else {
-        return BTreeSet::new();
-    };
-    text.lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(str::to_string)
-        .collect()
-}
-
 #[test]
 fn svelte_dev_corpus_parity() {
     let root = repo_root();
@@ -257,50 +243,32 @@ fn svelte_dev_corpus_parity() {
 
     let mut failures = failures.into_inner().unwrap();
     failures.sort_by(|a, b| a.0.cmp(&b.0));
-    let failing: BTreeSet<String> = failures.iter().map(|(id, _)| id.clone()).collect();
-    let baseline = load_baseline();
 
     let total = samples.len();
     let passing = total - failures.len();
-    let new_failures: Vec<&String> = failing.difference(&baseline).collect();
-    let now_passing: Vec<&String> = baseline.difference(&failing).collect();
-
     println!(
-        "[fmt-corpus] svelte.dev@{short_sha}: {passing}/{total} pass, \
-         {} fail ({} baseline, {} new)",
-        failures.len(),
-        baseline.len(),
-        new_failures.len(),
+        "[fmt-corpus] svelte.dev@{short_sha}: {passing}/{total} pass, {} fail",
+        failures.len()
     );
-    if !now_passing.is_empty() {
-        println!(
-            "[fmt-corpus] {} baseline entr{} now PASS — remove from \
-             tests/fmt_corpus_baseline.txt:",
-            now_passing.len(),
-            if now_passing.len() == 1 { "y" } else { "ies" },
-        );
-        for id in &now_passing {
-            println!("    {id}");
-        }
-    }
 
-    if !new_failures.is_empty() {
+    if !failures.is_empty() {
+        // Hard gate: every sample must match the oxfmt(svelte:true) oracle.
+        // FMT_CORPUS_SHOW raises the per-run cap for burndown analysis.
+        let show: usize = std::env::var("FMT_CORPUS_SHOW")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(60);
         let mut msg = format!(
-            "\n{} NEW formatter parity regression(s) not in baseline:\n",
-            new_failures.len()
+            "\n{} formatter parity failure(s) vs the oxfmt(svelte:true) oracle \
+             ({passing}/{total} pass):\n",
+            failures.len(),
         );
-        for id in &new_failures {
-            let detail = failures
-                .iter()
-                .find(|(fid, _)| &fid == id)
-                .map(|(_, d)| d.as_str())
-                .unwrap_or("");
+        for (id, detail) in failures.iter().take(show) {
             msg.push_str(&format!("\n  ✗ {id}\n      {detail}\n"));
         }
-        msg.push_str(
-            "\nIf a change intentionally affects formatting, regenerate and review, \
-             or add the sample id to tests/fmt_corpus_baseline.txt with justification.\n",
-        );
+        if failures.len() > show {
+            msg.push_str(&format!("\n  … and {} more.\n", failures.len() - show));
+        }
         panic!("{msg}");
     }
 }

@@ -1,3 +1,0 @@
-# svelte.dev markdown CLI parity — baseline of currently-failing samples.
-# Should be empty: rsvelte-fmt delegates .md to oxfmt, so output must match the
-# oxfmt oracle. A non-empty list means the CLI delegation/config forwarding drifted.
