@@ -101,21 +101,13 @@ fn load_fixture(dir: &Path) -> Option<RealWorldFixture> {
     let options_str = fs::read_to_string(&options_path).ok()?;
     let options: FixtureOptions = serde_json::from_str(&options_str).ok()?;
 
-    let expected_client = fs::read_to_string(&client_path).ok().and_then(|s| {
-        if s.starts_with("// COMPILE ERROR") {
-            None
-        } else {
-            Some(s)
-        }
-    });
+    let expected_client = fs::read_to_string(&client_path)
+        .ok()
+        .filter(|s| !s.starts_with("// COMPILE ERROR"));
 
-    let expected_server = fs::read_to_string(&server_path).ok().and_then(|s| {
-        if s.starts_with("// COMPILE ERROR") {
-            None
-        } else {
-            Some(s)
-        }
-    });
+    let expected_server = fs::read_to_string(&server_path)
+        .ok()
+        .filter(|s| !s.starts_with("// COMPILE ERROR"));
 
     Some(RealWorldFixture {
         name,

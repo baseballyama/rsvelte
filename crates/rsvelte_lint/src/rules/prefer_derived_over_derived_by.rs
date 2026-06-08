@@ -87,12 +87,11 @@ fn returned_expression(arg: &Value, kind: &str) -> Option<Value> {
         let stmts = body.get("body").and_then(Value::as_array)?;
         if stmts.len() == 1 {
             let stmt = &stmts[0];
-            if node_type(stmt) == Some("ReturnStatement") {
-                if let Some(argument) = stmt.get("argument") {
-                    if !argument.is_null() {
-                        return Some(argument.clone());
-                    }
-                }
+            if node_type(stmt) == Some("ReturnStatement")
+                && let Some(argument) = stmt.get("argument")
+                && !argument.is_null()
+            {
+                return Some(argument.clone());
             }
         }
     }

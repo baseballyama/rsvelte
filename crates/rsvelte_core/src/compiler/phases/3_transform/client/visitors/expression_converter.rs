@@ -1459,16 +1459,14 @@ fn convert_object_pattern_property_from_node(
                         .unwrap_or(false);
 
                     let (conv_key, fallback_name) = if key_type == "Literal" {
-                        if let Some(val) = key_val.get("value") {
+                        {
+                            let val = key_val.get("value")?;
                             if let Some(s) = val.as_str() {
                                 (JsPropertyKey::Literal(JsLiteral::String(s.into())), None)
-                            } else if let Some(n) = val.as_f64() {
-                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                             } else {
-                                return None;
+                                let n = val.as_f64()?;
+                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                             }
-                        } else {
-                            return None;
                         }
                     } else if key_type == "Identifier" {
                         let name = key_val.get("name").and_then(|n| n.as_str())?;
@@ -1556,7 +1554,8 @@ fn convert_object_pattern_prop_inner(
         }
         JsNode::Raw(v) => {
             // Delegate to Value-based property key conversion
-            if let Some(obj) = v.as_object() {
+            {
+                let obj = v.as_object()?;
                 let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 if key_type == "Identifier" && !computed {
                     let name = obj
@@ -1578,8 +1577,6 @@ fn convert_object_pattern_prop_inner(
                         None,
                     )
                 }
-            } else {
-                return None;
             }
         }
         _ => {
@@ -3546,7 +3543,8 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                 // Handle Identifier keys, Literal keys, and computed keys
                                 let (key, fallback_name) = if key_type == "Literal" {
                                     // Literal key: { 'the-area': area } or { 2: sum }
-                                    if let Some(val) = key_val.get("value") {
+                                    {
+                                        let val = key_val.get("value")?;
                                         if let Some(s) = val.as_str() {
                                             (
                                                 JsPropertyKey::Literal(JsLiteral::String(
@@ -3559,13 +3557,10 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                                 JsPropertyKey::Literal(JsLiteral::Number(n as f64)),
                                                 None,
                                             )
-                                        } else if let Some(n) = val.as_f64() {
-                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                                         } else {
-                                            return None;
+                                            let n = val.as_f64()?;
+                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                                         }
-                                    } else {
-                                        return None;
                                     }
                                 } else if key_type == "Identifier" {
                                     // Identifier key: { x } or { x: y }
