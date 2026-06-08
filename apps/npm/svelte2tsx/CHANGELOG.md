@@ -1,5 +1,17 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.15
+
+### Patch Changes
+
+- 26aeb22: Fix the `@rsvelte/compiler` dependency range. `0.1.13` and `0.1.14` shipped a
+  wrong `^0.1.0` range (the same `pkg/` version leak that broke the compiler
+  publish caused pnpm to resolve the `workspace:^` range against the stale
+  `0.1.0`), which pulled a months-old compiler. This release restores the
+  correct `^0.7.x` range.
+- Updated dependencies [26aeb22]
+  - @rsvelte/compiler@0.7.7
+
 ## 0.1.14
 
 ### Patch Changes
