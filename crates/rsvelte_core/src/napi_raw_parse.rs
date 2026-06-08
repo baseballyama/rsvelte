@@ -294,8 +294,8 @@ fn write_opt_str<W: Writer>(w: &mut W, s: Option<&str>) {
 #[inline]
 fn write_preamble<W: Writer>(w: &mut W, tag: u8, start: u32, end: u32) {
     write_u8(w, tag);
-    write_u32(w, start);
-    write_u32(w, end);
+    write_u32(w, conv_off(start));
+    write_u32(w, conv_off(end));
 }
 
 /// Serialize a `SourceLocation` as 24 bytes — flattens the nested
@@ -303,11 +303,11 @@ fn write_preamble<W: Writer>(w: &mut W, tag: u8, start: u32, end: u32) {
 /// six u32s. The decoder rebuilds the object form.
 fn write_source_location<W: Writer>(w: &mut W, loc: &crate::ast::span::SourceLocation) {
     write_u32(w, loc.start.line);
-    write_u32(w, loc.start.column);
-    write_u32(w, loc.start.character);
+    write_u32(w, conv_col(loc.start.line, loc.start.column));
+    write_u32(w, conv_off(loc.start.character));
     write_u32(w, loc.end.line);
-    write_u32(w, loc.end.column);
-    write_u32(w, loc.end.character);
+    write_u32(w, conv_col(loc.end.line, loc.end.column));
+    write_u32(w, conv_off(loc.end.character));
 }
 fn write_opt_source_location<W: Writer>(w: &mut W, loc: Option<&crate::ast::span::SourceLocation>) {
     match loc {
@@ -357,7 +357,20 @@ fn write_json_node<W: Writer, T: Serialize + ?Sized>(
         }
     }
     let mut shim = WriterAdapter(w);
-    serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
+    if offset_remap_active() {
+        // The embedded JSON sub-tree carries byte offsets too; remap them to
+        // UTF-16 so the whole envelope is consistent (#793). Only pay the
+        // serialize-to-Value round-trip when a remap is actually active.
+        let mut json_value = serde_json::to_value(value).map_err(std::io::Error::other)?;
+        OFFSET_CONV.with(|c| {
+            if let Some(conv) = &*c.borrow() {
+                crate::compiler::legacy::convert_positions_to_utf16(&mut json_value, conv);
+            }
+        });
+        serde_json::to_writer(&mut shim, &json_value).map_err(std::io::Error::other)?;
+    } else {
+        serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
+    }
     let payload_end = shim.0.position();
     w.patch_u32(len_slot, (payload_end - payload_start) as u32);
     Ok(())
@@ -416,6 +429,44 @@ fn css_stub_only() -> bool {
     SKIP_CSS_AST.with(|c| c.get())
 }
 
+thread_local! {
+    // Byte -> UTF-16 offset converter for the current encode. `Some` only when
+    // the source contains non-ASCII; for ASCII source byte == UTF-16 so it is
+    // left `None` and every conversion below is a zero-cost identity (#793).
+    static OFFSET_CONV: std::cell::RefCell<Option<crate::compiler::legacy::Utf8ToUtf16>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Convert an absolute byte offset to a UTF-16 code-unit offset (identity when
+/// no converter is installed, i.e. ASCII source).
+#[inline]
+fn conv_off(v: u32) -> u32 {
+    // `u32::MAX` is the "no span" sentinel (e.g. legacy `Value` expressions);
+    // never remap it.
+    if v == u32::MAX {
+        return v;
+    }
+    OFFSET_CONV.with(|c| match &*c.borrow() {
+        Some(conv) => conv.convert(v as usize) as u32,
+        None => v,
+    })
+}
+
+/// Convert a byte column (0-based, within `line`) to a UTF-16 column.
+#[inline]
+fn conv_col(line: u32, col: u32) -> u32 {
+    OFFSET_CONV.with(|c| match &*c.borrow() {
+        Some(conv) => conv.convert_column(line as usize, col as usize) as u32,
+        None => col,
+    })
+}
+
+/// Whether an offset remap is active for the current encode.
+#[inline]
+fn offset_remap_active() -> bool {
+    OFFSET_CONV.with(|c| c.borrow().is_some())
+}
+
 /// `typed_expr::Loc` — emits a flag byte + 6 u32s (with optional
 /// `character`) when `loc.is_some()`. When the envelope-level
 /// `FLAG_JSNODE_NO_LOC` flag is set the encoder skips this call
@@ -428,20 +479,20 @@ fn write_typed_loc<W: Writer>(w: &mut W, loc: Option<&Loc>) {
         Some(l) => {
             write_u8(w, 1);
             write_u32(w, l.start.line);
-            write_u32(w, l.start.column);
+            write_u32(w, conv_col(l.start.line, l.start.column));
             match l.start.character {
                 Some(c) => {
                     write_u8(w, 1);
-                    write_u32(w, c);
+                    write_u32(w, conv_off(c));
                 }
                 None => write_u8(w, 0),
             }
             write_u32(w, l.end.line);
-            write_u32(w, l.end.column);
+            write_u32(w, conv_col(l.end.line, l.end.column));
             match l.end.character {
                 Some(c) => {
                     write_u8(w, 1);
-                    write_u32(w, c);
+                    write_u32(w, conv_off(c));
                 }
                 None => write_u8(w, 0),
             }
@@ -2078,16 +2129,29 @@ pub fn encode_root_into<W: Writer>(
     struct Guard {
         prev_loc: bool,
         prev_css: bool,
+        prev_conv: Option<crate::compiler::legacy::Utf8ToUtf16>,
     }
     impl Drop for Guard {
         fn drop(&mut self) {
             SKIP_JSNODE_LOC.with(|c| c.set(self.prev_loc));
             SKIP_CSS_AST.with(|c| c.set(self.prev_css));
+            OFFSET_CONV.with(|c| *c.borrow_mut() = self.prev_conv.take());
         }
     }
     let prev_loc = SKIP_JSNODE_LOC.with(|c| c.replace(skip_jsnode_loc));
     let prev_css = SKIP_CSS_AST.with(|c| c.replace(skip_css_ast));
-    let _guard = Guard { prev_loc, prev_css };
+    // Install a byte->UTF-16 converter only for non-ASCII source (#793).
+    let new_conv = if source.is_ascii() {
+        None
+    } else {
+        Some(crate::compiler::legacy::Utf8ToUtf16::new(source))
+    };
+    let prev_conv = OFFSET_CONV.with(|c| c.replace(new_conv));
+    let _guard = Guard {
+        prev_loc,
+        prev_css,
+        prev_conv,
+    };
 
     let _ = crate::ast::arena::with_serialize_arena(&root.arena, || write_root(writer, root));
 

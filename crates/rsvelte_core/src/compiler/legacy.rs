@@ -38,7 +38,12 @@ static REGEX_ENDS_WITH_WHITESPACE: LazyLock<Regex> =
 static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^ \t\r\n]").unwrap());
 
 /// Converter from UTF-8 byte positions to UTF-16 code unit positions.
-struct Utf8ToUtf16 {
+///
+/// `pub(crate)` so the modern parse output paths (`wasm::parse_svelte`,
+/// `napi::parse`, and the raw-transfer envelope encoder) can reuse the same
+/// remap the legacy path already applies, keeping every public AST surface on
+/// svelte/compiler's UTF-16 offsets (#793).
+pub(crate) struct Utf8ToUtf16 {
     utf16_pos: Vec<usize>,
     /// (byte offset, utf16 offset) for each line start
     line_starts_byte: Vec<usize>,
@@ -46,7 +51,7 @@ struct Utf8ToUtf16 {
 }
 
 impl Utf8ToUtf16 {
-    fn new(source: &str) -> Self {
+    pub(crate) fn new(source: &str) -> Self {
         let mut utf16_pos = Vec::with_capacity(source.len() + 1);
         let mut utf16_idx = 0;
         let mut line_starts_byte = vec![0];
@@ -75,7 +80,7 @@ impl Utf8ToUtf16 {
         }
     }
 
-    fn convert(&self, utf8_pos: usize) -> usize {
+    pub(crate) fn convert(&self, utf8_pos: usize) -> usize {
         if utf8_pos >= self.utf16_pos.len() {
             *self.utf16_pos.last().unwrap_or(&0)
         } else {
@@ -85,7 +90,7 @@ impl Utf8ToUtf16 {
 
     /// Convert a column from byte offset to UTF-16 code unit offset within a line.
     /// line is 1-based, column is 0-based byte offset from line start.
-    fn convert_column(&self, line: usize, byte_column: usize) -> usize {
+    pub(crate) fn convert_column(&self, line: usize, byte_column: usize) -> usize {
         if line == 0 || line > self.line_starts_byte.len() {
             return byte_column;
         }
@@ -105,7 +110,7 @@ impl Utf8ToUtf16 {
 }
 
 /// Recursively convert positions in JSON from UTF-8 to UTF-16.
-fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
+pub(crate) fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
     match value {
         Value::Object(map) => {
             if let Some(Value::Number(n)) = map.get("start")
@@ -1770,5 +1775,92 @@ fn remove_surrounding_whitespace_nodes(nodes: &mut Vec<TemplateNode>) {
             last.data = new_data.to_string().into();
             last.raw = last.data.clone();
         }
+    }
+}
+
+#[cfg(test)]
+mod utf16_offset_tests {
+    use super::{Utf8ToUtf16, convert_positions_to_utf16};
+    use crate::ast::arena::with_serialize_arena;
+    use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
+    use serde_json::Value;
+
+    /// Walk the AST JSON and, for every `Identifier`, assert that the UTF-16
+    /// slice `[start, end)` of the source equals the identifier's `name`.
+    fn assert_identifiers_utf16_aligned(value: &Value, utf16: &[u16]) {
+        match value {
+            Value::Object(map) => {
+                if map.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && let (Some(name), Some(start), Some(end)) = (
+                        map.get("name").and_then(|v| v.as_str()),
+                        map.get("start").and_then(|v| v.as_u64()),
+                        map.get("end").and_then(|v| v.as_u64()),
+                    )
+                {
+                    let (s, e) = (start as usize, end as usize);
+                    assert!(
+                        e <= utf16.len(),
+                        "end {e} out of bounds (len {})",
+                        utf16.len()
+                    );
+                    let slice = String::from_utf16(&utf16[s..e]).unwrap();
+                    assert_eq!(
+                        slice, name,
+                        "identifier '{name}' span {s}..{e} sliced to '{slice}'"
+                    );
+                }
+                for v in map.values() {
+                    assert_identifiers_utf16_aligned(v, utf16);
+                }
+            }
+            Value::Array(arr) => {
+                for v in arr {
+                    assert_identifiers_utf16_aligned(v, utf16);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Mirrors exactly what `wasm::parse_svelte` / `napi::parse` do for the
+    /// non-ASCII path: serialize the modern AST to a Value and remap byte
+    /// offsets to UTF-16 (#793).
+    #[test]
+    fn modern_parse_emits_utf16_offsets() {
+        // 'あ' is 3 UTF-8 bytes but 1 UTF-16 code unit.
+        let src = "<script>\n  const あ = 1;\n  const target = あ;\n</script>\n<p>{target}</p>";
+        let ast = parse(
+            src,
+            ParseOptions {
+                modern: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let mut value = with_serialize_arena(&ast.arena, || serde_json::to_value(&ast).unwrap());
+        let conv = Utf8ToUtf16::new(src);
+        convert_positions_to_utf16(&mut value, &conv);
+
+        let utf16: Vec<u16> = src.encode_utf16().collect();
+        assert_identifiers_utf16_aligned(&value, &utf16);
+    }
+
+    #[test]
+    fn ascii_offsets_unchanged_by_remap() {
+        let src = "<script>\n  const target = 1;\n</script>\n<p>{target}</p>";
+        let ast = parse(
+            src,
+            ParseOptions {
+                modern: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let before = with_serialize_arena(&ast.arena, || serde_json::to_value(&ast).unwrap());
+        let mut after = before.clone();
+        let conv = Utf8ToUtf16::new(src);
+        convert_positions_to_utf16(&mut after, &conv);
+        // For pure-ASCII source the remap must be a no-op.
+        assert_eq!(before, after);
     }
 }
