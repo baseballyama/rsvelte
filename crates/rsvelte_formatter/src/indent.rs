@@ -123,6 +123,26 @@ fn collect_indent_edits_inner(
                 }
             }
         }
+
+        // An HTML comment always sits on its own line. When it abuts a sibling
+        // node directly (no whitespace text node between them, e.g.
+        // `<!-- c --><h1>`), insert a line break so the comment and its
+        // neighbour land on separate lines (prettier / oxfmt behaviour).
+        for w in fragment.nodes.windows(2) {
+            let (a, b) = (&w[0], &w[1]);
+            if matches!(a, TemplateNode::Text(_)) || matches!(b, TemplateNode::Text(_)) {
+                continue;
+            }
+            let is_comment =
+                matches!(a, TemplateNode::Comment(_)) || matches!(b, TemplateNode::Comment(_));
+            if !is_comment {
+                continue;
+            }
+            let boundary = crate::collapse::template_node_span(a).1;
+            if boundary == crate::collapse::template_node_span(b).0 {
+                edits.push((boundary, boundary, format!("\n{child_indent}")));
+            }
+        }
     }
 
     for node in &fragment.nodes {
