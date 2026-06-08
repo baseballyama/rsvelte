@@ -150,7 +150,14 @@ fn recurse_into_children(
             if is_whitespace_preserving(elem.name.as_str()) {
                 return Ok(());
             }
-            collect_indent_edits(source, &elem.fragment, next_depth, options, edits)?;
+            // When the open tag spans multiple lines (its attributes wrapped),
+            // the element can't collapse onto one line, so its content renders
+            // on its own line(s) and the pure-text case must be re-indented here
+            // — the collapse pass only reindents text under a single-line open
+            // tag. (When the content *does* still fit one line, the collapse
+            // pass overrides this, so forcing is safe.)
+            let force = open_tag_is_multiline(source, elem.start, &elem.fragment);
+            collect_indent_edits_inner(source, &elem.fragment, next_depth, force, options, edits)?;
         }
         TemplateNode::Component(c) => {
             collect_indent_edits(source, &c.fragment, next_depth, options, edits)?;
@@ -246,6 +253,19 @@ pub(crate) fn else_if_branch(alt: &Fragment) -> Option<&IfBlock> {
         [TemplateNode::IfBlock(b)] if b.elseif => Some(b.as_ref()),
         _ => None,
     }
+}
+
+/// Whether the element's open tag spans more than one line — i.e. there is a
+/// newline between the element start and the start of its first child (the open
+/// tag's `>`). Such an element keeps its content on its own line(s).
+fn open_tag_is_multiline(source: &str, elem_start: u32, fragment: &Fragment) -> bool {
+    let Some(first) = fragment.nodes.first() else {
+        return false;
+    };
+    let first_start = crate::collapse::template_node_span(first).0;
+    source
+        .get(elem_start as usize..first_start as usize)
+        .is_some_and(|s| s.contains('\n'))
 }
 
 fn is_indent_provoking(node: &TemplateNode) -> bool {

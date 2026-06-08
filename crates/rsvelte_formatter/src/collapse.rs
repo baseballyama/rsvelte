@@ -551,7 +551,7 @@ fn node_end(node: &TemplateNode) -> u32 {
     template_node_span(node).1
 }
 
-fn template_node_span(node: &TemplateNode) -> (u32, u32) {
+pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
     match node {
         TemplateNode::Text(n) => (n.start, n.end),
         TemplateNode::Comment(n) => (n.start, n.end),
