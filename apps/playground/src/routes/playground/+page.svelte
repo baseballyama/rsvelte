@@ -9,10 +9,12 @@
 		parse,
 		compileClient,
 		compileServer,
+		lint,
 		svelte2tsx,
 		type CompileMode,
 		type OutputTab,
-		type CompileStats
+		type CompileStats,
+		type LintDiagnostic
 	} from '$lib/compiler';
 	import { initFmt, formatSvelte, getFmtVersion } from '$lib/fmt';
 	import { generatePreviewHtml } from '$lib/preview';
@@ -39,6 +41,7 @@
 	let outputAst = $state<object | null>(null);
 	let outputAstString = $state('');
 	let previewHtml = $state('');
+	let lintDiagnostics = $state<LintDiagnostic[]>([]);
 	let stats: CompileStats = $state({ compileTime: 0, outputSize: 0 });
 	let cursorPosition = $state(0);
 	let selectedAstRange = $state<{ start: number; end: number } | null>(null);
@@ -99,6 +102,10 @@
 		error = '';
 		const startTime = performance.now();
 		try {
+			// Lint is computed regardless of compile success (it surfaces compile
+			// errors and warnings too, alongside the native rules).
+			lintDiagnostics = lint(input, 'Component.svelte');
+
 			const clientResult = compileClient(input, 'Component');
 			const result = mode === 'client' ? clientResult : compileServer(input, 'Component');
 			const endTime = performance.now();
@@ -269,12 +276,15 @@
 		return `${(b / 1024).toFixed(1)} kB`;
 	};
 
-	const tabs: { id: OutputTab; label: string; sub: string }[] = [
+	const lintCount = $derived(lintDiagnostics.length);
+
+	const tabs = $derived<{ id: OutputTab; label: string; sub: string }[]>([
 		{ id: 'result', label: 'Result', sub: 'iframe preview' },
 		{ id: 'js', label: 'JS output', sub: 'compiled .js' },
 		{ id: 'css', label: 'CSS output', sub: 'scoped styles' },
-		{ id: 'ast', label: 'AST', sub: 'svelte AST · JSON' }
-	];
+		{ id: 'ast', label: 'AST', sub: 'svelte AST · JSON' },
+		{ id: 'lint', label: 'Lint', sub: lintCount === 1 ? '1 finding' : `${lintCount} findings` }
+	]);
 
 	const cliFor = (id: ToolId): { lang: string; code: string } => {
 		if (id === 'svelte-check') {
@@ -434,6 +444,25 @@
 									highlightRange={astHighlightRange}
 									onNodeClick={handleAstNodeClick}
 								/>
+							</div>
+						{:else if activeTab === 'lint'}
+							<div class="lint-host">
+								{#if lintDiagnostics.length === 0}
+									<div class="lint-empty">No lint findings — looks clean.</div>
+								{:else}
+									<ul class="lint-list">
+										{#each lintDiagnostics as d (d.line + ':' + d.column + ':' + d.code)}
+											<li class="lint-item">
+												<span class="lint-sev lint-{d.severity}">{d.severity}</span>
+												<span class="lint-loc" title="line {d.line}, column {d.column}">
+													{d.line}:{d.column}
+												</span>
+												<span class="lint-msg">{d.message}</span>
+												<span class="lint-code">{d.code}</span>
+											</li>
+										{/each}
+									</ul>
+								{/if}
 							</div>
 						{:else}
 							<div class="editor-host">
@@ -933,6 +962,70 @@
 		overflow: auto;
 		padding: 0.6rem 0.8rem;
 		background: var(--editor-bg);
+	}
+
+	.lint-host {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		background: var(--editor-bg);
+		font-family: 'Fira Mono', monospace;
+		font-size: 0.82rem;
+	}
+
+	.lint-empty {
+		padding: 1.2rem;
+		opacity: 0.7;
+	}
+
+	.lint-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.lint-item {
+		display: flex;
+		align-items: baseline;
+		gap: 0.6rem;
+		padding: 0.4rem 0.8rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+	}
+
+	.lint-sev {
+		flex: none;
+		text-transform: uppercase;
+		font-size: 0.62rem;
+		letter-spacing: 0.04em;
+		padding: 0.1rem 0.35rem;
+		border-radius: 3px;
+	}
+
+	.lint-error {
+		color: var(--bad);
+		background: color-mix(in srgb, var(--bad) 14%, transparent);
+	}
+
+	.lint-warning {
+		color: var(--warn, #b58900);
+		background: color-mix(in srgb, var(--warn, #b58900) 14%, transparent);
+	}
+
+	.lint-loc {
+		flex: none;
+		color: var(--accent, inherit);
+		opacity: 0.75;
+		min-width: 3.2rem;
+	}
+
+	.lint-msg {
+		flex: 1;
+	}
+
+	.lint-code {
+		flex: none;
+		opacity: 0.55;
+		font-size: 0.74rem;
 	}
 
 	/* svelte2tsx exported-names strip */

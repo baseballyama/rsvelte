@@ -18,3 +18,7 @@
 [submodule "submodules/corsa-bind"]
 	path = submodules/corsa-bind
 	url = git@github.com:ubugeeei-prod/corsa-bind.git
+[submodule "submodules/eslint-plugin-svelte"]
+	path = submodules/eslint-plugin-svelte
+	url = https://github.com/sveltejs/eslint-plugin-svelte
+	ignore = dirty
