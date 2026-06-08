@@ -33,10 +33,7 @@ const SKILL_SCRIPTS = path.join(
 	ROOT,
 	'.claude/skills/verify-svelte-compat/scripts',
 );
-const VPS_FORK = path.join(
-	ROOT,
-	'submodules/vite-plugin-svelte/packages/vite-plugin-svelte',
-);
+const VPS_FORK = path.join(ROOT, 'apps/npm/vite-plugin-svelte');
 
 function log(msg) {
 	// Diagnostics go to stderr so that machine-readable stdout (notably the
@@ -429,9 +426,7 @@ function applySwap(target, checkoutPath, bindingPath, triple) {
 
 	if (strategy === 'vps-shim') {
 		if (!fs.existsSync(VPS_FORK)) {
-			throw new Error(
-				`vps-shim swap requested but fork not found: ${VPS_FORK}\n  hint: \`git submodule update --init submodules/vite-plugin-svelte\``,
-			);
+			throw new Error(`vps-shim swap requested but package not found: ${VPS_FORK}`);
 		}
 
 		// pnpm's aliased file: dep syntax (npm:@rsvelte/...@file:...) produces

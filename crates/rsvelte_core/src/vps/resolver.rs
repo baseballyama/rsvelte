@@ -1,7 +1,7 @@
 //! Resolve a module specifier from a Svelte file context.
 //!
 //! Mirrors the JS reference's
-//! `submodules/vite-plugin-svelte/packages/vite-plugin-svelte/src/utils/id.js`.
+//! `apps/npm/vite-plugin-svelte/src/utils/id.js`.
 //! The Vite plugin asks Rust to map an `import` specifier to an absolute
 //! filesystem path so it can register the dependency graph.
 //!

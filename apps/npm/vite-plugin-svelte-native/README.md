@@ -2,7 +2,7 @@
 
 Native (N-API) bindings to the [rsvelte](https://github.com/baseballyama/rsvelte) Svelte 5 compiler, packaged for Node.js. Exposes the same `compile` / `compileModule` / `preprocess` / `hmrDiff` / `resolveId` surface as the official [`svelte/compiler`](https://svelte.dev/docs/svelte-compiler), plus a few low-overhead extras for tooling authors.
 
-> **⚠️ Most users should not depend on this directly.** It's the engine that powers [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/vite-plugin-svelte/tree/rsvelte) — if you want to build a SvelteKit / Vite app with the Rust compiler, use that fork instead. Depend on this package if you're writing a build tool, language server, batch compiler, or any other Node.js program that needs to compile `.svelte` files at maximum speed.
+> **⚠️ Most users should not depend on this directly.** It's the engine that powers [`@rsvelte/vite-plugin-svelte`](https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vite-plugin-svelte) — if you want to build a SvelteKit / Vite app with the Rust compiler, use that fork instead. Depend on this package if you're writing a build tool, language server, batch compiler, or any other Node.js program that needs to compile `.svelte` files at maximum speed.
 
 ## Install
 
