@@ -65,6 +65,16 @@ fn collect_indent_edits_inner(
                 continue;
             };
             if is_whitespace_only(t.data.as_str()) {
+                if !t.data.contains('\n') {
+                    // Inline spacing (no line break in the source) between inline
+                    // content like `{a} {b}` — whitespace-sensitive, so keep it
+                    // on one line, collapsed to a single space rather than forced
+                    // onto its own indented line.
+                    if t.data.as_str() != " " {
+                        edits.push((t.start, t.end, " ".to_string()));
+                    }
+                    continue;
+                }
                 // Keep a single blank line where prettier-plugin-svelte / oxfmt
                 // would: between siblings, and at the document root where the
                 // whitespace abuts a sibling `<script>` / `<style>`. Leading and
