@@ -127,7 +127,17 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
             // Serialize within the AST's arena so `JsNodeId`s in the
             // Serialize impls resolve (mirrors `wasm::parse_svelte`).
             crate::ast::arena::with_serialize_arena(&ast.arena, || {
-                serde_json::to_string(&ast)
+                // Spans are UTF-16 code-unit offsets to match svelte/compiler
+                // (#793). ASCII source needs no remap — keep the fast path.
+                if source.is_ascii() {
+                    return serde_json::to_string(&ast)
+                        .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")));
+                }
+                let mut value = serde_json::to_value(&ast)
+                    .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?;
+                let conv = crate::compiler::legacy::Utf8ToUtf16::new(&source);
+                crate::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
+                serde_json::to_string(&value)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             })
         }
