@@ -83,39 +83,79 @@ fn indent_unit(options: &FormatOptions) -> String {
 /// line. Blank lines are emptied. Used to canonicalize a `<style>` body before
 /// formatting so re-runs feed the formatter identical input regardless of the
 /// indentation a previous pass added (idempotency).
+///
+/// Lines that sit *inside* a multi-line `/* … */` comment are left verbatim:
+/// their leading whitespace is part of the comment token, which oxfmt (like
+/// prettier) preserves byte-for-byte, so dedenting them would permanently
+/// strip indentation the oracle keeps.
 fn dedent(s: &str) -> String {
-    let min_indent = s
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| l.len() - l.trim_start().len())
-        .min()
-        .unwrap_or(0);
-    s.lines()
-        .map(|l| {
-            if l.trim().is_empty() {
-                ""
-            } else {
-                &l[min_indent..]
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+    let cont = comment_continuation_flags(s);
+    let lines: Vec<&str> = s.lines().collect();
+    let mut min_indent = usize::MAX;
+    for (l, &c) in lines.iter().zip(&cont) {
+        if !c && !l.trim().is_empty() {
+            min_indent = min_indent.min(l.len() - l.trim_start().len());
+        }
+    }
+    let min_indent = if min_indent == usize::MAX {
+        0
+    } else {
+        min_indent
+    };
+    let mut out = Vec::with_capacity(lines.len());
+    for (l, &c) in lines.iter().zip(&cont) {
+        if c {
+            out.push((*l).to_string());
+        } else if l.trim().is_empty() {
+            out.push(String::new());
+        } else {
+            out.push(l[min_indent..].to_string());
+        }
+    }
+    out.join("\n")
 }
 
 /// Prefix every non-empty line of `s` with `indent`, dropping any trailing
-/// newline (the splice adds its own surrounding newlines).
+/// newline (the splice adds its own surrounding newlines). Lines inside a
+/// multi-line `/* … */` comment are left verbatim (see [`dedent`]).
 fn reindent(s: &str, indent: &str) -> String {
-    s.trim_end_matches('\n')
-        .lines()
-        .map(|line| {
-            if line.is_empty() {
-                String::new()
+    let trimmed = s.trim_end_matches('\n');
+    let cont = comment_continuation_flags(trimmed);
+    let mut out = Vec::new();
+    for (line, &c) in trimmed.lines().zip(&cont) {
+        if c || line.is_empty() {
+            out.push(line.to_string());
+        } else {
+            out.push(format!("{indent}{line}"));
+        }
+    }
+    out.join("\n")
+}
+
+/// For each line, whether it *starts* already inside a `/* … */` block comment
+/// — i.e. it is a continuation line whose leading whitespace belongs to the
+/// comment token. The line that opens the comment is not a continuation (its
+/// `/*` sits at a code position that should be re-indented normally).
+fn comment_continuation_flags(s: &str) -> Vec<bool> {
+    let mut flags = Vec::new();
+    let mut in_comment = false;
+    for line in s.lines() {
+        flags.push(in_comment);
+        let bytes = line.as_bytes();
+        let mut i = 0;
+        while i + 1 < bytes.len() {
+            if !in_comment && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                in_comment = true;
+                i += 2;
+            } else if in_comment && bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                in_comment = false;
+                i += 2;
             } else {
-                format!("{indent}{line}")
+                i += 1;
             }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+        }
+    }
+    flags
 }
 
 /// Read the `<style lang="...">` attribute out of the JSON-encoded
