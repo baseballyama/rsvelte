@@ -161,3 +161,48 @@ fn let_directive_with_destructuring() {
         "expected let directive pattern formatted:\n{out}"
     );
 }
+
+// ─── #797: long {#snippet} headers break like a function signature ─────────
+
+#[test]
+fn snippet_long_param_list_breaks_like_function_signature() {
+    let out = fmt_ts(
+        "{#snippet rowSnippet({ row }: { row: SomeVeryLongRowTypeNameThatPushesPastThePrintWidthLimit })}\n  <Cell />\n{/snippet}",
+    );
+    assert!(
+        out.contains(
+            "{#snippet rowSnippet({\n  row,\n}: {\n  row: SomeVeryLongRowTypeNameThatPushesPastThePrintWidthLimit;\n})}"
+        ),
+        "long snippet header should break across lines:\n{out}"
+    );
+    // Idempotent: re-formatting the already-broken output must not change it.
+    assert_eq!(
+        format(&out, &FormatOptions::default()).expect("format ok"),
+        out,
+        "snippet header formatting must be idempotent"
+    );
+}
+
+#[test]
+fn snippet_short_param_list_stays_one_line() {
+    let out = fmt_ts("{#snippet card({ title, subtitle })}<p>{title}</p>{/snippet}");
+    assert!(
+        out.contains("{#snippet card({ title, subtitle })}"),
+        "short snippet header must stay on one line:\n{out}"
+    );
+}
+
+#[test]
+fn each_long_header_does_not_break() {
+    // {#each} headers must stay single-line — a break would split the block
+    // header and Svelte would re-parse it incorrectly. Only {#snippet} breaks.
+    let out = fmt(
+        "{#each someVeryLongIterableExpressionNameThatExceedsTheConfiguredWidth as itemWithAVeryLongName}<li>{itemWithAVeryLongName}</li>{/each}",
+    );
+    assert!(
+        out.contains(
+            "{#each someVeryLongIterableExpressionNameThatExceedsTheConfiguredWidth as itemWithAVeryLongName}"
+        ),
+        "each header must not break:\n{out}"
+    );
+}
