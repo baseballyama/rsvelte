@@ -1070,8 +1070,6 @@ fn process_regular_attribute(
     custom_css_props: &mut Vec<JsObjectMember>,
     memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
-    #[allow(unused_imports)]
-    use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
 
     // Handle custom CSS properties (--var)
     if attr.name.starts_with("--") {

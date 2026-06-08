@@ -45,8 +45,6 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
 // Note: get_value from declarations is available if needed for reactive index/item access
 use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
-#[allow(unused_imports)]
-use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::get_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     add_svelte_meta, apply_transforms_to_expression, build_expression,
 };

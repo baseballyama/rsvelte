@@ -6,7 +6,6 @@
 //! Each template node type has a corresponding handler that overwrites the
 //! original source range with the appropriate TypeScript/TSX code.
 
-#[allow(unused_imports)]
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
     BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag, EachBlock,

@@ -58,8 +58,6 @@ pub mod visitors;
 
 // Re-export all extracted module functions so they remain accessible by their original names.
 // Some imports may appear unused in mod.rs but are needed for test access via `use super::*;`.
-#[allow(unused_imports)]
-use class_transforms::*;
 use destructure_transforms::*;
 use expression_utils::*;
 use formatting::*;
