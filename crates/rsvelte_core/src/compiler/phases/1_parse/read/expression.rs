@@ -7086,7 +7086,12 @@ fn convert_statement_for_program(
             let end = offset + switch_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let discriminant = expr_to_node(convert_expression(
+            // Program context: the offset is already program-adjusted, so use
+            // `convert_expression_for_program` (no `-1` paren shift) like every
+            // other statement here. Using `convert_expression` double-counts the
+            // paren and shifts the discriminant span one unit left onto the `(`
+            // (#916).
+            let discriminant = expr_to_node(convert_expression_for_program(
                 arena,
                 &switch_stmt.discriminant,
                 offset,
@@ -7102,7 +7107,7 @@ fn convert_statement_for_program(
                     let case_loc = create_typed_loc(case_start, case_end, line_offsets);
 
                     let test = case.test.as_ref().map(|test| {
-                        arena.alloc_js_node(expr_to_node(convert_expression(
+                        arena.alloc_js_node(expr_to_node(convert_expression_for_program(
                             arena,
                             test,
                             offset,
@@ -7141,7 +7146,7 @@ fn convert_statement_for_program(
             let end = offset + do_while_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let test = expr_to_node(convert_expression(
+            let test = expr_to_node(convert_expression_for_program(
                 arena,
                 &do_while_stmt.test,
                 offset,
@@ -8971,7 +8976,13 @@ fn convert_assignment_pattern(
             offset,
             line_offsets,
         )),
-        right: arena.alloc_js_node(expr_to_node(convert_expression(
+        // Program context: `offset` is already program-adjusted (the pattern's
+        // own `start`/`end` and `left` use it raw), so the default value must
+        // also use `convert_expression_for_program`. `convert_expression` would
+        // re-apply the synthetic-paren `-1`, shifting the default expression one
+        // unit left — e.g. the `$bindable` callee in `let { open = $bindable() }`
+        // spanned ` $bindabl` (#916).
+        right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
             arena,
             &assign_pat.right,
             offset,
