@@ -275,8 +275,8 @@ pub fn svelte2tsx(
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
     // so we need to handle it separately.
-    if let Some(ref options_node) = ast.options {
-        if options_node.start < options_node.end {
+    if let Some(ref options_node) = ast.options
+        && options_node.start < options_node.end {
             // Build attribute string from options attributes
             let mut attrs_parts = Vec::new();
             let mut has_expression_attr = false;
@@ -314,7 +314,6 @@ pub fn svelte2tsx(
             );
             str.overwrite(options_node.start, options_node.end, &replacement);
         }
-    }
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
     //
@@ -323,8 +322,8 @@ pub fn svelte2tsx(
     // Then ALWAYS run the fallback scanner to catch style tags the parser
     // did not capture (e.g., <style global>, custom attributes).
     let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
-    if let Some(ref css) = ast.css {
-        if css.start < css.end {
+    if let Some(ref css) = ast.css
+        && css.start < css.end {
             // Also blank any trailing whitespace after the style tag
             let mut blank_end = css.end;
             let bytes = source.as_bytes();
@@ -339,7 +338,6 @@ pub fn svelte2tsx(
             str.overwrite(css.start, blank_end, "");
             blanked_style_ranges.push((css.start as usize, blank_end as usize));
         }
-    }
     {
         // Fallback: scan source for <style tags that the parser didn't
         // capture in ast.css (e.g., <style global>, <style lang="...">).
@@ -385,14 +383,13 @@ pub fn svelte2tsx(
             let after_tag = abs_start + 6;
             if after_tag < bytes.len() {
                 let next_ch = bytes[after_tag];
-                if next_ch == b' '
+                if (next_ch == b' '
                     || next_ch == b'>'
                     || next_ch == b'\n'
                     || next_ch == b'\r'
                     || next_ch == b'\t'
-                    || next_ch == b'/'
-                {
-                    if let Some(close_off) = source[abs_start..].find("</style>") {
+                    || next_ch == b'/')
+                    && let Some(close_off) = source[abs_start..].find("</style>") {
                         let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
                         let mut blank_end = abs_end as u32;
                         while (blank_end as usize) < bytes.len() {
@@ -407,7 +404,6 @@ pub fn svelte2tsx(
                         search_from = abs_end;
                         continue;
                     }
-                }
             }
             search_from = abs_start + 1;
         }
@@ -984,8 +980,8 @@ pub fn svelte2tsx(
                 );
             }
 
-            if inline_type_at_let {
-                if let (Some(let_pos), Some(type_text)) = (
+            if inline_type_at_let
+                && let (Some(let_pos), Some(type_text)) = (
                     exported_names.props_let_abs_pos,
                     exported_names.props_type_text.as_ref(),
                 ) {
@@ -1001,7 +997,6 @@ pub fn svelte2tsx(
                     };
                     str.append_left(let_pos, &snippet);
                 }
-            }
         } else {
             // No imports: overwrite the entire <script> tag at once
             let force_inside_render_no_imports = exported_names.has_component_props_typedef
@@ -1167,8 +1162,8 @@ pub fn svelte2tsx(
                 );
             }
 
-            if inline_type_at_let {
-                if let (Some(let_pos), Some(type_text)) = (
+            if inline_type_at_let
+                && let (Some(let_pos), Some(type_text)) = (
                     exported_names.props_let_abs_pos,
                     exported_names.props_type_text.as_ref(),
                 ) {
@@ -1182,7 +1177,6 @@ pub fn svelte2tsx(
                     };
                     str.append_left(let_pos, &snippet);
                 }
-            }
         }
 
         // Overwrite `</script>` with slot declaration + `async () => {`.
@@ -1722,7 +1716,7 @@ fn escape_js_single_quoted(s: &str) -> String {
 /// Walks the fragment tree looking for `<slot>` elements and collects their names.
 /// A slot without a `name` attribute is the "default" slot.
 fn collect_slot_names_from_ast(fragment: &crate::ast::template::Fragment) -> Vec<String> {
-    use crate::ast::template::TemplateNode;
+    
     let mut names = Vec::new();
     collect_slot_names_recursive(&fragment.nodes, &mut names);
     // Deduplicate while preserving order
@@ -1742,9 +1736,9 @@ fn collect_slot_names_recursive(
                 // Get slot name from the `name` attribute
                 let mut slot_name = "default".to_string();
                 for attr in &el.attributes {
-                    if let crate::ast::template::Attribute::Attribute(node) = attr {
-                        if node.name == "name" {
-                            if let crate::ast::template::AttributeValue::Sequence(parts) =
+                    if let crate::ast::template::Attribute::Attribute(node) = attr
+                        && node.name == "name"
+                            && let crate::ast::template::AttributeValue::Sequence(parts) =
                                 &node.value
                             {
                                 for part in parts {
@@ -1755,8 +1749,6 @@ fn collect_slot_names_recursive(
                                     }
                                 }
                             }
-                        }
-                    }
                 }
                 names.push(slot_name);
                 collect_slot_names_recursive(&el.fragment.nodes, names);
@@ -2445,8 +2437,8 @@ fn is_snippet_module_hoistable(
         if params_set.contains(&ident) {
             continue;
         }
-        if let Some(stripped) = ident.strip_prefix('$') {
-            if !stripped.is_empty() && !stripped.starts_with('$') {
+        if let Some(stripped) = ident.strip_prefix('$')
+            && !stripped.is_empty() && !stripped.starts_with('$') {
                 // Auto-store subscription targets — `addDisallowed(getAccessedStores())`
                 // in the JS reference is component-wide, so check both module
                 // and instance scopes.
@@ -2458,7 +2450,6 @@ fn is_snippet_module_hoistable(
                     return false;
                 }
             }
-        }
         if exported_names.instance_value_names.contains(&ident)
             && !exported_names.instance_import_names.contains(&ident)
         {
@@ -2666,18 +2657,16 @@ fn detect_top_level_await(content: &str) -> bool {
         match stmt {
             oxc::Statement::VariableDeclaration(decl) => {
                 for declarator in decl.declarations.iter() {
-                    if let Some(ref init) = declarator.init {
-                        if contains_await_expression(init) {
+                    if let Some(ref init) = declarator.init
+                        && contains_await_expression(init) {
                             return true;
                         }
-                    }
                 }
             }
-            oxc::Statement::ExpressionStatement(expr) => {
-                if contains_await_expression(&expr.expression) {
+            oxc::Statement::ExpressionStatement(expr)
+                if contains_await_expression(&expr.expression) => {
                     return true;
                 }
-            }
             _ => {}
         }
     }
