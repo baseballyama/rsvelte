@@ -114,7 +114,7 @@ mod tests {
     const SRC: &str =
         "<script module lang=\"ts\">export const ATTR = 'x';</script>\n<span>{ATTR}</span>";
 
-    fn fires_at(dir: &PathBuf, svelte_name: &str) -> bool {
+    fn fires_at(dir: &Path, svelte_name: &str) -> bool {
         let path = dir.join(svelte_name);
         run_native_rules(SRC, &enabled(), Some(&path))
             .iter()
