@@ -6,7 +6,7 @@
 //!
 //! Two handler sources are checked (mirroring upstream):
 //!   A) `on:` directives — `<button on:click={[a]} />`.
-//!   B) plain event attributes whose name is in [`EVENT_NAMES`]
+//!   B) plain event attributes whose name is in `EVENT_NAMES`
 //!      (`onclick`, `oncopy`, …) with a single mustache value —
 //!      `<button onclick={[a]} />`.
 //!
