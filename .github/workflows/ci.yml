@@ -211,16 +211,19 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
-      - name: Install root deps (oxfmt + svelte for the formatter parity corpus)
-        # The svelte.dev formatter corpus (tests/svelte_dev_corpus.rs) and its
-        # generator need the root node_modules/.bin/oxfmt plus a resolvable
-        # `svelte` (oxfmt's `svelte: true` mode runs prettier-plugin-svelte).
-        # `--ignore-workspace` keeps this to the root package.json deps;
-        # `--ignore-scripts` skips dependency build scripts (oxfmt ships a
-        # prebuilt native binding via optionalDependencies, and svelte /
-        # prettier-plugin-svelte are pure JS — none need building), which also
-        # avoids pnpm's ERR_PNPM_IGNORED_BUILDS gate for esbuild/@parcel/watcher.
-        run: pnpm install --frozen-lockfile --ignore-workspace --ignore-scripts
+      - name: Install oxfmt + svelte for the formatter parity corpus
+        # Isolated install (NOT the root lockfile) so the corpus oracle deps —
+        # oxfmt (a prebuilt native binding) plus a resolvable svelte for oxfmt's
+        # `svelte: true` (bundled prettier-plugin-svelte) — are available without
+        # pulling the root's esbuild/@parcel/watcher, whose build scripts trip
+        # pnpm's ERR_PNPM_IGNORED_BUILDS gate. Versions pinned to the repo's so
+        # the oracle stays deterministic. Used via OXFMT_BIN / FMT_CORPUS_OXFMT.
+        run: |
+          mkdir -p "$RUNNER_TEMP/fmt-oracle"
+          cd "$RUNNER_TEMP/fmt-oracle"
+          npm init -y >/dev/null
+          npm i --ignore-scripts oxfmt@0.53.0 svelte@5.56.2
+          ./node_modules/.bin/oxfmt --version
 
       - name: Resolve svelte.dev submodule SHA
         id: svelte-dev-sha
@@ -237,6 +240,8 @@ jobs:
       - name: Generate formatter parity corpus
         run: pnpm run generate-fmt-corpus
         timeout-minutes: 15
+        env:
+          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
       - name: Run tests
         # `--all-features` would enable `napi`, which only links cleanly when
@@ -257,6 +262,8 @@ jobs:
           # error and bails out before emitting the user-source diagnostics
           # the golden test verifies.
           TSGO_BIN: ${{ github.workspace }}/submodules/svelte/node_modules/.bin/tsc
+          # oxfmt launcher for the svelte.dev corpus tests' <style> / CLI paths.
+          FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
       - name: Collect failure artifacts
         if: failure()
