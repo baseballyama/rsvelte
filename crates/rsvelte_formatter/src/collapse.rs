@@ -188,20 +188,41 @@ fn try_collapse(
     if collapsed.is_empty() {
         return None;
     }
-    // Only break when the boundary whitespace is insignificant: the content was
-    // separated from the tags by whitespace, or the element is block/list-item
-    // (where leading/trailing whitespace is dropped anyway). Inline content that
-    // hugs its tags (`}}>text`, no surrounding whitespace) must stay hugged
-    // (markup.rs keeps the `>` glued to the text — #798).
-    if !((had_lead && had_trail) || is_block_display(tag)) {
-        return None;
-    }
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
     let inner_indent = format!("{indent}  ");
+
+    // A pure-inline element (CSS display `inline`: `<a>`, `<span>`, … — not
+    // inline-block like `<button>`, not block) is whitespace-sensitive, so it
+    // can't put its text on its own line. prettier instead uses the "hug" break:
+    //   <a href="…"
+    //     >content</a
+    //   >
+    // — the `>` glues to the content so no whitespace is injected. The open tag
+    // must fit on one line and the `>content</tag` line must fit; otherwise this
+    // needs attribute-wrapping / content fill we don't do here.
+    if is_pure_inline_display(tag) {
+        if open.contains('\n') || !open.ends_with('>') {
+            return None;
+        }
+        let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
+        if hug_width > line_width {
+            return None;
+        }
+        let open_no_bracket = &open[..open.len() - 1];
+        let hug = format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{indent}>");
+        return (hug != whole).then_some((start, end, hug));
+    }
+
+    // Block / inline-block: break the content onto its own line(s). Only when the
+    // boundary whitespace is insignificant (content separated from the tags, or
+    // a block/list-item element) so hugged inline text stays hugged (#798).
+    if !((had_lead && had_trail) || is_block_display(tag)) {
+        return None;
+    }
     let avail = line_width.saturating_sub(inner_indent.width()).max(1);
 
     let mut broken = String::with_capacity(whole.len() + 8);
@@ -319,6 +340,43 @@ fn is_block_display(tag: &str) -> bool {
 
 fn is_whitespace_preserving(tag: &str) -> bool {
     matches!(tag, "pre" | "textarea")
+}
+
+/// Whether an element's default CSS display is plain `inline` (`<a>`, `<span>`,
+/// `<em>`, …) — i.e. NOT one of prettier's non-inline categories (block,
+/// list-item, inline-block, table*, none, contents, ruby). Such elements are
+/// whitespace-sensitive and use the hug break instead of putting content on its
+/// own line. Mirrors the complement of prettier's `CSS_DISPLAY_DEFAULTS`.
+fn is_pure_inline_display(tag: &str) -> bool {
+    // Components / custom elements (uppercase or containing `-` / `.`) aren't
+    // plain inline HTML elements — don't hug them.
+    if tag.contains(['-', '.', ':']) || tag.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+        return false;
+    }
+    !matches!(
+        tag,
+        // none
+        "area" | "base" | "basefont" | "datalist" | "head" | "link" | "meta"
+            | "noembed" | "noframes" | "rp" | "style" | "title"
+            // block
+            | "param" | "script" | "html" | "body" | "address" | "blockquote"
+            | "center" | "dialog" | "div" | "figure" | "figcaption" | "footer"
+            | "form" | "header" | "hr" | "legend" | "listing" | "main" | "p"
+            | "plaintext" | "search" | "xmp" | "article" | "aside" | "h1" | "h2"
+            | "h3" | "h4" | "h5" | "h6" | "hgroup" | "nav" | "section" | "dir"
+            | "dd" | "dl" | "dt" | "menu" | "ol" | "ul" | "fieldset" | "details"
+            | "summary" | "source" | "track" | "option" | "optgroup"
+            // contents / ruby / list-item
+            | "slot" | "ruby" | "rt" | "li"
+            // table family
+            | "table" | "caption" | "colgroup" | "col" | "thead" | "tbody"
+            | "tfoot" | "tr" | "td" | "th"
+            // inline-block
+            | "input" | "button" | "marquee" | "select" | "meter" | "progress"
+            | "object" | "video" | "audio"
+            // whitespace-preserving (handled elsewhere, never hug)
+            | "pre" | "textarea"
+    )
 }
 
 /// A fill item: an inline token plus whether whitespace preceded it (a break
