@@ -179,9 +179,15 @@ fn collect_node_edits(
             collect_template_edits(source, &blk.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
-            push_bare_expression(source, &blk.expression, options, edits)?;
-            for p in &blk.parameters {
-                push_param_at_span(source, p, options, edits)?;
+            if blk.parameters.is_empty() {
+                // No params — just normalize the name (`{#snippet foo()}`).
+                push_bare_expression(source, &blk.expression, options, edits)?;
+            } else {
+                // Format the whole header `name<…>(params)` as one function
+                // signature so a long parameter list breaks across lines like
+                // prettier-plugin-svelte (the `{/snippet}` delimiter makes a
+                // multi-line header safe — unlike `{#each}`/`{#await}`) (#797).
+                push_snippet_header(source, blk, depth, options, edits)?;
             }
             collect_template_edits(source, &blk.body, child_depth, options, edits)?;
         }
@@ -556,49 +562,48 @@ fn push_pattern_at_span(
     Ok(())
 }
 
-/// Splice a `{#snippet}` parameter's source span with its formatted
-/// version. Snippet parameter lists are ordinary (TS) function parameter
-/// lists, so a parameter may carry an optional marker (`x?: T`), a type
-/// annotation, and/or a default value (`x: T = v`). The destructuring-only
-/// [`format_pattern_source`] path can't represent those — wrapping
-/// `x?: string` as `let x?: string = …` is a hard error and a typed default
-/// (`items: string[] = []`) leaks the internal sentinel into the output
-/// (#684). Route snippet params through [`format_param_source`] instead,
-/// which wraps them in a real function parameter list.
-fn push_param_at_span(
+/// Emit one edit replacing a `{#snippet}` header's `name<…>(params)` with a
+/// width-driven-formatted version. The header span runs from the snippet name
+/// to the `)` that closes its parameter list (generics in between are sliced
+/// from source verbatim, so they survive). Only called when there is at least
+/// one parameter.
+fn push_snippet_header(
     source: &str,
-    expr: &Expression,
+    blk: &rsvelte_core::ast::template::SnippetBlock,
+    depth: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
+    let Some(name_start) = blk.expression.start() else {
         return Ok(());
     };
-    let slice = source
-        .get(start as usize..end as usize)
-        .ok_or_else(|| FormatError::Parse("snippet parameter span out of bounds".into()))?
-        .trim();
-    if slice.is_empty() {
+    let Some(last_end) = blk.parameters.last().and_then(|p| p.end()) else {
         return Ok(());
-    }
-    let formatted = format_param_source(slice, options)?;
-    edits.push((start, end, formatted));
+    };
+    // The parameter list closes at the first `)` at or after the last
+    // parameter's end (any `)` *inside* a parameter — `cb: () => void`, a
+    // parenthesized default — ends before `last_end`).
+    let Some(close_rel) = source.get(last_end as usize..).and_then(|s| s.find(')')) else {
+        return Ok(());
+    };
+    let header_end = last_end as usize + close_rel + 1;
+    let Some(header_src) = source.get(name_start as usize..header_end) else {
+        return Ok(());
+    };
+    let formatted = format_snippet_header_source(header_src.trim(), options, depth)?;
+    edits.push((name_start, header_end as u32, formatted));
     Ok(())
 }
 
-/// Format a single function parameter (as found in a `{#snippet}` header).
-///
-/// Wraps the parameter in a function declaration — `function f(<param>) {}` —
-/// so optional markers (`x?: T`), type annotations, and default values all
-/// parse and round-trip. The formatted parameter list is then sliced back
-/// out from between the parentheses.
-///
-/// As with [`format_pattern_source`], the JS formatter is forced onto a
-/// single line (`expand = Never`, max `line_width`) so a multi-line param
-/// can't land across the Svelte `{#snippet …}` block header.
-pub(crate) fn format_param_source(
-    param_source: &str,
+/// Format a snippet header `name<…>(params)` by wrapping it as a function
+/// signature (`function name<…>(params) {}`) and formatting with normal,
+/// width-driven breaking (NOT the single-line `Expand::Never` path the block
+/// headers use). The width is narrowed by the markup depth and the
+/// `{#snippet ` prefix so breaks land where prettier-plugin-svelte puts them.
+fn format_snippet_header_source(
+    header_src: &str,
     options: &FormatOptions,
+    depth: usize,
 ) -> Result<String, FormatError> {
     let allocator = Allocator::default();
     let source_type = if options.typescript {
@@ -607,7 +612,7 @@ pub(crate) fn format_param_source(
         SourceType::default()
     };
 
-    let wrapped = format!("function __rsvelte_fmt_fn__({param_source}) {{}}");
+    let wrapped = format!("function {header_src} {{}}");
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
@@ -615,69 +620,38 @@ pub(crate) fn format_param_source(
         return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
     }
 
-    let mut single_line = options.js.clone();
-    single_line.line_width =
-        oxc_formatter_core::LineWidth::try_from(u16::MAX).unwrap_or(single_line.line_width);
-    single_line.expand = oxc_formatter::Expand::Never;
+    let indent_width = options.js.indent_width.value() as usize;
+    // `{#snippet ` is 10 columns; the header then sits at `depth` indent.
+    let lead = depth * indent_width + "{#snippet ".len();
+    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
 
-    let formatted = format_program(&allocator, &parser_ret.program, single_line, None)
+    let mut js = options.js.clone();
+    js.line_width =
+        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+    // NOTE: do NOT set `expand = Never` — width-driven breaking is the point.
+
+    let formatted = format_program(&allocator, &parser_ret.program, js, None)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
 
-    // Output shape: `function __rsvelte_fmt_fn__(<param>) {}`. Slice the
-    // text between the parameter-list parentheses back out.
+    // Output: `function name<…>(params) {}` (params possibly multi-line).
+    // Peel the leading `function ` and the trailing empty body ` {}`.
     let s = formatted.trim();
-    let candidate = extract_paren_group(s)
-        .map(str::trim)
-        .unwrap_or(param_source)
-        .to_string();
+    let body = s.strip_prefix("function ").unwrap_or(s).trim_end();
+    let header = body.strip_suffix("{}").unwrap_or(body).trim_end();
 
-    // A hard-wrapped multi-line parameter can't sit inside the Svelte
-    // `{#snippet …}` block header (re-read as a single line); fall back to
-    // the verbatim source for those.
-    if candidate.contains('\n') {
-        return Ok(param_source.trim().to_string());
+    if !header.contains('\n') {
+        return Ok(header.to_string());
     }
-    Ok(candidate)
-}
-
-/// Return the text between the first top-level `(` and its matching `)`,
-/// skipping nested parens and string/template literals. Used to peel a
-/// formatted `function f(<params>) {}` back down to its parameter list.
-fn extract_paren_group(s: &str) -> Option<&str> {
-    let bytes = s.as_bytes();
-    let open = s.find('(')?;
-    let mut depth: usize = 0;
-    let mut i = open;
-    let mut in_str: Option<u8> = None;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if let Some(q) = in_str {
-            if c == b'\\' {
-                i += 2;
-                continue;
-            }
-            if c == q {
-                in_str = None;
-            }
-            i += 1;
-            continue;
-        }
-        match c {
-            b'\'' | b'"' | b'`' => in_str = Some(c),
-            b'(' => depth += 1,
-            b')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return s.get(open + 1..i);
-                }
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    None
+    // Push continuation lines out to the snippet's markup depth (the first line
+    // stays inline after `{#snippet `).
+    let prefix = if options.js.indent_style.is_tab() {
+        "\t".repeat(depth)
+    } else {
+        " ".repeat(depth * indent_width)
+    };
+    Ok(crate::reindent::reindent(header, &prefix, true))
 }
 
 /// Format a destructuring pattern. Patterns like `{a, b = 1}`,
