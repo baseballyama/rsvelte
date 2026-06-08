@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-05-30T12:34:51.325883502+00:00",
-  "commit_sha": "70afafe18e48",
+  "generated_at": "2026-06-08T10:39:55.523086589+00:00",
+  "commit_sha": "a9f48540e236",
   "summary": {
-    "total": 3339,
-    "passed": 3253,
-    "failed": 6,
+    "total": 3353,
+    "passed": 3273,
+    "failed": 0,
     "skipped": 80,
-    "percentage": 99.81589444614912
+    "percentage": 100
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
-      "total": 25,
-      "passed": 24,
-      "failed": 1,
+      "total": 26,
+      "passed": 26,
+      "failed": 0,
       "skipped": 0,
-      "percentage": 96,
+      "percentage": 100,
       "tests": [
         {
           "name": "snippets",
@@ -87,6 +87,10 @@
           "status": "pass"
         },
         {
+          "name": "tag-type-identifier-probe-comment",
+          "status": "pass"
+        },
+        {
           "name": "loose-invalid-block",
           "status": "pass"
         },
@@ -116,8 +120,7 @@
         },
         {
           "name": "loose-declaration-tag",
-          "status": "fail",
-          "error_message": "AST mismatch"
+          "status": "pass"
         }
       ]
     },
@@ -1335,8 +1338,8 @@
     {
       "id": "validator",
       "name": "Validator",
-      "total": 330,
-      "passed": 329,
+      "total": 334,
+      "passed": 333,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -1851,6 +1854,10 @@
           "status": "pass"
         },
         {
+          "name": "declaration-tag-already-declared",
+          "status": "pass"
+        },
+        {
           "name": "implicitly-closed-by-sibling",
           "status": "pass"
         },
@@ -1944,6 +1951,10 @@
         },
         {
           "name": "tag-non-string",
+          "status": "pass"
+        },
+        {
+          "name": "animation-each-with-declaration-tag",
           "status": "pass"
         },
         {
@@ -2507,6 +2518,10 @@
           "status": "pass"
         },
         {
+          "name": "snippet-already-declared",
+          "status": "pass"
+        },
+        {
           "name": "mutate-derived-private-field",
           "status": "pass"
         },
@@ -2603,6 +2618,10 @@
           "status": "pass"
         },
         {
+          "name": "declaration-tag-state-referenced-locally",
+          "status": "pass"
+        },
+        {
           "name": "svelte-fragment-placement-2",
           "status": "pass"
         },
@@ -2667,8 +2686,8 @@
     {
       "id": "compiler-errors",
       "name": "Compiler Errors",
-      "total": 144,
-      "passed": 144,
+      "total": 145,
+      "passed": 145,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -2986,6 +3005,10 @@
           "status": "pass"
         },
         {
+          "name": "declaration-tag-trailing-slash",
+          "status": "pass"
+        },
+        {
           "name": "component-slot-nested-error",
           "status": "pass"
         },
@@ -3254,11 +3277,11 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 993,
-      "passed": 988,
-      "failed": 5,
+      "total": 1000,
+      "passed": 1000,
+      "failed": 0,
       "skipped": 0,
-      "percentage": 99.49647532729104,
+      "percentage": 100,
       "tests": [
         {
           "name": "directives",
@@ -3662,6 +3685,10 @@
         },
         {
           "name": "async-transition-blockers",
+          "status": "pass"
+        },
+        {
+          "name": "async-sole-if-child",
           "status": "pass"
         },
         {
@@ -4609,6 +4636,10 @@
           "status": "pass"
         },
         {
+          "name": "async-reactivity-loss-no-false-positive-4",
+          "status": "pass"
+        },
+        {
           "name": "async-block-reject-during-init",
           "status": "pass"
         },
@@ -4746,8 +4777,7 @@
         },
         {
           "name": "declaration-tags",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-each-4",
@@ -5115,8 +5145,7 @@
         },
         {
           "name": "async-declaration-tag-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-each-await-item",
@@ -5196,6 +5225,10 @@
         },
         {
           "name": "error-boundary-21",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-multiple-declarators",
           "status": "pass"
         },
         {
@@ -5455,6 +5488,10 @@
           "status": "pass"
         },
         {
+          "name": "async-derived-prop-closure-hydration",
+          "status": "pass"
+        },
+        {
           "name": "async-overlap-multiple-fork-1",
           "status": "pass"
         },
@@ -5696,6 +5733,10 @@
         },
         {
           "name": "non-local-mutation-inherited-owner-1",
+          "status": "pass"
+        },
+        {
+          "name": "input-type-before-value-spread",
           "status": "pass"
         },
         {
@@ -6335,6 +6376,10 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-obsolete-ignore",
+          "status": "pass"
+        },
+        {
           "name": "async-if",
           "status": "pass"
         },
@@ -6600,8 +6645,7 @@
         },
         {
           "name": "async-each-const-await-iife",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-await-store-mutate",
@@ -6825,8 +6869,7 @@
         },
         {
           "name": "async-style-after-await",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-variable-assignment",
@@ -6941,6 +6984,10 @@
           "status": "pass"
         },
         {
+          "name": "async-error-boundary-4",
+          "status": "pass"
+        },
+        {
           "name": "hydration-attribute-changed-ignored",
           "status": "pass"
         },
@@ -6982,8 +7029,7 @@
         },
         {
           "name": "async-declaration-tag",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-ondestroy-ordering",
@@ -13043,8 +13089,8 @@
     {
       "id": "print",
       "name": "Print",
-      "total": 43,
-      "passed": 42,
+      "total": 44,
+      "passed": 43,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -13063,6 +13109,10 @@
         },
         {
           "name": "html-document",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-division",
           "status": "pass"
         },
         {
