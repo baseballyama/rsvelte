@@ -72,7 +72,11 @@ fn content_expression_continuation_scales_with_depth() {
 #[test]
 fn content_expression_under_width_stays_inline() {
     // Comfortably under 100 at depth 1 — no break.
-    let src = concat!("<div>\n", "  {someCondition ? firstValue : secondValue}\n", "</div>\n");
+    let src = concat!(
+        "<div>\n",
+        "  {someCondition ? firstValue : secondValue}\n",
+        "</div>\n"
+    );
     assert_eq!(fmt_at_width(src, 100), src);
 }
 
@@ -98,5 +102,8 @@ fn content_expression_wrap_is_idempotent() {
     );
     let once = fmt_at_width(src, 100);
     let twice = fmt_at_width(&once, 100);
-    assert_eq!(once, twice, "wrapped content expression not idempotent:\n{once}");
+    assert_eq!(
+        once, twice,
+        "wrapped content expression not idempotent:\n{once}"
+    );
 }
