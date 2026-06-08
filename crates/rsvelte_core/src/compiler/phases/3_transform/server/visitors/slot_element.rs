@@ -3,12 +3,12 @@
 //! Generates `$.slot()` calls for `<slot>` elements.
 //! Corresponds to SlotElement.js in the official Svelte compiler.
 
-use std::fmt::Write as _;
 use super::super::ServerCodeGenerator;
 use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SlotElement};
 use crate::compiler::phases::phase3_transform::TransformError;
+use std::fmt::Write as _;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_slot_element(

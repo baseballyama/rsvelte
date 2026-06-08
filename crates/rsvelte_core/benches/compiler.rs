@@ -5,8 +5,8 @@
 //! 2. Analyze - Semantic analysis
 //! 3. Transform - Code generation
 
-use std::fmt::Write as _;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use std::fmt::Write as _;
 use std::fs;
 use std::hint::black_box;
 use std::path::PathBuf;
@@ -77,7 +77,9 @@ fn create_large_synthetic_file() -> (String, String) {
 
     // Add many elements to create a large template
     for i in 0..100 {
-        let _ = write!(source, r#"<div class="item-{i}">
+        let _ = write!(
+            source,
+            r#"<div class="item-{i}">
     <span>Item {i}: {{count}}</span>
     {{#if count > {i}}}
         <strong>Active</strong>
@@ -85,7 +87,8 @@ fn create_large_synthetic_file() -> (String, String) {
         <em>Inactive</em>
     {{/if}}
 </div>
-"#);
+"#
+        );
     }
 
     ("synthetic-large".to_string(), source)
@@ -107,7 +110,9 @@ fn create_legacy_state_var_heavy_file() -> (String, String) {
 "#,
     );
     for i in 0..40 {
-        let _ = write!(script, r#"    function action_{i}() {{
+        let _ = write!(
+            script,
+            r#"    function action_{i}() {{
         count = {i};
         total += count;
         total -= 1;
@@ -122,11 +127,15 @@ fn create_legacy_state_var_heavy_file() -> (String, String) {
         }}
         count ??= 0;
     }}
-"#);
+"#
+        );
     }
     script.push_str("</script>\n\n");
     for i in 0..20 {
-        let _ = writeln!(script, "<button on:click={{action_{i}}}>Action {i}</button>");
+        let _ = writeln!(
+            script,
+            "<button on:click={{action_{i}}}>Action {i}</button>"
+        );
     }
     ("synthetic-legacy-state-heavy".to_string(), script)
 }
@@ -153,7 +162,9 @@ fn create_state_var_heavy_file() -> (String, String) {
     // Build a function body with many state-var ops — covers the
     // simple/compound/update/reads paths in one pass.
     for i in 0..40 {
-        let _ = write!(script, r#"    function action_{i}() {{
+        let _ = write!(
+            script,
+            r#"    function action_{i}() {{
         count = {i};
         total += count;
         total -= 1;
@@ -168,11 +179,15 @@ fn create_state_var_heavy_file() -> (String, String) {
         }}
         count ??= 0;
     }}
-"#);
+"#
+        );
     }
     script.push_str("</script>\n\n");
     for i in 0..20 {
-        let _ = writeln!(script, "<button on:click={{action_{i}}}>Action {i}</button>");
+        let _ = writeln!(
+            script,
+            "<button on:click={{action_{i}}}>Action {i}</button>"
+        );
     }
     ("synthetic-state-heavy".to_string(), script)
 }

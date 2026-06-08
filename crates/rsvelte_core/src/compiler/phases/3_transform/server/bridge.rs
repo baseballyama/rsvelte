@@ -18,7 +18,6 @@
 //!   with the results emitted as `TemplateItem::Statement(Raw(...))` and appropriate
 //!   marker `TemplateItem::Expression`s for coalescing by `build_template()`.
 
-use std::fmt::Write as _;
 use super::ServerCodeGenerator;
 use super::types::{
     ComponentCodeResult, DynamicComponentWrap, OutputPart, TemplateItem, TrailingMarkerBehavior,
@@ -26,6 +25,7 @@ use super::types::{
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
+use std::fmt::Write as _;
 
 /// Convert an `OutputPart` list to a `TemplateItem` list for AST-based code generation.
 ///
@@ -501,8 +501,7 @@ fn convert_part_to_item(
 
             if let Some(props) = failed_props {
                 let mut code = String::new();
-                let _ = writeln!(code, "$$renderer.boundary({}, ($$renderer) => {{",
-                    props);
+                let _ = writeln!(code, "$$renderer.boundary({}, ($$renderer) => {{", props);
                 for line in inner.lines() {
                     if line.is_empty() {
                         code.push('\n');
@@ -1010,11 +1009,13 @@ fn convert_select_element(
 
     // Generate $$renderer.select() call with multiline formatting when css_hash is present
     if css_hash.is_some() || is_rich {
-        let _ = writeln!(code, "$$renderer.select(\n\t{},\n\t($$renderer) => {{",
-            attrs_obj);
+        let _ = writeln!(
+            code,
+            "$$renderer.select(\n\t{},\n\t($$renderer) => {{",
+            attrs_obj
+        );
     } else {
-        let _ = writeln!(code, "$$renderer.select({}, ($$renderer) => {{",
-            attrs_obj);
+        let _ = writeln!(code, "$$renderer.select({}, ($$renderer) => {{", attrs_obj);
     }
 
     // Body
@@ -1024,8 +1025,11 @@ fn convert_select_element(
     // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
     if is_rich {
         if let Some(hash) = css_hash {
-            let _ = write!(code, "\t}},\n\t'{}',\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);",
-                hash);
+            let _ = write!(
+                code,
+                "\t}},\n\t'{}',\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);",
+                hash
+            );
         } else {
             code.push_str("\t},\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);");
         }
@@ -1075,12 +1079,14 @@ fn convert_option_element(
 
     if let Some(value_expr) = direct_value {
         // Direct value (from synthetic_value_node)
-        let _ = write!(code, "$$renderer.option({}, {});",
-            attrs_obj, value_expr);
+        let _ = write!(code, "$$renderer.option({}, {});", attrs_obj, value_expr);
     } else if is_rich {
         // is_rich: 7 arguments with multiline formatting
-        let _ = writeln!(code, "$$renderer.option(\n\t{},\n\t($$renderer) => {{",
-            attrs_obj);
+        let _ = writeln!(
+            code,
+            "$$renderer.option(\n\t{},\n\t($$renderer) => {{",
+            attrs_obj
+        );
 
         if !dev_push.is_empty() {
             let _ = write!(code, "\t\t{}", dev_push);
@@ -1096,8 +1102,11 @@ fn convert_option_element(
         code.push_str("\t},\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);");
     } else if let Some(hash) = css_hash {
         // Has CSS hash
-        let _ = writeln!(code, "$$renderer.option(\n\t{},\n\t($$renderer) => {{",
-            attrs_obj);
+        let _ = writeln!(
+            code,
+            "$$renderer.option(\n\t{},\n\t($$renderer) => {{",
+            attrs_obj
+        );
 
         if !dev_push.is_empty() {
             let _ = write!(code, "\t\t{}", dev_push);
@@ -1113,8 +1122,7 @@ fn convert_option_element(
         let _ = write!(code, "\t}},\n\t'{}'\n);", hash);
     } else {
         // Simple case
-        let _ = writeln!(code, "$$renderer.option({}, ($$renderer) => {{",
-            attrs_obj);
+        let _ = writeln!(code, "$$renderer.option({}, ($$renderer) => {{", attrs_obj);
 
         if !dev_push.is_empty() {
             let _ = write!(code, "\t{}", dev_push);
@@ -1588,26 +1596,40 @@ fn convert_each_block(
             code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
         }
 
-        let _ = writeln!(code, "{}const {} = $.ensure_array_like({});\n",
-            effective_indent, array_var, transformed_iterable);
+        let _ = writeln!(
+            code,
+            "{}const {} = $.ensure_array_like({});\n",
+            effective_indent, array_var, transformed_iterable
+        );
 
-        let _ = writeln!(code, "{}if ({}.length !== 0) {{",
-            effective_indent, array_var);
-        let _ = writeln!(code, "{}\t$$renderer.push('<!--[-->');\n",
-            effective_indent);
+        let _ = writeln!(
+            code,
+            "{}if ({}.length !== 0) {{",
+            effective_indent, array_var
+        );
+        let _ = writeln!(code, "{}\t$$renderer.push('<!--[-->');\n", effective_indent);
 
         // For loop inside if
-        let _ = writeln!(code, "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
-            effective_indent, index_var, array_var, index_var, index_var);
+        let _ = writeln!(
+            code,
+            "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
+            effective_indent, index_var, array_var, index_var, index_var
+        );
 
         if let Some(ctx_name) = context_name {
-            let _ = writeln!(code, "{}\t\tlet {} = {}[{}];",
-                effective_indent, ctx_name, array_var, index_var);
+            let _ = writeln!(
+                code,
+                "{}\t\tlet {} = {}[{}];",
+                effective_indent, ctx_name, array_var, index_var
+            );
         }
 
         if let Some(alias) = index_alias {
-            let _ = writeln!(code, "{}\t\tlet {} = {};",
-                effective_indent, alias, index_var);
+            let _ = writeln!(
+                code,
+                "{}\t\tlet {} = {};",
+                effective_indent, alias, index_var
+            );
         }
 
         if context_name.is_some() || index_alias.is_some() {
@@ -1622,8 +1644,7 @@ fn convert_each_block(
 
         // Else branch with fallback
         let _ = writeln!(code, "{}}} else {{", effective_indent);
-        let _ = writeln!(code, "{}\t$$renderer.push('<!--[!-->');",
-            effective_indent);
+        let _ = writeln!(code, "{}\t$$renderer.push('<!--[!-->');", effective_indent);
 
         if let Some(fb) = fallback {
             let fallback_code = generate_inner_body_code(
@@ -1660,20 +1681,28 @@ fn convert_each_block(
             code.push_str("$$renderer.child_block(async ($$renderer) => {\n");
         }
 
-        let _ = writeln!(code, "{}const {} = $.ensure_array_like({});\n",
-            effective_indent, array_var, transformed_iterable);
+        let _ = writeln!(
+            code,
+            "{}const {} = $.ensure_array_like({});\n",
+            effective_indent, array_var, transformed_iterable
+        );
 
-        let _ = writeln!(code, "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
-            effective_indent, index_var, array_var, index_var, index_var);
+        let _ = writeln!(
+            code,
+            "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
+            effective_indent, index_var, array_var, index_var, index_var
+        );
 
         if let Some(ctx_name) = context_name {
-            let _ = writeln!(code, "{}\tlet {} = {}[{}];",
-                effective_indent, ctx_name, array_var, index_var);
+            let _ = writeln!(
+                code,
+                "{}\tlet {} = {}[{}];",
+                effective_indent, ctx_name, array_var, index_var
+            );
         }
 
         if let Some(alias) = index_alias {
-            let _ = writeln!(code, "{}\tlet {} = {};",
-                effective_indent, alias, index_var);
+            let _ = writeln!(code, "{}\tlet {} = {};", effective_indent, alias, index_var);
         }
 
         if context_name.is_some() || index_alias.is_some() {
@@ -1847,8 +1876,7 @@ fn convert_svelte_head(
     each_counter: &mut usize,
 ) {
     let mut code = String::new();
-    let _ = writeln!(code, "$.head('{}', $$renderer, ($$renderer) => {{",
-        hash);
+    let _ = writeln!(code, "$.head('{}', $$renderer, ($$renderer) => {{", hash);
 
     if !body.is_empty() {
         let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
@@ -1925,16 +1953,21 @@ fn convert_slot(
 
         let (extracted_consts, modified_props) = extract_await_from_slot_props(props_expr);
         for (i, await_expr) in extracted_consts.iter().enumerate() {
-            let _ = writeln!(code, "\tconst $${} = (await $.save({}))();",
-                i, await_expr);
+            let _ = writeln!(code, "\tconst $${} = (await $.save({}))();", i, await_expr);
         }
 
-        let _ = writeln!(code, "\t$.slot($$renderer, $$props, '{}', {}, {});",
-            name, modified_props, fallback_arg);
+        let _ = writeln!(
+            code,
+            "\t$.slot($$renderer, $$props, '{}', {}, {});",
+            name, modified_props, fallback_arg
+        );
         code.push_str("});");
     } else {
-        let _ = write!(code, "$.slot($$renderer, $$props, '{}', {}, {});",
-            name, props_expr, fallback_arg);
+        let _ = write!(
+            code,
+            "$.slot($$renderer, $$props, '{}', {}, {});",
+            name, props_expr, fallback_arg
+        );
     }
 
     items.push(TemplateItem::Statement(JsStatement::Raw(
@@ -1987,8 +2020,7 @@ fn convert_svelte_boundary_with_pending(
 
     let trimmed = if let Some(props) = failed_props {
         let mut wrapped = String::new();
-        let _ = writeln!(wrapped, "$$renderer.boundary({}, ($$renderer) => {{",
-            props);
+        let _ = writeln!(wrapped, "$$renderer.boundary({}, ($$renderer) => {{", props);
         for line in inner.lines() {
             if line.is_empty() {
                 wrapped.push('\n');
@@ -2048,8 +2080,11 @@ fn convert_await_block(
         } else {
             format!("({}) => {{}}", then_param)
         };
-        let _ = write!(code, "{}$.await($$renderer, {}, () => {{}}, {});",
-            inner_indent, promise, then_fn);
+        let _ = write!(
+            code,
+            "{}$.await($$renderer, {}, () => {{}}, {});",
+            inner_indent, promise, then_fn
+        );
     } else {
         let nested_indent_level = if has_await { 3 } else { 2 };
 
@@ -2130,8 +2165,7 @@ fn convert_svelte_element(
     let mut code = String::new();
 
     if dev {
-        let _ = writeln!(code, "$.validate_dynamic_element_tag(() => {});",
-            tag_expr);
+        let _ = writeln!(code, "$.validate_dynamic_element_tag(() => {});", tag_expr);
     }
 
     if body.is_empty() && attrs_expr.is_none() {
@@ -2140,11 +2174,13 @@ fn convert_svelte_element(
         let attrs_arg = attrs_expr.as_deref().unwrap_or("void 0");
 
         if body.is_empty() {
-            let _ = write!(code, "$.element($$renderer, {}, {});",
-                tag_expr, attrs_arg);
+            let _ = write!(code, "$.element($$renderer, {}, {});", tag_expr, attrs_arg);
         } else {
-            let _ = writeln!(code, "$.element($$renderer, {}, {}, () => {{",
-                tag_expr, attrs_arg);
+            let _ = writeln!(
+                code,
+                "$.element($$renderer, {}, {}, () => {{",
+                tag_expr, attrs_arg
+            );
 
             let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 1);
             code.push_str(&body_code);

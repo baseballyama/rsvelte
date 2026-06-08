@@ -372,8 +372,8 @@ fn merge_tables<T: Clone + Eq>(this_table: &[T], other_table: &[T]) -> (Vec<T>, 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::Location;
+    use super::*;
     use std::sync::Arc;
 
     fn create_test_source(code: &str) -> Source {

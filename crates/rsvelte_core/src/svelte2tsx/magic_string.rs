@@ -5,8 +5,8 @@
 //! of the original string. Chunks can be modified (overwrite, remove, prepend, append)
 //! while preserving position information for accurate source mapping.
 
-use std::fmt::Write as _;
 use std::fmt;
+use std::fmt::Write as _;
 
 use rustc_hash::FxHashMap;
 type HashMap<K, V> = FxHashMap<K, V>;

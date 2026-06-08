@@ -3,8 +3,8 @@
 //! Generates scoped CSS stylesheets with selector scoping.
 //! Preserves original whitespace from source using AST positions.
 
-use std::fmt::Write as _;
 use memchr::{memchr, memmem};
+use std::fmt::Write as _;
 
 use super::super::phase1_parse::parse_css;
 use super::{CssOutput, TransformError};

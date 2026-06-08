@@ -4,8 +4,8 @@
 //! for server-side code generation, including `export let` declarations, reactive
 //! `$:` statements, and related helper utilities.
 
-use std::fmt::Write as _;
 use memchr::memmem;
+use std::fmt::Write as _;
 
 /// Check if the declaration string contains a semicolon at depth 0 (not inside braces/parens/brackets).
 /// This is used to determine if an export let declaration is complete.

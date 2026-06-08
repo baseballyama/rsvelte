@@ -1817,8 +1817,11 @@ fn transform_client_with_visitors(
                 }
                 // Encode as base64 data URI
                 let b64 = super::base64_encode(css_map_json.as_bytes());
-                let _ = write!(css_code, "\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
-                    b64);
+                let _ = write!(
+                    css_code,
+                    "\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
+                    b64
+                );
             }
         }
         let code = b::string(css_code);
@@ -3206,11 +3209,14 @@ fn transform_destructured_state_assignments(
                                     .push(format!("{}{} = $$array[{}];", inner_indent, part, idx));
                             }
                         }
-                        let _ = writeln!(result, "{}((array) => {{\n{}\n{}}})({});",
+                        let _ = writeln!(
+                            result,
+                            "{}((array) => {{\n{}\n{}}})({});",
                             indent,
                             body_lines.join("\n"),
                             indent,
-                            rhs);
+                            rhs
+                        );
                         // Add blank line after the IIFE
                         result.push('\n');
                         continue;

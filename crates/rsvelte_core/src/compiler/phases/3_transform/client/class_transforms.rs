@@ -1,7 +1,7 @@
 //! Class field transformations for $state and $derived runes.
 
-use std::fmt::Write as _;
 use memchr::memmem;
+use std::fmt::Write as _;
 
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
@@ -44,15 +44,24 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
             let is_derived = field.rune_type == "$derived" || field.rune_type == "$derived.by";
             let is_raw = field.rune_type == "$state.raw" || field.rune_type == "$state.frozen";
             output.push('\n');
-            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                field.name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                field.name, private_name
+            );
             output.push('\n');
             if is_derived || is_raw {
-                let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                    field.name, private_name);
+                let _ = writeln!(
+                    output,
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                    field.name, private_name
+                );
             } else {
-                let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
-                    field.name, private_name);
+                let _ = writeln!(
+                    output,
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
+                    field.name, private_name
+                );
             }
         }
     } else if field.rune_type == "$state" {
@@ -63,28 +72,38 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         } else {
             field.value.clone()
         };
-        let _ = writeln!(output, "\t\t{} = $.state({});",
-            private_name, wrapped_value);
+        let _ = writeln!(output, "\t\t{} = $.state({});", private_name, wrapped_value);
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name
+            );
             output.push('\n');
-            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}",
+                getter_name, private_name
+            );
         }
     } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
-        let _ = writeln!(output, "\t\t{} = $.state({});",
-            private_name, field.value);
+        let _ = writeln!(output, "\t\t{} = $.state({});", private_name, field.value);
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name
+            );
             output.push('\n');
-            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                getter_name, private_name
+            );
         }
     } else if field.rune_type == "$derived" {
         // Transform private field accesses inside the derived expression
@@ -103,16 +122,25 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         } else {
             format!("() => {}", derived_expr)
         };
-        let _ = writeln!(output, "\t\t{} = $.derived({});",
-            private_name, wrapped_value);
+        let _ = writeln!(
+            output,
+            "\t\t{} = $.derived({});",
+            private_name, wrapped_value
+        );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name
+            );
             output.push('\n');
-            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                getter_name, private_name
+            );
         }
     } else if field.rune_type == "$derived.by" {
         let mut derived_expr = field.value.clone();
@@ -125,16 +153,25 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
                 }
             }
         }
-        let _ = writeln!(output, "\t\t{} = $.derived({});",
-            private_name, derived_expr);
+        let _ = writeln!(
+            output,
+            "\t\t{} = $.derived({});",
+            private_name, derived_expr
+        );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
-            let _ = writeln!(output, "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}",
+                getter_name, private_name
+            );
             output.push('\n');
-            let _ = writeln!(output, "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
-                getter_name, private_name);
+            let _ = writeln!(
+                output,
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}",
+                getter_name, private_name
+            );
         }
     }
 

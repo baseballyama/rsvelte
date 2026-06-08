@@ -3,8 +3,8 @@
 //! This module provides utility functions used during the printing process,
 //! such as formatting blocks and handling attributes.
 
-use std::fmt::Write as _;
 use super::Context;
+use std::fmt::Write as _;
 
 /// Threshold for when content should be formatted on separate lines.
 ///

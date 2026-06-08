@@ -3,7 +3,6 @@
 //! This module contains helper functions used by multiple server-side visitors.
 //! It corresponds to `svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/utils.js`.
 
-use std::fmt::Write as _;
 use crate::ast::template::{AttributeValuePart, TemplateNode};
 use crate::compiler::constants::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, EMPTY_COMMENT};
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -12,6 +11,7 @@ use crate::compiler::phases::phase3_transform::server::types::{
 };
 use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use compact_str::CompactString;
+use std::fmt::Write as _;
 
 /// Strip TypeScript annotations from an expression string.
 fn strip_ts_from_expr_simple(expr: &str) -> String {
@@ -292,7 +292,7 @@ pub fn build_template(
                                 JsLiteral::Null => last.push_str("null"),
                                 JsLiteral::Undefined => last.push_str("undefined"),
                                 JsLiteral::Regex { pattern, flags } => {
-                                    { let _ = write!(last, "/{}/{}", pattern, flags); }
+                                    let _ = write!(last, "/{}/{}", pattern, flags);
                                 }
                             }
                         }

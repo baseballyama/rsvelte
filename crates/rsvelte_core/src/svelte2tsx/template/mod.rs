@@ -6,7 +6,6 @@
 //! Each template node type has a corresponding handler that overwrites the
 //! original source range with the appropriate TypeScript/TSX code.
 
-use std::fmt::Write as _;
 use crate::ast::template::{
     AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock,
     BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag, EachBlock,
@@ -15,6 +14,7 @@ use crate::ast::template::{
     SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement, TransitionDirective,
     UseDirective,
 };
+use std::fmt::Write as _;
 
 use indexmap::IndexMap;
 
@@ -510,14 +510,15 @@ fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut Template
             // Collect forwarded events (on:event without handler)
             for attr in &el.attributes {
                 if let Attribute::OnDirective(on) = attr
-                    && on.expression.is_none() {
-                        // Event forwarding: on:click (no handler)
-                        let event_name = on.name.to_string();
-                        let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                        if !info.element_events.iter().any(|(n, _)| n == &event_name) {
-                            info.element_events.push((event_name, event_value));
-                        }
+                    && on.expression.is_none()
+                {
+                    // Event forwarding: on:click (no handler)
+                    let event_name = on.name.to_string();
+                    let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
+                    if !info.element_events.iter().any(|(n, _)| n == &event_name) {
+                        info.element_events.push((event_name, event_value));
                     }
+                }
             }
             collect_info_from_fragment(&el.fragment, source, info);
         }
@@ -532,13 +533,14 @@ fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut Template
             // Also collect forwarded events from special elements
             for attr in &el.attributes {
                 if let Attribute::OnDirective(on) = attr
-                    && on.expression.is_none() {
-                        let event_name = on.name.to_string();
-                        let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                        if !info.element_events.iter().any(|(n, _)| n == &event_name) {
-                            info.element_events.push((event_name, event_value));
-                        }
+                    && on.expression.is_none()
+                {
+                    let event_name = on.name.to_string();
+                    let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
+                    if !info.element_events.iter().any(|(n, _)| n == &event_name) {
+                        info.element_events.push((event_name, event_value));
                     }
+                }
             }
             collect_info_from_fragment(&el.fragment, source, info);
         }
@@ -612,11 +614,12 @@ fn collect_slot_prop_entries(attributes: &[Attribute], source: &str) -> Vec<Stri
                 }
                 AttributeValue::Sequence(parts) => {
                     if parts.len() == 1
-                        && let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                            let expr_text = get_expression_text(&expr.expression, source);
-                            props.push(format!("{}:{}", node.name, expr_text));
-                            continue;
-                        }
+                        && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+                    {
+                        let expr_text = get_expression_text(&expr.expression, source);
+                        props.push(format!("{}:{}", node.name, expr_text));
+                        continue;
+                    }
                     // String literal value - not common for slots
                     props.push(format!("{}:{}", node.name, node.name));
                 }
@@ -1371,10 +1374,7 @@ fn handle_await_block(
     // 3. `{#await promise catch error}` catch `{/await}` (no pending, immediate catch)
     // 4. `{#await promise}` pending `{:then value}` then `{:catch error}` catch `{/await}`
 
-    let has_pending = block
-        .pending
-        .as_ref()
-        .is_some_and(|p| !p.nodes.is_empty());
+    let has_pending = block.pending.as_ref().is_some_and(|p| !p.nodes.is_empty());
     let has_then = block.then.is_some();
     let has_catch = block.catch.is_some();
 
@@ -2249,8 +2249,11 @@ fn handle_component(
                     continue;
                 }
                 let expr_text = get_expression_text(&bind.expression, source);
-                let _ = write!(out, "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
-                    expr_text, inst_var, bind.name);
+                let _ = write!(
+                    out,
+                    "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
+                    expr_text, inst_var, bind.name
+                );
             }
         }
         out
@@ -2454,9 +2457,10 @@ fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
             // for distributing children into a named slot — it shows up here
             // as `SvelteFragment`. Treat it like the others.
             TemplateNode::SvelteFragment(el)
-                if get_slot_attr_value(&el.attributes, source).is_some() => {
-                    return true;
-                }
+                if get_slot_attr_value(&el.attributes, source).is_some() =>
+            {
+                return true;
+            }
             _ => {}
         }
     }
@@ -2646,8 +2650,7 @@ fn handle_named_slot_element(
 ) {
     let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
     let let_directives = get_let_directives(&el.attributes);
-    let let_destructure =
-        build_let_destructure_string(&let_directives.to_vec(), source);
+    let let_destructure = build_let_destructure_string(&let_directives.to_vec(), source);
 
     // Build the slot def block opener
     let block_open = format!(
@@ -2695,8 +2698,7 @@ fn handle_named_slot_svelte_fragment(
 ) {
     let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
     let let_directives = get_let_directives(&el.attributes);
-    let let_destructure =
-        build_let_destructure_string(&let_directives.to_vec(), source);
+    let let_destructure = build_let_destructure_string(&let_directives.to_vec(), source);
 
     // Leading ` ` matches the JS reference, which produces
     // `\t {const ... ;{ svelteHTML.createElement(...)` after the tab indent
@@ -2760,8 +2762,7 @@ fn handle_named_slot_component(
 ) {
     let slot_name = get_slot_attr_value(&comp.attributes, source).unwrap_or_default();
     let let_directives = get_let_directives(&comp.attributes);
-    let let_destructure =
-        build_let_destructure_string(&let_directives.to_vec(), source);
+    let let_destructure = build_let_destructure_string(&let_directives.to_vec(), source);
 
     // Build the slot def block opener
     let block_open = format!(
@@ -2936,8 +2937,11 @@ fn handle_svelte_component(
     // `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     if has_lets_scomp {
         let destructure = build_let_destructure_string(&let_directives_scomp, source);
-        let _ = write!(opener, "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            destructure, inst_var);
+        let _ = write!(
+            opener,
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            destructure, inst_var
+        );
     }
 
     str.overwrite(comp.start, opening_tag_end, &opener);
@@ -3262,8 +3266,11 @@ fn handle_svelte_self(
         let inst_name = var_name
             .as_ref()
             .expect("let: directive requires an instance variable name");
-        let _ = write!(opener, "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            destructure, inst_name);
+        let _ = write!(
+            opener,
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
+            destructure, inst_name
+        );
     }
 
     if !has_closing_tag {
@@ -3572,12 +3579,13 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                         // before wrapping.
                         let mut inner_stripped = part;
                         if let Some(Seg::Lit(last)) = inner_stripped.last_mut()
-                            && last.ends_with(',') {
-                                last.pop();
-                                if last.is_empty() {
-                                    inner_stripped.pop();
-                                }
+                            && last.ends_with(',')
+                        {
+                            last.pop();
+                            if last.is_empty() {
+                                inner_stripped.pop();
                             }
+                        }
                         segs_push_lit(&mut inner, "...__sveltets_2_cssProp({");
                         extend_segs(&mut inner, inner_stripped);
                         segs_push_lit(&mut inner, "}),");
@@ -3722,10 +3730,11 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
             // Special case: if the sequence is a single expression like `e="{b}"`,
             // output `"e":b,` (just the expression value) instead of `"e":\`${b}\`,`
             if parts.len() == 1
-                && let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                    let expr_text = get_expression_text(&expr.expression, source);
-                    return Some(format!("\"{}\":{},", name, expr_text));
-                }
+                && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+            {
+                let expr_text = get_expression_text(&expr.expression, source);
+                return Some(format!("\"{}\":{},", name, expr_text));
+            }
 
             // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
             let mut value_parts = Vec::new();
@@ -3791,17 +3800,18 @@ fn format_attribute_node_segments(node: &AttributeNode, source: &str) -> Option<
             // Single-expression sequence stays as a bare expression — same
             // shape as the `Expression` arm.
             if parts.len() == 1
-                && let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                    let range = get_expression_range(&expr.expression);
-                    segs_push_lit(&mut out, &format!("\"{}\":", name));
-                    if let Some((s, e)) = range {
-                        segs_push_src(&mut out, s, e);
-                    } else {
-                        segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
-                    }
-                    segs_push_lit(&mut out, ",");
-                    return Some(out);
+                && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+            {
+                let range = get_expression_range(&expr.expression);
+                segs_push_lit(&mut out, &format!("\"{}\":", name));
+                if let Some((s, e)) = range {
+                    segs_push_src(&mut out, s, e);
+                } else {
+                    segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
                 }
+                segs_push_lit(&mut out, ",");
+                return Some(out);
+            }
 
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
@@ -4061,10 +4071,11 @@ fn format_slot_prop_node(node: &AttributeNode, source: &str) -> Option<String> {
         AttributeValue::Sequence(parts) => {
             // Same as format_attribute_node for sequences
             if parts.len() == 1
-                && let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                    let expr_text = get_expression_text(&expr.expression, source);
-                    return Some(format!("\"{}\":{},", name, expr_text));
-                }
+                && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+            {
+                let expr_text = get_expression_text(&expr.expression, source);
+                return Some(format!("\"{}\":{},", name, expr_text));
+            }
 
             let mut value_parts = Vec::new();
             for part in parts {
@@ -4196,11 +4207,10 @@ fn build_bind_directive_suffix(
         // with the element instance: `(setFn)(var);` (mirrors Binding.ts).
         if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
             if bind.name == "this"
-                && let Some(var) = element_var {
-                    let _ = write!(out, "({})({});",
-                        &source[ss as usize..se as usize],
-                        var);
-                }
+                && let Some(var) = element_var
+            {
+                let _ = write!(out, "({})({});", &source[ss as usize..se as usize], var);
+            }
             continue;
         }
         let expr_text = get_expression_text(&bind.expression, source);
@@ -4219,8 +4229,11 @@ fn build_bind_directive_suffix(
             } else {
                 format!("/** @type {{{}}} */ (null)", ty)
             };
-            let _ = write!(out, "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",
-                expr_text, value);
+            let _ = write!(
+                out,
+                "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",
+                expr_text, value
+            );
         } else if is_one_way_binding_attribute(&bind.name) {
             if let Some(var) = element_var {
                 let _ = write!(out, "{}= {}.{};", expr_text, var, bind.name);
@@ -4228,8 +4241,11 @@ fn build_bind_directive_suffix(
         } else {
             // Generic two-way binding: type-widener so TS doesn't infer
             // an overly-narrow type.
-            let _ = write!(out, "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/",
-                expr_text);
+            let _ = write!(
+                out,
+                "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/",
+                expr_text
+            );
         }
     }
     out
@@ -4380,11 +4396,17 @@ fn build_directive_prefix_suffix(
                 let id = format!("$$action_{}", action_count);
                 action_count += 1;
                 if let Some(expr_text) = expr {
-                    let _ = write!(prefix, "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}'),({})));",
-                        id, use_dir.name, tag, expr_text);
+                    let _ = write!(
+                        prefix,
+                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}'),({})));",
+                        id, use_dir.name, tag, expr_text
+                    );
                 } else {
-                    let _ = write!(prefix, "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}')));",
-                        id, use_dir.name, tag);
+                    let _ = write!(
+                        prefix,
+                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}')));",
+                        id, use_dir.name, tag
+                    );
                 }
             }
             Attribute::TransitionDirective(t) => {
@@ -4476,27 +4498,28 @@ fn count_tag_to_attr_spaces(tag_name: &str, el_start: u32, source: &str) -> usiz
 fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
     for attr in attributes {
         if let Attribute::Attribute(node) = attr
-            && node.name == "name" {
-                match &node.value {
-                    AttributeValue::Sequence(parts) => {
-                        // name="header" → parts is a single Text
-                        let mut name = String::new();
-                        for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                name.push_str(&text.raw);
-                            }
-                        }
-                        if !name.is_empty() {
-                            return name;
+            && node.name == "name"
+        {
+            match &node.value {
+                AttributeValue::Sequence(parts) => {
+                    // name="header" → parts is a single Text
+                    let mut name = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            name.push_str(&text.raw);
                         }
                     }
-                    AttributeValue::Expression(expr) => {
-                        // name={expr} - use the expression text
-                        return get_expression_text(&expr.expression, source).to_string();
+                    if !name.is_empty() {
+                        return name;
                     }
-                    _ => {}
                 }
+                AttributeValue::Expression(expr) => {
+                    // name={expr} - use the expression text
+                    return get_expression_text(&expr.expression, source).to_string();
+                }
+                _ => {}
             }
+        }
     }
     "default".to_string()
 }
@@ -4505,9 +4528,10 @@ fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
 fn get_bind_this_expr<'a>(attributes: &'a [Attribute], source: &'a str) -> Option<String> {
     for attr in attributes {
         if let Attribute::BindDirective(bind) = attr
-            && bind.name == "this" {
-                return Some(get_expression_text(&bind.expression, source).to_string());
-            }
+            && bind.name == "this"
+        {
+            return Some(get_expression_text(&bind.expression, source).to_string());
+        }
     }
     None
 }
@@ -4611,25 +4635,26 @@ fn has_meaningful_children(fragment: &Fragment) -> bool {
 fn get_slot_attr_value(attributes: &[Attribute], source: &str) -> Option<String> {
     for attr in attributes {
         if let Attribute::Attribute(node) = attr
-            && node.name == "slot" {
-                match &node.value {
-                    AttributeValue::Sequence(parts) => {
-                        let mut name = String::new();
-                        for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                name.push_str(&text.raw);
-                            }
-                        }
-                        if !name.is_empty() {
-                            return Some(name);
+            && node.name == "slot"
+        {
+            match &node.value {
+                AttributeValue::Sequence(parts) => {
+                    let mut name = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            name.push_str(&text.raw);
                         }
                     }
-                    AttributeValue::Expression(expr) => {
-                        return Some(get_expression_text(&expr.expression, source).to_string());
+                    if !name.is_empty() {
+                        return Some(name);
                     }
-                    _ => {}
                 }
+                AttributeValue::Expression(expr) => {
+                    return Some(get_expression_text(&expr.expression, source).to_string());
+                }
+                _ => {}
             }
+        }
     }
     None
 }
