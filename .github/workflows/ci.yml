@@ -215,8 +215,12 @@ jobs:
         # The svelte.dev formatter corpus (tests/svelte_dev_corpus.rs) and its
         # generator need the root node_modules/.bin/oxfmt plus a resolvable
         # `svelte` (oxfmt's `svelte: true` mode runs prettier-plugin-svelte).
-        # `--ignore-workspace` keeps this to the root package.json deps.
-        run: pnpm install --frozen-lockfile --ignore-workspace
+        # `--ignore-workspace` keeps this to the root package.json deps;
+        # `--ignore-scripts` skips dependency build scripts (oxfmt ships a
+        # prebuilt native binding via optionalDependencies, and svelte /
+        # prettier-plugin-svelte are pure JS — none need building), which also
+        # avoids pnpm's ERR_PNPM_IGNORED_BUILDS gate for esbuild/@parcel/watcher.
+        run: pnpm install --frozen-lockfile --ignore-workspace --ignore-scripts
 
       - name: Resolve svelte.dev submodule SHA
         id: svelte-dev-sha
