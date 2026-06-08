@@ -1808,6 +1808,36 @@ fn handle_snippet_block(
     str: &mut MagicString,
     counter: &mut Counter,
 ) {
+    handle_snippet_block_inner(block, source, options, str, counter, false);
+}
+
+/// Transform a `{#snippet name(params)}` block that is a direct child of a
+/// component into an **implicit prop**: `name:(params) => { async () => { …body…
+/// };return __sveltets_2_any(0)},`. Unlike the standalone form there is no
+/// leading `const`, no `: ReturnType<…>` annotation, and the closing ends in a
+/// `,` so the result drops straight into the component's `props: { … }` object
+/// literal (the caller relocates the range there via `move_range`). This mirrors
+/// upstream svelte2tsx `addImplicitSnippetProp`, and lets TypeScript
+/// contextually type the snippet's parameters from the prop's `Snippet<[T]>`
+/// type while satisfying required snippet props (#780).
+fn handle_snippet_block_as_component_prop(
+    block: &SnippetBlock,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+) {
+    handle_snippet_block_inner(block, source, options, str, counter, true);
+}
+
+fn handle_snippet_block_inner(
+    block: &SnippetBlock,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString,
+    counter: &mut Counter,
+    as_component_prop: bool,
+) {
     if block.start >= block.end {
         return;
     }
@@ -1848,7 +1878,17 @@ fn handle_snippet_block(
         (true, Some(tp)) => format!("<{}>", tp),
         _ => String::new(),
     };
-    let header = if use_ts_syntax {
+    // Implicit-prop form (`name:(params) => …`) vs standalone declaration
+    // (`const name = (params): ReturnType<…> => …`). The implicit form omits the
+    // leading `const`, the return-type annotation, and the generic `<typeParams>`
+    // — mirroring upstream's `addImplicitSnippetProp` transforms — and closes
+    // with a trailing `,` so it slots into the component `props` object literal.
+    let header = if as_component_prop {
+        format!(
+            "{}:({}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            name_text, params_text
+        )
+    } else if use_ts_syntax {
         format!(
             "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
             name_text, type_params_str, params_text
@@ -1862,6 +1902,11 @@ fn handle_snippet_block(
             name_text, params_text
         )
     };
+    let closing = if as_component_prop {
+        "};return __sveltets_2_any(0)},"
+    } else {
+        "};return __sveltets_2_any(0)};"
+    };
     if has_body_nodes {
         str.overwrite(block.start, body_start, &header);
         // Process body
@@ -1870,7 +1915,7 @@ fn handle_snippet_block(
         let body_end = block.body.nodes.last().unwrap().end();
         if body_end < block.end {
             // Overwrite `{/snippet}` with closing
-            str.overwrite(body_end, block.end, "};return __sveltets_2_any(0)};");
+            str.overwrite(body_end, block.end, closing);
         }
     } else {
         // Empty body: collapse the whole `{#snippet name(params)}{/snippet}`
@@ -1878,7 +1923,7 @@ fn handle_snippet_block(
         // `};return __sveltets_2_any(0)};` was never emitted because both the
         // body-start overwrite and the would-be closing overwrite landed at
         // the same offset.
-        let combined = format!("{}}};return __sveltets_2_any(0)}};", header);
+        let combined = format!("{}{}", header, closing);
         str.overwrite(block.start, block.end, &combined);
     }
 }
@@ -2105,6 +2150,21 @@ fn handle_component(
     // - there are children with slot="name" that have let: directives
     let needs_instance = has_events || has_lets || children_have_named_slots;
 
+    // Named `{#snippet}` blocks that are direct children of a component are
+    // passed as *implicit props* (`props: { name: (params) => … }`), not as
+    // standalone `const name = …` declarations, so that TypeScript both
+    // satisfies required snippet props and contextually types the snippet's
+    // parameters from the prop's `Snippet<[T]>` type (#780). This relocation is
+    // only wired through the simple-children path; when the component also uses
+    // `let:` / named slots the children go through `process_component_children_with_slots`,
+    // which owns its own block scoping, so the snippets stay standalone there.
+    let use_snippet_props = !(has_lets || children_have_named_slots)
+        && comp
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+
     // Check if Svelte 5 children prop is needed
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
 
@@ -2220,7 +2280,12 @@ fn handle_component(
     let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
     opener_segs.push(Seg::Lit(header_lit));
     opener_segs.extend(attr_segs);
-    opener_segs.push(Seg::Lit(trailer_lit));
+    if !use_snippet_props {
+        // The snippet-prop path leaves the `props: { … ` object literal open so
+        // the relocated `{#snippet}` props can be appended inside it; the trailer
+        // (which closes the object) is emitted after the moves (see below).
+        opener_segs.push(Seg::Lit(trailer_lit.clone()));
+    }
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
 
@@ -2240,6 +2305,48 @@ fn handle_component(
             str,
             counter,
         );
+    } else if use_snippet_props {
+        // Process children, turning each direct `{#snippet}` child into an
+        // implicit prop relocated into the still-open `props: { … }` object.
+        //
+        // `move_range(s.start, s.end, anchor)` detaches the transformed snippet
+        // chunk and re-links it immediately before the chunk that *starts* at
+        // `anchor`. Moving snippets in source order to a fixed `anchor` preserves
+        // their order (each new one lands right before the anchor chunk, i.e.
+        // after the previously moved one). A leading run of snippets that sit
+        // natively at the anchor (no intervening whitespace) is already in the
+        // right place — moving them would be a no-op self-move (which the API
+        // forbids) — so we just advance the anchor past them. The trailer that
+        // closes the props object is appended after the final snippet.
+        let mut anchor = opening_tag_end;
+        let mut last_snippet_end: Option<u32> = None;
+        for node in &comp.fragment.nodes {
+            if let TemplateNode::SnippetBlock(s) = node {
+                if s.start >= s.end {
+                    continue;
+                }
+                handle_snippet_block_as_component_prop(s, source, options, str, counter);
+                if s.start == anchor {
+                    anchor = s.end;
+                } else {
+                    str.move_range(s.start, s.end, anchor);
+                }
+                last_snippet_end = Some(s.end);
+            } else {
+                process_node_inplace(node, source, options, str, counter);
+            }
+        }
+        // Close the props object right after the last relocated snippet.
+        match last_snippet_end {
+            Some(end) => {
+                str.append_left(end, &trailer_lit);
+            }
+            None => {
+                // No usable snippet after all (e.g. only empty-named blocks);
+                // close the props object at the opening-tag boundary.
+                str.prepend_right(opening_tag_end, &trailer_lit);
+            }
+        }
     } else {
         // Simple children processing (no slot scoping needed)
         process_fragment_inplace(&comp.fragment, source, options, str, counter);
