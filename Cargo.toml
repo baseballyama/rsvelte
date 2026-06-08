@@ -17,6 +17,13 @@ strip = false
 debug = false
 panic = "abort"
 
+[profile.profiling]
+inherits = "release"
+lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM
+codegen-units = 16    # and split codegen so the opt-level-3 lib build does not OOM
+debug = "line-tables-only"
+strip = false
+
 [profile.bench]
 inherits = "release"
 debug = true
