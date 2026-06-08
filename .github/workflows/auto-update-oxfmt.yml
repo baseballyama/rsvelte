@@ -4,7 +4,9 @@ name: auto-update-oxfmt
 # inline `<style>` CSS (and standalone md/yaml/toml/html) to, pinned with a
 # caret range in the workspace package.json files. When a newer version is
 # published on npm than the one pinned, this opens a PR that bumps every caret
-# pin and refreshes the pnpm lockfile.
+# pin, syncs the pinned `oxc_formatter` git revision to that oxfmt release's oxc
+# commit (so rsvelte's own JS/TS formatting tracks the delegated oxfmt), and
+# refreshes the pnpm lockfile.
 #
 # Unlike the svelte bump (auto-update-svelte.yml), an oxfmt bump is mechanical
 # and the PR is intended to be mergeable once CI is green. An oxfmt change can
@@ -142,6 +144,40 @@ jobs:
             echo "Bumped ${f}"
           done
 
+          # Sync the pinned oxc revision to the oxc commit this oxfmt release was
+          # cut from. rsvelte formats `<script>` / markup JS-TS with `oxc_formatter`
+          # (pinned by git rev across the Cargo manifests + the [patch.crates-io]
+          # block that unifies every oxc_* dep), so its JS/TS output only tracks the
+          # delegated oxfmt when both ride the same oxc commit. oxfmt npm versions
+          # map to oxc monorepo tags `oxfmt_v<version>`.
+          OXC_SHA=$(gh api "repos/oxc-project/oxc/commits/oxfmt_v${LATEST_VERSION}" \
+            --jq '.sha' 2>/dev/null || true)
+          if [[ ! "${OXC_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not resolve an oxc commit for tag oxfmt_v${LATEST_VERSION}"
+            exit 1
+          fi
+          # All oxc_* deps share one rev (the [patch.crates-io] block aligns them),
+          # so read the single current rev and global-replace it. NOTE: this is a
+          # best-effort lockfile edit — if the new oxc commit changes oxc's own
+          # dependency graph, CI's `cargo build --locked` flags it for a human.
+          OLD_SHA=$(grep -hoE 'oxc-project/oxc".*rev = "[0-9a-f]{40}"' Cargo.toml \
+            | grep -oE '[0-9a-f]{40}' | sort -u)
+          if [ "$(printf '%s' "${OLD_SHA}" | grep -c .)" -ne 1 ]; then
+            echo "::error::Expected exactly one pinned oxc rev in Cargo.toml, found: ${OLD_SHA:-<none>}"
+            exit 1
+          fi
+          if [ "${OLD_SHA}" != "${OXC_SHA}" ]; then
+            mapfile -t cargo_files < <(grep -rl "${OLD_SHA}" --include=Cargo.toml . | grep -v node_modules)
+            for f in "${cargo_files[@]}" Cargo.lock; do
+              [ -f "${f}" ] || continue
+              sed -i "s/${OLD_SHA}/${OXC_SHA}/g" "${f}"
+              git add "${f}"
+            done
+            echo "Synced oxc rev ${OLD_SHA} -> ${OXC_SHA} (oxfmt_v${LATEST_VERSION})"
+          else
+            echo "oxc rev already at ${OXC_SHA}; no Cargo change needed."
+          fi
+
           # Refresh the lockfile so CI's --frozen-lockfile install succeeds.
           pnpm install --lockfile-only
           git add pnpm-lock.yaml
@@ -164,6 +200,10 @@ jobs:
             echo "(and standalone md/yaml/toml/html) to. A version bump can change"
             echo "CSS formatting output, so **review CI** — the formatter and"
             echo "compatibility-report jobs gate this PR. Merge once green."
+            echo
+            echo "The pinned \`oxc_formatter\` revision is synced to this oxfmt's"
+            echo "oxc commit (\`oxfmt_v${LATEST_VERSION}\` tag) so rsvelte's"
+            echo "\`<script>\` / markup JS-TS output tracks the delegated oxfmt."
             echo
             echo "---"
             echo
