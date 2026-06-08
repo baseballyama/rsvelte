@@ -66,12 +66,19 @@ fn collect_indent_edits_inner(
             };
             if is_whitespace_only(t.data.as_str()) {
                 if !t.data.contains('\n') {
-                    // Inline spacing (no line break in the source) between inline
-                    // content like `{a} {b}` — whitespace-sensitive, so keep it
-                    // on one line, collapsed to a single space rather than forced
-                    // onto its own indented line.
-                    if t.data.as_str() != " " {
-                        edits.push((t.start, t.end, " ".to_string()));
+                    // Inline spacing (no line break in the source). Between inline
+                    // content like `{a} {b}` it is whitespace-sensitive — keep it
+                    // on one line, collapsed to a single space. But leading /
+                    // trailing inline whitespace at the document root (e.g. a
+                    // markdown code block's indentation before a root element) is
+                    // insignificant and is removed.
+                    let replacement = if child_depth == 0 && (i == 0 || i == last) {
+                        ""
+                    } else {
+                        " "
+                    };
+                    if t.data.as_str() != replacement {
+                        edits.push((t.start, t.end, replacement.to_string()));
                     }
                     continue;
                 }
