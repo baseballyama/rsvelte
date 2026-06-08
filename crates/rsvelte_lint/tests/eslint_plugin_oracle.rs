@@ -82,6 +82,11 @@ const RULES: &[(&str, &str, bool)] = &[
     ("no-svelte-internal", "svelte/no-svelte-internal", false),
     ("no-inspect", "svelte/no-inspect", false),
     ("no-useless-mustaches", "svelte/no-useless-mustaches", true),
+    (
+        "no-inner-declarations",
+        "svelte/no-inner-declarations",
+        false,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
@@ -95,6 +100,10 @@ const SKIP: &[&str] = &[
     // whole condition (column 11). Logic/count are correct; only the column of
     // that one compound branch differs.
     "no-dupe-else-if-blocks/invalid/test02",
+    // ESLint ≤8 `no-inner-declarations` fixtures (older option/strict-mode
+    // semantics). rsvelte mirrors the ESLint ≥9 rule, exercised by the
+    // sibling non-`v8` fixtures.
+    "no-inner-declarations/invalid/v8",
 ];
 
 /// One expected error from a `*-errors.yaml` file.

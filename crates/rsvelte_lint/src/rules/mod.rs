@@ -9,6 +9,7 @@ pub mod no_dupe_else_if_blocks;
 pub mod no_dupe_on_directives;
 pub mod no_dupe_style_properties;
 pub mod no_dupe_use_directives;
+pub mod no_inner_declarations;
 pub mod no_inspect;
 pub mod no_not_function_handler;
 pub mod no_object_in_text_mustaches;

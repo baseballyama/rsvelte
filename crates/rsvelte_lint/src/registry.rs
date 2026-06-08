@@ -44,5 +44,6 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
 /// Construct the full set of script-AST rules (rules that walk the `<script>`
 /// ESTree program rather than the template tree).
 pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
-    vec![]
+    use crate::rules::no_inner_declarations::NoInnerDeclarations;
+    vec![Box::new(NoInnerDeclarations)]
 }
