@@ -25,7 +25,7 @@
 //! - Block headers (`{#if EXPR}`, `{#each ...}`, ...)
 //! - Children fragments (recursed into separately by the caller)
 
-use oxc_formatter::JsFormatOptions;
+use oxc_formatter::{JsFormatOptions, QuoteStyle};
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment, IfBlock,
@@ -963,8 +963,14 @@ fn render_attribute_value_sequence(
                 if inner_src.is_empty() {
                     out.push_str("{}");
                 } else {
+                    // The expression sits inside a double-quoted attribute
+                    // (`class="…{expr}…"`); prettier prefers single quotes for
+                    // its string literals so they don't clash with the `"`
+                    // delimiter (`{x ?? ''}`, not `{x ?? ""}`).
+                    let mut opts = options.clone();
+                    opts.js.quote_style = QuoteStyle::Single;
                     let formatted =
-                        format_attribute_value_expression(inner_src, options, attr_depth)?;
+                        format_attribute_value_expression(inner_src, &opts, attr_depth)?;
                     out.push('{');
                     out.push_str(&formatted);
                     out.push('}');
