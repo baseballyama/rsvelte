@@ -344,13 +344,6 @@ fn try_fill_mixed(
 ) -> Option<(u32, u32, String)> {
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
-    if whole.contains('\n') {
-        return None; // only currently-one-line elements
-    }
-    let column = current_column(out, start);
-    if column + whole.width() <= line_width {
-        return None; // already fits
-    }
     // Must be mixed (at least one non-text child) and entirely inline.
     let mut has_non_text = false;
     for n in &fragment.nodes {
@@ -382,9 +375,14 @@ fn try_fill_mixed(
         return None;
     }
 
-    // Build fill tokens.
+    // Build fill tokens. Only "prose" content (text words interspersed with
+    // inline tags/elements) is re-flowed — content made of just elements /
+    // expressions keeps its source line structure (prettier doesn't fill it),
+    // so require at least one text-word token. A multi-line child element would
+    // need its own internal break (hug), out of scope here → bail.
     let mut toks: Vec<Tok> = Vec::new();
     let mut pending_space = false;
+    let mut has_text_word = false;
     for node in &fragment.nodes {
         if let TemplateNode::Text(t) = node {
             let txt = out.get(t.start as usize..t.end as usize)?;
@@ -398,12 +396,16 @@ fn try_fill_mixed(
                     space_before,
                 });
                 pending_space = false;
+                has_text_word = true;
             }
             if txt.ends_with([' ', '\t', '\r', '\n']) {
                 pending_space = true;
             }
         } else {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            if span.contains('\n') {
+                return None;
+            }
             let space_before = pending_space && !toks.is_empty();
             toks.push(Tok {
                 text: span.to_string(),
@@ -412,7 +414,7 @@ fn try_fill_mixed(
             pending_space = false;
         }
     }
-    if toks.is_empty() {
+    if toks.is_empty() || !has_text_word {
         return None;
     }
 
