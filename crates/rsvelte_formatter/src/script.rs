@@ -56,9 +56,18 @@ pub(crate) fn format_script(
         SourceType::default()
     };
 
-    let parser_ret = Parser::new(&allocator, body, source_type)
+    let mut parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
+    if !parser_ret.errors.is_empty() && !script.is_typescript {
+        // oxfmt parses `<script>` content leniently — TS is a superset of JS, so
+        // TS-only syntax in a script without `lang="ts"` (common in docs) still
+        // formats. Fall back to the TS parser when the JS parse fails. Valid JS
+        // never reaches here, so its output is unchanged.
+        parser_ret = Parser::new(&allocator, body, SourceType::ts())
+            .with_options(formatter_parse_options())
+            .parse();
+    }
     if !parser_ret.errors.is_empty() {
         return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
     }
@@ -131,9 +140,16 @@ pub(crate) fn format_nested_script(
     } else {
         SourceType::default()
     };
-    let parser_ret = Parser::new(&allocator, body, source_type)
+    let mut parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
+    if !parser_ret.errors.is_empty() && !is_ts {
+        // Fall back to the TS parser (superset of JS) — matches oxfmt's lenient
+        // parse of a `<script>` without `lang="ts"` that uses TS-only syntax.
+        parser_ret = Parser::new(&allocator, body, SourceType::ts())
+            .with_options(formatter_parse_options())
+            .parse();
+    }
     if !parser_ret.errors.is_empty() {
         // Can't parse → leave the nested script untouched.
         return Ok(None);
