@@ -390,21 +390,6 @@ fn trims_edge_whitespace(tag: &str) -> bool {
     is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary" | "svelte:element")
 }
 
-/// A fill item: an inline token plus whether whitespace preceded it (a break
-/// opportunity). Glued tokens (no space) never break apart (`foo{bar}`).
-struct Tok {
-    text: String,
-    space_before: bool,
-    /// For a huggable display:inline element (`<a>`, `<span>`, …) whose content
-    /// is a single line of text: `(open_without_bracket, inner_content, tag)`.
-    /// When the element is too wide for any fill line it gets the prettier
-    /// "hug" break instead of overflowing:
-    ///   <a href="…"
-    ///     >content</a
-    ///   >
-    hug: Option<(String, String, String)>,
-}
-
 /// If `node` is a huggable display:inline element — single line, simple text
 /// content (no nested element tags), an open tag ending in `>` — return its
 /// `(open_without_bracket, inner_content, tag)` for the hug break.
@@ -496,48 +481,15 @@ fn try_fill_mixed(
         return None;
     }
 
-    // Build fill tokens. Only "prose" content (text words interspersed with
-    // inline tags/elements) is re-flowed — content made of just elements /
-    // expressions keeps its source line structure (prettier doesn't fill it),
-    // so require at least one text-word token. A multi-line child element would
-    // need its own internal break (hug), out of scope here → bail.
-    let mut toks: Vec<Tok> = Vec::new();
-    let mut pending_space = false;
-    let mut has_text_word = false;
-    for node in &fragment.nodes {
-        if let TemplateNode::Text(t) = node {
-            let txt = out.get(t.start as usize..t.end as usize)?;
-            if txt.starts_with([' ', '\t', '\r', '\n']) {
-                pending_space = true;
-            }
-            for (i, w) in txt.split_whitespace().enumerate() {
-                let space_before = (i > 0 || pending_space) && !toks.is_empty();
-                toks.push(Tok {
-                    text: w.to_string(),
-                    space_before,
-                    hug: None,
-                });
-                pending_space = false;
-                has_text_word = true;
-            }
-            if txt.ends_with([' ', '\t', '\r', '\n']) {
-                pending_space = true;
-            }
-        } else {
-            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
-            if span.contains('\n') {
-                return None;
-            }
-            let space_before = pending_space && !toks.is_empty();
-            toks.push(Tok {
-                text: span.to_string(),
-                space_before,
-                hug: element_hug_parts(out, node),
-            });
-            pending_space = false;
-        }
-    }
-    if toks.is_empty() || !has_text_word {
+    // Only "prose" content (text words interspersed with inline tags/elements)
+    // is re-flowed — content made of just elements/expressions keeps its source
+    // line structure (prettier doesn't prose-fill it), so require at least one
+    // text word.
+    let has_text_word = fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
+    if !has_text_word {
         return None;
     }
 
@@ -547,95 +499,190 @@ fn try_fill_mixed(
         return None;
     }
     let inner_indent = format!("{indent}  ");
-    let lines = fill_with_hug(&toks, &inner_indent, line_width)?;
-    // If everything still fits on a single content line there's nothing to gain.
-    if lines.len() == 1 {
+
+    // Build the prettier content doc (a Concat of per-text-node fills with the
+    // inline elements as hug groups in between — a port of prettier-plugin-svelte's
+    // `printChildren`) and print it. This reproduces the prose fill + in-place
+    // inline-element hug-break exactly.
+    let content_doc = build_children_doc(out, fragment)?;
+    let base_level = inner_indent.width() / 2;
+    let printed = crate::doc::print(
+        content_doc,
+        line_width,
+        "  ",
+        base_level,
+        inner_indent.width(),
+    );
+    // Nothing gained if it all fits on one line (handled elsewhere).
+    if !printed.contains('\n') {
         return None;
     }
-
-    let mut broken = String::with_capacity(whole.len() + 8);
-    broken.push_str(open);
-    for line in &lines {
-        broken.push('\n');
-        broken.push_str(line);
-    }
-    broken.push('\n');
-    broken.push_str(indent);
-    broken.push_str(close);
+    let broken = format!("{open}\n{inner_indent}{printed}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
 }
 
-/// Greedy-pack fill tokens into complete lines (each already prefixed with
-/// `inner_indent`) no wider than `width`. Glued tokens (no `space_before`) stay
-/// on the current line and never break apart (`foo{bar}` / `</a>,`). A huggable
-/// element that doesn't fit any line gets the prettier hug break: its open tag
-/// (without `>`) continues the current line if it fits there, the `>content</tag`
-/// goes on the next line at `inner_indent + 2`, and the closing `>` opens the
-/// next line so following tokens keep filling after it. Returns `None` when a
-/// hug would itself overflow (the open tag or the `>content</tag` line is too
-/// wide) — those need attribute wrapping / content fill not done here.
-fn fill_with_hug(toks: &[Tok], inner_indent: &str, width: usize) -> Option<Vec<String>> {
-    let ind_w = inner_indent.width();
-    let mut lines: Vec<String> = Vec::new();
-    let mut cur = inner_indent.to_string();
+/// Port of prettier-plugin-svelte's `printChildren` for inline (prose) content:
+/// a `Concat` of each text node's `fill(splitTextToDocs)` and each inline
+/// element's hug `Group`. Boundary whitespace is handled so an element can hug in
+/// place (the preceding text fill's trailing `line` stays flat) or move to a
+/// fresh line (a `hardline`). The first child's leading and last child's trailing
+/// whitespace are dropped (the element wrapper owns that newline).
+fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let nodes = &fragment.nodes;
+    let n = nodes.len();
+    let mut docs: Vec<Doc> = Vec::new();
+    // Whether the previous text node ended with a (trimmed) space, so the next
+    // inline element carries a leading `line` (prettier's
+    // `handleWhitespaceOfPrevTextNode`).
+    let mut ws_prev = false;
 
-    for tok in toks {
-        let is_fresh = cur.width() == ind_w;
-
-        // Glued token (no whitespace before it): never a break opportunity.
-        if !tok.space_before && !is_fresh {
-            cur.push_str(&tok.text);
-            continue;
-        }
-
-        let sep = if is_fresh || !tok.space_before {
-            ""
-        } else {
-            " "
-        };
-
-        // Whole token fits on the current line?
-        if is_fresh {
-            if tok.hug.is_none() || tok.text.width() <= width.saturating_sub(ind_w) {
-                cur.push_str(&tok.text);
-                continue;
+    for (i, node) in nodes.iter().enumerate() {
+        match node {
+            TemplateNode::Text(t) => {
+                ws_prev = false;
+                let txt = out.get(t.start as usize..t.end as usize)?;
+                let trim_left = i == 0;
+                let trim_right = i == n - 1;
+                let next_inline = i + 1 < n && is_inline_regular_element(&nodes[i + 1]);
+                // Trailing space before an inline element: trim it from this fill
+                // and flag the element to carry the leading `line` (hug in place).
+                let mut tr = trim_right;
+                if !trim_right && next_inline && ends_with_space_no_break(txt) {
+                    tr = true;
+                    ws_prev = true;
+                }
+                docs.push(Doc::Fill(split_text_to_docs(txt, trim_left, tr)));
             }
-        } else if cur.width() + sep.width() + tok.text.width() <= width {
-            cur.push_str(sep);
-            cur.push_str(&tok.text);
-            continue;
-        }
-
-        // Doesn't fit whole on the current line: break to a fresh line.
-        if !is_fresh {
-            lines.push(std::mem::take(&mut cur));
-            cur = inner_indent.to_string();
-        }
-        // On a fresh line, place the whole token if it fits there.
-        if ind_w + tok.text.width() <= width {
-            cur.push_str(&tok.text);
-            continue;
-        }
-        // Too wide even for a fresh line: hug-break a huggable element (open tag
-        // on this line, `>content</tag` indented, closing `>` opening the next
-        // line); an atomic token (word / expression tag) just overflows.
-        match &tok.hug {
-            Some((open_no_bracket, content, t)) => {
-                let content_line = format!("{inner_indent}  >{content}</{t}");
-                if content_line.width() > width || ind_w + open_no_bracket.width() > width {
+            other if is_inline_regular_element(other) => {
+                let elem = element_doc(out, other)?;
+                if ws_prev {
+                    docs.push(Doc::Group(vec![Doc::Line, elem]));
+                } else {
+                    docs.push(elem);
+                }
+                ws_prev = false;
+            }
+            other => {
+                // Expression tag / html tag / component / … : verbatim atom.
+                let span = out.get(node_start(other) as usize..node_end(other) as usize)?;
+                if span.contains('\n') {
                     return None;
                 }
-                lines.push(format!("{inner_indent}{open_no_bracket}"));
-                lines.push(content_line);
-                cur = format!("{inner_indent}>");
-            }
-            None => {
-                cur.push_str(&tok.text);
+                docs.push(Doc::Text(span.to_string()));
+                ws_prev = false;
             }
         }
     }
-    lines.push(cur);
-    Some(lines)
+    if docs.is_empty() {
+        return None;
+    }
+    Some(Doc::Concat(docs))
+}
+
+/// Whether `node` is an inline-display regular element (gets the hug treatment).
+fn is_inline_regular_element(node: &TemplateNode) -> bool {
+    matches!(node, TemplateNode::RegularElement(e)
+        if !is_block_display(e.name.as_str()) && !is_whitespace_preserving(e.name.as_str()))
+}
+
+/// The doc for one inline element: a hug `Group` for a huggable display:inline
+/// element, otherwise the verbatim single-line span.
+fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    if let Some((open_no_bracket, content, tag)) = element_hug_parts(out, node) {
+        return Some(Doc::Group(vec![
+            Doc::Text(open_no_bracket),
+            Doc::Indent(vec![
+                Doc::Softline,
+                Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
+            ]),
+            Doc::Softline,
+            Doc::Text(">".to_string()),
+        ]));
+    }
+    let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+    if span.contains('\n') {
+        return None;
+    }
+    Some(Doc::Text(span.to_string()))
+}
+
+/// Port of prettier's `splitTextToDocs`: words joined by soft `line` breaks, a
+/// leading/trailing `line` kept when the text starts/ends with whitespace, and a
+/// `hardline` substituted when that boundary whitespace contains a line break
+/// (doubled for a blank line). `trim_left`/`trim_right` drop the leading/trailing
+/// separator entirely (owned by the element wrapper).
+fn split_text_to_docs(text: &str, trim_left: bool, trim_right: bool) -> Vec<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let starts_ws = text.starts_with(|c: char| c.is_whitespace());
+    let ends_ws = text.ends_with(|c: char| c.is_whitespace());
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let lead_break = leading_linebreaks(text);
+    let trail_break = trailing_linebreaks(text);
+
+    let mut docs: Vec<Doc> = Vec::new();
+    if words.is_empty() {
+        // Whitespace-only text node between two siblings: a single separator.
+        if !trim_left && !trim_right {
+            docs.push(if lead_break > 0 {
+                Doc::Hardline
+            } else {
+                Doc::Line
+            });
+        }
+        return docs;
+    }
+    if starts_ws && !trim_left {
+        match lead_break {
+            0 => docs.push(Doc::Line),
+            1 => docs.push(Doc::Hardline),
+            _ => {
+                docs.push(Doc::Hardline);
+                docs.push(Doc::Hardline);
+            }
+        }
+    }
+    for (i, w) in words.iter().enumerate() {
+        if i > 0 {
+            docs.push(Doc::Line);
+        }
+        docs.push(Doc::Text((*w).to_string()));
+    }
+    if ends_ws && !trim_right {
+        match trail_break {
+            0 => docs.push(Doc::Line),
+            1 => docs.push(Doc::Hardline),
+            _ => {
+                docs.push(Doc::Hardline);
+                docs.push(Doc::Hardline);
+            }
+        }
+    }
+    docs
+}
+
+/// Number of newlines in the leading whitespace run (capped at 2).
+fn leading_linebreaks(s: &str) -> usize {
+    s.chars()
+        .take_while(|c| c.is_whitespace())
+        .filter(|c| *c == '\n')
+        .take(2)
+        .count()
+}
+
+/// Number of newlines in the trailing whitespace run (capped at 2).
+fn trailing_linebreaks(s: &str) -> usize {
+    s.chars()
+        .rev()
+        .take_while(|c| c.is_whitespace())
+        .filter(|c| *c == '\n')
+        .take(2)
+        .count()
+}
+
+fn ends_with_space_no_break(s: &str) -> bool {
+    s.ends_with(|c: char| c.is_whitespace()) && trailing_linebreaks(s) == 0
 }
 
 fn is_inline_node(node: &TemplateNode) -> bool {

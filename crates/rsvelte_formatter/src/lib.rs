@@ -13,6 +13,7 @@
 //! CSS formatting and markup Doc IR composition.
 
 mod collapse;
+mod doc;
 mod error;
 mod expression;
 mod indent;
