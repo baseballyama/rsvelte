@@ -27,6 +27,7 @@ pub mod no_object_in_text_mustaches;
 pub mod no_raw_special_elements;
 pub mod no_reactive_functions;
 pub mod no_reactive_literals;
+pub mod no_reactive_reassign;
 pub mod no_restricted_html_elements;
 pub mod no_shorthand_style_property_overrides;
 pub mod no_store_async;
