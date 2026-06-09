@@ -1086,6 +1086,24 @@ fn expression_tag_inner<'a>(tag: &ExpressionTag, source: &'a str) -> &'a str {
     }
 }
 
+/// Whether an expression value is "shallow" — it wraps by breaking at its own
+/// top-level operators (a ternary / binary / logical / member chain) rather than
+/// by opening a nested block body. Block-bodied values (arrow handlers, object /
+/// array literals, function expressions) keep their continuation lines at the
+/// attribute indent with full width, so they must NOT be narrowed by the
+/// `name={` prefix (that over-wraps the body). Detected syntactically: no arrow
+/// and no leading object/array/function token.
+fn is_shallow_value(src: &str) -> bool {
+    if src.contains("=>") {
+        return false;
+    }
+    let t = src.trim_start();
+    // A leading `(` is a parenthesized operand of a shallow expression
+    // (`(a ?? b) === c`), not a block body — only arrows open a body, and those
+    // are already excluded by the `=>` check above.
+    !(t.starts_with('{') || t.starts_with('[') || t.starts_with("function"))
+}
+
 fn render_attribute_node(
     node: &AttributeNode,
     source: &str,
@@ -1100,26 +1118,21 @@ fn render_attribute_node(
             if inner_src.is_empty() {
                 return Ok(format!("{}={{}}", node.name));
             }
-            let indent_cols = attr_depth * options.js.indent_width.value() as usize;
-            let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
-            // When the open tag wraps and the value formatted to a SINGLE line
-            // that still overflows once the `name={…}` prefix is counted, the
-            // value is a shallow expression (a ternary / binary, not a block
-            // body) that prettier wraps at its top level. Re-format narrowed by
-            // the full prefix so it breaks the same way. A value that is already
-            // multi-line (an arrow handler / object body) is left alone — its
+            // When the open tag wraps, a SHALLOW value (a ternary / binary /
+            // logical chain — no block body) is narrowed by the `name={` prefix
+            // so it breaks at its top level where prettier does, even when it
+            // already spans multiple lines. A value with a block body (an arrow
+            // handler / object / array) is left at the indent-only width: its
             // continuation lines sit at the attribute indent with full width, so
             // narrowing by the prefix would wrongly over-wrap them.
             let prefix = visual_width(node.name.as_str()) + 2;
-            let line_width = options.js.line_width.value() as usize;
-            let formatted = if narrow_value
-                && !formatted.contains('\n')
-                && indent_cols + prefix + visual_width(&formatted) + 1 > line_width
-            {
-                format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+            let extra = if narrow_value && is_shallow_value(inner_src) {
+                prefix
             } else {
-                formatted
+                0
             };
+            let formatted =
+                format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
             // Svelte attribute shorthand: `name={name}` → `{name}`.
             if formatted == node.name.as_str() {
                 Ok(format!("{{{formatted}}}"))
