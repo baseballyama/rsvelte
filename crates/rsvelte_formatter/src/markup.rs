@@ -789,7 +789,9 @@ fn render_multi_line(
         //
         // A quoted string value (`style="…\n…"` / `class="…"`) is HTML text, not
         // formatter output: its interior whitespace is literal, so it's emitted
-        // verbatim and must NOT be re-indented.
+        // verbatim and must NOT be re-indented. (A wrapped interpolation inside
+        // such a value already had its continuation lines re-indented to the
+        // attribute column by `render_attribute_value_sequence`.)
         if is_string_value_attr(a) {
             out.push_str(a);
         } else {
@@ -1141,7 +1143,16 @@ fn render_attribute_node(
             }
         }
         AttributeValue::Sequence(parts) => {
-            let body = render_attribute_value_sequence(parts, source, options, attr_depth)?;
+            // Columns before the value body on the first line: `name="`.
+            let name_prefix = visual_width(node.name.as_str()) + 2;
+            let body = render_attribute_value_sequence(
+                parts,
+                source,
+                options,
+                attr_depth,
+                name_prefix,
+                narrow_value,
+            )?;
             Ok(format!("{}=\"{}\"", node.name, body))
         }
     }
@@ -1180,7 +1191,15 @@ fn render_attribute_value_for_directive(
             Ok(format!("{{{formatted}}}"))
         }
         AttributeValue::Sequence(parts) => {
-            let body = render_attribute_value_sequence(parts, source, options, attr_depth)?;
+            // Directive value body starts after `style:name="`: prefix + the `"`.
+            let body = render_attribute_value_sequence(
+                parts,
+                source,
+                options,
+                attr_depth,
+                prefix + 1,
+                narrow_value,
+            )?;
             Ok(format!("\"{body}\""))
         }
     }
@@ -1191,9 +1210,18 @@ fn render_attribute_value_sequence(
     source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    name_prefix: usize,
+    narrow_value: bool,
 ) -> Result<String, FormatError> {
+    // When the value starts with literal text (`"bg: {expr}"`), render_multi_line
+    // treats it as a verbatim string and does NOT re-indent it, so a wrapped
+    // interpolation's continuation lines must be re-indented here. When the value
+    // starts with the interpolation (`"{expr}%"`), the value is not a string-value
+    // attr and render_multi_line re-indents the whole thing — so don't double it.
+    let value_starts_with_text =
+        matches!(parts.first(), Some(AttributeValuePart::Text(t)) if !t.data.is_empty());
     let mut out = String::new();
-    for part in parts {
+    for (i, part) in parts.iter().enumerate() {
         match part {
             AttributeValuePart::Text(t) => {
                 out.push_str(t.data.as_str());
@@ -1212,8 +1240,41 @@ fn render_attribute_value_sequence(
                     // delimiter (`{x ?? ''}`, not `{x ?? ""}`).
                     let mut opts = options.clone();
                     opts.js.quote_style = QuoteStyle::Single;
+                    // When the open tag wraps, narrow a shallow interpolated
+                    // expression by the columns it can't use on its first line:
+                    // everything before its `{` (the `name="` prefix plus value
+                    // text already emitted on this line) AND after its `}` (the
+                    // remaining literal text on the line plus the closing `"`).
+                    let extra = if narrow_value && is_shallow_value(inner_src) {
+                        let on_line = out.rsplit('\n').next().unwrap_or(&out);
+                        let lead = if out.contains('\n') {
+                            visual_width(on_line)
+                        } else {
+                            name_prefix + visual_width(on_line)
+                        };
+                        let trailing: usize = parts[i + 1..]
+                            .iter()
+                            .map(|p| match p {
+                                AttributeValuePart::Text(t) => visual_width(t.data.as_str()),
+                                AttributeValuePart::ExpressionTag(_) => 0,
+                            })
+                            .sum();
+                        lead + 3 + trailing // `{` + `}` + closing `"`
+                    } else {
+                        0
+                    };
                     let formatted =
-                        format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
+                        format_attribute_value_expression(inner_src, &opts, attr_depth, extra)?;
+                    // A wrapped interpolation's continuation lines come back at
+                    // column 0+1level; push them out to the attribute column so
+                    // they align under the attribute — but only when this value is
+                    // a verbatim string (render_multi_line won't re-indent it).
+                    let formatted = if formatted.contains('\n') && value_starts_with_text {
+                        let prefix = indent_str(attr_depth, &options.js);
+                        crate::reindent::reindent(&formatted, &prefix, true)
+                    } else {
+                        formatted
+                    };
                     out.push('{');
                     out.push_str(&formatted);
                     out.push('}');
