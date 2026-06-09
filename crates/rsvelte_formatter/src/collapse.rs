@@ -642,18 +642,6 @@ fn try_fill_mixed(
         return None;
     }
 
-    // Only "prose" content (text words interspersed with inline tags/elements)
-    // is re-flowed — content made of just elements/expressions keeps its source
-    // line structure (prettier doesn't prose-fill it), so require at least one
-    // text word.
-    let has_text_word = fragment
-        .nodes
-        .iter()
-        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    if !has_text_word {
-        return None;
-    }
-
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
@@ -682,6 +670,21 @@ fn try_fill_mixed(
         0,
     );
     let column = current_column(out, start);
+
+    // Prose content (text words interspersed with tags/elements) is always
+    // re-flowed. Content made of only elements / expressions is re-flowed ONLY
+    // when the source forces a break (a `hardline` survives the flat render — a
+    // source blank line or a newline between two non-text nodes). Otherwise such
+    // content stays on one line / is hugged, so leave it to the hug / indent
+    // passes (prettier doesn't prose-fill space-separated mustaches that fit).
+    let has_text_word = fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
+    if !has_text_word && !flat.contains('\n') {
+        return None;
+    }
+
     if !flat.contains('\n') {
         let element_one_line = column + open.width() + flat.width() + close.width();
         // A block element whose flat element line overflows puts its content on
@@ -800,12 +803,16 @@ fn is_inline_regular_element(node: &TemplateNode) -> bool {
 fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     if let Some((open_no_bracket, content, tag)) = element_hug_parts(out, node) {
+        // prettier's `hugStart && hugEnd` doc: the hugged content lives in its
+        // OWN group so `>{content}</tag` stays glued to the open tag when it fits
+        // (only the trailing `>` drops to its own line), independent of whether
+        // the outer element group breaks.
         return Some(Doc::Group(vec![
             Doc::Text(open_no_bracket),
-            Doc::Indent(vec![
+            Doc::Group(vec![Doc::Indent(vec![
                 Doc::Softline,
                 Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
-            ]),
+            ])]),
             Doc::Softline,
             Doc::Text(">".to_string()),
         ]));
