@@ -509,8 +509,9 @@ fn try_hug_mixed(
     fragment: &Fragment,
     line_width: usize,
 ) -> Option<(u32, u32, String)> {
-    // Inline display only — block / inline-block elements never hug.
-    if is_block_display(tag) || is_inline_block(tag) || is_whitespace_preserving(tag) {
+    // Inline elements hug (prettier's `blockElements` excludes button/input/…),
+    // so only true block elements and raw-text elements are ineligible.
+    if is_block_display(tag) || is_whitespace_preserving(tag) {
         return None;
     }
     let (s, e) = (start as usize, end as usize);
@@ -534,7 +535,7 @@ fn try_hug_mixed(
     let content_end = node_end(fragment.nodes.last()?) as usize;
     let open = out.get(s..content_start)?;
     let close = out.get(content_end..e)?;
-    if open.contains('\n') || !open.ends_with('>') || !close.starts_with("</") {
+    if !open.ends_with('>') || !close.starts_with("</") {
         return None;
     }
     let raw = out.get(content_start..content_end)?;
@@ -543,21 +544,41 @@ fn try_hug_mixed(
     if raw.starts_with([' ', '\t', '\r', '\n']) || raw.ends_with([' ', '\t', '\r', '\n']) {
         return None;
     }
-    // Only act on currently-one-line content that overflows; multi-line content
-    // is left alone (its exact reflow needs the full element-group model).
+    // Only act on currently-one-line content; multi-line content is left alone
+    // (its exact reflow needs the full element-group model).
     if raw.contains('\n') {
         return None;
     }
     let column = current_column(out, start);
-    let element_one_line = column + open.width() + raw.width() + close.width();
-    if element_one_line <= line_width {
-        return None; // fits as-is
-    }
 
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
+    }
+
+    // A multi-line open tag means markup already attribute-wrapped it and glued
+    // the `>` to the last attribute line (#798). prettier's hugged-content group
+    // keeps `>{content}</tag` glued there only if it fits after the last attr;
+    // otherwise it drops to its own indented line. Markup can't decide this (no
+    // content awareness), so finish the decision here.
+    if open.contains('\n') {
+        let onb = &open[..open.len() - 1]; // strip the glued `>`
+        let last_line = onb.rsplit('\n').next().unwrap_or(onb);
+        // `<last attr>` + `>content</tag` (the trailing `>` is already on its own
+        // line via markup's hug_close).
+        let glued = last_line.width() + 1 + raw.width() + 2 + tag.width();
+        if glued <= line_width {
+            return None; // markup's glued form is correct
+        }
+        let inner_indent = format!("{indent}  ");
+        let moved = format!("{onb}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        return (moved != whole).then_some((start, end, moved));
+    }
+
+    let element_one_line = column + open.width() + raw.width() + close.width();
+    if element_one_line <= line_width {
+        return None; // fits as-is
     }
 
     // Build prettier's `hugStart && hugEnd` element doc and let the printer make

@@ -116,9 +116,23 @@ fn collect_indent_edits_inner(
                 } else {
                     &child_indent
                 };
-                let reindented =
-                    reindent_text_lines(t.data.as_str(), &child_indent, trailing_indent);
-                if reindented != t.data.as_str() {
+                // Reindent the RAW source slice when the text carries an HTML
+                // entity (`&ndash;`, `&#123;`, `&amp;`, …) — emitting the
+                // parser's decoded `data` would replace it with the decoded
+                // character. That both diverges from prettier/oxfmt (which keep
+                // source entities verbatim) AND can produce invalid Svelte when
+                // the decoded char is syntactically significant (`&#123;` → `{`
+                // opens a mustache), breaking the collapse re-parse. For
+                // entity-free text keep using `data` (its existing tested
+                // behaviour — raw and data can otherwise differ in whitespace).
+                let raw = source.get(t.start as usize..t.end as usize).unwrap_or("");
+                let text = if raw.contains('&') {
+                    raw
+                } else {
+                    t.data.as_str()
+                };
+                let reindented = reindent_text_lines(text, &child_indent, trailing_indent);
+                if reindented != text {
                     edits.push((t.start, t.end, reindented));
                 }
             }
