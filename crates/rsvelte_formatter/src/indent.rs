@@ -30,7 +30,57 @@ pub(crate) fn collect_indent_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    let has_block_children = fragment.nodes.iter().any(is_indent_provoking);
+    collect_indent_edits_inner(source, fragment, child_depth, false, options, edits)
+}
+
+/// `force` makes the fragment re-indent its children even when it holds only
+/// text — used for block bodies (`{#if}` / `{:else}` / `{#each}` / …), which
+/// always render their content on its own line(s). Element children instead pass
+/// `force = false`: a pure-text element collapses to one line and is handled
+/// elsewhere, not re-indented here.
+fn collect_indent_edits_inner(
+    source: &str,
+    fragment: &Fragment,
+    child_depth: usize,
+    force: bool,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    // A forced block body (`{#snippet}` / `{#if}` / `{#each}` / …) whose entire
+    // content is a single one-line text node breaks onto its own line ONLY when
+    // that text has leading/trailing whitespace — prettier's
+    // checkWhitespaceAtStart/EndOfSvelteBlock: `{#snippet name()} P. Sherman
+    // {/snippet}` (space-bounded) breaks, but `{#snippet x()}...{/snippet}`
+    // (content flush against the delimiters) stays inline. The generic loop below
+    // only re-indents whitespace-only / already-multi-line text, so handle the
+    // single-line case here.
+    if force
+        && fragment.nodes.len() == 1
+        && let TemplateNode::Text(t) = &fragment.nodes[0]
+    {
+        // Use the RAW source: the parser's decoded `data` turns `&nbsp;` into
+        // U+00A0, which `char::is_whitespace` (and entity preservation) would
+        // mishandle. prettier's block-whitespace check is ASCII space/tab.
+        let data = source.get(t.start as usize..t.end as usize).unwrap_or("");
+        let bounded = data.starts_with([' ', '\t']) || data.ends_with([' ', '\t']);
+        if !data.trim().is_empty() && !data.contains('\n') && bounded {
+            let child_indent = indent_for_level(child_depth, &options.js);
+            let parent_indent = if child_depth == 0 {
+                String::new()
+            } else {
+                indent_for_level(child_depth - 1, &options.js)
+            };
+            let collapsed = data.split_whitespace().collect::<Vec<_>>().join(" ");
+            edits.push((
+                t.start,
+                t.end,
+                format!("\n{child_indent}{collapsed}\n{parent_indent}"),
+            ));
+            return Ok(());
+        }
+    }
+
+    let has_block_children = force || fragment.nodes.iter().any(is_indent_provoking);
 
     if has_block_children {
         let child_indent = indent_for_level(child_depth, &options.js);
@@ -45,15 +95,42 @@ pub(crate) fn collect_indent_edits(
         let last = fragment.nodes.len().saturating_sub(1);
 
         for (i, node) in fragment.nodes.iter().enumerate() {
-            if let TemplateNode::Text(t) = node
-                && is_whitespace_only(t.data.as_str())
-            {
+            let TemplateNode::Text(t) = node else {
+                continue;
+            };
+            if is_whitespace_only(t.data.as_str()) {
+                if !t.data.contains('\n') {
+                    // Inline spacing (no line break in the source). Between inline
+                    // content like `{a} {b}` it is whitespace-sensitive — keep it
+                    // on one line, collapsed to a single space. But leading /
+                    // trailing inline whitespace at the document root (e.g. a
+                    // markdown code block's indentation before a root element) is
+                    // insignificant and is removed.
+                    let replacement = if child_depth == 0 && (i == 0 || i == last) {
+                        ""
+                    } else {
+                        " "
+                    };
+                    if t.data.as_str() != replacement {
+                        edits.push((t.start, t.end, replacement.to_string()));
+                    }
+                    continue;
+                }
                 // Keep a single blank line where prettier-plugin-svelte / oxfmt
                 // would: between siblings, and at the document root where the
                 // whitespace abuts a sibling `<script>` / `<style>`. Leading and
                 // trailing blanks inside an element are collapsed away.
-                let keep_blank = t.data.matches('\n').count() >= 2
-                    && blank_line_allowed(source, t.start, t.end, i, last, child_depth);
+                // A blank line is kept where there already is one (between
+                // siblings, or before a sibling `<script>` / `<style>` at the
+                // root — see `blank_line_allowed`), and is *forced* — even from
+                // a single newline — right after a closing `</script>` /
+                // `</style>`, because prettier / oxfmt always separate such a
+                // block from the markup that follows with one blank line. A
+                // blank is NOT forced *before* an opening `<script>` / `<style>`:
+                // a leading `<!--@component-->` doc comment stays glued to it.
+                let keep_blank = (child_depth == 0 && section_close_before(source, t.start))
+                    || (t.data.matches('\n').count() >= 2
+                        && blank_line_allowed(source, t.start, t.end, i, last, child_depth));
                 let lead = if keep_blank { "\n" } else { "" };
                 let replacement = if i == last {
                     format!("{lead}\n{parent_indent}")
@@ -61,6 +138,57 @@ pub(crate) fn collect_indent_edits(
                     format!("{lead}\n{child_indent}")
                 };
                 edits.push((t.start, t.end, replacement));
+            } else if t.data.contains('\n') {
+                // Mixed text (text alongside tags/elements) that stays on its
+                // own line(s): normalize the per-line leading indentation to the
+                // children's depth, keeping the text content. Inline text (no
+                // newline) is left untouched. The node's trailing indentation is
+                // the next node's lead — children depth, or the parent's depth
+                // when this is the fragment's last node (it abuts the close tag).
+                let trailing_indent = if i == last {
+                    &parent_indent
+                } else {
+                    &child_indent
+                };
+                // Reindent the RAW source slice when the text carries an HTML
+                // entity (`&ndash;`, `&#123;`, `&amp;`, …) — emitting the
+                // parser's decoded `data` would replace it with the decoded
+                // character. That both diverges from prettier/oxfmt (which keep
+                // source entities verbatim) AND can produce invalid Svelte when
+                // the decoded char is syntactically significant (`&#123;` → `{`
+                // opens a mustache), breaking the collapse re-parse. For
+                // entity-free text keep using `data` (its existing tested
+                // behaviour — raw and data can otherwise differ in whitespace).
+                let raw = source.get(t.start as usize..t.end as usize).unwrap_or("");
+                let text = if raw.contains('&') {
+                    raw
+                } else {
+                    t.data.as_str()
+                };
+                let reindented = reindent_text_lines(text, &child_indent, trailing_indent);
+                if reindented != text {
+                    edits.push((t.start, t.end, reindented));
+                }
+            }
+        }
+
+        // An HTML comment always sits on its own line. When it abuts a sibling
+        // node directly (no whitespace text node between them, e.g.
+        // `<!-- c --><h1>`), insert a line break so the comment and its
+        // neighbour land on separate lines (prettier / oxfmt behaviour).
+        for w in fragment.nodes.windows(2) {
+            let (a, b) = (&w[0], &w[1]);
+            if matches!(a, TemplateNode::Text(_)) || matches!(b, TemplateNode::Text(_)) {
+                continue;
+            }
+            let is_comment =
+                matches!(a, TemplateNode::Comment(_)) || matches!(b, TemplateNode::Comment(_));
+            if !is_comment {
+                continue;
+            }
+            let boundary = crate::collapse::template_node_span(a).1;
+            if boundary == crate::collapse::template_node_span(b).0 {
+                edits.push((boundary, boundary, format!("\n{child_indent}")));
             }
         }
     }
@@ -90,7 +218,14 @@ fn recurse_into_children(
             if is_whitespace_preserving(elem.name.as_str()) {
                 return Ok(());
             }
-            collect_indent_edits(source, &elem.fragment, next_depth, options, edits)?;
+            // When the open tag spans multiple lines (its attributes wrapped),
+            // the element can't collapse onto one line, so its content renders
+            // on its own line(s) and the pure-text case must be re-indented here
+            // — the collapse pass only reindents text under a single-line open
+            // tag. (When the content *does* still fit one line, the collapse
+            // pass overrides this, so forcing is safe.)
+            let force = open_tag_is_multiline(source, elem.start, &elem.fragment);
+            collect_indent_edits_inner(source, &elem.fragment, next_depth, force, options, edits)?;
         }
         TemplateNode::Component(c) => {
             collect_indent_edits(source, &c.fragment, next_depth, options, edits)?;
@@ -126,12 +261,21 @@ fn recurse_into_children(
             // would add one level per `{:else if}`).
             let mut current: &IfBlock = blk;
             loop {
-                collect_indent_edits(source, &current.consequent, next_depth, options, edits)?;
+                collect_indent_edits_inner(
+                    source,
+                    &current.consequent,
+                    next_depth,
+                    true,
+                    options,
+                    edits,
+                )?;
                 match &current.alternate {
                     Some(alt) => match else_if_branch(alt) {
                         Some(chained) => current = chained,
                         None => {
-                            collect_indent_edits(source, alt, next_depth, options, edits)?;
+                            collect_indent_edits_inner(
+                                source, alt, next_depth, true, options, edits,
+                            )?;
                             break;
                         }
                     },
@@ -140,27 +284,27 @@ fn recurse_into_children(
             }
         }
         TemplateNode::EachBlock(blk) => {
-            collect_indent_edits(source, &blk.body, next_depth, options, edits)?;
+            collect_indent_edits_inner(source, &blk.body, next_depth, true, options, edits)?;
             if let Some(fb) = &blk.fallback {
-                collect_indent_edits(source, fb, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, fb, next_depth, true, options, edits)?;
             }
         }
         TemplateNode::AwaitBlock(blk) => {
             if let Some(frag) = &blk.pending {
-                collect_indent_edits(source, frag, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
             }
             if let Some(frag) = &blk.then {
-                collect_indent_edits(source, frag, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
             }
             if let Some(frag) = &blk.catch {
-                collect_indent_edits(source, frag, next_depth, options, edits)?;
+                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
-            collect_indent_edits(source, &blk.fragment, next_depth, options, edits)?;
+            collect_indent_edits_inner(source, &blk.fragment, next_depth, true, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
-            collect_indent_edits(source, &blk.body, next_depth, options, edits)?;
+            collect_indent_edits_inner(source, &blk.body, next_depth, true, options, edits)?;
         }
         _ => {}
     }
@@ -179,10 +323,36 @@ pub(crate) fn else_if_branch(alt: &Fragment) -> Option<&IfBlock> {
     }
 }
 
+/// Whether the element's open tag spans more than one line — i.e. there is a
+/// newline between the element start and the start of its first child (the open
+/// tag's `>`). Such an element keeps its content on its own line(s).
+fn open_tag_is_multiline(source: &str, elem_start: u32, fragment: &Fragment) -> bool {
+    let Some(first) = fragment.nodes.first() else {
+        return false;
+    };
+    let first_start = crate::collapse::template_node_span(first).0;
+    source
+        .get(elem_start as usize..first_start as usize)
+        .is_some_and(|s| s.contains('\n'))
+}
+
 fn is_indent_provoking(node: &TemplateNode) -> bool {
     matches!(
         node,
-        TemplateNode::RegularElement(_)
+        // Mustache tags and comments sit on their own line just like elements
+        // and blocks, so a fragment containing one needs its whitespace-only
+        // Text nodes re-indented to the configured unit (prettier-plugin-svelte
+        // keeps a standalone `{expr}` / `{@render …}` / `<!-- … -->` on its own
+        // line at the children's depth).
+        TemplateNode::ExpressionTag(_)
+            | TemplateNode::HtmlTag(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::RenderTag(_)
+            | TemplateNode::AttachTag(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::RegularElement(_)
             | TemplateNode::Component(_)
             | TemplateNode::TitleElement(_)
             | TemplateNode::SlotElement(_)
@@ -206,6 +376,38 @@ fn is_indent_provoking(node: &TemplateNode) -> bool {
 
 fn is_whitespace_only(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_whitespace())
+}
+
+/// Re-indent the per-line leading whitespace of a mixed text node (text that
+/// sits alongside tag/element siblings and stays multi-line). The first segment
+/// — the run before the first newline, i.e. content continuing the open-tag line
+/// — is kept verbatim. Content lines get `child_indent`. The final segment is
+/// the indentation that leads into the following node (or the close tag), so a
+/// whitespace-only last line is rewritten to `trailing_indent`. Genuinely blank
+/// interior lines collapse to a bare newline (no trailing space).
+fn reindent_text_lines(data: &str, child_indent: &str, trailing_indent: &str) -> String {
+    let lines: Vec<&str> = data.split('\n').collect();
+    let n = lines.len();
+    let mut out = String::with_capacity(data.len());
+    for (i, line) in lines.iter().enumerate() {
+        if i == 0 {
+            out.push_str(line);
+            continue;
+        }
+        out.push('\n');
+        let content = line.trim_start_matches([' ', '\t']);
+        if content.is_empty() {
+            // The last line's whitespace leads into the next node / close tag.
+            if i == n - 1 {
+                out.push_str(trailing_indent);
+            }
+            // Interior blank line → bare newline.
+        } else {
+            out.push_str(child_indent);
+            out.push_str(content);
+        }
+    }
+    out
 }
 
 /// Whether a blank line may survive at this whitespace position, matching
@@ -232,12 +434,31 @@ fn blank_line_allowed(
         return false;
     }
     if i == 0 {
+        // A blank that abuts a hoisted `<script>` / `<style>` on either side is
+        // kept: after a closing tag (the conventional blank under `</script>`),
+        // or before an opening tag (e.g. `<svelte:options>` then a blank then
+        // `<script>`, where `<svelte:options>` is hoisted so this is node 0).
         let before = source[..start as usize].trim_end();
-        before.ends_with("</script>") || before.ends_with("</style>")
+        let after = source[end as usize..].trim_start();
+        before.ends_with("</script>")
+            || before.ends_with("</style>")
+            || after.starts_with("<script")
+            || after.starts_with("<style")
     } else {
         let after = source[end as usize..].trim_start();
         after.starts_with("<style") || after.starts_with("<script")
     }
+}
+
+/// Whether a document-root whitespace node immediately follows a closing
+/// `</script>` / `</style>`. These blocks are hoisted out of the fragment, so
+/// the following whitespace text node abuts them in the source. prettier /
+/// oxfmt always separate such a block from the markup that follows with exactly
+/// one blank line, so the blank is forced here regardless of how many newlines
+/// the source had.
+fn section_close_before(source: &str, start: u32) -> bool {
+    let before = source[..start as usize].trim_end();
+    before.ends_with("</script>") || before.ends_with("</style>")
 }
 
 /// Elements whose interior whitespace is meaningful and must survive

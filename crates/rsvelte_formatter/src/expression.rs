@@ -87,9 +87,24 @@ fn collect_node_edits(
         TemplateNode::DebugTag(tag) => {
             push_debug_tag(source, tag.start, tag.end, &tag.identifiers, options, edits)?;
         }
-        TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_) => {
-            // Statement-shaped tags (`{@const x = e}`, `{let x = e}`,
-            // `{const x = e}`) — defer until statement formatting lands.
+        TemplateNode::ConstTag(tag) => {
+            // `{@const x = e}` — the declaration is an assignment expression
+            // (`x = e`); format it like any content expression so quotes /
+            // spacing normalize (`{@const foo = 'bar'}` → `{@const foo = "bar"}`).
+            push_tag_form(
+                source,
+                tag.start,
+                tag.end,
+                "@const",
+                &tag.declaration,
+                depth,
+                options,
+                edits,
+            )?;
+        }
+        TemplateNode::DeclarationTag(_) => {
+            // `{let x = e}` / `{const x = e}` — keyword-led VariableDeclaration;
+            // defer until statement formatting lands.
         }
         // For every element type, attribute lists (and `this={X}` on
         // `<svelte:component>` / `<svelte:element>`) are owned by the
@@ -410,7 +425,7 @@ pub(crate) fn format_directive_value(
         return Ok(None);
     }
     Ok(Some(format_attribute_value_expression(
-        inner, options, attr_depth,
+        inner, options, attr_depth, 0,
     )?))
 }
 
@@ -529,7 +544,7 @@ pub(crate) fn format_function_binding(
                 .get(span.start as usize..span.end as usize)
                 .unwrap_or("")
                 .trim();
-            format_attribute_value_expression(member_src, options, attr_depth + 1)
+            format_attribute_value_expression(member_src, options, attr_depth + 1, 0)
         })
         .collect::<Result<_, _>>()?;
 
@@ -566,6 +581,30 @@ pub(crate) fn format_function_binding(
 }
 
 // ─── Expression formatter ───────────────────────────────────────────────
+
+/// Re-format a content-tag expression (already extracted from `{…}` / `{@html …}`)
+/// at an explicit `width`, then push its continuation lines out to `indent_cols`
+/// columns. Used by the collapse pass to wrap a block element's sole content-tag
+/// child onto its own line (`<h1>`\n`  {@html foo.bar(`\n`    …`\n`  )}`\n`</h1>`).
+pub(crate) fn reformat_content_at_width(
+    expr_source: &str,
+    options: &FormatOptions,
+    width: usize,
+    indent_cols: usize,
+) -> Result<String, FormatError> {
+    let lw = oxc_formatter_core::LineWidth::try_from(width.max(1) as u16)
+        .unwrap_or(options.js.line_width);
+    let formatted = format_expr_core(expr_source, options, lw, false)?;
+    if !formatted.contains('\n') {
+        return Ok(formatted);
+    }
+    let prefix = if options.js.indent_style.is_tab() {
+        "\t".repeat(indent_cols / options.js.indent_width.value() as usize)
+    } else {
+        " ".repeat(indent_cols)
+    };
+    Ok(crate::reindent::reindent(&formatted, &prefix, true))
+}
 
 /// Format a single JS expression source at `line_width`. Wraps in parens to
 /// force expression context (so object literals like `{a:1}` aren't parsed as
@@ -666,10 +705,15 @@ pub(crate) fn format_attribute_value_expression(
     expr_source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    extra_lead: usize,
 ) -> Result<String, FormatError> {
+    // Narrow by the attribute's nesting indent (`attr_depth` levels) plus any
+    // `extra_lead` columns the caller adds — e.g. the `name={` prefix once the
+    // open tag is known to wrap, so a long value breaks where prettier puts it
+    // (#795).
     let indent_width = options.js.indent_width.value() as usize;
-    let narrowed =
-        (options.js.line_width.value() as usize).saturating_sub(attr_depth * indent_width);
+    let lead = attr_depth * indent_width + extra_lead;
+    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
     let line_width =
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, line_width, false)
@@ -705,10 +749,26 @@ fn format_content_expression(
 ) -> Result<String, FormatError> {
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
-    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
+    let full_width = options.js.line_width.value() as usize;
+    let narrowed = full_width.saturating_sub(lead);
     let line_width =
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, line_width, false)?;
+    // A single-line value that overflows once the surrounding `{ }` are counted is
+    // a shallow expression (ternary / binary) prettier wraps at its top level;
+    // re-format narrowed by the braces so it breaks the same way. A value that is
+    // already multi-line (an arrow / object body) is left as-is (its continuation
+    // lines sit at `depth` with full width).
+    let formatted = if !formatted.contains('\n')
+        && lead + 1 + UnicodeWidthStr::width(formatted.as_str()) + 1 > full_width
+    {
+        let narrowed2 = full_width.saturating_sub(lead + 2);
+        let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2 as u16)
+            .unwrap_or(options.js.line_width);
+        format_expr_core(expr_source, options, lw2, false)?
+    } else {
+        formatted
+    };
     if !formatted.contains('\n') {
         return Ok(formatted);
     }

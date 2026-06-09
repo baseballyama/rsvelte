@@ -7,13 +7,13 @@ fn fmt(src: &str) -> String {
 #[test]
 fn collapses_whitespace_in_simple_interp() {
     let out = fmt("<p>{ count  +1 }</p>");
-    assert_eq!(out, "<p>{count + 1}</p>");
+    assert_eq!(out, "<p>{count + 1}</p>\n");
 }
 
 #[test]
 fn keeps_identifier_interp_as_is() {
     let out = fmt("<p>{count}</p>");
-    assert_eq!(out, "<p>{count}</p>");
+    assert_eq!(out, "<p>{count}</p>\n");
 }
 
 #[test]
@@ -30,13 +30,13 @@ fn formats_object_literal_interp() {
 #[test]
 fn formats_call_interp() {
     let out = fmt("<span>{ fn ( a , b ) }</span>");
-    assert_eq!(out, "<span>{fn(a, b)}</span>");
+    assert_eq!(out, "<span>{fn(a, b)}</span>\n");
 }
 
 #[test]
 fn formats_interp_inside_element_with_attributes() {
     let out = fmt("<div class=\"box\">{ a + b }</div>");
-    assert_eq!(out, "<div class=\"box\">{a + b}</div>");
+    assert_eq!(out, "<div class=\"box\">{a + b}</div>\n");
 }
 
 #[test]

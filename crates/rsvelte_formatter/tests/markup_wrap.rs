@@ -13,7 +13,8 @@ fn fmt_at_width(src: &str, line_width: u16) -> String {
         },
         ..FormatOptions::default()
     };
-    format(src, &opts).expect("format ok")
+    let out = format(src, &opts).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 #[test]

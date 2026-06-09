@@ -211,6 +211,38 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
+      - name: Install oxfmt + svelte for the formatter parity corpus
+        # Isolated install (NOT the root lockfile) so the corpus oracle deps —
+        # oxfmt (a prebuilt native binding) plus a resolvable svelte for oxfmt's
+        # `svelte: true` (bundled prettier-plugin-svelte) — are available without
+        # pulling the root's esbuild/@parcel/watcher, whose build scripts trip
+        # pnpm's ERR_PNPM_IGNORED_BUILDS gate. Versions pinned to the repo's so
+        # the oracle stays deterministic. Used via OXFMT_BIN / FMT_CORPUS_OXFMT.
+        run: |
+          mkdir -p "$RUNNER_TEMP/fmt-oracle"
+          cd "$RUNNER_TEMP/fmt-oracle"
+          npm init -y >/dev/null
+          npm i --ignore-scripts oxfmt@0.53.0 svelte@5.56.2
+          ./node_modules/.bin/oxfmt --version
+
+      - name: Resolve svelte.dev submodule SHA
+        id: svelte-dev-sha
+        shell: bash
+        run: echo "sha=$(git submodule status submodules/svelte.dev | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache formatter parity corpus
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          # Oracle outputs keyed on the svelte.dev SHA + the canonical config.
+          path: fixtures/fmt-corpus
+          key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
+
+      - name: Generate formatter parity corpus
+        run: pnpm run generate-fmt-corpus
+        timeout-minutes: 15
+        env:
+          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+
       - name: Run tests
         # `--all-features` would enable `napi`, which only links cleanly when
         # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:
@@ -230,6 +262,8 @@ jobs:
           # error and bails out before emitting the user-source diagnostics
           # the golden test verifies.
           TSGO_BIN: ${{ github.workspace }}/submodules/svelte/node_modules/.bin/tsc
+          # oxfmt launcher for the svelte.dev corpus tests' <style> / CLI paths.
+          FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
       - name: Collect failure artifacts
         if: failure()

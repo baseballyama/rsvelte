@@ -18,3 +18,8 @@
 	path = submodules/eslint-plugin-svelte
 	url = https://github.com/sveltejs/eslint-plugin-svelte
 	ignore = dirty
+[submodule "submodules/svelte.dev"]
+	path = submodules/svelte.dev
+	url = https://github.com/sveltejs/svelte.dev.git
+	ignore = dirty
+	shallow = true

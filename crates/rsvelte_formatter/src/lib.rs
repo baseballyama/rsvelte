@@ -12,6 +12,8 @@
 //! source is passed through unchanged. Subsequent iterations will add
 //! CSS formatting and markup Doc IR composition.
 
+mod collapse;
+mod doc;
 mod error;
 mod expression;
 mod indent;
@@ -67,17 +69,26 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         if let Some((start, end, formatted)) = script::format_script(source, script, options)? {
             edits.push((start, end, formatted));
         }
+        if let Some(edit) = script::format_open_tag(source, script.start, script.end) {
+            edits.push(edit);
+        }
     }
 
     // Open-tag and close-tag rewrites first — they own the element-tag
     // spans including their attribute lists. The expression and indent
     // passes below target spans outside those rewritten regions.
     markup::collect_open_tag_edits(source, &root.fragment, 0, options, &mut edits)?;
+    if let Some(opts) = &root.options {
+        markup::collect_options_open_tag_edit(source, opts, options, &mut edits)?;
+    }
     expression::collect_template_edits(source, &root.fragment, 0, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
     if let Some(css) = &root.css {
         style::collect_style_edit(source, css, options, &mut edits)?;
     }
+    // `<style>` elements nested in the markup (e.g. in `<svelte:head>` or a
+    // wrapper element) aren't hoisted into `root.css`, so format them here.
+    style::collect_nested_style_edits(source, &root.fragment, options, &mut edits)?;
 
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
@@ -85,5 +96,24 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     for (start, end, new_text) in edits {
         out.replace_range(start as usize..end as usize, &new_text);
     }
+
+    // Post-pass: collapse pure-text elements onto one line when they fit.
+    out = collapse::collapse_pure_text_elements(&out, options)?;
+
+    // Start the file at content: prettier / oxfmt strip leading blank lines and
+    // indentation before the first node (e.g. a markdown code block that begins
+    // with a blank line, or a leading newline before `<svelte:options>`).
+    let lead = out.len() - out.trim_start_matches([' ', '\t', '\r', '\n']).len();
+    if lead > 0 {
+        out.drain(..lead);
+    }
+
+    // End the file with exactly one newline (prettier / oxfmt `insertFinalNewline`).
+    let trimmed_len = out.trim_end_matches([' ', '\t', '\r', '\n']).len();
+    out.truncate(trimmed_len);
+    if !out.is_empty() {
+        out.push('\n');
+    }
+
     Ok(out)
 }
