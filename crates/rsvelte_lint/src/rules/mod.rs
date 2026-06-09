@@ -16,6 +16,7 @@ pub mod no_dynamic_slot_name;
 pub mod no_extra_reactive_curlies;
 pub mod no_goto_without_base;
 pub mod no_ignored_unsubscribe;
+pub mod no_immutable_reactive_statements;
 pub mod no_inline_styles;
 pub mod no_inner_declarations;
 pub mod no_inspect;

@@ -119,6 +119,11 @@ const RULES: &[(&str, &str, bool)] = &[
     ("no-goto-without-base", "svelte/no-goto-without-base", false),
     ("no-inline-styles", "svelte/no-inline-styles", false),
     (
+        "no-immutable-reactive-statements",
+        "svelte/no-immutable-reactive-statements",
+        false,
+    ),
+    (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
         false,
