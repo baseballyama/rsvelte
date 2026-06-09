@@ -48,6 +48,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(
             crate::rules::no_unknown_style_directive_property::NoUnknownStyleDirectiveProperty,
         ),
+        Box::new(crate::rules::no_inline_styles::NoInlineStyles),
     ]
 }
 
