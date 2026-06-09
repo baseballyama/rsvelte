@@ -11,6 +11,7 @@
 
 use rsvelte_core::ast::css::StyleSheet;
 use rsvelte_core::ast::template::{Fragment, TemplateNode};
+use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
@@ -136,14 +137,15 @@ fn format_nested_style(
     if body.trim().is_empty() {
         return Ok(());
     }
-    let dedented = dedent(body);
-    let formatted = formatter(&dedented, "css").map_err(FormatError::StyleFormat)?;
     // The element renders at `depth` levels of the configured indent unit (the
     // indent pass normalizes the tag's own indentation to that), so derive the
     // body indent from the depth — not the source whitespace (which may be tabs).
     let unit = indent_unit(options);
     let tag_indent = unit.repeat(depth);
     let body_indent = format!("{tag_indent}{unit}");
+    let width = css_width(options, &body_indent);
+    let dedented = dedent(body);
+    let formatted = formatter(&dedented, "css", width).map_err(FormatError::StyleFormat)?;
     let reindented = reindent(&formatted, &body_indent);
     let spliced = format!("\n{reindented}\n{tag_indent}");
     edits.push((start + open_end as u32, start + close_start as u32, spliced));
@@ -174,9 +176,6 @@ pub(crate) fn collect_style_edit(
     // the indentation a previous run already added, every pass adds another
     // level and idempotency breaks. Dedenting makes the formatter input
     // identical across runs.
-    let dedented = dedent(body);
-    let formatted = formatter(&dedented, &lang).map_err(FormatError::StyleFormat)?;
-
     // `oxfmt` formats the body as a standalone file: base indent 0, with no
     // surrounding newlines. Inside `<style>` each line must sit one level
     // deeper than the tag and on its own lines, so re-indent before splicing
@@ -185,6 +184,9 @@ pub(crate) fn collect_style_edit(
     // (`<style>.foo {`) with no indentation.
     let tag_indent = leading_indent(source, css.start);
     let body_indent = format!("{tag_indent}{}", indent_unit(options));
+    let width = css_width(options, &body_indent);
+    let dedented = dedent(body);
+    let formatted = formatter(&dedented, &lang, width).map_err(FormatError::StyleFormat)?;
     let reindented = reindent(&formatted, &body_indent);
     let spliced = format!("\n{reindented}\n{tag_indent}");
 
@@ -224,6 +226,15 @@ fn indent_unit(options: &FormatOptions) -> String {
 /// their leading whitespace is part of the comment token, which oxfmt (like
 /// prettier) preserves byte-for-byte, so dedenting them would permanently
 /// strip indentation the oracle keeps.
+/// The print width to format a `<style>` body at: the global print width minus
+/// the body's indentation (visual width), floored so a deeply nested block still
+/// gets a usable width.
+fn css_width(options: &FormatOptions, body_indent: &str) -> usize {
+    let full = options.js.line_width.value() as usize;
+    full.saturating_sub(UnicodeWidthStr::width(body_indent))
+        .max(20)
+}
+
 fn dedent(s: &str) -> String {
     let cont = comment_continuation_flags(s);
     let lines: Vec<&str> = s.lines().collect();

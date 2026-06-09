@@ -20,7 +20,7 @@ fn style_verbatim_when_no_callback() {
 fn callback_receives_body_and_lang_default_css() {
     let captured: Arc<Mutex<Option<(String, String)>>> = Arc::new(Mutex::new(None));
     let captured_clone = captured.clone();
-    let cb: StyleFormatter = Arc::new(move |body, lang| {
+    let cb: StyleFormatter = Arc::new(move |body, lang, _width| {
         *captured_clone.lock().unwrap() = Some((body.to_string(), lang.to_string()));
         Ok(format!("/* normalized */\n{body}"))
     });
@@ -50,7 +50,7 @@ fn callback_receives_body_and_lang_default_css() {
 fn callback_receives_scss_lang_attribute() {
     let captured: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let captured_clone = captured.clone();
-    let cb: StyleFormatter = Arc::new(move |body, lang| {
+    let cb: StyleFormatter = Arc::new(move |body, lang, _width| {
         *captured_clone.lock().unwrap() = Some(lang.to_string());
         Ok(body.to_string())
     });
@@ -71,7 +71,7 @@ fn callback_receives_scss_lang_attribute() {
 fn empty_style_block_skips_callback() {
     let calls: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
     let calls_clone = calls.clone();
-    let cb: StyleFormatter = Arc::new(move |body, _lang| {
+    let cb: StyleFormatter = Arc::new(move |body, _lang, _width| {
         *calls_clone.lock().unwrap() += 1;
         Ok(body.to_string())
     });
@@ -93,7 +93,7 @@ fn empty_style_block_skips_callback() {
 fn no_style_block_at_all() {
     let calls: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
     let calls_clone = calls.clone();
-    let cb: StyleFormatter = Arc::new(move |body, _lang| {
+    let cb: StyleFormatter = Arc::new(move |body, _lang, _width| {
         *calls_clone.lock().unwrap() += 1;
         Ok(body.to_string())
     });
@@ -109,7 +109,7 @@ fn no_style_block_at_all() {
 
 #[test]
 fn style_alongside_script_both_format() {
-    let cb: StyleFormatter = Arc::new(|body, _lang| Ok(format!("FORMATTED_CSS:{}", body)));
+    let cb: StyleFormatter = Arc::new(|body, _lang, _width| Ok(format!("FORMATTED_CSS:{}", body)));
     let opts = FormatOptions {
         style_formatter: Some(cb),
         ..FormatOptions::default()

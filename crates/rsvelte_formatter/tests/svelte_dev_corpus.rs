@@ -84,39 +84,57 @@ fn oxfmt_runnable(oxfmt: &Path) -> bool {
 /// `crates/rsvelte_fmt/src/main.rs::make_oxfmt_style_formatter`: pipe the
 /// dedented `<style>` body through oxfmt with the canonical config.
 fn make_style_formatter(oxfmt: PathBuf, config: PathBuf) -> StyleFormatter {
-    std::sync::Arc::new(move |body: &str, lang: &str| -> Result<String, String> {
-        let ext = match lang {
-            "scss" => "scss",
-            "less" => "less",
-            _ => "css",
-        };
-        let filename = format!("inline.{ext}");
-        let mut child = Command::new(&oxfmt)
-            .arg("-c")
-            .arg(&config)
-            .arg("--stdin-filepath")
-            .arg(&filename)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("spawn oxfmt: {e}"))?;
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(body.as_bytes())
-            .map_err(|e| format!("write stdin: {e}"))?;
-        let out = child.wait_with_output().map_err(|e| format!("wait: {e}"))?;
-        if !out.status.success() {
-            return Err(format!(
-                "oxfmt exited {:?}: {}",
-                out.status.code(),
-                String::from_utf8_lossy(&out.stderr)
+    let base = std::fs::read_to_string(&config).unwrap_or_default();
+    std::sync::Arc::new(
+        move |body: &str, lang: &str, width: usize| -> Result<String, String> {
+            let ext = match lang {
+                "scss" => "scss",
+                "less" => "less",
+                _ => "css",
+            };
+            let filename = format!("inline.{ext}");
+            // Format CSS at `width` (global print width minus the <style> body indent)
+            // so embedded CSS wraps where the oracle (which formats it at its real
+            // column) does. Derive a per-width config from the canonical one (its
+            // printWidth is always 80). Use a UNIQUE temp file per call — the corpus
+            // formats files in parallel, so a shared per-width path would race
+            // (concurrent writers corrupt the config a reader picks up).
+            static SEQ: AtomicUsize = AtomicUsize::new(0);
+            let n = SEQ.fetch_add(1, Ordering::Relaxed);
+            let cfg = std::env::temp_dir().join(format!(
+                "rsvelte-fmtcorpus-css-{}-{width}-{n}.json",
+                std::process::id()
             ));
-        }
-        String::from_utf8(out.stdout).map_err(|e| format!("oxfmt non-utf8: {e}"))
-    })
+            let contents = base.replace("\"printWidth\": 80", &format!("\"printWidth\": {width}"));
+            std::fs::write(&cfg, contents).map_err(|e| format!("write css config: {e}"))?;
+            let mut child = Command::new(&oxfmt)
+                .arg("-c")
+                .arg(&cfg)
+                .arg("--stdin-filepath")
+                .arg(&filename)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("spawn oxfmt: {e}"))?;
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(body.as_bytes())
+                .map_err(|e| format!("write stdin: {e}"))?;
+            let out = child.wait_with_output().map_err(|e| format!("wait: {e}"))?;
+            let _ = std::fs::remove_file(&cfg);
+            if !out.status.success() {
+                return Err(format!(
+                    "oxfmt exited {:?}: {}",
+                    out.status.code(),
+                    String::from_utf8_lossy(&out.stderr)
+                ));
+            }
+            String::from_utf8(out.stdout).map_err(|e| format!("oxfmt non-utf8: {e}"))
+        },
+    )
 }
 
 /// Mirror `rsvelte_fmt`'s default `build_format_options` with an empty config:

@@ -35,9 +35,13 @@ pub struct FormatOptions {
     pub typescript: bool,
 }
 
-/// Callback used to format the body of a `<style>` block. See
+/// Callback used to format the body of a `<style>` block: `(css, lang, width)`.
+/// `width` is the print width the CSS should be formatted at — the global print
+/// width minus the `<style>` body's indentation — so embedded CSS wraps where
+/// the oracle (which formats it at its real column) does. See
 /// [`FormatOptions::style_formatter`].
-pub type StyleFormatter = Arc<dyn Fn(&str, &str) -> Result<String, String> + Send + Sync + 'static>;
+pub type StyleFormatter =
+    Arc<dyn Fn(&str, &str, usize) -> Result<String, String> + Send + Sync + 'static>;
 
 impl FormatOptions {
     pub fn new() -> Self {

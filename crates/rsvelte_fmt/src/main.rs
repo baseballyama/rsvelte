@@ -275,46 +275,73 @@ fn build_format_options(cli: &Cli, cfg: &OxfmtConfig) -> FormatOptions {
 /// for every `<style>` body inside a `.svelte` file.
 /// This way CSS / SCSS / Less inside Svelte components are formatted
 /// by the same engine that handles standalone `.css` files.
+/// Build a per-width oxfmt config: start from the base config's JSON (if any) and
+/// force `printWidth = width`, so embedded `<style>` CSS wraps at the column it
+/// renders at. Returns the temp config path, or the base config (no override) for
+/// a non-JSON / unreadable base. Configs are cached by width under a per-process
+/// temp dir.
+fn css_config_for_width(base: Option<&Path>, width: usize) -> Option<PathBuf> {
+    let mut json: serde_json::Value = base
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
+    let Some(obj) = json.as_object_mut() else {
+        return base.map(Path::to_path_buf);
+    };
+    obj.insert("printWidth".into(), serde_json::Value::from(width));
+    let dir = std::env::temp_dir().join(format!("rsvelte-fmt-css-cfg-{}", std::process::id()));
+    if std::fs::create_dir_all(&dir).is_err() {
+        return base.map(Path::to_path_buf);
+    }
+    let p = dir.join(format!("w{width}.json"));
+    match std::fs::write(&p, json.to_string()) {
+        Ok(()) => Some(p),
+        Err(_) => base.map(Path::to_path_buf),
+    }
+}
+
 fn make_oxfmt_style_formatter(
     oxfmt: PathBuf,
     config: Option<PathBuf>,
 ) -> rsvelte_formatter::StyleFormatter {
-    Arc::new(move |body: &str, lang: &str| -> Result<String, String> {
-        let filename = format!("inline.{}", oxfmt_ext(lang));
-        // oxfmt reads stdin implicitly when `--stdin-filepath` is given with no
-        // path arguments. It has no `--stdin` flag and errors if one is passed
-        // (#680), so feed the body on stdin and pass only `--stdin-filepath`.
-        let mut cmd = oxfmt_command(&oxfmt);
-        // Force the resolved project config so inline `<style>` settings match
-        // standalone files even though oxfmt's own cwd discovery would apply
-        // here too — explicit is harmless and keeps the path consistent with
-        // the temp-dir batch path. See #693.
-        if let Some(c) = &config {
-            cmd.arg("-c").arg(c);
-        }
-        let mut child = cmd
-            .arg("--stdin-filepath")
-            .arg(&filename)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("spawn `{}`: {e}", oxfmt.display()))?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(body.as_bytes())
-                .map_err(|e| format!("write stdin: {e}"))?;
-        }
-        let out = child.wait_with_output().map_err(|e| format!("wait: {e}"))?;
-        if !out.status.success() {
-            return Err(format!(
-                "oxfmt for {filename} exited with {:?}: {}",
-                out.status.code(),
-                String::from_utf8_lossy(&out.stderr)
-            ));
-        }
-        String::from_utf8(out.stdout).map_err(|e| format!("oxfmt produced invalid utf-8: {e}"))
-    })
+    Arc::new(
+        move |body: &str, lang: &str, width: usize| -> Result<String, String> {
+            let filename = format!("inline.{}", oxfmt_ext(lang));
+            // oxfmt reads stdin implicitly when `--stdin-filepath` is given with no
+            // path arguments. It has no `--stdin` flag and errors if one is passed
+            // (#680), so feed the body on stdin and pass only `--stdin-filepath`.
+            let mut cmd = oxfmt_command(&oxfmt);
+            // Force the resolved project config (with printWidth narrowed to the
+            // style's column) so inline `<style>` settings match standalone files.
+            // See #693.
+            let cfg = css_config_for_width(config.as_deref(), width);
+            if let Some(c) = &cfg {
+                cmd.arg("-c").arg(c);
+            }
+            let mut child = cmd
+                .arg("--stdin-filepath")
+                .arg(&filename)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("spawn `{}`: {e}", oxfmt.display()))?;
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin
+                    .write_all(body.as_bytes())
+                    .map_err(|e| format!("write stdin: {e}"))?;
+            }
+            let out = child.wait_with_output().map_err(|e| format!("wait: {e}"))?;
+            if !out.status.success() {
+                return Err(format!(
+                    "oxfmt for {filename} exited with {:?}: {}",
+                    out.status.code(),
+                    String::from_utf8_lossy(&out.stderr)
+                ));
+            }
+            String::from_utf8(out.stdout).map_err(|e| format!("oxfmt produced invalid utf-8: {e}"))
+        },
+    )
 }
 
 // ─── stdin path ─────────────────────────────────────────────────────────
@@ -602,7 +629,12 @@ fn format_collecting(path: &Path, options: &FormatOptions) -> Pass1 {
     let styles: Arc<std::sync::Mutex<Vec<CollectedStyle>>> = Arc::default();
     let sink = styles.clone();
     let mut opts = options.clone();
-    opts.style_formatter = Some(Arc::new(move |body: &str, lang: &str| {
+    // The multi-file batch path collects all `<style>` bodies for one batched
+    // oxfmt call shared across files, so it formats them at the base print width
+    // (per-width narrowing — see make_oxfmt_style_formatter — would defeat the
+    // batch). CSS whose wrapping is sensitive to the style's column is a minor
+    // edge here; the single-file / stdin path narrows correctly.
+    opts.style_formatter = Some(Arc::new(move |body: &str, lang: &str, _width: usize| {
         let mut v = sink.lock().expect("style sink poisoned");
         let idx = v.len();
         v.push(CollectedStyle {

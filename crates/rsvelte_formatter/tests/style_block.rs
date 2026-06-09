@@ -12,8 +12,10 @@ use rsvelte_formatter::{FormatOptions, format};
 /// mimicking `oxfmt`'s canonical base-0 output so the test exercises only the
 /// re-embedding (indentation + surrounding newlines), not a real CSS engine.
 fn fmt_with_css(src: &str, css_out: &'static str) -> String {
-    let opts = FormatOptions::default()
-        .with_style_formatter(Arc::new(move |_body, _lang| Ok(css_out.to_string())));
+    let opts =
+        FormatOptions::default().with_style_formatter(Arc::new(move |_body, _lang, _width| {
+            Ok(css_out.to_string())
+        }));
     format(src, &opts).expect("format ok")
 }
 
@@ -67,10 +69,9 @@ fn empty_style_body_untouched() {
 /// trailing newline, and no surrounding blank lines. This exercises the
 /// dedent-before / reindent-after round-trip directly.
 fn fmt_passthrough(src: &str) -> String {
-    let opts =
-        FormatOptions::default().with_style_formatter(Arc::new(|body: &str, _lang: &str| {
-            Ok(format!("{}\n", body.trim()))
-        }));
+    let opts = FormatOptions::default().with_style_formatter(Arc::new(
+        |body: &str, _lang: &str, _width: usize| Ok(format!("{}\n", body.trim())),
+    ));
     format(src, &opts).expect("format ok")
 }
 
