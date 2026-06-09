@@ -457,7 +457,6 @@ fn collect(
                     if matches!(elem.name.as_str(), "pre" | "textarea")
                         && let Some(edit) = try_break_pre_content_tag(
                             out,
-                            elem.name.as_str(),
                             elem.start,
                             elem.end,
                             &elem.fragment,
@@ -1008,7 +1007,6 @@ fn try_break_inline_content_tag(
 ///       part.value.stack.replace(/^\n+/, "")}</pre>
 fn try_break_pre_content_tag(
     out: &str,
-    tag: &str,
     start: u32,
     end: u32,
     fragment: &Fragment,
