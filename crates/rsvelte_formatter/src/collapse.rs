@@ -523,9 +523,17 @@ fn try_fill_mixed(
         base_level,
         inner_indent.width(),
     );
-    // Nothing gained if it all fits on one line (handled elsewhere).
+    // When the content fits on one line, only break it onto its own line if the
+    // whole element line (`open + content + close`) overflows AND the element is
+    // block-display — a block element whose element line is too long puts its
+    // content on its own line (`<li>`\n`  …`\n`</li>`), while an inline element
+    // would instead hug, so leave those alone.
     if !printed.contains('\n') {
-        return None;
+        let column = current_column(out, start);
+        let element_one_line = column + open.width() + printed.width() + close.width();
+        if element_one_line <= line_width || !is_block_display(tag) {
+            return None;
+        }
     }
     let broken = format!("{open}\n{inner_indent}{printed}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
