@@ -201,6 +201,16 @@ fn try_collapse(
     let had_trail = raw.ends_with([' ', '\t', '\n', '\r']);
     let collapsed = raw.split_whitespace().collect::<Vec<_>>().join(" ");
 
+    // Empty element (whitespace-only body): collapse to `<tag></tag>` — the
+    // close tag glues directly to the `>`, dropping the body whitespace. This
+    // holds even when the open tag wrapped across lines (`<svelte:boundary\n
+    // onerror={…}\n></svelte:boundary>`), which the one-line path below rejects
+    // because the open tag contains a newline.
+    if collapsed.is_empty() {
+        let result = format!("{open}{close}");
+        return (result != whole).then_some((start, end, result));
+    }
+
     // One-line form.
     let mut one_line = String::with_capacity(whole.len());
     one_line.push_str(open);
