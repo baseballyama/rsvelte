@@ -80,10 +80,19 @@ pub(crate) fn collect_options_open_tag_edit(
         &attrs,
         None,
         0,
+        false,
         options,
         edits,
     )?;
     Ok(())
+}
+
+/// Whether a fragment has no rendered content — empty or whitespace-only text.
+fn is_empty_fragment(fragment: &Fragment) -> bool {
+    fragment
+        .nodes
+        .iter()
+        .all(|n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
 }
 
 fn collect_node_open_tag_edits(
@@ -102,6 +111,7 @@ fn collect_node_open_tag_edits(
                 &elem.attributes,
                 None,
                 depth,
+                is_empty_fragment(&elem.fragment),
                 options,
                 edits,
             )?;
@@ -124,6 +134,7 @@ fn collect_node_open_tag_edits(
                 &c.attributes,
                 None,
                 depth,
+                is_empty_fragment(&c.fragment),
                 options,
                 edits,
             )?;
@@ -146,6 +157,7 @@ fn collect_node_open_tag_edits(
                 &t.attributes,
                 None,
                 depth,
+                is_empty_fragment(&t.fragment),
                 options,
                 edits,
             )?;
@@ -168,6 +180,7 @@ fn collect_node_open_tag_edits(
                 &s.attributes,
                 None,
                 depth,
+                is_empty_fragment(&s.fragment),
                 options,
                 edits,
             )?;
@@ -197,6 +210,7 @@ fn collect_node_open_tag_edits(
                 &s.attributes,
                 None,
                 depth,
+                is_empty_fragment(&s.fragment),
                 options,
                 edits,
             )?;
@@ -219,6 +233,7 @@ fn collect_node_open_tag_edits(
                 &c.attributes,
                 Some(&c.expression),
                 depth,
+                is_empty_fragment(&c.fragment),
                 options,
                 edits,
             )?;
@@ -241,6 +256,7 @@ fn collect_node_open_tag_edits(
                 &e.attributes,
                 Some(&e.tag),
                 depth,
+                is_empty_fragment(&e.fragment),
                 options,
                 edits,
             )?;
@@ -410,6 +426,7 @@ fn push_open_tag(
     attributes: &[Attribute],
     this_expression: Option<&Expression>,
     depth: usize,
+    empty_element: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<bool, FormatError> {
@@ -490,12 +507,34 @@ fn push_open_tag(
     // A `//` line comment can't share a line with the closing `>` (it would
     // comment out the rest of the tag), so any line comment forces the
     // multi-line shape.
-    let fits_one_line = !has_line_comment
-        && !any_multiline_attr
-        && leading_indent_width + visual_width(&one_liner) <= line_width;
+    let open_one_line_width = leading_indent_width + visual_width(&one_liner);
+    let open_fits = open_one_line_width <= line_width;
+    let fits_one_line = !has_line_comment && !any_multiline_attr && open_fits;
 
-    let wrapped = !(rendered_attrs.is_empty() || fits_one_line);
-    let rendered = if wrapped {
+    // prettier wraps the open tag when the whole element overflows flat, not just
+    // the open tag. For an empty element the flat element is `open + </tag>`, so
+    // when the open tag fits one line but `open + close` overflows, keep the
+    // attributes on one line and break only the `>` onto the next line
+    // (`<my-stepper …a …b`\n`></my-stepper>`) — the inner attr-group stays flat
+    // while the outer element-group breaks. (Non-empty content width isn't
+    // measured here — that's the full group model, out of scope.)
+    let close_width = if empty_element && !self_closing {
+        tag_name.len() + 3 // "</" + name + ">"
+    } else {
+        0
+    };
+    let element_overflows = close_width > 0 && open_one_line_width + close_width > line_width;
+    let shape_two = !rendered_attrs.is_empty()
+        && fits_one_line
+        && element_overflows
+        && one_liner.ends_with('>');
+
+    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two;
+    let rendered = if shape_two {
+        // `one_liner` ends in `>`; drop it and put the `>` on the next line.
+        let outer_indent = indent_str(depth, &options.js);
+        format!("{}\n{outer_indent}>", &one_liner[..one_liner.len() - 1])
+    } else if wrapped {
         render_multi_line(
             tag_name,
             &rendered_attrs,
