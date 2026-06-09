@@ -91,7 +91,8 @@ pub fn transform_server(
         && !options.custom_element
     {
         // Render the CSS stylesheet with scoping and minification for SSR
-        if let Ok(css_output) = render_stylesheet_minified(analysis, &analysis.source, options)
+        if let Ok(css_output) =
+            render_stylesheet_minified(analysis, ast.css.as_deref(), &analysis.source, options)
             && !css_output.code.is_empty()
         {
             generator.set_injected_css(analysis.css.hash.clone(), css_output.code);
