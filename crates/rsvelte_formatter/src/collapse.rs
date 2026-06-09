@@ -25,7 +25,15 @@ pub(crate) fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
-    let root = parse(out, ParseOptions::default()).map_err(FormatError::from_parse)?;
+    // Collapse is a best-effort post-pass over the already-formatted output. If
+    // that output can't be re-parsed, skip collapse and return it as-is rather
+    // than failing the whole format — the JS formatter can legitimately emit
+    // markup that rsvelte's (Svelte-faithful) parser rejects but the oxfmt oracle
+    // accepts, e.g. stripping the parens off `{(/regex/).test(x)}` to a `{/…}`
+    // expression that looks like a block close.
+    let Ok(root) = parse(out, ParseOptions::default()) else {
+        return Ok(out.to_string());
+    };
     let line_width = options.js.line_width.value() as usize;
 
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
@@ -41,7 +49,9 @@ pub(crate) fn collapse_pure_text_elements(
     // and member-chain-break those in place — this can't run in the first pass
     // because the hug edit that creates the overflowing line owns the element and
     // suppresses recursion into it.
-    let root2 = parse(&result, ParseOptions::default()).map_err(FormatError::from_parse)?;
+    let Ok(root2) = parse(&result, ParseOptions::default()) else {
+        return Ok(result);
+    };
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
     collect_content_tag_breaks(&result, &root2.fragment, line_width, options, &mut edits2);
     let result = if edits2.is_empty() {
@@ -54,7 +64,9 @@ pub(crate) fn collapse_pure_text_elements(
     // otherwise leaves their whole subtree verbatim, but oxfmt formats the block
     // bodies (space-indented) + embedded JS while keeping element-direct
     // whitespace as raw tabs. Re-format those subtrees with that hybrid rule.
-    let root3 = parse(&result, ParseOptions::default()).map_err(FormatError::from_parse)?;
+    let Ok(root3) = parse(&result, ParseOptions::default()) else {
+        return Ok(result);
+    };
     let mut edits3: Vec<(u32, u32, String)> = Vec::new();
     collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
     if edits3.is_empty() {
