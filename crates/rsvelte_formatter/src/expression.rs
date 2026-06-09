@@ -726,10 +726,26 @@ fn format_content_expression(
 ) -> Result<String, FormatError> {
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
-    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
+    let full_width = options.js.line_width.value() as usize;
+    let narrowed = full_width.saturating_sub(lead);
     let line_width =
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, line_width, false)?;
+    // A single-line value that overflows once the surrounding `{ }` are counted is
+    // a shallow expression (ternary / binary) prettier wraps at its top level;
+    // re-format narrowed by the braces so it breaks the same way. A value that is
+    // already multi-line (an arrow / object body) is left as-is (its continuation
+    // lines sit at `depth` with full width).
+    let formatted = if !formatted.contains('\n')
+        && lead + 1 + UnicodeWidthStr::width(formatted.as_str()) + 1 > full_width
+    {
+        let narrowed2 = full_width.saturating_sub(lead + 2);
+        let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2 as u16)
+            .unwrap_or(options.js.line_width);
+        format_expr_core(expr_source, options, lw2, false)?
+    } else {
+        formatted
+    };
     if !formatted.contains('\n') {
         return Ok(formatted);
     }
