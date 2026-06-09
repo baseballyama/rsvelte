@@ -253,7 +253,13 @@ fn try_collapse(
     // — the `>` glues to the content so no whitespace is injected. The open tag
     // must fit on one line and the `>content</tag` line must fit; otherwise this
     // needs attribute-wrapping / content fill we don't do here.
-    if !trims_edge_whitespace(tag) {
+    //
+    // The hug only applies when the content is directly adjacent to the tags
+    // (prettier's `shouldHugStart`/`shouldHugEnd`: hug iff the first/last child
+    // does NOT start/end with whitespace). When the content is separated from
+    // the tags by whitespace (`<button>\n  click me\n</button>`), prettier
+    // block-breaks instead, so fall through to the block-break path below.
+    if !trims_edge_whitespace(tag) && !had_lead && !had_trail {
         if open.contains('\n') || !open.ends_with('>') {
             return None;
         }
@@ -388,7 +394,10 @@ fn is_block_display(tag: &str) -> bool {
 }
 
 fn is_whitespace_preserving(tag: &str) -> bool {
-    matches!(tag, "pre" | "textarea")
+    // `pre` / `textarea` preserve whitespace; `script` / `style` carry raw
+    // JS/CSS already formatted by their dedicated passes (oxfmt). None of these
+    // may have their text content reflowed as prose by the collapse pass.
+    matches!(tag, "pre" | "textarea" | "script" | "style")
 }
 
 /// Tags whose text content has its leading/trailing whitespace trimmed when
