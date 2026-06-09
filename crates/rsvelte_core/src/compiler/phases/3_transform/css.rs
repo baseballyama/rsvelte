@@ -346,27 +346,34 @@ fn collect_unused_warnings_from_nodes<'a>(
 }
 
 /// Render the stylesheet for a component.
+///
+/// `preparsed` is the phase-1-parsed `<style>` AST (`Root.css`). When present
+/// and its content offset matches, its `children` are reused directly, avoiding
+/// a full re-parse of the stylesheet here.
 pub fn render_stylesheet(
     analysis: &ComponentAnalysis,
+    ast: Option<&crate::ast::css::StyleSheet>,
     source: &str,
     options: &CompileOptions,
 ) -> Result<CssOutput, TransformError> {
-    render_stylesheet_internal(analysis, source, options, false)
+    render_stylesheet_internal(analysis, ast, source, options, false)
 }
 
 /// Render the stylesheet for a component with optional minification.
 /// Used for injected CSS in SSR which should be minified.
 pub fn render_stylesheet_minified(
     analysis: &ComponentAnalysis,
+    ast: Option<&crate::ast::css::StyleSheet>,
     source: &str,
     options: &CompileOptions,
 ) -> Result<CssOutput, TransformError> {
-    render_stylesheet_internal(analysis, source, options, true)
+    render_stylesheet_internal(analysis, ast, source, options, true)
 }
 
 /// Internal implementation of render_stylesheet with minification option.
 fn render_stylesheet_internal(
     analysis: &ComponentAnalysis,
+    ast: Option<&crate::ast::css::StyleSheet>,
     source: &str,
     options: &CompileOptions,
     minify: bool,
@@ -399,14 +406,29 @@ fn render_stylesheet_internal(
 
     // Extract CSS content and its start position
     if let Some((css_content, css_start)) = extract_css_content(source) {
-        // Parse the CSS with proper start offset
-        let children = parse_css(&css_content, css_start);
+        // Reuse the phase-1-parsed stylesheet when it lines up with the content
+        // extracted here, avoiding a redundant full re-parse (the transform
+        // profile showed this re-parse at ~60% inclusive on CSS-heavy input).
+        // `parse_css` here is the *same* function phase 1 used, so when the
+        // start offsets agree the trees are byte-identical; the offset guard
+        // falls back to re-parsing on any mismatch (e.g. an unusual opener that
+        // the two extraction paths disagree on), preserving current behavior.
+        let reparsed;
+        let children: &[Value] = match ast {
+            Some(ss) if ss.content.start as usize == css_start && !ss.children.is_empty() => {
+                &ss.children
+            }
+            _ => {
+                reparsed = parse_css(&css_content, css_start);
+                &reparsed
+            }
+        };
 
         // Collect keyframe names for animation value replacement
-        let keyframes = collect_keyframe_names(&children);
+        let keyframes = collect_keyframe_names(children);
 
         // Transform the CSS
-        let mut code = transform_css(&children, &selector, hash, &css_content, css_start, &ctx);
+        let mut code = transform_css(children, &selector, hash, &css_content, css_start, &ctx);
 
         // Post-process: replace animation keyframe references
         if !keyframes.is_empty() {

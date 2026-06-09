@@ -215,7 +215,7 @@ pub fn transform_component(
 
     let css = if analysis.css.has_css && !analysis.inject_styles {
         let _css_start = profile::timer_start();
-        let mut css_output = css::render_stylesheet(analysis, source, options)?;
+        let mut css_output = css::render_stylesheet(analysis, ast.css.as_deref(), source, options)?;
         profile::record_css_render(profile::timer_elapsed(_css_start));
         // Apply preprocessor source map composition to CSS map if needed
         if let Some(ref pp_map_json) = options.sourcemap

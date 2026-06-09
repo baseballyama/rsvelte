@@ -1794,9 +1794,9 @@ fn transform_client_with_visitors(
         let is_custom_element = analysis.custom_element.is_some();
         let mut css_code = String::new();
         let css_render_result = if is_custom_element {
-            super::css::render_stylesheet_minified(analysis, source, options)
+            super::css::render_stylesheet_minified(analysis, ast.css.as_deref(), source, options)
         } else {
-            super::css::render_stylesheet(analysis, source, options)
+            super::css::render_stylesheet(analysis, ast.css.as_deref(), source, options)
         };
         if let Ok(css_output) = css_render_result {
             css_code = css_output.code;
