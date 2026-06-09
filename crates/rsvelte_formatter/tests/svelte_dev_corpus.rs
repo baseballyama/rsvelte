@@ -306,11 +306,12 @@ fn svelte_dev_corpus_parity() {
              ({passing}/{total} pass):\n",
             failures.len(),
         );
+        use std::fmt::Write as _;
         for (id, detail) in failures.iter().take(show) {
-            msg.push_str(&format!("\n  ✗ {id}\n      {detail}\n"));
+            let _ = write!(msg, "\n  ✗ {id}\n      {detail}\n");
         }
         if failures.len() > show {
-            msg.push_str(&format!("\n  … and {} more.\n", failures.len() - show));
+            let _ = write!(msg, "\n  … and {} more.\n", failures.len() - show);
         }
         panic!("{msg}");
     }

@@ -213,11 +213,12 @@ fn svelte_dev_markdown_cli_parity() {
             "\n{} markdown CLI parity failure(s) vs the oxfmt oracle ({passing}/{total} pass):\n",
             failures.len(),
         );
+        use std::fmt::Write as _;
         for (id, detail) in failures.iter().take(SHOW) {
-            msg.push_str(&format!("\n  ✗ {id}\n      {detail}\n"));
+            let _ = write!(msg, "\n  ✗ {id}\n      {detail}\n");
         }
         if failures.len() > SHOW {
-            msg.push_str(&format!("\n  … and {} more.\n", failures.len() - SHOW));
+            let _ = write!(msg, "\n  … and {} more.\n", failures.len() - SHOW);
         }
         panic!("{msg}");
     }
