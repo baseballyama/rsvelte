@@ -59,6 +59,7 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_extra_reactive_curlies::NoExtraReactiveCurlies;
     use crate::rules::no_goto_without_base::NoGotoWithoutBase;
     use crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe;
+    use crate::rules::no_immutable_reactive_statements::NoImmutableReactiveStatements;
     use crate::rules::no_inner_declarations::NoInnerDeclarations;
     use crate::rules::no_reactive_functions::NoReactiveFunctions;
     use crate::rules::no_reactive_literals::NoReactiveLiterals;
@@ -88,5 +89,6 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoReactiveFunctions),
         Box::new(NoExtraReactiveCurlies),
         Box::new(NoGotoWithoutBase),
+        Box::new(NoImmutableReactiveStatements),
     ]
 }
