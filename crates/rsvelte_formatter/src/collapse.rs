@@ -667,6 +667,29 @@ fn try_fill_mixed(
     // inline-element hug-break exactly.
     let content_doc = build_children_doc(out, fragment)?;
     let base_level = inner_indent.width() / 2;
+
+    // Decide flat-vs-break from the element's *flat* width, not the laid-out
+    // result — the content carries bare `line` separators (between mustaches /
+    // atoms) that would always break when printed in break mode. Render the
+    // content all-flat (a huge width) to measure: a `hardline` (a source blank
+    // line) still forces a newline, so flat content with a `\n` is inherently
+    // multi-line and must break.
+    let flat = crate::doc::print(
+        crate::doc::Doc::Group(vec![content_doc.clone()]),
+        1_000_000,
+        "  ",
+        base_level,
+        0,
+    );
+    let column = current_column(out, start);
+    if !flat.contains('\n') {
+        let element_one_line = column + open.width() + flat.width() + close.width();
+        // A block element whose flat element line overflows puts its content on
+        // its own line; an inline element would instead hug, so leave those.
+        if element_one_line <= line_width || !is_block_display(tag) {
+            return None;
+        }
+    }
     let printed = crate::doc::print(
         content_doc,
         line_width,
@@ -674,18 +697,6 @@ fn try_fill_mixed(
         base_level,
         inner_indent.width(),
     );
-    // When the content fits on one line, only break it onto its own line if the
-    // whole element line (`open + content + close`) overflows AND the element is
-    // block-display — a block element whose element line is too long puts its
-    // content on its own line (`<li>`\n`  …`\n`</li>`), while an inline element
-    // would instead hug, so leave those alone.
-    if !printed.contains('\n') {
-        let column = current_column(out, start);
-        let element_one_line = column + open.width() + printed.width() + close.width();
-        if element_one_line <= line_width || !is_block_display(tag) {
-            return None;
-        }
-    }
     let broken = format!("{open}\n{inner_indent}{printed}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
 }
@@ -740,7 +751,17 @@ fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc>
                     tr = true;
                     ws_prev = true;
                 }
-                docs.push(Doc::Fill(split_text_to_docs(txt, tl, tr)));
+                let parts = split_text_to_docs(txt, tl, tr);
+                if txt.split_whitespace().next().is_none() {
+                    // Whitespace-only separator (between mustaches / atoms): emit
+                    // the bare `line`(s) so they break with the surrounding
+                    // element group (prettier's `splitTextToDocs` returns a bare
+                    // line here, governed by the parent group's break mode) rather
+                    // than a lone `Fill` that always prints flat.
+                    docs.extend(parts);
+                } else {
+                    docs.push(Doc::Fill(parts));
+                }
             }
             other if is_inline_regular_element(other) => {
                 let elem = element_doc(out, other)?;
@@ -811,13 +832,17 @@ fn split_text_to_docs(text: &str, trim_left: bool, trim_right: bool) -> Vec<crat
 
     let mut docs: Vec<Doc> = Vec::new();
     if words.is_empty() {
-        // Whitespace-only text node between two siblings: a single separator.
+        // Whitespace-only text node between two siblings: a single separator
+        // (or a blank line when the source had ≥2 newlines).
         if !trim_left && !trim_right {
-            docs.push(if lead_break > 0 {
-                Doc::Hardline
-            } else {
-                Doc::Line
-            });
+            match lead_break {
+                0 => docs.push(Doc::Line),
+                1 => docs.push(Doc::Hardline),
+                _ => {
+                    docs.push(Doc::Hardline);
+                    docs.push(Doc::Hardline);
+                }
+            }
         }
         return docs;
     }
