@@ -145,15 +145,19 @@ pub(crate) fn print(
 }
 
 /// Whether `next` (rendered flat) followed by the rest of the command stack fits
-/// within `remaining` columns before the next forced line break.
+/// within `remaining` columns before the next forced line break. A faithful port
+/// of prettier's `doc.js` `fits`: a soft `line` defers a pending space that is
+/// only charged when a following string is emitted (so a trailing `line` costs
+/// nothing), and a hard/break line ends the measurement successfully.
 fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -> bool {
-    if remaining < 0 {
-        return false;
-    }
     let mut local: Vec<(Mode, Doc)> = next.iter().rev().map(|d| (Mode::Flat, d.clone())).collect();
     let mut rest_idx = rest_stack.len();
+    let mut has_pending_space = false;
 
     loop {
+        if remaining < 0 {
+            return false;
+        }
         let (mode, d) = match local.pop() {
             Some(x) => x,
             None => {
@@ -167,9 +171,12 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
         };
         match d {
             Doc::Text(s) => {
-                remaining -= s.width() as isize;
-                if remaining < 0 {
-                    return false;
+                if !s.is_empty() {
+                    if has_pending_space {
+                        remaining -= 1;
+                        has_pending_space = false;
+                    }
+                    remaining -= s.width() as isize;
                 }
             }
             Doc::Concat(ps) | Doc::Indent(ps) | Doc::Group(ps) | Doc::Fill(ps) => {
@@ -178,14 +185,10 @@ fn fits(mut remaining: isize, rest_stack: &[(usize, Mode, Doc)], next: &[Doc]) -
                 }
             }
             Doc::Line => {
-                if mode == Mode::Flat {
-                    remaining -= 1;
-                    if remaining < 0 {
-                        return false;
-                    }
-                } else {
+                if mode == Mode::Break {
                     return true;
                 }
+                has_pending_space = true;
             }
             Doc::Softline => {
                 if mode == Mode::Break {
