@@ -44,6 +44,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(
             crate::rules::no_shorthand_style_property_overrides::NoShorthandStylePropertyOverrides,
         ),
+        Box::new(
+            crate::rules::no_unknown_style_directive_property::NoUnknownStyleDirectiveProperty,
+        ),
     ]
 }
 
