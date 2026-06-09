@@ -94,6 +94,74 @@ pub(crate) fn format_script(
     Ok(Some((body_start as u32, body_end as u32, wrapped)))
 }
 
+/// Format a `<script>` element nested in the markup (e.g. inside
+/// `<svelte:head>`) — these aren't hoisted into `root.instance` / `root.module`,
+/// so they'd otherwise be left verbatim. `depth` is the element's nesting depth;
+/// its body renders at `depth + 1` levels of indent. Returns the splice edit, or
+/// `None` when the body is empty / unparseable.
+pub(crate) fn format_nested_script(
+    source: &str,
+    start: u32,
+    end: u32,
+    depth: usize,
+    options: &FormatOptions,
+) -> Result<Option<(u32, u32, String)>, FormatError> {
+    let block = source
+        .get(start as usize..end as usize)
+        .ok_or_else(|| FormatError::Parse("nested <script> span out of bounds".into()))?;
+    let Some(open_end) = block.find('>').map(|i| i + 1) else {
+        return Ok(None);
+    };
+    let Some(close_start) = block.rfind("</script") else {
+        return Ok(None);
+    };
+    if close_start < open_end {
+        return Ok(None);
+    }
+    let body = &block[open_end..close_start];
+    if body.trim().is_empty() {
+        return Ok(None);
+    }
+    let is_ts =
+        block[..open_end].contains("lang=\"ts\"") || block[..open_end].contains("lang='ts'");
+
+    let allocator = Allocator::default();
+    let source_type = if is_ts {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let parser_ret = Parser::new(&allocator, body, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.errors.is_empty() {
+        // Can't parse → leave the nested script untouched.
+        return Ok(None);
+    }
+
+    let unit = indent_unit(&options.js);
+    let body_indent = unit.repeat(depth + 1);
+    // Narrow the width by the final nesting so wrap decisions match the indented
+    // result (mirrors `format_script`'s one-level narrowing, generalised).
+    let mut js = options.js.clone();
+    let narrow = (body_indent.len() as u16).min(js.line_width.value().saturating_sub(1));
+    let nested_width = js.line_width.value().saturating_sub(narrow);
+    js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
+    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
+
+    let reindented = crate::reindent::reindent(formatted.trim_end(), &body_indent, false);
+    let tag_indent = unit.repeat(depth);
+    let spliced = format!("\n{reindented}\n{tag_indent}");
+    Ok(Some((
+        start + open_end as u32,
+        start + close_start as u32,
+        spliced,
+    )))
+}
+
 /// Normalize whitespace in a `<script …>` / `<style …>` opening tag: collapse
 /// runs of whitespace (outside attribute-value quotes) to a single space and
 /// drop space before the closing `>` (`<script  module>` → `<script module>`).

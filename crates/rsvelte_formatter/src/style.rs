@@ -45,6 +45,13 @@ fn walk_nested_style(
             TemplateNode::RegularElement(e) if e.name.as_str() == "style" => {
                 format_nested_style(source, e.start, e.end, depth, options, edits)?;
             }
+            TemplateNode::RegularElement(e) if e.name.as_str() == "script" => {
+                if let Some(edit) =
+                    crate::script::format_nested_script(source, e.start, e.end, depth, options)?
+                {
+                    edits.push(edit);
+                }
+            }
             TemplateNode::RegularElement(e) => {
                 walk_nested_style(source, &e.fragment, d, options, edits)?
             }
