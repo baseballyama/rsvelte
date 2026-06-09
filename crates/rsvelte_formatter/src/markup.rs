@@ -1224,7 +1224,10 @@ fn render_attribute_value_sequence(
     for (i, part) in parts.iter().enumerate() {
         match part {
             AttributeValuePart::Text(t) => {
-                out.push_str(t.data.as_str());
+                // Emit the RAW source text, not the entity-decoded `data` — a value
+                // like `title="&quot;"` must keep `&quot;` (decoding it to `"` would
+                // prematurely close the quoted value and corrupt the markup).
+                out.push_str(t.raw.as_str());
             }
             AttributeValuePart::ExpressionTag(tag) => {
                 let inner_src = source
@@ -1255,7 +1258,7 @@ fn render_attribute_value_sequence(
                         let trailing: usize = parts[i + 1..]
                             .iter()
                             .map(|p| match p {
-                                AttributeValuePart::Text(t) => visual_width(t.data.as_str()),
+                                AttributeValuePart::Text(t) => visual_width(t.raw.as_str()),
                                 AttributeValuePart::ExpressionTag(_) => 0,
                             })
                             .sum();
