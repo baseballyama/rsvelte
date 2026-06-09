@@ -514,7 +514,17 @@ fn push_open_tag(
     // comment out the rest of the tag), so any line comment forces the
     // multi-line shape.
     let open_one_line_width = leading_indent_width + visual_width(&one_liner);
-    let open_fits = open_one_line_width <= line_width;
+    // When the element hugs its content (an inline element whose first child
+    // touches the `>`), the closing `>` of the open tag moves down to the hugged
+    // content line (`<button …attrs`\n`  >text</button`\n`>`). So the attribute
+    // line that must fit is the open tag WITHOUT that trailing `>` — don't wrap
+    // the attributes just because the `>` alone tips the tag one column over.
+    let open_fit_width = if hug_open && !self_closing && one_liner.ends_with('>') {
+        open_one_line_width - 1
+    } else {
+        open_one_line_width
+    };
+    let open_fits = open_fit_width <= line_width;
     let fits_one_line = !has_line_comment && !any_multiline_attr && open_fits;
 
     // prettier wraps the open tag when the whole element overflows flat, not just
