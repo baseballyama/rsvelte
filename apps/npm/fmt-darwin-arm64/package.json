@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/fmt-darwin-arm64",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "Prebuilt rsvelte-fmt binary for darwin-arm64",
   "license": "MIT",
   "repository": {
