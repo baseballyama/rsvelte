@@ -135,6 +135,7 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/require-store-reactive-access",
         true,
     ),
+    ("max-lines-per-block", "svelte/max-lines-per-block", false),
     (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
