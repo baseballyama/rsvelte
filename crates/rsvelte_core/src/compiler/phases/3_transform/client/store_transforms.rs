@@ -286,7 +286,8 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
                     }
                     // Now check if preceded by `function` keyword
                     if k >= 8 {
-                        let prefix = &before_text[k - 8..k];
+                        let prefix =
+                            crate::compiler::utils::char_boundary_lookback(before_text, k, 8);
                         prefix == "function"
                             && (k == 8
                                 || !{

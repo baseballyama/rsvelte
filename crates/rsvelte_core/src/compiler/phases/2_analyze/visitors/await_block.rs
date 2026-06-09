@@ -58,7 +58,11 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         if let Some(ref value) = block.value {
             let start = value.start().unwrap_or(0) as usize;
             if start >= 10 {
-                let substr = &context.analysis.source[start.saturating_sub(10)..start];
+                let substr = crate::compiler::utils::char_boundary_lookback(
+                    &context.analysis.source,
+                    start,
+                    10,
+                );
                 // Match pattern: `{` followed by optional whitespace, `:then` followed by space
                 if let Some(captures) = REGEX_THEN_BLOCK.captures(substr)
                     && let Some(whitespace) = captures.get(1)
@@ -76,7 +80,11 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         if let Some(ref error) = block.error {
             let start = error.start().unwrap_or(0) as usize;
             if start >= 10 {
-                let substr = &context.analysis.source[start.saturating_sub(10)..start];
+                let substr = crate::compiler::utils::char_boundary_lookback(
+                    &context.analysis.source,
+                    start,
+                    10,
+                );
                 // Match pattern: `{` followed by optional whitespace, `:catch` followed by space
                 if let Some(captures) = REGEX_CATCH_BLOCK.captures(substr)
                     && let Some(whitespace) = captures.get(1)
