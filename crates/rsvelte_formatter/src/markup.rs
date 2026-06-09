@@ -1026,8 +1026,19 @@ fn render_attribute(
         }
         Attribute::StyleDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
-            let value =
-                render_attribute_value_for_directive(&d.value, source, options, attr_depth)?;
+            // Columns before the value's `{`: `style:` + name + modifiers + `=`.
+            let prefix = visual_width("style:")
+                + visual_width(d.name.as_str())
+                + visual_width(&modifiers)
+                + 1;
+            let value = render_attribute_value_for_directive(
+                &d.value,
+                source,
+                options,
+                attr_depth,
+                narrow_value,
+                prefix,
+            )?;
             if value.is_empty() {
                 Ok(format!("style:{}{modifiers}", d.name))
             } else {
@@ -1128,6 +1139,8 @@ fn render_attribute_value_for_directive(
     source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    narrow_value: bool,
+    prefix: usize,
 ) -> Result<String, FormatError> {
     match value {
         AttributeValue::True(_) => Ok(String::new()),
@@ -1136,7 +1149,21 @@ fn render_attribute_value_for_directive(
             if inner_src.is_empty() {
                 return Ok("{}".to_string());
             }
+            let indent_cols = attr_depth * options.js.indent_width.value() as usize;
             let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+            // Same shallow-overflow re-narrow as a plain attribute value: when the
+            // open tag wraps and a single-line value overflows once the
+            // `style:name={` prefix is counted, re-format narrowed by the prefix
+            // so a ternary / binary breaks at its top level.
+            let line_width = options.js.line_width.value() as usize;
+            let formatted = if narrow_value
+                && !formatted.contains('\n')
+                && indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width
+            {
+                format_attribute_value_expression(inner_src, options, attr_depth, prefix + 1)?
+            } else {
+                formatted
+            };
             Ok(format!("{{{formatted}}}"))
         }
         AttributeValue::Sequence(parts) => {
