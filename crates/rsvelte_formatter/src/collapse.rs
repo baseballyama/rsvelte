@@ -44,10 +44,186 @@ pub(crate) fn collapse_pure_text_elements(
     let root2 = parse(&result, ParseOptions::default()).map_err(FormatError::from_parse)?;
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
     collect_content_tag_breaks(&result, &root2.fragment, line_width, options, &mut edits2);
-    if edits2.is_empty() {
+    let result = if edits2.is_empty() {
+        result
+    } else {
+        apply_edits(&result, edits2)
+    };
+
+    // Third pass: `<pre>` / `<textarea>` whose content contains a block. rsvelte
+    // otherwise leaves their whole subtree verbatim, but oxfmt formats the block
+    // bodies (space-indented) + embedded JS while keeping element-direct
+    // whitespace as raw tabs. Re-format those subtrees with that hybrid rule.
+    let root3 = parse(&result, ParseOptions::default()).map_err(FormatError::from_parse)?;
+    let mut edits3: Vec<(u32, u32, String)> = Vec::new();
+    collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
+    if edits3.is_empty() {
         return Ok(result);
     }
-    Ok(apply_edits(&result, edits2))
+    Ok(apply_edits(&result, edits3))
+}
+
+/// Whether a fragment (recursively) contains a control-flow block — the trigger
+/// for the `<pre>` hybrid reformat (a `<pre>` of only raw text is left verbatim).
+fn fragment_has_block(fragment: &Fragment) -> bool {
+    fragment.nodes.iter().any(|n| {
+        matches!(
+            n,
+            TemplateNode::IfBlock(_)
+                | TemplateNode::EachBlock(_)
+                | TemplateNode::AwaitBlock(_)
+                | TemplateNode::KeyBlock(_)
+                | TemplateNode::SnippetBlock(_)
+        ) || child_fragments(n).iter().any(|f| fragment_has_block(f))
+    })
+}
+
+/// Walk the tree (tracking nesting depth) and, for each `<pre>`/`<textarea>` whose
+/// content contains a block, push an edit re-formatting its inner content with the
+/// pre hybrid rule (see [`reformat_pre_inner`]).
+fn collect_pre_block_reformats(
+    out: &str,
+    fragment: &Fragment,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        if let TemplateNode::RegularElement(e) = node
+            && matches!(e.name.as_str(), "pre" | "textarea")
+            && fragment_has_block(&e.fragment)
+        {
+            if let Some(edit) = reformat_pre_inner(out, e, depth + 1, options) {
+                edits.push(edit);
+            }
+            continue; // its subtree is owned by this edit
+        }
+        for child in child_fragments(node) {
+            collect_pre_block_reformats(out, child, depth + 1, options, edits);
+        }
+    }
+}
+
+/// Re-format the inner content of a `<pre>`/`<textarea>` that contains a block.
+/// `content_depth` is the nesting depth of the element's children. The content is
+/// formatted standalone at a width narrowed by `content_depth` levels (so embedded
+/// JS / blocks break exactly as they would at their real column), then every line
+/// is re-indented out to its real depth — using TABS for whitespace that is the
+/// direct child of an element (oxfmt preserves it) and SPACES for block bodies and
+/// formatted internals (attributes, JS, wrapped open tags).
+fn reformat_pre_inner(
+    out: &str,
+    elem: &rsvelte_core::ast::template::RegularElement,
+    content_depth: usize,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
+    use std::collections::HashSet;
+    // The inner-content span runs from the end of the open tag `>` to the start of
+    // the close tag `</pre>`.
+    let whole = out.get(elem.start as usize..elem.end as usize)?;
+    let open_rel = whole.find('>')? + 1;
+    let close_rel = whole.rfind("</")?;
+    if close_rel <= open_rel {
+        return None;
+    }
+    let inner_start = elem.start as usize + open_rel;
+    let inner_end = elem.start as usize + close_rel;
+    let raw_inner = out.get(inner_start..inner_end)?;
+
+    let iw = options.js.indent_width.value() as usize;
+    let full_width = options.js.line_width.value() as usize;
+    // Format the children standalone, but narrowed so a depth-0 layout matches the
+    // breaks at the real `content_depth`.
+    let narrowed = full_width.saturating_sub(content_depth * iw).max(20);
+    let mut sub_opts = options.clone();
+    sub_opts.js.line_width = oxc_formatter_core::LineWidth::try_from(narrowed as u16).ok()?;
+    let formatted = crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts).ok()?;
+    let formatted = formatted.trim_end_matches('\n');
+    if formatted.is_empty() {
+        return None;
+    }
+
+    // Determine which line-starts in `formatted` are element-direct whitespace
+    // (→ tabs). Everything else stays spaces.
+    let sub_root = parse(formatted, ParseOptions::default()).ok()?;
+    let mut tab_lines: HashSet<usize> = HashSet::new();
+    collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
+
+    // Re-indent every line: shift by `content_depth` levels; tab-marked lines use
+    // tabs, the rest use spaces.
+    let mut result = String::new();
+    let mut offset = 0usize;
+    for line in formatted.split('\n') {
+        result.push('\n');
+        let trimmed = line.trim_start_matches(' ');
+        if !trimmed.is_empty() {
+            let spaces = line.len() - trimmed.len();
+            let real_depth = spaces / iw + content_depth;
+            if tab_lines.contains(&offset) {
+                for _ in 0..real_depth {
+                    result.push('\t');
+                }
+            } else {
+                for _ in 0..real_depth * iw {
+                    result.push(' ');
+                }
+            }
+            result.push_str(trimmed);
+        }
+        offset += line.len() + 1; // +1 for the '\n' split removed
+    }
+    // The close tag's own line: pre-direct trailing whitespace → tabs at the
+    // element's depth (one less than its content).
+    result.push('\n');
+    for _ in 0..content_depth.saturating_sub(1) {
+        result.push('\t');
+    }
+
+    let replacement = result;
+    let current = out.get(inner_start..inner_end)?;
+    (replacement != current).then_some((inner_start as u32, inner_end as u32, replacement))
+}
+
+/// Collect the line-start byte offsets in `formatted` whose indentation is
+/// element-direct whitespace (preserved as tabs by oxfmt inside `<pre>`): a node
+/// whose parent fragment belongs to a regular element, plus every element's own
+/// closing-tag line. Block bodies (parent is a block) keep spaces.
+fn collect_pre_tab_lines(
+    formatted: &str,
+    fragment: &Fragment,
+    parent_is_element: bool,
+    set: &mut std::collections::HashSet<usize>,
+) {
+    for node in &fragment.nodes {
+        let ns = node_start(node) as usize;
+        let line_start = formatted[..ns].rfind('\n').map_or(0, |i| i + 1);
+        if parent_is_element
+            && formatted[line_start..ns]
+                .bytes()
+                .all(|b| b == b' ' || b == b'\t')
+        {
+            set.insert(line_start);
+        }
+        // An element's own close tag is element-direct trailing whitespace.
+        if let TemplateNode::RegularElement(e) = node {
+            collect_pre_tab_lines(formatted, &e.fragment, true, set);
+            let ne = node_end(node) as usize;
+            let close_ls = formatted[..ne.saturating_sub(1)]
+                .rfind('\n')
+                .map_or(0, |i| i + 1);
+            if close_ls != line_start
+                && formatted[close_ls..]
+                    .trim_start_matches([' ', '\t'])
+                    .starts_with("</")
+            {
+                set.insert(close_ls);
+            }
+        } else {
+            for child in child_fragments(node) {
+                collect_pre_tab_lines(formatted, child, false, set);
+            }
+        }
+    }
 }
 
 fn apply_edits(src: &str, mut edits: Vec<(u32, u32, String)>) -> String {
@@ -329,7 +505,16 @@ fn collect(
                 }
             }
             TemplateNode::Component(c) => {
-                if let Some(edit) = try_hug_mixed(
+                if let Some(edit) = try_collapse(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
                     out,
                     c.name.as_str(),
                     c.start,
