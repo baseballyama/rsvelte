@@ -33,6 +33,7 @@ pub mod no_useless_mustaches;
 pub mod prefer_const;
 pub mod prefer_derived_over_derived_by;
 pub mod prefer_svelte_reactivity;
+pub mod prefer_writable_derived;
 pub mod require_each_key;
 pub mod require_store_callbacks_use_set_param;
 pub mod require_stores_init;
