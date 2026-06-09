@@ -1,5 +1,12 @@
 # @rsvelte/svelte-check
 
+## 0.2.12
+
+### Patch Changes
+
+- 3908ff9: fix(svelte2tsx): lower static numeric DOM attribute values to bare numbers so `--tsgo` accepts the idiomatic string-literal form (`tabindex="-1"`, `colspan="2"`, `maxlength="5"`, …). `svelte/elements` types these attributes as `number | undefined | null` (no `string`), so emitting the value as a backtick string made tsgo reject every one with `Type 'string' is not assignable to type 'number'`, while official svelte-check accepted them. A single-`Text` value on a real element whose name is in svelte2tsx's `numberOnlyAttributes` set and which coerces to a number (`!isNaN`) is now emitted as a bare number (`"tabindex":-1,`) instead of `"tabindex":`-1``. Component props, non-listed attributes, and non-numeric values keep their string form. Mirrors upstream svelte2tsx's `needsNumberConversion`in`htmlxtojsx_v2/nodes/Attribute.ts`. Closes #939.
+- cc1984f: fix(svelte-check): stop leaking an imported library's internal diagnostics into a consumer's `--tsgo` run. When a project imports a workspace component library, its `.svelte` components are shadowed under `<cache>/ext/<n>/` so cross-package named exports resolve (#782). Those shadows were also type-checked, so the library's own transitive deps (`Cannot find module '@floating-ui/dom'`, `sortablejs`, `@nexus/types`) and every internal bug surfaced as errors on the consumer — official svelte-check reports 0 because it never type-checks a node_modules `.svelte` as a reported document. `map_tsgo_diagnostics` now drops any diagnostic whose file lives under the `<cache>/ext/` shadow root, matching official behavior while keeping the shadows for #782 export resolution. Closes #941.
+
 ## 0.2.11
 
 ### Patch Changes
