@@ -71,6 +71,7 @@ fn collect(
                     elem.end,
                     &elem.fragment,
                     line_width,
+                    options,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -721,6 +722,7 @@ fn try_fill_mixed(
     end: u32,
     fragment: &Fragment,
     line_width: usize,
+    options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
@@ -809,13 +811,52 @@ fn try_fill_mixed(
             return None;
         }
     }
-    let printed = crate::doc::print(
+    let mut printed = crate::doc::print(
         content_doc,
         line_width,
         "  ",
         base_level,
         inner_indent.width(),
     );
+
+    // Post-pass: a trailing content mustache `{call(...)}` that is glued to the
+    // preceding content (no break point before it, e.g. `…:{pad(x)}`) can't move
+    // to its own line, so when it overflows it must wrap its own call args. The
+    // doc fill treats it as one atom, so re-format it here at its actual column.
+    if printed.lines().count() <= 1
+        && let Some(last) = fragment.nodes.last()
+        && matches!(last, TemplateNode::ExpressionTag(_))
+    {
+        let mspan = out.get(node_start(last) as usize..node_end(last) as usize)?;
+        let glued_after_nonspace = printed
+            .strip_suffix(mspan)
+            .and_then(|p| p.chars().next_back())
+            .is_some_and(|c| !c.is_whitespace());
+        let inner = mspan
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix('}'))
+            .map(str::trim)
+            .unwrap_or("");
+        let mcol = inner_indent.width() + printed.width().saturating_sub(mspan.width());
+        // Only a call / member chain (not an object / array / arrow literal) wraps
+        // by breaking its own internals; leave those to other paths.
+        let wrappable =
+            !inner.is_empty() && !inner.contains("=>") && !inner.starts_with(['{', '[']);
+        if glued_after_nonspace && wrappable && mcol + mspan.width() > line_width {
+            let w = line_width.saturating_sub(mcol + 2); // `{` + `}`
+            if let Ok(wrapped) = crate::expression::reformat_content_at_width(
+                inner,
+                options,
+                w,
+                inner_indent.width(),
+            ) && wrapped.contains('\n')
+            {
+                let head = &printed[..printed.len() - mspan.len()];
+                printed = format!("{head}{{{wrapped}}}");
+            }
+        }
+    }
+
     let broken = format!("{open}\n{inner_indent}{printed}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
 }
