@@ -41,6 +41,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoTargetBlank),
         Box::new(crate::rules::no_at_const_tags::NoAtConstTags),
         Box::new(crate::rules::no_dynamic_slot_name::NoDynamicSlotName),
+        Box::new(
+            crate::rules::no_shorthand_style_property_overrides::NoShorthandStylePropertyOverrides,
+        ),
     ]
 }
 
