@@ -59,6 +59,7 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_inner_declarations::NoInnerDeclarations;
     use crate::rules::no_store_async::NoStoreAsync;
     use crate::rules::no_top_level_browser_globals::NoTopLevelBrowserGlobals;
+    use crate::rules::prefer_const::PreferConst;
     use crate::rules::prefer_derived_over_derived_by::PreferDerivedOverDerivedBy;
     use crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity;
     use crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam;
@@ -73,5 +74,6 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(RequireStoresInit),
         Box::new(RequireStoreCallbacksUseSetParam),
         Box::new(NoTopLevelBrowserGlobals),
+        Box::new(PreferConst),
     ]
 }
