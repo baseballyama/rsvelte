@@ -559,19 +559,37 @@ fn try_hug_mixed(
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
     }
-    let inner_indent = format!("{indent}  ");
 
-    let content_doc = build_children_doc(out, fragment)?;
-    let printed = crate::doc::print(
-        content_doc,
-        line_width,
-        "  ",
-        inner_indent.width() / 2,
-        inner_indent.width() + 1, // content starts just after the hugged `>`
-    );
-    let open_no_bracket = &open[..open.len() - 1];
-    let hug = format!("{open_no_bracket}\n{inner_indent}>{printed}</{tag}\n{indent}>");
-    (hug != whole).then_some((start, end, hug))
+    // Build prettier's `hugStart && hugEnd` element doc and let the printer make
+    // the two independent break decisions:
+    //   group([
+    //     '<tag …attrs',                                    // open (no `>`)
+    //     group(indent([softline, group(['>', body, '</tag'])])),  // hugged
+    //     softline,
+    //     '>',
+    //   ])
+    // The inner hugged group keeps `>{body}</tag` glued to the open tag when it
+    // fits (only the outer `>` drops to its own line, e.g. `<text …>…</text`\n`>`)
+    // and otherwise moves `>{body}</tag` to its own indented line (e.g. `<title`\n
+    // `  >…</title`\n`>`).
+    use crate::doc::Doc;
+    let body = build_children_doc(out, fragment)?;
+    let open_no_bracket = open[..open.len() - 1].to_string();
+    let inner = Doc::Group(vec![Doc::Concat(vec![
+        Doc::Text(">".to_string()),
+        body,
+        Doc::Text(format!("</{tag}")),
+    ])]);
+    let hugged = Doc::Group(vec![Doc::Indent(vec![Doc::Softline, inner])]);
+    let elem_doc = Doc::Group(vec![
+        Doc::Text(open_no_bracket),
+        hugged,
+        Doc::Softline,
+        Doc::Text(">".to_string()),
+    ]);
+    let level = indent.width() / 2;
+    let printed = crate::doc::print(elem_doc, line_width, "  ", level, column);
+    (printed != whole).then_some((start, end, printed))
 }
 
 /// Narrow mixed-inline fill: when an element with inline content (text +
