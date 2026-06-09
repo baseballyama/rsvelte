@@ -104,6 +104,28 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/prefer-derived-over-derived-by",
         true,
     ),
+    ("prefer-const", "svelte/prefer-const", true),
+    ("no-reactive-literals", "svelte/no-reactive-literals", false),
+    (
+        "no-reactive-functions",
+        "svelte/no-reactive-functions",
+        false,
+    ),
+    (
+        "no-extra-reactive-curlies",
+        "svelte/no-extra-reactive-curlies",
+        false,
+    ),
+    (
+        "prefer-writable-derived",
+        "svelte/prefer-writable-derived",
+        false,
+    ),
+    (
+        "no-unnecessary-state-wrap",
+        "svelte/no-unnecessary-state-wrap",
+        false,
+    ),
     (
         "no-ignored-unsubscribe",
         "svelte/no-ignored-unsubscribe",
@@ -423,7 +445,10 @@ fn oracle_strict_parity() {
                 && let Some(opath) = output_path(&input)
                 && let Ok(expected_out) = std::fs::read_to_string(&opath)
             {
-                let cfg = LintConfig::empty().with_override(*code, Severity::Error);
+                let mut cfg = LintConfig::empty().with_override(*code, Severity::Error);
+                if let Some(opts) = load_options(&input) {
+                    cfg = cfg.with_options(*code, opts);
+                }
                 let fixed = fix_source(&src, &cfg).output;
                 if fixed != expected_out {
                     failures.push(format!(

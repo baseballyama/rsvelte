@@ -55,12 +55,18 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
 /// ESTree program rather than the template tree).
 pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_add_event_listener::NoAddEventListener;
+    use crate::rules::no_extra_reactive_curlies::NoExtraReactiveCurlies;
     use crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe;
     use crate::rules::no_inner_declarations::NoInnerDeclarations;
+    use crate::rules::no_reactive_functions::NoReactiveFunctions;
+    use crate::rules::no_reactive_literals::NoReactiveLiterals;
     use crate::rules::no_store_async::NoStoreAsync;
     use crate::rules::no_top_level_browser_globals::NoTopLevelBrowserGlobals;
+    use crate::rules::no_unnecessary_state_wrap::NoUnnecessaryStateWrap;
+    use crate::rules::prefer_const::PreferConst;
     use crate::rules::prefer_derived_over_derived_by::PreferDerivedOverDerivedBy;
     use crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity;
+    use crate::rules::prefer_writable_derived::PreferWritableDerived;
     use crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam;
     use crate::rules::require_stores_init::RequireStoresInit;
     vec![
@@ -73,5 +79,11 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(RequireStoresInit),
         Box::new(RequireStoreCallbacksUseSetParam),
         Box::new(NoTopLevelBrowserGlobals),
+        Box::new(PreferConst),
+        Box::new(NoReactiveLiterals),
+        Box::new(PreferWritableDerived),
+        Box::new(NoUnnecessaryStateWrap),
+        Box::new(NoReactiveFunctions),
+        Box::new(NoExtraReactiveCurlies),
     ]
 }
