@@ -1319,6 +1319,21 @@ impl<'a> ScopeBuilder<'a> {
                     if let Some(value) = element.get("value") {
                         let old_scope = self.push_function_scope();
                         self.function_depth += 1;
+                        // Register the method body scope for the visitor phase, keyed
+                        // by the body's JSON `start` offset (same as the JSON
+                        // `FunctionDeclaration` path above). Without this the visitor
+                        // resolved identifiers inside the method against the outer
+                        // class/module scope, so a method-local `let x` shadowing a
+                        // top-level function param `x` was misresolved to the outer
+                        // (constant) binding and mis-reported as `constant_assignment`
+                        // (issue #907 follow-up: runed `persisted-state`,
+                        // `use-search-params`).
+                        if let Some(fn_body) = value.get("body")
+                            && let Some(start) = fn_body.get("start").and_then(|s| s.as_u64())
+                        {
+                            self.function_scope_map
+                                .insert(start as u32, self.current_scope);
+                        }
                         // Declare function parameters
                         if let Some(params) = value.get("params").and_then(|p| p.as_array()) {
                             for param in params {
@@ -1879,6 +1894,22 @@ impl<'a> ScopeBuilder<'a> {
                             let params = *params;
                             let old_scope = self.push_function_scope();
                             self.function_depth += 1;
+                            // Record method body start -> scope index so the visitor
+                            // phase (`function_expression::visit_typed`) resolves
+                            // identifiers inside the method against the method's own
+                            // scope. Without this the body inherited the class/module
+                            // scope, so a method-local `let x` shadowing a top-level
+                            // function param `x` was misresolved to the outer
+                            // (constant) binding and mis-reported as
+                            // `constant_assignment` (issue #907 follow-up: runed
+                            // `persisted-state`, `use-search-params`). Mirrors the
+                            // typed `FunctionDeclaration` / `FunctionExpression`
+                            // registration above.
+                            if let Some(body_id) = body
+                                && let Some(start) = self.arena.get_js_node(body_id).start()
+                            {
+                                self.function_scope_map.insert(start, self.current_scope);
+                            }
                             // Declare function parameters
                             for param in self.arena.get_js_children(params) {
                                 self.declare_bindings_from_pattern_node(
@@ -2348,6 +2379,19 @@ impl<'a> ScopeBuilder<'a> {
                     // Create a new scope for the method (non-porous)
                     let old_scope = self.push_function_scope();
                     self.function_depth += 1;
+
+                    // Record method body start → scope index so the visitor phase
+                    // (`function_expression::visit`) resolves identifiers against
+                    // the method's own scope. Without this the method body inherited
+                    // the class/module scope, so a method-local `let x` that shadows
+                    // a top-level function param `x` was misresolved to the outer
+                    // (constant) binding and mis-reported as `constant_assignment`
+                    // (issue #907 follow-up: runed `persisted-state`). Mirrors the
+                    // `FunctionDeclaration` / `FunctionExpression` registration.
+                    if let Some(ref body) = method_def.value.body {
+                        let key = (self.current_script_offset + body.span.start as usize) as u32;
+                        self.function_scope_map.insert(key, self.current_scope);
+                    }
 
                     // Declare function parameters in the new scope
                     for param in &method_def.value.params.items {

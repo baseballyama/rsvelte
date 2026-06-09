@@ -354,6 +354,12 @@ fn post_process_for_server(source: &str) -> String {
     // become stale snapshots and downstream code (`get isValid()` etc.)
     // breaks when the underlying state mutates between calls.
     let derived_names = collect_derived_names(&result);
+    // Private class fields backed by `$.derived(...)` are *callable* on the
+    // server (read via `this.#x()`); `$state` fields are plain values (read via
+    // `this.#x`, set via `this.#x = v`). Collect the derived ones so the
+    // `$.get`/`$.set` member rewrites below pick the right form per field
+    // instead of blindly treating every `this.#x` as callable (issue #907).
+    let derived_private_fields = collect_derived_private_fields(&result);
 
     let finder_effect_root = memmem::Finder::new(b"$.effect_root(");
     let finder_user_effect = memmem::Finder::new(b"$.user_effect(");
@@ -429,10 +435,16 @@ fn post_process_for_server(source: &str) -> String {
                 .to_string();
             // Check if it's a member expression (contains '.')
             if memchr::memchr(b'.', content.as_bytes()).is_some() {
-                // Member expression: keep as function call
-                let mut replacement = String::with_capacity(content.len() + 2);
-                replacement.push_str(&content);
-                replacement.push_str("()");
+                // A private `$state` class field is a plain value on the server
+                // (`this.#x`); only derived fields (and other member exprs) read
+                // as a call (`this.#x()`).
+                let plain_state_field = private_field_name(&content)
+                    .is_some_and(|name| !derived_private_fields.contains(name));
+                let replacement = if plain_state_field {
+                    content.clone()
+                } else {
+                    format!("{content}()")
+                };
                 result = splice!(result, pos, &replacement, call_start + content_end + 1);
             } else if derived_names.contains(content.as_str()) {
                 // Derived simple ident: callable on the server
@@ -466,12 +478,17 @@ fn post_process_for_server(source: &str) -> String {
                     rest
                 };
                 if memchr::memchr(b'.', signal.as_bytes()).is_some() {
-                    // Member expression: function call form
-                    let mut replacement = String::with_capacity(signal.len() + 1 + value.len() + 1);
-                    replacement.push_str(signal);
-                    replacement.push('(');
-                    replacement.push_str(value);
-                    replacement.push(')');
+                    // A private `$state` class field is a plain value on the
+                    // server, so its assignment stays `this.#x = v`; only derived
+                    // fields (and other member exprs) use the setter-call form
+                    // `this.#x(v)`.
+                    let plain_state_field = private_field_name(signal)
+                        .is_some_and(|name| !derived_private_fields.contains(name));
+                    let replacement = if plain_state_field {
+                        format!("{signal} = {value}")
+                    } else {
+                        format!("{signal}({value})")
+                    };
                     result = splice!(result, pos, &replacement, call_start + content_end + 1);
                 } else {
                     // Simple identifier: assignment form
@@ -628,6 +645,63 @@ fn collect_derived_names(source: &str) -> std::collections::HashSet<String> {
         }
     }
     names
+}
+
+/// Scan a client-style class body and return the set of *private* field names
+/// (without the leading `#`) declared as `#name = $.derived(...)` /
+/// `$.derived_by(...)` / `$.derived_safe_equal(...)`.
+///
+/// On the server a private `$derived` field is callable (`this.#name()`), while
+/// a `$state` field is a plain value (`this.#name` / `this.#name = v`). The
+/// `$.get`/`$.set` member rewrites in [`post_process_for_server`] use this set
+/// to pick the right form per field — previously every `this.#x` was treated as
+/// callable, which turned plain `$state` field assignments into the broken
+/// `this.#x(value)` call form (issue #907).
+fn collect_derived_private_fields(source: &str) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix('#') else {
+            continue;
+        };
+        let Some(eq) = rest.find('=') else {
+            continue;
+        };
+        let name = rest[..eq].trim();
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+        {
+            continue;
+        }
+        let value = rest[eq + 1..].trim_start();
+        if value.starts_with("$.derived(")
+            || value.starts_with("$.derived_by(")
+            || value.starts_with("$.derived_safe_equal(")
+        {
+            names.insert(name.to_string());
+        }
+    }
+    names
+}
+
+/// Extract the private-field name (without `#`) from a member expression like
+/// `this.#current` → `current`. Returns `None` when the expression is not a
+/// direct private-field access (e.g. `obj.prop`, or `this.#x.y` which accesses
+/// a property *of* the field rather than the field itself).
+fn private_field_name(member_expr: &str) -> Option<&str> {
+    let hash = member_expr.rfind(".#")?;
+    let rest = &member_expr[hash + 2..];
+    let end = rest
+        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+        .unwrap_or(rest.len());
+    if end == 0 || end != rest.len() {
+        // Empty name, or trailing access (`this.#x.y`) — not a bare field read.
+        None
+    } else {
+        Some(&rest[..end])
+    }
 }
 
 /// Find the byte position of the first comma at bracket-depth 0, skipping

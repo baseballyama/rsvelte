@@ -14,6 +14,215 @@ fn find_matching_paren_lexical(s: &str) -> Option<usize> {
     find_matching_bracket(s, 0, '(')
 }
 
+/// Replace every occurrence of `needle` in `haystack` with `replacement`, but
+/// only when `needle` is not immediately followed by a JS identifier character.
+///
+/// The class transforms wrap private-field reads by string-replacing
+/// `this.#name` with `$.get(this.#name)`. A bare `str::replace` matches a
+/// field name that is a *prefix* of a longer sibling — e.g. wrapping `#fps`
+/// corrupts `this.#fpsLimitOption` into `$.get(this.#fps)LimitOption` (issue
+/// #907). Anchoring on a trailing word boundary fixes that; `this.` already
+/// anchors the left edge, so only the right edge needs checking.
+fn replace_field_ref_word_boundary(haystack: &str, needle: &str, replacement: &str) -> String {
+    if needle.is_empty() || !haystack.contains(needle) {
+        return haystack.to_string();
+    }
+    let bytes = haystack.as_bytes();
+    let mut out = String::with_capacity(haystack.len());
+    let mut i = 0;
+    while i < haystack.len() {
+        if haystack[i..].starts_with(needle) {
+            let after = i + needle.len();
+            let next_is_ident = bytes
+                .get(after)
+                .is_some_and(|&b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$');
+            if !next_is_ident {
+                out.push_str(replacement);
+                i = after;
+                continue;
+            }
+        }
+        let ch_len = haystack[i..].chars().next().unwrap().len_utf8();
+        out.push_str(&haystack[i..i + ch_len]);
+        i += ch_len;
+    }
+    out
+}
+
+/// Net change in bracket nesting (`()`, `[]`, `{}`) contributed by one source
+/// line, skipping brackets inside string / template literals and `//` / `/*`
+/// comments. Used to group physical lines into complete statements before the
+/// line-based constructor transform runs, so a multi-line RHS such as
+/// `this.#rect = {\n  x: 0,\n  …\n}` is transformed as one unit instead of the
+/// broken first-line fragment `this.#rect = {` (issue #907).
+fn net_bracket_depth(line: &str) -> i32 {
+    let bytes = line.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() {
+                    match bytes[i] {
+                        b'\\' => i += 2,
+                        b if b == quote => {
+                            i += 1;
+                            break;
+                        }
+                        _ => i += 1,
+                    }
+                }
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => break, // rest of line is a comment
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+    depth
+}
+
+/// Does `line` start a multi-line *assignment* — an assignment operator at
+/// bracket depth 0 followed by a right-hand side whose brackets are left open,
+/// e.g. `this.#rect = {`? Only such lines should absorb the following lines in
+/// the constructor transform.
+///
+/// A `$effect(() => {` / `if (cond) {` block must NOT be grouped: it has no
+/// top-level `=` (the `=>` lives inside `(...)`), so it stays line-by-line and
+/// the `this.#x = …` statements *inside* the block are still rewritten. Grouping
+/// them was the #907 regression on `class-state-constructor-closure`.
+fn is_multiline_assignment_start(line: &str) -> bool {
+    if net_bracket_depth(line) <= 0 {
+        return false;
+    }
+    let bytes = line.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() {
+                    match bytes[i] {
+                        b'\\' => i += 2,
+                        b if b == quote => {
+                            i += 1;
+                            break;
+                        }
+                        _ => i += 1,
+                    }
+                }
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => break,
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'=' if depth == 0 => {
+                let next = bytes.get(i + 1).copied();
+                let prev = if i > 0 {
+                    bytes.get(i - 1).copied()
+                } else {
+                    None
+                };
+                // A plain or compound (`+=`, `-=`, …) assignment `=`, not the
+                // `==`/`===`/`=>` operators nor the tail of `==`/`!=`/`<=`/`>=`.
+                if next != Some(b'=')
+                    && next != Some(b'>')
+                    && !matches!(prev, Some(b'=') | Some(b'!') | Some(b'<') | Some(b'>'))
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Split a right-hand-side fragment at its first top-level `;`, returning
+/// `(value, trailing)` where `value` is the assignment expression (trimmed)
+/// and `trailing` is the remainder starting at the `;` (the statement
+/// terminator plus any trailing comment).
+///
+/// The line-based class transforms receive a single physical source line,
+/// which can carry a statement terminator and a trailing comment after the
+/// expression — e.g. `getter(); // set the initial value`. Naively trimming a
+/// trailing `;` (`.trim_end_matches(';')`) leaves the inner `;` and the
+/// comment glued onto the value, so `$.set(this.#x, <value>, true)` becomes the
+/// syntactically-broken `$.set(this.#x, getter(); // comment, true)` (issue
+/// #907). Scanning for the first top-level `;` — skipping brackets, strings,
+/// template literals and comments — extracts just `getter()` and preserves the
+/// `; // comment` tail so it can be re-appended after the rewritten statement.
+fn split_rhs_at_top_level_semi(s: &str) -> (&str, &str) {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                // Skip the string/template literal body (handles escapes).
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() {
+                    match bytes[i] {
+                        b'\\' => i += 2,
+                        b if b == quote => {
+                            i += 1;
+                            break;
+                        }
+                        _ => i += 1,
+                    }
+                }
+                continue;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => break, // line comment → tail
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b';' if depth == 0 => return (s[..i].trim(), &s[i..]),
+            _ => {}
+        }
+        i += 1;
+    }
+    // No top-level `;` (and no preceding line comment) — the whole fragment is
+    // the value. If we stopped at a line comment, split there so the comment
+    // stays in the trailing slice.
+    if i < bytes.len() && bytes[i] == b'/' {
+        (s[..i].trim_end().trim_end_matches(';').trim(), &s[i..])
+    } else {
+        (s.trim().trim_end_matches(';').trim(), "")
+    }
+}
+
 /// Represents a class field with $state or $derived rune.
 #[derive(Debug, Clone)]
 pub(super) struct ClassStateField {
@@ -111,10 +320,9 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         for f in all_fields {
             if f.is_private {
                 let private_ref = format!("this.#{}", f.private_backing_name);
-                if derived_expr.contains(&private_ref) {
-                    let getter = format!("$.get(this.#{})", f.private_backing_name);
-                    derived_expr = derived_expr.replace(&private_ref, &getter);
-                }
+                let getter = format!("$.get(this.#{})", f.private_backing_name);
+                derived_expr =
+                    replace_field_ref_word_boundary(&derived_expr, &private_ref, &getter);
             }
         }
         let wrapped_value = if derived_expr.trim_start().starts_with('{') {
@@ -147,10 +355,9 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         for f in all_fields {
             if f.is_private {
                 let private_ref = format!("this.#{}", f.private_backing_name);
-                if derived_expr.contains(&private_ref) {
-                    let getter = format!("$.get(this.#{})", f.private_backing_name);
-                    derived_expr = derived_expr.replace(&private_ref, &getter);
-                }
+                let getter = format!("$.get(this.#{})", f.private_backing_name);
+                derived_expr =
+                    replace_field_ref_word_boundary(&derived_expr, &private_ref, &getter);
             }
         }
         let _ = writeln!(
@@ -804,13 +1011,44 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 let _ = writeln!(new_class_body, "\t\tconstructor({}) {{", constructor_params);
 
                 let mut ctor_body = String::new();
+                // Group physical lines into a single statement only when a line
+                // opens a multi-line assignment RHS (e.g. `this.#rect = {\n…\n}`),
+                // so it is rewritten as one unit instead of the broken fragment
+                // `this.#rect = {` (issue #907). Every other line — including
+                // block openers like `$effect(() => {` — is transformed
+                // individually so the `this.#x = …` statements inside the block
+                // are still rewritten.
+                let mut pending = String::new();
+                let mut depth: i32 = 0;
                 for line in constructor_content.lines() {
                     let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
+                    if pending.is_empty() {
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        if is_multiline_assignment_start(trimmed) {
+                            pending.push_str(trimmed);
+                            depth = net_bracket_depth(trimmed);
+                        } else {
+                            let transformed_line =
+                                transform_constructor_assignment(trimmed, &fields);
+                            let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
+                        }
+                    } else {
+                        pending.push('\n');
+                        pending.push_str(trimmed);
+                        depth += net_bracket_depth(trimmed);
+                        if depth <= 0 {
+                            let transformed_line =
+                                transform_constructor_assignment(&pending, &fields);
+                            let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
+                            pending.clear();
+                            depth = 0;
+                        }
                     }
-
-                    let transformed_line = transform_constructor_assignment(trimmed, &fields);
+                }
+                if !pending.is_empty() {
+                    let transformed_line = transform_constructor_assignment(&pending, &fields);
                     let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
                 }
 
@@ -1644,16 +1882,17 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
 
                     if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
                         let op_pos = result.find(assign_op).unwrap();
-                        let value = result[op_pos + assign_op.len()..]
-                            .trim()
-                            .trim_end_matches(';');
+                        let (value, trailing) =
+                            split_rhs_at_top_level_semi(&result[op_pos + assign_op.len()..]);
+                        let tail = if trailing.is_empty() { ";" } else { trailing };
                         // Use .v to access the value directly for logical operators
                         return format!(
-                            "$.set(this.#{}, this.#{}.v {} {}, true);",
+                            "$.set(this.#{}, this.#{}.v {} {}, true){}",
                             field.private_backing_name,
                             field.private_backing_name,
                             binary_op,
-                            value
+                            value,
+                            tail
                         );
                     }
                 }
@@ -1674,15 +1913,16 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
 
                     if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
                         let op_pos = result.find(assign_op).unwrap();
-                        let value = result[op_pos + assign_op.len()..]
-                            .trim()
-                            .trim_end_matches(';');
+                        let (value, trailing) =
+                            split_rhs_at_top_level_semi(&result[op_pos + assign_op.len()..]);
+                        let tail = if trailing.is_empty() { ";" } else { trailing };
                         return format!(
-                            "$.set(this.#{}, $.get(this.#{}) {} {});",
+                            "$.set(this.#{}, $.get(this.#{}) {} {}){}",
                             field.private_backing_name,
                             field.private_backing_name,
                             binary_op,
-                            value
+                            value,
+                            tail
                         );
                     }
                 }
@@ -1711,18 +1951,26 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
 
                 if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
                     let eq_pos = result.find('=').unwrap();
-                    let value = result[eq_pos + 1..].trim().trim_end_matches(';');
+                    // Extract only the RHS expression (stop at the top-level `;`),
+                    // keeping any trailing `; // comment` so it survives after the
+                    // rewritten `$.set(...)` instead of being glued inside the call
+                    // (issue #907).
+                    let (value, trailing) = split_rhs_at_top_level_semi(&result[eq_pos + 1..]);
+                    let tail = if trailing.is_empty() { ";" } else { trailing };
                     // Use private_backing_name for the output
                     // Add proxy flag (true) for $state fields when value could be an object
                     // This matches the official compiler's should_proxy() logic
                     let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
                     if needs_proxy {
                         return format!(
-                            "$.set(this.#{}, {}, true);",
-                            field.private_backing_name, value
+                            "$.set(this.#{}, {}, true){}",
+                            field.private_backing_name, value, tail
                         );
                     } else {
-                        return format!("$.set(this.#{}, {});", field.private_backing_name, value);
+                        return format!(
+                            "$.set(this.#{}, {}){}",
+                            field.private_backing_name, value, tail
+                        );
                     }
                 }
 
@@ -1747,6 +1995,19 @@ pub(super) fn transform_constructor_assignment(line: &str, fields: &[ClassStateF
 #[cfg(test)]
 mod tests {
     use super::transform_class_fields_client;
+
+    #[test]
+    fn is_multiline_assignment_start_classifies_constructor_lines() {
+        // A field assignment with an open RHS bracket — group it (#907).
+        assert!(super::is_multiline_assignment_start("this.#rect = {"));
+        // A block opener with no top-level `=` — keep it line-by-line so the
+        // `this.#x = …` statements inside the block are still rewritten (the
+        // #907 regression on class-state-constructor-closure).
+        assert!(!super::is_multiline_assignment_start("$effect(() => {"));
+        assert!(!super::is_multiline_assignment_start("if (cond) {"));
+        // A complete single-line assignment is not a multiline start.
+        assert!(!super::is_multiline_assignment_start("this.#count = 10;"));
+    }
 
     const COUNTER: &str = "\
 export class Counter {
