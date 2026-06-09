@@ -890,6 +890,29 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             Doc::Text(">".to_string()),
         ]));
     }
+    // Empty inline element with attributes (`<span class=… aria-label=…></span>`):
+    // wrap the attributes and drop `></tag>` to its own line at the base indent
+    // when the open tag overflows.
+    if let TemplateNode::RegularElement(e) = node {
+        let tag = e.name.as_str();
+        if e.fragment.nodes.is_empty()
+            && !e.attributes.is_empty()
+            && !is_block_display(tag)
+            && !is_whitespace_preserving(tag)
+        {
+            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            // Only the `<tag …attrs></tag>` shape (not self-closing, no content).
+            if !span.contains('\n') && span.ends_with(&format!("></{tag}>")) {
+                if let Some(open_doc) = build_open_attr_doc(out, node, tag) {
+                    return Some(Doc::Group(vec![
+                        open_doc,
+                        Doc::Softline,
+                        Doc::Text(format!("></{tag}>")),
+                    ]));
+                }
+            }
+        }
+    }
     let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
     if span.contains('\n') {
         return None;
