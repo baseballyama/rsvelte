@@ -345,6 +345,7 @@ fn push_close_tag(
     // touches it. A trailing `>` (the end of a child element `</child>`) is not
     // text, so the close `>` can break normally.
     let hug_close = open_wrapped
+        && !is_block_element(tag_name)
         && (start as usize)
             .checked_sub(1)
             .and_then(|i| source.as_bytes().get(i))
@@ -449,7 +450,12 @@ fn push_open_tag(
     // whose `>` is immediately followed by its own `</tag>`) is treated as
     // whitespace-sensitive here — matching #798's "inline text children". A
     // leading `<` means the next thing is a tag, so the `>` can safely break.
+    // A block element never hugs (`shouldHugStart` returns false for it), so its
+    // `>` always breaks to its own line when the open tag wraps — even with text
+    // directly after it (block elements trim edge whitespace, so no significant
+    // whitespace is injected).
     let hug_open = !self_closing
+        && !is_block_element(tag_name)
         && source
             .as_bytes()
             .get(open_tag_end as usize)
@@ -639,6 +645,49 @@ fn open_tag_name_end(source: &str, element_start: u32) -> usize {
 
 /// HTML void elements — they never have a closing tag and are emitted in the
 /// self-closing ` />` form (matching prettier-plugin-svelte's default).
+/// prettier-plugin-svelte's `blockElements` list (its `isBlockElement`). These
+/// elements never hug their start/end (`shouldHugStart` / `shouldHugEnd` return
+/// false), so when their open tag wraps the closing `>` always breaks onto its
+/// own line — even when text content sits directly after it.
+fn is_block_element(tag_name: &str) -> bool {
+    matches!(
+        tag_name,
+        "address"
+            | "article"
+            | "aside"
+            | "blockquote"
+            | "details"
+            | "dialog"
+            | "dd"
+            | "div"
+            | "dl"
+            | "dt"
+            | "fieldset"
+            | "figcaption"
+            | "figure"
+            | "footer"
+            | "form"
+            | "h1"
+            | "h2"
+            | "h3"
+            | "h4"
+            | "h5"
+            | "h6"
+            | "header"
+            | "hgroup"
+            | "hr"
+            | "li"
+            | "main"
+            | "nav"
+            | "ol"
+            | "p"
+            | "pre"
+            | "section"
+            | "table"
+            | "ul"
+    )
+}
+
 fn is_void_element(tag_name: &str) -> bool {
     matches!(
         tag_name,
