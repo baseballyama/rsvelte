@@ -57,6 +57,7 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_add_event_listener::NoAddEventListener;
     use crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe;
     use crate::rules::no_inner_declarations::NoInnerDeclarations;
+    use crate::rules::no_reactive_functions::NoReactiveFunctions;
     use crate::rules::no_reactive_literals::NoReactiveLiterals;
     use crate::rules::no_store_async::NoStoreAsync;
     use crate::rules::no_top_level_browser_globals::NoTopLevelBrowserGlobals;
@@ -81,5 +82,6 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoReactiveLiterals),
         Box::new(PreferWritableDerived),
         Box::new(NoUnnecessaryStateWrap),
+        Box::new(NoReactiveFunctions),
     ]
 }

@@ -107,6 +107,11 @@ const RULES: &[(&str, &str, bool)] = &[
     ("prefer-const", "svelte/prefer-const", true),
     ("no-reactive-literals", "svelte/no-reactive-literals", false),
     (
+        "no-reactive-functions",
+        "svelte/no-reactive-functions",
+        false,
+    ),
+    (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
         false,
