@@ -2139,7 +2139,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.3.11"
+version = "0.3.12"
 dependencies = [
  "anyhow",
  "clap",
