@@ -29,7 +29,7 @@ pub(crate) fn collapse_pure_text_elements(
     let line_width = options.js.line_width.value() as usize;
 
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
-    collect(out, &root.fragment, line_width, &mut edits);
+    collect(out, &root.fragment, line_width, options, &mut edits);
     if edits.is_empty() {
         return Ok(out.to_string());
     }
@@ -42,7 +42,13 @@ pub(crate) fn collapse_pure_text_elements(
     Ok(result)
 }
 
-fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u32, u32, String)>) {
+fn collect(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(elem) => {
@@ -76,8 +82,18 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                     line_width,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_break_content_tag_block(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                    line_width,
+                    options,
+                ) {
+                    edits.push(edit);
                 } else {
-                    collect(out, &elem.fragment, line_width, edits);
+                    collect(out, &elem.fragment, line_width, options, edits);
                 }
             }
             TemplateNode::Component(c) => {
@@ -91,7 +107,7 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &c.fragment, line_width, edits);
+                    collect(out, &c.fragment, line_width, options, edits);
                 }
             }
             TemplateNode::TitleElement(t) => {
@@ -114,7 +130,7 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &t.fragment, line_width, edits);
+                    collect(out, &t.fragment, line_width, options, edits);
                 }
             }
             TemplateNode::SlotElement(s) => {
@@ -128,7 +144,7 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &s.fragment, line_width, edits);
+                    collect(out, &s.fragment, line_width, options, edits);
                 }
             }
             TemplateNode::SvelteBoundary(s) => {
@@ -142,7 +158,7 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &s.fragment, line_width, edits);
+                    collect(out, &s.fragment, line_width, options, edits);
                 }
             }
             TemplateNode::SvelteHead(s)
@@ -151,8 +167,12 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
             | TemplateNode::SvelteFragment(s)
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteSelf(s)
-            | TemplateNode::SvelteWindow(s) => collect(out, &s.fragment, line_width, edits),
-            TemplateNode::SvelteComponent(c) => collect(out, &c.fragment, line_width, edits),
+            | TemplateNode::SvelteWindow(s) => {
+                collect(out, &s.fragment, line_width, options, edits)
+            }
+            TemplateNode::SvelteComponent(c) => {
+                collect(out, &c.fragment, line_width, options, edits)
+            }
             TemplateNode::SvelteElement(e) => {
                 if let Some(edit) = try_collapse(
                     out,
@@ -173,34 +193,34 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &e.fragment, line_width, edits);
+                    collect(out, &e.fragment, line_width, options, edits);
                 }
             }
             TemplateNode::IfBlock(blk) => {
-                collect(out, &blk.consequent, line_width, edits);
+                collect(out, &blk.consequent, line_width, options, edits);
                 if let Some(alt) = &blk.alternate {
-                    collect(out, alt, line_width, edits);
+                    collect(out, alt, line_width, options, edits);
                 }
             }
             TemplateNode::EachBlock(blk) => {
-                collect(out, &blk.body, line_width, edits);
+                collect(out, &blk.body, line_width, options, edits);
                 if let Some(fb) = &blk.fallback {
-                    collect(out, fb, line_width, edits);
+                    collect(out, fb, line_width, options, edits);
                 }
             }
             TemplateNode::AwaitBlock(blk) => {
                 if let Some(f) = &blk.pending {
-                    collect(out, f, line_width, edits);
+                    collect(out, f, line_width, options, edits);
                 }
                 if let Some(f) = &blk.then {
-                    collect(out, f, line_width, edits);
+                    collect(out, f, line_width, options, edits);
                 }
                 if let Some(f) = &blk.catch {
-                    collect(out, f, line_width, edits);
+                    collect(out, f, line_width, options, edits);
                 }
             }
-            TemplateNode::KeyBlock(blk) => collect(out, &blk.fragment, line_width, edits),
-            TemplateNode::SnippetBlock(blk) => collect(out, &blk.body, line_width, edits),
+            TemplateNode::KeyBlock(blk) => collect(out, &blk.fragment, line_width, options, edits),
+            TemplateNode::SnippetBlock(blk) => collect(out, &blk.body, line_width, options, edits),
             _ => {}
         }
     }
@@ -488,6 +508,81 @@ fn is_inline_block(tag: &str) -> bool {
         tag,
         "input" | "button" | "select" | "object" | "video" | "audio"
     )
+}
+
+/// Break a BLOCK element whose only child is a single content tag (`{expr}` /
+/// `{@html …}` / `{@render …}`) onto its own line and wrap that tag's expression
+/// at the resulting column when the element overflows:
+///   <h1>
+///     {@html foo(
+///       …
+///     )}
+///   </h1>
+/// Restricted to a single content-tag child so it can't disturb prose / multi-
+/// child content (which the fill / hug paths own).
+fn try_break_content_tag_block(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
+    if !is_block_display(tag) {
+        return None;
+    }
+    // Exactly one non-whitespace child, and it must be a content tag.
+    let mut child: Option<&TemplateNode> = None;
+    for n in &fragment.nodes {
+        if matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()) {
+            continue;
+        }
+        if child.is_some() {
+            return None;
+        }
+        child = Some(n);
+    }
+    let node = child?;
+    // `(lead, trail)` = the wrapper columns around the expression: `{@html ` / `}`.
+    let (kw_lead, kw_trail) = match node {
+        TemplateNode::HtmlTag(_) => (7usize, 1usize), // `{@html ` … `}`
+        TemplateNode::RenderTag(_) => (9, 1),         // `{@render ` … `}`
+        TemplateNode::ExpressionTag(_) => (1, 1),     // `{` … `}`
+        _ => return None,
+    };
+
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    let cs = node_start(node) as usize;
+    let ce = node_end(node) as usize;
+    let open = out.get(s..cs)?;
+    let close = out.get(ce..e)?;
+    let span = out.get(cs..ce)?; // the content tag, e.g. `{@html …}`
+    if open.contains('\n') || span.contains('\n') || span.len() <= kw_lead + kw_trail {
+        return None;
+    }
+    let column = current_column(out, start);
+    if column + open.width() + span.width() + close.width() <= line_width {
+        return None; // fits on one line
+    }
+
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+
+    let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
+    let width = line_width.saturating_sub(inner_indent.width() + kw_lead + kw_trail);
+    let wrapped =
+        crate::expression::reformat_content_at_width(inner, options, width, inner_indent.width())
+            .ok()?;
+    let kw_prefix = &span[..kw_lead]; // `{@html ` / `{`
+    let new_tag = format!("{kw_prefix}{wrapped}}}");
+    let broken = format!("{open}\n{inner_indent}{new_tag}\n{indent}{close}");
+    (broken != whole).then_some((start, end, broken))
 }
 
 /// Hug-break an inline element whose mixed inline content (expression tags /

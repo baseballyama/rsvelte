@@ -583,6 +583,30 @@ pub(crate) fn format_function_binding(
 
 // ─── Expression formatter ───────────────────────────────────────────────
 
+/// Re-format a content-tag expression (already extracted from `{…}` / `{@html …}`)
+/// at an explicit `width`, then push its continuation lines out to `indent_cols`
+/// columns. Used by the collapse pass to wrap a block element's sole content-tag
+/// child onto its own line (`<h1>`\n`  {@html foo.bar(`\n`    …`\n`  )}`\n`</h1>`).
+pub(crate) fn reformat_content_at_width(
+    expr_source: &str,
+    options: &FormatOptions,
+    width: usize,
+    indent_cols: usize,
+) -> Result<String, FormatError> {
+    let lw = oxc_formatter_core::LineWidth::try_from(width.max(1) as u16)
+        .unwrap_or(options.js.line_width);
+    let formatted = format_expr_core(expr_source, options, lw, false)?;
+    if !formatted.contains('\n') {
+        return Ok(formatted);
+    }
+    let prefix = if options.js.indent_style.is_tab() {
+        "\t".repeat(indent_cols / options.js.indent_width.value() as usize)
+    } else {
+        " ".repeat(indent_cols)
+    };
+    Ok(crate::reindent::reindent(&formatted, &prefix, true))
+}
+
 /// Format a single JS expression source at `line_width`. Wraps in parens to
 /// force expression context (so object literals like `{a:1}` aren't parsed as
 /// block statements) and strips the `( … );` wrapper from the output. With
