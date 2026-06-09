@@ -105,6 +105,7 @@ const RULES: &[(&str, &str, bool)] = &[
         true,
     ),
     ("prefer-const", "svelte/prefer-const", true),
+    ("no-reactive-literals", "svelte/no-reactive-literals", false),
     (
         "no-ignored-unsubscribe",
         "svelte/no-ignored-unsubscribe",
