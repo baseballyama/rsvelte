@@ -42,6 +42,120 @@ pub(crate) fn collapse_pure_text_elements(
     Ok(result)
 }
 
+/// Whether `node` may sit inside a fragment-level inline prose run that the run
+/// fill reflows. Text, mustaches/html-tags, and CHILDLESS inline elements
+/// (`<input/>`, `<br/>`, an empty `<span/>`) qualify — childless so reflowing the
+/// whole run (one edit) can't collide with edits the recursion would make inside
+/// a child. Block elements, comments, components, and elements with children are
+/// run boundaries.
+fn is_run_member(node: &TemplateNode) -> bool {
+    match node {
+        TemplateNode::Text(_) | TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => true,
+        TemplateNode::RegularElement(e) => {
+            !is_block_display(e.name.as_str())
+                && !is_whitespace_preserving(e.name.as_str())
+                && e.fragment.nodes.is_empty()
+        }
+        _ => false,
+    }
+}
+
+/// Reflow a fragment's inline prose runs (text words interspersed with childless
+/// inline elements) that overflow — e.g. a top-level `<input/> °C =\n<input/> °F`
+/// run between a comment and `<style>`. Only fires for a PROPER sub-run (the
+/// fragment also has non-inline siblings); a whole-element inline body is handled
+/// by `try_fill_mixed` at the element level instead.
+fn fill_inline_runs(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    let nodes = &fragment.nodes;
+    if nodes.iter().all(is_run_member) {
+        return; // whole fragment is one run — owned by the element-level fill
+    }
+    let mut i = 0;
+    while i < nodes.len() {
+        if !is_run_member(&nodes[i]) {
+            i += 1;
+            continue;
+        }
+        let mut j = i;
+        while j < nodes.len() && is_run_member(&nodes[j]) {
+            j += 1;
+        }
+        if let Some(edit) = try_fill_run(out, &nodes[i..j], line_width) {
+            edits.push(edit);
+        }
+        i = j;
+    }
+}
+
+/// Reflow one inline-prose run (a node slice) in place when it overflows.
+fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u32, u32, String)> {
+    // Trim whitespace-only edge text nodes — the surrounding layout owns them.
+    let mut lo = 0;
+    let mut hi = run.len();
+    while lo < hi && matches!(&run[lo], TemplateNode::Text(t) if t.data.trim().is_empty()) {
+        lo += 1;
+    }
+    while hi > lo && matches!(&run[hi - 1], TemplateNode::Text(t) if t.data.trim().is_empty()) {
+        hi -= 1;
+    }
+    let run = &run[lo..hi];
+    // Need prose: at least one text word AND at least one inline element.
+    let has_word = run
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
+    let has_elem = run
+        .iter()
+        .any(|n| matches!(n, TemplateNode::RegularElement(_)));
+    if !has_word || !has_elem {
+        return None;
+    }
+    let first = run.first()?;
+    let last = run.last()?;
+    // The edit covers content only; an edge text node's leading/trailing
+    // whitespace is the separator to the surrounding (non-run) siblings and must
+    // survive (e.g. the blank line before a following `<style>`).
+    let mut s = node_start(first) as usize;
+    if let TemplateNode::Text(t) = first {
+        let d = out.get(t.start as usize..t.end as usize)?;
+        s += d.len() - d.trim_start().len();
+    }
+    let mut e = node_end(last) as usize;
+    if let TemplateNode::Text(t) = last {
+        let d = out.get(t.start as usize..t.end as usize)?;
+        e -= d.len() - d.trim_end().len();
+    }
+    let whole = out.get(s..e)?;
+
+    // The run must start at the beginning of its line so its column = that line's
+    // indentation (all whitespace); otherwise we can't safely reflow it.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.is_empty() && !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let indent_cols = indent.width();
+    let content_doc = build_children_doc_nodes(out, run)?;
+    let base_level = indent_cols / 2;
+    // Flat width (a hardline forces multi-line).
+    let flat = crate::doc::print(
+        crate::doc::Doc::Group(vec![content_doc.clone()]),
+        1_000_000,
+        "  ",
+        base_level,
+        0,
+    );
+    if !flat.contains('\n') && indent_cols + flat.width() <= line_width {
+        return None; // fits flat — leave as-is
+    }
+    let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
+    (printed != whole).then_some((s as u32, e as u32, printed))
+}
+
 fn collect(
     out: &str,
     fragment: &Fragment,
@@ -49,6 +163,7 @@ fn collect(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
+    fill_inline_runs(out, fragment, line_width, edits);
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(elem) => {
@@ -868,8 +983,11 @@ fn try_fill_mixed(
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
 /// whitespace are dropped (the element wrapper owns that newline).
 fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
+    build_children_doc_nodes(out, &fragment.nodes)
+}
+
+fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
-    let nodes = &fragment.nodes;
     let n = nodes.len();
     let mut docs: Vec<Doc> = Vec::new();
     // Whether the previous text node ended with a (trimmed) space, so the next
