@@ -2191,6 +2191,7 @@ dependencies = [
  "oxc_parser",
  "oxc_span",
  "rayon",
+ "regex",
  "rsvelte_core",
  "serde",
  "serde_json",

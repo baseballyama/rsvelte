@@ -3,6 +3,7 @@
 //! [`registry`](crate::registry).
 
 pub mod button_has_type;
+pub mod known_css_properties;
 pub mod no_add_event_listener;
 pub mod no_at_const_tags;
 pub mod no_at_debug_tags;
@@ -24,6 +25,7 @@ pub mod no_store_async;
 pub mod no_svelte_internal;
 pub mod no_target_blank;
 pub mod no_top_level_browser_globals;
+pub mod no_unknown_style_directive_property;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
 pub mod prefer_derived_over_derived_by;

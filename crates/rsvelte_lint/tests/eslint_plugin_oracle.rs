@@ -127,6 +127,11 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-top-level-browser-globals",
         false,
     ),
+    (
+        "no-unknown-style-directive-property",
+        "svelte/no-unknown-style-directive-property",
+        false,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
