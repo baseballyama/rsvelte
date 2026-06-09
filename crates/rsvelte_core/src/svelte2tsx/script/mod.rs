@@ -828,6 +828,60 @@ pub fn process_instance_script(
                                     declared_names.insert(id.name.to_string());
                                 }
                             }
+                            // `export interface X { ... }` / `export type X = ...`
+                            // in the instance script. In TS these are
+                            // `Interface`/`TypeAlias` nodes with an `export`
+                            // modifier, so upstream's `HoistableInterfaces`
+                            // collects them just like their non-exported
+                            // counterparts; OXC instead wraps them in an
+                            // `ExportNamedDeclaration`, so we mirror the
+                            // standalone arms here. Without this, a referenced
+                            // exported type (`export type Phase`) is invisible
+                            // to the hoist dependency graph, so a dependent
+                            // interface (`interface Props { phase: Phase }`)
+                            // gets hoisted above `$$render()` while `Phase`
+                            // stays inside it → "Cannot find name 'Phase'"
+                            // (#963). `handle_export_named_decl` strips the
+                            // `export ` keyword to a space; the candidate is
+                            // flagged `exported` so the hoist move starts at the
+                            // inner declaration and doesn't overlap that strip.
+                            oxc::Declaration::TSInterfaceDeclaration(iface) => {
+                                let name = iface.id.name.to_string();
+                                if name == "$$Slots" {
+                                    exported_names.has_slots_type = true;
+                                } else if name == "$$Events" {
+                                    exported_names.has_events_type = true;
+                                }
+                                exported_names.instance_type_names.insert(name.clone());
+                                if !is_special_type_name(&name) {
+                                    candidates.push(HoistCandidate {
+                                        name,
+                                        rel_start: iface.span.start,
+                                        rel_end: iface.span.end,
+                                        exported: true,
+                                    });
+                                }
+                                if is_dts_mode {
+                                    rewrite_interface_to_type_dts(iface, raw_content, offset, str);
+                                }
+                            }
+                            oxc::Declaration::TSTypeAliasDeclaration(type_alias) => {
+                                let name = type_alias.id.name.to_string();
+                                if name == "$$Slots" {
+                                    exported_names.has_slots_type = true;
+                                } else if name == "$$Events" {
+                                    exported_names.has_events_type = true;
+                                }
+                                exported_names.instance_type_names.insert(name.clone());
+                                if !is_special_type_name(&name) {
+                                    candidates.push(HoistCandidate {
+                                        name,
+                                        rel_start: type_alias.span.start,
+                                        rel_end: type_alias.span.end,
+                                        exported: true,
+                                    });
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -846,6 +900,7 @@ pub fn process_instance_script(
                             name,
                             rel_start: iface.span.start,
                             rel_end: iface.span.end,
+                            exported: false,
                         });
                     }
 
@@ -871,6 +926,7 @@ pub fn process_instance_script(
                             name,
                             rel_start: type_alias.span.start,
                             rel_end: type_alias.span.end,
+                            exported: false,
                         });
                     }
                     // Detect `type X = $$Generic;` or `type X = $$Generic<constraint>;`
@@ -1432,6 +1488,13 @@ struct HoistCandidate {
     /// Span relative to the script content (raw_content).
     rel_start: u32,
     rel_end: u32,
+    /// True when the declaration carried an `export` modifier in the instance
+    /// script (`export type X` / `export interface X`). The `export ` keyword
+    /// is stripped to a space by `handle_export_named_decl`; the hoist move
+    /// must therefore start exactly at the inner declaration (`rel_start`) and
+    /// NOT walk back through the stripped-export trivia, which would overlap
+    /// that overwrite.
+    exported: bool,
 }
 
 /// Names that have a special meaning in svelte2tsx and must never be hoisted.
@@ -1758,7 +1821,17 @@ fn resolve_hoistable_type_decls(
         // (whitespace + line / block comments) so JSDoc and explanatory
         // comments on the declaration travel with the hoisted chunk.
         // Matches TypeScript's `node.pos`, which spans leading trivia.
-        let start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
+        //
+        // Exception: for an exported declaration the `export ` keyword has
+        // already been overwritten to a space by `handle_export_named_decl`.
+        // Walking back through that space would make the move range overlap
+        // that overwrite (a MagicString conflict), so start exactly at the
+        // inner declaration.
+        let start = if c.exported {
+            c.rel_start as usize
+        } else {
+            walk_back_through_trivia(raw_bytes, c.rel_start as usize)
+        };
         exported_names
             .hoistable_type_ranges
             .push((start as u32 + offset, c.rel_end + offset));
