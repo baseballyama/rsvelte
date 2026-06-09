@@ -51,6 +51,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::no_inline_styles::NoInlineStyles),
         Box::new(crate::rules::prefer_destructured_store_props::PreferDestructuredStoreProps),
         Box::new(crate::rules::require_store_reactive_access::RequireStoreReactiveAccess),
+        Box::new(crate::rules::max_lines_per_block::MaxLinesPerBlock),
     ]
 }
 

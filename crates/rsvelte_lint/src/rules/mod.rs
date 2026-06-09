@@ -4,6 +4,7 @@
 
 pub mod button_has_type;
 pub mod known_css_properties;
+pub mod max_lines_per_block;
 pub mod no_add_event_listener;
 pub mod no_at_const_tags;
 pub mod no_at_debug_tags;
