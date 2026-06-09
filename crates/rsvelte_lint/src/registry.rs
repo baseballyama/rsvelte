@@ -39,6 +39,8 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoInspect),
         Box::new(NoUselessMustaches),
         Box::new(NoTargetBlank),
+        Box::new(crate::rules::no_at_const_tags::NoAtConstTags),
+        Box::new(crate::rules::no_dynamic_slot_name::NoDynamicSlotName),
     ]
 }
 

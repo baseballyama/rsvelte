@@ -4,12 +4,14 @@
 
 pub mod button_has_type;
 pub mod no_add_event_listener;
+pub mod no_at_const_tags;
 pub mod no_at_debug_tags;
 pub mod no_at_html_tags;
 pub mod no_dupe_else_if_blocks;
 pub mod no_dupe_on_directives;
 pub mod no_dupe_style_properties;
 pub mod no_dupe_use_directives;
+pub mod no_dynamic_slot_name;
 pub mod no_ignored_unsubscribe;
 pub mod no_inner_declarations;
 pub mod no_inspect;

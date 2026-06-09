@@ -115,6 +115,8 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/require-store-callbacks-use-set-param",
         false,
     ),
+    ("no-at-const-tags", "svelte/no-at-const-tags", false),
+    ("no-dynamic-slot-name", "svelte/no-dynamic-slot-name", false),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.

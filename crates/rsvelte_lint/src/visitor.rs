@@ -128,7 +128,13 @@ impl<'r> LintVisitor<'r> {
             TemplateNode::SvelteComponent(c) => self.visit_fragment(ctx, &c.fragment),
             TemplateNode::SvelteElement(e) => self.visit_fragment(ctx, &e.fragment),
             TemplateNode::TitleElement(e) => self.visit_fragment(ctx, &e.fragment),
-            TemplateNode::SlotElement(e) => self.visit_fragment(ctx, &e.fragment),
+            TemplateNode::SlotElement(e) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_slot(ctx, e);
+                }
+                self.visit_fragment(ctx, &e.fragment)
+            }
             // The `svelte:*` special elements all wrap a `SvelteElement`.
             TemplateNode::SvelteBody(e)
             | TemplateNode::SvelteDocument(e)
@@ -138,10 +144,15 @@ impl<'r> LintVisitor<'r> {
             | TemplateNode::SvelteOptions(e)
             | TemplateNode::SvelteSelf(e)
             | TemplateNode::SvelteWindow(e) => self.visit_fragment(ctx, &e.fragment),
-            // Leaf nodes with no template children and no Wave-1 hooks.
+            TemplateNode::ConstTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_const_tag(ctx, t);
+                }
+            }
+            // Leaf nodes with no template children and no hooks.
             TemplateNode::Text(_)
             | TemplateNode::Comment(_)
-            | TemplateNode::ConstTag(_)
             | TemplateNode::DeclarationTag(_)
             | TemplateNode::RenderTag(_)
             | TemplateNode::AttachTag(_) => {}
