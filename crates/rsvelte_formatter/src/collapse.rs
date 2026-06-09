@@ -182,6 +182,24 @@ fn collect(
         match node {
             TemplateNode::RegularElement(elem) => {
                 if is_whitespace_preserving(elem.name.as_str()) {
+                    // `<pre>` / `<textarea>` preserve whitespace, so collapse never
+                    // reflows their text — but a sole content mustache whose
+                    // expression overflows still wraps (the JS is formatted), with
+                    // `<pre>{` and `}</pre>` glued. The shared format-time width
+                    // check under-counts the glued tag prefix, so handle it here.
+                    if matches!(elem.name.as_str(), "pre" | "textarea")
+                        && let Some(edit) = try_break_pre_content_tag(
+                            out,
+                            elem.name.as_str(),
+                            elem.start,
+                            elem.end,
+                            &elem.fragment,
+                            line_width,
+                            options,
+                        )
+                    {
+                        edits.push(edit);
+                    }
                     continue;
                 }
                 // A run fill already reflowed this element inline — its layout is
@@ -648,6 +666,71 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     }
     let open_no_bracket = open[..open.len() - 1].to_string();
     Some((open_no_bracket, content.to_string(), tag.to_string()))
+}
+
+/// Wrap the sole content-tag child of a whitespace-preserving element
+/// (`<pre>{expr}</pre>`) when its one-line rendering overflows. Unlike a block
+/// element, the tags stay glued to the content (no surrounding newlines — the
+/// element preserves whitespace), so only the expression breaks internally with
+/// its continuation lines pushed out two levels past the element's indent:
+///   <pre>{part.value.name +
+///       "\n" +
+///       part.value.stack.replace(/^\n+/, "")}</pre>
+fn try_break_pre_content_tag(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
+    // Exactly one child, an expression tag (the only content-tag kind that
+    // appears glued inside `<pre>` / `<textarea>` in practice).
+    if fragment.nodes.len() != 1 {
+        return None;
+    }
+    let node = &fragment.nodes[0];
+    let TemplateNode::ExpressionTag(_) = node else {
+        return None;
+    };
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    let cs = node_start(node) as usize;
+    let ce = node_end(node) as usize;
+    let open = out.get(s..cs)?; // `<pre>`
+    let close = out.get(ce..e)?; // `</pre>`
+    let span = out.get(cs..ce)?; // `{expr}`
+    // Only an as-yet-unbroken, overflowing element (a multi-line span was already
+    // wrapped at format time — leave it).
+    if open.contains('\n') || span.contains('\n') || span.len() <= 2 {
+        return None;
+    }
+    let column = current_column(out, start);
+    if column + open.width() + span.width() + close.width() <= line_width {
+        return None; // fits on one line
+    }
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    // Continuation lines sit one indent level past the element; the expression
+    // formatter adds its own level for the broken binary on top of that.
+    let iw = options.js.indent_width.value() as usize;
+    let cont_cols = indent.width() + iw;
+    let inner = span.get(1..span.len() - 1)?.trim(); // strip the `{` … `}`
+    // Force the top-level expression to break: the last line carries `}</pre>`,
+    // which oxc can't see, so narrow the width by that glued suffix.
+    let suffix = 1 + close.width(); // `}` + `</tag>`
+    let width = line_width.saturating_sub(cont_cols + suffix).max(1);
+    let wrapped =
+        crate::expression::reformat_content_at_width(inner, options, width, cont_cols).ok()?;
+    if !wrapped.contains('\n') {
+        return None; // didn't actually break
+    }
+    let broken = format!("{open}{{{wrapped}}}{close}");
+    (broken != whole).then_some((start, end, broken))
 }
 
 /// Hug-break the single inline-element body of a block (`{#each …}<span>…</span>{/each}`)
