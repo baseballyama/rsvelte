@@ -78,6 +78,9 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // spans including their attribute lists. The expression and indent
     // passes below target spans outside those rewritten regions.
     markup::collect_open_tag_edits(source, &root.fragment, 0, options, &mut edits)?;
+    if let Some(opts) = &root.options {
+        markup::collect_options_open_tag_edit(source, opts, options, &mut edits)?;
+    }
     expression::collect_template_edits(source, &root.fragment, 0, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
     if let Some(css) = &root.css {

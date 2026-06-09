@@ -29,7 +29,7 @@ use oxc_formatter::{JsFormatOptions, QuoteStyle};
 use rsvelte_core::ast::js::Expression;
 use rsvelte_core::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag, Fragment, IfBlock,
-    SpreadAttribute, TemplateNode,
+    SpreadAttribute, SvelteOptions, TemplateNode,
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -51,6 +51,38 @@ pub(crate) fn collect_open_tag_edits(
     for node in &fragment.nodes {
         collect_node_open_tag_edits(source, node, depth, options, edits)?;
     }
+    Ok(())
+}
+
+/// Format the top-level `<svelte:options …>` open tag. It is hoisted out of the
+/// fragment into `root.options`, so the normal fragment walk never sees it —
+/// without this its attributes keep their source indentation (tabs) and its
+/// attribute-value expressions stay unformatted.
+pub(crate) fn collect_options_open_tag_edit(
+    source: &str,
+    opts: &SvelteOptions,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    if opts.attributes.is_empty() {
+        return Ok(());
+    }
+    let attrs: Vec<Attribute> = opts
+        .attributes
+        .iter()
+        .cloned()
+        .map(Attribute::Attribute)
+        .collect();
+    push_open_tag(
+        source,
+        opts.start,
+        "svelte:options",
+        &attrs,
+        None,
+        0,
+        options,
+        edits,
+    )?;
     Ok(())
 }
 
