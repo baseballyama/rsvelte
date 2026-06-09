@@ -124,6 +124,7 @@ const RULES: &[(&str, &str, bool)] = &[
         false,
     ),
     ("no-dom-manipulating", "svelte/no-dom-manipulating", false),
+    ("no-reactive-reassign", "svelte/no-reactive-reassign", false),
     (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
