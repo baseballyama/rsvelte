@@ -571,20 +571,34 @@ fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc>
                 let txt = out.get(t.start as usize..t.end as usize)?;
                 let trim_left = i == 0;
                 let trim_right = i == n - 1;
+                let prev_inline = i > 0 && is_inline_regular_element(&nodes[i - 1]);
                 let next_inline = i + 1 < n && is_inline_regular_element(&nodes[i + 1]);
-                // Trailing space before an inline element: trim it from this fill
-                // and flag the element to carry the leading `line` (hug in place).
+                let mut tl = trim_left;
+                let mut tr = trim_right;
                 // prettier's `handleTextChild` returns early for the first/last
                 // child (no trim, no flag) — the wrapper owns that boundary — so
-                // a first text node keeps its trailing `line` INSIDE the fill and
-                // the following inline element stays bare (it hug-breaks in place
-                // after a flat space, rather than breaking onto its own line).
-                let mut tr = trim_right;
+                // the boundary handling below only applies to middle text nodes.
+                //
+                // Leading space after an inline element: trim it from this fill
+                // and append a `line` to the previous element's doc so the
+                // element and the following space break together (the element
+                // can then sit at the end of a line with the next word wrapping).
+                if !trim_left && !trim_right && prev_inline && starts_with_space_no_break(txt) {
+                    if let Some(prev) = docs.pop() {
+                        docs.push(Doc::Group(vec![prev, Doc::Line]));
+                    }
+                    tl = true;
+                }
+                // Trailing space before an inline element: trim it from this fill
+                // and flag the element to carry the leading `line` (hug in place):
+                // a first text node instead keeps its trailing `line` inside the
+                // fill (prints as a flat space) and the inline element stays bare,
+                // so it hug-breaks in place rather than breaking onto its own line.
                 if !trim_left && !trim_right && next_inline && ends_with_space_no_break(txt) {
                     tr = true;
                     ws_prev = true;
                 }
-                docs.push(Doc::Fill(split_text_to_docs(txt, trim_left, tr)));
+                docs.push(Doc::Fill(split_text_to_docs(txt, tl, tr)));
             }
             other if is_inline_regular_element(other) => {
                 let elem = element_doc(out, other)?;
@@ -715,6 +729,10 @@ fn trailing_linebreaks(s: &str) -> usize {
 
 fn ends_with_space_no_break(s: &str) -> bool {
     s.ends_with(|c: char| c.is_whitespace()) && trailing_linebreaks(s) == 0
+}
+
+fn starts_with_space_no_break(s: &str) -> bool {
+    s.starts_with(|c: char| c.is_whitespace()) && leading_linebreaks(s) == 0
 }
 
 fn is_inline_node(node: &TemplateNode) -> bool {
