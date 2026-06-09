@@ -696,13 +696,20 @@ impl MagicString {
         let original_line_starts = line_starts(&self.original);
 
         // Helper closure: given an original byte offset, return (line, col) both 0-based.
+        // Source-map columns are UTF-16 code units (source-map spec v3 / LSP), not
+        // bytes — so a multibyte char before `offset` must count its UTF-16 width,
+        // not its byte length. For ASCII this is identical to the byte delta.
         let orig_loc = |offset: u32| -> (i64, i64) {
             let offset = offset as usize;
             let line = match original_line_starts.binary_search(&offset) {
                 Ok(i) => i,
                 Err(i) => i - 1,
             };
-            let col = offset - original_line_starts[line];
+            let line_start = original_line_starts[line];
+            let col: usize = self.original[line_start..offset]
+                .chars()
+                .map(|c| c.len_utf16())
+                .sum();
             (line as i64, col as i64)
         };
 
@@ -748,7 +755,7 @@ impl MagicString {
         }
         // Advance generated column for the last intro line fragment.
         if let Some(last) = intro_lines.last() {
-            generated_column += count_chars(last) as i64;
+            generated_column += count_utf16(last) as i64;
         }
 
         // Walk chunks.
@@ -766,7 +773,7 @@ impl MagicString {
                         generated_column = 0;
                         first_segment_on_line = true;
                     }
-                    generated_column += count_chars(part) as i64;
+                    generated_column += count_utf16(part) as i64;
                 }
             }
 
@@ -828,8 +835,11 @@ impl MagicString {
                                 &mut first_segment_on_line,
                             );
                         } else {
-                            generated_column += 1;
-                            cur_src_col += 1;
+                            // Advance by UTF-16 width so generated and original
+                            // columns stay in UTF-16 units (1 for BMP, 2 for astral).
+                            let w = ch.len_utf16() as i64;
+                            generated_column += w;
+                            cur_src_col += w;
                             emit_segment(
                                 &mut mappings,
                                 generated_column,
@@ -867,7 +877,7 @@ impl MagicString {
                             generated_column = 0;
                             first_segment_on_line = true;
                         } else {
-                            generated_column += 1;
+                            generated_column += ch.len_utf16() as i64;
                         }
                     }
                 }
@@ -883,7 +893,7 @@ impl MagicString {
                         generated_column = 0;
                         first_segment_on_line = true;
                     }
-                    generated_column += count_chars(part) as i64;
+                    generated_column += count_utf16(part) as i64;
                 }
             }
 
@@ -925,9 +935,13 @@ fn line_starts(s: &str) -> Vec<usize> {
     starts
 }
 
-/// Count the number of characters (not bytes) in a string.
-fn count_chars(s: &str) -> usize {
-    s.chars().count()
+/// Count the UTF-16 code units in a string.
+///
+/// Source-map generated columns are measured in UTF-16 code units (spec v3 /
+/// LSP), so an astral char (emoji, 4-byte UTF-8) counts as 2 and a BMP char as
+/// 1. For ASCII this equals both the char count and the byte length.
+fn count_utf16(s: &str) -> usize {
+    s.chars().map(|c| c.len_utf16()).sum()
 }
 
 // ---------------------------------------------------------------------------
@@ -1216,5 +1230,54 @@ mod tests {
         });
         // Should have semicolons for line breaks.
         assert!(map.mappings.contains(';'));
+    }
+
+    #[test]
+    fn count_utf16_counts_code_units() {
+        assert_eq!(count_utf16("abc"), 3); // ASCII: 1 unit each
+        assert_eq!(count_utf16("àb"), 2); // BMP: à is 2 bytes but 1 UTF-16 unit
+        assert_eq!(count_utf16("😀"), 2); // astral: 4 bytes, 2 UTF-16 units
+        assert_eq!(count_utf16("😀x"), 3);
+    }
+
+    // Source-map columns must be UTF-16 code units (spec v3 / LSP), not bytes or
+    // Unicode scalars. The expected original columns below were cross-checked
+    // against the official `magic-string` library. The old byte/char math gave
+    // 3 and 8 respectively.
+
+    #[test]
+    fn source_map_original_column_is_utf16_for_bmp() {
+        // `à` is 2 bytes but 1 UTF-16 unit; overwrite the trailing `x`.
+        let mut s = MagicString::new("àbx");
+        let x = "àb".len() as u32; // byte offset 3
+        s.overwrite(x, x + 1, "Q");
+        let map = s.generate_map(GenerateMapOptions {
+            file: None,
+            source: Some("in.svelte".to_string()),
+            include_content: false,
+        });
+        let sm = sourcemap::SourceMap::from_slice(map.to_json().as_bytes()).unwrap();
+        // `Q` sits at generated UTF-16 column 2 (à=1, b=1) and must map back to
+        // original UTF-16 column 2 — not byte column 3.
+        let t = sm.lookup_token(0, 2).expect("token at generated col 2");
+        assert_eq!(t.get_src_col(), 2);
+    }
+
+    #[test]
+    fn source_map_original_column_is_utf16_for_astral() {
+        // Each `😀` is 4 bytes / 2 UTF-16 units; overwrite the trailing `x`.
+        let mut s = MagicString::new("😀😀x");
+        let x = "😀😀".len() as u32; // byte offset 8
+        s.overwrite(x, x + 1, "QQ");
+        let map = s.generate_map(GenerateMapOptions {
+            file: None,
+            source: Some("in.svelte".to_string()),
+            include_content: false,
+        });
+        let sm = sourcemap::SourceMap::from_slice(map.to_json().as_bytes()).unwrap();
+        // `QQ` starts at generated UTF-16 column 4 (two astral chars = 4 units)
+        // and must map to original UTF-16 column 4 — not byte column 8.
+        let t = sm.lookup_token(0, 4).expect("token at generated col 4");
+        assert_eq!(t.get_src_col(), 4);
     }
 }
