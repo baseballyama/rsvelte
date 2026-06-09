@@ -132,6 +132,7 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-unknown-style-directive-property",
         false,
     ),
+    ("no-nested-style-tag", "svelte/no-nested-style-tag", false),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
