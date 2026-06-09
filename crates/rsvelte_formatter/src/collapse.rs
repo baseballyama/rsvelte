@@ -67,13 +67,44 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
                     line_width,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
                 } else {
                     collect(out, &elem.fragment, line_width, edits);
                 }
             }
-            TemplateNode::Component(c) => collect(out, &c.fragment, line_width, edits),
+            TemplateNode::Component(c) => {
+                if let Some(edit) = try_hug_mixed(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &c.fragment, line_width, edits);
+                }
+            }
             TemplateNode::TitleElement(t) => {
                 if let Some(edit) = try_collapse(
+                    out,
+                    t.name.as_str(),
+                    t.start,
+                    t.end,
+                    &t.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
                     out,
                     t.name.as_str(),
                     t.start,
@@ -124,6 +155,15 @@ fn collect(out: &str, fragment: &Fragment, line_width: usize, edits: &mut Vec<(u
             TemplateNode::SvelteComponent(c) => collect(out, &c.fragment, line_width, edits),
             TemplateNode::SvelteElement(e) => {
                 if let Some(edit) = try_collapse(
+                    out,
+                    e.name.as_str(),
+                    e.start,
+                    e.end,
+                    &e.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
                     out,
                     e.name.as_str(),
                     e.start,
@@ -448,6 +488,90 @@ fn is_inline_block(tag: &str) -> bool {
         tag,
         "input" | "button" | "select" | "object" | "video" | "audio"
     )
+}
+
+/// Hug-break an inline element whose mixed inline content (expression tags /
+/// text / inline elements, directly adjacent to the tags) overflows one line.
+/// prettier's `shouldHugStart` / `shouldHugEnd` are true for an inline element
+/// whose first/last child is not a text node starting/ending with whitespace, so
+/// the open `>` and the close `</tag` glue to the content and only the final `>`
+/// sits on its own line:
+///   <title
+///     >{a} / {b}</title
+///   >
+/// This mirrors `try_collapse`'s pure-text hug branch, but the content is the
+/// rendered mixed-content doc instead of a collapsed text run.
+fn try_hug_mixed(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    // Inline display only — block / inline-block elements never hug.
+    if is_block_display(tag) || is_inline_block(tag) || is_whitespace_preserving(tag) {
+        return None;
+    }
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+
+    // Must be mixed (≥1 non-text child) and entirely inline (no comments).
+    let mut has_non_text = false;
+    for n in &fragment.nodes {
+        if !matches!(n, TemplateNode::Text(_)) {
+            has_non_text = true;
+            if matches!(n, TemplateNode::Comment(_)) || !is_inline_node(n) {
+                return None;
+            }
+        }
+    }
+    if !has_non_text {
+        return None; // pure text → try_collapse
+    }
+
+    let content_start = node_start(fragment.nodes.first()?) as usize;
+    let content_end = node_end(fragment.nodes.last()?) as usize;
+    let open = out.get(s..content_start)?;
+    let close = out.get(content_end..e)?;
+    if open.contains('\n') || !open.ends_with('>') || !close.starts_with("</") {
+        return None;
+    }
+    let raw = out.get(content_start..content_end)?;
+    // Hug only when content is directly adjacent to BOTH tags (shouldHugStart /
+    // shouldHugEnd). Whitespace-separated content is `try_fill_mixed`'s job.
+    if raw.starts_with([' ', '\t', '\r', '\n']) || raw.ends_with([' ', '\t', '\r', '\n']) {
+        return None;
+    }
+    // Only act on currently-one-line content that overflows; multi-line content
+    // is left alone (its exact reflow needs the full element-group model).
+    if raw.contains('\n') {
+        return None;
+    }
+    let column = current_column(out, start);
+    let element_one_line = column + open.width() + raw.width() + close.width();
+    if element_one_line <= line_width {
+        return None; // fits as-is
+    }
+
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+
+    let content_doc = build_children_doc(out, fragment)?;
+    let printed = crate::doc::print(
+        content_doc,
+        line_width,
+        "  ",
+        inner_indent.width() / 2,
+        inner_indent.width() + 1, // content starts just after the hugged `>`
+    );
+    let open_no_bracket = &open[..open.len() - 1];
+    let hug = format!("{open_no_bracket}\n{inner_indent}>{printed}</{tag}\n{indent}>");
+    (hug != whole).then_some((start, end, hug))
 }
 
 /// Narrow mixed-inline fill: when an element with inline content (text +
