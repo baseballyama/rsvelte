@@ -3379,7 +3379,7 @@ fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: 
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
-                if let Some(part) = format_attribute_node_segments(node, source) {
+                if let Some(part) = format_attribute_node_segments(node, source, true) {
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
                 }
@@ -3571,7 +3571,7 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 if node.name == "slot" {
                     continue;
                 }
-                if let Some(part) = format_attribute_node_segments(node, source) {
+                if let Some(part) = format_attribute_node_segments(node, source, false) {
                     if node.name.starts_with("--") {
                         // CSS custom property wrap: `--x:val,` →
                         // `...__sveltets_2_cssProp({--x:val}),`. Strip the
@@ -3766,7 +3766,84 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every
 /// expression site in `Seg::Src` so the resulting MagicString chunks
 /// retain per-character source-map fidelity.
-fn format_attribute_node_segments(node: &AttributeNode, source: &str) -> Option<Vec<Seg>> {
+/// HTML attributes whose `svelte/elements` type is `number | undefined | null`
+/// (no `string`). A static string value (`tabindex="-1"`) must be lowered to a
+/// bare number to type-check. List mirrors svelte2tsx's `numberOnlyAttributes`
+/// (`htmlxtojsx_v2/nodes/Attribute.ts`), itself derived from `elements.d.ts`.
+fn is_number_only_attribute(name: &str) -> bool {
+    const NUMBER_ONLY: &[&str] = &[
+        "aria-colcount",
+        "aria-colindex",
+        "aria-colspan",
+        "aria-level",
+        "aria-posinset",
+        "aria-rowcount",
+        "aria-rowindex",
+        "aria-rowspan",
+        "aria-setsize",
+        "aria-valuemax",
+        "aria-valuemin",
+        "aria-valuenow",
+        "results",
+        "span",
+        "marginheight",
+        "marginwidth",
+        "maxlength",
+        "minlength",
+        "currenttime",
+        "defaultplaybackrate",
+        "volume",
+        "high",
+        "low",
+        "optimum",
+        "start",
+        "size",
+        "border",
+        "cols",
+        "rows",
+        "colspan",
+        "rowspan",
+        "tabindex",
+    ];
+    let lower = name.to_ascii_lowercase();
+    NUMBER_ONLY.contains(&lower.as_str())
+}
+
+/// Mirror JS `!isNaN(Number(s))` for the number-conversion check: an attribute
+/// value coerces to a number. Covers the realistic forms (`-1`, `2`, `1e3`,
+/// `0x1f`) and the JS quirk that an all-whitespace value is `0` (not NaN).
+fn is_js_numeric(data: &str) -> bool {
+    let t = data.trim();
+    if t.is_empty() {
+        return true; // JS: Number("") === 0
+    }
+    let lower = t.to_ascii_lowercase();
+    // `0x` / `0o` / `0b` integer literals coerce via Number().
+    if let Some(rest) = lower.strip_prefix("0x") {
+        return !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_hexdigit());
+    }
+    if let Some(rest) = lower.strip_prefix("0o") {
+        return !rest.is_empty() && rest.bytes().all(|b| (b'0'..=b'7').contains(&b));
+    }
+    if let Some(rest) = lower.strip_prefix("0b") {
+        return !rest.is_empty() && rest.bytes().all(|b| matches!(b, b'0' | b'1'));
+    }
+    // Rust's f64 parser also accepts `inf`/`nan`, which JS `Number` treats as
+    // NaN (only `Infinity` coerces). Disambiguate those keyword spellings.
+    if matches!(
+        lower.as_str(),
+        "inf" | "+inf" | "-inf" | "infinity" | "+infinity" | "-infinity" | "nan"
+    ) {
+        return lower.contains("infinity");
+    }
+    t.parse::<f64>().is_ok()
+}
+
+fn format_attribute_node_segments(
+    node: &AttributeNode,
+    source: &str,
+    is_element: bool,
+) -> Option<Vec<Seg>> {
     let name = &node.name;
     let mut out: Vec<Seg> = Vec::new();
 
@@ -3809,6 +3886,25 @@ fn format_attribute_node_segments(node: &AttributeNode, source: &str) -> Option<
                 } else {
                     segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
                 }
+                segs_push_lit(&mut out, ",");
+                return Some(out);
+            }
+
+            // Numeric DOM attribute written as a string literal (`tabindex="-1"`,
+            // `colspan="2"`, …). `svelte/elements` types these as `number`, so a
+            // backtick string fails to type-check; emit the value as a bare
+            // number instead — but only on a real element (component props keep
+            // the author's string), only for the `numberOnlyAttributes` set, and
+            // only when the value actually coerces to a number (#939). Mirrors
+            // svelte2tsx's `needsNumberConversion` in `Attribute.ts`.
+            if is_element
+                && parts.len() == 1
+                && let AttributeValuePart::Text(text) = &parts[0]
+                && is_number_only_attribute(name)
+                && is_js_numeric(&text.data)
+            {
+                segs_push_lit(&mut out, &format!("\"{}\":", name));
+                segs_push_src(&mut out, text.start, text.end);
                 segs_push_lit(&mut out, ",");
                 return Some(out);
             }
