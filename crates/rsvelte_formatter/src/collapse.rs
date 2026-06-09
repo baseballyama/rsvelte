@@ -902,14 +902,15 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
         {
             let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
             // Only the `<tag …attrs></tag>` shape (not self-closing, no content).
-            if !span.contains('\n') && span.ends_with(&format!("></{tag}>")) {
-                if let Some(open_doc) = build_open_attr_doc(out, node, tag) {
-                    return Some(Doc::Group(vec![
-                        open_doc,
-                        Doc::Softline,
-                        Doc::Text(format!("></{tag}>")),
-                    ]));
-                }
+            if !span.contains('\n')
+                && span.ends_with(&format!("></{tag}>"))
+                && let Some(open_doc) = build_open_attr_doc(out, node, tag)
+            {
+                return Some(Doc::Group(vec![
+                    open_doc,
+                    Doc::Softline,
+                    Doc::Text(format!("></{tag}>")),
+                ]));
             }
         }
     }
