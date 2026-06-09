@@ -3,7 +3,7 @@
 //! one statement doesn't need the braces. Port of the eslint-plugin-svelte rule.
 //!
 //! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. A `$:`
-//! reactive statement is a [`LabeledStatement`] whose label is `$`; the rule
+//! reactive statement is a `LabeledStatement` whose label is `$`; the rule
 //! flags one whose body is a `BlockStatement` with exactly one statement,
 //! reporting at the block. The upstream fix is suggestion-only (not an autofix),
 //! so the rule reports without an attached fix.

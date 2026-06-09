@@ -4,7 +4,7 @@
 //! Port of the eslint-plugin-svelte rule.
 //!
 //! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. A `$:`
-//! reactive statement is a [`LabeledStatement`] whose label is `$`; the rule
+//! reactive statement is a `LabeledStatement` whose label is `$`; the rule
 //! flags one whose body is `ExpressionStatement > AssignmentExpression` with a
 //! function-expression right-hand side. The upstream fix is suggestion-only (not
 //! an autofix), so the rule reports without an attached fix.
