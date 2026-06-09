@@ -813,6 +813,54 @@ fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc>
     Some(Doc::Concat(docs))
 }
 
+/// Build a wrappable open-tag doc (`<tag` + an attribute group) for a regular
+/// element, so a long open tag can break its attributes onto their own lines —
+/// prettier's `['<', name, indent(group([line, attr1, line, attr2, …]))]` for a
+/// hugging element (no trailing softline; the `>` belongs to the hugged content).
+/// Returns `None` (caller keeps the atomic open string) when there are no
+/// attributes or any attribute is multi-line in the formatted output.
+fn build_open_attr_doc(out: &str, node: &TemplateNode, tag: &str) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let TemplateNode::RegularElement(e) = node else {
+        return None;
+    };
+    if e.attributes.is_empty() {
+        return None;
+    }
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2);
+    for attr in &e.attributes {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None; // a multi-line attribute can't sit in this flat group
+        }
+        group_parts.push(Doc::Line);
+        group_parts.push(Doc::Text(atext.to_string()));
+    }
+    Some(Doc::Concat(vec![
+        Doc::Text(format!("<{tag}")),
+        Doc::Indent(vec![Doc::Group(group_parts)]),
+    ]))
+}
+
+/// Source span of an attribute, mirroring `markup::attribute_span`.
+fn attribute_span(attr: &rsvelte_core::ast::template::Attribute) -> (u32, u32) {
+    use rsvelte_core::ast::template::Attribute;
+    match attr {
+        Attribute::Attribute(n) => (n.start, n.end),
+        Attribute::SpreadAttribute(s) => (s.start, s.end),
+        Attribute::AttachTag(a) => (a.start, a.end),
+        Attribute::BindDirective(d) => (d.start, d.end),
+        Attribute::OnDirective(d) => (d.start, d.end),
+        Attribute::ClassDirective(d) => (d.start, d.end),
+        Attribute::StyleDirective(d) => (d.start, d.end),
+        Attribute::TransitionDirective(d) => (d.start, d.end),
+        Attribute::AnimateDirective(d) => (d.start, d.end),
+        Attribute::UseDirective(d) => (d.start, d.end),
+        Attribute::LetDirective(d) => (d.start, d.end),
+    }
+}
+
 /// Whether `node` is an inline-display regular element (gets the hug treatment).
 fn is_inline_regular_element(node: &TemplateNode) -> bool {
     matches!(node, TemplateNode::RegularElement(e)
@@ -824,12 +872,16 @@ fn is_inline_regular_element(node: &TemplateNode) -> bool {
 fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     if let Some((open_no_bracket, content, tag)) = element_hug_parts(out, node) {
+        // The open tag is normally atomic, but when it has attributes build it as
+        // a wrappable attribute group so a long open tag inside prose can break
+        // its attributes onto their own lines (`<a`\n`  href="…">text</a`\n`>`).
+        let open_doc = build_open_attr_doc(out, node, &tag).unwrap_or(Doc::Text(open_no_bracket));
         // prettier's `hugStart && hugEnd` doc: the hugged content lives in its
         // OWN group so `>{content}</tag` stays glued to the open tag when it fits
         // (only the trailing `>` drops to its own line), independent of whether
         // the outer element group breaks.
         return Some(Doc::Group(vec![
-            Doc::Text(open_no_bracket),
+            open_doc,
             Doc::Group(vec![Doc::Indent(vec![
                 Doc::Softline,
                 Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
