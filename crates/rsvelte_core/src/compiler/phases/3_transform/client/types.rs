@@ -3114,7 +3114,12 @@ impl Memoizer {
         // stored copy is cloned.
         let mut conflicts = self.conflicts.borrow_mut();
         let mut next_suffix = self.next_suffix.borrow_mut();
-        let mut n = next_suffix.get(sanitized).copied().unwrap_or(1);
+        // One hash of the base: read the current suffix and keep the slot so we
+        // can bump it after the loop without a second lookup. The slot borrows
+        // `next_suffix`, but the loop only touches `conflicts`, so holding it
+        // across the loop is fine.
+        let slot = next_suffix.get_mut(sanitized);
+        let mut n = slot.as_deref().copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
         loop {
@@ -3132,7 +3137,7 @@ impl Memoizer {
             n += 1;
         }
 
-        match next_suffix.get_mut(sanitized) {
+        match slot {
             Some(slot) => *slot = n + 1,
             None => {
                 next_suffix.insert(sanitized.to_string(), n + 1);
@@ -3157,7 +3162,9 @@ impl Memoizer {
 
         let mut conflicts = self.conflicts.borrow_mut();
         let mut next_suffix = self.next_suffix.borrow_mut();
-        let mut n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
+        // One hash of the base (see `generate_id`): read + bump via one slot.
+        let slot = next_suffix.get_mut(sanitized.as_str());
+        let mut n = slot.as_deref().copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
         loop {
@@ -3175,7 +3182,7 @@ impl Memoizer {
             n += 1;
         }
 
-        match next_suffix.get_mut(sanitized.as_str()) {
+        match slot {
             Some(slot) => *slot = n + 1,
             None => {
                 next_suffix.insert(sanitized, n + 1);
