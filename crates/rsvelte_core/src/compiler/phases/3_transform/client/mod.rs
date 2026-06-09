@@ -2350,6 +2350,33 @@ fn cleanup_import_line(import: &str) -> String {
 /// const array = createArray(['x']); // top-level, NOT $state
 /// ```
 /// Returns {"array"} because `array` has shadowing between inner $state and outer non-$state.
+/// Collect the names declared as a local `let`/`const`/`var <name> = $state(`.
+///
+/// Single linear pass replacing per-name `script.contains("let <name> = $state(")`
+/// scans. Byte-identical to those scans: an entry `M` is added exactly when the
+/// literal `<kw> M = $state(` appears (`M` being the maximal identifier after the
+/// keyword + space, immediately followed by ` = $state(`), so `set.contains(N)`
+/// holds iff `<kw> N = $state(` occurs for some keyword. The keyword is matched as
+/// a raw substring (no left word boundary), mirroring the original `contains`.
+fn collect_local_state_decls(script: &str) -> rustc_hash::FxHashSet<&str> {
+    let mut set: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
+    for kw in ["let ", "const ", "var "] {
+        let mut from = 0;
+        while let Some(rel) = script[from..].find(kw) {
+            let after = from + rel + kw.len();
+            let name_end = after
+                + script[after..]
+                    .find(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$'))
+                    .unwrap_or(script.len() - after);
+            if name_end > after && script[name_end..].starts_with(" = $state(") {
+                set.insert(&script[after..name_end]);
+            }
+            from = from + rel + 1;
+        }
+    }
+    set
+}
+
 fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
     let mut top_level_non_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
     let mut inner_state: rustc_hash::FxHashSet<String> = rustc_hash::FxHashSet::default();
@@ -4785,6 +4812,12 @@ fn transform_instance_script_for_visitors(
             // can skip proxy wrapping on these (mirrors `binding.kind !== 'derived'` in JS).
             // Exclude any name that is re-declared as a local $state() somewhere in the
             // script — those inner shadowing declarations still need proxy on assignment.
+            // Names re-declared as a local `let/const/var <name> = $state(...)`.
+            // Precomputed in a single pass so the per-derived shadow check below is
+            // an O(1) set lookup instead of three full-script `contains` scans per
+            // binding — the latter was O(derived_count × script_len) and dominated
+            // transform time on derived-heavy components.
+            let shadowed_state = collect_local_state_decls(&script_rest);
             let derived_vars: Vec<String> = analysis
                 .root
                 .scope
@@ -4794,15 +4827,8 @@ fn transform_instance_script_for_visitors(
                     if let Some(b) = analysis.root.bindings.get(binding_idx)
                         && matches!(b.kind, BindingKind::Derived)
                     {
-                        // Skip names that have an inner local `let/const/var <name> = $state(...)`
-                        // declaration (would be a shadowed local state variable).
-                        let local_state_pattern_1 = format!("let {} = $state(", name);
-                        let local_state_pattern_2 = format!("const {} = $state(", name);
-                        let local_state_pattern_3 = format!("var {} = $state(", name);
-                        if script_rest.contains(local_state_pattern_1.as_str())
-                            || script_rest.contains(local_state_pattern_2.as_str())
-                            || script_rest.contains(local_state_pattern_3.as_str())
-                        {
+                        // Skip names shadowed by an inner local $state() declaration.
+                        if shadowed_state.contains(name.as_str()) {
                             return None;
                         }
                         return Some(name.clone());
