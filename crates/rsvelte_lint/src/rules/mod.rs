@@ -40,6 +40,7 @@ pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
 pub mod prefer_const;
 pub mod prefer_derived_over_derived_by;
+pub mod prefer_destructured_store_props;
 pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
 pub mod require_each_key;
