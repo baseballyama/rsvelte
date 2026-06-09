@@ -16,6 +16,7 @@ pub mod no_dynamic_slot_name;
 pub mod no_ignored_unsubscribe;
 pub mod no_inner_declarations;
 pub mod no_inspect;
+pub mod no_nested_style_tag;
 pub mod no_not_function_handler;
 pub mod no_object_in_text_mustaches;
 pub mod no_raw_special_elements;
