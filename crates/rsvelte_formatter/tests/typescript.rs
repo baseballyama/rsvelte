@@ -124,6 +124,25 @@ fn non_ts_component_does_not_parse_ts_syntax() {
     );
 }
 
+// ─── #946: `>` inside a `generics` attribute value must not split the body ──
+
+#[test]
+fn script_generics_attr_with_angle_brackets_parses() {
+    // The `generics` attribute value contains a literal `>` (`Record<…>`). A
+    // naive `find('>')` when locating the tag-terminating `>` would start the
+    // body slice mid-attribute, so oxc parsed garbage and reported a spurious
+    // "Unexpected token" — leaving the file unformatted (#946).
+    let src = "<script lang=\"ts\" generics=\"TItem extends Record<string, unknown>\">\n\timport { onMount } from \"svelte\";\n\tconst x = 1;\n</script>\n";
+    let out = format(src, &FormatOptions::default()).expect("format should succeed");
+    assert!(out.contains("import { onMount }"), "body preserved:\n{out}");
+    assert!(out.contains("const x = 1;"), "body preserved:\n{out}");
+    // The open tag (with its generics attribute) survives unchanged.
+    assert!(
+        out.contains("generics=\"TItem extends Record<string, unknown>\""),
+        "generics attribute preserved:\n{out}"
+    );
+}
+
 // ─── #761: <script> body long type-argument wrapping matches oxfmt ──────────
 
 #[test]

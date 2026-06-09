@@ -96,12 +96,12 @@ fn body_span(source: &str, script: &Script) -> Result<(usize, usize), FormatErro
         .get(script.start as usize..script.end as usize)
         .ok_or_else(|| FormatError::Parse("script span out of bounds".into()))?;
 
-    // Find the first '>' that terminates the opening <script ...> tag.
-    // (Attribute values can't contain a literal '>' without quoting, but
-    // a string like `class=">"` would defeat naive scanning — punted to
-    // a follow-up; today's CSS/markup verbatim path doesn't exercise it.)
-    let body_start_rel = block
-        .find('>')
+    // Find the '>' that terminates the opening <script ...> tag, skipping any
+    // '>' that appears inside a quoted attribute value. A naive `find('>')`
+    // mis-slices tags like `<script lang="ts" generics="T extends Map<K, V>">`
+    // (the `generics` value contains a literal `>`), starting the body
+    // mid-attribute and corrupting the parse (#946).
+    let body_start_rel = find_open_tag_end(block)
         .ok_or_else(|| FormatError::Parse("script opening tag missing '>'".into()))?
         + 1;
 
@@ -113,4 +113,26 @@ fn body_span(source: &str, script: &Script) -> Result<(usize, usize), FormatErro
         script.start as usize + body_start_rel,
         script.start as usize + body_end_rel,
     ))
+}
+
+/// Byte offset (relative to `block`) of the `>` that closes the opening tag,
+/// ignoring any `>` inside a single- or double-quoted attribute value. Quotes
+/// and `>` are ASCII, so the returned byte index is always a char boundary.
+fn find_open_tag_end(block: &str) -> Option<usize> {
+    let mut quote: Option<u8> = None;
+    for (i, b) in block.bytes().enumerate() {
+        match quote {
+            Some(q) => {
+                if b == q {
+                    quote = None;
+                }
+            }
+            None => match b {
+                b'"' | b'\'' => quote = Some(b),
+                b'>' => return Some(i),
+                _ => {}
+            },
+        }
+    }
+    None
 }
