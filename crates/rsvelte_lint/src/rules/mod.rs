@@ -22,6 +22,7 @@ pub mod no_restricted_html_elements;
 pub mod no_store_async;
 pub mod no_svelte_internal;
 pub mod no_target_blank;
+pub mod no_top_level_browser_globals;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
 pub mod prefer_derived_over_derived_by;

@@ -117,6 +117,11 @@ const RULES: &[(&str, &str, bool)] = &[
     ),
     ("no-at-const-tags", "svelte/no-at-const-tags", false),
     ("no-dynamic-slot-name", "svelte/no-dynamic-slot-name", false),
+    (
+        "no-top-level-browser-globals",
+        "svelte/no-top-level-browser-globals",
+        false,
+    ),
 ];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
@@ -138,6 +143,11 @@ const SKIP: &[&str] = &[
     // modules exercising the export path (flag exported `new X()` even without
     // mutation), which is not ported — the mutation path covers the rest.
     "prefer-svelte-reactivity/invalid/exports",
+    // `no-top-level-browser-globals` template-position case: the globals are used
+    // in markup (`{location.href}` / `{#if browser}`), not in `<script>`. This is
+    // a script-AST rule, so template usage is out of scope (would need a separate
+    // template-AST pass). All `<script>`-based fixtures are covered.
+    "no-top-level-browser-globals/invalid/in-template01",
     // `no-add-event-listener` TS-cast case: `(window.addEventListener as any)(…)`.
     // rsvelte's ESTree strips the TS `as` cast, so the call's callee looks like a
     // plain `window.addEventListener` member (upstream keeps it a TSAsExpression
