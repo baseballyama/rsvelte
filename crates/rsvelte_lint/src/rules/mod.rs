@@ -19,6 +19,7 @@ pub mod no_not_function_handler;
 pub mod no_object_in_text_mustaches;
 pub mod no_raw_special_elements;
 pub mod no_restricted_html_elements;
+pub mod no_shorthand_style_property_overrides;
 pub mod no_store_async;
 pub mod no_svelte_internal;
 pub mod no_target_blank;

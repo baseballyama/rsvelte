@@ -118,6 +118,11 @@ const RULES: &[(&str, &str, bool)] = &[
     ("no-at-const-tags", "svelte/no-at-const-tags", false),
     ("no-dynamic-slot-name", "svelte/no-dynamic-slot-name", false),
     (
+        "no-shorthand-style-property-overrides",
+        "svelte/no-shorthand-style-property-overrides",
+        false,
+    ),
+    (
         "no-top-level-browser-globals",
         "svelte/no-top-level-browser-globals",
         false,
@@ -148,6 +153,11 @@ const SKIP: &[&str] = &[
     // a script-AST rule, so template usage is out of scope (would need a separate
     // template-AST pass). All `<script>`-based fixtures are covered.
     "no-top-level-browser-globals/invalid/in-template01",
+    // `no-shorthand-style-property-overrides` ternary fixture: CSS declarations
+    // written INSIDE a mustache interpolation (`{cond ? `background: x` : …}`).
+    // Parsing CSS inside template interpolations is out of scope; the static
+    // `style=""` and `style:` directive cases are covered.
+    "no-shorthand-style-property-overrides/invalid/ternary01",
     // `no-add-event-listener` TS-cast case: `(window.addEventListener as any)(…)`.
     // rsvelte's ESTree strips the TS `as` cast, so the call's callee looks like a
     // plain `window.addEventListener` member (upstream keeps it a TSAsExpression
