@@ -112,6 +112,11 @@ const RULES: &[(&str, &str, bool)] = &[
         false,
     ),
     (
+        "no-unnecessary-state-wrap",
+        "svelte/no-unnecessary-state-wrap",
+        false,
+    ),
+    (
         "no-ignored-unsubscribe",
         "svelte/no-ignored-unsubscribe",
         false,
