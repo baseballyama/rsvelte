@@ -94,6 +94,15 @@ pub fn map_tsgo_diagnostics(
             by_kit.insert(rel.to_path_buf(), entry);
         }
     }
+    // Shadows for imported external packages live under `<cache>/ext/<n>/`.
+    // Diagnostics landing on those files are library *internals* — official
+    // svelte-check never type-checks a node_modules `.svelte` as a reported
+    // document, so its unresolved transitive deps (`Cannot find module
+    // '@floating-ui/dom'`) and internal errors must not leak to the consumer
+    // (#941). The shadows still exist purely to resolve the imported module's
+    // named-export shape (#782); we only drop their diagnostics here.
+    let ext_root = overlay.cache_dir.join("ext");
+    let ext_root_canon = ext_root.canonicalize().unwrap_or_else(|_| ext_root.clone());
     let mut maps: HashMap<PathBuf, EntryMap> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
     // `.svelte` sources whose generated overlay produced a TS1xxx syntax
@@ -112,6 +121,10 @@ pub fn map_tsgo_diagnostics(
             workspace.join(&diag.file)
         };
         let canon = absolute.canonicalize().unwrap_or_else(|_| absolute.clone());
+        // Suppress imported-library-internal diagnostics (see `ext_root` above).
+        if absolute.starts_with(&ext_root) || canon.starts_with(&ext_root_canon) {
+            continue;
+        }
         let kit_match = by_kit
             .get(&canon)
             .copied()
@@ -369,5 +382,59 @@ mod tests {
         assert!(!is_syntactic_ts_code("TS"));
         assert!(!is_syntactic_ts_code("nonsense"));
         assert!(!is_syntactic_ts_code("TS999")); // below the 1000 floor
+    }
+
+    fn empty_layout(workspace: &Path) -> OverlayLayout {
+        OverlayLayout {
+            workspace: workspace.to_path_buf(),
+            cache_dir: workspace.join(".svelte-check"),
+            emit_dir: workspace.join(".svelte-check").join("svelte"),
+            overlay_tsconfig: workspace.join(".svelte-check").join("tsconfig.json"),
+            entries: Vec::new(),
+            kit_entries: Vec::new(),
+        }
+    }
+
+    fn raw(file: &str, code: &str, msg: &str) -> RawTsDiagnostic {
+        RawTsDiagnostic {
+            file: PathBuf::from(file),
+            line: 1,
+            column: 1,
+            severity: "error".to_string(),
+            code: code.to_string(),
+            message: msg.to_string(),
+        }
+    }
+
+    #[test]
+    fn suppresses_external_package_internal_diagnostics() {
+        // #941: a `Cannot find module` on an imported library's shadow under
+        // `<cache>/ext/<n>/` is a library internal — official svelte-check
+        // never reports it, so it must be dropped. A diagnostic on the
+        // consumer's own (non-overlay) file still passes through.
+        let workspace = Path::new("/tmp/ws941");
+        let overlay = empty_layout(workspace);
+        let diags = [
+            raw(
+                ".svelte-check/ext/1/src/lib/Dropdown.svelte.tsx",
+                "TS2307",
+                "Cannot find module '@floating-ui/dom'",
+            ),
+            raw("src/App.svelte.tsx", "TS2304", "Cannot find name 'oops'"),
+        ];
+        let mapped = map_tsgo_diagnostics(&diags, &overlay, workspace);
+        assert_eq!(
+            mapped.diagnostics.len(),
+            1,
+            "ext/<n> internal diagnostic should be suppressed:\n{:#?}",
+            mapped.diagnostics
+        );
+        assert!(
+            mapped.diagnostics[0]
+                .message
+                .contains("Cannot find name 'oops'"),
+            "consumer-file diagnostic must survive:\n{:#?}",
+            mapped.diagnostics
+        );
     }
 }
