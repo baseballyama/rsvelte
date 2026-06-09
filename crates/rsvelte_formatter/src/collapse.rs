@@ -30,16 +30,95 @@ pub(crate) fn collapse_pure_text_elements(
 
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
     collect(out, &root.fragment, line_width, options, &mut edits);
-    if edits.is_empty() {
-        return Ok(out.to_string());
-    }
+    let result = if edits.is_empty() {
+        out.to_string()
+    } else {
+        apply_edits(out, edits)
+    };
 
+    // Second pass: the hug/break edits above may leave a long expression mustache
+    // on an overflowing line (a hugged element's trailing `{a.b().c()}`). Re-parse
+    // and member-chain-break those in place — this can't run in the first pass
+    // because the hug edit that creates the overflowing line owns the element and
+    // suppresses recursion into it.
+    let root2 = parse(&result, ParseOptions::default()).map_err(FormatError::from_parse)?;
+    let mut edits2: Vec<(u32, u32, String)> = Vec::new();
+    collect_content_tag_breaks(&result, &root2.fragment, line_width, options, &mut edits2);
+    if edits2.is_empty() {
+        return Ok(result);
+    }
+    Ok(apply_edits(&result, edits2))
+}
+
+fn apply_edits(src: &str, mut edits: Vec<(u32, u32, String)>) -> String {
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
-    let mut result = out.to_string();
+    let mut result = src.to_string();
     for (start, end, text) in edits {
         result.replace_range(start as usize..end as usize, &text);
     }
-    Ok(result)
+    result
+}
+
+/// Recursively visit every expression mustache and member-chain-break any that
+/// sits on an overflowing line (see [`try_break_inline_content_tag`]).
+fn collect_content_tag_breaks(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        if let TemplateNode::ExpressionTag(_) = node
+            && let Some(edit) = try_break_inline_content_tag(out, node, line_width, options)
+        {
+            edits.push(edit);
+        }
+        for child in child_fragments(node) {
+            collect_content_tag_breaks(out, child, line_width, options, edits);
+        }
+    }
+}
+
+/// The child fragments of a container node (for a generic recursive walk).
+fn child_fragments(node: &TemplateNode) -> Vec<&Fragment> {
+    match node {
+        TemplateNode::RegularElement(e) => vec![&e.fragment],
+        TemplateNode::Component(c) => vec![&c.fragment],
+        TemplateNode::TitleElement(t) => vec![&t.fragment],
+        TemplateNode::SvelteElement(e) => vec![&e.fragment],
+        TemplateNode::SvelteBoundary(b) => vec![&b.fragment],
+        TemplateNode::IfBlock(b) => {
+            let mut v = vec![&b.consequent];
+            if let Some(a) = &b.alternate {
+                v.push(a);
+            }
+            v
+        }
+        TemplateNode::EachBlock(b) => {
+            let mut v = vec![&b.body];
+            if let Some(f) = &b.fallback {
+                v.push(f);
+            }
+            v
+        }
+        TemplateNode::AwaitBlock(b) => {
+            let mut v = Vec::new();
+            if let Some(f) = &b.pending {
+                v.push(f);
+            }
+            if let Some(f) = &b.then {
+                v.push(f);
+            }
+            if let Some(f) = &b.catch {
+                v.push(f);
+            }
+            v
+        }
+        TemplateNode::KeyBlock(b) => vec![&b.fragment],
+        TemplateNode::SnippetBlock(b) => vec![&b.body],
+        _ => Vec::new(),
+    }
 }
 
 /// Whether `node` may sit inside a fragment-level inline prose run that the run
@@ -666,6 +745,60 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     }
     let open_no_bracket = open[..open.len() - 1].to_string();
     Some((open_no_bracket, content.to_string(), tag.to_string()))
+}
+
+/// Break the member chain / binary of an inline expression mustache that sits on
+/// an overflowing line, in place. Used for a mustache glued into a hugged inline
+/// element's mixed body (`<td\n  >\u{a}\u{emoji.charCodeAt(1).toString(16)}</td`)
+/// where the open tag already broke but the long trailing expression kept its
+/// chain on one line. Reformats just the `{…}` span, leaving the surrounding
+/// text/expressions untouched.
+fn try_break_inline_content_tag(
+    out: &str,
+    node: &TemplateNode,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
+    let es = node_start(node) as usize;
+    let ee = node_end(node) as usize;
+    let span = out.get(es..ee)?; // `{expr}`
+    if !span.starts_with('{') || !span.ends_with('}') || span.contains('\n') || span.len() <= 2 {
+        return None;
+    }
+    let line_start = out[..es].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = out[ee..].find('\n').map_or(out.len(), |i| ee + i);
+    let line = out.get(line_start..line_end)?;
+    if line.width() <= line_width {
+        return None; // line fits — nothing to break
+    }
+    // Break only the RIGHTMOST mustache on the overflowing line: breaking it pulls
+    // everything after its first member down, which resolves the overflow. An
+    // earlier mustache (another `{…}` still follows on the line) is left flat —
+    // prettier breaks only the chain straddling the edge (`\u{a}\u{b.c().d()}`
+    // breaks just `{b…}`).
+    if out.get(ee..line_end)?.contains('{') {
+        return None;
+    }
+    let start_col = current_column(out, es as u32);
+    // Continuation lands at the line's own indent + one level (the chain dots).
+    let indent = &out[line_start..es];
+    let lead_ws: String = indent.chars().take_while(|c| c.is_whitespace()).collect();
+    let cont_cols = lead_ws.width();
+    // Force oxc to break: narrow the width by the columns the inner expression
+    // already sits at (its start column) plus the glued trailing text (`}</td…`).
+    let inner_start_col = start_col + 1; // past the `{`
+    let trailing = out.get(ee..line_end)?.width();
+    let width = line_width
+        .saturating_sub(inner_start_col + 1 + trailing)
+        .max(1);
+    let inner = span.get(1..span.len() - 1)?.trim();
+    let wrapped =
+        crate::expression::reformat_content_at_width(inner, options, width, cont_cols).ok()?;
+    if !wrapped.contains('\n') {
+        return None; // didn't break — leave it
+    }
+    let broken = format!("{{{wrapped}}}");
+    (broken != span).then_some((es as u32, ee as u32, broken))
 }
 
 /// Wrap the sole content-tag child of a whitespace-preserving element
