@@ -484,7 +484,7 @@ fn push_open_tag(
         let (attr_start, _) = attribute_span(attr);
         items.push((
             attr_start,
-            render_attribute(attr, source, options, attr_depth)?,
+            render_attribute(attr, source, options, attr_depth, false)?,
         ));
     }
 
@@ -546,6 +546,36 @@ fn push_open_tag(
         && one_liner.ends_with('>');
 
     let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two;
+
+    // Second pass: once we know the open tag wraps (attributes each on their own
+    // line at `attr_depth`), re-render the attributes narrowing each value
+    // expression by its `name={` prefix so a long value breaks where prettier
+    // does. Only the multi-line shape (not `shape_two`, whose attributes stay on
+    // one line) needs this; one-line tags keep the inline rendering above.
+    let rendered_attrs = if wrapped && !shape_two {
+        let mut items2: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
+        if let Some(expr) = this_expression
+            && let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
+        {
+            items2.push((element_start, format!("this={{{formatted}}}")));
+        }
+        for attr in attributes {
+            let (attr_start, _) = attribute_span(attr);
+            items2.push((
+                attr_start,
+                render_attribute(attr, source, options, attr_depth, true)?,
+            ));
+        }
+        let comments = collect_open_tag_comments(source, element_start, open_tag_end, attributes);
+        for c in comments {
+            items2.push((c.start, c.text));
+        }
+        items2.sort_by_key(|(start, _)| *start);
+        items2.into_iter().map(|(_, text)| text).collect()
+    } else {
+        rendered_attrs
+    };
+
     let rendered = if shape_two {
         // `one_liner` ends in `>`; drop it and put the `>` on the next line.
         let outer_indent = indent_str(depth, &options.js);
@@ -909,9 +939,12 @@ fn render_attribute(
     source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    narrow_value: bool,
 ) -> Result<String, FormatError> {
     match attr {
-        Attribute::Attribute(node) => render_attribute_node(node, source, options, attr_depth),
+        Attribute::Attribute(node) => {
+            render_attribute_node(node, source, options, attr_depth, narrow_value)
+        }
         Attribute::SpreadAttribute(spread) => render_spread(spread, source, options, attr_depth),
         Attribute::AttachTag(attach) => {
             let inner = format_expression_at(source, &attach.expression, options, attr_depth)?
@@ -1047,6 +1080,7 @@ fn render_attribute_node(
     source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    narrow_value: bool,
 ) -> Result<String, FormatError> {
     match &node.value {
         AttributeValue::True(_) => Ok(node.name.to_string()),
@@ -1055,7 +1089,26 @@ fn render_attribute_node(
             if inner_src.is_empty() {
                 return Ok(format!("{}={{}}", node.name));
             }
-            let formatted = format_attribute_value_expression(inner_src, options, attr_depth)?;
+            let indent_cols = attr_depth * options.js.indent_width.value() as usize;
+            let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+            // When the open tag wraps and the value formatted to a SINGLE line
+            // that still overflows once the `name={…}` prefix is counted, the
+            // value is a shallow expression (a ternary / binary, not a block
+            // body) that prettier wraps at its top level. Re-format narrowed by
+            // the full prefix so it breaks the same way. A value that is already
+            // multi-line (an arrow handler / object body) is left alone — its
+            // continuation lines sit at the attribute indent with full width, so
+            // narrowing by the prefix would wrongly over-wrap them.
+            let prefix = visual_width(node.name.as_str()) + 2;
+            let line_width = options.js.line_width.value() as usize;
+            let formatted = if narrow_value
+                && !formatted.contains('\n')
+                && indent_cols + prefix + visual_width(&formatted) + 1 > line_width
+            {
+                format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+            } else {
+                formatted
+            };
             // Svelte attribute shorthand: `name={name}` → `{name}`.
             if formatted == node.name.as_str() {
                 Ok(format!("{{{formatted}}}"))
@@ -1083,7 +1136,7 @@ fn render_attribute_value_for_directive(
             if inner_src.is_empty() {
                 return Ok("{}".to_string());
             }
-            let formatted = format_attribute_value_expression(inner_src, options, attr_depth)?;
+            let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
             Ok(format!("{{{formatted}}}"))
         }
         AttributeValue::Sequence(parts) => {
@@ -1120,7 +1173,7 @@ fn render_attribute_value_sequence(
                     let mut opts = options.clone();
                     opts.js.quote_style = QuoteStyle::Single;
                     let formatted =
-                        format_attribute_value_expression(inner_src, &opts, attr_depth)?;
+                        format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
                     out.push('{');
                     out.push_str(&formatted);
                     out.push('}');
@@ -1194,6 +1247,6 @@ fn format_expression_at(
         return Ok(None);
     }
     Ok(Some(format_attribute_value_expression(
-        raw, options, attr_depth,
+        raw, options, attr_depth, 0,
     )?))
 }

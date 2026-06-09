@@ -426,7 +426,7 @@ pub(crate) fn format_directive_value(
         return Ok(None);
     }
     Ok(Some(format_attribute_value_expression(
-        inner, options, attr_depth,
+        inner, options, attr_depth, 0,
     )?))
 }
 
@@ -545,7 +545,7 @@ pub(crate) fn format_function_binding(
                 .get(span.start as usize..span.end as usize)
                 .unwrap_or("")
                 .trim();
-            format_attribute_value_expression(member_src, options, attr_depth + 1)
+            format_attribute_value_expression(member_src, options, attr_depth + 1, 0)
         })
         .collect::<Result<_, _>>()?;
 
@@ -682,10 +682,15 @@ pub(crate) fn format_attribute_value_expression(
     expr_source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    extra_lead: usize,
 ) -> Result<String, FormatError> {
+    // Narrow by the attribute's nesting indent (`attr_depth` levels) plus any
+    // `extra_lead` columns the caller adds — e.g. the `name={` prefix once the
+    // open tag is known to wrap, so a long value breaks where prettier puts it
+    // (#795).
     let indent_width = options.js.indent_width.value() as usize;
-    let narrowed =
-        (options.js.line_width.value() as usize).saturating_sub(attr_depth * indent_width);
+    let lead = attr_depth * indent_width + extra_lead;
+    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
     let line_width =
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, line_width, false)
