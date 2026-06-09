@@ -43,49 +43,61 @@ pub(crate) fn collapse_pure_text_elements(
 }
 
 /// Whether `node` may sit inside a fragment-level inline prose run that the run
-/// fill reflows. Text, mustaches/html-tags, and CHILDLESS inline elements
-/// (`<input/>`, `<br/>`, an empty `<span/>`) qualify — childless so reflowing the
-/// whole run (one edit) can't collide with edits the recursion would make inside
-/// a child. Block elements, comments, components, and elements with children are
-/// run boundaries.
-fn is_run_member(node: &TemplateNode) -> bool {
+/// fill reflows. Text, mustaches/html-tags, and ONE-LINE inline elements
+/// (`<input/>`, `<br/>`, an empty `<span/>`, or `<code>foo</code>` whose whole
+/// rendering is currently on one line) qualify. A one-line inline element is safe
+/// to fold into the run's single edit because recursing into it produces no edit
+/// (its content already fits), so the two edits can't overlap. Block elements,
+/// comments, components, and multi-line elements are run boundaries.
+fn is_run_member(out: &str, node: &TemplateNode) -> bool {
     match node {
         TemplateNode::Text(_) | TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) => true,
         TemplateNode::RegularElement(e) => {
-            !is_block_display(e.name.as_str())
-                && !is_whitespace_preserving(e.name.as_str())
-                && e.fragment.nodes.is_empty()
+            if is_block_display(e.name.as_str()) || is_whitespace_preserving(e.name.as_str()) {
+                return false;
+            }
+            // A multi-line span has already broken (attrs / content) — leave it as
+            // a boundary so we don't try to re-inline it (and so recursion, which
+            // may still edit it, owns its layout).
+            out.get(node_start(node) as usize..node_end(node) as usize)
+                .is_some_and(|span| !span.contains('\n'))
         }
         _ => false,
     }
 }
 
-/// Reflow a fragment's inline prose runs (text words interspersed with childless
+/// Reflow a fragment's inline prose runs (text words interspersed with one-line
 /// inline elements) that overflow — e.g. a top-level `<input/> °C =\n<input/> °F`
-/// run between a comment and `<style>`. Only fires for a PROPER sub-run (the
-/// fragment also has non-inline siblings); a whole-element inline body is handled
-/// by `try_fill_mixed` at the element level instead.
+/// run between a comment and `<style>`, or `<p>` body text with inline `<code>`
+/// atoms. Only fires for a PROPER sub-run (the fragment also has non-inline
+/// siblings); a whole-element inline body is handled by `try_fill_mixed` at the
+/// element level instead. Each run that gets an edit also pushes its covered byte
+/// span into `consumed` so `collect` skips recursing into the elements inside it
+/// (their layout is now owned by the run edit — recursing would risk an
+/// overlapping edit).
 fn fill_inline_runs(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
     edits: &mut Vec<(u32, u32, String)>,
+    consumed: &mut Vec<(u32, u32)>,
 ) {
     let nodes = &fragment.nodes;
-    if nodes.iter().all(is_run_member) {
+    if nodes.iter().all(|n| is_run_member(out, n)) {
         return; // whole fragment is one run — owned by the element-level fill
     }
     let mut i = 0;
     while i < nodes.len() {
-        if !is_run_member(&nodes[i]) {
+        if !is_run_member(out, &nodes[i]) {
             i += 1;
             continue;
         }
         let mut j = i;
-        while j < nodes.len() && is_run_member(&nodes[j]) {
+        while j < nodes.len() && is_run_member(out, &nodes[j]) {
             j += 1;
         }
         if let Some(edit) = try_fill_run(out, &nodes[i..j], line_width) {
+            consumed.push((edit.0, edit.1));
             edits.push(edit);
         }
         i = j;
@@ -104,14 +116,13 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         hi -= 1;
     }
     let run = &run[lo..hi];
-    // Need prose: at least one text word AND at least one inline element.
+    // Need prose: at least one text word. A run may be a pure-text paragraph
+    // (`<p>` body text up to a multi-line `<svg>` sibling) or text interspersed
+    // with childless inline elements — both reflow to printWidth here.
     let has_word = run
         .iter()
         .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    let has_elem = run
-        .iter()
-        .any(|n| matches!(n, TemplateNode::RegularElement(_)));
-    if !has_word || !has_elem {
+    if !has_word {
         return None;
     }
     let first = run.first()?;
@@ -163,11 +174,19 @@ fn collect(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    fill_inline_runs(out, fragment, line_width, edits);
+    let mut consumed: Vec<(u32, u32)> = Vec::new();
+    fill_inline_runs(out, fragment, line_width, edits, &mut consumed);
+    let in_consumed_run =
+        |start: u32, end: u32| consumed.iter().any(|&(s, e)| s <= start && end <= e);
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(elem) => {
                 if is_whitespace_preserving(elem.name.as_str()) {
+                    continue;
+                }
+                // A run fill already reflowed this element inline — its layout is
+                // owned by that edit, so recursing would risk an overlapping edit.
+                if in_consumed_run(elem.start, elem.end) {
                     continue;
                 }
                 if let Some(edit) = try_collapse(
