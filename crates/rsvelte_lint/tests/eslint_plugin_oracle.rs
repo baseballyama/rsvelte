@@ -116,6 +116,7 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-extra-reactive-curlies",
         false,
     ),
+    ("no-goto-without-base", "svelte/no-goto-without-base", false),
     (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",

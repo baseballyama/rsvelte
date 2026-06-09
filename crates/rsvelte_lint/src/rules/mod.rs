@@ -14,6 +14,7 @@ pub mod no_dupe_style_properties;
 pub mod no_dupe_use_directives;
 pub mod no_dynamic_slot_name;
 pub mod no_extra_reactive_curlies;
+pub mod no_goto_without_base;
 pub mod no_ignored_unsubscribe;
 pub mod no_inner_declarations;
 pub mod no_inspect;
