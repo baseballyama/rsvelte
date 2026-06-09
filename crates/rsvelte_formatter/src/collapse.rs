@@ -338,7 +338,13 @@ fn collect(
                 }
             }
             TemplateNode::EachBlock(blk) => {
-                collect(out, &blk.body, line_width, options, edits);
+                if let Some(edit) =
+                    try_hug_block_inline_body(out, blk.start, blk.end, &blk.body, line_width)
+                {
+                    edits.push(edit);
+                } else {
+                    collect(out, &blk.body, line_width, options, edits);
+                }
                 if let Some(fb) = &blk.fallback {
                     collect(out, fb, line_width, options, edits);
                 }
@@ -354,7 +360,15 @@ fn collect(
                     collect(out, f, line_width, options, edits);
                 }
             }
-            TemplateNode::KeyBlock(blk) => collect(out, &blk.fragment, line_width, options, edits),
+            TemplateNode::KeyBlock(blk) => {
+                if let Some(edit) =
+                    try_hug_block_inline_body(out, blk.start, blk.end, &blk.fragment, line_width)
+                {
+                    edits.push(edit);
+                } else {
+                    collect(out, &blk.fragment, line_width, options, edits);
+                }
+            }
             TemplateNode::SnippetBlock(blk) => collect(out, &blk.body, line_width, options, edits),
             _ => {}
         }
@@ -634,6 +648,55 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     }
     let open_no_bracket = open[..open.len() - 1].to_string();
     Some((open_no_bracket, content.to_string(), tag.to_string()))
+}
+
+/// Hug-break the single inline-element body of a block (`{#each …}<span>…</span>{/each}`)
+/// when the whole one-line block overflows. prettier keeps the body inline-adjacent
+/// to the block tags (no whitespace in source) and, on overflow, hugs the element:
+/// the close `>` drops to its own indented line with the block close tag glued
+/// after it —
+///   {#each group.breadcrumbs as breadcrumb}<span>{breadcrumb}</span
+///     >{/each}
+/// Returns the edit when the block currently renders all on one line and overflows.
+fn try_hug_block_inline_body(
+    out: &str,
+    start: u32,
+    end: u32,
+    body: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    // Only a block that currently renders entirely on one line.
+    if whole.contains('\n') {
+        return None;
+    }
+    // Body must be exactly one huggable inline element (directly adjacent to both
+    // block tags — guaranteed single-line by `whole` having no newline).
+    if body.nodes.len() != 1 {
+        return None;
+    }
+    let elem = &body.nodes[0];
+    let (open_nb, content, tag) = element_hug_parts(out, elem)?;
+    let elem_start = node_start(elem) as usize;
+    let elem_end = node_end(elem) as usize;
+    // The block's close tag must glue directly to the element (no whitespace).
+    let close = out.get(elem_end..e)?;
+    if !close.starts_with("{/") {
+        return None;
+    }
+    // The block must sit at the start of its line (indent = whitespace prefix).
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    if indent.width() + whole.width() <= line_width {
+        return None; // fits on one line
+    }
+    let prefix = out.get(s..elem_start)?; // block open tag (+ no leading ws)
+    let hug = format!("{prefix}{open_nb}>{content}</{tag}\n{indent}  >{close}");
+    (hug != whole).then_some((start, end, hug))
 }
 
 /// Inline-block elements (prettier `CSS_DISPLAY_DEFAULTS`) — display:inline-block.
