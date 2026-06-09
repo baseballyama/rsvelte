@@ -83,6 +83,9 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     if let Some(css) = &root.css {
         style::collect_style_edit(source, css, options, &mut edits)?;
     }
+    // `<style>` elements nested in the markup (e.g. in `<svelte:head>` or a
+    // wrapper element) aren't hoisted into `root.css`, so format them here.
+    style::collect_nested_style_edits(source, &root.fragment, options, &mut edits)?;
 
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));

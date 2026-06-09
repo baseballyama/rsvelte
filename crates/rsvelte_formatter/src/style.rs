@@ -10,9 +10,138 @@
 //! When no callback is set the style body is left verbatim.
 
 use rsvelte_core::ast::css::StyleSheet;
+use rsvelte_core::ast::template::{Fragment, TemplateNode};
 
 use crate::error::FormatError;
 use crate::options::FormatOptions;
+
+/// Format the content of `<style>` elements that appear *inside* the markup
+/// (e.g. a nested `<div><style>…</style></div>` or a `<style>` in
+/// `<svelte:head>`) — the top-level component `<style>` is hoisted into
+/// `root.css` and handled by [`collect_style_edit`]. Each nested style's raw CSS
+/// is formatted through the same callback and re-indented to the element's depth.
+pub(crate) fn collect_nested_style_edits(
+    source: &str,
+    fragment: &Fragment,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    if options.style_formatter.is_none() {
+        return Ok(());
+    }
+    walk_nested_style(source, fragment, 0, options, edits)
+}
+
+fn walk_nested_style(
+    source: &str,
+    fragment: &Fragment,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    for node in &fragment.nodes {
+        let d = depth + 1;
+        match node {
+            TemplateNode::RegularElement(e) if e.name.as_str() == "style" => {
+                format_nested_style(source, e.start, e.end, depth, options, edits)?;
+            }
+            TemplateNode::RegularElement(e) => {
+                walk_nested_style(source, &e.fragment, d, options, edits)?
+            }
+            TemplateNode::Component(c) => {
+                walk_nested_style(source, &c.fragment, d, options, edits)?
+            }
+            TemplateNode::TitleElement(t) => {
+                walk_nested_style(source, &t.fragment, d, options, edits)?
+            }
+            TemplateNode::SlotElement(s) => {
+                walk_nested_style(source, &s.fragment, d, options, edits)?
+            }
+            TemplateNode::SvelteHead(s)
+            | TemplateNode::SvelteBody(s)
+            | TemplateNode::SvelteDocument(s)
+            | TemplateNode::SvelteFragment(s)
+            | TemplateNode::SvelteBoundary(s)
+            | TemplateNode::SvelteOptions(s)
+            | TemplateNode::SvelteSelf(s)
+            | TemplateNode::SvelteWindow(s) => {
+                walk_nested_style(source, &s.fragment, d, options, edits)?
+            }
+            TemplateNode::SvelteComponent(c) => {
+                walk_nested_style(source, &c.fragment, d, options, edits)?
+            }
+            TemplateNode::SvelteElement(e) => {
+                walk_nested_style(source, &e.fragment, d, options, edits)?
+            }
+            TemplateNode::IfBlock(blk) => {
+                walk_nested_style(source, &blk.consequent, d, options, edits)?;
+                if let Some(alt) = &blk.alternate {
+                    walk_nested_style(source, alt, d, options, edits)?;
+                }
+            }
+            TemplateNode::EachBlock(blk) => {
+                walk_nested_style(source, &blk.body, d, options, edits)?;
+                if let Some(fb) = &blk.fallback {
+                    walk_nested_style(source, fb, d, options, edits)?;
+                }
+            }
+            TemplateNode::AwaitBlock(blk) => {
+                for f in [&blk.pending, &blk.then, &blk.catch].into_iter().flatten() {
+                    walk_nested_style(source, f, d, options, edits)?;
+                }
+            }
+            TemplateNode::KeyBlock(blk) => {
+                walk_nested_style(source, &blk.fragment, d, options, edits)?
+            }
+            TemplateNode::SnippetBlock(blk) => {
+                walk_nested_style(source, &blk.body, d, options, edits)?
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn format_nested_style(
+    source: &str,
+    start: u32,
+    end: u32,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let Some(formatter) = &options.style_formatter else {
+        return Ok(());
+    };
+    let block = source
+        .get(start as usize..end as usize)
+        .ok_or_else(|| FormatError::Parse("nested <style> span out of bounds".into()))?;
+    let Some(open_end) = block.find('>').map(|i| i + 1) else {
+        return Ok(());
+    };
+    let Some(close_start) = block.rfind("</style") else {
+        return Ok(());
+    };
+    if close_start < open_end {
+        return Ok(());
+    }
+    let body = &block[open_end..close_start];
+    if body.trim().is_empty() {
+        return Ok(());
+    }
+    let dedented = dedent(body);
+    let formatted = formatter(&dedented, "css").map_err(FormatError::StyleFormat)?;
+    // The element renders at `depth` levels of the configured indent unit (the
+    // indent pass normalizes the tag's own indentation to that), so derive the
+    // body indent from the depth — not the source whitespace (which may be tabs).
+    let unit = indent_unit(options);
+    let tag_indent = unit.repeat(depth);
+    let body_indent = format!("{tag_indent}{unit}");
+    let reindented = reindent(&formatted, &body_indent);
+    let spliced = format!("\n{reindented}\n{tag_indent}");
+    edits.push((start + open_end as u32, start + close_start as u32, spliced));
+    Ok(())
+}
 
 /// Push one edit replacing the `<style>` body with the formatter
 /// callback's output. No-op when no callback is configured.
