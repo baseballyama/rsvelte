@@ -54,28 +54,29 @@ fn collect_indent_edits_inner(
     // (content flush against the delimiters) stays inline. The generic loop below
     // only re-indents whitespace-only / already-multi-line text, so handle the
     // single-line case here.
-    if force && fragment.nodes.len() == 1 {
-        if let TemplateNode::Text(t) = &fragment.nodes[0] {
-            // Use the RAW source: the parser's decoded `data` turns `&nbsp;` into
-            // U+00A0, which `char::is_whitespace` (and entity preservation) would
-            // mishandle. prettier's block-whitespace check is ASCII space/tab.
-            let data = source.get(t.start as usize..t.end as usize).unwrap_or("");
-            let bounded = data.starts_with([' ', '\t']) || data.ends_with([' ', '\t']);
-            if !data.trim().is_empty() && !data.contains('\n') && bounded {
-                let child_indent = indent_for_level(child_depth, &options.js);
-                let parent_indent = if child_depth == 0 {
-                    String::new()
-                } else {
-                    indent_for_level(child_depth - 1, &options.js)
-                };
-                let collapsed = data.split_whitespace().collect::<Vec<_>>().join(" ");
-                edits.push((
-                    t.start,
-                    t.end,
-                    format!("\n{child_indent}{collapsed}\n{parent_indent}"),
-                ));
-                return Ok(());
-            }
+    if force
+        && fragment.nodes.len() == 1
+        && let TemplateNode::Text(t) = &fragment.nodes[0]
+    {
+        // Use the RAW source: the parser's decoded `data` turns `&nbsp;` into
+        // U+00A0, which `char::is_whitespace` (and entity preservation) would
+        // mishandle. prettier's block-whitespace check is ASCII space/tab.
+        let data = source.get(t.start as usize..t.end as usize).unwrap_or("");
+        let bounded = data.starts_with([' ', '\t']) || data.ends_with([' ', '\t']);
+        if !data.trim().is_empty() && !data.contains('\n') && bounded {
+            let child_indent = indent_for_level(child_depth, &options.js);
+            let parent_indent = if child_depth == 0 {
+                String::new()
+            } else {
+                indent_for_level(child_depth - 1, &options.js)
+            };
+            let collapsed = data.split_whitespace().collect::<Vec<_>>().join(" ");
+            edits.push((
+                t.start,
+                t.end,
+                format!("\n{child_indent}{collapsed}\n{parent_indent}"),
+            ));
+            return Ok(());
         }
     }
 
