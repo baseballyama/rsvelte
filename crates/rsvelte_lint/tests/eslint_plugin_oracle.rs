@@ -131,6 +131,11 @@ const RULES: &[(&str, &str, bool)] = &[
         false,
     ),
     (
+        "require-store-reactive-access",
+        "svelte/require-store-reactive-access",
+        true,
+    ),
+    (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
         false,
@@ -173,6 +178,17 @@ const RULES: &[(&str, &str, bool)] = &[
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
+    // `require-store-reactive-access` TS fixtures: store detection by TYPE (a
+    // value whose type has a `subscribe` signature, imported from external `.ts`
+    // modules) needs the TypeScript checker / tsgo. The ES path (stores created
+    // via `writable`/`readable`/`derived`) covers every non-`ts/` fixture.
+    "require-store-reactive-access/valid/ts/",
+    "require-store-reactive-access/invalid/ts/",
+    // rsvelte serializes a *computed* object-property key with an off-by-one
+    // span (the key node starts at the `[`), so the reported column / `$`-insert
+    // offset for `{ [store]: … }` don't match. A core serialization quirk, not a
+    // rule gap; every other store-access position is covered.
+    "require-store-reactive-access/invalid/properties01",
     // Duplicate-property detection inside a ternary *interpolation* (the plugin
     // collapses both branches); the port treats interpolations as opaque.
     "no-dupe-style-properties/invalid/ternary01",

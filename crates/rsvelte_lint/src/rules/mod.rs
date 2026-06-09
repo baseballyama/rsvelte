@@ -45,6 +45,7 @@ pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
 pub mod require_each_key;
 pub mod require_store_callbacks_use_set_param;
+pub mod require_store_reactive_access;
 pub mod require_stores_init;
 pub mod store_refs;
 pub mod valid_each_key;
