@@ -6129,10 +6129,15 @@ fn extract_destructured_names_simple(pattern: &str) -> Vec<String> {
     names
 }
 
+// These return BYTE offsets (the results index `&str` slices below), so they
+// iterate via `char_indices()` rather than `chars().enumerate()` — the latter
+// yields char counts, which slice at the wrong byte (and panic mid-char) once a
+// multibyte identifier precedes the delimiter. The `+ 1` advances past the
+// matched delimiter, which is always ASCII (`{}[]():,`), so it stays on a
+// boundary.
 fn find_pattern_end_simple(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
     let mut depth = 0;
-    for (i, &ch) in chars.iter().enumerate() {
+    for (i, ch) in s.char_indices() {
         match ch {
             '{' | '[' => depth += 1,
             '}' | ']' => {
@@ -6148,9 +6153,8 @@ fn find_pattern_end_simple(s: &str) -> Option<usize> {
 }
 
 fn find_colon_at_depth_0(s: &str) -> Option<usize> {
-    let chars: Vec<char> = s.chars().collect();
     let mut depth = 0;
-    for (i, &ch) in chars.iter().enumerate() {
+    for (i, ch) in s.char_indices() {
         match ch {
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth -= 1,
@@ -6170,11 +6174,12 @@ fn is_simple_identifier_name(s: &str) -> bool {
 }
 
 fn split_by_comma_respecting_nesting(s: &str) -> Vec<&str> {
-    let chars: Vec<char> = s.chars().collect();
+    // Byte offsets (see the note on `find_pattern_end_simple`): `i`/`start` index
+    // `&s[..]`, and the `,` delimiter is ASCII so `i + 1` stays on a boundary.
     let mut result = Vec::new();
     let mut depth = 0;
     let mut start = 0;
-    for (i, &ch) in chars.iter().enumerate() {
+    for (i, ch) in s.char_indices() {
         match ch {
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth -= 1,
@@ -6648,4 +6653,49 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
     }
 
     result
+}
+
+#[cfg(test)]
+mod destructure_helper_tests {
+    use super::{
+        extract_destructured_names_simple, find_colon_at_depth_0, find_pattern_end_simple,
+        split_by_comma_respecting_nesting,
+    };
+
+    // The helpers return byte offsets used to slice `&str`. With a multibyte
+    // identifier before the delimiter, a char-count index would land mid-char
+    // and panic; these assert byte-correctness (and no panic).
+
+    #[test]
+    fn pattern_end_is_byte_offset_with_multibyte() {
+        // `café` is 5 bytes; the closing `}` is at byte 8, so end == 9.
+        let s = "{ café } = x";
+        let end = find_pattern_end_simple(s).unwrap();
+        assert_eq!(end, 9);
+        assert_eq!(&s[1..end - 1], " café "); // inner slice must be valid
+    }
+
+    #[test]
+    fn colon_at_depth_0_is_byte_offset_with_multibyte() {
+        // `café` is 5 bytes (4 chars) -> the colon is at byte offset 5, which a
+        // char-count index (4) would get wrong.
+        let s = "café: renamed";
+        let pos = find_colon_at_depth_0(s).unwrap();
+        assert_eq!(pos, 5);
+        assert_eq!(s[pos + 1..].trim(), "renamed");
+    }
+
+    #[test]
+    fn split_commas_keeps_multibyte_parts_intact() {
+        let parts = split_by_comma_respecting_nesting("café, { x: π }, naïve");
+        assert_eq!(parts, vec!["café", " { x: π }", " naïve"]);
+    }
+
+    #[test]
+    fn extract_names_from_multibyte_renamed_destructure() {
+        // Exercises all three helpers together; must not panic and must keep
+        // the multibyte target name.
+        let names = extract_destructured_names_simple("{ café: renamed, π = 1 }");
+        assert!(names.contains(&"renamed".to_string()), "{names:?}");
+    }
 }
