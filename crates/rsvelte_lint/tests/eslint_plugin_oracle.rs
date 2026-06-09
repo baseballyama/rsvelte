@@ -123,6 +123,7 @@ const RULES: &[(&str, &str, bool)] = &[
         "svelte/no-immutable-reactive-statements",
         false,
     ),
+    ("no-dom-manipulating", "svelte/no-dom-manipulating", false),
     (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
