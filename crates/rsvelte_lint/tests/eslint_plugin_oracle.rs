@@ -112,6 +112,11 @@ const RULES: &[(&str, &str, bool)] = &[
         false,
     ),
     (
+        "no-extra-reactive-curlies",
+        "svelte/no-extra-reactive-curlies",
+        false,
+    ),
+    (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
         false,
