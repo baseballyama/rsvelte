@@ -1066,23 +1066,25 @@ fn try_hug_mixed(
         return None;
     }
 
-    // A multi-line open tag means markup already attribute-wrapped it and glued
-    // the `>` to the last attribute line (#798). prettier's hugged-content group
-    // keeps `>{content}</tag` glued there only if it fits after the last attr;
-    // otherwise it drops to its own indented line. Markup can't decide this (no
-    // content awareness), so finish the decision here.
+    // A multi-line open tag means markup already attribute-wrapped it. prettier's
+    // hugged-content group glues `>{content}</tag` to the last attribute line (with
+    // the final `>` on its own line) when it fits after the last attr, otherwise
+    // it drops the content to its own indented line. Markup can't decide this (no
+    // content awareness) — and may have dropped the open `>` to its own line — so
+    // finish the decision here, re-gluing to the real last attribute line.
     if open.contains('\n') {
-        let onb = &open[..open.len() - 1]; // strip the glued `>`
+        // Strip the open `>` and any whitespace markup left before a dropped `>`,
+        // exposing the real last attribute line.
+        let onb = open[..open.len() - 1].trim_end();
         let last_line = onb.rsplit('\n').next().unwrap_or(onb);
-        // `<last attr>` + `>content</tag` (the trailing `>` is already on its own
-        // line via markup's hug_close).
         let glued = last_line.width() + 1 + raw.width() + 2 + tag.width();
-        if glued <= line_width {
-            return None; // markup's glued form is correct
-        }
-        let inner_indent = format!("{indent}  ");
-        let moved = format!("{onb}\n{inner_indent}>{raw}</{tag}\n{indent}>");
-        return (moved != whole).then_some((start, end, moved));
+        let result = if glued <= line_width {
+            format!("{onb}>{raw}</{tag}\n{indent}>")
+        } else {
+            let inner_indent = format!("{indent}  ");
+            format!("{onb}\n{inner_indent}>{raw}</{tag}\n{indent}>")
+        };
+        return (result != whole).then_some((start, end, result));
     }
 
     let element_one_line = column + open.width() + raw.width() + close.width();
