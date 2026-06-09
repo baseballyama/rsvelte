@@ -574,8 +574,13 @@ fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc>
                 let next_inline = i + 1 < n && is_inline_regular_element(&nodes[i + 1]);
                 // Trailing space before an inline element: trim it from this fill
                 // and flag the element to carry the leading `line` (hug in place).
+                // prettier's `handleTextChild` returns early for the first/last
+                // child (no trim, no flag) — the wrapper owns that boundary — so
+                // a first text node keeps its trailing `line` INSIDE the fill and
+                // the following inline element stays bare (it hug-breaks in place
+                // after a flat space, rather than breaking onto its own line).
                 let mut tr = trim_right;
-                if !trim_right && next_inline && ends_with_space_no_break(txt) {
+                if !trim_left && !trim_right && next_inline && ends_with_space_no_break(txt) {
                     tr = true;
                     ws_prev = true;
                 }
