@@ -22,6 +22,7 @@ pub mod no_immutable_reactive_statements;
 pub mod no_inline_styles;
 pub mod no_inner_declarations;
 pub mod no_inspect;
+pub mod no_navigation_without_base;
 pub mod no_nested_style_tag;
 pub mod no_not_function_handler;
 pub mod no_object_in_text_mustaches;
