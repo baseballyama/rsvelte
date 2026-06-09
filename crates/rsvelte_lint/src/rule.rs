@@ -6,8 +6,8 @@
 //! only overrides what it cares about.
 
 use rsvelte_core::ast::template::{
-    Attribute, AwaitBlock, Component, DebugTag, EachBlock, ExpressionTag, HtmlTag, IfBlock,
-    RegularElement, Root, SnippetBlock,
+    Attribute, AwaitBlock, Component, ConstTag, DebugTag, EachBlock, ExpressionTag, HtmlTag,
+    IfBlock, RegularElement, Root, SlotElement, SnippetBlock,
 };
 
 use crate::context::LintContext;
@@ -109,6 +109,8 @@ pub trait Rule: Send + Sync {
     fn check_await(&self, ctx: &mut LintContext, block: &AwaitBlock) {}
     fn check_snippet(&self, ctx: &mut LintContext, block: &SnippetBlock) {}
     fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {}
+    fn check_const_tag(&self, ctx: &mut LintContext, tag: &ConstTag) {}
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {}
 
     /// Called for every attribute/directive on an element or component, after
     /// the element-level hook. Lets attribute-scoped rules avoid re-walking the
