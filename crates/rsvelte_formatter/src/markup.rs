@@ -626,7 +626,15 @@ fn render_multi_line(
         // align under the attribute instead of collapsing to column 0 (#692).
         // `skip_first` leaves the value's first line alone — the attribute
         // indent was already emitted before it.
-        out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
+        //
+        // A quoted string value (`style="…\n…"` / `class="…"`) is HTML text, not
+        // formatter output: its interior whitespace is literal, so it's emitted
+        // verbatim and must NOT be re-indented.
+        if is_string_value_attr(a) {
+            out.push_str(a);
+        } else {
+            out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
+        }
     }
     if hug_open && !self_closing {
         // Whitespace-sensitive inline content: glue the `>` to the last
@@ -643,6 +651,18 @@ fn render_multi_line(
         }
     }
     out
+}
+
+/// Whether a rendered attribute's value is a *literal* quoted string
+/// (`style="…"` / `class="a {x}"`) whose interior whitespace is HTML text and
+/// must be kept verbatim — as opposed to a quoted single expression
+/// (`pos="{expr}"`), whose formatted multi-line value still needs re-indenting.
+/// The value part (after the first `=`) must start with `"` but not `"{`.
+fn is_string_value_attr(a: &str) -> bool {
+    match a.split_once('=') {
+        Some((_, value)) => value.starts_with('"') && !value.starts_with("\"{"),
+        None => false,
+    }
 }
 
 fn indent_str(level: usize, js_opts: &JsFormatOptions) -> String {
