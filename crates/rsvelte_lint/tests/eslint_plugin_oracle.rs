@@ -137,6 +137,11 @@ const RULES: &[(&str, &str, bool)] = &[
     ),
     ("max-lines-per-block", "svelte/max-lines-per-block", false),
     (
+        "no-navigation-without-base",
+        "svelte/no-navigation-without-base",
+        false,
+    ),
+    (
         "prefer-writable-derived",
         "svelte/prefer-writable-derived",
         false,
