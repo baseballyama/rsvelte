@@ -2144,6 +2144,7 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
             }
         }
         b'v' if trimmed.starts_with("var ") => "VariableDeclaration",
+        b'd' if (trimmed == "debugger" || trimmed.starts_with("debugger;")) => "DebuggerStatement",
         b'l' if trimmed.starts_with("let ") => "VariableDeclaration",
         b'c' => {
             if trimmed.starts_with("const ") {

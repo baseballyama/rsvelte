@@ -179,6 +179,26 @@ impl Parser<'_> {
             Some(i) => i,
             None => {
                 if !self.options.loose {
+                    // Upstream `read_declaration()` parses the tag body as a
+                    // statement with acorn and rethrows the failure in strict
+                    // mode (`if (!parser.loose) throw error;`), so a body
+                    // that doesn't parse (e.g. `{let }`) surfaces as
+                    // `js_parse_error` — only a parseable statement that
+                    // isn't a `let`/`const` declaration becomes
+                    // `declaration_tag_invalid_type`.
+                    let stmt_text = self.source[decl_start..body_end].trim_end();
+                    if let Some((msg, pos)) =
+                        super::super::read::expression::check_js_statement_parse_error(
+                            stmt_text, self.ts,
+                        )
+                    {
+                        let abs = decl_start + pos.min(stmt_text.len());
+                        return Err(crate::error::ParseError::svelte(
+                            "js_parse_error",
+                            msg,
+                            (abs, abs),
+                        ));
+                    }
                     return Err(crate::error::ParseError::svelte(
                         "declaration_tag_invalid_type",
                         "Declaration tags can only contain `let` or `const` variable declarations",
@@ -576,12 +596,13 @@ impl Parser<'_> {
     /// block — in which case the marker is left intact for an outer block to
     /// consume (best-effort recovery).
     fn expect_block_close(&mut self, keyword: &str) -> ParseResult<bool> {
-        // No close marker present (e.g. EOF): nothing to consume.
-        if !self.match_str("{/") {
+        // No close marker present (e.g. EOF): nothing to consume. Whitespace
+        // between `{` and `/` is allowed (upstream `allow_whitespace()`).
+        let Some(slash_pos) = self.match_block_close_marker() else {
             return Ok(false);
-        }
+        };
         let checkpoint = self.index;
-        self.advance_by(2); // consume '{/'
+        self.index = slash_pos + 1; // consume '{' + whitespace + '/'
 
         // Require the exact block keyword. `eat(keyword, true, false)` errors in
         // strict mode on a mismatch and returns false (without erroring) in
@@ -667,12 +688,13 @@ impl Parser<'_> {
 
     /// Parse {:else} or {:else if} blocks recursively
     pub fn parse_if_alternate(&mut self) -> ParseResult<Option<Fragment>> {
-        if !self.match_str("{:") {
+        // Whitespace between `{` and `:` is allowed (upstream `allow_whitespace()`).
+        let Some(colon_pos) = self.match_block_continuation_marker() else {
             return Ok(None);
-        }
+        };
 
         let else_block_start = self.index;
-        self.advance_by(2); // consume '{:'
+        self.index = colon_pos + 1; // consume '{' + whitespace + ':'
         self.skip_whitespace();
 
         if !self.eat_optional("else") {
@@ -718,7 +740,10 @@ impl Parser<'_> {
         } else {
             // {:else}
             self.skip_whitespace(); // Handle {:else } with space before }
-            self.eat_optional("}");
+            // Upstream: `parser.eat('}', true)` — anything other than `}`
+            // after `{:else` (e.g. `{:else +++if cond}`) is an
+            // `expected_token` error, in loose mode too.
+            self.eat("}", true, true)?;
             let alt_fragment = self.parse_fragment()?;
 
             // Don't consume {/if} here - let parse_if_block handle it
@@ -940,9 +965,9 @@ impl Parser<'_> {
 
             // Check for {:else}
             let mut fallback = None;
-            if self.match_str("{:") {
+            if let Some(colon_pos) = self.match_block_continuation_marker() {
                 let continuation_start = self.index;
-                self.advance_by(2);
+                self.index = colon_pos + 1;
                 self.skip_whitespace();
                 if self.eat_optional("else") {
                     self.skip_whitespace();
@@ -1147,9 +1172,9 @@ impl Parser<'_> {
 
         // Check for {:else}
         let mut fallback = None;
-        if self.match_str("{:") {
+        if let Some(colon_pos) = self.match_block_continuation_marker() {
             let continuation_start = self.index;
-            self.advance_by(2);
+            self.index = colon_pos + 1;
             self.skip_whitespace();
             if self.eat_optional("else") {
                 self.skip_whitespace();
@@ -1460,8 +1485,8 @@ impl Parser<'_> {
         }
 
         // Check for {:then} or {:catch} intermediate clauses
-        while self.match_str("{:") {
-            self.advance_by(2);
+        while let Some(colon_pos) = self.match_block_continuation_marker() {
+            self.index = colon_pos + 1;
             self.skip_whitespace();
 
             if self.eat_optional("then") {

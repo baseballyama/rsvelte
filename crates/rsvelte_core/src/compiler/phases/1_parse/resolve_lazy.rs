@@ -410,11 +410,32 @@ fn resolve_expression(
             Err((msg, pos)) => {
                 // Store the first parse error encountered
                 if first_error.is_none() {
-                    *first_error = Some(crate::error::ParseError::svelte(
-                        "js_parse_error",
-                        msg,
-                        (pos, pos + content.len()),
-                    ));
+                    // Upstream's `read_expression` parses ONE maximal
+                    // expression with acorn and then `eat('}', true)`: a
+                    // complete leading expression followed by leftover tokens
+                    // (e.g. `{foo();}` — the `;` is left over) surfaces as
+                    // `expected_token` (Expected token }), while a malformed
+                    // expression (e.g. `{42 = nope}`, where the error is
+                    // *inside* the expression) is a `js_parse_error`. The
+                    // prefix re-parse guards against the probe mislabelling
+                    // an in-expression error as leftover input.
+                    let trailing =
+                        super::read::expression::trailing_token_offset(content).filter(|&off| {
+                            off > 0
+                                && content.get(..off).is_some_and(|prefix| {
+                                    super::read::expression::check_js_parse_error_with_pos(prefix)
+                                        .is_none()
+                                })
+                        });
+                    *first_error = Some(if let Some(offset) = trailing {
+                        crate::error::ParseError::expected_token("}", *start as usize + offset)
+                    } else {
+                        crate::error::ParseError::svelte(
+                            "js_parse_error",
+                            msg,
+                            (pos, pos + content.len()),
+                        )
+                    });
                 }
                 // Still set the expression to something valid to allow continued processing
                 *expr =

@@ -1666,6 +1666,33 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
     })
 }
 
+/// Check whether `content` parses as a JS/TS *statement* (program), returning
+/// the first parse error as `Some((message, pos_in_content))`.
+///
+/// Mirrors upstream's `parse_statement_at` (acorn) used by
+/// `read_declaration()` in `1-parse/state/tag.js`: a declaration-tag body that
+/// does not parse as a statement is rethrown in strict mode and surfaces as
+/// `js_parse_error` (e.g. `{let }` → "The keyword 'let' is reserved").
+pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String, usize)> {
+    with_oxc_allocator(|allocator| {
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let result = OxcParser::new(allocator, content, source_type).parse();
+        result.errors.first().map(|first_error| {
+            let pos = first_error
+                .labels
+                .as_ref()
+                .and_then(|labels| labels.first())
+                .map(|label| label.offset().min(content.len()))
+                .unwrap_or(0);
+            (first_error.message.to_string(), pos)
+        })
+    })
+}
+
 /// For an *invalid* expression string, determine whether the failure is caused
 /// by **trailing tokens after an otherwise-complete expression** (e.g. `a b c`)
 /// rather than an incomplete / malformed expression (e.g. `a +`).
@@ -6034,7 +6061,7 @@ pub fn parse_program_with_error(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let parse_error = result.errors.first().map(|first_error| {
+        let mut parse_error = result.errors.first().map(|first_error| {
             let pos = first_error
                 .labels
                 .as_ref()
@@ -6048,6 +6075,32 @@ pub fn parse_program_with_error(
                 (pos, pos),
             )
         });
+
+        // OXC accepts Stage-3 `@decorator` syntax even in plain JS; upstream's
+        // acorn (no decorator plugin) raises js_parse_error at the `@` token.
+        // A bare `@` is never legal JS outside decorators, so flag the first
+        // decorator's position. Gated on a cheap byte scan first.
+        if parse_error.is_none() && !is_typescript && content.contains('@') {
+            use oxc_ast_visit::Visit;
+            struct FindDecorator(Option<u32>);
+            impl<'a> Visit<'a> for FindDecorator {
+                fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
+                    if self.0.is_none() {
+                        self.0 = Some(dec.span.start);
+                    }
+                }
+            }
+            let mut finder = FindDecorator(None);
+            finder.visit_program(&result.program);
+            if let Some(at) = finder.0 {
+                let pos = at as usize + offset;
+                parse_error = Some(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    "Unexpected character '@'".to_string(),
+                    (pos, pos),
+                ));
+            }
+        }
 
         let program = &result.program;
 
@@ -8664,6 +8717,36 @@ fn convert_expression_for_program(
         }
         OxcExpression::TSInstantiationExpression(ts_inst) => {
             convert_expression_for_program(arena, &ts_inst.expression, offset, line_offsets)
+        }
+        OxcExpression::MetaProperty(meta) => {
+            // `import.meta` / `new.target`. Without this arm the fallback
+            // below turns the node into a placeholder `Identifier("unknown")`,
+            // which Phase 2's `is_safe_identifier` then misclassifies as a
+            // safe global — `import.meta.glob(...)` must set `needs_context`
+            // (upstream: a non-Identifier base is never "safe").
+            let start = offset + meta.span.start as usize;
+            let end = offset + meta.span.end as usize;
+            let meta_start = offset + meta.meta.span.start as usize;
+            let meta_end = offset + meta.meta.span.end as usize;
+            let prop_start = offset + meta.property.span.start as usize;
+            let prop_end = offset + meta.property.span.end as usize;
+            Expression::from_node(JsNode::MetaProperty {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                meta: arena.alloc_js_node(expr_to_node(create_identifier(
+                    &meta.meta.name,
+                    meta_start,
+                    meta_end,
+                    line_offsets,
+                ))),
+                property: arena.alloc_js_node(expr_to_node(create_identifier(
+                    &meta.property.name,
+                    prop_start,
+                    prop_end,
+                    line_offsets,
+                ))),
+            })
         }
         _ => {
             // Fallback for unsupported expression types

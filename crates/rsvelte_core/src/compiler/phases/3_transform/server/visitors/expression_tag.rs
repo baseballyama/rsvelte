@@ -23,7 +23,22 @@ impl<'a> ServerCodeGenerator<'a> {
             // Strip JS comments (e.g., `/* @ts-expect-error ... */ null` → `null`)
             let expr_source = strip_js_comments(&expr_source);
 
-            // First, try constant variable lookup and folding
+            // First, run the scope.evaluate port (upstream `process_children`
+            // evaluates every ExpressionTag; known values inline as escaped
+            // text, known nullish values render as nothing).
+            let evaluation = self.evaluate_template_expression(&tag.expression);
+            if let Some(value) = evaluation.known_value() {
+                use super::super::evaluate::{EvalValue, js_display_string};
+                if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                    let content = js_display_string(value);
+                    self.output_parts.push(OutputPart::Html(escape_html(
+                        &sanitize_template_string(&content),
+                    )));
+                }
+                return Ok(());
+            }
+
+            // Then, try constant variable lookup and folding
             let folded = self.try_fold_with_constants(&expr_source);
 
             match folded {
@@ -66,6 +81,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         transformed
                     };
+                    // Match esrap's newline-presence for the `${$.escape(...)}` slot
+                    // (collapse source newlines when esrap prints flat, force a
+                    // break when esrap would wrap).
+                    let transformed =
+                        super::super::esrap_layout::reflow_template_expr(&transformed);
 
                     // Check if the expression contains `await` - if so, use AsyncExpression
                     // so it gets rendered as a separate $$renderer.push(async () => ...) call

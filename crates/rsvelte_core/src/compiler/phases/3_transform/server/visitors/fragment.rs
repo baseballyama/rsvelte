@@ -187,7 +187,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 match nodes[first_visible] {
                     TemplateNode::ConstTag(_)
                     | TemplateNode::DeclarationTag(_)
-                    | TemplateNode::SnippetBlock(_) => {
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_) => {
                         first_visible += 1;
                         prev_was_hoisted = true;
                     }
@@ -232,6 +233,29 @@ impl<'a> ServerCodeGenerator<'a> {
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
 
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
+
+        // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
+        // visitor visits them BEFORE process_children, so their console.log /
+        // debugger statements precede the fragment's $$renderer.push calls
+        // (and the surrounding HTML merges into a single push).
+        //
+        // Exception: when the fragment also contains const/declaration tags,
+        // keep the debug tag inline — a `{@debug d}` may depend on a preceding
+        // `{@const d = await ...}` blocker registered during const processing
+        // (upstream visits the hoisted const first for the same reason).
+        let hoist_debug = !meaningful_nodes.iter().any(|n| {
+            matches!(
+                n,
+                TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_)
+            )
+        });
+        if hoist_debug {
+            for node in meaningful_nodes.iter() {
+                if matches!(node, TemplateNode::DebugTag(_)) {
+                    body_generator.generate_node(node, false)?;
+                }
+            }
+        }
         let is_first_text = |idx: usize| -> bool {
             // Check if this is the first text node (ignoring hoisted/transparent nodes)
             for n in meaningful_nodes.iter().take(idx) {
@@ -301,6 +325,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_hoisted = is_const_tag
                 || matches!(node, TemplateNode::SnippetBlock(_))
                 || matches!(node, TemplateNode::DeclarationTag(_))
+                || (hoist_debug && matches!(node, TemplateNode::DebugTag(_)))
                 || is_transparent_comment;
             // Flush accumulated async consts before processing non-const content.
             // Also skip SnippetBlock and transparent comments since those are hoisted/stripped.
@@ -402,6 +427,11 @@ impl<'a> ServerCodeGenerator<'a> {
             if !is_hoisted {
                 prev_text_ends_with_ws = false;
                 seen_real_content = true;
+            }
+
+            // DebugTags were already emitted in the hoisted pre-pass above.
+            if hoist_debug && matches!(node, TemplateNode::DebugTag(_)) {
+                continue;
             }
 
             body_generator.generate_node(node, false)?;

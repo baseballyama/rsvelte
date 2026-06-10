@@ -25,7 +25,7 @@ fn compile_mod_client_dev(src: &str) -> String {
     let result = compile_module(
         src,
         ModuleCompileOptions {
-            filename: Some("x.svelte.ts".to_string()),
+            filename: Some("x.svelte.js".to_string()),
             generate: GenerateMode::Client,
             dev: true,
             ..Default::default()
@@ -92,7 +92,7 @@ fn neq_after_bracket_index_chain() {
 #[test]
 fn plain_identifier_neq_still_works() {
     // Regression guard: simple `a !== b` shouldn't regress.
-    let src = r#"export const fn = (a: number, b: number) => {
+    let src = r#"export const fn = (a, b) => {
   if (a !== b) return a;
   return b;
 };"#;
@@ -106,7 +106,7 @@ fn plain_identifier_neq_still_works() {
 #[test]
 fn call_left_operand_still_works() {
     // Regression guard: when LHS *does* end with `)` the call form still works.
-    let src = r#"export const fn = (a: number) => {
+    let src = r#"export const fn = (a) => {
   if (Math.abs(a) !== 0) return a;
   return 0;
 };"#;

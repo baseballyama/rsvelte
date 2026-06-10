@@ -99,18 +99,18 @@ impl Parser<'_> {
             if let crate::ast::Attribute::Attribute(attr_node) = attr {
                 let attr_name = attr_node.name.as_str();
 
-                // Check for reserved attributes
-                const RESERVED_ATTRIBUTES: &[&str] =
-                    &["server", "client", "worker", "test", "default"];
-                if RESERVED_ATTRIBUTES.contains(&attr_name) {
+                // `tag` is deprecated — upstream errors with a dedicated code
+                // (read/options.js `case 'tag': e.svelte_options_deprecated_tag`).
+                if attr_name == "tag" {
                     return Err(ParseError::svelte(
-                        "script_reserved_attribute",
-                        format!("`{}` is a reserved attribute and cannot be used", attr_name),
+                        "svelte_options_deprecated_tag",
+                        "\"tag\" option is deprecated — use \"customElement\" instead\nhttps://svelte.dev/e/svelte_options_deprecated_tag",
                         (attr_node.start as usize, attr_node.end as usize),
                     ));
                 }
 
-                // Warn for unknown attributes
+                // Unknown attributes are a hard error, mirroring upstream's
+                // `default: e.svelte_options_unknown_attribute(attribute, name)`.
                 const ALLOWED_ATTRIBUTES: &[&str] = &[
                     "runes",
                     "customElement",
@@ -121,8 +121,14 @@ impl Parser<'_> {
                     "accessors",
                 ];
                 if !ALLOWED_ATTRIBUTES.contains(&attr_name) {
-                    // Unknown attribute - skip validation for now
-                    // In production, this would emit a warning
+                    return Err(ParseError::svelte(
+                        "svelte_options_unknown_attribute",
+                        format!(
+                            "`<svelte:options>` unknown attribute '{}'\nhttps://svelte.dev/e/svelte_options_unknown_attribute",
+                            attr_name
+                        ),
+                        (attr_node.start as usize, attr_node.end as usize),
+                    ));
                 }
 
                 attr_nodes.push(attr_node.clone());
@@ -182,6 +188,29 @@ impl Parser<'_> {
                     }
                     _ => {}
                 }
+            } else {
+                // Spreads / directives are not allowed on `<svelte:options>` —
+                // upstream: `if (attribute.type !== 'Attribute')
+                // e.svelte_options_invalid_attribute(attribute)`.
+                use crate::ast::Attribute as A;
+                let (a_start, a_end) = match attr {
+                    A::Attribute(_) => unreachable!(),
+                    A::SpreadAttribute(a) => (a.start, a.end),
+                    A::AttachTag(a) => (a.start, a.end),
+                    A::BindDirective(a) => (a.start, a.end),
+                    A::OnDirective(a) => (a.start, a.end),
+                    A::ClassDirective(a) => (a.start, a.end),
+                    A::StyleDirective(a) => (a.start, a.end),
+                    A::TransitionDirective(a) => (a.start, a.end),
+                    A::AnimateDirective(a) => (a.start, a.end),
+                    A::UseDirective(a) => (a.start, a.end),
+                    A::LetDirective(a) => (a.start, a.end),
+                };
+                return Err(ParseError::svelte(
+                    "svelte_options_invalid_attribute",
+                    "`<svelte:options>` can only receive static attributes\nhttps://svelte.dev/e/svelte_options_invalid_attribute",
+                    (a_start as usize, a_end as usize),
+                ));
             }
         }
 

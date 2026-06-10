@@ -1,25 +1,17 @@
-//! Regression test for `compile_module` leaking TypeScript syntax through the
-//! text-based rune rewrites and emitting eagerly-evaluated `$derived` on the
-//! server side (baseballyama/rsvelte#140 and follow-up).
+//! `compile_module` behavior tests for `$derived` server lowering, plus a
+//! guard that TS module input is rejected like upstream.
 //!
-//! Two issues, one root cause:
+//! HISTORY: rsvelte used to TS-sniff from a `.svelte.ts` filename and strip
+//! annotations itself (#140). Upstream's `analyze_module` parses plain JS
+//! only — TS must be stripped by the bundler (esbuild/Vite) BEFORE
+//! `compileModule` — so rsvelte now mirrors that and rejects TS syntax.
+//! The `$derived` server-wrapper tests below (originally written against
+//! the TS pipeline) therefore use plain-JS sources.
 //!
-//! 1. `compile_module` parsed the TS source, stripped TS annotations from the
-//!    AST, then handed the **raw source text** to `transform_module`, whose
-//!    text-based rune rewrites then ran against TS-annotated input. TS
-//!    annotations leaked through to the emitted JS, and byte offsets in
-//!    multi-line rune calls shifted relative to what the rune scanner
-//!    expected.
-//!
-//! 2. The server-side post-processor previously stripped `$.derived(() => X)`
-//!    down to bare `X`, turning the derived into an eagerly-evaluated
-//!    snapshot. Upstream svelte's server runtime exposes `$.derived(fn)` as
-//!    a callable that re-evaluates on each call (see
-//!    `svelte/src/internal/server/index.js#derived`), so the wrapper must
-//!    survive and downstream reads via `$.get(X)` must lower to `X()`.
-//!    Stripping caused derived values to freeze when their underlying state
-//!    mutated (e.g. a form-model `isValid` stayed `false` even after the
-//!    form was filled in).
+//! Server-side `$derived` rule: upstream exposes `$.derived(fn)` as a
+//! callable that re-evaluates per read, so the wrapper must survive and
+//! reads via `$.get(X)` must lower to `X()`. Stripping the wrapper caused
+//! derived values to freeze when their underlying state mutated.
 
 use rsvelte_core::GenerateMode;
 use rsvelte_core::compile_module;
@@ -40,31 +32,40 @@ fn compile_mod(src: &str, generate: GenerateMode) -> String {
 }
 
 #[test]
-fn server_strips_ts_annotations() {
+fn server_rejects_ts_annotations() {
+    // Upstream parity: analyze_module parses plain JS; TS syntax errors.
     let src = r#"export const useFoo = (
   getEl: () => HTMLElement | undefined,
 ): string => {
   return 'ok';
 };
 "#;
-    let out = compile_mod(src, GenerateMode::Server);
-    assert!(
-        !out.contains("HTMLElement"),
-        "TS param annotation should be stripped, got:\n{out}"
+    let r = compile_module(
+        src,
+        ModuleCompileOptions {
+            filename: Some("foo.svelte.ts".to_string()),
+            generate: GenerateMode::Server,
+            dev: false,
+            ..Default::default()
+        },
     );
-    assert!(
-        !out.contains("): string"),
-        "TS return annotation should be stripped, got:\n{out}"
-    );
+    assert!(r.is_err(), "TS module input must error like upstream");
 }
 
 #[test]
-fn client_strips_ts_annotations() {
+fn client_rejects_ts_annotations() {
     let src = r#"export const useFoo = (getEl: () => HTMLElement): string => 'ok';
 "#;
-    let out = compile_mod(src, GenerateMode::Client);
-    assert!(!out.contains("HTMLElement"), "got:\n{out}");
-    assert!(!out.contains(": string"), "got:\n{out}");
+    let r = compile_module(
+        src,
+        ModuleCompileOptions {
+            filename: Some("foo.svelte.ts".to_string()),
+            generate: GenerateMode::Client,
+            dev: false,
+            ..Default::default()
+        },
+    );
+    assert!(r.is_err(), "TS module input must error like upstream");
 }
 
 #[test]
@@ -119,12 +120,11 @@ fn server_derived_expression_body_keeps_wrapper() {
 
 #[test]
 fn server_ts_with_derived_by_works_together() {
-    // The original reproducer from #140 — TS annotations *and* a block-bodied
-    // `$derived.by`. TS strip *and* the derived-wrapper preservation must
-    // combine.
+    // The original reproducer from #140, post-esbuild (annotations already
+    // stripped, as the production pipeline does before compileModule).
     let src = r#"export const useFoo = (
-  getEl: () => HTMLElement | undefined,
-): string => {
+  getEl,
+) => {
   let pos = $state({ x: 0 });
   const style = $derived.by(() => {
     return `transform: translate(${pos.x}px);`;
@@ -133,7 +133,6 @@ fn server_ts_with_derived_by_works_together() {
 };
 "#;
     let out = compile_mod(src, GenerateMode::Server);
-    assert!(!out.contains("HTMLElement"), "TS leak. Got:\n{out}");
     assert!(
         out.contains("const style = $.derived(() =>"),
         "expected `$.derived(() => {{ … }})` wrapper to survive, got:\n{out}"

@@ -99,6 +99,13 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         // equivalent.
         code = reescape_control_chars_in_string_literals(&code);
 
+        // OXC's codegen prints leading comments but drops trailing same-line
+        // `// ...` comments (e.g. `value === proxy; // always false`). The
+        // official compiler preserves them (esrap re-inserts every comment
+        // positionally), so re-attach the dropped ones by matching the code
+        // part of each commented line against the generated output.
+        code = reattach_trailing_line_comments(&stripped, &code);
+
         // Restore `;;` markers
         if has_double_semi {
             // OXC may split the two void statements across lines:
@@ -148,6 +155,170 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         }
         result_str
     })
+}
+
+/// Re-attach trailing same-line `// ...` comments that OXC's codegen drops.
+///
+/// `original` and `generated` are both unindented script sources. OXC keeps
+/// statement order, so commented lines are matched sequentially: for each
+/// `code; // comment` line in `original`, the first generated line (from a
+/// moving cursor) whose trimmed text equals the trimmed code part gets the
+/// comment appended. Lines that don't round-trip verbatim through OXC simply
+/// don't match and are skipped (no worse than the previous behavior).
+fn reattach_trailing_line_comments(original: &str, generated: &str) -> String {
+    // Collect (code_part, comment) pairs from `original`, skipping string and
+    // template-literal contents and block comments.
+    let mut entries: Vec<(&str, &str)> = Vec::new();
+    {
+        let bytes = original.as_bytes();
+        let mut i = 0usize;
+        let mut line_start = 0usize;
+        let mut in_string: Option<u8> = None;
+        let mut in_block_comment = false;
+        while i < bytes.len() {
+            let c = bytes[i];
+            if in_block_comment {
+                if c == b'*' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                    in_block_comment = false;
+                    i += 2;
+                    continue;
+                }
+                if c == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            if let Some(q) = in_string {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == q || (c == b'\n' && q != b'`') {
+                    in_string = None;
+                }
+                if c == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            match c {
+                b'"' | b'\'' | b'`' => {
+                    in_string = Some(c);
+                    i += 1;
+                }
+                b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                    in_block_comment = true;
+                    i += 2;
+                }
+                b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                    let eol = memchr::memchr(b'\n', &bytes[i..])
+                        .map(|p| i + p)
+                        .unwrap_or(bytes.len());
+                    let code_part = original[line_start..i].trim();
+                    let comment = original[i..eol].trim_end();
+                    // Whole-line comments (no code before them) are leading
+                    // comments, which OXC already preserves.
+                    if !code_part.is_empty() {
+                        entries.push((code_part, comment));
+                    }
+                    line_start = eol + 1;
+                    i = eol + 1;
+                }
+                b'\n' => {
+                    line_start = i + 1;
+                    i += 1;
+                }
+                _ => i += 1,
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        return generated.to_string();
+    }
+
+    let mut out_lines: Vec<String> = generated.lines().map(|l| l.to_string()).collect();
+    let mut cursor = 0usize;
+    for (code_part, comment) in entries {
+        let mut found = None;
+        for (idx, line) in out_lines.iter().enumerate().skip(cursor) {
+            if line.trim() == code_part {
+                found = Some(idx);
+                break;
+            }
+        }
+        if let Some(idx) = found {
+            if !out_lines[idx].ends_with(comment) {
+                out_lines[idx].push(' ');
+                out_lines[idx].push_str(comment);
+            }
+            cursor = idx + 1;
+        }
+    }
+
+    let mut result = out_lines.join("\n");
+    if generated.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
+/// Split the trailing run of comment-only lines off the end of the
+/// transformed instance script.
+///
+/// esrap re-emits comments positionally: a comment that follows the last
+/// positioned statement of the script is flushed at the END of the component
+/// body — i.e. *after* the template `$$renderer.push(...)` statements — not
+/// glued to the script section. Returns `(script_without_trailing_comments,
+/// comments)` where each comment is trimmed of surrounding whitespace.
+fn split_trailing_script_comments(script: &str) -> (String, Vec<String>) {
+    let lines: Vec<&str> = script.lines().collect();
+
+    // Mark lines inside multi-line template literals so string content is
+    // never mistaken for a comment.
+    let mut inside_template = vec![false; lines.len()];
+    let mut state = false;
+    for (i, line) in lines.iter().enumerate() {
+        inside_template[i] = state;
+        state = super::helpers::update_template_literal_state_for_indent(line, state);
+    }
+
+    let mut idx = lines.len();
+    let mut comments_rev: Vec<String> = Vec::new();
+    while idx > 0 {
+        if inside_template[idx - 1] {
+            break;
+        }
+        let trimmed = lines[idx - 1].trim();
+        if trimmed.is_empty() {
+            idx -= 1;
+            continue;
+        }
+        let is_line_comment = trimmed.starts_with("//");
+        let is_block_comment = trimmed.starts_with("/*")
+            && trimmed.ends_with("*/")
+            && !trimmed.contains("$$async_hole")
+            && !trimmed.contains("$$async_void_noop");
+        if is_line_comment || is_block_comment {
+            comments_rev.push(trimmed.to_string());
+            idx -= 1;
+            continue;
+        }
+        break;
+    }
+
+    if comments_rev.is_empty() {
+        return (script.to_string(), Vec::new());
+    }
+
+    let mut remainder = lines[..idx].join("\n");
+    while remainder.ends_with('\n') || remainder.ends_with(' ') || remainder.ends_with('\t') {
+        remainder.pop();
+    }
+    comments_rev.reverse();
+    (remainder, comments_rev)
 }
 
 /// Decide whether a `/` at the *next* byte position can start a regex literal.
@@ -1108,6 +1279,13 @@ impl<'a> ServerCodeGenerator<'a> {
             script_code
         };
 
+        // Pull trailing comment-only lines off the script. The official
+        // compiler (esrap) flushes comments that follow the last positioned
+        // script statement at the END of the component body — after the
+        // template `$$renderer.push(...)` calls — so they must not stay glued
+        // to the script section.
+        let (script_code, trailing_script_comments) = split_trailing_script_comments(&script_code);
+
         // Normalize the script code with OXC
         let script_code = if !script_code.trim().is_empty() {
             normalize_script_with_oxc(&script_code, 1)
@@ -1303,6 +1481,24 @@ impl<'a> ServerCodeGenerator<'a> {
                     inner_body
                 };
 
+                // Trailing script comments flush at the end of the component
+                // callback body (after the template pushes), mirroring esrap's
+                // positional comment re-insertion.
+                let inner_body = if trailing_script_comments.is_empty() {
+                    inner_body
+                } else {
+                    let mut with_comments = inner_body;
+                    if !with_comments.is_empty() && !with_comments.ends_with('\n') {
+                        with_comments.push('\n');
+                    }
+                    for comment in &trailing_script_comments {
+                        with_comments.push_str(&indent_str);
+                        with_comments.push_str(comment);
+                        with_comments.push('\n');
+                    }
+                    with_comments
+                };
+
                 let component_second_arg = if self.dev {
                     format!(",\n\t\t{}", self.component_name)
                 } else {
@@ -1449,6 +1645,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         bind_props_code.trim_end_matches('\n'),
                     )));
                 }
+
+                // Trailing script comments flush at the end of the function
+                // body (after the template pushes), mirroring esrap's
+                // positional comment re-insertion. Raw comment statements are
+                // typed "Comment" by the codegen, so no blank line is added.
+                if !trailing_script_comments.is_empty() {
+                    fn_body.push(JsStatement::Raw(CompactString::from(
+                        trailing_script_comments.join("\n"),
+                    )));
+                }
             }
         } else if needs_component_wrapper {
             // Empty body but needs component wrapper
@@ -1458,10 +1664,24 @@ impl<'a> ServerCodeGenerator<'a> {
                 String::new()
             };
             let bind_props_code = self.build_bind_props(1);
-            fn_body.push(JsStatement::Raw(CompactString::from(format!(
-                "$$renderer.component(($$renderer) => {{}}{});",
-                component_second_arg
-            ))));
+            if trailing_script_comments.is_empty() {
+                fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                    "$$renderer.component(($$renderer) => {{}}{});",
+                    component_second_arg
+                ))));
+            } else {
+                // The script reduced to comments only (e.g. a removed
+                // `$effect(...)` whose body held a comment). Upstream still
+                // prints those comments inside the component callback.
+                let comments_block: String = trailing_script_comments
+                    .iter()
+                    .map(|c| format!("\t\t{}\n", c))
+                    .collect();
+                fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                    "$$renderer.component(($$renderer) => {{\n{}\t}}{});",
+                    comments_block, component_second_arg
+                ))));
+            }
             if !bind_props_code.is_empty() {
                 fn_body.push(JsStatement::Raw(strip_first_line_indent(
                     bind_props_code.trim_end_matches('\n'),
@@ -1473,6 +1693,11 @@ impl<'a> ServerCodeGenerator<'a> {
             if !bind_props_code.is_empty() {
                 fn_body.push(JsStatement::Raw(strip_first_line_indent(
                     bind_props_code.trim_end_matches('\n'),
+                )));
+            }
+            if !trailing_script_comments.is_empty() {
+                fn_body.push(JsStatement::Raw(CompactString::from(
+                    trailing_script_comments.join("\n"),
                 )));
             }
         }
@@ -4890,6 +5115,11 @@ impl<'a> ServerCodeGenerator<'a> {
                             store_subs,
                         );
                         body_code.push_str(&if_code);
+                        // `if_code` ends with `}` (no newline). Terminate the
+                        // statement and add a blank line so the following
+                        // `$$renderer.push(`<!--]-->…`)` lands on its own line,
+                        // matching esrap's blank line after a multi-line statement.
+                        body_code.push_str("\n\n");
                     }
 
                     // Add closing marker to current_html to combine with subsequent content

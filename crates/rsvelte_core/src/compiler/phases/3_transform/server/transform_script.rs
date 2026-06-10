@@ -165,6 +165,13 @@ fn transform_script_content_inner(
     // `wrap_derived_reads_in_script` the source looks like `name()++`; this
     // pass rewrites those wrappers to the proper helpers.
     let script = rewrite_derived_update_expressions(&script);
+    // Assignments to deriveds become setter calls on the server (upstream
+    // `AssignmentExpression.js` server visitor): `likes = x` → `likes(x)`,
+    // and compound operators expand via `build_assignment_value` —
+    // `likes += 1` → `likes(likes() + 1)`, `flag &&= x` → `flag(flag() && x)`.
+    // After `wrap_derived_reads_in_script` the LHS read is already `likes()`,
+    // so we rewrite the `likes() <op>= rhs` shape here.
+    let script = rewrite_derived_assignments(&script);
     // Svelte 5.55.5 (upstream `b771df3`): `$derived(<bare_derived>)` should
     // emit `$.derived(<bare_derived>)` directly (no thunk), because the
     // server runtime treats a derived passed in this slot as a re-callable
@@ -1971,6 +1978,336 @@ fn rewrite_derived_update_expressions(script: &str) -> String {
         i = next;
     }
     out
+}
+
+/// Rewrite assignments to derived bindings into setter calls.
+///
+/// Mirrors the upstream server `AssignmentExpression.js` visitor: when the
+/// assignment target is a bare identifier whose binding is a derived
+/// (`binding?.kind === 'derived' && object === left`), the assignment is
+/// lowered to `b.call(binding.node, build_assignment_value(operator, left, right))`:
+///
+/// - `likes = x`    → `likes(x)`
+/// - `likes += 1`   → `likes(likes() + 1)`   (binary expansion)
+/// - `flag &&= x`   → `flag(flag() && x)`    (logical expansion)
+///
+/// By the time this pass runs, `wrap_derived_reads_in_script` has already
+/// rewritten the LHS read to `likes()` (or `likes?.()` for `var`-declared
+/// deriveds), so the shape we scan for is `NAME() <op>= rhs` /
+/// `NAME?.() <op>= rhs`. Member-expression targets (`likes.foo = 1`) are
+/// left alone — upstream also keeps those as plain assignments (the object
+/// read is what gets wrapped).
+fn rewrite_derived_assignments(script: &str) -> String {
+    let (derived_names, derived_var_names, _) = collect_derived_names_from_script(script);
+    if derived_names.is_empty() {
+        return script.to_string();
+    }
+    rewrite_derived_assignments_inner(script, &derived_names, &derived_var_names)
+}
+
+/// Assignment operators, longest-first so e.g. `>>>=` wins over `>>=` and
+/// `&&=` over `&=`. Plain `=` is handled separately (must not match `==`).
+const COMPOUND_ASSIGN_OPS: &[&str] = &[
+    ">>>=", "**=", "<<=", ">>=", "&&=", "||=", "??=", "+=", "-=", "*=", "/=", "%=", "&=", "|=",
+    "^=",
+];
+
+// `derived_var_names` is currently only threaded through the nested-RHS
+// recursion; keep it in the signature so the inner rewrite stays in sync with
+// `wrap_derived_reads_in_script_inner`'s parameter shape.
+#[allow(clippy::only_used_in_recursion)]
+fn rewrite_derived_assignments_inner(
+    script: &str,
+    derived_names: &rustc_hash::FxHashSet<String>,
+    derived_var_names: &rustc_hash::FxHashSet<String>,
+) -> String {
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(script.len());
+    let mut i = 0;
+    // Last significant (non-whitespace, non-comment) character seen so far.
+    // Used for the member-access guard below; a backward raw-byte scan would
+    // mistake the trailing `.` of a preceding `// ...` comment for a member
+    // access.
+    let mut prev_sig: Option<u8> = None;
+    while i < len {
+        let b = bytes[i];
+        // Skip line / block comments and string / template literals so a
+        // `name() +=` shape inside them is never touched.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let s = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let s = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let quote = b;
+            let s = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            prev_sig = Some(quote);
+            continue;
+        }
+        // Identifier — look for `NAME()` / `NAME?.()` followed by an
+        // assignment operator.
+        if (b.is_ascii_alphabetic() || b == b'_' || b == b'$') && !is_after_ident_char(bytes, i) {
+            let name_start = i;
+            let mut j = i;
+            while j < len {
+                let c = bytes[j];
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'$' {
+                    j += 1;
+                } else {
+                    break;
+                }
+            }
+            let name = &script[name_start..j];
+            // Member access (`obj.name()`) is not a bare-identifier target.
+            if derived_names.contains(name) && prev_sig != Some(b'.') {
+                // Match the call wrapper inserted by wrap_derived_reads.
+                let (call_end, maybe_call) =
+                    if j + 1 < len && bytes[j] == b'(' && bytes[j + 1] == b')' {
+                        (j + 2, false)
+                    } else if j + 3 < len
+                        && bytes[j] == b'?'
+                        && bytes[j + 1] == b'.'
+                        && bytes[j + 2] == b'('
+                        && bytes[j + 3] == b')'
+                    {
+                        (j + 4, true)
+                    } else {
+                        out.push_str(name);
+                        prev_sig = name.as_bytes().last().copied();
+                        i = j;
+                        continue;
+                    };
+                // Skip horizontal whitespace after the call (an operator on
+                // the next line would be a different statement under ASI).
+                let mut k = call_end;
+                while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
+                    k += 1;
+                }
+                if let Some((op, op_len)) = match_assignment_operator(&script[k..]) {
+                    let rhs_start = {
+                        let mut r = k + op_len;
+                        while r < len && bytes[r].is_ascii_whitespace() {
+                            r += 1;
+                        }
+                        r
+                    };
+                    let rhs_end = scan_assignment_rhs_end(script, rhs_start);
+                    if rhs_end > rhs_start {
+                        let rhs = script[rhs_start..rhs_end].trim_end();
+                        // Nested assignments inside the RHS (e.g. `a = b = 1`
+                        // with both derived) get the same lowering.
+                        let rhs = rewrite_derived_assignments_inner(
+                            rhs,
+                            derived_names,
+                            derived_var_names,
+                        );
+                        out.push_str(name);
+                        out.push('(');
+                        if op != "=" {
+                            // build_assignment_value: `x op= y` → `x op y`.
+                            out.push_str(name);
+                            if maybe_call {
+                                out.push_str("?.()");
+                            } else {
+                                out.push_str("()");
+                            }
+                            out.push(' ');
+                            out.push_str(&op[..op.len() - 1]);
+                            out.push(' ');
+                        }
+                        out.push_str(&rhs);
+                        out.push(')');
+                        prev_sig = Some(b')');
+                        // Resume after the RHS, re-emitting any trailing
+                        // whitespace we trimmed verbatim.
+                        i = rhs_start + script[rhs_start..rhs_end].trim_end().len();
+                        continue;
+                    }
+                }
+                // No assignment — emit the call wrapper untouched.
+                out.push_str(&script[name_start..call_end]);
+                prev_sig = Some(b')');
+                i = call_end;
+                continue;
+            }
+            out.push_str(name);
+            prev_sig = name.as_bytes().last().copied();
+            i = j;
+            continue;
+        }
+        // UTF-8 safe step.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        if !b.is_ascii_whitespace() {
+            prev_sig = Some(b);
+        }
+        i = next;
+    }
+    out
+}
+
+/// Match an assignment operator at the start of `s`. Returns the operator
+/// text and its byte length, or `None` for comparison / non-assignment
+/// operators (`==`, `===`, `<=`, `>=`, `&&` without `=`, ...).
+fn match_assignment_operator(s: &str) -> Option<(&'static str, usize)> {
+    for op in COMPOUND_ASSIGN_OPS {
+        if s.starts_with(op) {
+            // `*=`/`**=` ordering is handled by longest-first matching, but a
+            // compound operator followed by `=` would be a parse error anyway.
+            return Some((op, op.len()));
+        }
+    }
+    if s.starts_with('=') && !s.starts_with("==") && !s.starts_with("=>") {
+        return Some(("=", 1));
+    }
+    None
+}
+
+/// Find the end of an assignment RHS starting at `from`: the first `;` or
+/// `,` at bracket depth 0, an unbalanced closing bracket, or a newline at
+/// depth 0 where the expression looks complete (does not end with an
+/// operator / opening bracket / comma, i.e. ASI would terminate it).
+fn scan_assignment_rhs_end(script: &str, from: usize) -> usize {
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut depth_paren: i32 = 0;
+    let mut depth_brace: i32 = 0;
+    let mut depth_bracket: i32 = 0;
+    let mut last_non_ws: Option<u8> = None;
+    let mut i = from;
+    while i < len {
+        let b = bytes[i];
+        // Strings / template literals.
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let quote = b;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == quote {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            last_non_ws = Some(quote);
+            continue;
+        }
+        // Comments.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2;
+            }
+            continue;
+        }
+        match b {
+            b'(' => depth_paren += 1,
+            b'[' => depth_bracket += 1,
+            b'{' => depth_brace += 1,
+            b')' => {
+                if depth_paren == 0 {
+                    return i;
+                }
+                depth_paren -= 1;
+            }
+            b']' => {
+                if depth_bracket == 0 {
+                    return i;
+                }
+                depth_bracket -= 1;
+            }
+            b'}' => {
+                if depth_brace == 0 {
+                    return i;
+                }
+                depth_brace -= 1;
+            }
+            b';' | b',' if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 => {
+                return i;
+            }
+            b'\n' => {
+                if depth_paren == 0
+                    && depth_brace == 0
+                    && depth_bracket == 0
+                    && let Some(last) = last_non_ws
+                    && !matches!(
+                        last,
+                        b'+' | b'-'
+                            | b'*'
+                            | b'/'
+                            | b'%'
+                            | b'<'
+                            | b'>'
+                            | b'='
+                            | b'&'
+                            | b'|'
+                            | b'^'
+                            | b'!'
+                            | b'~'
+                            | b'?'
+                            | b':'
+                            | b','
+                            | b'('
+                            | b'['
+                            | b'{'
+                            | b'.'
+                    )
+                {
+                    return i;
+                }
+            }
+            _ => {}
+        }
+        if !b.is_ascii_whitespace() {
+            last_non_ws = Some(b);
+        }
+        i += 1;
+    }
+    len
 }
 
 /// Collapse `$.derived(() => NAME())` to `$.derived(NAME)` when `NAME` is a
@@ -5536,6 +5873,19 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                         while result.ends_with(' ') || result.ends_with('\t') {
                             result.pop();
                         }
+                        // Upstream replaces the `$effect(...)` statement with
+                        // `b.empty`, but the comments inside the removed range
+                        // survive: esrap re-inserts every comment from
+                        // `analysis.comments` positionally, so they print before the
+                        // next positioned statement (or at the end of the component
+                        // body when nothing follows). Keep them in place here; the
+                        // trailing-comment split in `build_program` handles the
+                        // end-of-body case.
+                        let removed: String = chars[i..end.min(chars.len())].iter().collect();
+                        for comment in extract_comments_from_snippet(&removed) {
+                            result.push_str(&comment);
+                            result.push('\n');
+                        }
                     }
                     // $inspect.trace() calls are removed entirely (no output)
 
@@ -5550,6 +5900,54 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
     }
 
     result
+}
+
+/// Collect `// …` and `/* … */` comments from a JS source snippet, skipping
+/// string and template-literal contents. Used when removing `$effect(...)`
+/// statements on the server: the official compiler keeps every comment (esrap
+/// re-inserts them positionally), so the comments inside the removed range
+/// must be re-emitted in place.
+pub(crate) fn extract_comments_from_snippet(snippet: &str) -> Vec<String> {
+    let bytes = snippet.as_bytes();
+    let mut comments = Vec::new();
+    let mut i = 0usize;
+    let mut in_string: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = in_string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q || (c == b'\n' && q != b'`') {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' | b'`' => {
+                in_string = Some(c);
+                i += 1;
+            }
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                let eol = memchr::memchr(b'\n', &bytes[i..])
+                    .map(|p| i + p)
+                    .unwrap_or(bytes.len());
+                comments.push(snippet[i..eol].trim_end().to_string());
+                i = eol;
+            }
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                let close = memchr::memmem::find(&bytes[i + 2..], b"*/")
+                    .map(|p| i + 2 + p + 2)
+                    .unwrap_or(bytes.len());
+                comments.push(snippet[i..close].to_string());
+                i = close;
+            }
+            _ => i += 1,
+        }
+    }
+    comments
 }
 
 fn is_statement_start(preceding: &str) -> bool {

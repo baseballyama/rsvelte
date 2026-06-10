@@ -235,6 +235,27 @@ pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Opt
             "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`",
             child_tag, parent_tag, parent_tag
         )),
+        // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inhead
+        (
+            "head",
+            "base" | "basefont" | "bgsound" | "link" | "meta" | "title" | "noscript" | "noframes"
+            | "style" | "script" | "template",
+        ) => None,
+        ("head", _) => Some(format!(
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<base>`, `<basefont>`, `<bgsound>`, `<link>`, `<meta>`, `<title>`, `<noscript>`, `<noframes>`, `<style>`, `<script>`, `<template>`",
+            child_tag, parent_tag, parent_tag
+        )),
+        // https://html.spec.whatwg.org/multipage/semantics.html#the-html-element
+        ("html", "head" | "body" | "frameset") => None,
+        ("html", _) => Some(format!(
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<head>`, `<body>`, `<frameset>`",
+            child_tag, parent_tag, parent_tag
+        )),
+        ("frameset", "frame") => None,
+        ("frameset", _) => Some(format!(
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<frame>`",
+            child_tag, parent_tag, parent_tag
+        )),
         // Note: <select> is not restricted here because HTML5 customizable select elements
         // allow <button> and other elements inside <select>. The official Svelte compiler
         // does not have <select> in the disallowed_children map.

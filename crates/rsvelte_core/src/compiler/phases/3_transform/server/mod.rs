@@ -6,6 +6,8 @@
 
 pub mod bridge;
 pub mod build;
+pub(crate) mod esrap_layout;
+pub(crate) mod evaluate;
 pub mod helpers;
 mod template_rune_ast;
 pub mod transform_legacy;
@@ -939,9 +941,17 @@ impl<'a> ServerCodeGenerator<'a> {
         // Add scope-based constants for $state variables that are not updated.
         // The text-based extraction skips $state lines, but if scope analysis shows
         // a $state binding is never reassigned/mutated, we can fold its initial value.
+        // Only template-visible scopes participate: a `$state` declared inside a
+        // function body (e.g. within a `$derived.by` arrow) must not be folded
+        // into template reads of a same-named outer binding.
         if let Some(analysis) = analysis {
+            let template_scopes: rustc_hash::FxHashSet<usize> =
+                analysis.root.template_scope_map.values().copied().collect();
             for binding in &analysis.root.bindings {
                 if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                    && (binding.scope_index == 0
+                        || binding.scope_index == analysis.root.instance_scope_index
+                        || template_scopes.contains(&binding.scope_index))
                     && !binding.is_updated()
                     && !constant_vars.contains_key(&binding.name)
                     && let Some(ref init) = binding.initial
@@ -1214,6 +1224,14 @@ impl<'a> ServerCodeGenerator<'a> {
     /// extracted from analysis, so static (non-derived) components pay
     /// nothing.
     pub(crate) fn transform_store_refs(&self, expr: &str) -> String {
+        // Legacy `$$props` reads become `$$sanitized_props` everywhere a
+        // template expression is emitted (upstream's server Identifier.js
+        // visitor returns `b.id('$$sanitized_props')` for every `$$props`
+        // reference). Running it here covers element attributes, component
+        // props, and every other expression path that funnels through
+        // `transform_store_refs`.
+        let expr = self.transform_special_vars(expr);
+        let expr = expr.as_str();
         if !self.uses_store_subs {
             return self.wrap_derived_reads(expr);
         }
@@ -1546,6 +1564,17 @@ impl<'a> ServerCodeGenerator<'a> {
         // When preserveWhitespace is true, whitespace-only text IS meaningful
         let preserve_ws = self.preserve_whitespace;
         let preserve_cmts = self.preserve_comments;
+        // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
+        // visitor visits them BEFORE process_children, so their statements
+        // precede the fragment's pushes and the surrounding HTML merges into a
+        // single push. Skipped when const/declaration tags exist (a debug may
+        // depend on a preceding const's async blocker — see fragment.rs).
+        let hoist_debug = !nodes.iter().any(|n| {
+            matches!(
+                n,
+                TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_)
+            )
+        });
         let is_ssr_meaningful = |n: &&TemplateNode| {
             (!matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                 || preserve_ws)
@@ -1553,6 +1582,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 && !matches!(n, TemplateNode::SvelteWindow(_))
                 && !matches!(n, TemplateNode::SvelteDocument(_))
                 && !matches!(n, TemplateNode::SvelteBody(_))
+                // A hoisted DebugTag is removed from `regular` before whitespace
+                // trimming in upstream's clean_nodes, so it must not count as
+                // meaningful content — whitespace around it is leading/trailing
+                // whitespace and gets trimmed away entirely.
+                && !(hoist_debug && matches!(n, TemplateNode::DebugTag(_)))
         };
 
         // Find indices of first and last non-whitespace nodes (excluding SSR-invisible elements)
@@ -1566,9 +1600,29 @@ impl<'a> ServerCodeGenerator<'a> {
         // If the first meaningful node is a Text or ExpressionTag, add <!---->
         // to prevent text fusion during hydration.
         // Skip SvelteOptions nodes since they don't produce output.
+        // Also skip nodes that the official compiler hoists out of `regular`
+        // in `clean_nodes` (ConstTag, DeclarationTag, DebugTag, SvelteBody,
+        // SvelteWindow, SvelteDocument, SvelteHead, TitleElement, SnippetBlock)
+        // and comments removed when `preserveComments` is false — upstream
+        // computes `is_text_first` from the first node of `trimmed`, which
+        // excludes all of these. So `{const hello = 'hello'}{hello}` still
+        // counts as text-first and gets a `<!---->` anchor.
         let first_visible_idx = first_meaningful_idx.and_then(|start| {
             nodes[start..].iter().position(|n| {
-                !matches!(n, TemplateNode::SvelteOptions(_))
+                !matches!(
+                    n,
+                    TemplateNode::SvelteOptions(_)
+                        | TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::DebugTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                        | TemplateNode::SvelteHead(_)
+                        | TemplateNode::TitleElement(_)
+                        | TemplateNode::SvelteBody(_)
+                        | TemplateNode::SvelteWindow(_)
+                        | TemplateNode::SvelteDocument(_)
+                )
+                    && (preserve_cmts || !matches!(n, TemplateNode::Comment(_)))
                     && (preserve_ws || !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)))
             }).map(|offset| start + offset)
         });
@@ -1591,6 +1645,16 @@ impl<'a> ServerCodeGenerator<'a> {
         // When text before a hoisted node ends with whitespace and text after starts with
         // whitespace, the leading whitespace of the text-after is trimmed to avoid double space.
         let mut prev_text_ends_with_ws = false;
+
+        // Emit hoisted {@debug ...} tags before any template pushes (see the
+        // `hoist_debug` computation above).
+        if hoist_debug {
+            for node in nodes.iter() {
+                if matches!(node, TemplateNode::DebugTag(_)) {
+                    self.generate_node(node, true)?;
+                }
+            }
+        }
 
         for (i, node) in nodes.iter().enumerate() {
             // Flush accumulated root-level async consts before processing a
@@ -1748,12 +1812,17 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Both sides have visible content - keep this whitespace
                     }
                 }
-                // Skip whitespace around DebugTag ({@debug} generates JS code but no HTML)
-                if i > 0 && matches!(nodes[i - 1], TemplateNode::DebugTag(_)) {
-                    continue;
-                }
-                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::DebugTag(_)) {
-                    continue;
+                // Skip whitespace around DebugTag ({@debug} generates JS code but no HTML).
+                // When the debug tag is hoisted, it's transparent instead — the
+                // prev_text_ends_with_ws mechanism collapses the surrounding
+                // whitespace to a single space (matching upstream clean_nodes).
+                if !hoist_debug {
+                    if i > 0 && matches!(nodes[i - 1], TemplateNode::DebugTag(_)) {
+                        continue;
+                    }
+                    if i + 1 < len && matches!(nodes[i + 1], TemplateNode::DebugTag(_)) {
+                        continue;
+                    }
                 }
                 // Comments are transparent during rendering (stripped in clean_nodes).
                 // Whitespace before/after comments is handled naturally by the
@@ -1876,8 +1945,26 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
             } else {
-                // Reset trim flag when we hit a non-text, non-whitespace node
+                // Reset trim flag when we hit a non-text, non-whitespace node.
+                // Hoisted nodes (ConstTag, DeclarationTag, DebugTag, SnippetBlock,
+                // SvelteHead, TitleElement) are excluded: upstream removes them from
+                // `regular` before trimming, so the first *remaining* text node still
+                // gets its leading whitespace stripped.
+                let is_hoisted_for_trim = matches!(
+                    node,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::DebugTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                        | TemplateNode::SvelteHead(_)
+                        | TemplateNode::TitleElement(_)
+                        | TemplateNode::SvelteBody(_)
+                        | TemplateNode::SvelteWindow(_)
+                        | TemplateNode::SvelteDocument(_)
+                ) || (matches!(node, TemplateNode::Comment(_))
+                    && !self.preserve_comments);
                 if trim_leading_ws
+                    && !is_hoisted_for_trim
                     && first_meaningful_idx.is_some()
                     && i >= first_meaningful_idx.unwrap()
                 {
@@ -1888,10 +1975,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 // transparent: they don't affect whitespace collapsing between text nodes.
                 let is_transparent = matches!(node, TemplateNode::SnippetBlock(_))
                     || matches!(node, TemplateNode::ConstTag(_))
+                    || (hoist_debug && matches!(node, TemplateNode::DebugTag(_)))
                     || (matches!(node, TemplateNode::Comment(_)) && !self.preserve_comments);
                 if !is_transparent {
                     prev_text_ends_with_ws = false;
                 }
+            }
+
+            // Hoisted DebugTags were already emitted in the pre-pass above.
+            if hoist_debug && matches!(node, TemplateNode::DebugTag(_)) {
+                continue;
             }
 
             self.generate_node(node, true)?;
