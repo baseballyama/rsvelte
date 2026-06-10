@@ -91,9 +91,11 @@ for (const { id } of manifest) {
 		const e = expErr[target];
 		const a = actErr[target];
 		if (e && a) {
-			if (verdict === 'match') verdict = 'error-parity';
 			if (e.code && a.code && e.code !== a.code) {
+				verdict = 'error-mismatch';
 				details.push({ target, kind: 'error-code', expected: e.code, actual: a.code });
+			} else if (verdict === 'match') {
+				verdict = 'error-parity';
 			}
 			continue;
 		}

@@ -1700,6 +1700,36 @@ impl Parser<'_> {
 
             // Parse parameters with TypeScript type annotations
             if !params_content.trim().is_empty() {
+                // Upstream parses `${params} => {}` with `parse_expression_at`
+                // in the file's `parser.ts` mode (1-parse/state/tag.js), so
+                // TS annotations without `lang="ts"` raise `js_parse_error`.
+                // Probe (JS-only) before the lenient TS-stripping param
+                // parser below. Only probe when:
+                // - the file is NOT TypeScript: in TS mode acorn-typescript
+                //   is more lenient than OXC (it accepts `c?: number = 5`,
+                //   which OXC rejects), so an OXC probe would reject params
+                //   upstream compiles — keep the lenient path there;
+                // - the closing `)` was actually found (`depth == 0`): an
+                //   unclosed param list (`{#snippet a(hi{/snippet}`) surfaces
+                //   as `expected_token` downstream, matching upstream's
+                //   `parser.eat(')', true)`.
+                if !self.options.loose
+                    && !self.ts
+                    && depth == 0
+                    && let Some((msg, pos)) =
+                        super::super::read::expression::check_params_parse_error(
+                            params_content,
+                            false,
+                        )
+                {
+                    let abs = params_start + pos;
+                    return Err(crate::error::ParseError::svelte(
+                        "js_parse_error",
+                        msg,
+                        (abs, abs),
+                    ));
+                }
+
                 parameters = super::super::expression::parse_typescript_params(
                     &self.arena,
                     params_content,
@@ -2350,6 +2380,42 @@ impl Parser<'_> {
     /// and `opening_token = '{'`.
     pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
         self.parse_js_expression_internal(content, offset, false, '{')
+    }
+
+    /// Like `parse_js_expression_strict`, but always parses eagerly (never
+    /// creates a `Lazy` expression). Used for attribute values, which may be
+    /// inspected at parse time (e.g. `<svelte:options runes={false} />`), so
+    /// they cannot be deferred — while still propagating `js_parse_error` for
+    /// invalid expressions like upstream's `read_expression`.
+    pub fn parse_js_expression_strict_eager(
+        &self,
+        content: &str,
+        offset: usize,
+    ) -> crate::error::ParseResult<Expression> {
+        // Adjust offset for leading whitespace that gets trimmed
+        let leading_ws = content.len() - content.trim_start().len();
+        let trimmed = content.trim();
+        let trimmed_offset = offset + leading_ws;
+        super::super::expression::parse_expression(
+            &self.arena,
+            trimmed,
+            trimmed_offset,
+            self.expression_line_offsets(),
+            self.source,
+            self.options.loose,
+            false,
+            '{',
+            self.ts,
+        )
+        .map_err(|(msg, _)| {
+            // Recover the precise failure position from OXC's labeled span,
+            // mirroring upstream Svelte's `js_parse_error(err.pos, ...)`.
+            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed)
+                .map_or(trimmed_offset, |(_, content_pos)| {
+                    trimmed_offset + content_pos
+                });
+            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
+        })
     }
 
     /// Parse a block / directive head expression that, in strict (non-loose)

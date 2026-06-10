@@ -21,14 +21,19 @@ use super::super::parser::Parser;
 
 /// Ensure a Script's content has been fully parsed from raw_content.
 /// This performs the deferred OXC parse. Call this before accessing script.content in analysis.
+///
+/// Returns the first JS parse error, if any — mirroring upstream
+/// `read_script` → `acorn.parse`, which throws `js_parse_error` for scripts
+/// acorn rejects. The (recovered, partial) program is still stored on the
+/// script so lenient callers can ignore the error.
 pub fn ensure_script_parsed(
     arena: &ParseArena,
     script: &mut Script,
     _source: &str,
     line_offsets: &[usize],
-) {
+) -> Option<crate::error::ParseError> {
     if script.raw_content.is_empty() {
-        return; // Already parsed or no raw content
+        return None; // Already parsed or no raw content
     }
 
     let raw = std::mem::take(&mut script.raw_content);
@@ -38,7 +43,7 @@ pub fn ensure_script_parsed(
     // For now, pass empty - TODO: preserve leading comments from parse phase
     let leading_comments: Vec<String> = Vec::new();
 
-    let program = super::expression::parse_program(
+    let (program, parse_error) = super::expression::parse_program_with_error(
         arena,
         &raw,
         offset,
@@ -50,6 +55,7 @@ pub fn ensure_script_parsed(
     );
 
     script.content = program;
+    parse_error
 }
 
 impl Parser<'_> {
@@ -235,7 +241,7 @@ impl Parser<'_> {
             }
         } else {
             // Eager parsing (default for tests and direct AST comparison)
-            let program = super::super::expression::parse_program(
+            let (program, parse_error) = super::super::expression::parse_program_with_error(
                 &self.arena,
                 script_content,
                 content_start,
@@ -245,6 +251,11 @@ impl Parser<'_> {
                 start,
                 end,
             );
+            // Upstream acorn throws on the first script parse error, even in
+            // loose mode (read/script.js → acorn.js `handle_parse_error`).
+            if let Some(err) = parse_error {
+                return Err(err);
+            }
             Script {
                 node_type: ScriptType::Script,
                 start: start as u32,

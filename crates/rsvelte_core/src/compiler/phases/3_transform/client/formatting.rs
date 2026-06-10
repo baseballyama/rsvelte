@@ -579,6 +579,8 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
 
     // Restore double-quoted strings that OXC normalized to single quotes
     let code = restore_original_quotes(js, &code);
+    // Restore source spelling of numeric literals that OXC minified (1000 -> 1e3)
+    let code = restore_number_literals(js, &code);
     let code = &code;
 
     // Rejoin consecutive `;` lines (from $inspect() removal) BEFORE any other
@@ -1645,4 +1647,246 @@ pub(crate) fn restore_original_quotes(original: &str, oxc_output: &str) -> Strin
     }
 
     String::from_utf8(result).unwrap_or_else(|_| oxc_output.to_string())
+}
+
+/// Parse a JS numeric literal raw text (without sign) into its f64 value.
+/// Underscore separators are allowed; hex/binary/octal prefixes are handled.
+/// Returns `None` for BigInt literals, legacy octals, or unparseable text.
+fn parse_js_number(raw: &str) -> Option<f64> {
+    if raw.ends_with('n') {
+        return None; // BigInt
+    }
+    let s: String = raw.chars().filter(|c| *c != '_').collect();
+    let bytes = s.as_bytes();
+    if bytes.len() > 2 && bytes[0] == b'0' {
+        match bytes[1] | 0x20 {
+            b'x' => return u128::from_str_radix(&s[2..], 16).ok().map(|v| v as f64),
+            b'b' => return u128::from_str_radix(&s[2..], 2).ok().map(|v| v as f64),
+            b'o' => return u128::from_str_radix(&s[2..], 8).ok().map(|v| v as f64),
+            _ => {}
+        }
+    }
+    // Reject legacy octal (`0123`) — ambiguous value, never emitted by OXC.
+    if bytes.len() > 1 && bytes[0] == b'0' && bytes[1].is_ascii_digit() {
+        return None;
+    }
+    s.parse::<f64>().ok()
+}
+
+/// Consume a numeric literal token starting at `start` and return the end index.
+fn scan_number_token(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut i = start;
+    // Radix prefix (0x / 0b / 0o)
+    if i + 1 < len && bytes[i] == b'0' && matches!(bytes[i + 1] | 0x20, b'x' | b'b' | b'o') {
+        i += 2;
+        while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+            i += 1;
+        }
+        return i;
+    }
+    // Integer part
+    while i < len && (bytes[i].is_ascii_digit() || bytes[i] == b'_') {
+        i += 1;
+    }
+    // Fraction
+    if i < len && bytes[i] == b'.' {
+        i += 1;
+        while i < len && (bytes[i].is_ascii_digit() || bytes[i] == b'_') {
+            i += 1;
+        }
+    }
+    // Exponent
+    if i < len && (bytes[i] | 0x20) == b'e' {
+        let mut j = i + 1;
+        if j < len && (bytes[j] == b'+' || bytes[j] == b'-') {
+            j += 1;
+        }
+        if j < len && bytes[j].is_ascii_digit() {
+            i = j;
+            while i < len && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+        }
+    }
+    // BigInt suffix
+    if i < len && bytes[i] == b'n' {
+        i += 1;
+    }
+    i
+}
+
+/// Walk JS source, skipping strings / comments / template-literal text
+/// (but descending into `${...}` substitutions), and invoke `f(start, end)`
+/// for every numeric literal token found in code position.
+fn for_each_number_token(src: &str, mut f: impl FnMut(usize, usize)) {
+    /// Scanner frame: inside a template literal, or inside a `${...}`
+    /// substitution opened from a template (tracking nested brace depth).
+    enum Frame {
+        Template,
+        Substitution { brace_depth: u32 },
+    }
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut frames: Vec<Frame> = Vec::new();
+    let mut i = 0;
+    while i < len {
+        if matches!(frames.last(), Some(Frame::Template)) {
+            // Template-literal text mode
+            match bytes[i] {
+                b'\\' => i += 2,
+                b'$' if i + 1 < len && bytes[i + 1] == b'{' => {
+                    frames.push(Frame::Substitution { brace_depth: 0 });
+                    i += 2;
+                }
+                b'`' => {
+                    frames.pop();
+                    i += 1;
+                }
+                _ => i += 1,
+            }
+            continue;
+        }
+        // Code mode
+        let b = bytes[i];
+        match b {
+            b'\'' | b'"' => {
+                let quote = b;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else if bytes[i] == quote {
+                        i += 1;
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+            b'`' => {
+                frames.push(Frame::Template);
+                i += 1;
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+            }
+            b'{' => {
+                if let Some(Frame::Substitution { brace_depth }) = frames.last_mut() {
+                    *brace_depth += 1;
+                }
+                i += 1;
+            }
+            b'}' => {
+                if let Some(Frame::Substitution { brace_depth }) = frames.last_mut() {
+                    if *brace_depth == 0 {
+                        frames.pop();
+                    } else {
+                        *brace_depth -= 1;
+                    }
+                }
+                i += 1;
+            }
+            _ if b.is_ascii_digit()
+                || (b == b'.' && i + 1 < len && bytes[i + 1].is_ascii_digit()) =>
+            {
+                // A literal cannot start right after an identifier char or `.`
+                // (e.g. `x1`, `a.0`, `1..5` continuation).
+                let prev_blocks = i > 0
+                    && (bytes[i - 1].is_ascii_alphanumeric()
+                        || bytes[i - 1] == b'_'
+                        || bytes[i - 1] == b'$'
+                        || bytes[i - 1] == b'.');
+                if prev_blocks {
+                    // Skip the whole identifier-ish run to avoid re-triggering
+                    i += 1;
+                    continue;
+                }
+                let end = scan_number_token(bytes, i);
+                // A real literal cannot be immediately followed by an
+                // identifier-start char.
+                let next_blocks = end < len
+                    && (bytes[end].is_ascii_alphanumeric()
+                        || bytes[end] == b'_'
+                        || bytes[end] == b'$');
+                if !next_blocks {
+                    f(i, end);
+                }
+                i = end.max(i + 1);
+            }
+            _ => i += 1,
+        }
+    }
+}
+
+/// Restore original numeric literal spelling after OXC codegen.
+///
+/// OXC's codegen always prints numeric literals in "minified number" form
+/// (`1000` → `1e3`, `0xFF` → `255`, `0.5` → `.5`), but the official compiler
+/// prints `node.raw` via esrap, preserving the source spelling. Collect the
+/// raw text of every numeric literal in `original` keyed by numeric value,
+/// then rewrite number tokens in `oxc_output` whose value matches a
+/// uniquely-spelled source literal back to that raw text.
+pub(crate) fn restore_number_literals(original: &str, oxc_output: &str) -> String {
+    // Fast path: nothing to restore without digits on both sides.
+    if !oxc_output.bytes().any(|b| b.is_ascii_digit())
+        || !original.bytes().any(|b| b.is_ascii_digit())
+    {
+        return oxc_output.to_string();
+    }
+
+    // Phase 1: collect source literal spellings by value.
+    // `None` marks an ambiguous value (spelled two different ways).
+    let mut raw_by_value: rustc_hash::FxHashMap<u64, Option<&str>> =
+        rustc_hash::FxHashMap::default();
+    for_each_number_token(original, |start, end| {
+        let raw = &original[start..end];
+        if let Some(value) = parse_js_number(raw) {
+            raw_by_value
+                .entry(value.to_bits())
+                .and_modify(|e| {
+                    if e.is_some_and(|existing| existing != raw) {
+                        *e = None;
+                    }
+                })
+                .or_insert(Some(raw));
+        }
+    });
+    if raw_by_value.is_empty() {
+        return oxc_output.to_string();
+    }
+
+    // Phase 2: rewrite output tokens whose value maps to a different spelling.
+    let mut replacements: Vec<(usize, usize, &str)> = Vec::new();
+    for_each_number_token(oxc_output, |start, end| {
+        let token = &oxc_output[start..end];
+        if let Some(value) = parse_js_number(token)
+            && let Some(Some(raw)) = raw_by_value.get(&value.to_bits())
+            && *raw != token
+        {
+            replacements.push((start, end, raw));
+        }
+    });
+    if replacements.is_empty() {
+        return oxc_output.to_string();
+    }
+
+    let mut result = String::with_capacity(oxc_output.len());
+    let mut pos = 0;
+    for (start, end, raw) in replacements {
+        result.push_str(&oxc_output[pos..start]);
+        result.push_str(raw);
+        pos = end;
+    }
+    result.push_str(&oxc_output[pos..]);
+    result
 }

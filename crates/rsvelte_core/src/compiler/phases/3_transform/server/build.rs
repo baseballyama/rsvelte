@@ -83,6 +83,13 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
             &stripped, &code,
         );
 
+        // Restore source spelling of numeric literals that OXC minified
+        // (e.g. `1000` -> `1e3`); the official compiler (esrap) prints the
+        // raw source text of literals.
+        code = crate::compiler::phases::phase3_transform::client::restore_number_literals(
+            &stripped, &code,
+        );
+
         // Re-escape ASCII control characters inside string literals. OXC's
         // codegen unescapes `\t` / `\b` / `\v` / `\f` to their literal byte
         // values when emitting string literals, but esrap (and the official
@@ -1089,6 +1096,14 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 strip_async_placeholders(&script_code)
             }
+        } else if memmem::find(script_code.as_bytes(), b"$$async_hole").is_some()
+            || memmem::find(script_code.as_bytes(), b"$$async_void_noop").is_some()
+        {
+            // Even when the component is not async, the SSR script transform
+            // may have left `/* $$async_hole */` markers behind ($inspect
+            // removal). Rewrite them to `;;` so the internal marker never
+            // leaks into emitted code.
+            strip_async_placeholders(&script_code)
         } else {
             script_code
         };

@@ -58,10 +58,18 @@ if (args.includes('--worker')) {
 	);
 	const rsvelte = require(BINDING);
 
-	const errorInfo = (e) => ({
-		code: e?.code ?? null,
-		message: String(e?.message ?? e).split('\n')[0],
-	});
+	const errorInfo = (e) => {
+		const message = String(e?.message ?? e);
+		// rsvelte NAPI errors carry a generic `code` ("GenericFailure"); the
+		// real svelte error code is embedded in the message — extract it so
+		// error-code parity can be compared against the official compiler.
+		let code = e?.code ?? null;
+		if (!code || code === 'GenericFailure') {
+			const m = message.match(/svelte\.dev\/e\/([a-z0-9_]+)/) ?? message.match(/code: "([a-z0-9_]+)"/);
+			if (m) code = m[1];
+		}
+		return { code, message: message.split('\n')[0] };
+	};
 
 	function compileOne(compiler, kind, source, id, generate) {
 		const options = { generate, dev: false, filename: id };

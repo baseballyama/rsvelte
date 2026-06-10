@@ -162,8 +162,17 @@ impl Parser<'_> {
         let pos_after_name = self.index;
         self.skip_whitespace();
 
-        // Parse attributes
-        let attributes = self.parse_attributes()?;
+        // Parse attributes. Top-level `<script>` / `<style>` attributes are
+        // static upstream (`read_static_attribute`, element.js
+        // `is_top_level_script_or_style`), so `{...}` chunks in their quoted
+        // values must not be parsed as JS expressions.
+        let is_top_level_script_or_style =
+            (name == "script" || name == "style") && self.stack.len() == 1;
+        let prev_in_root_script_or_style = self.in_root_script_or_style;
+        self.in_root_script_or_style = is_top_level_script_or_style;
+        let attributes_result = self.parse_attributes();
+        self.in_root_script_or_style = prev_in_root_script_or_style;
+        let attributes = attributes_result?;
 
         // Track position after attributes for unclosed elements at EOF
         let pos_after_attrs = self.index;
@@ -1680,10 +1689,10 @@ impl Parser<'_> {
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
                             start: expr_start as u32,
                             end: self.index as u32,
-                            expression: self.parse_js_expression(
+                            expression: self.parse_js_expression_strict_eager(
                                 &self.source[inner_start..inner_end],
                                 inner_start,
-                            ),
+                            )?,
                             metadata: Default::default(),
                         }));
                         text_start = self.index;
@@ -1735,10 +1744,10 @@ impl Parser<'_> {
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
                             start: expr_start as u32,
                             end: self.index as u32,
-                            expression: self.parse_js_expression(
+                            expression: self.parse_js_expression_strict_eager(
                                 &self.source[inner_start..inner_end],
                                 inner_start,
-                            ),
+                            )?,
                             metadata: Default::default(),
                         }));
                         text_start = self.index;
@@ -2167,12 +2176,28 @@ impl Parser<'_> {
 
                 let expr_end = self.index;
 
-                // Create expression tag
+                // Create expression tag. Use the strict parser so that an
+                // invalid expression (`a={...}`, `a={1 ? 2 : }`, TS syntax in
+                // a non-TS file) surfaces as `js_parse_error`, mirroring
+                // upstream's `read_expression` inside `read_attribute_value`.
+                // In deferred mode this creates a Lazy expression whose error
+                // is raised by `resolve_lazy_expressions`; in loose mode the
+                // underlying parser still recovers with a placeholder.
                 let expr_content = &self.source[expr_start + 1..expr_end - 1];
+                let expression = if self.in_root_script_or_style {
+                    // Top-level <script>/<style> attributes are static
+                    // upstream (`read_static_attribute`): `{...}` chunks in
+                    // quoted values are plain text. The parts get merged back
+                    // into a Text node (`merge_attribute_parts_to_text`), so
+                    // parse leniently and never raise `js_parse_error`.
+                    self.parse_js_expression(expr_content, expr_start + 1)
+                } else {
+                    self.parse_js_expression_strict_eager(expr_content, expr_start + 1)?
+                };
                 parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
                     start: expr_start as u32,
                     end: expr_end as u32,
-                    expression: self.parse_js_expression(expr_content, expr_start + 1),
+                    expression,
                     metadata: Default::default(),
                 }));
             } else {

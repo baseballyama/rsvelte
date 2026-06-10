@@ -72,7 +72,7 @@ use store_transforms::*;
 pub(crate) use class_transforms::transform_class_fields_client;
 pub(crate) use expression_utils::find_matching_paren;
 pub(crate) use formatting::normalize_js_with_oxc;
-pub(crate) use formatting::restore_original_quotes;
+pub(crate) use formatting::{restore_number_literals, restore_original_quotes};
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -6154,7 +6154,7 @@ export function useStore() {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6201,7 +6201,7 @@ export function useStore() {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6239,7 +6239,7 @@ export function useStore(pData) {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6269,7 +6269,7 @@ export function useStore(pData) {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6304,7 +6304,7 @@ export function useStore() {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6343,7 +6343,7 @@ export function useStore() {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6366,7 +6366,7 @@ fn test_module_derived_with_ts_annotation_gets_get() {
 export const useStore = () => {
   let position = $state({ x: 0, y: 0 });
 
-  const contentStyle: string = $derived.by(() => {
+  const contentStyle = $derived.by(() => {
     return `transform: translate(${position.x}px, ${position.y}px);`;
   });
 
@@ -6380,7 +6380,7 @@ export const useStore = () => {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6399,7 +6399,7 @@ fn test_module_state_with_ts_generic_gets_tracked() {
     // Ensure $state<GenericType>() patterns are properly detected as reactive vars.
     let source = r#"
 export function useStore() {
-  let cleanup = $state<() => void>();
+  let cleanup = $state();
   $effect(() => { cleanup?.(); });
   return {
     setCleanup: (fn) => { cleanup = fn; },
@@ -6411,7 +6411,7 @@ export function useStore() {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )
@@ -6446,7 +6446,7 @@ export const fn = () => {
         source,
         crate::compiler::ModuleCompileOptions {
             dev: true,
-            filename: Some("test.svelte.ts".to_string()),
+            filename: Some("test.svelte.js".to_string()),
             ..Default::default()
         },
     )

@@ -57,7 +57,13 @@ function compileOne(compiler, generate) {
 		const r = kind === 'component' ? compiler.compile(source, options) : compiler.compileModule(source, options);
 		return { js: r.js?.code ?? '', css: r.css?.code ?? null };
 	} catch (e) {
-		return { error: { code: e?.code ?? null, message: String(e?.message ?? e) } };
+		const message = String(e?.message ?? e);
+		let code = e?.code ?? null;
+		if (!code || code === 'GenericFailure') {
+			const m = message.match(/svelte\.dev\/e\/([a-z0-9_]+)/) ?? message.match(/code: "([a-z0-9_]+)"/);
+			if (m) code = m[1];
+		}
+		return { error: { code, message } };
 	}
 }
 

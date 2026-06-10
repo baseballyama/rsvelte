@@ -422,6 +422,13 @@ pub struct VisitorContext<'a> {
     /// Whether we're inside a template expression tag ({expression}).
     /// Used to detect reactive context for pickled_awaits.
     pub in_expression_tag: bool,
+    /// Whether the template expression walker (`walk_js_expression` /
+    /// `walk_js_expression_node`) is currently inside a function body.
+    /// Mirrors upstream's `expression: null` reset on function entry
+    /// (`2-analyze/visitors/shared/function.js`) — awaits inside a function
+    /// within a template expression are NOT suspending and must not trigger
+    /// the `experimental_async` / `legacy_await_invalid` errors.
+    pub in_template_function: bool,
     /// Stack of ignored warning codes.
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
     /// Corresponds to ignore_stack in Svelte's state.js.
@@ -556,6 +563,7 @@ impl<'a> VisitorContext<'a> {
             event_directive_node: None,
             uses_event_attributes: false,
             in_expression_tag: false,
+            in_template_function: false,
             ignore_stack: Vec::new(),
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),

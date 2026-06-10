@@ -70,6 +70,13 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `ts` field in JavaScript Parser.
     pub(crate) ts: bool,
+    /// Whether attributes are currently being parsed for a top-level
+    /// `<script>` / `<style>` tag. Upstream reads these with
+    /// `read_static_attribute` (element.js `is_top_level_script_or_style`),
+    /// so `{...}` chunks in quoted values (e.g.
+    /// `generics="T extends { foo: number }"`) are plain text, never JS
+    /// expressions — and must not raise `js_parse_error`.
+    pub(crate) in_root_script_or_style: bool,
     /// Meta tags (e.g., svelte:head, svelte:options).
     ///
     /// Corresponds to `meta_tags` field in JavaScript Parser.
@@ -185,6 +192,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             pending_leading_comments: Vec::new(),
             ts,
+            in_root_script_or_style: false,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
@@ -218,6 +226,7 @@ impl<'a> Parser<'a> {
         }
 
         self.ts = Self::detect_typescript_mode(source);
+        self.in_root_script_or_style = false;
         self.instance_script = None;
         self.module_script = None;
         self.stylesheet = None;

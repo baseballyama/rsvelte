@@ -76,21 +76,27 @@ pub fn analyze_component(
         return Err(parse_err.into());
     }
 
-    if let Some(ref mut instance) = ast.instance {
-        crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
-            &ast.arena,
-            instance,
-            source,
-            &line_offsets,
-        );
+    if let Some(ref mut instance) = ast.instance
+        && let Some(parse_err) =
+            crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            )
+    {
+        return Err(parse_err.into());
     }
-    if let Some(ref mut module) = ast.module {
-        crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
-            &ast.arena,
-            module,
-            source,
-            &line_offsets,
-        );
+    if let Some(ref mut module) = ast.module
+        && let Some(parse_err) =
+            crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                module,
+                source,
+                &line_offsets,
+            )
+    {
+        return Err(parse_err.into());
     }
 
     let mut analysis = ComponentAnalysis::new(source, options);

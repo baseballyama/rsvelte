@@ -37,6 +37,13 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     if let Some(metadata) = context.current_expression() {
         metadata.set_has_await(true);
         suspend = true;
+    } else if in_derived {
+        // Upstream sets a fresh ExpressionMetadata as `state.expression` for the
+        // direct argument of `$derived(...)` (CallExpression.js L245-253), so an
+        // await there hits the `if (context.state.expression)` branch and
+        // suspends. rsvelte tracks this via `derived_function_depth` instead of
+        // a metadata pointer.
+        suspend = true;
     } else if context.in_expression_tag && !crosses_function_boundary(&context.js_path) {
         // The rsvelte `ExpressionTag` AST node currently has no metadata
         // pointer to attach `expression` to, but the await is still in a
@@ -114,6 +121,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
     if let Some(metadata) = context.current_expression() {
         metadata.set_has_await(true);
+        suspend = true;
+    } else if in_derived {
+        // See `visit` above — mirrors upstream's `state.expression` being set
+        // for the direct argument of `$derived(...)`.
         suspend = true;
     } else if context.in_expression_tag && !crosses_function_boundary(&context.js_path) {
         suspend = true;

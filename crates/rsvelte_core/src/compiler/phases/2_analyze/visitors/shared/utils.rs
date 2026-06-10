@@ -22,6 +22,35 @@ lazy_static! {
         Regex::new(r"(^[0-9\-.])|([\^$@%&#?!|()\[\]{}*+~;])").unwrap();
 }
 
+/// Enforce the `experimental_async` / `legacy_await_invalid` gate for awaits in
+/// template expressions.
+///
+/// Upstream every template expression context (expression tags, block
+/// conditions, directives, attributes, `{@const}` …) sets
+/// `state.expression = node.metadata.expression`, so the `AwaitExpression`
+/// analyze visitor takes the `suspend = true` branch and errors unless
+/// a) `experimental.async` is enabled and b) the component is in runes mode
+/// (AwaitExpression.js L26-42). Function boundaries reset `expression` to
+/// `null` (shared/function.js L19-23) — mirrored by `in_template_function`.
+pub(crate) fn validate_template_await(context: &VisitorContext) -> Result<(), AnalysisError> {
+    if context.in_template_function {
+        return Ok(());
+    }
+    if !context.analysis.experimental_async {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "experimental_async".to_string(),
+            message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`".to_string(),
+        });
+    }
+    if !context.analysis.runes {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "legacy_await_invalid".to_string(),
+            message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode".to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// Check if there's a variable declaration for the given name in the current function's
 /// scope chain by looking at the JS AST path.
 ///
@@ -1890,6 +1919,12 @@ pub fn walk_js_expression(
         Some("AwaitExpression") => {
             // Mark expression as containing await
             metadata.set_has_await(true);
+            // Awaits in template expressions suspend (upstream: `state.expression`
+            // is set for every template expression context, so the AwaitExpression
+            // visitor takes the `suspend = true` branch — AwaitExpression.js L26-42).
+            // They are only allowed with `experimental.async` and runes mode,
+            // unless a function boundary breaks the reactive context.
+            validate_template_await(context)?;
             // Visit argument
             if let Some(argument) = expression.get("argument") {
                 walk_js_expression(argument, context, metadata)?;
@@ -2045,6 +2080,10 @@ pub fn walk_js_expression(
             // Reference: svelte/src/compiler/phases/2-analyze/visitors/shared/function.js L19-23
             let saved_expression = context.expression;
             context.expression = None;
+            // Awaits inside a function body are not suspending (upstream sets
+            // `expression: null` on function entry — function.js L19-23).
+            let saved_in_template_function = context.in_template_function;
+            context.in_template_function = true;
 
             // Visit function body with expression context cleared
             if let Some(body) = expression.get("body") {
@@ -2072,6 +2111,7 @@ pub fn walk_js_expression(
             }
 
             // Restore expression context
+            context.in_template_function = saved_in_template_function;
             context.expression = saved_expression;
 
             // Restore scope
@@ -3104,6 +3144,9 @@ pub fn walk_js_expression_node(
         }
         JsNode::AwaitExpression { argument, .. } => {
             metadata.set_has_await(true);
+            // See the `Some("AwaitExpression")` arm in `walk_js_expression` —
+            // mirrors upstream AwaitExpression.js L26-42 (suspend gate).
+            validate_template_await(context)?;
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::UpdateExpression { argument, .. } => {
@@ -3209,6 +3252,10 @@ pub fn walk_js_expression_node(
 
             let saved_expression = context.expression;
             context.expression = None;
+            // Awaits inside a function body are not suspending (upstream sets
+            // `expression: null` on function entry — function.js L19-23).
+            let saved_in_template_function = context.in_template_function;
+            context.in_template_function = true;
 
             // Visit function body
             let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
@@ -3227,6 +3274,7 @@ pub fn walk_js_expression_node(
                 metadata.set_has_state(true);
             }
 
+            context.in_template_function = saved_in_template_function;
             context.expression = saved_expression;
             context.scope = saved_scope;
             context.analysis.root.scope.declarations = saved_declarations;

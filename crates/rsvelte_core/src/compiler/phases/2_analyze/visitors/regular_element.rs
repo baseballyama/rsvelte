@@ -740,6 +740,10 @@ pub fn visit(
         } else if let Attribute::ClassDirective(class_dir) = attr {
             has_class_directive = true;
             class_directive_names.insert(class_dir.name.to_string());
+            // `class:name` matches a `.name` class selector exactly (the official
+            // `attribute_matches` returns true for ClassDirective with `~=`), so
+            // track the directive name as a class on this element.
+            element_classes.insert(class_dir.name.to_string());
         } else if let Attribute::StyleDirective(_) = attr {
             has_style_directive = true;
         }
