@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { stripBlankLines } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -109,8 +110,8 @@ for (const { id } of manifest) {
 			});
 			continue;
 		}
-		const expJs = readIf(path.join(expDir, `${target}.js`)) ?? '';
-		const actJs = readIf(path.join(actDir, `${target}.js`)) ?? '';
+		const expJs = stripBlankLines(readIf(path.join(expDir, `${target}.js`)) ?? '');
+		const actJs = stripBlankLines(readIf(path.join(actDir, `${target}.js`)) ?? '');
 		if (expJs !== actJs) {
 			verdict = 'js-mismatch';
 			details.push({ target, kind: 'js', ...firstDiffLine(expJs, actJs) });

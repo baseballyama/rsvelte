@@ -95,10 +95,6 @@ pub fn transform_component(
             // Strip unnecessary parens around arrow functions (e.g., (() => { ... }) → () => { ... })
             // matching the official Svelte compiler's AST printer behavior.
             result.code = server::transform_script::strip_arrow_function_parens(result.code);
-            // Normalize blank lines to match esrap's statement-margin rules
-            // (the official compiler regenerates blank lines instead of
-            // preserving the source's).
-            result.code = shared::respace::respace(&result.code);
 
             if options.enable_sourcemap {
                 // Merge codegen-tracked mappings with full token-level mappings.
@@ -161,8 +157,6 @@ pub fn transform_component(
             } else {
                 code
             };
-            // Normalize blank lines to match esrap's statement-margin rules.
-            let code = shared::respace::respace(&code);
             if options.enable_sourcemap {
                 // Generate token-level mappings by matching tokens in the server
                 // output to tokens in the original source
@@ -682,8 +676,6 @@ pub fn transform_module(
         GenerateMode::Server => server::transform_server_module(analysis, source, options)?,
         GenerateMode::None => String::new(),
     };
-    // Normalize blank lines to match esrap's statement-margin rules.
-    let js = shared::respace::respace(&js);
 
     Ok(TransformResult {
         js,

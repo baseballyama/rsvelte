@@ -11,11 +11,23 @@ markdown — found in two upstream repositories:
 | [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `compat/corpus/sources.json` |
 
 Both compilers run with identical default options (`dev: false`,
-`css: 'external'`). Outputs are normalized with **oxfmt**
-(`compat/corpus/.oxfmtrc.json`) to absorb formatting-only differences;
-anything that survives oxfmt is a real divergence and fails verification.
-Files the official compiler rejects are *error-parity* cases: rsvelte must
-reject them too.
+`css: 'external'`). Outputs are normalized to absorb formatting-only
+differences; anything that survives normalization is a real divergence and
+fails verification. Files the official compiler rejects are *error-parity*
+cases: rsvelte must reject them too (same error code).
+
+Normalization is two layers, both in the comparison side — the compiler
+itself never spends cycles on cosmetic output massaging (rsvelte targets
+100x compile performance):
+
+1. **oxfmt** (`compat/corpus/.oxfmtrc.json`, `objectWrap: collapse`) —
+   canonicalizes quotes, wrapping, indentation.
+2. **blank-line stripping** (`normalize.mjs`) — the official compiler
+   prints through esrap, which re-derives blank lines from its own layout
+   rules, while rsvelte preserves source blank lines; oxfmt deliberately
+   keeps single blank lines, so this class of diff is removed here.
+   Blank lines inside template literals and block comments are real
+   content and are preserved.
 
 ## Usage
 

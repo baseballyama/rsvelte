@@ -20,6 +20,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { stripBlankLines } from './normalize.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,7 +79,7 @@ function fmt(code, name) {
 	}
 	const out = fs.readFileSync(tmp, 'utf8');
 	fs.unlinkSync(tmp);
-	return out;
+	return stripBlankLines(out);
 }
 
 for (const target of targetArg ? [targetArg] : ['client', 'server']) {

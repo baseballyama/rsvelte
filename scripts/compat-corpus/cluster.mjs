@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripBlankLines } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -23,10 +24,10 @@ function readIf(p) {
 	return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
 }
 
-// First differing hunk ignoring blank lines; normalized to a signature.
+// First differing hunk after blank-line normalization; normalized to a signature.
 function diffSignature(exp, act) {
-	const el = exp.split('\n').filter((l) => l.trim() !== '');
-	const al = act.split('\n').filter((l) => l.trim() !== '');
+	const el = stripBlankLines(exp).split('\n');
+	const al = stripBlankLines(act).split('\n');
 	for (let i = 0; i < Math.max(el.length, al.length); i++) {
 		if (el[i] !== al[i]) {
 			const norm = (s) =>
