@@ -768,7 +768,10 @@ fn transform_client_with_visitors(
             .root
             .bindings
             .iter()
-            .filter(|b| matches!(b.kind, BindingKind::BindableProp))
+            .filter(|b| {
+                matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                    && !b.name.starts_with("$$")
+            })
             .count()
     } else {
         0
@@ -1372,7 +1375,8 @@ fn transform_client_with_visitors(
         if analysis.accessors {
             for binding in &analysis.root.bindings {
                 let binding_prop_name = binding.prop_alias.as_deref().unwrap_or(&binding.name);
-                if matches!(binding.kind, BindingKind::BindableProp)
+                if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+                    && !binding.name.starts_with("$$")
                     && !analysis.exports.iter().any(|e| {
                         let export_alias = e.alias.as_deref().unwrap_or(&e.name);
                         e.name == binding.name || export_alias == binding_prop_name
@@ -1393,25 +1397,40 @@ fn transform_client_with_visitors(
                             },
                         )],
                     ));
-                    exports_members.push(b::setter(
-                        &context.arena,
-                        alias,
-                        "$$value",
-                        vec![
-                            b::stmt(
+                    let setter_body = vec![
+                        b::stmt(
+                            &context.arena,
+                            b::call(&context.arena, b::id(name), vec![b::id("$$value")]),
+                        ),
+                        b::stmt(
+                            &context.arena,
+                            b::call(
                                 &context.arena,
-                                b::call(&context.arena, b::id(name), vec![b::id("$$value")]),
+                                b::member_path(&context.arena, "$.flush"),
+                                vec![],
                             ),
-                            b::stmt(
-                                &context.arena,
-                                b::call(
-                                    &context.arena,
-                                    b::member_path(&context.arena, "$.flush"),
-                                    vec![],
-                                ),
-                            ),
-                        ],
-                    ));
+                        ),
+                    ];
+                    // In runes mode with an initial value, turn `set foo($$value)`
+                    // into `set foo($$value = <initial>)`.
+                    // Reference: transform-client.js lines 315-323
+                    if analysis.runes && binding.initial.is_some() {
+                        let initial = binding.initial.clone().unwrap();
+                        exports_members.push(b::setter_with_default(
+                            &context.arena,
+                            alias,
+                            "$$value",
+                            b::raw(initial),
+                            setter_body,
+                        ));
+                    } else {
+                        exports_members.push(b::setter(
+                            &context.arena,
+                            alias,
+                            "$$value",
+                            setter_body,
+                        ));
+                    }
                 }
             }
         }
@@ -1789,11 +1808,12 @@ fn transform_client_with_visitors(
     // Add CSS declaration if needed
     if analysis.css.has_css && analysis.inject_styles {
         let hash = b::string(analysis.css.hash.clone());
-        // Render the actual scoped CSS code
-        // For custom elements, use minified CSS (matching official Svelte compiler behavior)
+        // Render the actual scoped CSS code.
+        // Injected styles are minified unless in dev mode, matching upstream's
+        // `minify: analysis.inject_styles && !options.dev` (3-transform/css/index.js:36).
         let is_custom_element = analysis.custom_element.is_some();
         let mut css_code = String::new();
-        let css_render_result = if is_custom_element {
+        let css_render_result = if !options.dev {
             super::css::render_stylesheet_minified(analysis, ast.css.as_deref(), source, options)
         } else {
             super::css::render_stylesheet(analysis, ast.css.as_deref(), source, options)
@@ -1895,8 +1915,112 @@ fn transform_client_with_visitors(
     // Add customElements.define() for custom element components
     // Reference: transform-client.js lines 596-677
     if let Some(ref ce) = analysis.custom_element {
-        // Build props config
-        let props_str = b::object(vec![]); // TODO: populate from ce.props if needed
+        // Build props config.
+        // Reference: transform-client.js lines 590-626: entries from
+        // `<svelte:options customElement={{ props: {...} }}>` come first, then
+        // every prop/bindable_prop binding (not already covered) as `name: {}`.
+        // `ce.props` is the ObjectExpression AST of the `props` option; convert
+        // it to (name, prop_def) entries in source order.
+        let ce_props: Vec<(String, serde_json::Map<String, serde_json::Value>)> = ce
+            .props
+            .as_ref()
+            .and_then(|p| p.get("properties"))
+            .and_then(|p| p.as_array())
+            .map(|props| {
+                props
+                    .iter()
+                    .filter_map(|prop| {
+                        let key = prop.get("key")?;
+                        let name = key
+                            .get("name")
+                            .and_then(|n| n.as_str())
+                            .or_else(|| key.get("value").and_then(|v| v.as_str()))?
+                            .to_string();
+                        let mut def = serde_json::Map::new();
+                        if let Some(value_props) = prop
+                            .get("value")
+                            .and_then(|v| v.get("properties"))
+                            .and_then(|p| p.as_array())
+                        {
+                            for vp in value_props {
+                                let vkey = vp.get("key").and_then(|k| {
+                                    k.get("name")
+                                        .and_then(|n| n.as_str())
+                                        .or_else(|| k.get("value").and_then(|v| v.as_str()))
+                                });
+                                if let (Some(vkey), Some(vval)) =
+                                    (vkey, vp.get("value").and_then(|v| v.get("value")))
+                                {
+                                    def.insert(vkey.to_string(), vval.clone());
+                                }
+                            }
+                        }
+                        Some((name, def))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut props_entries: Vec<super::js_ast::nodes::JsObjectMember> = Vec::new();
+        let mut ce_prop_keys: Vec<String> = Vec::new();
+        {
+            for (name, prop_def) in &ce_props {
+                let binding = analysis.root.bindings.iter().find(|b| &b.name == name);
+                let key = binding
+                    .and_then(|b| b.prop_alias.clone())
+                    .unwrap_or_else(|| name.clone());
+
+                let mut prop_type = prop_def
+                    .get("type")
+                    .and_then(|t| t.as_str())
+                    .map(|s| s.to_string());
+                // If no explicit type and the binding's initial value is a boolean
+                // literal, infer type: 'Boolean' (transform-client.js lines 600-607)
+                if prop_type.is_none()
+                    && let Some(b) = binding
+                    && b.initial_node_type.as_deref() == Some("Literal")
+                    && matches!(b.initial.as_deref(), Some("true") | Some("false"))
+                {
+                    prop_type = Some("Boolean".to_string());
+                }
+
+                let mut value_props: Vec<super::js_ast::nodes::JsObjectMember> = Vec::new();
+                if let Some(attribute) = prop_def.get("attribute").and_then(|a| a.as_str()) {
+                    value_props.push(b::prop(&context.arena, "attribute", b::string(attribute)));
+                }
+                if prop_def
+                    .get("reflect")
+                    .and_then(|r| r.as_bool())
+                    .unwrap_or(false)
+                {
+                    value_props.push(b::prop(&context.arena, "reflect", b::true_literal()));
+                }
+                if let Some(t) = &prop_type {
+                    value_props.push(b::prop(&context.arena, "type", b::string(t.clone())));
+                }
+
+                ce_prop_keys.push(key.clone());
+                props_entries.push(b::prop(&context.arena, &key, b::object(value_props)));
+            }
+        }
+        for binding in &analysis.root.bindings {
+            if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+                || binding.name.starts_with("$$")
+            {
+                continue;
+            }
+            let key = binding
+                .prop_alias
+                .clone()
+                .unwrap_or_else(|| binding.name.clone());
+            // Upstream checks `if (ce_props[key]) continue;` — i.e. the original
+            // option-object keys, not the emitted (aliased) keys.
+            if ce_props.iter().any(|(name, _)| name == &key) {
+                continue;
+            }
+            props_entries.push(b::prop(&context.arena, &key, b::object(vec![])));
+        }
+        let props_str = b::object(props_entries);
 
         // Build slots array
         let slots_str = b::array(
@@ -1916,9 +2040,13 @@ fn transform_client_with_visitors(
                 .collect(),
         );
 
-        // Build shadow root init
+        // Build shadow root init.
+        // Reference: transform-client.js lines 634-642: 'open'/undefined →
+        // `{ mode: 'open' }`, 'none' → omitted, ShadowRootInit object → verbatim.
         let shadow_mode = ce.shadow.as_deref().unwrap_or("open");
-        let shadow_root_init = if shadow_mode == "none" {
+        let shadow_root_init = if let Some(src) = &ce.shadow_object_source {
+            Some(b::raw(src.clone()))
+        } else if shadow_mode == "none" {
             None
         } else {
             Some(b::object(vec![b::prop(
@@ -1928,10 +2056,17 @@ fn transform_client_with_visitors(
             )]))
         };
 
-        // $.create_custom_element(Component, props, slots, accessors, shadowRootInit)
+        // $.create_custom_element(Component, props, slots, accessors, shadowRootInit, extend)
+        // Missing middle arguments become `void 0` (upstream b.call, builders.js
+        // lines 121-130), and trailing missing arguments are dropped.
         let mut create_ce_args = vec![b::id(&analysis.name), props_str, slots_str, accessors_str];
         if let Some(init) = shadow_root_init {
             create_ce_args.push(init);
+        } else if ce.extend.is_some() {
+            create_ce_args.push(b::raw("void 0"));
+        }
+        if let Some(extend) = &ce.extend {
+            create_ce_args.push(b::raw(extend.clone()));
         }
         let create_ce = b::call(
             &context.arena,
@@ -3278,6 +3413,27 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     transform_instance_script_for_visitors(script, analysis, dev, reactive_import_names)
 }
 
+/// True when a legacy-mode script contains a `$`-token that the fragile
+/// text-based store / reactive-statement transforms might rewrite: `$ident`
+/// (store subscription), `$:` (reactive statement label) or `$$props` /
+/// `$$restProps`. A `$` followed by `{` is a template-literal interpolation
+/// and never triggers those transforms.
+fn legacy_script_has_dollar_token(script: &str) -> bool {
+    let bytes = script.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        if b != b'$' {
+            continue;
+        }
+        match bytes.get(i + 1) {
+            Some(&n) if n.is_ascii_alphanumeric() || n == b'_' || n == b'$' || n == b':' => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -3333,8 +3489,14 @@ fn transform_instance_script_for_visitors(
     // Use Cow to avoid unnecessary String copies when no transformation is needed.
     // In runes mode, comments are safe to preserve (no store transforms that break on them).
     // In legacy mode, strip single-line comments to prevent braces in comments from
-    // interfering with store transforms.
-    let script: std::borrow::Cow<str> = if analysis.runes {
+    // interfering with store transforms — but only when the script can actually
+    // contain those transforms (store subscriptions `$x`, reactive statements `$:`,
+    // `$$props` / `$$restProps` all start with `$` + identifier-char / `:`;
+    // template-literal `${...}` interpolations do not count). Scripts without
+    // such tokens keep their comments, matching upstream (esrap prints them
+    // as leading trivia).
+    let script: std::borrow::Cow<str> = if analysis.runes || !legacy_script_has_dollar_token(script)
+    {
         std::borrow::Cow::Borrowed(script)
     } else {
         std::borrow::Cow::Owned(strip_js_single_line_comments(script))
@@ -4791,6 +4953,8 @@ fn transform_instance_script_for_visitors(
             && memmem::find(result.as_bytes(), b"$derived").is_some();
         let has_props_calls = !store_sub_vars.iter().any(|v| v == "$props")
             && memmem::find(result.as_bytes(), b"$props").is_some();
+        let has_host_calls = !store_sub_vars.iter().any(|v| v == "$host")
+            && memmem::find(result.as_bytes(), b"$host").is_some();
         // Dev-mode `===` / `!==` rewrite is now part of the AST pass
         // (replaces `transform_strict_equals` from rune_transforms.rs).
         let has_strict_equals = dev
@@ -4805,6 +4969,7 @@ fn transform_instance_script_for_visitors(
             || has_state_calls
             || has_derived_calls
             || has_props_calls
+            || has_host_calls
             || has_strict_equals;
 
         if has_transforms {

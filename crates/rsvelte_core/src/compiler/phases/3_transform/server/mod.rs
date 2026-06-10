@@ -84,12 +84,14 @@ pub fn transform_server(
     });
 
     // Handle CSS injection for options.css === 'injected'
-    // Reference: transform-server.js line 303: options.css === 'injected' && !options.customElement
-    // Note: analysis.inject_styles is also true for custom elements, but custom elements
-    // handle styles client-side (in shadow DOM), so we check the compile option directly.
+    // Reference: transform-server.js line 305:
+    // `analysis.css.ast !== null && analysis.inject_styles && !analysis.custom_element`
+    // Custom elements (including `<svelte:options customElement>`) handle styles
+    // client-side (in shadow DOM), so they are excluded here.
     if options.css == crate::compiler::CssMode::Injected
         && analysis.css.has_css
         && !analysis.css.hash.is_empty()
+        && analysis.custom_element.is_none()
         && !options.custom_element
     {
         // Render the CSS stylesheet with scoping and minification for SSR

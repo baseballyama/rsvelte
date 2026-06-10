@@ -145,17 +145,61 @@ pub fn analyze_component(
     if let Some(ref svelte_options) = ast.options
         && let Some(ref ce_opts) = svelte_options.custom_element
     {
+        // Extract the `extend` option's source text. When the component uses
+        // TypeScript, strip type annotations (mirrors compiler/index.js lines
+        // 49-53: `remove_typescript_nodes(customElementOptions.extend)`).
+        let extend = ce_opts.extend.as_ref().and_then(|expr| {
+            let json = expr.as_json();
+            let start = json.get("start")?.as_u64()? as usize;
+            let end = json.get("end")?.as_u64()? as usize;
+            let text = source.get(start..end)?.to_string();
+            let is_ts = |script: &Option<Box<crate::ast::Script>>| {
+                script.as_ref().is_some_and(|s| {
+                    s.attributes.iter().any(|attr| {
+                        attr.name.as_str() == "lang"
+                            && matches!(
+                                &attr.value,
+                                crate::ast::AttributeValue::Sequence(parts)
+                                    if matches!(
+                                        parts.first(),
+                                        Some(crate::ast::AttributeValuePart::Text(t))
+                                            if t.data.as_str() == "ts" || t.data.as_str() == "typescript"
+                                    )
+                            )
+                    })
+                })
+            };
+            if is_ts(&ast.instance) || is_ts(&ast.module) {
+                Some(types::strip_typescript(&text))
+            } else {
+                Some(text)
+            }
+        });
+        // ShadowRootInit object form (`shadow: { mode: 'open', ... }`):
+        // upstream passes the AST through to `create_custom_element`
+        // (transform-client.js line 641: `shadow_root_init = ce.shadow`).
+        let shadow_object_source = ce_opts.shadow_object.as_ref().and_then(|obj| {
+            let start = obj.get("start")?.as_u64()? as usize;
+            let end = obj.get("end")?.as_u64()? as usize;
+            Some(source.get(start..end)?.to_string())
+        });
         analysis.custom_element = Some(types::CustomElementConfig {
             tag: ce_opts.tag.as_ref().map(|t| t.to_string()),
             shadow: ce_opts.shadow.map(|s| match s {
                 crate::ast::template::ShadowMode::Open => "open".to_string(),
                 crate::ast::template::ShadowMode::None => "none".to_string(),
             }),
+            shadow_object_source,
             props: ce_opts.props.clone(),
+            extend,
         });
         // Custom elements always inject styles (into shadow DOM)
         // Reference: analyze/index.js line 527: inject_styles: options.css === 'injected' || is_custom_element
         analysis.inject_styles = true;
+        // Custom elements always get accessors so that props are reflected as
+        // element properties. Reference: analyze/index.js lines 536-540:
+        // accessors: is_custom_element || (runes ? false : !!options.accessors) || ...
+        analysis.accessors = true;
     }
 
     // Check for options_missing_custom_element warning
@@ -676,7 +720,7 @@ pub fn analyze_component(
         // properly considering combinators (>, space, +, ~).
         if !analysis.css.hash.is_empty() {
             let css_selectors = css_scoping::extract_css_selectors(stylesheet);
-            css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors);
+            css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors, Some(&analysis));
 
             // When a `@keyframes` rule contains a percentage step (`0%`, `50%`, ...),
             // the official Svelte css-prune walker visits the `Percentage` selector

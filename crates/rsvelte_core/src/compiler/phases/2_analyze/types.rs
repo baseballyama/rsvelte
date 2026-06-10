@@ -856,6 +856,22 @@ fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
     )
 }
 
+/// Collect TS removals from a call/new argument. `Argument::as_expression()`
+/// returns `None` for spread arguments, so `...(<expr> as T)` (and any TS
+/// syntax nested inside a spread) must be unwrapped explicitly — otherwise
+/// the cast survives stripping and the output is not valid JavaScript.
+fn collect_ts_removals_from_argument(
+    arg: &oxc_ast::ast::Argument,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    if let oxc_ast::ast::Argument::SpreadElement(spread) = arg {
+        collect_ts_removals_from_expression(&spread.argument, source, removals);
+    } else if let Some(e) = arg.as_expression() {
+        collect_ts_removals_from_expression(e, source, removals);
+    }
+}
+
 /// Collect TS removals from an expression.
 fn collect_ts_removals_from_expression(
     expr: &oxc_ast::ast::Expression,
@@ -895,9 +911,7 @@ fn collect_ts_removals_from_expression(
                 removals.push((type_args.span.start, type_args.span.end));
             }
             for arg in &call.arguments {
-                if let Some(e) = arg.as_expression() {
-                    collect_ts_removals_from_expression(e, source, removals);
-                }
+                collect_ts_removals_from_argument(arg, source, removals);
             }
         }
         E::NewExpression(new_expr) => {
@@ -906,9 +920,7 @@ fn collect_ts_removals_from_expression(
                 removals.push((type_args.span.start, type_args.span.end));
             }
             for arg in &new_expr.arguments {
-                if let Some(e) = arg.as_expression() {
-                    collect_ts_removals_from_expression(e, source, removals);
-                }
+                collect_ts_removals_from_argument(arg, source, removals);
             }
         }
         E::TaggedTemplateExpression(tagged) => {
@@ -1084,9 +1096,7 @@ fn collect_ts_removals_from_expression(
                     removals.push((type_args.span.start, type_args.span.end));
                 }
                 for arg in &call.arguments {
-                    if let Some(e) = arg.as_expression() {
-                        collect_ts_removals_from_expression(e, source, removals);
-                    }
+                    collect_ts_removals_from_argument(arg, source, removals);
                 }
             }
             oxc_ast::ast::ChainElement::StaticMemberExpression(static_member) => {
@@ -1701,7 +1711,7 @@ pub struct ComponentAnalysis {
     pub binding_groups: FxHashMap<String, String>,
 
     /// Slot names mapped to their SlotElement nodes
-    pub slot_names: FxHashMap<String, String>,
+    pub slot_names: indexmap::IndexMap<String, String, rustc_hash::FxBuildHasher>,
 
     /// Every render tag/component and whether it could be definitively resolved
     pub snippet_renderers: FxHashMap<String, bool>,
@@ -1844,7 +1854,7 @@ impl ComponentAnalysis {
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),
             binding_groups: FxHashMap::default(),
-            slot_names: FxHashMap::default(),
+            slot_names: indexmap::IndexMap::default(),
             snippet_renderers: FxHashMap::default(),
             instance_body: InstanceBody::default(),
             comments: Vec::new(),
@@ -2367,6 +2377,11 @@ pub struct CustomElementConfig {
     pub tag: Option<String>,
     /// Shadow DOM mode
     pub shadow: Option<String>,
+    /// Source text of a ShadowRootInit object passed as `shadow: {...}`.
+    pub shadow_object_source: Option<String>,
     /// Custom element property configuration
     pub props: Option<serde_json::Value>,
+    /// Source text of the `extend` option function (TypeScript-stripped when
+    /// the component uses `lang="ts"`).
+    pub extend: Option<String>,
 }

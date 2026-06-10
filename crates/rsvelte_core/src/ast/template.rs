@@ -1190,6 +1190,10 @@ pub struct CustomElementOptions {
     pub tag: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shadow: Option<ShadowMode>,
+    /// `shadow` given as a ShadowRootInit object expression (upstream allows
+    /// `shadow: { mode: 'open', ... }` and passes the AST straight through).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shadow_object: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub props: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

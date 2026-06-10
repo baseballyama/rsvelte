@@ -344,6 +344,7 @@ fn parse_custom_element_option(
                 return Ok(Some(CustomElementOptions {
                     tag: Some(tag.into()),
                     shadow: None,
+                    shadow_object: None,
                     props: None,
                     extend: None,
                 }));
@@ -408,6 +409,7 @@ fn parse_custom_element_object(
 ) -> ParseResult<CustomElementOptions> {
     let mut tag = None;
     let mut shadow = None;
+    let mut shadow_object = None;
     let mut props = None;
     let mut extend = None;
 
@@ -432,7 +434,17 @@ fn parse_custom_element_object(
                         }
                     }
                     "shadow" => {
-                        if let Some(shadow_value) = prop.get("value").and_then(|v| v.get("value"))
+                        // Mirrors 1-parse/read/options.js lines 134-142: a string
+                        // literal must be "open"/"none"; an ObjectExpression
+                        // (ShadowRootInit) is passed through verbatim.
+                        let value = prop.get("value");
+                        let value_type = value
+                            .and_then(|v| v.get("type"))
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("");
+                        if value_type == "ObjectExpression" {
+                            shadow_object = value.cloned();
+                        } else if let Some(shadow_value) = value.and_then(|v| v.get("value"))
                             && let Some(shadow_str) = shadow_value.as_str()
                         {
                             shadow = Some(match shadow_str {
@@ -469,6 +481,7 @@ fn parse_custom_element_object(
     Ok(CustomElementOptions {
         tag,
         shadow,
+        shadow_object,
         props,
         extend,
     })

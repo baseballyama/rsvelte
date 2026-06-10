@@ -115,6 +115,14 @@ fn transform_script_content_inner(
     } else {
         script
     };
+    // Replace $host() with `(void 0)` — upstream's server CallExpression
+    // visitor returns `b.void0` for the $host rune (custom elements have no
+    // host on the server).
+    let script = if memmem::find(script.as_bytes(), b"$host()").is_some() {
+        script.replace("$host()", "(void 0)")
+    } else {
+        script
+    };
     let script = transform_state_snapshot_server(&script, dev);
     let script = if !state_imported {
         transform_object_destructure_state(&script)

@@ -944,14 +944,17 @@ fn transform_css<'a>(
         );
     }
 
-    // Add any trailing content (skip when minifying). This also covers
-    // stylesheets without any rules (e.g. a comment-only <style> block), which
-    // the official compiler preserves verbatim: it only removes the content
-    // outside `ast.content.start..ast.content.end`.
-    if !ctx.minify {
+    // Add any trailing content. This also covers stylesheets without any
+    // rules (e.g. a comment-only <style> block), which the official compiler
+    // preserves verbatim: it only removes the content outside
+    // `ast.content.start..ast.content.end`. In minify mode upstream applies
+    // `remove_preceding_whitespace(ast.content.end)`, so trailing comments
+    // survive with only the final whitespace run dropped.
+    {
         let trailing_start = last_end - css_start;
         if trailing_start < css_source.len() {
-            output.push_str(&css_source[trailing_start..]);
+            let gap = &css_source[trailing_start..];
+            output.push_str(if ctx.minify { gap.trim_end() } else { gap });
         }
     }
 
@@ -3937,12 +3940,16 @@ fn transform_rule_preserving<'a>(
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-    // Copy leading whitespace from source (skip when minifying)
-    if !ctx.minify && node_start > *last_end {
+    // Copy leading content from source. In minify mode, mirror upstream's
+    // `remove_preceding_whitespace(node.start)`: only the whitespace run
+    // immediately before the node is dropped, so comments (and their own
+    // leading whitespace) survive minification.
+    if node_start > *last_end {
         let ws_start = (*last_end).saturating_sub(css_start);
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.push_str(&css_source[ws_start..ws_end]);
+            let gap = &css_source[ws_start..ws_end];
+            output.push_str(if ctx.minify { gap.trim_end() } else { gap });
         }
     }
 
@@ -4185,12 +4192,15 @@ fn transform_block_with_nested_rules<'a>(
             let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-            // Copy whitespace before this child (skip when minifying)
-            if !ctx.minify && child_start > last_end {
+            // Copy content before this child. In minify mode only the
+            // whitespace run immediately before the child is dropped
+            // (upstream `remove_preceding_whitespace`), keeping comments.
+            if child_start > last_end {
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = child_start.saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.push_str(&css_source[ws_start..ws_end]);
+                    let gap = &css_source[ws_start..ws_end];
+                    output.push_str(if ctx.minify { gap.trim_end() } else { gap });
                 }
             }
 
@@ -4283,12 +4293,14 @@ fn transform_block_with_nested_rules<'a>(
         }
     }
 
-    // Copy whitespace/content before closing brace (skip when minifying)
-    if !ctx.minify && block_end > last_end {
+    // Copy content before the closing brace. In minify mode mirror upstream's
+    // `remove_preceding_whitespace(node.block.end - 1)`.
+    if block_end > last_end {
         let ws_start = last_end.saturating_sub(css_start);
         let ws_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude the '}'
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.push_str(&css_source[ws_start..ws_end]);
+            let gap = &css_source[ws_start..ws_end];
+            output.push_str(if ctx.minify { gap.trim_end() } else { gap });
         }
     }
 
@@ -4382,9 +4394,11 @@ fn transform_nested_atrule<'a>(
             let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-            // Copy whitespace before this child (skip when minifying)
-            if !ctx.minify && child_start > last_end {
-                output.push_str(src(last_end, child_start));
+            // Copy content before this child (minify keeps comments, dropping
+            // only the whitespace run immediately before the child).
+            if child_start > last_end {
+                let gap = src(last_end, child_start);
+                output.push_str(if ctx.minify { gap.trim_end() } else { gap });
             }
 
             match child_type {
@@ -4462,9 +4476,11 @@ fn transform_nested_atrule<'a>(
         }
     }
 
-    // Copy trailing content before the closing brace (skip when minifying)
-    if !ctx.minify && block_end > last_end + 1 {
-        output.push_str(src(last_end, block_end - 1));
+    // Copy trailing content before the closing brace (minify drops only the
+    // final whitespace run).
+    if block_end > last_end + 1 {
+        let gap = src(last_end, block_end - 1);
+        output.push_str(if ctx.minify { gap.trim_end() } else { gap });
     }
 
     output.push('}');

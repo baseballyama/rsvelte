@@ -3925,6 +3925,14 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
                     return true;
                 }
 
+                // `const uid = $props.id()` always evaluates to a string.
+                // Upstream's scope.evaluate resolves the const binding's initial
+                // `$props.id()` to STRING (scope.js `case '$props.id'`), so
+                // `is_defined` is true and no `?? ''` is appended.
+                if context.state.analysis.props_id.as_deref() == Some(name) {
+                    return true;
+                }
+
                 // Check the binding
                 if let Some(binding) = context.state.get_binding(name) {
                     // EachIndex is always a number, never null/undefined

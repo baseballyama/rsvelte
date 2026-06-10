@@ -296,6 +296,42 @@ pub fn setter(
     })
 }
 
+/// Create a setter property whose parameter has a default value, e.g.
+/// `set foo($$value = "world") { ... }`.
+/// If the name is not a valid identifier (e.g., contains hyphens), uses a string literal key.
+pub fn setter_with_default(
+    arena: &JsArena,
+    name: impl Into<CompactString>,
+    param: impl Into<CompactString>,
+    default: JsExpr,
+    body: Vec<JsStatement>,
+) -> JsObjectMember {
+    let name_str: CompactString = name.into();
+    let key = if is_valid_identifier(&name_str) {
+        JsPropertyKey::Identifier(name_str)
+    } else {
+        JsPropertyKey::Literal(JsLiteral::String(name_str))
+    };
+    let func_expr = JsExpr::Function(JsFunctionExpression {
+        id: None,
+        params: smallvec![JsPattern::Assignment(JsAssignmentPattern {
+            left: Box::new(id_pattern(param)),
+            right: arena.alloc_expr(default),
+        })],
+        body: JsBlockStatement::with_body(body),
+        is_async: false,
+        is_generator: false,
+    });
+    JsObjectMember::Property(JsProperty {
+        key,
+        value: arena.alloc_expr(func_expr),
+        kind: JsPropertyKind::Set,
+        computed: false,
+        shorthand: false,
+        method: false,
+    })
+}
+
 /// Create a spread element in an object.
 pub fn spread(arena: &JsArena, expr: JsExpr) -> JsObjectMember {
     JsObjectMember::SpreadElement(arena.alloc_expr(expr))
