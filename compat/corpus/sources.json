@@ -1,0 +1,7 @@
+{
+	"svelte.dev": {
+		"repo": "https://github.com/sveltejs/svelte.dev.git",
+		"sha": "d90e97f337e6354bc22e6821cf722a31cb932645"
+	},
+	"_comment": "The sveltejs/svelte corpus source is pinned by the submodules/svelte gitlink (kept in lockstep with the compiler version rsvelte mirrors). This file pins only repos that are not submodules. Bumped automatically by .github/workflows/auto-update-corpus.yml."
+}
