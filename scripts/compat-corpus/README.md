@@ -11,7 +11,9 @@ markdown — found in two upstream repositories:
 | [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `compat/corpus/sources.json` |
 
 Both compilers run with identical default options (`dev: false`,
-`css: 'external'`). Outputs are normalized to absorb formatting-only
+`css: 'external'`). `.svelte.ts` modules are TS-stripped with esbuild
+before compilation, mirroring the production pipeline (Vite runs esbuild
+before vite-plugin-svelte's `compileModule`, which only parses plain JS). Outputs are normalized to absorb formatting-only
 differences; anything that survives normalization is a real divergence and
 fails verification. Files the official compiler rejects are *error-parity*
 cases: rsvelte must reject them too (same error code).

@@ -43,8 +43,17 @@ if (!fs.existsSync(file)) {
 	file = path.resolve(input);
 	id = path.relative(ROOT, file);
 }
-const source = fs.readFileSync(file, 'utf8');
+let source = fs.readFileSync(file, 'utf8');
 const kind = /\.svelte\.(js|ts)$/.test(file) ? 'module' : 'component';
+if (file.endsWith('.svelte.ts')) {
+	// Mirror the production pipeline (see compile.mjs): TS is stripped by
+	// esbuild before the Svelte compiler sees the module.
+	try {
+		source = require('esbuild').transformSync(source, { loader: 'ts' }).code;
+	} catch {
+		/* raw source for both sides */
+	}
+}
 
 const svelte = await import(
 	path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js')

@@ -57,6 +57,22 @@ if (args.includes('--worker')) {
 		path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js')
 	);
 	const rsvelte = require(BINDING);
+	const esbuild = require('esbuild');
+
+	// In production (Vite / SvelteKit), `.svelte.ts` modules are TS-stripped
+	// by esbuild BEFORE the Svelte compiler sees them — `compileModule`
+	// itself only parses plain JS. Mirror that pipeline so the corpus
+	// exercises the real compile output instead of recording js_parse_error
+	// parity for every TS module. Falls back to the raw source when esbuild
+	// rejects the file (both compilers then see identical input).
+	function prepareSource(id, source) {
+		if (!id.endsWith('.svelte.ts')) return source;
+		try {
+			return esbuild.transformSync(source, { loader: 'ts' }).code;
+		} catch {
+			return source;
+		}
+	}
 
 	const errorInfo = (e) => {
 		const message = String(e?.message ?? e);
@@ -108,7 +124,7 @@ if (args.includes('--worker')) {
 	for (let i = start; i < end; i++) {
 		const { id, kind } = manifest[i];
 		console.log(`IDX ${i}`);
-		const source = fs.readFileSync(path.join(CORPUS, 'sources', id), 'utf8');
+		const source = prepareSource(id, fs.readFileSync(path.join(CORPUS, 'sources', id), 'utf8'));
 		writeOutputs(EXPECTED, id, {
 			client: compileOne(svelte, kind, source, id, 'client'),
 			server: compileOne(svelte, kind, source, id, 'server'),
