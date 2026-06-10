@@ -39,7 +39,7 @@ if (!NO_FMT) {
 	for (const tree of [EXPECTED, ACTUAL]) {
 		console.log(`[verify] oxfmt ${path.relative(ROOT, tree)}…`);
 		try {
-			execFileSync('npx', ['oxfmt', '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
+			execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {
 				cwd: tree,
 				stdio: ['ignore', 'ignore', 'pipe'],
 				maxBuffer: 1024 * 1024 * 64,

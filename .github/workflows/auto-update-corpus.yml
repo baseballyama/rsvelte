@@ -1,0 +1,111 @@
+name: auto-update-corpus
+
+# Weekly: when sveltejs/svelte.dev's default branch has moved past the SHA
+# pinned in compat/corpus/sources.json, open a PR that advances the pin. The
+# corpus-compat workflow runs on that PR (compat/corpus/** path filter) and
+# regenerates the corpus + expectations from the new pin, so the PR is
+# mergeable only when rsvelte still matches the official compiler over the
+# updated corpus.
+#
+# The sveltejs/svelte side needs no equivalent here: the corpus derives the
+# compiler-repo sources AND the expected outputs from the submodules/svelte
+# gitlink, which auto-update-svelte.yml already bumps via PR (and those PRs
+# trigger corpus-compat through the `submodules/svelte` path filter).
+#
+# SETUP: same as auto-update-svelte.yml (allow Actions to create PRs; add a
+# GH_PAT secret if CI should run automatically on the created PRs).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '52 5 * * 1' # Mondays 05:52 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-update-corpus
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Open svelte.dev corpus bump PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+          token: ${{ secrets.GH_PAT || github.token }}
+
+      - name: Read pinned and latest svelte.dev SHA
+        id: shas
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+        run: |
+          set -euo pipefail
+          PINNED=$(node -p "JSON.parse(require('fs').readFileSync('compat/corpus/sources.json','utf8'))['svelte.dev'].sha")
+          LATEST=$(gh api repos/sveltejs/svelte.dev/commits/HEAD --jq '.sha')
+          if [ -z "${PINNED}" ] || [ -z "${LATEST}" ]; then
+            echo "::error::Could not resolve svelte.dev SHAs (pinned='${PINNED}', latest='${LATEST}')"
+            exit 1
+          fi
+          echo "pinned=${PINNED}" >> "${GITHUB_OUTPUT}"
+          echo "latest=${LATEST}" >> "${GITHUB_OUTPUT}"
+          echo "Pinned ${PINNED} / latest ${LATEST}"
+
+      - name: Open bump PR if svelte.dev moved
+        if: steps.shas.outputs.pinned != steps.shas.outputs.latest
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          PINNED: ${{ steps.shas.outputs.pinned }}
+          LATEST: ${{ steps.shas.outputs.latest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          pr_branch="chore/corpus-svelte-dev-bump"
+          git checkout -B "${pr_branch}"
+
+          node - <<'EOF'
+          const fs = require('fs');
+          const p = 'compat/corpus/sources.json';
+          const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+          j['svelte.dev'].sha = process.env.LATEST;
+          fs.writeFileSync(p, JSON.stringify(j, null, '\t') + '\n');
+          EOF
+
+          git add compat/corpus/sources.json
+          title="chore(corpus): bump svelte.dev corpus pin to ${LATEST:0:12}"
+          git commit -m "${title}"
+          git push --force origin "${pr_branch}"
+
+          {
+            echo "Advances the sveltejs/svelte.dev corpus pin:"
+            echo
+            echo "- from: \`${PINNED}\`"
+            echo "- to: [\`${LATEST}\`](https://github.com/sveltejs/svelte.dev/commit/${LATEST})"
+            echo
+            echo "The \`corpus-compat\` workflow on this PR regenerates the corpus and"
+            echo "its expected outputs from the new pin and verifies rsvelte still"
+            echo "matches the official compiler byte-for-byte (post-oxfmt) for CSR"
+            echo "and SSR. If it fails, new upstream code exposed a divergence —"
+            echo "fix rsvelte on this branch before merging."
+            echo
+            echo "---"
+            echo
+            echo "Opened by the \`auto-update-corpus\` workflow."
+          } > pr-body.md
+
+          existing=$(gh pr list --head "${pr_branch}" --state open --json number --jq 'length')
+          if [ "${existing}" -eq 0 ]; then
+            gh pr create --base main --head "${pr_branch}" \
+              --title "${title}" --body-file pr-body.md
+          else
+            number=$(gh pr list --head "${pr_branch}" --state open --json number --jq '.[0].number')
+            gh pr edit "${number}" --title "${title}" --body-file pr-body.md
+            echo "Updated existing PR #${number}."
+          fi

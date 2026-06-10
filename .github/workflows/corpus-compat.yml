@@ -1,0 +1,128 @@
+name: corpus-compat
+
+# Compiles every .svelte / .svelte.(js|ts) source (including markdown code
+# blocks) from sveltejs/svelte (pinned by the submodule gitlink) and
+# sveltejs/svelte.dev (pinned by compat/corpus/sources.json) with BOTH the
+# official Svelte compiler and rsvelte, for client (CSR) and server (SSR)
+# targets, normalizes both output trees with oxfmt, and requires the results
+# to be byte-identical. See scripts/compat-corpus/README.md.
+#
+# Expected outputs are regenerated from the pinned upstreams on every run, so
+# bumping either pin (auto-update-svelte.yml for the compiler submodule,
+# auto-update-corpus.yml for svelte.dev) automatically refreshes both the
+# test corpus and its expectations.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/**'
+      - 'scripts/compat-corpus/**'
+      - 'compat/corpus/**'
+      - 'submodules/svelte'
+      - '.gitmodules'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/corpus-compat.yml'
+  pull_request:
+    paths:
+      - 'crates/**'
+      - 'scripts/compat-corpus/**'
+      - 'compat/corpus/**'
+      - 'submodules/svelte'
+      - '.gitmodules'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/corpus-compat.yml'
+
+concurrency:
+  group: corpus-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    name: Corpus compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Install root dependencies (oxfmt)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Svelte compiler dependencies
+        id: svelte-deps-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+          key: corpus-svelte-deps-v1-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
+      - name: Install Svelte compiler dependencies
+        if: steps.svelte-deps-cache.outputs.cache-hit != 'true'
+        run: |
+          cd submodules/svelte
+          pnpm install --frozen-lockfile
+
+      - name: Cache svelte.dev checkout
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .corpus-cache/svelte.dev
+          key: corpus-svelte-dev-v1-${{ hashFiles('compat/corpus/sources.json') }}
+
+      - name: Sync svelte.dev checkout to pinned SHA
+        run: node scripts/compat-corpus/sync-sources.mjs
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build rsvelte NAPI binding
+        run: |
+          cargo build --release --features napi --lib
+          mkdir -p .corpus-cache
+          cp target/release/librsvelte_core.so .corpus-cache/rsvelte.node
+
+      - name: Collect corpus
+        run: node scripts/compat-corpus/collect.mjs
+
+      - name: Compile corpus (official svelte + rsvelte, CSR + SSR)
+        run: node scripts/compat-corpus/compile.mjs
+
+      - name: Verify (oxfmt-normalized outputs must be identical)
+        run: node scripts/compat-corpus/verify.mjs
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-report
+          path: |
+            compat/corpus/report.json
+            compat/corpus/manifest.json
+          if-no-files-found: ignore
+          retention-days: 14
