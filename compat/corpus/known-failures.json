@@ -48,7 +48,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-in-reactive-declaration-2/App.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/assign-prop-to-prop/Test.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/derived-server-memoization/state.svelte.js",
-	"svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-import/event.svelte.js",
 	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/store-from-props-hoisting/child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/store-update-on-destroy/Test.svelte",

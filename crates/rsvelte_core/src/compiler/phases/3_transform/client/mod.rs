@@ -2916,6 +2916,21 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 ///
 /// The key distinction: if a module-level $state() variable is NOT reassigned (is_state_source
 /// returns false), it only gets $.proxy() wrapping (no $.state()), and reads don't need $.get().
+/// Node types for which upstream `should_proxy` returns false (→ the value is
+/// NOT wrapped in `$.proxy(...)`). An Identifier whose binding resolves to one
+/// of these initial node types is therefore non-proxyable.
+fn is_non_proxy_node_type(nt: &str) -> bool {
+    matches!(
+        nt,
+        "Literal"
+            | "TemplateLiteral"
+            | "ArrowFunctionExpression"
+            | "FunctionExpression"
+            | "UnaryExpression"
+            | "BinaryExpression"
+    )
+}
+
 pub(crate) fn transform_module_script_runes(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -2987,6 +3002,41 @@ pub(crate) fn transform_module_script_runes(
     // Extract module proxy vars for non-reactive vars
     let module_proxy_vars = extract_proxy_vars(script);
 
+    // Module-level bindings that must NOT be proxied when passed to `$state(x)`.
+    // Mirrors upstream `should_proxy`: an Identifier resolves to its binding's
+    // initial node and recurses — returning false (→ non-proxy) when the
+    // initial is a function / literal / unary / binary etc. So
+    // `const log_a = () => {}; let h = $state(log_a)` emits `$.state(log_a)`,
+    // not `$.state($.proxy(log_a))`. `initial_is_function` (set by the scope
+    // builder for arrow/function initials) and `initial_node_type` (set by the
+    // Phase-2 variable_declarator visitor) together cover the cases.
+    let module_non_proxy_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            !b.reassigned
+                && b.import_source.is_none()
+                && !matches!(
+                    b.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                        | BindingKind::StoreSub
+                )
+                && (b.initial_is_function
+                    || b.initial_node_type
+                        .as_deref()
+                        .map(is_non_proxy_node_type)
+                        .unwrap_or(false)
+                    || (b.initial_node_type.as_deref() == Some("Identifier")
+                        && b.initial_identifier_name.as_deref() == Some("undefined")))
+        })
+        .map(|b| b.name.clone())
+        .collect();
+
     // Reactive module state vars = those that need $.get()/$.set()
     // (i.e. all module state vars except non-reactive ones)
     let reactive_module_state_vars: Vec<String> = module_state_vars
@@ -3048,9 +3098,12 @@ pub(crate) fn transform_module_script_runes(
     // exits immediately — idempotent fallback for parse failures.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) =
-            state_call_ast::transform_state_call_ast(&result, &module_non_reactive_vars, is_ts)
-        {
+        if let Some(rewritten) = state_call_ast::transform_state_call_ast(
+            &result,
+            &module_non_reactive_vars,
+            &module_non_proxy_vars,
+            is_ts,
+        ) {
             result = rewritten;
         }
     }
@@ -4056,17 +4109,8 @@ fn transform_instance_script_for_visitors(
     // Names where EVERY binding of that name (across all inner scopes) has a
     // known non-proxyable initial type. This enables safe non-proxy treatment
     // even when the same local name is declared in multiple sibling scopes.
-    fn is_non_proxy_node_type(nt: &str) -> bool {
-        matches!(
-            nt,
-            "Literal"
-                | "TemplateLiteral"
-                | "ArrowFunctionExpression"
-                | "FunctionExpression"
-                | "UnaryExpression"
-                | "BinaryExpression"
-        )
-    }
+    // (`is_non_proxy_node_type` is now a module-level free fn so the module
+    // transform path can share it.)
     let names_all_non_proxy: rustc_hash::FxHashSet<String> = {
         use rustc_hash::FxHashMap;
         let mut per_name: FxHashMap<String, (bool, usize)> = FxHashMap::default();
@@ -4138,8 +4182,17 @@ fn transform_instance_script_for_visitors(
             // through to `return true`, so the binding stays proxy-eligible.
             // (Marking a CallExpression-initialised binding as non-proxy wrongly
             // dropped the proxy on `let x = $state(propWithDefault)`.)
+            // Gate on `initial_node_type` (the init NODE's presence) rather than
+            // `b.initial` (a literal-string field that stays None for
+            // BinaryExpression / ArrowFunctionExpression / UnaryExpression
+            // initials). Upstream `should_proxy` resolves the binding's initial
+            // *node* and recurses, returning false (→ non-proxy) for the
+            // non-proxy node types regardless of whether the initial is a
+            // literal. `let root = depth === 0` (BinaryExpression) and
+            // `let f = () => {}` (ArrowFunctionExpression) must therefore be
+            // treated as non-proxy even though their literal-string `initial`
+            // is None.
             if is_top_level
-                && b.initial.is_some()
                 && !matches!(
                     b.kind,
                     BindingKind::State
