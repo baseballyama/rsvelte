@@ -7553,6 +7553,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // hydration guard, so the call itself is always direct (no `?.`).
         let call_syntax = "";
         let has_css_props = !css_custom_props.is_empty();
+        // Capture where the component call code begins so a `<Component --x="…">`
+        // with slotted content can be wrapped in `$.css_props(...)` afterwards
+        // (the no-children branch self-wraps; the children/snippets one does not).
+        let comp_code_start = code.len();
 
         if has_snippets || has_children {
             #[allow(clippy::type_complexity)]
@@ -8200,6 +8204,31 @@ impl<'a> ServerCodeGenerator<'a> {
                         all_props.join(", ")
                     );
                 }
+            }
+        }
+
+        // Component CSS custom properties (`<Component --x="…">`): the
+        // children/snippets branch above does not self-wrap in `$.css_props(...)`
+        // (only the no-children branch does), so wrap its slotted output here,
+        // mirroring upstream's css_props wrapper around the whole component call.
+        if has_css_props && (has_snippets || has_children) {
+            let segment = code[comp_code_start..].to_string();
+            code.truncate(comp_code_start);
+            let css_props_str = css_custom_props
+                .iter()
+                .map(|(n, v)| format!("{}: {}", n, v))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(
+                code,
+                "\n$.css_props($$renderer, {}, {{ {} }}, () => {{",
+                css_props_is_html, css_props_str
+            );
+            code.push_str(&segment);
+            if dynamic {
+                code.push_str("}, true);\n");
+            } else {
+                code.push_str("});\n");
             }
         }
 

@@ -3856,7 +3856,58 @@ fn attribute_check_features(
                 has_rune_reference: false,
             }
         }
-        _ => FragmentCheckResults::default(),
+        // A rune used only inside a directive/attach expression (e.g.
+        // `{@attach (n) => { $effect(...) }}`) still flips the component to
+        // runes mode upstream, because every template identifier reference is
+        // propagated into `module.scope.references` (scope.js reference()) and
+        // `is_rune` is checked over the full set (2-analyze/index.js:454-456).
+        Attribute::AttachTag(attach) => {
+            let r = expression_check_features(&attach.expression, arena, store_subs);
+            FragmentCheckResults {
+                has_await: r.has_await,
+                has_rune_reference: r.has_rune_reference,
+            }
+        }
+        Attribute::UseDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
+        Attribute::TransitionDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
+        Attribute::AnimateDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
+        Attribute::LetDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
     }
 }
 
