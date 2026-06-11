@@ -5,7 +5,9 @@ use super::super::helpers::trim_output_parts;
 use super::super::types::OutputPart;
 use crate::ast::template::{AwaitBlock, KeyBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_await_block(
@@ -241,7 +243,30 @@ impl<'a> ServerCodeGenerator<'a> {
             break;
         }
 
-        for node in &nodes[start_idx..end_idx] {
+        // Trim leading whitespace from the first text node and trailing
+        // whitespace from the last (upstream clean_nodes trims the edge text
+        // nodes of every fragment; svelte_trim_* keeps `&nbsp;`).
+        for (i, node) in nodes[start_idx..end_idx].iter().enumerate() {
+            let is_first = i == 0;
+            let is_last = i == end_idx - start_idx - 1;
+            if (is_first || is_last)
+                && !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
+            {
+                let mut modified = text.clone();
+                let mut data = modified.data.to_string();
+                if is_first {
+                    data = svelte_trim_start(&data).to_string();
+                }
+                if is_last {
+                    data = svelte_trim_end(&data).to_string();
+                }
+                modified.data = data.into();
+                if !modified.data.is_empty() {
+                    body_generator.generate_node(&TemplateNode::Text(modified), false)?;
+                }
+                continue;
+            }
             body_generator.generate_node(node, false)?;
         }
 

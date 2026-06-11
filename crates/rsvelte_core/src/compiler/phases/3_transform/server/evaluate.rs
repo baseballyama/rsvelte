@@ -800,6 +800,13 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         if !bindings.is_empty() {
+            // A single binding's evaluation passes through as-is so type
+            // markers (e.g. StringMarker from `$props.id()`) survive — they
+            // are not "known values" but still prove string-ness/defined-ness
+            // (upstream merges full value sets including STRING/NUMBER).
+            if bindings.len() == 1 {
+                return self.evaluate_binding_initial(bindings[0], depth);
+            }
             // Resolve each same-named binding; only fold when they all agree
             // on the same known value (safe under shadowing, since the server
             // generator does not track lexical scopes).
@@ -846,6 +853,41 @@ impl<'a> ServerCodeGenerator<'a> {
         Evaluation::unknown()
     }
 
+    /// Whether the source declares `name` with the initializer `$props.id()`
+    /// (`const uid = $props.id()`). Cheap byte-gated scan: only runs when the
+    /// source contains `$props.id()` at all.
+    fn binding_initial_is_props_id(&self, name: &str) -> bool {
+        use memchr::memmem;
+        const NEEDLE: &[u8] = b"$props.id()";
+        let src = self.source.as_bytes();
+        let mut from = 0usize;
+        while let Some(p) = memmem::find(&src[from..], NEEDLE) {
+            let pos = from + p;
+            from = pos + NEEDLE.len();
+            // Walk back over `= ` to the identifier that ends right before.
+            let mut i = pos;
+            while i > 0 && matches!(src[i - 1], b' ' | b'\t') {
+                i -= 1;
+            }
+            if i == 0 || src[i - 1] != b'=' {
+                continue;
+            }
+            i -= 1;
+            while i > 0 && matches!(src[i - 1], b' ' | b'\t') {
+                i -= 1;
+            }
+            let end = i;
+            while i > 0 && (src[i - 1].is_ascii_alphanumeric() || matches!(src[i - 1], b'_' | b'$'))
+            {
+                i -= 1;
+            }
+            if &self.source[i..end] == name {
+                return true;
+            }
+        }
+        false
+    }
+
     fn evaluate_binding_initial(
         &self,
         binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
@@ -886,6 +928,14 @@ impl<'a> ServerCodeGenerator<'a> {
             return Evaluation::single(EvalValue::Undefined);
         }
         let Some(initial) = binding.initial.as_deref() else {
+            // The analyzer does not capture non-literal initials in
+            // `binding.initial`, but upstream's `scope.evaluate` still knows
+            // `const uid = $props.id()` is a (defined) string — `$props.id`
+            // returns STRING (scope.js `case '$props.id'`). Recognize the
+            // `<name> = $props.id()` initializer from the source text.
+            if matches!(binding.kind, Normal) && self.binding_initial_is_props_id(&binding.name) {
+                return Evaluation::single(EvalValue::StringMarker);
+            }
             return Evaluation::unknown();
         };
 

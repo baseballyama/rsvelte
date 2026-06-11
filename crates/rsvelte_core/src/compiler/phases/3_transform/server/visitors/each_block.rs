@@ -4,7 +4,9 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{EachBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_each_block(&mut self, block: &EachBlock) -> Result<(), TransformError> {
@@ -110,13 +112,13 @@ impl<'a> ServerCodeGenerator<'a> {
         if !self.preserve_whitespace && !trimmed_body_nodes.is_empty() {
             // Trim leading whitespace from first text node
             if let TemplateNode::Text(ref mut text) = trimmed_body_nodes[0] {
-                let trimmed_data = text.data.trim_start().to_string();
+                let trimmed_data = svelte_trim_start(&text.data).to_string();
                 text.data = trimmed_data.into();
             }
             // Trim trailing whitespace from last text node
             let last_idx = trimmed_body_nodes.len() - 1;
             if let TemplateNode::Text(ref mut text) = trimmed_body_nodes[last_idx] {
-                let trimmed_data = text.data.trim_end().to_string();
+                let trimmed_data = svelte_trim_end(&text.data).to_string();
                 text.data = trimmed_data.into();
             }
         }
@@ -279,7 +281,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 if !self.preserve_whitespace {
                     // Trim leading whitespace from first text node
                     if i == 0 {
-                        data = data.trim_start().to_string();
+                        data = svelte_trim_start(&data).to_string();
                     }
                     // When the previous visible text ended with whitespace (e.g. either
                     // side of a removed comment), strip this node's leading whitespace
@@ -295,7 +297,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Use last_meaningful_idx to account for hoisted nodes at the end
                     let is_last = last_meaningful_idx.map_or(i == num_nodes - 1, |li| i >= li);
                     if is_last {
-                        data = data.trim_end().to_string();
+                        data = svelte_trim_end(&data).to_string();
                     }
                 }
                 prev_text_ends_with_ws = data.ends_with([' ', '\t', '\r', '\n']);
@@ -351,29 +353,32 @@ impl<'a> ServerCodeGenerator<'a> {
             // Trim leading/trailing whitespace from fallback fragment nodes
             let mut fallback_nodes: Vec<TemplateNode> = fallback_fragment.nodes.to_vec();
             // Skip leading whitespace-only text nodes
+            // Comments are filtered by upstream's clean_nodes BEFORE the
+            // leading/trailing whitespace trim, so `\n<!-- c -->\n<p>` has no
+            // leading whitespace left once the comment is dropped.
+            let edge_skippable = |n: &TemplateNode| -> bool {
+                matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
+                    || (!self.preserve_comments && matches!(n, TemplateNode::Comment(_)))
+            };
             let start = fallback_nodes
                 .iter()
-                .position(
-                    |n| !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)),
-                )
+                .position(|n| !edge_skippable(n))
                 .unwrap_or(fallback_nodes.len());
             // Skip trailing whitespace-only text nodes
             let end = fallback_nodes
                 .iter()
-                .rposition(
-                    |n| !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)),
-                )
+                .rposition(|n| !edge_skippable(n))
                 .map(|i| i + 1)
                 .unwrap_or(0);
             fallback_nodes = fallback_nodes[start..end].to_vec();
             // Trim leading whitespace from first text node
             if let Some(TemplateNode::Text(text)) = fallback_nodes.first_mut() {
-                let trimmed = text.data.trim_start().to_string();
+                let trimmed = svelte_trim_start(&text.data).to_string();
                 text.data = trimmed.into();
             }
             // Trim trailing whitespace from last text node
             if let Some(TemplateNode::Text(text)) = fallback_nodes.last_mut() {
-                let trimmed = text.data.trim_end().to_string();
+                let trimmed = svelte_trim_end(&text.data).to_string();
                 text.data = trimmed.into();
             }
             // Add comment marker before fallback if first node is text or expression

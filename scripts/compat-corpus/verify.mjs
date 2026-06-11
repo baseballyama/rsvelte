@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { stripBlankLines } from './normalize.mjs';
+import { flattenTemplateHoles, stripBlankLines } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -44,10 +44,28 @@ const BASELINE_PATH = path.join(CORPUS, 'known-failures.json');
 
 // ---- oxfmt normalization ---------------------------------------------------
 
+function flattenTreeTemplateHoles(dir) {
+	const entries = fs.readdirSync(dir, { withFileTypes: true });
+	for (const entry of entries) {
+		const p = path.join(dir, entry.name);
+		if (entry.isDirectory()) flattenTreeTemplateHoles(p);
+		else if (entry.name.endsWith('.js')) {
+			const src = fs.readFileSync(p, 'utf8');
+			const flat = flattenTemplateHoles(src);
+			if (flat !== src) fs.writeFileSync(p, flat);
+		}
+	}
+}
+
 if (!NO_FMT) {
 	const emptyIgnore = path.join(CORPUS, '.oxfmt-ignore-nothing');
 	fs.writeFileSync(emptyIgnore, '');
 	for (const tree of [EXPECTED, ACTUAL]) {
+		// esrap wraps long expressions inside `${}` template holes; oxfmt
+		// preserves hole multiline-ness from its input, so flatten holes
+		// BEFORE formatting to make both trees converge (see normalize.mjs).
+		console.log(`[verify] flatten template holes ${path.relative(ROOT, tree)}…`);
+		flattenTreeTemplateHoles(tree);
 		console.log(`[verify] oxfmt ${path.relative(ROOT, tree)}…`);
 		try {
 			execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', emptyIgnore, '--no-error-on-unmatched-pattern', '.'], {

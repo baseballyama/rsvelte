@@ -84,6 +84,25 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Ok(())
             }
+            // <svelte:window> / <svelte:document> / <svelte:body> render
+            // nothing in SSR, but comments inside their dropped event-handler
+            // expressions survive in the official output (esrap re-inserts
+            // them before the next positioned node).
+            TemplateNode::SvelteWindow(elem)
+            | TemplateNode::SvelteDocument(elem)
+            | TemplateNode::SvelteBody(elem) => {
+                for attr in &elem.attributes {
+                    if let crate::ast::template::Attribute::OnDirective(on) = attr
+                        && let Some(expr) = &on.expression
+                    {
+                        self.record_lost_expression_comments(
+                            expr.start().unwrap_or(0) as usize,
+                            expr.end().unwrap_or(0) as usize,
+                        );
+                    }
+                }
+                Ok(())
+            }
             _ => Ok(()),
         }
     }

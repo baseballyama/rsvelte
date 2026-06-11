@@ -60,6 +60,16 @@ fn collapse_leading_trailing_whitespace(
     result
 }
 
+/// Infer namespace from fragment children nodes (owned-slice variant for
+/// block-branch bodies, e.g. `{#if}` / `{:else}` fragments).
+pub(crate) fn infer_namespace_from_nodes_owned(
+    nodes: &[TemplateNode],
+    parent_namespace: &str,
+) -> String {
+    let refs: Vec<&TemplateNode> = nodes.iter().collect();
+    infer_namespace_from_nodes(&refs, parent_namespace)
+}
+
 /// Infer namespace from fragment children nodes.
 /// If all RegularElement children are SVG, returns "svg".
 /// If all are MathML, returns "mathml".
@@ -622,6 +632,12 @@ impl<'a> ServerCodeGenerator<'a> {
             .collect();
         let num_nodes = nodes_to_process.len();
         let mut prev_was_debug = false;
+        // Whether the previously emitted text ended with whitespace. Upstream's
+        // clean_nodes second pass replaces a text's leading whitespace with ''
+        // (not ' ') when the previous text ends with whitespace — two adjacent
+        // whitespace runs (left over when a slotted sibling moved into its own
+        // slot group) must collapse to ONE space, not two.
+        let mut prev_text_ends_with_ws = false;
 
         for (i, node) in nodes_to_process.iter().enumerate() {
             let is_first = i == 0;
@@ -796,6 +812,19 @@ impl<'a> ServerCodeGenerator<'a> {
                     raw
                 };
 
+                // Strip (rather than collapse) leading whitespace when the
+                // previous emitted text already ended with whitespace.
+                let raw = if !self.preserve_whitespace && prev_text_ends_with_ws {
+                    svelte_trim_start(&raw).to_string()
+                } else {
+                    raw
+                };
+
+                if raw.is_empty() {
+                    continue;
+                }
+                prev_text_ends_with_ws = raw.ends_with([' ', '\t', '\r', '\n', '\x0C']);
+
                 if !raw.is_empty() {
                     // Collapse only leading/trailing whitespace, not internal.
                     // This matches clean_nodes which replaces leading/trailing
@@ -829,6 +858,17 @@ impl<'a> ServerCodeGenerator<'a> {
                         ))));
                 }
                 continue;
+            }
+            // Hoisted nodes (const/snippet/debug tags) are transparent for the
+            // whitespace pass (upstream removes them before it runs).
+            if !matches!(
+                ***node,
+                TemplateNode::ConstTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_)
+                    | TemplateNode::Comment(_)
+            ) {
+                prev_text_ends_with_ws = false;
             }
             body_generator.generate_node(node, false)?;
         }

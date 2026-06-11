@@ -20,7 +20,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { stripBlankLines } from './normalize.mjs';
+import { flattenTemplateHoles, stripBlankLines } from './normalize.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,7 +80,7 @@ function compileOne(compiler, generate) {
 function fmt(code, name) {
 	if (RAW) return code;
 	const tmp = path.join(os.tmpdir(), `corpus-one-${process.pid}-${name}.js`);
-	fs.writeFileSync(tmp, code);
+	fs.writeFileSync(tmp, flattenTemplateHoles(code));
 	try {
 		execFileSync('npx', ['oxfmt', '-c', path.join(CORPUS, '.oxfmtrc.json'), '--ignore-path', '/dev/null', tmp], { stdio: 'pipe' });
 	} catch {
