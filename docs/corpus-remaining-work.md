@@ -7,8 +7,32 @@ Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
 | match (identical after normalization) | 5,394 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **125** |
+| **known failures (baseline)** | **83** (was 125) |
 | error-presence / error-code mismatches | 0 |
+
+**Burn-down 125 → 83 (this session).** Landed compiler-side fixes (all verified
+against the byte-exact runtime/ssr/compiler_fixtures/css suites, no regressions):
+unbound-global refs → `root.conflicts` (naming `canvas_1`/`form_1`/…);
+svelte:element SSR class-clsx + valueless-attr; `keygen`/`command`/`!doctype`
+void; `{...$$props}` → `$$sanitized_props` spread; each key-fn rest-pattern;
+server scope.evaluate folding (same-name var last-wins, numeric-ternary
+`$.stringify`, each-index `?? ""`); CSS empty-template prune + `<style>`-prefix
+match; server `clean_nodes` lone-`<script>` + trailing-hoist trim;
+private-field parse (`this.#x` → real MemberExpression, drives `needs_context`);
+`@attach`/`$effect` runes-mode + `needs_context`; component `--css-prop` with
+slotted children; client constant-fold (ternary, no-arg `$state()`, known
+`<title>`); `$effect.root` statement removal; non-top-level `$:` guard;
+`$state` store-sub on a destructured prop.
+
+Remaining 83 = 73 parseable / 8 unparseable (await-in-non-async) / 2 css. The
+hard core left: DeclarationTag each-item `$.get` wrapping (instance-script
+pipeline); `$derived` currying (`yScale()(tick)` — reverted before, do NOT retry
+naively); nested CSS `:global`/`&` transform (needs the index.js:286-334 port);
+class private/public field-name collision (`#deps`/`#_deps`); compound `+=`
+module lowering; the full client `Evaluation` port (declaration-tag known-fold +
+`has_state` via `scope.evaluate`); esrap positional-comment artifacts (`var //…`,
+`let //…` — wait for the Phase-3 printer refactor); a handful of migrate/snippet
+1-offs.
 
 **Reconciled with `main`'s wave 6 (#978, 316→262 + `flattenTemplateHoles`).**
 This branch was rebased onto that work, so the comparison now has BOTH the
