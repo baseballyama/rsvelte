@@ -153,8 +153,18 @@ pub fn transform_server_module(
     // before applying transforms, since effects don't run on the server.
     let source_without_effects = strip_effects_from_source(source);
 
+    // Lower `$state` / `$derived` CLASS fields with the SERVER transform FIRST.
+    // The client module transform (below) privatizes a public `$state` field
+    // into `#field` + get/set accessors — correct for the client, but on the
+    // server a public `$state` field is just a plain public value
+    // (`active = false`). Running `transform_class_fields_server` first replaces
+    // `$state(v)` → `v` in the class body, so the subsequent client transform
+    // finds no rune in the class and leaves the (now server-shaped) fields
+    // alone. Mirrors how the component server path lowers class fields.
+    let source_without_effects =
+        transform_script::transform_class_fields_server(&source_without_effects);
+
     // Transform rune calls using the same infrastructure as client modules.
-    // The client transform handles class fields ($state, $derived in classes).
     let transformed =
         super::client::transform_module_source_for_module(&source_without_effects, analysis, false);
 
