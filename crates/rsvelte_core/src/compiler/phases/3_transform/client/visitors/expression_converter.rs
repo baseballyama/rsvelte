@@ -6303,6 +6303,37 @@ fn apply_store_ref_transform(
         {
             *first_arg = transformed_ref;
         }
+        return result;
+    }
+
+    // Non-source props (`const { store } = $props()`) don't register a read
+    // transform — their reads are emitted as `$$props.store` by the default
+    // identifier path. The store-mutation builders, however, emit the bare
+    // store name as the first argument, so resolve it here directly from the
+    // binding: a non-source prop store object must be `$$props.store`
+    // (or `$$props['alias']`). Mirrors the store-getter declaration.
+    if let Some(binding) = context.state.get_binding(store_name)
+        && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+        && !crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+            binding,
+            context.state.analysis,
+        )
+        && let JsExpr::Call(ref mut call) = result
+        && let Some(first_arg) = call.arguments.first_mut()
+        && matches!(first_arg, JsExpr::Identifier(n) if n.as_str() == store_name)
+    {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        let alias = binding.prop_alias.as_deref().filter(|a| *a != store_name);
+        *first_arg = if let Some(a) = alias {
+            JsExpr::Member(JsMemberExpression {
+                object: context.arena.alloc_expr(b::id("$$props")),
+                property: JsMemberProperty::Expression(context.arena.alloc_expr(b::string(a))),
+                computed: true,
+                optional: false,
+            })
+        } else {
+            b::member_path(&context.arena, &format!("$$props.{}", store_name))
+        };
     }
 
     result
