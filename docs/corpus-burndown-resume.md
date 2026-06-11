@@ -5,13 +5,13 @@
 
 ## ゴール
 
-`compat/corpus/known-failures.json` を **132 → 0** に減らす（公式 Svelte コンパイラと
+`compat/corpus/known-failures.json` を **125 → 0** に減らす（公式 Svelte コンパイラと
 CSR/SSR がバイト一致）。パフォーマンスのリグレッションを出さない。大幅リファクタ可。
 
 ## 作業環境（既存。新規 worktree は作らない）
 
 - worktree: `/Users/baseballyama/git/rsvelte-corpus-burndown`
-- ブランチ: `feat/corpus-burndown`（origin にプッシュ済み、HEAD で 132 件）
+- ブランチ: `feat/corpus-burndown`（origin にプッシュ済み、HEAD で 125 件）
 - すべてここで作業し commit → push する。
 
 ## ループ（1 修正ずつ。napi ビルドは ~2.5 分）
@@ -49,7 +49,7 @@ cargo fmt && git add -A && git commit && git push
 
 ## 攻略順（重要）
 
-残り 132 = **parseable 117 / unparseable 8 / CSS 7**。
+残り 125 ≒ **parseable が大半 / unparseable 約8 / CSS 約7**（実数は下記スクリプトで再計算）。
 
 - **parseable（acorn が両出力をパースできる）を最優先**。1 修正 = 1 件パス。
 - unparseable 8 件（await-in-non-async）は raw 比較で複数差分が絡むので後回し。

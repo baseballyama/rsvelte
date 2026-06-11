@@ -5,10 +5,16 @@ Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,378 |
+| match (identical after normalization) | 5,394 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **141** |
+| **known failures (baseline)** | **125** |
 | error-presence / error-code mismatches | 0 |
+
+**Reconciled with `main`'s wave 6 (#978, 316→262 + `flattenTemplateHoles`).**
+This branch was rebased onto that work, so the comparison now has BOTH the
+`flattenTemplateHoles` pre-oxfmt pass (collapses esrap's multi-line `${}` holes)
+AND `astEquivalent` (below); main's targeted server fixes and this branch's are
+merged (duplicates dropped). Combined baseline: **125**.
 
 **Comparison is now AST-structural, not byte.** `verify.mjs` first does the
 byte compare (oxfmt + blank-line strip); if that differs it falls back to
@@ -33,7 +39,7 @@ eval); block-branch leading-whitespace loop-trim + each-`{:else}` comment-skip;
 `onload`/`onerror` capture for `use:` directives; known-global calls
 (`Math.*`/`Number`/`String`/`BigInt`) skip `?? ""` in text interpolation.
 
-**The remaining 141 are genuinely-different compiled code** (not cosmetics —
+**The remaining 125 are genuinely-different compiled code** (not cosmetics —
 AST-distinct from the official output). Examples: `{const}` DeclarationTag
 each-item `$.get` wrapping; `@attach`+`$effect` SSR component wrapper; snippet
 out-of-scope; context-aware `?? ""` for assignment-exprs / bound dimensions; CSS
