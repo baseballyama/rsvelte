@@ -46,8 +46,6 @@
 	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-update-with-spread/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-fallback-4/Inner.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/head-raw-dynamic/Bar.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/immutable-before-after-update/ImmutableTodo.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-in-reactive-declaration-2/App.svelte",

@@ -1091,10 +1091,18 @@ pub(super) fn extract_destructured_export_paths(
         };
         *array_counter += 1;
 
-        declarations.push(format!(
-            "{} = $.derived(() => $.to_array({}, {}))",
-            array_var, base_path, total_count
-        ));
+        // A rest element makes the destructure unbounded, so `$.to_array` is
+        // called without the element-count argument (upstream omits it when the
+        // pattern has a `...rest`).
+        let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
+        declarations.push(if has_rest {
+            format!("{} = $.derived(() => $.to_array({}))", array_var, base_path)
+        } else {
+            format!(
+                "{} = $.derived(() => $.to_array({}, {}))",
+                array_var, base_path, total_count
+            )
+        });
 
         for (idx, elem) in elements.iter().enumerate() {
             let elem = elem.trim();

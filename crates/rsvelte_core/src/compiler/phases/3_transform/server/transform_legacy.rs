@@ -2429,11 +2429,15 @@ fn extract_destructured_export_paths_ssr(
         };
         *array_counter += 1;
 
-        // SSR: use $.to_array() directly (no $.derived wrapper)
-        declarations.push(format!(
-            "{} = $.to_array({}, {})",
-            array_var, base_path, total_count
-        ));
+        // SSR: use $.to_array() directly (no $.derived wrapper). A rest element
+        // makes the destructure unbounded, so the element-count argument is
+        // omitted (upstream omits it when the pattern has a `...rest`).
+        let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
+        declarations.push(if has_rest {
+            format!("{} = $.to_array({})", array_var, base_path)
+        } else {
+            format!("{} = $.to_array({}, {})", array_var, base_path, total_count)
+        });
 
         for (idx, elem) in elements.iter().enumerate() {
             let elem = elem.trim();
