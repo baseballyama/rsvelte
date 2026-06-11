@@ -27,7 +27,6 @@
 	"svelte/packages/svelte/tests/migrate/samples/effects/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/jsdoc-with-comments/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/props-ts/input.svelte",
-	"svelte/packages/svelte/tests/migrate/samples/reactive-statements-inner-block/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/shadowed-forwarded-slot/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/shadowed-forwarded-slot/output.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/slot-usages/output.svelte",

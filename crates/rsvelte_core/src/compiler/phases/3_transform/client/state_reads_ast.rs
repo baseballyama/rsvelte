@@ -116,6 +116,42 @@ fn contains_top_level_semicolon(s: &str) -> bool {
     false
 }
 
+/// True when a `{...}` string is a STATEMENT BLOCK rather than an object
+/// literal, detected by its first inner token being a statement keyword in
+/// statement position — i.e. NOT immediately followed by `:` (which would make
+/// it an object-literal key like `{ if: 1 }`). Catches single-statement blocks
+/// such as `{ if (x) { y(); } }` whose only `;` is nested, so
+/// `contains_top_level_semicolon` misses it and the block would otherwise be
+/// mis-wrapped in `(...)` as an object literal and fail to parse.
+fn inner_is_block_statement(s: &str) -> bool {
+    let Some(inner) = s.trim().strip_prefix('{') else {
+        return false;
+    };
+    let inner = inner.trim_start();
+    // A nested block `{ { … } }` or an empty statement `{ ; }` is a block.
+    if inner.starts_with('{') || inner.starts_with(';') {
+        return true;
+    }
+    const KEYWORDS: &[&str] = &[
+        "if", "for", "while", "do", "switch", "try", "return", "throw", "break", "continue",
+        "const", "let", "var", "function", "class", "debugger", "with",
+    ];
+    for kw in KEYWORDS {
+        if let Some(rest) = inner.strip_prefix(kw) {
+            // Word boundary after the keyword (so `letter` isn't matched as `let`).
+            let boundary = rest
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_alphanumeric() && c != '_' && c != '$');
+            // Not an object key (`kw:`).
+            if boundary && !rest.trim_start().starts_with(':') {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// AST-based rewrite of state-var reads to `$.get(...)`. See
 /// module docs for the precise contract.
 pub fn transform_state_reads_ast(
@@ -156,7 +192,8 @@ pub fn transform_state_reads_ast(
     let trimmed = source.trim();
     let needs_paren_wrap = trimmed.starts_with('{')
         && trimmed.ends_with('}')
-        && !contains_top_level_semicolon(trimmed);
+        && !contains_top_level_semicolon(trimmed)
+        && !inner_is_block_statement(trimmed);
     let leading_ws = source.len() - source.trim_start().len();
     let parse_source: std::borrow::Cow<str> = if needs_paren_wrap {
         let trimmed_start = &source[leading_ws..];
