@@ -5,12 +5,12 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,461 |
+| match (identical after normalization) | 5,463 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **58** (was 125) |
+| **known failures (baseline)** | **56** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 68 → 58 (latest session, 10 ids).** All byte-exact suites
+**Burn-down 68 → 56 (latest session, 12 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
 - `should_proxy` resolves an Identifier through its binding's initial node type
   (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
@@ -26,6 +26,8 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 - block-fragment namespace re-evaluated from its own children even when incoming
   namespace is svg (sibling-of-`<svg>` `{#if}` with html children → `$.from_html`).
 - no `invalidate_inner_signals` for an unbound-global each collection.
+- drop top-level `$:` in a `<script module>` on the server (`strip_top_level_reactive_labels`).
+- no double-wrap of prop-source reads in runes `$props()` defaults (`b()()` → `b()`).
 
 Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 (`normalize.astSignature` drops `shorthand`); uninitialized immutable
@@ -33,7 +35,7 @@ Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>` prior-content
 trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0).
 
-### Remaining 58 — dominant hard clusters (each needs a real port/refactor)
+### Remaining 56 — dominant hard clusters (each needs a real port/refactor)
 
 - **Comment-mangling / TS-cast printer** (~12) — `export let`/decls with interspersed
   `//` / `/* */` comments and stripped TS-cast comments mis-indent and go unparseable
@@ -50,12 +52,17 @@ trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0
   runes.md/5 `count += 1`) — client `$.set(s, $.get(s)+1)` loses `+=` vs `= … +`.
 - **snippet/slot hoisting** (snippet.md/6, slot-usages, shadowed-forwarded-slot,
   svelte-component, head-raw-dynamic title reorder) + boundary `<!---->` whitespace.
-- **store/runes name conflicts** (no-runes-mode `$state()()`, store-runes-conflict,
-  runes-conflicting-store-in-module).
-- **misc** assign-prop-to-prop `b()()`, destructured-props-3, module-script-reactive
-  (drop module `$:` on server), reassign-derived-private (`#deps`/`#_deps`),
-  rest-eachblock-binding, unreferenced-variables-each (`$$index_1` counter order),
-  component-slotted-custom-element (import-node flag on slotted custom element).
+- **store/runes name conflicts** (no-runes-mode `$state()()` — removing the
+  empty-arg getter-call skip in `transform_store_sub_calls` clears it but regresses
+  2 runtime suites + 6 corpus ids: some `$store()` must stay `$store()`, so the fix
+  needs to know whether the store value is callable; store-runes-conflict statement
+  order, runes-conflicting-store-in-module).
+- **misc** destructured-props-3 (`$.fallback` + multi-declarator), reassign-derived-private
+  (`#deps`/`#_deps`), rest-eachblock-binding (`$.get($$array_1)` over-wrap on bind LHS),
+  unreferenced-variables-each (`$$index_1` counter order), component-slotted-custom-element
+  (import-node flag on slotted custom element), declaration-tag-maybe-runes /
+  const-tag-placement-svelte-boundary (SSR `<!---->` ±1 space — conflicting trim vs
+  preserve rules, regression-prone).
 
 ### Implementation-ready plan: client `Evaluation` port (next session, ~2 ids)
 
