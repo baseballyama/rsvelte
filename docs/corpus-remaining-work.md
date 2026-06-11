@@ -7,10 +7,10 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
 | match (identical after normalization) | 5,463 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **56** (was 125) |
+| **known failures (baseline)** | **55** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 68 → 56 (latest session, 12 ids).** All byte-exact suites
+**Burn-down 68 → 55 (latest session, 13 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
 - `should_proxy` resolves an Identifier through its binding's initial node type
   (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
@@ -28,6 +28,7 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 - no `invalidate_inner_signals` for an unbound-global each collection.
 - drop top-level `$:` in a `<script module>` on the server (`strip_top_level_reactive_labels`).
 - no double-wrap of prop-source reads in runes `$props()` defaults (`b()()` → `b()`).
+- `USE_IMPORT_NODE` flag on a single-element slot custom element / `<video>`.
 
 Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 (`normalize.astSignature` drops `shorthand`); uninitialized immutable
@@ -35,7 +36,7 @@ Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>` prior-content
 trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0).
 
-### Remaining 56 — dominant hard clusters (each needs a real port/refactor)
+### Remaining 55 — dominant hard clusters (each needs a real port/refactor)
 
 - **Comment-mangling / TS-cast printer** (~12) — `export let`/decls with interspersed
   `//` / `/* */` comments and stripped TS-cast comments mis-indent and go unparseable
@@ -59,10 +60,10 @@ trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0
   order, runes-conflicting-store-in-module).
 - **misc** destructured-props-3 (`$.fallback` + multi-declarator), reassign-derived-private
   (`#deps`/`#_deps`), rest-eachblock-binding (`$.get($$array_1)` over-wrap on bind LHS),
-  unreferenced-variables-each (`$$index_1` counter order), component-slotted-custom-element
-  (import-node flag on slotted custom element), declaration-tag-maybe-runes /
+  unreferenced-variables-each (`$$index_1` counter order), declaration-tag-maybe-runes /
   const-tag-placement-svelte-boundary (SSR `<!---->` ±1 space — conflicting trim vs
-  preserve rules, regression-prone).
+  preserve rules, regression-prone), clsx-cannot-prune-2 (class object with a `...rest`
+  spread should be reactive `template_effect`, not direct — reactivity-model, risky).
 
 ### Implementation-ready plan: client `Evaluation` port (next session, ~2 ids)
 
