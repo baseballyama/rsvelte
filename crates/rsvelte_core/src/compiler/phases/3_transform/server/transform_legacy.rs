@@ -2287,7 +2287,24 @@ fn transform_destructured_export_let_ssr(declaration: &str) -> Option<String> {
 
     extract_destructured_export_paths_ssr(pattern, "tmp", &mut declarations, &mut array_counter)?;
 
-    Some(format!("let {};", declarations.join(",\n\t")))
+    // Upstream emits the generated `$$array`/`$$array_N` `$.to_array(...)`
+    // declarations together right after `tmp`, before the prop getters that
+    // reference them. Reorder to match (same as the client transform).
+    let ordered = if let Some((tmp_decl, rest_decls)) = declarations.split_first() {
+        let (array_decls, prop_decls): (Vec<String>, Vec<String>) = rest_decls
+            .iter()
+            .cloned()
+            .partition(|d| d.trim_start().starts_with("$$array"));
+        let mut ordered = Vec::with_capacity(declarations.len());
+        ordered.push(tmp_decl.clone());
+        ordered.extend(array_decls);
+        ordered.extend(prop_decls);
+        ordered
+    } else {
+        declarations
+    };
+
+    Some(format!("let {};", ordered.join(",\n\t")))
 }
 
 fn find_destructuring_pattern_end_ssr(s: &str) -> Option<usize> {

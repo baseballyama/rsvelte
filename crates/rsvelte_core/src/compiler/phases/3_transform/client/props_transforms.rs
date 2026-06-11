@@ -920,7 +920,25 @@ pub(super) fn transform_destructured_export_let(
         analysis,
     )?;
 
-    Some(format!("let {};", declarations.join(",\n\t")))
+    // Upstream emits all generated `$$array`/`$$array_N` `$.to_array(...)`
+    // deriveds together right after `tmp`, before the individual prop getters
+    // (which reference them). Reorder to match — `tmp` first, then the array
+    // deriveds in creation order, then the prop declarators in walk order.
+    let ordered = if let Some((tmp_decl, rest_decls)) = declarations.split_first() {
+        let (array_decls, prop_decls): (Vec<String>, Vec<String>) = rest_decls
+            .iter()
+            .cloned()
+            .partition(|d| d.trim_start().starts_with("$$array"));
+        let mut ordered = Vec::with_capacity(declarations.len());
+        ordered.push(tmp_decl.clone());
+        ordered.extend(array_decls);
+        ordered.extend(prop_decls);
+        ordered
+    } else {
+        declarations
+    };
+
+    Some(format!("let {};", ordered.join(",\n\t")))
 }
 
 /// Find the end position of a destructuring pattern in `{ ... } = RHS` or `[ ... ] = RHS`.
