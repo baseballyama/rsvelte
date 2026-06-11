@@ -2290,6 +2290,17 @@ fn visit_slot_children(
                 }
             };
 
+            // A single-element slot whose root is a custom element / `<video>`
+            // (visited just above) sets `needs_import_node`; the template must
+            // carry the `USE_IMPORT_NODE` flag (`2`) so cloning upgrades the
+            // custom element — mirrors the top-level single-element fragment
+            // path. This branch previously hardcoded `flags = None`.
+            let flags = if context.state.template.needs_import_node {
+                Some(2u32) // TEMPLATE_USE_IMPORT_NODE
+            } else {
+                None
+            };
+
             // Build the template expression using transform_template
             // which handles dev mode $.add_locations wrapping, lazy id naming
             // and template dedup (Svelte 5.56.0 #18320).
@@ -2298,7 +2309,7 @@ fn visit_slot_children(
                 &mut context.state,
                 "root",
                 namespace,
-                None,
+                flags,
                 None,
             );
 
