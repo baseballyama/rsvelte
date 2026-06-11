@@ -325,7 +325,19 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             // This is used when transitive_deps is empty (e.g., simple state variables).
             // The collection_expr_str already has transforms applied (e.g., prop()
             // calls for props, $.get() for state variables).
-            invalidation_exprs.push(collection_expr_str.clone());
+            //
+            // Skip an unbound-global bare identifier (no binding in any scope):
+            // it isn't reactive, so upstream emits no invalidation for it — e.g.
+            // an implicit `{#each todos as todo}` in a script-less component
+            // where `todos` is never declared.
+            let is_unbound_global = matches!(
+                &collection,
+                JsExpr::Identifier(name)
+                    if context.state.analysis.root.find_binding_any_scope(name.as_str()).is_none()
+            );
+            if !is_unbound_global {
+                invalidation_exprs.push(collection_expr_str.clone());
+            }
         }
 
         // Also add parent each block invalidation deps
