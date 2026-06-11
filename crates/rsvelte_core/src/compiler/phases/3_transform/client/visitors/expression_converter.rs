@@ -783,9 +783,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let saved_transform = context.state.transform.clone();
             let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
+            // Track which param names are newly shadowed so a prop name bound by a
+            // (possibly destructured) param — e.g. `({ title }) => title` — is NOT
+            // rewritten to `$$props.title`. The non-source-prop rewrite gates on
+            // `shadowed_prop_names`, which the `transform` removal above misses.
+            let newly_shadowed: Vec<String> = param_names
+                .iter()
+                .filter(|n| !context.state.shadowed_prop_names.contains(n.as_str()))
+                .cloned()
+                .collect();
             for name in &param_names {
                 context.state.transform.remove(name);
                 context.state.transform_deep_read.remove(name);
+            }
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             context.state.push_local_scope();
@@ -836,6 +848,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             context.state.event_handler_arrow_body_level = saved_arrow_level;
 
             context.state.pop_local_scope();
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.remove(name);
+            }
             context.state.transform = saved_transform;
             context.state.transform_deep_read = saved_transform_deep_read;
 
@@ -876,9 +891,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let saved_transform = context.state.transform.clone();
             let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
+            // Track which param names are newly shadowed so a prop name bound by a
+            // (possibly destructured) param — e.g. `({ title }) => title` — is NOT
+            // rewritten to `$$props.title`. The non-source-prop rewrite gates on
+            // `shadowed_prop_names`, which the `transform` removal above misses.
+            let newly_shadowed: Vec<String> = param_names
+                .iter()
+                .filter(|n| !context.state.shadowed_prop_names.contains(n.as_str()))
+                .cloned()
+                .collect();
             for name in &param_names {
                 context.state.transform.remove(name);
                 context.state.transform_deep_read.remove(name);
+            }
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             context.state.push_local_scope();
@@ -911,6 +938,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 .unwrap_or_default();
 
             context.state.pop_local_scope();
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.remove(name);
+            }
             context.state.transform = saved_transform;
             context.state.transform_deep_read = saved_transform_deep_read;
 

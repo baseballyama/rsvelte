@@ -17,7 +17,6 @@
 	"svelte.dev/apps/svelte.dev/src/lib/components/ModalDropdown.svelte",
 	"svelte.dev/apps/svelte.dev/src/lib/tutorial/adapters/rollup/index.svelte.ts",
 	"svelte.dev/apps/svelte.dev/src/routes/blog/[slug]/+page.svelte",
-	"svelte.dev/apps/svelte.dev/src/routes/docs/[topic]/[...path]/card.png/Card.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/tutorial/[...slug]/+page.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/tutorial/[...slug]/Loading.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/tutorial/[...slug]/Sidebar.svelte",
