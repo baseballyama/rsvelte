@@ -7,10 +7,10 @@ Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
 | match (identical after normalization) | 5,394 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **83** (was 125) |
+| **known failures (baseline)** | **79** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 125 → 83 (this session).** Landed compiler-side fixes (all verified
+**Burn-down 125 → 79 (this session).** Landed compiler-side fixes (all verified
 against the byte-exact runtime/ssr/compiler_fixtures/css suites, no regressions):
 unbound-global refs → `root.conflicts` (naming `canvas_1`/`form_1`/…);
 svelte:element SSR class-clsx + valueless-attr; `keygen`/`command`/`!doctype`
@@ -22,17 +22,25 @@ private-field parse (`this.#x` → real MemberExpression, drives `needs_context`
 `@attach`/`$effect` runes-mode + `needs_context`; component `--css-prop` with
 slotted children; client constant-fold (ternary, no-arg `$state()`, known
 `<title>`); `$effect.root` statement removal; non-top-level `$:` guard;
-`$state` store-sub on a destructured prop.
+`$state` store-sub on a destructured prop; arrow-param shadowing of prop names
+(`({ title }) => title` stays bare); HTML-entity decode in style-directive
+values (`url(&quot;…&quot;)` → `url("…")`); DeclarationTag each-item `$.get`
+wrapping (gated on `EACH_ITEM_REACTIVE` via `state.transform`).
 
-Remaining 83 = 73 parseable / 8 unparseable (await-in-non-async) / 2 css. The
-hard core left: DeclarationTag each-item `$.get` wrapping (instance-script
-pipeline); `$derived` currying (`yScale()(tick)` — reverted before, do NOT retry
-naively); nested CSS `:global`/`&` transform (needs the index.js:286-334 port);
-class private/public field-name collision (`#deps`/`#_deps`); compound `+=`
-module lowering; the full client `Evaluation` port (declaration-tag known-fold +
-`has_state` via `scope.evaluate`); esrap positional-comment artifacts (`var //…`,
-`let //…` — wait for the Phase-3 printer refactor); a handful of migrate/snippet
-1-offs.
+Remaining 79 = 69 parseable / 8 unparseable (await-in-non-async) / 2 css. The
+hard core left (deep / regression-prone — attempts here have produced 498-failure
+blowups, so verify against every suite): `$derived` currying (`yScale()(tick)` —
+reverted twice, do NOT retry naively); nested CSS `:global`/`&` transform (needs
+the index.js:286-334 port); CSS over-scoping of untargeted elements (`<header>`);
+each-item reactivity flag (`has_external_dependencies` function-depth check —
+reverted, 498 regressions); class private/public field-name collision
+(`#deps`/`#_deps`); compound `+=` module lowering; `.svelte.ts` class-constructor
+drop; the full client `Evaluation` port (declaration-tag-state-referenced-locally
+known-fold + `has_state` via `scope.evaluate`; `Math.round($state)` over-fold);
+legacy reactive-block body state-read wrap; synthetic-option `?? ""` each-index;
+legacy each-block `invalidate_inner_signals` gating; esrap positional-comment
+artifacts (`var //…`, `let //…` — wait for the Phase-3 printer refactor); a
+handful of migrate/snippet 1-offs.
 
 **Reconciled with `main`'s wave 6 (#978, 316→262 + `flattenTemplateHoles`).**
 This branch was rebased onto that work, so the comparison now has BOTH the
