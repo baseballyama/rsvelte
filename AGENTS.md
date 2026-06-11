@@ -38,6 +38,21 @@ See `docs/ecosystem-implementation-plan.md` for the multi-wave plan to port
 the Svelte ecosystem (svelte2tsx, svelte-check, vite-plugin-svelte) on top
 of the rsvelte compiler.
 
+### Corpus output-equality pipeline (`scripts/compat-corpus/`)
+
+Every `.svelte` / `.svelte.(js|ts)` source in sveltejs/svelte and
+sveltejs/svelte.dev (including markdown code blocks; 6,407 entries) is
+compiled with both the official compiler and rsvelte for CSR **and** SSR,
+and the outputs must be byte-identical after comparison-side normalization
+(oxfmt + blank-line stripping — never compiler post-passes). CI ratchet:
+`compat/corpus/known-failures.json` may only shrink. See
+[scripts/compat-corpus/README.md](scripts/compat-corpus/README.md),
+[docs/corpus-remaining-work.md](docs/corpus-remaining-work.md) (burn-down
+playbook for the remaining entries), and
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md)
+(staged plan to replace Phase-3 string surgery with an AST → esrap-port
+printer pipeline).
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)
