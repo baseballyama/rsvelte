@@ -906,7 +906,10 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
 fn extract_css_content(source: &str) -> Option<(String, usize)> {
     let style_start = memmem::find(source.as_bytes(), b"<style")?;
     let content_start = memchr(b'>', &source.as_bytes()[style_start..])? + style_start + 1;
-    let style_end = memmem::find(source.as_bytes(), b"</style>")?;
+    // Match the closing tag START (`</style`), not the exact `</style>` — the
+    // tag may have whitespace before its `>` (`</style   >`), which the parser
+    // accepts; the CSS content ends at `</style` regardless.
+    let style_end = memmem::find(source.as_bytes(), b"</style")?;
 
     if content_start >= style_end {
         return None;

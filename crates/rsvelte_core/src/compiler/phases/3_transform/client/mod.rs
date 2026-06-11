@@ -1744,7 +1744,12 @@ fn transform_client_with_visitors(
             body.push(JsStatement::Raw(with_semi.into()));
         }
         let rest_trimmed = rest.trim();
-        if rest_trimmed.is_empty() {
+        // A module `<script module>` whose only non-import content is comments
+        // (and whitespace) carries no statements. Upstream parses it into an
+        // empty Program and esrap emits nothing — the dangling comments are
+        // dropped (they have no node to anchor to). Mirror that: emit nothing,
+        // rather than hoisting the bare comments to module top level.
+        if rest_trimmed.is_empty() || is_js_comments_and_whitespace_only(rest_trimmed) {
             None
         } else {
             Some(rest_trimmed.to_string())
@@ -2294,6 +2299,37 @@ fn line_start_of(code: &str, pos: usize) -> Option<usize> {
 ///   bar,
 /// } from './module';
 /// ```
+/// True when `src` contains only line/block comments and whitespace — i.e. no
+/// JS statements. Used to detect a comment-only module `<script module>` body,
+/// which upstream parses to an empty Program and prints as nothing. The scan
+/// errs toward `false` (keep the content): a string literal containing `//`
+/// leaves its opening quote behind, so real code never reads as comments-only.
+pub(crate) fn is_js_comments_and_whitespace_only(src: &str) -> bool {
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b' ' | b'\t' | b'\r' | b'\n' => i += 1,
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                i += 2;
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
 pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = Vec::new();
@@ -4072,14 +4108,16 @@ fn transform_instance_script_for_visitors(
             let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
             // Regular non-reactive bindings with initial literal/primitive value.
             //
-            // Mirror upstream `should_proxy`: when the binding initial is one
-            // of the "transparent" non-value declarations (function / class /
-            // import / each-block / snippet-block) we must NOT classify the
-            // name as non-proxy. Upstream `should_proxy(Identifier)` recurses
-            // into `binding.initial` only when initial.type is NOT one of
-            // those five and otherwise falls through to `return true`.
-            // Imports show up with `import_source.is_some()` and may not have
-            // an `initial_node_type` set; treat them the same way.
+            // Mirror upstream `should_proxy(Identifier)`: it resolves the
+            // binding's `initial` and recurses — `should_proxy(binding.initial)`.
+            // That returns `false` (→ NON-proxy) ONLY when the initial is one of
+            // the false-list types (literal / template literal / arrow / function
+            // expression / unary / binary, or the `undefined` identifier). For any
+            // other initial — CallExpression (e.g. a `$props()` call), object /
+            // array literal, member access, `new`, etc. — `should_proxy` falls
+            // through to `return true`, so the binding stays proxy-eligible.
+            // (Marking a CallExpression-initialised binding as non-proxy wrongly
+            // dropped the proxy on `let x = $state(propWithDefault)`.)
             if is_top_level
                 && b.initial.is_some()
                 && !matches!(
@@ -4092,16 +4130,13 @@ fn transform_instance_script_for_visitors(
                         | BindingKind::StoreSub
                 )
                 && b.import_source.is_none()
-                && !matches!(
-                    b.initial_node_type.as_deref(),
-                    Some(
-                        "FunctionDeclaration"
-                            | "ClassDeclaration"
-                            | "ImportDeclaration"
-                            | "EachBlock"
-                            | "SnippetBlock"
-                    )
-                )
+                && (b
+                    .initial_node_type
+                    .as_deref()
+                    .map(is_non_proxy_node_type)
+                    .unwrap_or(false)
+                    || (b.initial_node_type.as_deref() == Some("Identifier")
+                        && b.initial_identifier_name.as_deref() == Some("undefined")))
             {
                 return true;
             }
@@ -4138,25 +4173,13 @@ fn transform_instance_script_for_visitors(
                 }
             }
 
-            // Props with default values that are known non-proxyable types (literals,
-            // functions, `undefined`). This mirrors the official compiler's should_proxy
-            // which recurses into binding.initial when the reference is an identifier.
-            if matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
-                && let Some(ref node_type) = b.initial_node_type
-            {
-                match node_type.as_str() {
-                    "Literal"
-                    | "TemplateLiteral"
-                    | "ArrowFunctionExpression"
-                    | "FunctionExpression"
-                    | "UnaryExpression"
-                    | "BinaryExpression" => return true,
-                    "Identifier" if b.initial_identifier_name.as_deref() == Some("undefined") => {
-                        return true;
-                    }
-                    _ => {}
-                }
-            }
+            // NOTE: props are intentionally NOT classified non-proxy here. Upstream
+            // `should_proxy` resolves an Identifier to `binding.initial`, and for a
+            // destructured prop (`let { x = 0 } = $props()`) that initial is the
+            // `$props()` CallExpression — never the default value. A CallExpression
+            // recurses to `return true`, so a prop reference is always proxy-eligible
+            // regardless of its default's type. (Classifying props by their default
+            // type wrongly dropped the proxy on `let count = $state(propWithDefault)`.)
 
             // Template bindings (@const declarations, let directive bindings) whose
             // initial value is a known non-proxyable primitive expression. Matches the

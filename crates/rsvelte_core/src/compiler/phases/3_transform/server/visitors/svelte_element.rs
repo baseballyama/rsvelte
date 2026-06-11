@@ -78,7 +78,13 @@ impl<'a> ServerCodeGenerator<'a> {
             _ => false, // Skip event handlers, use directives, etc.
         });
 
-        if !has_relevant_attrs {
+        // A CSS-scoped `<svelte:element>` still needs ` class="svelte-hash"`
+        // pushed even with no authored attributes, so don't bail when scoped —
+        // upstream always emits the attributes callback for a scoped dynamic
+        // element (the scope class is injected there).
+        let scoped_with_hash =
+            elem.metadata.scoped && self.analysis.is_some_and(|a| !a.css.hash.is_empty());
+        if !has_relevant_attrs && !scoped_with_hash {
             return Ok(None);
         }
 
@@ -264,6 +270,18 @@ impl<'a> ServerCodeGenerator<'a> {
             if !style_directives.is_empty() && !handled_style {
                 let directives_obj = self.build_style_directives_obj(&style_directives)?;
                 attr_parts.push(format!("${{$.attr_style('', {})}}", directives_obj));
+            }
+
+            // Scoped element with no class attribute and no class directives:
+            // emit the bare scope class (`<svelte:element this={x} />` under a
+            // component with matching CSS → ` class="svelte-hash"`).
+            if let Some(ref hash) = css_hash {
+                let has_class_attr = elem.attributes.iter().any(
+                    |attr| matches!(attr, Attribute::Attribute(n) if n.name.as_str() == "class"),
+                );
+                if !has_class_attr && class_directives.is_empty() && !handled_class {
+                    attr_parts.push(format!(" class=\"{}\"", hash));
+                }
             }
 
             if attr_parts.is_empty() {

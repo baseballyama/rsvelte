@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { flattenTemplateHoles, stripBlankLines } from './normalize.mjs';
+import { flattenTemplateHoles, stripBlankLines, astEquivalent } from './normalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -138,9 +138,16 @@ for (const { id } of manifest) {
 			});
 			continue;
 		}
-		const expJs = stripBlankLines(readIf(path.join(expDir, `${target}.js`)) ?? '');
-		const actJs = stripBlankLines(readIf(path.join(actDir, `${target}.js`)) ?? '');
-		if (expJs !== actJs) {
+		const expRaw = readIf(path.join(expDir, `${target}.js`)) ?? '';
+		const actRaw = readIf(path.join(actDir, `${target}.js`)) ?? '';
+		const expJs = stripBlankLines(expRaw);
+		const actJs = stripBlankLines(actRaw);
+		// Byte comparison first (cheap). If it differs, fall back to AST
+		// structural equivalence (acorn, not regex): the same code differing
+		// only in comment placement / line-wrapping / redundant parens is
+		// accepted, while genuinely-different code — and output acorn can't
+		// parse — still fails.
+		if (expJs !== actJs && !astEquivalent(expRaw, actRaw)) {
 			verdict = 'js-mismatch';
 			details.push({ target, kind: 'js', ...firstDiffLine(expJs, actJs) });
 		}

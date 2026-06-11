@@ -13,6 +13,8 @@
  * ${} nesting) / comment state, and only lines whose newline is outside
  * any multi-line token are eligible for removal.
  */
+import { parse } from 'acorn';
+
 /**
  * Collapse newlines inside template-literal HOLES (`${ ... }`) into a single
  * space, leaving static template text untouched.
@@ -119,6 +121,80 @@ export function flattenTemplateHoles(src) {
 		i++;
 	}
 	return out;
+}
+
+/**
+ * Canonical structural signature of a JS module, via a real parser (acorn) —
+ * NOT regex. `start`/`end`/`loc`/`range` are dropped so source positions don't
+ * matter, and comments are never attached to the AST, so comment placement is
+ * absorbed. Line wrapping (including inside template-literal `${}`
+ * interpolations) and redundant parentheses are not represented in the AST
+ * either, so they are absorbed too. Literal `raw` is KEPT, so number-spelling
+ * and quote differences still register (the corpus already canonicalises those
+ * via oxfmt). Returns `null` when the code can't be parsed (e.g. the official
+ * compiler's `await` inside a non-async async-component function) — callers
+ * then fall back to the byte comparison.
+ *
+ * Because both inputs are produced the same way (acorn builds each node type's
+ * properties in a fixed order), `JSON.stringify` is a sound structural-equality
+ * key: two structurally identical trees serialise to identical strings.
+ */
+function astSignature(code) {
+	let ast;
+	try {
+		ast = parse(code, {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+			allowAwaitOutsideFunction: true,
+			allowReturnOutsideFunction: true,
+			allowImportExportEverywhere: true,
+			allowSuperOutsideMethod: true,
+			preserveParens: false,
+		});
+	} catch {
+		return null;
+	}
+	// Drop `raw` from STRING literals so quote style (`"x"` vs `'x'`) is absorbed
+	// — oxfmt normalizes quotes when it can parse, so this only matters for the
+	// files it can't (await-in-non-async); the cooked `value` is still compared,
+	// so a real string-content difference still fails. Numeric / bigint / regex
+	// `raw` is kept (spelling is meaningful and the corpus tracks it).
+	stripStringRaw(ast);
+	return JSON.stringify(ast, (key, value) =>
+		key === 'start' || key === 'end' || key === 'loc' || key === 'range' ? undefined : value
+	);
+}
+
+function stripStringRaw(node) {
+	if (Array.isArray(node)) {
+		for (const child of node) stripStringRaw(child);
+		return;
+	}
+	if (node === null || typeof node !== 'object') return;
+	if (node.type === 'Literal' && typeof node.value === 'string') {
+		node.raw = undefined;
+	}
+	for (const key in node) {
+		if (key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
+		const v = node[key];
+		if (v !== null && typeof v === 'object') stripStringRaw(v);
+	}
+}
+
+/**
+ * True when two JS outputs are structurally identical modulo source position
+ * and comments — i.e. the same code, differing only in formatting / comment
+ * placement / wrapping. Lets the corpus comparison absorb esrap's positional-
+ * comment and template-literal-wrapping cosmetics without the fragility of
+ * regex-based text munging. Returns false if either side is unparseable, so
+ * genuinely-different code (and unparseable output) still registers as a
+ * mismatch.
+ */
+export function astEquivalent(a, b) {
+	const sa = astSignature(a);
+	if (sa === null) return false;
+	const sb = astSignature(b);
+	return sb !== null && sa === sb;
 }
 
 export function stripBlankLines(src) {

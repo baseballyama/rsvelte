@@ -18,9 +18,19 @@ differences; anything that survives normalization is a real divergence and
 fails verification. Files the official compiler rejects are *error-parity*
 cases: rsvelte must reject them too (same error code).
 
-Normalization is three layers, all in the comparison side — the compiler
+Normalization is four layers, all in the comparison side — the compiler
 itself never spends cycles on cosmetic output massaging (rsvelte targets
 100x compile performance):
+
+0. **AST structural equivalence** (`normalize.astEquivalent`, the fallback) —
+   when the byte compare below still differs, both outputs are parsed with
+   **acorn** (a real parser, never regex) and compared with
+   `start`/`end`/`loc`/`range` dropped. Comments aren't attached to the AST,
+   and line-wrapping (incl. inside template-literal `${}`) and redundant parens
+   aren't represented, so esrap's positional-comment and wrapping cosmetics are
+   absorbed. String-literal `raw` is dropped (quote style absorbed; numeric raw
+   kept), and output acorn can't parse falls back to the byte compare — so
+   genuinely different code always fails.
 
 1. **template-hole flattening** (`normalize.mjs`, applied BEFORE oxfmt) —
    esrap wraps long expressions inside `` `${}` `` template-literal holes

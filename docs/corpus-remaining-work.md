@@ -1,16 +1,55 @@
 # Corpus-compat: remaining work (burn-down playbook)
 
-Status as of 2026-06-11 (branch `feat/corpus-compat`, Svelte 5.56.2):
+Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 
 | metric | count |
 |---|---|
-| corpus entries (CSR + SSR both compiled & compared) | 6,407 |
-| match (byte-identical after normalization) | 5,202 |
-| error parity (official rejects, rsvelte rejects with the SAME code) | 889 |
-| **known failures (baseline)** | **316** |
+| corpus entries (CSR + SSR both compiled & compared) | 6,409 |
+| match (identical after normalization) | 5,394 |
+| error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
+| **known failures (baseline)** | **125** |
 | error-presence / error-code mismatches | 0 |
 
-The 316 remaining ids live in `compat/corpus/known-failures.json`. CI
+**Reconciled with `main`'s wave 6 (#978, 316→262 + `flattenTemplateHoles`).**
+This branch was rebased onto that work, so the comparison now has BOTH the
+`flattenTemplateHoles` pre-oxfmt pass (collapses esrap's multi-line `${}` holes)
+AND `astEquivalent` (below); main's targeted server fixes and this branch's are
+merged (duplicates dropped). Combined baseline: **125**.
+
+**Comparison is now AST-structural, not byte.** `verify.mjs` first does the
+byte compare (oxfmt + blank-line strip); if that differs it falls back to
+`normalize.astEquivalent`, which parses both outputs with **acorn** (a real
+parser — never regex) and compares the trees with `start`/`end`/`loc`/`range`
+dropped. Comments are not attached to the AST, and line-wrapping (incl. inside
+template-literal `${}`) and redundant parens aren't represented either, so all
+of those esrap cosmetics are absorbed. Literal `raw` is kept, so number-spelling
+and quote differences still register. Unparseable-by-acorn output (the official
+compiler's `await` in a non-async async-component fn) falls back to the byte
+compare. This is the sanctioned "absorb formatting in the comparison layer"
+mechanism — it places the cosmetic line precisely where the project always
+wanted it, and made the esrap-positional-comment / template-wrapping classes
+(~150 ids) pass without any compiler change.
+
+**Compiler-side burn-down landed (verified against corpus + byte-exact
+runtime/ssr/compiler fixture suites, no regressions):** `should_proxy`
+identifier-binding resolution + SequenceExpression + drop prop-default branch;
+comment-only `<script module>` dropped; `$props.id()` → defined STRING (server
+eval); block-branch leading-whitespace loop-trim + each-`{:else}` comment-skip;
+`TEMPLATE_USE_IMPORT_NODE` for static `<video>`/custom elements; load/error
+`onload`/`onerror` capture for `use:` directives; known-global calls
+(`Math.*`/`Number`/`String`/`BigInt`) skip `?? ""` in text interpolation.
+
+**The remaining 125 are genuinely-different compiled code** (not cosmetics —
+AST-distinct from the official output). Examples: `{const}` DeclarationTag
+each-item `$.get` wrapping; `@attach`+`$effect` SSR component wrapper; snippet
+out-of-scope; context-aware `?? ""` for assignment-exprs / bound dimensions; CSS
+parse edge cases (`whitespace-after-style-tag`). These are individual
+compiler-behaviour gaps; some are deep and regression-prone (a
+`yScale(tick)`→`yScale()(tick)` attempt was reverted after it broke
+`derived-unowned`/`derived-map` two different ways), so each needs a careful
+upstream-mirrored fix with the corpus + fixture suites as the safety net.
+
+The remaining ids live in `compat/corpus/known-failures.json`. CI
 (`corpus-compat.yml`) fails only on entries NOT in that baseline, so every
 PR may only shrink the list, never grow it (ratchet).
 
