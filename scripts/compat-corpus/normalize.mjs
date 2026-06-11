@@ -160,8 +160,15 @@ function astSignature(code) {
 	// so a real string-content difference still fails. Numeric / bigint / regex
 	// `raw` is kept (spelling is meaningful and the corpus tracks it).
 	stripStringRaw(ast);
+	// Drop `shorthand` on object/pattern Property nodes: `{ a }` and `{ a: a }`
+	// are the same AST except for this pure-syntax flag (key and value are still
+	// compared, so `{ a: b }` still differs). esrap collapses `key: key` to the
+	// shorthand form; rsvelte's text-based instance/module transforms emit the
+	// source verbatim. Absorbed here, like quote style and source positions.
 	return JSON.stringify(ast, (key, value) =>
-		key === 'start' || key === 'end' || key === 'loc' || key === 'range' ? undefined : value
+		key === 'start' || key === 'end' || key === 'loc' || key === 'range' || key === 'shorthand'
+			? undefined
+			: value
 	);
 }
 
