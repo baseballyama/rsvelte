@@ -2117,6 +2117,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     // Skip event handler attributes (onclick, onmousedown, etc.)
                     if name.starts_with("on") {
+                        // Comments inside the dropped handler survive in the
+                        // official output (esrap re-inserts them before the
+                        // next positioned node).
+                        self.record_lost_expression_comments(
+                            expr_tag.expression.start().unwrap_or(0) as usize,
+                            expr_tag.expression.end().unwrap_or(0) as usize,
+                        );
                         return Ok(None);
                     }
 
@@ -2242,6 +2249,13 @@ impl<'a> ServerCodeGenerator<'a> {
             AttributeValue::Expression(expr_tag) => {
                 // Skip event handler attributes (onclick, onmousedown, etc.)
                 if name.starts_with("on") {
+                    // Comments inside the dropped handler survive in the
+                    // official output (esrap re-inserts them before the next
+                    // positioned node).
+                    self.record_lost_expression_comments(
+                        expr_tag.expression.start().unwrap_or(0) as usize,
+                        expr_tag.expression.end().unwrap_or(0) as usize,
+                    );
                     return Ok(None);
                 }
 

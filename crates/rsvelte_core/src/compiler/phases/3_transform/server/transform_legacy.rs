@@ -172,7 +172,126 @@ fn export_let_declaration_seems_complete(decl: &str) -> bool {
 }
 
 /// Transform `export let` declarations for server-side rendering (legacy/non-runes mode).
+/// Split `/* ... */ export let` onto two lines so the line-based scanner
+/// recognizes the declaration; the comment stays as a leading comment.
+fn split_same_line_leading_comments(script: &str) -> std::borrow::Cow<'_, str> {
+    if !script.contains("*/") {
+        return std::borrow::Cow::Borrowed(script);
+    }
+    let mut out = String::with_capacity(script.len() + 8);
+    let mut changed = false;
+    for line in script.lines() {
+        if let Some(close) = line.find("*/") {
+            let after = &line[close + 2..];
+            let after_trimmed = after.trim_start();
+            if after_trimmed.starts_with("export let ") || after_trimmed.starts_with("export var ")
+            {
+                let indent: String = line
+                    .chars()
+                    .take_while(|c| *c == ' ' || *c == '\t')
+                    .collect();
+                out.push_str(&line[..close + 2]);
+                out.push('\n');
+                out.push_str(&indent);
+                out.push_str(after_trimmed);
+                out.push('\n');
+                changed = true;
+                continue;
+            }
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    if !changed {
+        return std::borrow::Cow::Borrowed(script);
+    }
+    if out.ends_with('\n') && !script.ends_with('\n') {
+        out.pop();
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+/// Return `s` truncated at the start of a trailing `//` or `/*` comment
+/// (string-aware). Used by the line-based `export let` lowering so trailing
+/// comments don't confuse declaration parsing.
+pub(crate) fn strip_trailing_comment_for_decl(s: &str) -> &str {
+    match find_trailing_comment_start(s) {
+        Some(i) => s[..i].trim_end(),
+        None => s,
+    }
+}
+
+/// Byte offset of the last `,` at paren/bracket/brace depth 0 (string-aware).
+fn find_last_top_level_comma(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut q = 0u8;
+    let mut last = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_string = false;
+            }
+        } else {
+            match c {
+                b'"' | b'\'' | b'`' => {
+                    in_string = true;
+                    q = c;
+                }
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 0 => last = Some(i),
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    last
+}
+
+/// Byte offset of the first `//` or `/*` outside string literals, or `None`.
+fn find_trailing_comment_start(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut q = 0u8;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_string = false;
+            }
+        } else if c == b'"' || c == b'\'' || c == b'`' {
+            in_string = true;
+            q = c;
+        } else if c == b'/' && i + 1 < bytes.len() && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*')
+        {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
 pub(crate) fn transform_export_let_declarations(script: &str) -> String {
+    // Pre-pass: a leading block comment that ENDS on the same line as the
+    // declaration (`/* ... */ export let x = 'y';`) hides the `export let`
+    // prefix from the line scanner. Upstream keeps the comment as a leading
+    // comment of the lowered statement, so split it onto its own line.
+    let script = split_same_line_leading_comments(script);
+    let script = script.as_ref();
+
     let mut result = String::new();
     let mut lines = script.lines().peekable();
 
@@ -181,6 +300,26 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
 
         if trimmed.starts_with("export let ") || trimmed.starts_with("export var ") {
             let rest = &trimmed[11..];
+
+            // Split off a trailing comment so it doesn't leak into the
+            // parsed declaration. An unclosed `/*` consumes the following
+            // lines up to `*/`.
+            let (rest, mut trailing_comment) = match find_trailing_comment_start(rest) {
+                Some(i) => (rest[..i].trim_end(), Some(rest[i..].trim_end().to_string())),
+                None => (rest, None),
+            };
+            if let Some(tc) = trailing_comment.as_mut()
+                && tc.starts_with("/*")
+                && !tc.contains("*/")
+            {
+                for next in lines.by_ref() {
+                    tc.push('\n');
+                    tc.push_str(next);
+                    if next.contains("*/") {
+                        break;
+                    }
+                }
+            }
 
             let mut full_declaration = rest.to_string();
             // Only continue reading if the expression appears incomplete (unbalanced braces/parens)
@@ -225,7 +364,44 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
             // comments from leaking into generated $.fallback() calls.
             let declaration = strip_at_top_level_semicolon(&full_declaration);
 
-            let transformed = transform_single_export_let(&declaration);
+            let had_default = find_assignment_eq(&declaration).is_some();
+            let mut transformed = transform_single_export_let(&declaration);
+            // Re-attach the trailing comment. esrap attaches it to the last
+            // node of the statement: with a default value that's the value
+            // inside the `$.fallback(...)` call (the comment prints before
+            // the closing paren), without one it trails the statement.
+            if let Some(tc) = trailing_comment {
+                if had_default && transformed.ends_with(");") && !transformed.contains('\n') {
+                    // Attach the comment to the default value INSIDE the
+                    // `$.fallback(...)` call (esrap prints it before the
+                    // closing paren). OXC's codegen would drop a bare
+                    // comment there, so smuggle it through normalization as
+                    // a hex-encoded sequence-expression placeholder:
+                    // `VALUE /* c */` → `(VALUE, void '$$C$$<hex>')`,
+                    // decoded back in `normalize_script_with_oxc`.
+                    if let Some(open) = transformed.find("$.fallback(") {
+                        let args_start = open + "$.fallback(".len();
+                        // Find the last top-level comma inside the call to
+                        // isolate the default-value argument.
+                        let inner = &transformed[args_start..transformed.len() - 2];
+                        if let Some(comma) = find_last_top_level_comma(inner) {
+                            let value = inner[comma + 1..].trim().to_string();
+                            let prefix = transformed[..args_start + comma + 1].to_string();
+                            let hex: String = tc.bytes().map(|b| format!("{:02x}", b)).collect();
+                            transformed = format!("{} ({}, void '$$C$${}'));", prefix, value, hex);
+                        } else {
+                            transformed.push(' ');
+                            transformed.push_str(&tc);
+                        }
+                    } else {
+                        transformed.push(' ');
+                        transformed.push_str(&tc);
+                    }
+                } else {
+                    transformed.push(' ');
+                    transformed.push_str(&tc);
+                }
+            }
             result.push_str(&transformed);
             result.push('\n');
         } else {
@@ -669,6 +845,99 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
         }
     }
     None
+}
+
+/// Sentinel label used to hide nested (non-top-level) `$:` labels from the
+/// line-based legacy reactive-statement transforms. Upstream only treats
+/// `$:` LabeledStatements at the TOP level of the instance script as
+/// reactive; a `$:` inside a function body is a plain JS label and must stay
+/// in place untouched.
+pub(crate) const NESTED_REACTIVE_LABEL: &str = "$_rsvelte_nested_label";
+
+/// Replace nested (brace/paren/bracket depth > 0) `$:` labels with the
+/// `NESTED_REACTIVE_LABEL` sentinel so the legacy transforms (which scan
+/// line-by-line for `$:`) skip them. Returns `(masked, changed)`.
+pub(crate) fn mask_nested_reactive_labels(script: &str) -> (String, bool) {
+    if !script.contains("$:") {
+        return (script.to_string(), false);
+    }
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out: Vec<u8> = Vec::with_capacity(script.len() + 32);
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    let mut changed = false;
+    while i < len {
+        let c = bytes[i];
+        match c {
+            b'"' | b'\'' | b'`' => {
+                let q = c;
+                let start = i;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                out.extend_from_slice(&bytes[start..i.min(len)]);
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                let eol = memchr::memchr(b'\n', &bytes[i..])
+                    .map(|p| i + p)
+                    .unwrap_or(len);
+                out.extend_from_slice(&bytes[i..eol]);
+                i = eol;
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                let close = memchr::memmem::find(&bytes[i + 2..], b"*/")
+                    .map(|p| i + 2 + p + 2)
+                    .unwrap_or(len);
+                out.extend_from_slice(&bytes[i..close.min(len)]);
+                i = close;
+            }
+            b'{' | b'(' | b'[' => {
+                depth += 1;
+                out.push(c);
+                i += 1;
+            }
+            b'}' | b')' | b']' => {
+                depth -= 1;
+                out.push(c);
+                i += 1;
+            }
+            b'$' if depth > 0
+                && i + 1 < len
+                && bytes[i + 1] == b':'
+                && (i == 0 || {
+                    let p = bytes[i - 1];
+                    !(p.is_ascii_alphanumeric() || p == b'_' || p == b'$' || p == b'.')
+                }) =>
+            {
+                out.extend_from_slice(NESTED_REACTIVE_LABEL.as_bytes());
+                i += 1; // keep the `:`
+                changed = true;
+            }
+            _ => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    (
+        String::from_utf8(out).unwrap_or_else(|_| script.to_string()),
+        changed,
+    )
+}
+
+/// Restore nested `$:` labels masked by `mask_nested_reactive_labels`.
+pub(crate) fn unmask_nested_reactive_labels(script: &str) -> String {
+    script.replace(NESTED_REACTIVE_LABEL, "$")
 }
 
 /// Extract variable names from legacy reactive `$:` statements.

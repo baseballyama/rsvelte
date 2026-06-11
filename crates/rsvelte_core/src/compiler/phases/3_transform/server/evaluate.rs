@@ -700,6 +700,36 @@ impl<'a> ServerCodeGenerator<'a> {
         false
     }
 
+    /// Whether a template-scope binding declared in `scope_index` is lexically
+    /// reachable from the fragment this generator is emitting.
+    ///
+    /// Snippet bodies become separate functions in the generated output, so a
+    /// template declaration (`{@const}` / `{const}` / `{let}`) made inside one
+    /// snippet must NOT be substituted into a sibling snippet or the enclosing
+    /// fragment — upstream resolves these through `scope.evaluate`, where the
+    /// binding is simply not on the scope chain. Non-snippet template scopes
+    /// (element / each / component / boundary fragments) keep the historical
+    /// behaviour (the server generator does not track those descents; the
+    /// same-name agreement rule in `evaluate_identifier` covers shadowing).
+    fn template_binding_is_reachable(&self, scope_index: usize) -> bool {
+        let Some(analysis) = self.analysis else {
+            return true;
+        };
+        if !analysis.root.snippet_scope_indices.contains(&scope_index) {
+            // Not a snippet-body scope: keep historical (non-tracked) behaviour.
+            return true;
+        }
+        // Walk the scope chain from the current fragment's scope upward.
+        let mut current = self.current_scope_index;
+        while let Some(idx) = current {
+            if idx == scope_index {
+                return true;
+            }
+            current = analysis.root.all_scopes.get(idx).and_then(|s| s.parent);
+        }
+        false
+    }
+
     /// Resolve an identifier, mirroring upstream's `Identifier` branch.
     fn evaluate_identifier(&self, name: &str, depth: u8) -> Evaluation {
         if depth > MAX_DEPTH {
@@ -731,7 +761,8 @@ impl<'a> ServerCodeGenerator<'a> {
                         b.name == name
                             && (b.scope_index == 0
                                 || b.scope_index == a.root.instance_scope_index
-                                || template_scopes.contains(&b.scope_index))
+                                || (template_scopes.contains(&b.scope_index)
+                                    && self.template_binding_is_reachable(b.scope_index)))
                     })
                     .collect::<Vec<_>>()
             })
@@ -825,6 +856,18 @@ impl<'a> ServerCodeGenerator<'a> {
         }
         if binding.is_updated() {
             return Evaluation::unknown();
+        }
+        // `$state()` / `$state.raw()` with no argument evaluates to
+        // `undefined` (upstream scope.js CallExpression rune case: no
+        // argument → `values.add(undefined)`). The analyzer stores the rune
+        // ARGUMENT as `initial`, so a no-arg rune leaves both `initial` and
+        // `initial_node_type` unset — distinguishable from a non-literal
+        // argument, which sets `initial_node_type`.
+        if matches!(binding.kind, State | RawState)
+            && binding.initial.is_none()
+            && binding.initial_node_type.is_none()
+        {
+            return Evaluation::single(EvalValue::Undefined);
         }
         let Some(initial) = binding.initial.as_deref() else {
             return Evaluation::unknown();

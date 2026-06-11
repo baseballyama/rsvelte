@@ -520,6 +520,25 @@ pub fn strip_typescript(source: &str) -> String {
         if *remove_start > pos {
             output.push_str(&source[pos as usize..*remove_start as usize]);
         }
+        // The official compiler PARSES TypeScript and only removes the
+        // type-only nodes — comments inside a removed declaration (e.g. the
+        // per-property JSDoc of an `interface Props { ... }`) survive in
+        // `analysis.comments` and esrap re-prints them before the next
+        // statement. Keep them: re-emit every comment found inside a removed
+        // multi-line region in place.
+        let start = *remove_start as usize;
+        let end = (*remove_end as usize).min(source.len());
+        if pos as usize <= start && start < end {
+            let removed = &source[start..end];
+            if removed.contains('\n') && (removed.contains("/*") || removed.contains("//")) {
+                for comment in
+                    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(removed)
+                {
+                    output.push_str(&comment);
+                    output.push('\n');
+                }
+            }
+        }
         pos = pos.max(*remove_end);
     }
 

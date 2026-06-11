@@ -78,6 +78,9 @@ pub struct ScopeBuilder<'a> {
     /// Used by Phase 2 visitors to properly track context.scope when entering
     /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
     template_scope_map: FxHashMap<u32, usize>,
+    /// Scope indices created for `{#snippet …}` bodies (see
+    /// `ScopeRoot::snippet_scope_indices`).
+    snippet_scope_indices: rustc_hash::FxHashSet<usize>,
     /// Identifier names found in template expression arrow function parameters.
     /// These need to be in the conflicts set so that generated variable names
     /// (like `node`, `$$array`, etc.) don't collide with them.
@@ -121,6 +124,7 @@ impl<'a> ScopeBuilder<'a> {
             current_script_offset: 0,
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
         }
@@ -316,6 +320,7 @@ impl<'a> ScopeBuilder<'a> {
                 function_scope_map: self.function_scope_map,
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
+                snippet_scope_indices: self.snippet_scope_indices,
                 conflicts: std::rc::Rc::new(std::cell::RefCell::new(conflicts)),
             },
             self.validation_errors,
@@ -4838,6 +4843,9 @@ impl<'a> ScopeBuilder<'a> {
         // Map the snippet block's start position to its scope index
         self.template_scope_map
             .insert(block.start, self.current_scope);
+        // Record that this scope is a snippet-body scope: template declarations
+        // made inside it must not be constant-folded from sibling scopes.
+        self.snippet_scope_indices.insert(self.current_scope);
 
         // Declare snippet parameters - handle destructuring patterns
         for param in &block.parameters {

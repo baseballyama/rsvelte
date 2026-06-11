@@ -93,12 +93,47 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
             )
         });
 
+    // In non-async mode, visit boundary-level `{@const}` tags FIRST, capturing
+    // their generated declarations. Upstream SvelteBoundary.js: "const tags
+    // need to live inside the boundary, but might also be referenced in
+    // hoisted snippets. to resolve this we cheat: we duplicate const tags
+    // inside snippets". The visit also registers the `$.get(...)` read
+    // transform for each const name, so snippet bodies reference `$.get(foo)`
+    // instead of folding or emitting a bare identifier.
+    let mut const_tags: Vec<JsStatement> = Vec::new();
+    if !use_async {
+        for child in &node.fragment.nodes {
+            if let TemplateNode::ConstTag(_) = child {
+                let saved_consts = std::mem::take(&mut context.state.consts);
+                context.visit_node(child, None);
+                let generated = std::mem::replace(&mut context.state.consts, saved_consts);
+                const_tags.extend(generated);
+            }
+        }
+    }
+    // Only variable declarations are duplicated into hoisted snippet bodies
+    // (upstream filters `node.type === 'VariableDeclaration'`; the dev-mode
+    // eager `$.get(...)` statements stay in the boundary content only).
+    let snippet_const_tags: Vec<JsStatement> = const_tags
+        .iter()
+        .filter(|s| matches!(s, JsStatement::VariableDeclaration(_)))
+        .cloned()
+        .collect();
+
     // Process fragment children
     for child in &node.fragment.nodes {
         match child {
-            TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_) => {
-                // In async mode, const / declaration tags live inside the boundary
-                // content. In non-async mode, they are also processed inline.
+            TemplateNode::ConstTag(_) => {
+                // In async mode, const tags live inside the boundary content.
+                // In non-async mode they were already visited above (and their
+                // declarations are unshifted into the content block below).
+                if use_async {
+                    content_nodes.push(child.clone());
+                }
+            }
+            TemplateNode::DeclarationTag(_) => {
+                // Declaration tags always stay in the boundary content
+                // (upstream does not duplicate them into snippets).
                 content_nodes.push(child.clone());
             }
             TemplateNode::SnippetBlock(snippet) => {
@@ -112,6 +147,9 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                     content_nodes.push(child.clone());
                 } else {
                     // Hoist the snippet (either it's failed/pending, or non-async mode)
+                    // Duplicate the boundary-level const declarations at the top
+                    // of the snippet body (consumed by `snippet_block`).
+                    context.state.snippet_body_prepend = snippet_const_tags.clone();
                     let saved_init = std::mem::take(&mut context.state.init);
                     let saved_instance = std::mem::take(&mut context.state.instance_level_snippets);
                     let saved_module = std::mem::take(&mut context.state.module_level_snippets);
@@ -178,6 +216,15 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
     // Collect any instance-level snippets that were generated inside the boundary
     // content and should stay inside the callback.
     let mut content_body = content_block.body;
+
+    // Non-async: the boundary-level const declarations (visited in the
+    // pre-pass) live at the top of the boundary content block (upstream
+    // `block.body.unshift(...const_tags)`).
+    if !const_tags.is_empty() {
+        let mut new_body = const_tags;
+        new_body.extend(content_body);
+        content_body = new_body;
+    }
     if let Some(saved) = saved_instance_snippets {
         // The new instance_level_snippets were added by fragment() merging.
         // Take them and prepend to the boundary callback body.

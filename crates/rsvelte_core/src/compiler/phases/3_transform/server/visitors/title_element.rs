@@ -22,6 +22,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.current_scope_index = self.current_scope_index;
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
         body_generator.uses_store_subs = self.uses_store_subs;

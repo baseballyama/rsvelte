@@ -458,11 +458,24 @@ impl<'a> ServerCodeGenerator<'a> {
         // In the official compiler, snippet blocks are hoisted and emitted as function
         // declarations within the same scope (matching Fragment visitor behavior).
         let mut parts = body_generator.output_parts;
-        for snippet in body_generator.snippets {
-            // Insert snippet function BEFORE the async consts run call
-            // (snippets are hoisted in JS, so they can reference promises declared later)
-            // Find the position of the last RawStatement that starts with "let " or
-            // the last ConstDeclaration, and insert after that.
+        // Insert snippet functions BEFORE the async consts run call
+        // (snippets are hoisted in JS, so they can reference promises declared
+        // later). Find the position of the last RawStatement that starts with
+        // "let " or the last ConstDeclaration, and insert after that. The
+        // anchor is computed ONCE and advanced per snippet so multiple
+        // snippets keep their source order (inserting each at the same anchor
+        // would reverse them).
+        let snippet_parts: Vec<OutputPart> = body_generator
+            .snippets
+            .into_iter()
+            .map(|snippet| OutputPart::SnippetFunction {
+                name: snippet.name,
+                params: snippet.params,
+                body: snippet.body_parts,
+                dev: self.dev,
+            })
+            .collect();
+        if !snippet_parts.is_empty() {
             let insert_pos = parts
                 .iter()
                 .rposition(|p| {
@@ -471,15 +484,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 })
                 .map(|pos| pos + 1)
                 .unwrap_or(0);
-            parts.insert(
-                insert_pos,
-                OutputPart::SnippetFunction {
-                    name: snippet.name,
-                    params: snippet.params,
-                    body: snippet.body_parts,
-                    dev: self.dev,
-                },
-            );
+            parts.splice(insert_pos..insert_pos, snippet_parts);
         }
 
         // Apply const-tag-level async wrapping to fragment body parts
@@ -592,7 +597,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 _ => break,
             }
         }
-        let first_content = nodes.get(first_visible_idx);
+        // Bound by `end_idx`: trailing whitespace-only text was trimmed above
+        // and must not re-trigger the anchor (e.g. `{@const …}\n` where the
+        // only meaningful child is the const tag).
+        let first_content = if first_visible_idx < end_idx {
+            nodes.get(first_visible_idx)
+        } else {
+            None
+        };
         let needs_anchor = add_text_anchor
             && matches!(
                 first_content,
@@ -681,6 +693,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     body_generator.use_async,
                 );
                 frag_generator.constant_vars = body_generator.constant_vars.clone();
+                frag_generator.current_scope_index = body_generator.current_scope_index;
                 frag_generator.namespace = body_generator.namespace.clone();
                 frag_generator.dev = body_generator.dev;
                 frag_generator.uses_store_subs = body_generator.uses_store_subs;

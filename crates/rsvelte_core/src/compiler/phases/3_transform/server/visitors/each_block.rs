@@ -65,26 +65,33 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
 
         if !self.preserve_whitespace {
-            // Skip leading whitespace and hoisted nodes (ConstTag, SnippetBlock, Comment)
-            // Hoisted nodes are transparent for whitespace trimming, matching clean_nodes behavior.
+            // Skip leading whitespace and (unless preserved) comments.
+            // Upstream's clean_nodes filters comments FIRST and then trims
+            // leading whitespace, so `\n<!-- c -->\n{#if ...}` has no leading
+            // text at all.
             while start_idx < len {
                 match body_nodes[start_idx] {
                     TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        start_idx += 1;
+                    }
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
                         start_idx += 1;
                     }
                     _ => break,
                 }
             }
 
-            // Skip trailing whitespace
+            // Skip trailing whitespace and (unless preserved) comments
             while end_idx > start_idx {
-                if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                    && is_svelte_whitespace_only(&text.data)
-                {
-                    end_idx -= 1;
-                    continue;
+                match body_nodes[end_idx - 1] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        end_idx -= 1;
+                    }
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
+                        end_idx -= 1;
+                    }
+                    _ => break,
                 }
-                break;
             }
         }
 
@@ -333,6 +340,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.use_async,
             );
             fallback_generator.constant_vars = self.constant_vars.clone();
+            fallback_generator.current_scope_index = self.current_scope_index;
             fallback_generator.const_promises_counter = self.const_promises_counter.clone();
             fallback_generator.const_blocker_map = self.const_blocker_map.clone();
             fallback_generator.is_typescript = self.is_typescript;

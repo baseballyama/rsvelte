@@ -894,6 +894,23 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// rewritten to `name?.()` (matching upstream `build_getter`'s
     /// `declaration_kind === 'var' ? b.maybe_call : b.call`).
     pub(crate) derived_var_names: FxHashSet<String>,
+    /// The Phase-2 scope index of the template fragment this generator is
+    /// emitting (currently tracked at `{#snippet}` boundaries, where the
+    /// generated output becomes a separate function). Used by the evaluator
+    /// to restrict constant-folding of snippet-scoped template declarations
+    /// (`{@const}` / `{const}` / `{let}`) to lexically reachable references —
+    /// a `{@const}` in a SIBLING snippet must render as a (possibly global)
+    /// identifier, not be substituted (mirrors upstream `scope.evaluate`).
+    pub(crate) current_scope_index: Option<usize>,
+    /// Comments inside template expressions the server transform drops
+    /// entirely (event-handler attributes / `on:` directives). The official
+    /// compiler keeps every parsed comment — esrap re-inserts them before the
+    /// next printed node with a later source position, which is typically the
+    /// next template expression (`$.escape(...)` / `$.ensure_array_like(...)`
+    /// argument). Collected as `(source_offset, comment_text)`; shared with
+    /// child fragment generators so nested handlers contribute too. Flushed
+    /// by `build()`.
+    pub(crate) lost_comments: std::rc::Rc<std::cell::RefCell<Vec<(usize, String)>>>,
 }
 
 /// Accumulator for grouping multiple const tags into a single `$$renderer.run()` call.
@@ -1174,6 +1191,27 @@ impl<'a> ServerCodeGenerator<'a> {
             async_consts: None,
             derived_names,
             derived_var_names,
+            current_scope_index: None,
+            lost_comments: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+        }
+    }
+
+    /// Record the comments contained in a dropped template expression (e.g.
+    /// an event-handler attribute the server ignores) so `build()` can
+    /// re-emit them positionally like the official compiler does.
+    pub(crate) fn record_lost_expression_comments(&self, start: usize, end: usize) {
+        if end <= start || end > self.source.len() {
+            return;
+        }
+        let snippet = &self.source[start..end];
+        if !snippet.contains("//") && !snippet.contains("/*") {
+            return;
+        }
+        let mut sink = self.lost_comments.borrow_mut();
+        for (rel, text) in
+            super::server::transform_script::extract_comments_from_snippet_with_pos(snippet)
+        {
+            sink.push((start + rel, text));
         }
     }
 
@@ -1208,6 +1246,8 @@ impl<'a> ServerCodeGenerator<'a> {
             async_consts: None,
             derived_names: self.derived_names.clone(),
             derived_var_names: self.derived_var_names.clone(),
+            current_scope_index: self.current_scope_index,
+            lost_comments: self.lost_comments.clone(),
         }
     }
 

@@ -2214,6 +2214,12 @@ fn visit_slot_children(
     let saved_init = std::mem::take(&mut context.state.init);
     let saved_update = std::mem::take(&mut context.state.update);
     let saved_after_update = std::mem::take(&mut context.state.after_update);
+    // The slot content is its own fragment: upstream's Fragment visitor clones
+    // the transform map (`transform: { ...state.transform }`), so transforms
+    // registered while visiting slot content (e.g. a slot-level `{@const}`)
+    // must not leak to sibling slots / later components.
+    let saved_transform = context.state.transform.clone();
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
     let saved_template = context.state.template.clone();
     let saved_node = context.state.node.clone();
     let saved_hoisted = std::mem::take(&mut context.state.hoisted);
@@ -2369,8 +2375,10 @@ fn visit_slot_children(
                 ),
             ));
         }
-    } else {
-        // For non-standalone cases, follow Fragment.js pattern:
+    } else if !cleaned.trimmed.is_empty() {
+        // For non-standalone cases, follow Fragment.js pattern (upstream gates
+        // this branch on `trimmed.length > 0` — a slot whose content is ONLY
+        // hoisted nodes like `{@const}` emits no template / fragment / append):
         // 1. Create fragment variable
         // 2. Use process_children with $.first_child(fragment) as initial expression
         // 3. Check if template is single comment -> use $.comment()
@@ -2630,6 +2638,10 @@ fn visit_slot_children(
             )),
         ));
     }
+
+    // Restore the transform maps (slot-local transforms end here)
+    context.state.transform = saved_transform;
+    context.state.transform_deep_read = saved_transform_deep_read;
 
     // Add init statements
     let init_stmts = std::mem::replace(&mut context.state.init, saved_init);

@@ -441,6 +441,27 @@ fn format_js_line(line: &str) -> String {
             continue;
         }
 
+        // Copy comments verbatim — `name=1` inside a `// ...` or `/* ... */`
+        // comment must not get assignment spacing.
+        if c == '/' && matches!(chars.get(i + 1), Some('/')) {
+            result.extend(&chars[i..]);
+            break;
+        }
+        if c == '/' && matches!(chars.get(i + 1), Some('*')) {
+            let mut j = i + 2;
+            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                j += 1;
+            }
+            let end = if j + 1 < chars.len() {
+                j + 2
+            } else {
+                chars.len()
+            };
+            result.extend(&chars[i..end]);
+            i = end;
+            continue;
+        }
+
         if c == '=' {
             let next = chars.get(i + 1).copied();
             let prev = if !result.is_empty() {
@@ -2645,7 +2666,9 @@ fn is_after_ident_char(bytes: &[u8], i: usize) -> bool {
         return false;
     }
     let c = bytes[i - 1];
-    c.is_ascii_alphanumeric() || c == b'_' || c == b'$'
+    // `#` starts a class private name (`#y`), a distinct token from the
+    // plain identifier `y` — never treat it as a bare identifier start.
+    c.is_ascii_alphanumeric() || c == b'_' || c == b'$' || c == b'#'
 }
 
 /// Decide whether the identifier at `bytes[start..end]` is a *read* of a
@@ -2812,8 +2835,34 @@ fn compute_shadow_ranges(
         open: usize,
         // Names declared in this block.
         declared: Vec<String>,
+        // True when this frame was opened by a `${` template-literal
+        // placeholder: after its `}` closes we must resume scanning the
+        // surrounding template-literal *text* (not code).
+        template_placeholder: bool,
     }
     let mut stack: Vec<Frame> = Vec::new();
+    // Scan template-literal text starting at `from` (just inside the
+    // backtick). Returns `(next_i, entered_placeholder)`: when a `${` is
+    // found, `next_i` points just past the `{` and `entered_placeholder` is
+    // true; otherwise `next_i` points past the closing backtick (or EOF).
+    let scan_template_text = |bytes: &[u8], from: usize| -> (usize, bool) {
+        let len = bytes.len();
+        let mut i = from;
+        while i < len {
+            if bytes[i] == b'\\' && i + 1 < len {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'`' {
+                return (i + 1, false);
+            }
+            if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                return (i + 2, true);
+            }
+            i += 1;
+        }
+        (len, false)
+    };
     // Helper to add a declared name + a range that runs from the next
     // statement until the closing brace. The range start is the position
     // *after* the declaration's identifier (so the declaration itself
@@ -2864,27 +2913,16 @@ fn compute_shadow_ranges(
         // them as nested code regions — we still want to find shadow decls
         // inside placeholders).
         if b == b'`' {
-            i += 1;
-            while i < len {
-                if bytes[i] == b'\\' && i + 1 < len {
-                    i += 2;
-                    continue;
-                }
-                if bytes[i] == b'`' {
-                    i += 1;
-                    break;
-                }
-                if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
-                    // Step into the placeholder by treating `{` as a brace
-                    // we'll see in the outer loop.
-                    i += 2;
-                    stack.push(Frame {
-                        open: i,
-                        declared: Vec::new(),
-                    });
-                    break;
-                }
-                i += 1;
+            let (next, entered) = scan_template_text(bytes, i + 1);
+            i = next;
+            if entered {
+                // Step into the placeholder; mark the frame so the closing
+                // `}` resumes template-text scanning.
+                stack.push(Frame {
+                    open: i,
+                    declared: Vec::new(),
+                    template_placeholder: true,
+                });
             }
             continue;
         }
@@ -2892,6 +2930,7 @@ fn compute_shadow_ranges(
             stack.push(Frame {
                 open: i,
                 declared: Vec::new(),
+                template_placeholder: false,
             });
             i += 1;
             continue;
@@ -2903,6 +2942,19 @@ fn compute_shadow_ranges(
                         .entry(name.clone())
                         .or_default()
                         .push((frame.open, i));
+                }
+                if frame.template_placeholder {
+                    // Back inside the surrounding template literal's text.
+                    let (next, entered) = scan_template_text(bytes, i + 1);
+                    i = next;
+                    if entered {
+                        stack.push(Frame {
+                            open: i,
+                            declared: Vec::new(),
+                            template_placeholder: true,
+                        });
+                    }
+                    continue;
                 }
             }
             i += 1;
@@ -3189,10 +3241,16 @@ fn compute_shadow_ranges(
                 if m < len && bytes[m] == b'{' {
                     // Push a frame for the body, pre-populated with params.
                     // Advance `i` to *just past* the body `{` so brace
-                    // tracking is consistent.
+                    // tracking is consistent. The frame opens at the param
+                    // list `(` (not the body `{`) so the parameter
+                    // identifiers themselves are inside the shadow range —
+                    // `function updateLeft(left) {…}` must not wrap the
+                    // param `left` even when an outer derived is named
+                    // `left`.
                     stack.push(Frame {
-                        open: m,
+                        open,
                         declared: params,
+                        template_placeholder: false,
                     });
                     i = m + 1;
                     continue;
@@ -3224,7 +3282,9 @@ fn compute_shadow_ranges(
                         e += 1;
                     }
                     for n in params {
-                        ranges.entry(n).or_default().push((m, e));
+                        // Range opens at the param `(` so the parameter
+                        // identifiers themselves are covered.
+                        ranges.entry(n).or_default().push((open, e));
                     }
                     i = m;
                     continue;
@@ -5486,6 +5546,59 @@ fn find_matching_paren_server(s: &str) -> Option<usize> {
     None
 }
 
+/// Scan a char slice starting just after an opening `(` and return the index
+/// of the matching `)`. Skips string literals, template literals, and
+/// `//` / `/* ... */` comments so parens or quotes inside them (e.g.
+/// `// a) immediately…` or `// we've mounted`) don't break the depth
+/// tracking. Returns `chars.len()` when unbalanced (EOF).
+fn find_matching_paren_in_chars(chars: &[char], start: usize) -> usize {
+    let mut depth = 1i32;
+    let mut i = start;
+    while i < chars.len() {
+        let c = chars[i];
+        match c {
+            '"' | '\'' | '`' => {
+                let q = c;
+                i += 1;
+                while i < chars.len() {
+                    if chars[i] == '\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if chars[i] == q {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            '/' if i + 1 < chars.len() && chars[i + 1] == '/' => {
+                while i < chars.len() && chars[i] != '\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            '/' if i + 1 < chars.len() && chars[i + 1] == '*' => {
+                i += 2;
+                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                    i += 1;
+                }
+                i = (i + 2).min(chars.len());
+                continue;
+            }
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return i;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    chars.len()
+}
+
 /// Remove $effect, $effect.pre, $effect.root, $inspect, and $inspect.trace blocks from script.
 /// When `use_async` is true, $effect/$effect.pre are replaced with `/* $$async_noop */`
 /// markers so the async body transform generates placeholder slots in the run array.
@@ -5547,36 +5660,9 @@ fn transform_inspect_to_console_log(script: &str) -> String {
                 if is_statement {
                     // Extract arguments
                     let start = i + prefix_len;
-                    let mut depth = 1;
-                    let mut end = start;
-                    let mut in_string = false;
-                    let mut string_char = ' ';
+                    let mut end = find_matching_paren_in_chars(&chars, start);
 
-                    while end < chars.len() && depth > 0 {
-                        let c = chars[end];
-                        if (c == '"' || c == '\'' || c == '`')
-                            && (end == 0 || chars[end - 1] != '\\')
-                        {
-                            if !in_string {
-                                in_string = true;
-                                string_char = c;
-                            } else if c == string_char {
-                                in_string = false;
-                            }
-                        }
-                        if !in_string {
-                            match c {
-                                '(' => depth += 1,
-                                ')' => depth -= 1,
-                                _ => {}
-                            }
-                        }
-                        if depth > 0 {
-                            end += 1;
-                        }
-                    }
-
-                    let args_str: String = chars[start..end].iter().collect();
+                    let args_str: String = chars[start..end.min(chars.len())].iter().collect();
                     end += 1; // skip closing paren
 
                     // Handle method chaining like $inspect(...).with(fn)
@@ -5590,35 +5676,9 @@ fn transform_inspect_to_console_log(script: &str) -> String {
                             }
                             if end < chars.len() && chars[end] == '(' {
                                 let with_start = end + 1;
-                                end += 1;
-                                let mut with_depth = 1;
-                                let mut with_in_string = false;
-                                let mut with_string_char = ' ';
-
-                                while end < chars.len() && with_depth > 0 {
-                                    let c = chars[end];
-                                    if (c == '"' || c == '\'' || c == '`')
-                                        && (end == 0 || chars[end - 1] != '\\')
-                                    {
-                                        if !with_in_string {
-                                            with_in_string = true;
-                                            with_string_char = c;
-                                        } else if c == with_string_char {
-                                            with_in_string = false;
-                                        }
-                                    }
-                                    if !with_in_string {
-                                        match c {
-                                            '(' => with_depth += 1,
-                                            ')' => with_depth -= 1,
-                                            _ => {}
-                                        }
-                                    }
-                                    if with_depth > 0 {
-                                        end += 1;
-                                    }
-                                }
-                                let cb: String = chars[with_start..end].iter().collect();
+                                end = find_matching_paren_in_chars(&chars, with_start);
+                                let cb: String =
+                                    chars[with_start..end.min(chars.len())].iter().collect();
                                 with_callback = Some(cb);
                                 end += 1;
                             }
@@ -5678,34 +5738,7 @@ fn remove_rune_statement_with_noop(script: &str, rune_prefix: &str) -> String {
                 if is_statement {
                     // Find the end of this rune call
                     let start = i + prefix_len;
-                    let mut depth = 1;
-                    let mut end = start;
-                    let mut in_string = false;
-                    let mut string_char = ' ';
-
-                    while end < chars.len() && depth > 0 {
-                        let c = chars[end];
-                        if (c == '"' || c == '\'' || c == '`')
-                            && (end == 0 || chars[end - 1] != '\\')
-                        {
-                            if !in_string {
-                                in_string = true;
-                                string_char = c;
-                            } else if c == string_char {
-                                in_string = false;
-                            }
-                        }
-                        if !in_string {
-                            match c {
-                                '(' => depth += 1,
-                                ')' => depth -= 1,
-                                _ => {}
-                            }
-                        }
-                        if depth > 0 {
-                            end += 1;
-                        }
-                    }
+                    let mut end = find_matching_paren_in_chars(&chars, start);
                     end += 1; // skip closing paren
 
                     // Skip trailing semicolon and whitespace
@@ -5746,34 +5779,7 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
 
                 if !is_statement && rune_prefix == "$effect.root(" {
                     let start = i + prefix_len;
-                    let mut depth = 1;
-                    let mut end = start;
-                    let mut in_string = false;
-                    let mut string_char = ' ';
-
-                    while end < chars.len() && depth > 0 {
-                        let c = chars[end];
-                        if (c == '"' || c == '\'' || c == '`')
-                            && (end == 0 || chars[end - 1] != '\\')
-                        {
-                            if !in_string {
-                                in_string = true;
-                                string_char = c;
-                            } else if c == string_char {
-                                in_string = false;
-                            }
-                        }
-                        if !in_string {
-                            match c {
-                                '(' => depth += 1,
-                                ')' => depth -= 1,
-                                _ => {}
-                            }
-                        }
-                        if depth > 0 {
-                            end += 1;
-                        }
-                    }
+                    let mut end = find_matching_paren_in_chars(&chars, start);
                     end += 1;
 
                     result.push_str("() => {}");
@@ -5783,36 +5789,7 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
 
                 if is_statement {
                     let start = i + prefix_len;
-                    let mut depth = 1;
-                    let mut end = start;
-                    let mut in_string = false;
-                    let mut string_char = ' ';
-
-                    while end < chars.len() && depth > 0 {
-                        let c = chars[end];
-
-                        if (c == '"' || c == '\'' || c == '`')
-                            && (end == 0 || chars[end - 1] != '\\')
-                        {
-                            if !in_string {
-                                in_string = true;
-                                string_char = c;
-                            } else if c == string_char {
-                                in_string = false;
-                            }
-                        }
-
-                        if !in_string {
-                            match c {
-                                '(' => depth += 1,
-                                ')' => depth -= 1,
-                                _ => {}
-                            }
-                        }
-                        if depth > 0 {
-                            end += 1;
-                        }
-                    }
+                    let mut end = find_matching_paren_in_chars(&chars, start);
 
                     end += 1;
 
@@ -5825,34 +5802,7 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                                 end += 1;
                             }
                             if end < chars.len() && chars[end] == '(' {
-                                end += 1;
-                                let mut with_depth = 1;
-                                let mut with_in_string = false;
-                                let mut with_string_char = ' ';
-
-                                while end < chars.len() && with_depth > 0 {
-                                    let c = chars[end];
-                                    if (c == '"' || c == '\'' || c == '`')
-                                        && (end == 0 || chars[end - 1] != '\\')
-                                    {
-                                        if !with_in_string {
-                                            with_in_string = true;
-                                            with_string_char = c;
-                                        } else if c == with_string_char {
-                                            with_in_string = false;
-                                        }
-                                    }
-                                    if !with_in_string {
-                                        match c {
-                                            '(' => with_depth += 1,
-                                            ')' => with_depth -= 1,
-                                            _ => {}
-                                        }
-                                    }
-                                    if with_depth > 0 {
-                                        end += 1;
-                                    }
-                                }
+                                end = find_matching_paren_in_chars(&chars, end + 1);
                                 end += 1;
                             }
                         }
@@ -5916,6 +5866,15 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
 /// re-inserts them positionally), so the comments inside the removed range
 /// must be re-emitted in place.
 pub(crate) fn extract_comments_from_snippet(snippet: &str) -> Vec<String> {
+    extract_comments_from_snippet_with_pos(snippet)
+        .into_iter()
+        .map(|(_, c)| c)
+        .collect()
+}
+
+/// Like `extract_comments_from_snippet`, but also returns each comment's byte
+/// offset within `snippet`.
+pub(crate) fn extract_comments_from_snippet_with_pos(snippet: &str) -> Vec<(usize, String)> {
     let bytes = snippet.as_bytes();
     let mut comments = Vec::new();
     let mut i = 0usize;
@@ -5942,14 +5901,14 @@ pub(crate) fn extract_comments_from_snippet(snippet: &str) -> Vec<String> {
                 let eol = memchr::memchr(b'\n', &bytes[i..])
                     .map(|p| i + p)
                     .unwrap_or(bytes.len());
-                comments.push(snippet[i..eol].trim_end().to_string());
+                comments.push((i, snippet[i..eol].trim_end().to_string()));
                 i = eol;
             }
             b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
                 let close = memchr::memmem::find(&bytes[i + 2..], b"*/")
                     .map(|p| i + 2 + p + 2)
                     .unwrap_or(bytes.len());
-                comments.push(snippet[i..close].to_string());
+                comments.push((i, snippet[i..close].to_string()));
                 i = close;
             }
             _ => i += 1,
