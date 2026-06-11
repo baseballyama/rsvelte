@@ -307,8 +307,143 @@ fn transform_script_content_inner(
     if !is_module {
         super::transform_legacy::reorder_reactive_statements_after_functions(&result)
     } else {
-        result
+        // In a `<script module>` body, a top-level `$:` labeled reactive
+        // statement is dropped on the server: upstream's server
+        // LabeledStatement visitor returns `b.empty` and collects it into the
+        // (instance) reactive-statement set, which a module has no component
+        // body to emit, so it vanishes. The client keeps it as a plain label.
+        strip_top_level_reactive_labels(&result)
     }
+}
+
+/// Remove top-level (brace-depth 0) `$:` labeled statements from a module body.
+/// String / template / comment contents are skipped so a `$:` inside them is
+/// never matched. A `$: { … }` block and a `$: expr;` single statement are both
+/// consumed in full.
+fn strip_top_level_reactive_labels(script: &str) -> String {
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(len);
+    let mut i = 0;
+    let mut depth: i32 = 0;
+    // Whether the next significant token begins a statement at depth 0.
+    let mut at_stmt_start = true;
+    while i < len {
+        let b = bytes[i];
+        // Line comment.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let s = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        // Block comment.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let s = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(len);
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        // String / template literal.
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let q = b;
+            let s = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == q {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            at_stmt_start = false;
+            continue;
+        }
+        // A top-level `$:` label at the start of a statement (not `$::`).
+        if depth == 0
+            && at_stmt_start
+            && b == b'$'
+            && i + 1 < len
+            && bytes[i + 1] == b':'
+            && bytes.get(i + 2) != Some(&b':')
+        {
+            i += 2; // skip `$:`
+            while i < len && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i < len && bytes[i] == b'{' {
+                // Block statement — consume to the matching `}`.
+                let mut d = 0i32;
+                while i < len {
+                    match bytes[i] {
+                        b'{' => d += 1,
+                        b'}' => {
+                            d -= 1;
+                            i += 1;
+                            if d == 0 {
+                                break;
+                            }
+                            continue;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            } else {
+                // Single statement — consume to the terminating `;` at depth 0.
+                let mut d = 0i32;
+                while i < len {
+                    match bytes[i] {
+                        b'(' | b'[' | b'{' => d += 1,
+                        b')' | b']' | b'}' => d -= 1,
+                        b';' if d == 0 => {
+                            i += 1;
+                            break;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            // Drop any leftover blank line the removed statement occupied.
+            while i < len && (bytes[i] == b' ' || bytes[i] == b'\t') {
+                i += 1;
+            }
+            if i < len && bytes[i] == b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        match b {
+            b'{' | b'(' | b'[' => depth += 1,
+            b'}' | b')' | b']' => depth -= 1,
+            _ => {}
+        }
+        if b == b';' || b == b'\n' || b == b'{' || b == b'}' {
+            at_stmt_start = true;
+        } else if !b.is_ascii_whitespace() {
+            at_stmt_start = false;
+        }
+        // UTF-8 safe copy of the current code byte / multibyte char.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
 }
 
 /// Collapse multi-line `${}` interpolation expressions within template literals.

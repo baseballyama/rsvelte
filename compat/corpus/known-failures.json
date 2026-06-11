@@ -49,7 +49,6 @@
 	"svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/no-runes-mode/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
