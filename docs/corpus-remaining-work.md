@@ -7,8 +7,59 @@ Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
 | match (identical after normalization) | 5,394 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **71** (was 125) |
+| **known failures (baseline)** | **68** (was 125) |
 | error-presence / error-code mismatches | 0 |
+
+**Burn-down 125 → 68 (this session).** Also: object-property shorthand absorbed
+in the comparison layer (`normalize.astSignature` drops `shorthand`); uninitialized
+immutable `mutable_source(void 0,…)`; destructured export-let `$$array` hoist +
+rest-pattern `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>`
+prior-content trailing marker; nested CSS `:global`/`&` scoping + pruning port
+(css-mismatch 0).
+
+### Implementation-ready plan: client `Evaluation` port (next session, ~2 ids)
+
+Clears `window-bindings` (`Math.round($state)` wrongly folded static) and
+`declaration-tag-state-referenced-locally` (`{a}{b}…` should be one-shot, not
+`$.template_effect`). Faithful fix = mirror upstream's two `scope.evaluate` sites.
+All client changes in `client/visitors/shared/utils.rs`:
+- **A (no-op refactor):** extract `server/evaluate.rs`'s `EvalValue`/`Evaluation`/
+  `evaluate_estree`/tables into `3_transform/shared/evaluate.rs` behind a trait
+  `EvalCtx { evaluate_identifier(name,depth)->Evaluation; identifier_has_binding(name)->bool }`.
+  Server keeps its impl (zero SSR risk).
+- **B:** client `EvalCtx` impl over `ComponentClientTransformState` (port of
+  `evaluate.rs::evaluate_binding_initial`, kind rules + snippet-reachability guard).
+- **C (has_state, Identifier.js:95-101):** in `has_reactive_state_json` (~4525),
+  Identifier arm → `kind!=Static && (is_prop || !is_function) && !eval_id(name).is_known()`.
+  Fixes `f=e`→0→known→non-reactive.
+- **D (fold, utils.js:134-178):** in `build_template_chunk` (~3181) remove the
+  early `get_literal_value` short-circuit (~3206); fold the POST-MEMOIZE BUILT
+  value via a new `evaluate_built(JsExpr)` walker (`$.get(b)`/`$N` are opaque →
+  kept; bare `a` → 0 → inlined). Subsumes `get_literal_value`/`is_expression_known_json`/
+  `is_initial_value_literal_or_known`.
+- **E (has_call, CallExpression.js:269-274) — RISKIEST, land last w/ full test run:**
+  in `has_call_json` (~5113) pure-callee fallback → "references ANY binding"
+  (not just reactive). Makes `Math.round(y)` memoized→`$0`→opaque→reactive.
+  Project memory `feedback_has_call_semantics` warns has_call changes are
+  regression-prone; stage A→C→D→E with `cargo test` between D and E.
+
+Remaining 68 = ~58 parseable / 8 unparseable (await-in-non-async) / 0 css. The
+hard core left (deep / regression-prone — attempts here have produced 498-failure
+blowups, so verify against every suite): `$derived` currying (`yScale()(tick)` —
+reverted twice, do NOT retry naively); CSS over-scoping of untargeted elements
+(`<header>`); each-item reactivity flag (`has_external_dependencies` function-depth
+check — reverted, 498 regressions); class private/public field-name collision
+(`#deps`/`#_deps`); compound `+=` module lowering; `.svelte.ts` class-constructor
+drop + destructure-assign-to-state (`[a,b]=arr` → `$.to_array`/`$.set` IIFE);
+the client `Evaluation` port (above); legacy reactive-block body state-read wrap;
+synthetic-option `?? ""` each-index; legacy each-block `invalidate_inner_signals`
+gating; head `<title>` clean_nodes hoisting (utils.js:161, whitespace-intertwined);
+slot-forwarding `$.invalid_default_snippet` over-trigger; store/runes-name conflicts;
+esrap positional-comment artifacts + comment-mangled `export let` (`var //…`,
+`jsdoc-with-comments` — wait for the Phase-3 printer refactor); a handful of
+migrate/snippet 1-offs.
+
+**(Legacy summary of the first wave, retained below.)**
 
 **Burn-down 125 → 71 (this session).** Landed compiler-side fixes (all verified
 against the byte-exact runtime/ssr/compiler_fixtures/css suites, no regressions):
