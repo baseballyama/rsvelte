@@ -154,9 +154,31 @@ function astSignature(code) {
 	} catch {
 		return null;
 	}
+	// Drop `raw` from STRING literals so quote style (`"x"` vs `'x'`) is absorbed
+	// — oxfmt normalizes quotes when it can parse, so this only matters for the
+	// files it can't (await-in-non-async); the cooked `value` is still compared,
+	// so a real string-content difference still fails. Numeric / bigint / regex
+	// `raw` is kept (spelling is meaningful and the corpus tracks it).
+	stripStringRaw(ast);
 	return JSON.stringify(ast, (key, value) =>
 		key === 'start' || key === 'end' || key === 'loc' || key === 'range' ? undefined : value
 	);
+}
+
+function stripStringRaw(node) {
+	if (Array.isArray(node)) {
+		for (const child of node) stripStringRaw(child);
+		return;
+	}
+	if (node === null || typeof node !== 'object') return;
+	if (node.type === 'Literal' && typeof node.value === 'string') {
+		node.raw = undefined;
+	}
+	for (const key in node) {
+		if (key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
+		const v = node[key];
+		if (v !== null && typeof v === 'object') stripStringRaw(v);
+	}
 }
 
 /**
