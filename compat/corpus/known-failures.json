@@ -97,8 +97,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/writable-derived-2/util.svelte.js",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/void-tags/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js",
-	"svelte/packages/svelte/tests/validator/samples/a11y-scope/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/attribute-quoted/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte",

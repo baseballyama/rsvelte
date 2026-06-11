@@ -654,18 +654,12 @@ pub(crate) fn needs_clsx(attr_value: &AttributeValue) -> bool {
             let expr_type = expr_tag.expression.node_type().unwrap_or("");
             expr_needs_clsx(expr_type)
         }
-        // Also check for Sequence with single ExpressionTag (for quoted expressions like class="{x}")
-        AttributeValue::Sequence(parts) if parts.len() == 1 => {
-            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
-                let expr_type = expr_tag.expression.node_type().unwrap_or("");
-                expr_needs_clsx(expr_type)
-            } else {
-                // Single text part doesn't need clsx
-                false
-            }
-        }
-        // Multiple parts (mixed text and expressions) or True don't need clsx
-        _ => false,
+        // Upstream's `needs_clsx` requires `!Array.isArray(node.value)`
+        // (2-analyze/visitors/Attribute.js): clsx is only applied to the bare
+        // single-expression form `class={x}`. A quoted `class="{x}"` parses to
+        // an array (our `Sequence`) and coerces to a string, so it must NOT be
+        // wrapped in `$.clsx(...)`, even when it has a single expression part.
+        AttributeValue::Sequence(_) | AttributeValue::True(_) => false,
     }
 }
 
