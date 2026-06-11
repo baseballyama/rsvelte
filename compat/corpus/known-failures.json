@@ -79,7 +79,6 @@
 	"svelte/packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js",
-	"svelte/packages/svelte/tests/validator/samples/store-rune-conflic-from-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/store-runes-conflict/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte"

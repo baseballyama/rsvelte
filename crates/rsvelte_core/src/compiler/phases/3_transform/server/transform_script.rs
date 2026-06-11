@@ -20,14 +20,18 @@ pub(crate) fn transform_script_content_module(script: &str, dev: bool) -> String
         &[],
         &FxHashSet::default(),
         &FxHashSet::default(),
+        &FxHashSet::default(),
         dev,
     )
 }
 
-/// Transform script content for server-side rendering, with pre-extracted imported names.
+/// Transform script content for server-side rendering, with pre-extracted
+/// imported names and store-subscription base names (e.g. `state` when a
+/// destructured prop `state` shadows the `$state` rune).
 pub(crate) fn transform_script_content_with_imports(
     script: &str,
     imported_names: &FxHashSet<String>,
+    store_sub_bases: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     transform_script_content_inner(
@@ -36,6 +40,7 @@ pub(crate) fn transform_script_content_with_imports(
         &[],
         imported_names,
         &FxHashSet::default(),
+        store_sub_bases,
         dev,
     )
 }
@@ -45,6 +50,7 @@ pub(crate) fn transform_script_content_with_props_and_imports(
     script: &str,
     reexported_props: &[(String, String)],
     imported_names: &FxHashSet<String>,
+    store_sub_bases: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     transform_script_content_inner(
@@ -53,6 +59,7 @@ pub(crate) fn transform_script_content_with_props_and_imports(
         reexported_props,
         imported_names,
         &FxHashSet::default(),
+        store_sub_bases,
         dev,
     )
 }
@@ -66,7 +73,15 @@ pub(crate) fn transform_script_content_with_imports_and_derived(
     extra_derived: &FxHashSet<String>,
     dev: bool,
 ) -> String {
-    transform_script_content_inner(script, false, &[], imported_names, extra_derived, dev)
+    transform_script_content_inner(
+        script,
+        false,
+        &[],
+        imported_names,
+        extra_derived,
+        &FxHashSet::default(),
+        dev,
+    )
 }
 
 fn transform_script_content_inner(
@@ -75,12 +90,17 @@ fn transform_script_content_inner(
     reexported_props: &[(String, String)],
     imported_names: &FxHashSet<String>,
     extra_derived: &FxHashSet<String>,
+    store_sub_bases: &FxHashSet<String>,
     dev: bool,
 ) -> String {
-    // Check if rune base names are imported (making $state/$derived store subscriptions, not runes).
-    // If `state` is imported, `$state(0)` is a store subscription call, not a rune call.
-    let state_imported = imported_names.contains("state");
-    let derived_imported = imported_names.contains("derived");
+    // Check if rune base names are imported OR are store-subscription bases
+    // (making `$state(...)` a store subscription, not a rune). Upstream
+    // `get_global_keypath` returns null for any `$x` whose base `x` resolves to
+    // a binding — import vs prop is irrelevant (scope.js:1467). So a destructured
+    // prop `let { state } = $props()` also shadows the `$state` rune.
+    let state_imported = imported_names.contains("state") || store_sub_bases.contains("state");
+    let derived_imported =
+        imported_names.contains("derived") || store_sub_bases.contains("derived");
 
     // NOTE: split_comma_separated_declarations has been moved to build.rs to run
     // BEFORE transform_reassigned_destructures. This ensures user-written comma-separated

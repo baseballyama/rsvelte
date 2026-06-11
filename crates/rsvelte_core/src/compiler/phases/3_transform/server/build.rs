@@ -1741,13 +1741,27 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 Vec::new()
             };
+            // Store-subscription base names (e.g. `state` for a `$state`
+            // auto-subscription on a destructured prop). These shadow the
+            // same-named rune so `$state(...)` is lowered as a store, not a rune.
+            let store_sub_bases: rustc_hash::FxHashSet<String> = self
+                .get_store_sub_names()
+                .into_iter()
+                .map(|(_, base)| base)
+                .collect();
             let transformed = if reexported_props.is_empty() {
-                transform_script_content_with_imports(&rest, &imported_names, self.dev)
+                transform_script_content_with_imports(
+                    &rest,
+                    &imported_names,
+                    &store_sub_bases,
+                    self.dev,
+                )
             } else {
                 transform_script_content_with_props_and_imports(
                     &rest,
                     &reexported_props,
                     &imported_names,
+                    &store_sub_bases,
                     self.dev,
                 )
             };
