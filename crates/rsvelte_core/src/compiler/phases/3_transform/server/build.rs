@@ -1588,7 +1588,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 rest
             };
             let transformed = transform_script_content_module(&rest, self.dev);
-            let transformed = if !transformed.trim().is_empty() {
+            // A comment-only `<script module>` body is an empty Program upstream;
+            // esrap drops the dangling comments. Mirror that here so the comments
+            // are not hoisted to module top level (see client mod.rs).
+            let transformed = if crate::compiler::phases::phase3_transform::client::is_js_comments_and_whitespace_only(&transformed) {
+                String::new()
+            } else if !transformed.trim().is_empty() {
                 normalize_script_with_oxc(&transformed, 0)
             } else {
                 transformed

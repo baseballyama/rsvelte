@@ -750,6 +750,18 @@ impl<'a> ServerCodeGenerator<'a> {
             return Evaluation::unknown();
         }
 
+        // `const <name> = $props.id()` — upstream scope.js evaluates an
+        // identifier whose binding initial is a `$props.id()` CallExpression to
+        // STRING (defined, value unknown), so attribute interpolation elides the
+        // `$.stringify(...)` wrapper. The analyzer records that declaration's
+        // name in `analysis.props_id` (the binding itself carries no `initial`
+        // text), so resolve it here.
+        if let Some(a) = self.analysis
+            && a.props_id.as_deref() == Some(name)
+        {
+            return Evaluation::single(EvalValue::StringMarker);
+        }
+
         // Async-blocker variables are assigned inside `$$promises[n]` thunks;
         // the rsvelte server architecture must NOT fold them (they render via
         // `$$renderer.async(...)` wrappers). Mirrors the constant_vars removal

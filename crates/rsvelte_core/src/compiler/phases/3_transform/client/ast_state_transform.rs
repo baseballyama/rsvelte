@@ -109,14 +109,11 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String]) -> bool {
         Expression::ParenthesizedExpression(paren) => {
             should_proxy_ast(&paren.expression, non_proxy_vars)
         }
-        // SequenceExpression (comma): check last expression
-        Expression::SequenceExpression(seq) => {
-            if let Some(last) = seq.expressions.last() {
-                should_proxy_ast(last, non_proxy_vars)
-            } else {
-                true
-            }
-        }
+        // SequenceExpression (comma): upstream `should_proxy` does NOT whitelist
+        // SequenceExpression, so it falls through to `return true` — a comma
+        // expression like `(void 0, 1)` IS proxied. (Do not recurse into the
+        // last operand: that would wrongly skip the proxy for a literal tail.)
+        Expression::SequenceExpression(_) => true,
         // Everything else (CallExpression, MemberExpression, etc.) might need proxy
         _ => true,
     }
@@ -712,7 +709,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // by node kind here (not by post-rewrite text).
         let (needs_proxy, is_explicit_undefined) = if let Some(arg) = call.arguments.first() {
             let arg_expr = arg.as_expression();
-            let needs_proxy = arg_expr.map(|e| should_proxy_ast(e, &[])).unwrap_or(false);
+            let needs_proxy = arg_expr
+                .map(|e| should_proxy_ast(e, self.non_proxy_vars))
+                .unwrap_or(false);
             let is_undef = matches!(
                 arg_expr,
                 Some(Expression::Identifier(id)) if id.name == "undefined"
