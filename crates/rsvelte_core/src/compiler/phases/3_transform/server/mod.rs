@@ -902,6 +902,9 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// a `{@const}` in a SIBLING snippet must render as a (possibly global)
     /// identifier, not be substituted (mirrors upstream `scope.evaluate`).
     pub(crate) current_scope_index: Option<usize>,
+    /// Lazily-built set of template scope indices (see `evaluate_identifier`)
+    /// — built once per compile instead of per evaluated identifier.
+    pub(crate) template_scopes_cache: std::cell::OnceCell<rustc_hash::FxHashSet<usize>>,
     /// Comments inside template expressions the server transform drops
     /// entirely (event-handler attributes / `on:` directives). The official
     /// compiler keeps every parsed comment — esrap re-inserts them before the
@@ -1192,6 +1195,7 @@ impl<'a> ServerCodeGenerator<'a> {
             derived_names,
             derived_var_names,
             current_scope_index: None,
+            template_scopes_cache: std::cell::OnceCell::new(),
             lost_comments: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
         }
     }
@@ -1247,6 +1251,7 @@ impl<'a> ServerCodeGenerator<'a> {
             derived_names: self.derived_names.clone(),
             derived_var_names: self.derived_var_names.clone(),
             current_scope_index: self.current_scope_index,
+            template_scopes_cache: std::cell::OnceCell::new(),
             lost_comments: self.lost_comments.clone(),
         }
     }

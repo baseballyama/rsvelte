@@ -685,6 +685,14 @@ impl<'a> ServerCodeGenerator<'a> {
         if matches!(expr, crate::ast::js::Expression::Lazy { .. }) {
             return Evaluation::unknown();
         }
+        // Fast path: a bare identifier (the dominant template-expression
+        // shape, e.g. `{count}`) — resolve directly without materializing
+        // the serde_json tree (`as_json` serializes the whole arena node on
+        // first call, which dominates server-transform time on
+        // template-heavy components).
+        if let Some(name) = expr.identifier_name() {
+            return self.evaluate_identifier(name, 0);
+        }
         self.evaluate_estree(expr.as_json(), 0)
     }
 
@@ -731,6 +739,12 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Resolve an identifier, mirroring upstream's `Identifier` branch.
+    /// Public wrapper for the bare-identifier fast path in attribute
+    /// evaluation (element.rs).
+    pub(crate) fn evaluate_identifier_pub(&self, name: &str) -> Evaluation {
+        self.evaluate_identifier(name, 0)
+    }
+
     fn evaluate_identifier(&self, name: &str, depth: u8) -> Evaluation {
         if depth > MAX_DEPTH {
             return Evaluation::unknown();
@@ -752,8 +766,9 @@ impl<'a> ServerCodeGenerator<'a> {
         let bindings: Vec<_> = self
             .analysis
             .map(|a| {
-                let template_scopes: rustc_hash::FxHashSet<usize> =
-                    a.root.template_scope_map.values().copied().collect();
+                let template_scopes = self
+                    .template_scopes_cache
+                    .get_or_init(|| a.root.template_scope_map.values().copied().collect());
                 a.root
                     .bindings
                     .iter()
@@ -768,7 +783,8 @@ impl<'a> ServerCodeGenerator<'a> {
             })
             .unwrap_or_default();
 
-        if std::env::var("DEBUG_EVAL").is_ok() {
+        static DEBUG_EVAL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *DEBUG_EVAL.get_or_init(|| std::env::var_os("DEBUG_EVAL").is_some()) {
             for b in &bindings {
                 eprintln!(
                     "[evaluate] name={} kind={:?} scope={} decl_start={:?} updated={} initial={:?} initial_type={:?}",

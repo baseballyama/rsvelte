@@ -2540,6 +2540,22 @@ impl<'a> ServerCodeGenerator<'a> {
     /// `scope.evaluate(node.expression)`:
     /// known → inline; null/undefined → drop; defined-string → no `$.stringify`; else wrap.
     fn evaluate_attribute_expression(&self, expr: &crate::ast::js::Expression) -> AttrExprEval {
+        // Bare identifier: resolve without the expensive `as_json`
+        // serialization (mirrors evaluate_template_expression's fast path).
+        if let Some(name) = expr.identifier_name() {
+            use super::super::evaluate::{EvalValue, js_display_string};
+            let evaluation = self.evaluate_identifier_pub(name);
+            if let Some(value) = evaluation.known_value() {
+                return match value {
+                    EvalValue::Null | EvalValue::Undefined => AttrExprEval::Empty,
+                    v => AttrExprEval::InlineLiteral(js_display_string(v)),
+                };
+            }
+            if evaluation.is_string() && evaluation.is_defined() {
+                return AttrExprEval::StringNoWrap;
+            }
+            return AttrExprEval::Wrap;
+        }
         self.eval_attr_expr_json(expr.as_json())
     }
 

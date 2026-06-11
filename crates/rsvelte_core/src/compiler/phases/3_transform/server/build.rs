@@ -468,6 +468,12 @@ const DANGLING_COMMENT_PLACEHOLDER_STMT: &str = "void '$$DANGLING_COMMENT$$';";
 /// comments survive OXC codegen (which drops comments with no following
 /// statement). Returns the protected source and whether anything was inserted.
 fn protect_dangling_comments(src: &str) -> (String, bool) {
+    // Fast path: nothing to protect without comments.
+    if memmem::find(src.as_bytes(), b"//").is_none()
+        && memmem::find(src.as_bytes(), b"/*").is_none()
+    {
+        return (src.to_string(), false);
+    }
     let bytes = src.as_bytes();
     let len = bytes.len();
     let mut insertions: Vec<usize> = Vec::new();
@@ -588,6 +594,10 @@ fn protect_dangling_comments(src: &str) -> (String, bool) {
 /// comment appended. Lines that don't round-trip verbatim through OXC simply
 /// don't match and are skipped (no worse than the previous behavior).
 fn reattach_trailing_line_comments(original: &str, generated: &str) -> String {
+    // Fast path: no line comments in the source, nothing was dropped.
+    if memmem::find(original.as_bytes(), b"//").is_none() {
+        return generated.to_string();
+    }
     // Collect (code_part, comment) pairs from `original`, skipping string and
     // template-literal contents and block comments.
     let mut entries: Vec<(&str, &str)> = Vec::new();
