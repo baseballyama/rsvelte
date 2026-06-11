@@ -4932,9 +4932,16 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "ObjectExpression" => {
-            // Check all property values
+            // Check all property values. A spread member (`...rest`) has no
+            // `value` field; upstream's SpreadElement visitor unconditionally
+            // marks the enclosing expression `has_state` (it treats `{...x}`
+            // like `{...x.values()}`), so a spread always makes the object
+            // reactive.
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
+                    if prop.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                        return true;
+                    }
                     if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
                         && has_reactive_state_json(value, context)
                     {
@@ -4978,10 +4985,10 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "SpreadElement" => {
-            if let Some(argument) = obj.get("argument") {
-                return has_reactive_state_json(argument, context);
-            }
-            false
+            // Upstream's SpreadElement analyze visitor unconditionally sets
+            // `has_state = true` (and `has_call = true`) — `[...x]` is treated
+            // like `[...x.values()]`, whose result is unknown at compile time.
+            true
         }
         _ => {
             // Unknown expression type - conservatively assume reactive
@@ -5203,6 +5210,11 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
         "ObjectExpression" => {
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
+                    // A spread member (`...x`) is treated like `...x.values()`:
+                    // upstream's SpreadElement visitor marks `has_call = true`.
+                    if prop.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                        return true;
+                    }
                     if let Some(prop_obj) = prop.as_object() {
                         // Check property value for calls
                         if let Some(value) = prop_obj.get("value")
@@ -5241,10 +5253,9 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "SpreadElement" => {
-            if let Some(argument) = obj.get("argument") {
-                return has_call_json(argument, context);
-            }
-            false
+            // Upstream's SpreadElement visitor unconditionally sets
+            // `has_call = true` (`[...x]` ≡ `[...x.values()]`).
+            true
         }
         "ChainExpression" => {
             if let Some(expression) = obj.get("expression") {
