@@ -2949,6 +2949,25 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Shorthand: style:color means style:color={color}
                     dir.name.to_string()
                 }
+                AttributeValue::Sequence(parts) if parts.len() == 1 => {
+                    // A single chunk maps to upstream `build_attribute_value`'s
+                    // `!Array.isArray(value) || value.length === 1` branch: a lone
+                    // `ExpressionTag` (e.g. quoted `style:x="{color}"`) becomes the
+                    // bare expression with no `$.stringify` template.
+                    match &parts[0] {
+                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let raw = self.source[expr_start..expr_end].trim().to_string();
+                                self.transform_store_refs(&raw)
+                            } else {
+                                "undefined".to_string()
+                            }
+                        }
+                        AttributeValuePart::Text(text) => format!("'{}'", text.data),
+                    }
+                }
                 AttributeValue::Sequence(parts) => {
                     // Check if any part is an expression (dynamic value)
                     let has_expr = parts

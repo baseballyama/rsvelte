@@ -21,9 +21,10 @@ pub fn escape_attr(s: &str) -> String {
 
 /// Check if an element is a void element (self-closing, no end tag).
 ///
-/// Mirrors upstream `is_void`'s `VOID_ELEMENT_NAMES` (svelte/src/utils.js),
-/// which includes `command` and `keygen`. Used by both the client template
-/// printer and the server, so they agree on self-closing output.
+/// Mirrors upstream `is_void` (svelte/src/utils.js): the `VOID_ELEMENT_NAMES`
+/// list (which includes `command` and `keygen`) plus a case-insensitive
+/// `!doctype`. Used by both the client template printer and the server, so they
+/// agree on self-closing output (`<!doctype html=""/>`).
 pub fn is_void_element(name: &str) -> bool {
     matches!(
         name,
@@ -43,7 +44,7 @@ pub fn is_void_element(name: &str) -> bool {
             | "source"
             | "track"
             | "wbr"
-    )
+    ) || name.eq_ignore_ascii_case("!doctype")
 }
 
 /// Check if an element preserves whitespace.
