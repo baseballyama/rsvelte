@@ -4,7 +4,9 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{Fragment, IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Compute the set of blocker "identity" strings for a test expression.
@@ -262,10 +264,13 @@ impl<'a> ServerCodeGenerator<'a> {
         // Trim leading whitespace from first text node and trailing whitespace from last text node
         // This handles cases like `{#if cond}\nmid\n{/if}` which should output `mid` not ` mid `
         if !trimmed_nodes.is_empty() {
-            // Find the first text node (may be after ConstTag or other non-output nodes)
+            // Find the first text node (may be after ConstTag or other non-output nodes).
+            // Use the Svelte whitespace set (` \t\r\n\x0C`) — NOT Rust's Unicode
+            // trim, which would also strip `\u{00A0}` (`&nbsp;`), treated as
+            // content by upstream's `regex_starts_with_whitespaces`.
             for node in trimmed_nodes.iter_mut() {
                 if let TemplateNode::Text(text) = node {
-                    let trimmed_data = text.data.trim_start().to_string();
+                    let trimmed_data = svelte_trim_start(&text.data).to_string();
                     text.data = trimmed_data.into();
                     break;
                 }
@@ -277,7 +282,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // Find the last text node (may be before trailing non-output nodes)
             for node in trimmed_nodes.iter_mut().rev() {
                 if let TemplateNode::Text(text) = node {
-                    let trimmed_data = text.data.trim_end().to_string();
+                    let trimmed_data = svelte_trim_end(&text.data).to_string();
                     text.data = trimmed_data.into();
                     break;
                 }
@@ -341,9 +346,19 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             // Drop Text nodes whose data is now empty (matches upstream's
-            // `if (node.data && (...)) trimmed.push(node)` filter).
+            // `if (node.data && (node.data !== ' ' || !can_remove_entirely))
+            // trimmed.push(node)` filter). In an SVG-namespace fragment,
+            // whitespace-only text collapsed to a single space is removed
+            // entirely (upstream's `can_remove_entirely` — clean_nodes,
+            // utils.js). The namespace for a block branch is inferred from
+            // its element children like upstream's `infer_namespace`
+            // fallthrough loop (parent is an IfBlock, so the element scan
+            // applies).
+            let can_remove_entirely = crate::compiler::phases::phase3_transform::server::visitors::fragment::infer_namespace_from_nodes_owned(&trimmed_nodes, &self.namespace) == "svg";
             trimmed_nodes.retain(|n| match n {
-                TemplateNode::Text(t) => !t.data.is_empty(),
+                TemplateNode::Text(t) => {
+                    !t.data.is_empty() && (t.data != " " || !can_remove_entirely)
+                }
                 _ => true,
             });
         }

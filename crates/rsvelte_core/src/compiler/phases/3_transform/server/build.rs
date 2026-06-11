@@ -301,7 +301,10 @@ fn flush_pending_comments_into_body(
     let mut out = String::with_capacity(body_code.len() + 64);
     let mut emitted_upto = 0usize; // cursor into body_code
     let mut src_cursor = 0usize; // cursor into blanked_source
-    let patterns: [&str; 2] = ["$.escape(", "$.ensure_array_like("];
+    // `$.attr(name, value[, true])` anchors on its VALUE argument (the name
+    // is a synthesized literal with no source position, so esrap flushes the
+    // comment right before the positioned value node).
+    let patterns: [&str; 3] = ["$.escape(", "$.ensure_array_like(", "$.attr("];
 
     let bytes = body_code.as_bytes();
     let mut scan = 0usize;
@@ -322,14 +325,49 @@ fn flush_pending_comments_into_body(
             scan = idx + pat_len;
             continue;
         };
-        let arg = body_code[open + 1..close].trim();
+        let args = body_code[open + 1..close].trim();
         scan = idx + pat_len;
+        if args.is_empty() {
+            continue;
+        }
+        // For `$.attr(...)` the positioned expression is the second argument;
+        // the leading `"name",` prefix is emitted verbatim before the
+        // comments. For the single-argument helpers prefix is empty.
+        let is_attr = body_code[idx..].starts_with("$.attr(");
+        let (prefix, arg) = if is_attr {
+            let Some(comma) = find_top_level_comma(args) else {
+                continue;
+            };
+            let value_rest = args[comma + 1..].trim();
+            // Strip a trailing `, true` (boolean-attribute flag, synthesized).
+            let value = match find_top_level_comma(value_rest) {
+                Some(c) => value_rest[..c].trim(),
+                None => value_rest,
+            };
+            (&args[..comma + 1], value)
+        } else {
+            ("", args)
+        };
         if arg.is_empty() {
             continue;
         }
         // Positioned check: the argument text must occur in the blanked
         // source (i.e. in the template) at/after the moving source cursor.
-        let Some(pos) = find_word(blanked_source, arg, src_cursor) else {
+        // A `$.attr(...)` value lowered from a `bind:` directive is a
+        // synthesized node WITHOUT a source position upstream, so esrap
+        // never flushes comments before it — skip `bind:` context matches.
+        let pos = {
+            let mut search_from = src_cursor;
+            loop {
+                match find_word(blanked_source, arg, search_from) {
+                    Some(p) if is_attr && is_bind_directive_context(blanked_source, p) => {
+                        search_from = p + 1;
+                    }
+                    other => break other,
+                }
+            }
+        };
+        let Some(pos) = pos else {
             continue;
         };
         src_cursor = pos + 1;
@@ -354,13 +392,18 @@ fn flush_pending_comments_into_body(
         let inner_indent = format!("{indent}\t");
         out.push_str(&body_code[emitted_upto..=open]);
         out.push('\n');
+        if !prefix.is_empty() {
+            out.push_str(&inner_indent);
+            out.push_str(prefix);
+            out.push('\n');
+        }
         for c in &flushed {
             out.push_str(&inner_indent);
             out.push_str(c);
             out.push('\n');
         }
         out.push_str(&inner_indent);
-        out.push_str(arg);
+        out.push_str(body_code[open + 1..close].trim()[prefix.len()..].trim_start());
         out.push('\n');
         out.push_str(&indent);
         out.push_str(&body_code[close..close + 1]);
@@ -370,6 +413,63 @@ fn flush_pending_comments_into_body(
     out.push_str(&body_code[emitted_upto..]);
     let leftover = remaining.into_iter().map(|(_, c)| c).collect();
     (out, leftover)
+}
+
+/// Whether the word match at `pos` in the (blanked) component source sits in
+/// `bind:` directive context: either the shorthand name itself
+/// (`bind:checked`) or the brace expression of a bind directive
+/// (`bind:value={message}`).
+fn is_bind_directive_context(src: &str, pos: usize) -> bool {
+    let b = src.as_bytes();
+    if pos == 0 {
+        return false;
+    }
+    let mut k = pos;
+    // `bind:value={message}` — step inside the brace to the attribute name.
+    if b[k - 1] == b'{' {
+        k -= 1;
+        if k == 0 || b[k - 1] != b'=' {
+            return false;
+        }
+        k -= 1;
+    }
+    // Read the attribute / directive name backwards.
+    let end = k;
+    while k > 0 && (b[k - 1].is_ascii_alphanumeric() || matches!(b[k - 1], b'_' | b'-' | b':')) {
+        k -= 1;
+    }
+    src[k..end].starts_with("bind:")
+}
+
+/// Find the first comma at paren/bracket/brace depth 0, outside string
+/// literals, in `s`. Returns its byte offset.
+fn find_top_level_comma(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    let mut quote: Option<u8> = None;
+    while i < b.len() {
+        let c = b[i];
+        if let Some(q) = quote {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                quote = None;
+            }
+        } else {
+            match c {
+                b'"' | b'\'' | b'`' => quote = Some(c),
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 0 => return Some(i),
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Decode `(VALUE, void '$$C$$<hex>')` placeholders (created by the
@@ -1765,11 +1865,30 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut trailing_script_comments: Vec<String> =
             pending_comments.iter().map(|(_, c)| c.clone()).collect();
 
+        // `;; // comment` lines ($inspect removal with a same-line trailing
+        // comment) would lose the comment in OXC codegen (trailing comments
+        // are dropped). Pull them off and re-attach after normalization.
+        let double_semi_comments: Vec<String>;
+        let script_code = if memmem::find(script_code.as_bytes(), b";; //").is_some() {
+            let (code, comments) = extract_double_semi_trailing_comments(&script_code);
+            double_semi_comments = comments;
+            code
+        } else {
+            double_semi_comments = Vec::new();
+            script_code
+        };
+
         // Normalize the script code with OXC
         let script_code = if !script_code.trim().is_empty() {
             normalize_script_with_oxc(&script_code, 1)
         } else {
             script_code
+        };
+
+        let script_code = if double_semi_comments.is_empty() {
+            script_code
+        } else {
+            reattach_double_semi_comments(&script_code, &double_semi_comments)
         };
 
         // Restore nested `$:` labels hidden from the legacy transforms.
@@ -8616,6 +8735,58 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
     (extracted, modified)
 }
 
+/// Pull `// …` comments off `;; // comment` lines ($inspect removal with a
+/// same-line trailing comment). Returns the script with those lines reduced
+/// to `;;` plus the comments in `;;`-occurrence order (one slot per `;;`
+/// line, empty string when that line had no comment), so they can be
+/// re-attached after OXC normalization (which drops trailing comments).
+fn extract_double_semi_trailing_comments(s: &str) -> (String, Vec<String>) {
+    let mut out = String::with_capacity(s.len());
+    let mut comments: Vec<String> = Vec::new();
+    let mut first = true;
+    for line in s.lines() {
+        if !first {
+            out.push('\n');
+        }
+        first = false;
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix(";;") {
+            let rest_trimmed = rest.trim_start();
+            if rest_trimmed.starts_with("//") {
+                comments.push(rest_trimmed.to_string());
+                out.push_str(&line[..line.len() - rest.len()]);
+                continue;
+            }
+            comments.push(String::new());
+        }
+        out.push_str(line);
+    }
+    (out, comments)
+}
+
+/// Re-attach comments extracted by `extract_double_semi_trailing_comments`
+/// to the `;;` lines of the normalized script, in occurrence order.
+fn reattach_double_semi_comments(s: &str, comments: &[String]) -> String {
+    let mut out = String::with_capacity(s.len() + 64);
+    let mut idx = 0usize;
+    let mut first = true;
+    for line in s.lines() {
+        if !first {
+            out.push('\n');
+        }
+        first = false;
+        out.push_str(line);
+        if line.trim() == ";;" && idx < comments.len() {
+            if !comments[idx].is_empty() {
+                out.push(' ');
+                out.push_str(&comments[idx]);
+            }
+            idx += 1;
+        }
+    }
+    out
+}
+
 /// Strip async placeholder markers from script output.
 /// Used when `use_async` is true but `transform_async_body` returns None
 /// (no top-level await), so the markers were never consumed.
@@ -8638,9 +8809,18 @@ fn strip_async_placeholders(s: &str) -> String {
         first = false;
         // Either form of `$$async_hole` placeholder rewrites to `;;` in
         // non-async-body contexts (the official compiler emits two empty
-        // statements where $inspect() used to be).
+        // statements where $inspect() used to be). A `// …` comment that
+        // trailed the removed `$inspect(...)` on the same line stays attached
+        // (upstream emits `;; // comment` — esrap's flush_trailing_comments
+        // prints same-line trailing comments after the empty statements).
         if memmem::find(trimmed.as_bytes(), b"$$async_hole").is_some() {
             result.push_str(";;");
+            if let Some(close) = memmem::find(trimmed.as_bytes(), b"*/")
+                && let Some(slashes) = memmem::find(&trimmed.as_bytes()[close + 2..], b"//")
+            {
+                result.push(' ');
+                result.push_str(&trimmed[close + 2 + slashes..]);
+            }
         } else {
             result.push_str(line);
         }

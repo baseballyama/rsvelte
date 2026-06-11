@@ -77,6 +77,16 @@ fn is_load_error_element(name: &str) -> bool {
     )
 }
 
+/// Server-side void check mirroring upstream `is_void` (svelte/src/utils.js):
+/// the shared VOID list plus `command`, `keygen`, and a case-insensitive
+/// `!doctype` (`<!doctype html>` parses as an element named `!doctype` and is
+/// emitted self-closing: `<!doctype html=""/>`).
+fn is_void_element_server(name: &str) -> bool {
+    is_void_element(name)
+        || matches!(name, "command" | "keygen")
+        || name.eq_ignore_ascii_case("!doctype")
+}
+
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_element(
         &mut self,
@@ -453,27 +463,39 @@ impl<'a> ServerCodeGenerator<'a> {
             tag.push_str(&attr_style_call);
         }
 
-        // For load/error elements (img, video, etc.), add event capture attributes
-        // when the element has onerror/onload event handlers.
-        // Reference: element.js lines 272-276
+        // For load/error elements (img, track, etc.), add event capture attributes.
+        // Upstream collects `events_to_capture` (a Set, in attribute order) while
+        // walking the attributes: an `onload`/`onerror` event attribute adds that
+        // event; a `use:` directive adds BOTH `onload` and `onerror` (actions can
+        // attach listeners, so load/error events must be captured for replay).
+        // Reference: 3-transform/server/visitors/shared/element.js lines 70-77,
+        // 192-196 and 276-280.
         if is_load_error_element(name) {
-            let has_onerror = element
-                .attributes
-                .iter()
-                .any(|a| matches!(a, Attribute::Attribute(n) if n.name == "onerror"));
-            let has_onload = element
-                .attributes
-                .iter()
-                .any(|a| matches!(a, Attribute::Attribute(n) if n.name == "onload"));
-            if has_onerror {
-                tag.push_str(" onerror=\"this.__e=event\"");
+            let mut events_to_capture: Vec<&str> = Vec::new();
+            for attr in &element.attributes {
+                match attr {
+                    Attribute::Attribute(n)
+                        if (n.name == "onload" || n.name == "onerror")
+                            && !events_to_capture.contains(&n.name.as_str()) =>
+                    {
+                        events_to_capture.push(n.name.as_str());
+                    }
+                    Attribute::UseDirective(_) => {
+                        for event in ["onload", "onerror"] {
+                            if !events_to_capture.contains(&event) {
+                                events_to_capture.push(event);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
-            if has_onload {
-                tag.push_str(" onload=\"this.__e=event\"");
+            for event in events_to_capture {
+                let _ = write!(tag, " {}=\"this.__e=event\"", event);
             }
         }
 
-        if is_void_element(name) {
+        if is_void_element_server(name) {
             tag.push_str("/>");
             if shorthand_style_vars.is_empty() {
                 self.output_parts.push(OutputPart::Html(tag));
@@ -1259,7 +1281,7 @@ impl<'a> ServerCodeGenerator<'a> {
             ));
         }
 
-        if is_void_element(name) {
+        if is_void_element_server(name) {
             self.output_parts.push(OutputPart::Html("/>".to_string()));
             // In dev mode, add $.push_element()/$.pop_element() for void elements with spreads
             if self.dev {
@@ -1792,8 +1814,18 @@ impl<'a> ServerCodeGenerator<'a> {
             Attribute::BindDirective(bind) => {
                 self.generate_bind_directive_for_element_instance(bind, element)
             }
-            // Event handlers are not rendered on server
-            Attribute::OnDirective(_) => Ok(None),
+            // Event handlers are not rendered on server. Comments inside the
+            // dropped handler survive in the official output (esrap re-inserts
+            // them before the next positioned node).
+            Attribute::OnDirective(on) => {
+                if let Some(expr) = &on.expression {
+                    self.record_lost_expression_comments(
+                        expr.start().unwrap_or(0) as usize,
+                        expr.end().unwrap_or(0) as usize,
+                    );
+                }
+                Ok(None)
+            }
             _ => Ok(None),
         }
     }

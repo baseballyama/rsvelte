@@ -13,6 +13,114 @@
  * ${} nesting) / comment state, and only lines whose newline is outside
  * any multi-line token are eligible for removal.
  */
+/**
+ * Collapse newlines inside template-literal HOLES (`${ ... }`) into a single
+ * space, leaving static template text untouched.
+ *
+ * esrap (the official compiler's printer) wraps long expressions inside
+ * `${}` holes across lines; rsvelte emits them on one line. oxfmt preserves
+ * the multiline-ness of template holes from its input, so this is the one
+ * formatting difference oxfmt cannot absorb on its own. Whitespace inside a
+ * hole is insignificant JS, so flattening it BEFORE oxfmt makes both sides
+ * converge to the identical single-line form.
+ *
+ * Newlines that terminate `//` line comments inside a hole are preserved
+ * (collapsing them would change what the comment swallows), as are newlines
+ * inside nested template literals' static parts and block comments.
+ * The transform is deterministic and idempotent, so it can never turn two
+ * identical files into different ones (no new failures possible).
+ */
+export function flattenTemplateHoles(src) {
+	const n = src.length;
+	let state = 'code'; // code | line-comment | block-comment | squote | dquote | template
+	const templateDepth = []; // ${} brace nesting per template level
+	let out = '';
+	let i = 0;
+	while (i < n) {
+		const c = src[i];
+		const c2 = src[i + 1];
+		switch (state) {
+			case 'code':
+				if (c === '/' && c2 === '/') {
+					state = 'line-comment';
+					out += '//';
+					i += 2;
+					continue;
+				} else if (c === '/' && c2 === '*') {
+					state = 'block-comment';
+					out += '/*';
+					i += 2;
+					continue;
+				} else if (c === "'") state = 'squote';
+				else if (c === '"') state = 'dquote';
+				else if (c === '`') (state = 'template'), templateDepth.push(0);
+				else if (c === '}' && templateDepth.length && templateDepth[templateDepth.length - 1] === 0) {
+					state = 'template';
+				} else if (c === '{' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]++;
+				} else if (c === '}' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]--;
+				} else if (templateDepth.length && (c === ' ' || c === '\t' || c === '\n' || c === '\r')) {
+					// inside a ${} hole: collapse a whitespace run containing a
+					// newline into a single space
+					let j = i;
+					let sawNewline = false;
+					while (j < n && (src[j] === ' ' || src[j] === '\t' || src[j] === '\n' || src[j] === '\r')) {
+						if (src[j] === '\n') sawNewline = true;
+						j++;
+					}
+					if (sawNewline) {
+						out += ' ';
+						i = j;
+						continue;
+					}
+				}
+				break;
+			case 'line-comment':
+				if (c === '\n') state = 'code';
+				break;
+			case 'block-comment':
+				if (c === '*' && c2 === '/') {
+					state = 'code';
+					out += '*/';
+					i += 2;
+					continue;
+				}
+				break;
+			case 'squote':
+				if (c === '\\') {
+					out += c + (src[i + 1] ?? '');
+					i += 2;
+					continue;
+				} else if (c === "'" || c === '\n') state = 'code';
+				break;
+			case 'dquote':
+				if (c === '\\') {
+					out += c + (src[i + 1] ?? '');
+					i += 2;
+					continue;
+				} else if (c === '"' || c === '\n') state = 'code';
+				break;
+			case 'template':
+				if (c === '\\') {
+					out += c + (src[i + 1] ?? '');
+					i += 2;
+					continue;
+				} else if (c === '`') (state = 'code'), templateDepth.pop();
+				else if (c === '$' && c2 === '{') {
+					state = 'code';
+					out += '${';
+					i += 2;
+					continue;
+				}
+				break;
+		}
+		out += c;
+		i++;
+	}
+	return out;
+}
+
 export function stripBlankLines(src) {
 	const keep = new Set(); // offsets of newlines inside template literals / block comments
 	let i = 0;

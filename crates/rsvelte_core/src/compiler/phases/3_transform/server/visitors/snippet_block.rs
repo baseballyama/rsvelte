@@ -6,7 +6,9 @@ use super::super::types::{OutputPart, SnippetDef};
 use crate::ast::template::{Fragment, SnippetBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_snippet_block(
@@ -166,15 +168,27 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             if i == start_idx {
                 // First node - if it's text, trim leading whitespace but preserve trailing space
-                // if there is a following node (the space separates text from expression/element)
+                // if there is a following node (the space separates text from expression/element).
+                // Trims use the Svelte whitespace set (` \t\r\n\x0C`), not Rust's
+                // Unicode trim which would also eat `\u{00A0}` (`&nbsp;`).
                 if let TemplateNode::Text(text) = node {
-                    let trimmed = text.data.trim_start();
-                    // Check if there's a next node - preserve trailing space if so
-                    let next_node = body_nodes.get(i + 1);
+                    let trimmed = svelte_trim_start(&text.data);
+                    // Check if there's a next node within the trimmed range -
+                    // preserve trailing space if so (last text node gets its
+                    // trailing whitespace trimmed, like upstream clean_nodes).
+                    let next_node = if i + 1 < end_idx {
+                        body_nodes.get(i + 1)
+                    } else {
+                        None
+                    };
                     let needs_trailing_space = next_node.is_some()
-                        && text.data.chars().last().is_some_and(|c| c.is_whitespace());
+                        && text
+                            .data
+                            .chars()
+                            .last()
+                            .is_some_and(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'));
 
-                    let trimmed_end = trimmed.trim_end();
+                    let trimmed_end = svelte_trim_end(trimmed);
                     if !trimmed_end.is_empty() {
                         let mut content = escape_html(&sanitize_template_string(trimmed_end));
                         if needs_trailing_space {
@@ -187,7 +201,28 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
 
-            // Skip whitespace-only text nodes after ConstTag
+            // Last node - if it's text, trim its trailing whitespace before the
+            // generic Text path collapses it to a space (upstream clean_nodes
+            // trims the LAST text node's trailing whitespace entirely).
+            if i == end_idx - 1
+                && !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
+            {
+                let mut modified = text.clone();
+                modified.data = svelte_trim_end(&modified.data).to_string().into();
+                if !modified.data.is_empty() {
+                    body_generator.flush_async_consts();
+                    body_generator.generate_node(&TemplateNode::Text(modified), false)?;
+                }
+                prev_was_const_tag = false;
+                continue;
+            }
+
+            // Skip whitespace-only text nodes after hoisted nodes (ConstTag,
+            // nested SnippetBlock, DeclarationTag) — upstream's clean_nodes
+            // hoists those out BEFORE whitespace trimming, so the whitespace
+            // runs around them vanish. Dropped comments are transparent and
+            // do not reset the tracking.
             if prev_was_const_tag
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
@@ -195,8 +230,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
 
-            // Track if current node is a ConstTag
-            prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
+            // Track if current node is hoisted (transparent comments keep the
+            // previous tracking).
+            if !matches!(node, TemplateNode::Comment(_)) || self.preserve_comments {
+                prev_was_const_tag = matches!(
+                    node,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                        | TemplateNode::DeclarationTag(_)
+                );
+            }
 
             // Flush accumulated async consts before processing non-const content
             if !matches!(node, TemplateNode::ConstTag(_))
@@ -213,12 +256,18 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Apply const-tag-level async wrapping to snippet body parts
         let const_blocker_map = body_generator.const_blocker_map.borrow();
-        let body_parts = if !const_blocker_map.is_empty() {
+        let mut body_parts = if !const_blocker_map.is_empty() {
             Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
         } else {
             body_generator.output_parts
         };
         drop(const_blocker_map);
+
+        // Nested snippets declared inside this snippet body are emitted as
+        // function declarations within the snippet's own scope (upstream's
+        // Fragment visitor hoists SnippetBlocks per fragment, including
+        // snippet bodies).
+        Self::splice_nested_snippets(&mut body_parts, body_generator.snippets, self.dev);
 
         // Determine if the snippet can be hoisted to module level
         // Use metadata.can_hoist from the analyze phase
@@ -342,15 +391,25 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             if i == start_idx {
                 // First node - if it's text, trim leading whitespace but preserve trailing space
-                // if there is a following node (the space separates text from expression/element)
+                // if there is a following node within the trimmed range (the
+                // space separates text from expression/element). Trims use the
+                // Svelte whitespace set, not Rust's Unicode trim (`&nbsp;`).
                 if let TemplateNode::Text(text) = node {
-                    let trimmed = text.data.trim_start();
+                    let trimmed = svelte_trim_start(&text.data);
                     // Check if there's a next node - preserve trailing space if so
-                    let next_node = body_nodes.get(i + 1);
+                    let next_node = if i + 1 < end_idx {
+                        body_nodes.get(i + 1)
+                    } else {
+                        None
+                    };
                     let needs_trailing_space = next_node.is_some()
-                        && text.data.chars().last().is_some_and(|c| c.is_whitespace());
+                        && text
+                            .data
+                            .chars()
+                            .last()
+                            .is_some_and(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'));
 
-                    let trimmed_end = trimmed.trim_end();
+                    let trimmed_end = svelte_trim_end(trimmed);
                     if !trimmed_end.is_empty() {
                         let mut content = escape_html(&sanitize_template_string(trimmed_end));
                         if needs_trailing_space {
@@ -360,6 +419,21 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                     continue;
                 }
+            }
+            // Last node - if it's text, trim its trailing whitespace before the
+            // generic Text path collapses it to a space (upstream clean_nodes
+            // trims the LAST text node's trailing whitespace entirely).
+            if i == end_idx - 1
+                && !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
+            {
+                let mut modified = (*text).clone();
+                modified.data = svelte_trim_end(&modified.data).to_string().into();
+                if !modified.data.is_empty() {
+                    body_generator.flush_async_consts();
+                    body_generator.generate_node(&TemplateNode::Text(modified), false)?;
+                }
+                continue;
             }
             // Flush accumulated async consts before processing non-const content
             if !matches!(node, TemplateNode::ConstTag(_))
@@ -376,14 +450,51 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Apply const-tag-level async wrapping
         let const_blocker_map = body_generator.const_blocker_map.borrow();
-        let body_parts = if !const_blocker_map.is_empty() {
+        let mut body_parts = if !const_blocker_map.is_empty() {
             Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
         } else {
             body_generator.output_parts
         };
         drop(const_blocker_map);
 
+        // Nested snippets declared inside this fragment are emitted as
+        // function declarations within the same scope.
+        Self::splice_nested_snippets(&mut body_parts, body_generator.snippets, self.dev);
+
         Ok(body_parts)
+    }
+
+    /// Splice snippet definitions collected while generating a snippet body
+    /// into the body parts as `SnippetFunction` declarations. Mirrors the
+    /// insertion logic in `generate_fragment_body_parts_inner`: insert after
+    /// the last `let `-RawStatement / ConstDeclaration so hoisted promise
+    /// declarations stay first, preserving source order.
+    fn splice_nested_snippets(
+        parts: &mut Vec<OutputPart>,
+        snippets: Vec<super::super::types::SnippetDef>,
+        dev: bool,
+    ) {
+        if snippets.is_empty() {
+            return;
+        }
+        let snippet_parts: Vec<OutputPart> = snippets
+            .into_iter()
+            .map(|snippet| OutputPart::SnippetFunction {
+                name: snippet.name,
+                params: snippet.params,
+                body: snippet.body_parts,
+                dev,
+            })
+            .collect();
+        let insert_pos = parts
+            .iter()
+            .rposition(|p| {
+                matches!(p, OutputPart::RawStatement(s) if s.starts_with("let "))
+                    || matches!(p, OutputPart::ConstDeclaration(_))
+            })
+            .map(|pos| pos + 1)
+            .unwrap_or(0);
+        parts.splice(insert_pos..insert_pos, snippet_parts);
     }
 
     /// Extract the set of bound identifier names from a list of snippet

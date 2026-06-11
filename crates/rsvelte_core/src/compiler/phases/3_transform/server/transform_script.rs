@@ -5826,7 +5826,32 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                         // rewrites it back to `;;`. Emitting an `$$async_hole`
                         // comment here means a single hole instead of two empty
                         // statements (which would otherwise become two noop thunks).
-                        result.push_str("/* $$async_hole */;\n");
+                        //
+                        // A `// …` comment trailing the removed `$inspect(...)` on
+                        // the SAME line stays attached to the placeholder line
+                        // (upstream emits `;; // comment` — esrap's
+                        // flush_trailing_comments prints same-line trailing
+                        // comments right after the replacing empty statements).
+                        let has_same_line_line_comment =
+                            end + 1 < chars.len() && chars[end] == '/' && chars[end + 1] == '/';
+                        if has_same_line_line_comment {
+                            result.push_str("/* $$async_hole */; ");
+                        } else {
+                            result.push_str("/* $$async_hole */;\n");
+                        }
+                        // Comments INSIDE the removed `$inspect(...)` /
+                        // `.with(...)` range survive in the official output
+                        // (esrap re-inserts them positionally — typically at
+                        // the end of the component body). Re-emit them on
+                        // their own lines; the trailing-comment split in
+                        // `build_program` routes them like the $effect case.
+                        let removed: String = chars[i..end.min(chars.len())].iter().collect();
+                        if removed.contains("//") || removed.contains("/*") {
+                            for comment in extract_comments_from_snippet(&removed) {
+                                result.push_str(&comment);
+                                result.push('\n');
+                            }
+                        }
                     } else if !rune_prefix.starts_with("$inspect") {
                         while result.ends_with(' ') || result.ends_with('\t') {
                             result.pop();

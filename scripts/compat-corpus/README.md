@@ -18,13 +18,20 @@ differences; anything that survives normalization is a real divergence and
 fails verification. Files the official compiler rejects are *error-parity*
 cases: rsvelte must reject them too (same error code).
 
-Normalization is two layers, both in the comparison side — the compiler
+Normalization is three layers, all in the comparison side — the compiler
 itself never spends cycles on cosmetic output massaging (rsvelte targets
 100x compile performance):
 
-1. **oxfmt** (`compat/corpus/.oxfmtrc.json`, `objectWrap: collapse`) —
+1. **template-hole flattening** (`normalize.mjs`, applied BEFORE oxfmt) —
+   esrap wraps long expressions inside `` `${}` `` template-literal holes
+   across lines; oxfmt preserves the multiline-ness of holes from its
+   input, so it cannot absorb this on its own. Newlines inside holes are
+   collapsed to a single space (static template text, nested template
+   literals, and comments are untouched), after which oxfmt converges
+   both sides to the identical single-line form.
+2. **oxfmt** (`compat/corpus/.oxfmtrc.json`, `objectWrap: collapse`) —
    canonicalizes quotes, wrapping, indentation.
-2. **blank-line stripping** (`normalize.mjs`) — the official compiler
+3. **blank-line stripping** (`normalize.mjs`) — the official compiler
    prints through esrap, which re-derives blank lines from its own layout
    rules, while rsvelte preserves source blank lines; oxfmt deliberately
    keeps single blank lines, so this class of diff is removed here.

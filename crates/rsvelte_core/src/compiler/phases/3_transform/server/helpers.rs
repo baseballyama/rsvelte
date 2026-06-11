@@ -864,22 +864,32 @@ pub(crate) fn collapse_whitespace(s: &str) -> String {
 }
 
 /// Trim leading and trailing whitespace from output parts.
-/// This trims whitespace from the first and last Html parts if they exist.
+///
+/// Mirrors upstream `clean_nodes` (3-transform/utils.js): ALL leading /
+/// trailing whitespace-only text nodes are removed (not just one), and the
+/// remaining first / last text gets its edge whitespace trimmed using the
+/// Svelte whitespace set (` \t\r\n` — NOT `\u{00A0}` from `&nbsp;`, which
+/// upstream's `regex_not_whitespace = /[^ \t\r\n]/` treats as content).
 pub(crate) fn trim_output_parts(parts: &mut Vec<OutputPart>) {
-    // Trim leading whitespace from first Html part
+    use crate::compiler::phases::phase3_transform::utils::{
+        is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+    };
+
+    // Remove leading whitespace-only Html parts (upstream pops every
+    // whitespace-only leading text node), then trim the first remaining one.
+    while matches!(parts.first(), Some(OutputPart::Html(html)) if is_svelte_whitespace_only(html)) {
+        parts.remove(0);
+    }
     if let Some(OutputPart::Html(html)) = parts.first_mut() {
-        *html = html.trim_start().to_string();
-        if html.is_empty() {
-            parts.remove(0);
-        }
+        *html = svelte_trim_start(html).to_string();
     }
 
-    // Trim trailing whitespace from last Html part
+    // Same for the tail.
+    while matches!(parts.last(), Some(OutputPart::Html(html)) if is_svelte_whitespace_only(html)) {
+        parts.pop();
+    }
     if let Some(OutputPart::Html(html)) = parts.last_mut() {
-        *html = html.trim_end().to_string();
-        if html.is_empty() {
-            parts.pop();
-        }
+        *html = svelte_trim_end(html).to_string();
     }
 }
 
