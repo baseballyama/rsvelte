@@ -838,7 +838,23 @@ fn transform_client_with_visitors(
 
     // Add legacy $$sanitized_props / $$restProps / $$slots declarations at the top.
     // These must come BEFORE $.push().
-    // Reference: transform-client.js lines 458-497
+    // Reference: transform-client.js lines 458-497. Upstream `unshift`s in the
+    // order restProps → sanitized_props → slots, so the final order is
+    // `$$slots`, `$$sanitized_props`, `$$restProps` — emit `$$slots` first.
+    //
+    // $$slots: when uses_slots (applies in both runes and legacy mode)
+    if analysis.uses_slots {
+        component_body.push(b::const_decl(
+            &context.arena,
+            "$$slots",
+            b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.sanitize_slots"),
+                vec![b::id("$$props")],
+            ),
+        ));
+    }
+
     if !analysis.runes {
         // $$sanitized_props: when uses_props or uses_rest_props
         if analysis.uses_props || analysis.uses_rest_props {
@@ -891,19 +907,6 @@ fn transform_client_with_visitors(
                 ),
             ));
         }
-    }
-
-    // $$slots: when uses_slots (applies in both runes and legacy mode)
-    if analysis.uses_slots {
-        component_body.push(b::const_decl(
-            &context.arena,
-            "$$slots",
-            b::call(
-                &context.arena,
-                b::member_path(&context.arena, "$.sanitize_slots"),
-                vec![b::id("$$props")],
-            ),
-        ));
     }
 
     // Add componentApi: 4 new.target check at the very start
