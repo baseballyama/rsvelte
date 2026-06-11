@@ -3861,6 +3861,41 @@ fn get_literal_value_complex(
 /// the official Svelte compiler's `scope.evaluate(value).is_defined` behavior.
 /// Function calls (like `$.get(index)`) are NOT considered defined because they
 /// could theoretically return undefined.
+/// Build the dotted keypath of a static `JsExpr` callee (`Math.round` →
+/// `"Math.round"`). Returns `None` for computed members, calls, or anything
+/// that isn't a plain identifier / identifier-member chain.
+fn js_expr_keypath(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> Option<String> {
+    match expr {
+        JsExpr::Identifier(name) => Some(name.to_string()),
+        JsExpr::Member(m) if !m.computed => {
+            if let crate::compiler::phases::phase3_transform::js_ast::nodes::JsMemberProperty::Identifier(prop) = &m.property {
+                let base = js_expr_keypath(arena.get_expr(m.object), arena)?;
+                Some(format!("{base}.{prop}"))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// True for the global function keypaths whose results upstream `scope.evaluate`
+/// types as NUMBER or STRING (always defined): every `Math.*`, `Number` /
+/// `Number.*`, `String` / `String.from*`, and `BigInt`. Mirrors the `globals`
+/// table in `2-analyze/scope.js`.
+fn is_known_defined_global_call(keypath: &str) -> bool {
+    keypath.starts_with("Math.")
+        || keypath == "Number"
+        || keypath.starts_with("Number.")
+        || keypath == "String"
+        || keypath == "String.fromCharCode"
+        || keypath == "String.fromCodePoint"
+        || keypath == "BigInt"
+}
+
 pub(crate) fn is_js_expr_defined(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
@@ -3870,8 +3905,18 @@ pub(crate) fn is_js_expr_defined(
             JsLiteral::Null | JsLiteral::Undefined => false,
             _ => true, // String, Number, Boolean are always defined
         },
-        JsExpr::Identifier(_) => false,     // Could be undefined
-        JsExpr::Call(_) => false,           // Function calls could return undefined
+        JsExpr::Identifier(_) => false, // Could be undefined
+        JsExpr::Call(call) => {
+            // Upstream `scope.evaluate` knows the global `Math.*` / `Number` /
+            // `Number.*` / `String` / `String.from*` / `BigInt` functions return
+            // a NUMBER or STRING — never null/undefined — so a call to one is
+            // `is_defined` and gets no `?? ''`. (A shadowing local binding would
+            // have been wrapped — e.g. `$.get(Math).round(...)` — so the bare
+            // global keypath only matches the real globals.)
+            js_expr_keypath(arena.get_expr(call.callee), arena)
+                .as_deref()
+                .is_some_and(is_known_defined_global_call)
+        }
         JsExpr::TemplateLiteral(_) => true, // Always a string
         JsExpr::Binary(_) => true,          // Always produces a result
         JsExpr::Unary(u) => !matches!(u.operator, JsUnaryOp::Void),
@@ -4049,11 +4094,38 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
             // Functions are always defined
             true
         }
-        "CallExpression" | "MemberExpression" => {
-            // These could return undefined, so we can't guarantee they're defined
+        "CallExpression" => {
+            // A call to a known global (`Math.*` / `Number` / `String` /
+            // `BigInt`) returns a NUMBER/STRING — always defined — mirroring
+            // upstream `scope.evaluate`'s `globals` table.
+            obj.get("callee")
+                .and_then(json_callee_keypath)
+                .as_deref()
+                .is_some_and(is_known_defined_global_call)
+        }
+        "MemberExpression" => {
+            // Member access could be undefined; can't guarantee defined.
             false
         }
         _ => false,
+    }
+}
+
+/// Dotted keypath of a static estree-JSON callee (`Math.round` → `"Math.round"`).
+fn json_callee_keypath(node: &serde_json::Value) -> Option<String> {
+    let obj = node.as_object()?;
+    match obj.get("type").and_then(|t| t.as_str())? {
+        "Identifier" => obj.get("name").and_then(|n| n.as_str()).map(String::from),
+        "MemberExpression" if obj.get("computed").and_then(|c| c.as_bool()) != Some(true) => {
+            let prop = obj.get("property")?.as_object()?;
+            if prop.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                return None;
+            }
+            let prop_name = prop.get("name").and_then(|n| n.as_str())?;
+            let base = json_callee_keypath(obj.get("object")?)?;
+            Some(format!("{base}.{prop_name}"))
+        }
+        _ => None,
     }
 }
 
