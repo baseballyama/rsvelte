@@ -928,7 +928,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Transform rune calls in spread expressions
                         let expr = Self::transform_rune_in_template_expr(&expr);
                         // Wrap bare reads of $derived bindings (Svelte 5.52+).
-                        let mut expr = self.wrap_derived_reads(&expr);
+                        let expr = self.wrap_derived_reads(&expr);
+                        // Legacy `$$props` reads become `$$sanitized_props`
+                        // (upstream's server Identifier visitor), so a spread
+                        // `{...$$props}` emits `{ ...$$sanitized_props }`.
+                        let mut expr = self.transform_special_vars(&expr);
                         // In dev mode, if the parent element has a svelte-ignore
                         // state_snapshot_uncloneable comment, add `true` arg to $.snapshot()
                         if self.dev

@@ -1977,6 +1977,18 @@ fn convert_expression_to_pattern(
                         .iter()
                         .filter_map(|prop| {
                             let prop_obj = prop.as_object()?;
+                            // A rest element `{ ...rest }` has no `key`; preserve it
+                            // as a Rest property so the key-function parameter keeps
+                            // the full destructure (matching upstream).
+                            if prop_obj.get("type").and_then(|t| t.as_str()) == Some("RestElement")
+                            {
+                                let arg = prop_obj.get("argument")?;
+                                let inner = convert_expression_to_pattern(
+                                    arena,
+                                    &Expression::Value(arg.clone()),
+                                );
+                                return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
+                            }
                             let key = prop_obj.get("key")?.as_object()?;
                             let key_name = key.get("name")?.as_str()?;
                             let value = prop_obj.get("value")?;
