@@ -5,12 +5,12 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,463 |
+| match (identical after normalization) | 5,464 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **55** (was 125) |
+| **known failures (baseline)** | **54** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 68 → 55 (latest session, 13 ids).** All byte-exact suites
+**Burn-down 68 → 54 (latest session, 14 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
 - `should_proxy` resolves an Identifier through its binding's initial node type
   (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
@@ -29,6 +29,8 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 - drop top-level `$:` in a `<script module>` on the server (`strip_top_level_reactive_labels`).
 - no double-wrap of prop-source reads in runes `$props()` defaults (`b()()` → `b()`).
 - `USE_IMPORT_NODE` flag on a single-element slot custom element / `<video>`.
+- spread element marks an expression `has_state` + `has_call` (Phase-2 metadata +
+  Phase-3 walkers) — `class={{ foo: true, ...rest }}` is now reactive/memoized.
 
 Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 (`normalize.astSignature` drops `shorthand`); uninitialized immutable
@@ -36,7 +38,7 @@ Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>` prior-content
 trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0).
 
-### Remaining 55 — dominant hard clusters (each needs a real port/refactor)
+### Remaining 54 — dominant hard clusters (each needs a real port/refactor)
 
 - **Comment-mangling / TS-cast printer** (~12) — `export let`/decls with interspersed
   `//` / `/* */` comments and stripped TS-cast comments mis-indent and go unparseable
