@@ -1,16 +1,36 @@
 # Corpus-compat: remaining work (burn-down playbook)
 
-Status as of 2026-06-11 (branch `feat/corpus-compat`, Svelte 5.56.2):
+Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 
 | metric | count |
 |---|---|
-| corpus entries (CSR + SSR both compiled & compared) | 6,407 |
-| match (byte-identical after normalization) | 5,202 |
-| error parity (official rejects, rsvelte rejects with the SAME code) | 889 |
-| **known failures (baseline)** | **316** |
+| corpus entries (CSR + SSR both compiled & compared) | 6,409 |
+| match (byte-identical after normalization) | 5,226 |
+| error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
+| **known failures (baseline)** | **293** |
 | error-presence / error-code mismatches | 0 |
 
-The 316 remaining ids live in `compat/corpus/known-failures.json`. CI
+**Burn-down landed (316 → 293, all verified against corpus + byte-exact
+runtime/ssr/compiler fixture suites, no regressions):** `should_proxy`
+identifier-binding resolution + SequenceExpression + drop prop-default branch;
+comment-only `<script module>` dropped; `$props.id()` → defined STRING (server
+eval); block-branch leading-whitespace loop-trim + each-`{:else}` comment-skip;
+`TEMPLATE_USE_IMPORT_NODE` for static `<video>`/custom elements; load/error
+`onload`/`onerror` capture for `use:` directives; known-global calls
+(`Math.*`/`Number`/`String`/`BigInt`) skip `?? ""` in text interpolation.
+
+**The remaining ~293 are dominated by the esrap-printer class** (positional
+comment placement, layout/collapse on oxfmt-unparseable files, `template_effect`
+memo split, template-literal width wrapping). These are NOT fixable by string
+post-passes (see the ground rules below) — they need the Phase-3 esrap printer
+port (`docs/phase3-ast-refactor-plan.md`, step 0). The handful of remaining
+non-printer bugs (`{const}` DeclarationTag each-item `$.get` wrapping;
+`@attach`+`$effect` component wrapper; snippet out-of-scope; context-aware
+`?? ""` for assignment-exprs / bound dimensions; CSS parse edge cases) are deep,
+text-based, and regression-prone (a `yScale(tick)`→`yScale()(tick)` attempt was
+reverted after it broke `derived-unowned`/`derived-map` two different ways).
+
+The remaining ids live in `compat/corpus/known-failures.json`. CI
 (`corpus-compat.yml`) fails only on entries NOT in that baseline, so every
 PR may only shrink the list, never grow it (ratchet).
 
