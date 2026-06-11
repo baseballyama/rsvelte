@@ -43,6 +43,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(part, OutputPart::SvelteBoundary { .. })
                 || matches!(part, OutputPart::SvelteBoundaryWithPending { .. })
                 || matches!(part, OutputPart::RenderCall { .. })
+                // A `<slot>` (`$.slot(...)` wrapped in `<!--[-->…<!--]-->`) is
+                // meaningful content, so a following component is not standalone
+                // and must keep its trailing `<!---->` marker.
+                || matches!(part, OutputPart::Slot { .. })
         });
 
         // Extract interleaved props/spreads and bindings
