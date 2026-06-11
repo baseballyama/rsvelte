@@ -5,7 +5,6 @@
 	"svelte.dev/apps/svelte.dev/content/examples/12-svg/02-bar-chart/+assets/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/examples/12-svg/03-area-chart/+assets/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/examples/12-svg/04-scatterplot/+assets/Scatterplot.svelte",
-	"svelte.dev/apps/svelte.dev/content/examples/20-7guis/05-7guis-crud/+assets/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/01-advanced-reactivity/01-raw-state/+assets/app-a/src/lib/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/01-advanced-reactivity/01-raw-state/+assets/app-b/src/lib/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/04-advanced-bindings/03-media-elements/+assets/app-a/src/lib/AudioPlayer.svelte",
