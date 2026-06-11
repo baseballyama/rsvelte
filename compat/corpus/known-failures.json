@@ -1,7 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-09-20-runes.md/5.svelte.js",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/06-snippet.md/6.svelte",
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/11-declaration-tags.md/1.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
 	"svelte.dev/apps/svelte.dev/content/examples/12-svg/02-bar-chart/+assets/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/examples/12-svg/03-area-chart/+assets/App.svelte",
@@ -29,7 +28,6 @@
 	"svelte.dev/packages/repl/src/lib/Repl.svelte",
 	"svelte.dev/packages/repl/src/lib/Workspace.svelte.ts",
 	"svelte/documentation/docs/03-template-syntax/06-snippet.md/6.svelte",
-	"svelte/documentation/docs/03-template-syntax/11-declaration-tags.md/1.svelte",
 	"svelte/documentation/docs/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
 	"svelte/packages/svelte/tests/css/samples/clsx-cannot-prune-2/input.svelte",
 	"svelte/packages/svelte/tests/manual/each-stress-test/main.svelte",
