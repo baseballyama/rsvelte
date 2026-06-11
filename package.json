@@ -42,7 +42,7 @@
 		"test:vps-fixture": "node scripts/dev/test-vps-vite-fixture.mjs",
 		"test:vps": "node scripts/dev/test-vps-shim.mjs && node scripts/dev/test-vps-vite-fixture.mjs",
 		"build:vps-native": "node scripts/dev/build-vps-native-local.mjs",
-		"corpus:sync": "node scripts/compat-corpus/sync-sources.mjs",
+		"corpus:sync": "git submodule update --init --depth 1 submodules/svelte.dev submodules/svelte",
 		"corpus:collect": "node scripts/compat-corpus/collect.mjs",
 		"corpus:compile": "node scripts/compat-corpus/compile.mjs",
 		"corpus:verify": "node scripts/compat-corpus/verify.mjs",

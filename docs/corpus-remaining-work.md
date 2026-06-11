@@ -25,7 +25,7 @@ doubt, run it and mirror it; never "improve" on its output.
 git submodule update --init --depth 1 submodules/svelte
 (cd submodules/svelte && pnpm install --frozen-lockfile)
 pnpm install
-pnpm run corpus:sync           # pinned svelte.dev checkout into .corpus-cache/
+pnpm run corpus:sync           # init/update svelte + svelte.dev submodules
 
 # 1. build + stage the NAPI binding (two commands — do NOT chain with `grep -c &&`)
 cargo build --release --features napi --lib

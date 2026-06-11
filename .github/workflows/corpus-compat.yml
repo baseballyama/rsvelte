@@ -2,15 +2,15 @@ name: corpus-compat
 
 # Compiles every .svelte / .svelte.(js|ts) source (including markdown code
 # blocks) from sveltejs/svelte (pinned by the submodule gitlink) and
-# sveltejs/svelte.dev (pinned by compat/corpus/sources.json) with BOTH the
+# sveltejs/svelte.dev (pinned by the submodules/svelte.dev gitlink) with BOTH the
 # official Svelte compiler and rsvelte, for client (CSR) and server (SSR)
 # targets, normalizes both output trees with oxfmt, and requires the results
 # to be byte-identical. See scripts/compat-corpus/README.md.
 #
 # Expected outputs are regenerated from the pinned upstreams on every run, so
-# bumping either pin (auto-update-svelte.yml for the compiler submodule,
-# auto-update-corpus.yml for svelte.dev) automatically refreshes both the
-# test corpus and its expectations.
+# bumping either submodule (auto-update-svelte.yml for the compiler,
+# auto-update-submodules.yml for svelte.dev) automatically refreshes both
+# the test corpus and its expectations.
 
 on:
   workflow_dispatch:
@@ -21,6 +21,7 @@ on:
       - 'scripts/compat-corpus/**'
       - 'compat/corpus/**'
       - 'submodules/svelte'
+      - 'submodules/svelte.dev'
       - '.gitmodules'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -31,6 +32,7 @@ on:
       - 'scripts/compat-corpus/**'
       - 'compat/corpus/**'
       - 'submodules/svelte'
+      - 'submodules/svelte.dev'
       - '.gitmodules'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -53,8 +55,8 @@ jobs:
         with:
           submodules: false
 
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+      - name: Checkout svelte + svelte.dev submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -88,15 +90,6 @@ jobs:
         run: |
           cd submodules/svelte
           pnpm install --frozen-lockfile
-
-      - name: Cache svelte.dev checkout
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: .corpus-cache/svelte.dev
-          key: corpus-svelte-dev-v1-${{ hashFiles('compat/corpus/sources.json') }}
-
-      - name: Sync svelte.dev checkout to pinned SHA
-        run: node scripts/compat-corpus/sync-sources.mjs
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1

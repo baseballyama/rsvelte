@@ -8,7 +8,7 @@ markdown — found in two upstream repositories:
 | Source | Pin |
 |---|---|
 | [sveltejs/svelte](https://github.com/sveltejs/svelte) | `submodules/svelte` gitlink (same compiler version rsvelte mirrors) |
-| [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `compat/corpus/sources.json` |
+| [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `submodules/svelte.dev` gitlink (auto-bumped by `auto-update-submodules.yml`) |
 
 Both compilers run with identical default options (`dev: false`,
 `css: 'external'`). `.svelte.ts` modules are TS-stripped with esbuild
@@ -35,7 +35,7 @@ itself never spends cycles on cosmetic output massaging (rsvelte targets
 
 ```bash
 # one-time / after pin changes
-pnpm run corpus:sync        # checkout svelte.dev at the pinned SHA (.corpus-cache/)
+pnpm run corpus:sync        # init/update the svelte + svelte.dev submodules
 
 # build + stage the rsvelte NAPI binding
 cargo build --release --features napi --lib
@@ -69,6 +69,7 @@ node scripts/compat-corpus/cluster.mjs --show 'JS client: E:…'   # list ids in
   touching the compiler, the pipeline, or either pin. Expected outputs are
   regenerated from the pinned upstreams on every run, so bumping a pin
   automatically refreshes the corpus *and* its expectations.
-- `.github/workflows/auto-update-corpus.yml` — weekly PR advancing the
-  svelte.dev pin. (The svelte side is covered by `auto-update-svelte.yml`,
-  which bumps the submodule gitlink.)
+- svelte.dev bumps arrive via the existing `auto-update-submodules.yml`
+  weekly PR (shared with the fmt parity corpus); the svelte side via
+  `auto-update-svelte.yml`. Both trigger corpus-compat through its
+  submodule path filters.

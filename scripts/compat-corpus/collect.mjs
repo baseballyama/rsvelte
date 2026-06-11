@@ -34,7 +34,9 @@ function argValue(name, fallback) {
 }
 
 const SVELTE_DIR = path.join(ROOT, 'submodules/svelte');
-const SVELTE_DEV_DIR = path.resolve(ROOT, argValue('--svelte-dev', '.corpus-cache/svelte.dev'));
+// svelte.dev is a submodule (kept current by auto-update-submodules.yml,
+// shared with the fmt parity corpus).
+const SVELTE_DEV_DIR = path.resolve(ROOT, argValue('--svelte-dev', 'submodules/svelte.dev'));
 
 if (!fs.existsSync(path.join(SVELTE_DIR, 'packages/svelte/package.json'))) {
 	console.error(`[collect] svelte submodule missing at ${SVELTE_DIR} (run git submodule update --init)`);
@@ -42,8 +44,7 @@ if (!fs.existsSync(path.join(SVELTE_DIR, 'packages/svelte/package.json'))) {
 }
 if (!fs.existsSync(SVELTE_DEV_DIR)) {
 	console.error(`[collect] svelte.dev checkout missing at ${SVELTE_DEV_DIR}`);
-	console.error('  clone it first, e.g.:');
-	console.error('  git clone --filter=blob:none --depth=1 https://github.com/sveltejs/svelte.dev.git .corpus-cache/svelte.dev');
+	console.error('  run: git submodule update --init --depth 1 submodules/svelte.dev');
 	process.exit(1);
 }
 

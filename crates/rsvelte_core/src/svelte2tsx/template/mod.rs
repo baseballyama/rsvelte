@@ -2443,15 +2443,15 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
 fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
     for node in &fragment.nodes {
         match node {
-            TemplateNode::RegularElement(el) => {
-                if get_slot_attr_value(&el.attributes, source).is_some() {
-                    return true;
-                }
+            TemplateNode::RegularElement(el)
+                if get_slot_attr_value(&el.attributes, source).is_some() =>
+            {
+                return true;
             }
-            TemplateNode::Component(comp) => {
-                if get_slot_attr_value(&comp.attributes, source).is_some() {
-                    return true;
-                }
+            TemplateNode::Component(comp)
+                if get_slot_attr_value(&comp.attributes, source).is_some() =>
+            {
+                return true;
             }
             // `<svelte:fragment slot="name" let:foo>` is the Svelte 4 idiom
             // for distributing children into a named slot — it shows up here

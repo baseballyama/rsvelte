@@ -2689,11 +2689,7 @@ fn split_generic_param_names(generics: &str) -> Vec<String> {
     for (i, ch) in generics.char_indices() {
         match ch {
             '<' => depth += 1,
-            '>' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
-            }
+            '>' if depth > 0 => depth -= 1,
             ',' if depth == 0 => {
                 let param = generics[current_start..i].trim();
                 names.push(extract_param_name(param));

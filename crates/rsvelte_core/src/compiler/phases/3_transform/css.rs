@@ -6071,7 +6071,7 @@ fn transform_is_not_complex_selector(
                             if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
-                                selector_parts.push_str(&format!(":where({})", selector));
+                                let _ = write!(selector_parts, ":where({})", selector);
                             }
                         }
                     }
