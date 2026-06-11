@@ -1,21 +1,61 @@
 # Corpus-compat: remaining work (burn-down playbook)
 
-Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
+Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,394 |
+| match (identical after normalization) | 5,461 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **68** (was 125) |
+| **known failures (baseline)** | **58** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 125 → 68 (this session).** Also: object-property shorthand absorbed
-in the comparison layer (`normalize.astSignature` drops `shorthand`); uninitialized
-immutable `mutable_source(void 0,…)`; destructured export-let `$$array` hoist +
-rest-pattern `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>`
-prior-content trailing marker; nested CSS `:global`/`&` scoping + pruning port
-(css-mismatch 0).
+**Burn-down 68 → 58 (latest session, 10 ids).** All byte-exact suites
+(runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
+- `should_proxy` resolves an Identifier through its binding's initial node type
+  (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
+  `initial`; new module `module_non_proxy_vars`) — `$state(root)` / `$state(log_a)`
+  no longer proxy a binary/arrow-initialised binding.
+- bare leading combinator preserved inside `:has(> [open])` (`get_selector_text`).
+- comment-only `<slot><!-- x --></slot>` fallback emits the empty arrow, not `null`.
+- non-source prop store object reads as `$$props.name` in the mutation builders.
+- server MODULE derived setter (`$.set(d,v)`→`d(v)`) + bare-derived unthunk.
+- nested `:global { … }` block: mark the bare `:global` marker + tail global
+  (`mark_global_block_tail`) so it never scopes ancestors (e.g. `<header>`).
+- SSR multi-part style-directive value → template literal + `$.stringify`.
+- block-fragment namespace re-evaluated from its own children even when incoming
+  namespace is svg (sibling-of-`<svg>` `{#if}` with html children → `$.from_html`).
+- no `invalidate_inner_signals` for an unbound-global each collection.
+
+Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
+(`normalize.astSignature` drops `shorthand`); uninitialized immutable
+`mutable_source(void 0,…)`; destructured export-let `$$array` hoist + rest-pattern
+`to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>` prior-content
+trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0).
+
+### Remaining 58 — dominant hard clusters (each needs a real port/refactor)
+
+- **Comment-mangling / TS-cast printer** (~12) — `export let`/decls with interspersed
+  `//` / `/* */` comments and stripped TS-cast comments mis-indent and go unparseable
+  by oxfmt → byte mismatch. Needs the Phase-3 AST→esrap printer
+  (`docs/phase3-ast-refactor-plan.md`).
+- **client `Evaluation` port** (window-bindings, declaration-tag-state-referenced-locally,
+  bidirectional-control-characters — inlines a known-const string whose source uses
+  `\u….` escapes; rsvelte inlines the raw escape text, not the decoded value). Plan below.
+- **`$derived` currying** `yScale()(tick)` (bar-chart, area-chart, raw-state, scatterplot)
+  — off-limits without the derived-shape work (reverted twice).
+- **each-item reactivity wrapping** (customizing-use-enhance, 7guis-crud, ownership-invalid)
+  — fragile (a prior function_depth change caused 498 regressions).
+- **server compound-assignment preservation** (derived-server-memoization `s += 1`,
+  runes.md/5 `count += 1`) — client `$.set(s, $.get(s)+1)` loses `+=` vs `= … +`.
+- **snippet/slot hoisting** (snippet.md/6, slot-usages, shadowed-forwarded-slot,
+  svelte-component, head-raw-dynamic title reorder) + boundary `<!---->` whitespace.
+- **store/runes name conflicts** (no-runes-mode `$state()()`, store-runes-conflict,
+  runes-conflicting-store-in-module).
+- **misc** assign-prop-to-prop `b()()`, destructured-props-3, module-script-reactive
+  (drop module `$:` on server), reassign-derived-private (`#deps`/`#_deps`),
+  rest-eachblock-binding, unreferenced-variables-each (`$$index_1` counter order),
+  component-slotted-custom-element (import-node flag on slotted custom element).
 
 ### Implementation-ready plan: client `Evaluation` port (next session, ~2 ids)
 
