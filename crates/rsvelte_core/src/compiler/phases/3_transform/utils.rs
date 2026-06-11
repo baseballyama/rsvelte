@@ -975,17 +975,20 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
     // re-evaluated based on what elements are in the children.
     //
     // Note: In our implementation, parent is always None during the transform
-    // phase because the path is not populated. We use the incoming namespace
-    // to distinguish context: when namespace is "html", we're likely at a root
-    // or re-evaluation boundary where we need to detect SVG/MathML from children.
-    // When namespace is already "svg"/"mathml", we're inside a known namespace
-    // context (e.g., IfBlock inside SVG) and should trust it rather than
-    // re-evaluating, because ambiguous elements like <a> and <title> may not
-    // have their metadata.svg set correctly in the analysis phase.
+    // phase because the path is not populated. We still re-evaluate from the
+    // fragment's own direct elements even when the incoming namespace is
+    // svg/mathml: a block (e.g. `{#if}`) that is a *sibling* of an `<svg>`
+    // inherits the svg namespace of its enclosing fragment, but if its own
+    // children are html elements (`<div>`, `<span>`) it must use the html
+    // template (`$.from_html`, not `$.from_svg`). The re-evaluation reads each
+    // child's `metadata.svg` (set correctly in analysis, including via svg
+    // ancestors for ambiguous `<a>`/`<title>`), so the genuine "block inside
+    // SVG" case still resolves to svg; only fragments with no direct element
+    // fall through to the inherited namespace.
     let should_reevaluate = parent.is_snippet_block()
         || parent.is_component()
         || parent.is_svelte_component()
-        || (parent.is_none() && namespace == "html");
+        || parent.is_none();
 
     if should_reevaluate {
         // Check ALL child elements for consistent namespace.
