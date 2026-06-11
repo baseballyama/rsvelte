@@ -290,17 +290,39 @@ fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
-    // Replace $effect.root(() => { ... }) with () => {} (a no-op cleanup function)
-    // $effect.root returns a cleanup function, so we need to provide one.
+    // `$effect.root(...)` has two upstream lowerings:
+    //   - statement position  → removed entirely (ExpressionStatement.js → b.empty)
+    //   - expression position  → `() => {}` no-op cleanup fn (CallExpression.js)
     while let Some(pos) = next_code_match(&result, "$effect.root(", 0) {
         let call_start = pos + 13; // after "$effect.root("
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1; // after closing paren
-            let mut new_result = String::with_capacity(pos + 7 + result.len() - expr_end);
-            new_result.push_str(&result[..pos]);
-            new_result.push_str("() => {}");
-            new_result.push_str(&result[expr_end..]);
-            result = new_result;
+            // Statement position when everything from the line start to `pos` is
+            // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
+            let line_start = result[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            let is_statement = result[line_start..pos].chars().all(|c| c.is_whitespace());
+            if is_statement {
+                // Consume trailing whitespace + an optional `;` so no stray
+                // `() => {};` remains (mirrors the $effect.pre removal below).
+                let bytes = result.as_bytes();
+                let mut end = expr_end;
+                while end < result.len() && bytes[end].is_ascii_whitespace() {
+                    end += 1;
+                }
+                if end < result.len() && bytes[end] == b';' {
+                    end += 1;
+                }
+                let mut new_result = String::with_capacity(pos + result.len() - end);
+                new_result.push_str(&result[..pos]);
+                new_result.push_str(&result[end..]);
+                result = new_result;
+            } else {
+                let mut new_result = String::with_capacity(pos + 8 + result.len() - expr_end);
+                new_result.push_str(&result[..pos]);
+                new_result.push_str("() => {}");
+                new_result.push_str(&result[expr_end..]);
+                result = new_result;
+            }
         } else {
             break;
         }

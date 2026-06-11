@@ -716,14 +716,31 @@ fn transform_client_with_visitors(
     }
 
     // Detect reactive statements ($:) in the instance script
-    // Since analysis.reactive_statements is not populated yet, we scan the script directly
+    // Since analysis.reactive_statements is not populated yet, we scan the script directly.
+    // A `$:` is reactive only at the TOP LEVEL of the instance script (brace depth 0);
+    // a `$:` inside a function/block body is a plain labeled statement (upstream only
+    // treats top-level `$:` as reactive). We approximate nesting with a brace counter.
     let has_reactive_statements = if let Some(ref content) = analysis.instance_script_content {
-        // Check for $: at the start of a line (with possible leading whitespace)
-        content.raw.lines().any(|line| {
+        let mut depth: i32 = 0;
+        let mut found = false;
+        for line in content.raw.lines() {
             let trimmed = line.trim();
-            trimmed.starts_with("$:")
+            if depth <= 0
+                && trimmed.starts_with("$:")
                 && (trimmed.len() == 2 || !trimmed.chars().nth(2).unwrap_or(' ').is_alphanumeric())
-        })
+            {
+                found = true;
+                break;
+            }
+            for c in line.chars() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    _ => {}
+                }
+            }
+        }
+        found
     } else {
         false
     };

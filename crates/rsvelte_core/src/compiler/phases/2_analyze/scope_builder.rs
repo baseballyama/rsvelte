@@ -985,8 +985,12 @@ impl<'a> ScopeBuilder<'a> {
                     let body_node = self.arena.get_js_node(body_id);
                     if let JsNode::ExpressionStatement { expression, .. } = body_node {
                         let expr = self.arena.get_js_node(*expression);
-                        // Handle AssignmentExpression directly
-                        if let JsNode::AssignmentExpression { left, .. } = expr {
+                        // Handle AssignmentExpression directly. Only a top-level
+                        // `$:` (function_depth == 1) declares an implicit
+                        // reactive binding; a function-nested one is plain.
+                        if let JsNode::AssignmentExpression { left, .. } = expr
+                            && self.function_depth == 1
+                        {
                             let left_node = self.arena.get_js_node(*left);
                             self.collect_assignment_lhs_identifiers_typed(left_node);
                         }
@@ -1145,6 +1149,7 @@ impl<'a> ScopeBuilder<'a> {
                     if inner_expr.get("type").and_then(|t| t.as_str())
                         == Some("AssignmentExpression")
                         && let Some(left) = inner_expr.get("left")
+                        && self.function_depth == 1
                     {
                         self.collect_raw_assignment_lhs_identifiers(left);
                     }
@@ -2411,7 +2416,14 @@ impl<'a> ScopeBuilder<'a> {
                         } else {
                             expr
                         };
-                    if let oxc_ast::ast::Expression::AssignmentExpression(assign) = inner_expr {
+                    // Only a top-level `$:` (direct child of the instance
+                    // Program, `function_depth == 1`) declares an implicit
+                    // reactive binding. A `$:` inside a function body is a plain
+                    // labeled statement (upstream scope.js LabeledStatement guard
+                    // `path.length > 1`).
+                    if let oxc_ast::ast::Expression::AssignmentExpression(assign) = inner_expr
+                        && self.function_depth == 1
+                    {
                         self.collect_assignment_lhs_identifiers(&assign.left);
                     }
                 }
