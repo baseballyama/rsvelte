@@ -280,8 +280,25 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             true
         };
+        // The last *rendered* (non-hoisted) node is what upstream trims trailing
+        // whitespace on: hoisted nodes (const / snippet / declaration / debug)
+        // are pulled out of `regular` before the trailing-whitespace pass, so a
+        // trailing hoisted node must not stop the preceding text from being
+        // treated as the last node (utils.js: trim runs on post-hoist `regular`).
+        let last_render_idx = meaningful_nodes
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, n)| {
+                !(matches!(n, TemplateNode::ConstTag(_))
+                    || matches!(n, TemplateNode::SnippetBlock(_))
+                    || matches!(n, TemplateNode::DeclarationTag(_))
+                    || matches!(n, TemplateNode::DebugTag(_))
+                    || (matches!(n, TemplateNode::Comment(_)) && !self.preserve_comments))
+            })
+            .map(|(i, _)| i);
         for (i, node) in meaningful_nodes.iter().enumerate() {
-            let is_last = i == meaningful_nodes.len() - 1;
+            let is_last = Some(i) == last_render_idx;
 
             // Whitespace-only text before any real content (after hoisted/transparent nodes):
             // In the official compiler, hoisted nodes are removed before leading whitespace

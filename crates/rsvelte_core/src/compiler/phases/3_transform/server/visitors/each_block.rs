@@ -331,6 +331,30 @@ impl<'a> ServerCodeGenerator<'a> {
         // Flush accumulated async const tags
         body_generator.flush_async_consts();
 
+        // Lone `<script>` body: append a comment anchor, mirroring upstream
+        // `clean_nodes` (utils.js:265-275) — when the only meaningful child is a
+        // single `<script>` element, a `<!---->` is emitted after it.
+        {
+            let meaningful: Vec<&TemplateNode> = trimmed_body_nodes
+                .iter()
+                .filter(|n| match n {
+                    TemplateNode::Text(t) => !is_svelte_whitespace_only(&t.data),
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DeclarationTag(_) => false,
+                    _ => true,
+                })
+                .collect();
+            if meaningful.len() == 1
+                && let TemplateNode::RegularElement(el) = meaningful[0]
+                && el.name.as_str() == "script"
+            {
+                body_generator
+                    .output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
+            }
+        }
+
         // Generate fallback content if there's an {:else} clause
         let fallback = if let Some(ref fallback_fragment) = block.fallback {
             let mut fallback_generator = ServerCodeGenerator::new(

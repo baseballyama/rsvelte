@@ -455,6 +455,31 @@ impl<'a> ServerCodeGenerator<'a> {
         // Final flush for any remaining async consts
         body_generator.flush_async_consts();
 
+        // Lone `<script>` body: append a comment anchor, mirroring upstream
+        // `clean_nodes` (utils.js:265-275) — when the only meaningful child is a
+        // single `<script>` element, a `<!---->` is emitted after it so the
+        // client/server run-scripts logic stays in sync.
+        {
+            let meaningful: Vec<&TemplateNode> = trimmed_nodes
+                .iter()
+                .filter(|n| match n {
+                    TemplateNode::Text(t) => !is_svelte_whitespace_only(&t.data),
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DeclarationTag(_) => false,
+                    _ => true,
+                })
+                .collect();
+            if meaningful.len() == 1
+                && let TemplateNode::RegularElement(el) = meaningful[0]
+                && el.name.as_str() == "script"
+            {
+                body_generator
+                    .output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
+            }
+        }
+
         // Include any snippets defined inside the block as inline SnippetFunction parts
         // This handles cases like `{#if true}{#snippet test()}{/snippet}{/if}`
         // where the snippet function needs to be emitted inside the if-block body
