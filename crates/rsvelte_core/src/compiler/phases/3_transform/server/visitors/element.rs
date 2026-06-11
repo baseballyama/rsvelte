@@ -1141,38 +1141,73 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                         AttributeValue::Sequence(parts) => {
-                            // For sequences, build a template literal or concatenation
-                            let mut expr_parts: Vec<String> = Vec::new();
-                            for part in parts {
-                                match part {
+                            // A single bare part (one text or one expression) is
+                            // emitted as-is. A mixed text+expression sequence
+                            // (e.g. `rgb({c}, 0, 0)`) becomes a template literal
+                            // with each dynamic part interpolated through
+                            // `$.stringify`, matching the official server output
+                            // (`\`rgb(${$.stringify(c)}, 0, 0)\``) rather than a
+                            // string concatenation.
+                            if parts.len() == 1 {
+                                match &parts[0] {
                                     AttributeValuePart::Text(text) => {
-                                        let text_start = text.start as usize;
-                                        let text_end = text.end as usize;
-                                        if text_end > text_start && text_end <= self.source.len() {
-                                            expr_parts.push(format!(
-                                                "'{}'",
-                                                &self.source[text_start..text_end]
-                                            ));
+                                        let s = text.start as usize;
+                                        let e = text.end as usize;
+                                        if e > s && e <= self.source.len() {
+                                            format!("'{}'", &self.source[s..e])
+                                        } else {
+                                            "''".to_string()
                                         }
                                     }
                                     AttributeValuePart::ExpressionTag(expr) => {
-                                        let expr_start =
-                                            expr.expression.start().unwrap_or(0) as usize;
-                                        let expr_end = expr.expression.end().unwrap_or(0) as usize;
-                                        if expr_end > expr_start && expr_end <= self.source.len() {
-                                            expr_parts.push(
-                                                self.source[expr_start..expr_end]
-                                                    .trim()
-                                                    .to_string(),
-                                            );
+                                        let s = expr.expression.start().unwrap_or(0) as usize;
+                                        let e = expr.expression.end().unwrap_or(0) as usize;
+                                        if e > s && e <= self.source.len() {
+                                            self.source[s..e].trim().to_string()
+                                        } else {
+                                            "true".to_string()
                                         }
                                     }
                                 }
-                            }
-                            if expr_parts.len() == 1 {
-                                expr_parts.remove(0)
                             } else {
-                                expr_parts.join(" + ")
+                                let mut tmpl = String::from("`");
+                                for part in parts {
+                                    match part {
+                                        AttributeValuePart::Text(text) => {
+                                            let s = text.start as usize;
+                                            let e = text.end as usize;
+                                            if e > s && e <= self.source.len() {
+                                                let text = &self.source[s..e];
+                                                let bytes = text.as_bytes();
+                                                for (i, ch) in text.char_indices() {
+                                                    match ch {
+                                                        '`' => tmpl.push_str("\\`"),
+                                                        '\\' => tmpl.push_str("\\\\"),
+                                                        // Only escape `$` that begins a `${`
+                                                        // interpolation; a lone `$` stays raw.
+                                                        '$' if bytes.get(i + 1) == Some(&b'{') => {
+                                                            tmpl.push_str("\\$")
+                                                        }
+                                                        _ => tmpl.push(ch),
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        AttributeValuePart::ExpressionTag(expr) => {
+                                            let s = expr.expression.start().unwrap_or(0) as usize;
+                                            let e = expr.expression.end().unwrap_or(0) as usize;
+                                            if e > s && e <= self.source.len() {
+                                                let _ = write!(
+                                                    tmpl,
+                                                    "${{$.stringify({})}}",
+                                                    self.source[s..e].trim()
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                                tmpl.push('`');
+                                tmpl
                             }
                         }
                     };
