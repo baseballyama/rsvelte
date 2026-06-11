@@ -1908,7 +1908,13 @@ pub(super) fn transform_props_destructuring(
                     )
                     .unwrap_or(dv);
                 }
-                if !prop_source_vars.is_empty() {
+                // In runes mode the instance-script AST pass
+                // (`ast_state_transform`) already wraps prop-source reads
+                // (`b` → `b()`) across the whole statement, including these
+                // `$.prop(..., () => <default>)` thunks. Wrapping here too
+                // double-wraps (`b()()`), so only do the text wrap in legacy
+                // mode, where the AST pass doesn't run on this output.
+                if !analysis.runes && !prop_source_vars.is_empty() {
                     dv = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
                         &dv,
                         prop_source_vars,
