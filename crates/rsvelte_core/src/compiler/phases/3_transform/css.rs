@@ -904,12 +904,42 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
 /// Extract CSS content from source (finds the <style> block)
 /// Returns (css_content, start_position_in_source)
 fn extract_css_content(source: &str) -> Option<(String, usize)> {
-    let style_start = memmem::find(source.as_bytes(), b"<style")?;
-    let content_start = memchr(b'>', &source.as_bytes()[style_start..])? + style_start + 1;
-    // Match the closing tag START (`</style`), not the exact `</style>` — the
-    // tag may have whitespace before its `>` (`</style   >`), which the parser
-    // accepts; the CSS content ends at `</style` regardless.
-    let style_end = memmem::find(source.as_bytes(), b"</style")?;
+    let bytes = source.as_bytes();
+    // A `<style`/`</style` prefix is only the real stylesheet tag when the next
+    // byte terminates the tag name — otherwise `<style-foo>` (a custom element)
+    // would be misread as the stylesheet.
+    let is_term = |b: Option<&u8>| {
+        matches!(
+            b,
+            None | Some(b'>')
+                | Some(b'/')
+                | Some(b' ')
+                | Some(b'\t')
+                | Some(b'\n')
+                | Some(b'\r')
+                | Some(0x0c)
+        )
+    };
+    // Exact `<style` open tag (reject `<style-foo`, `<styles`, …).
+    let mut at = 0;
+    let style_start = loop {
+        let p = at + memmem::find(&bytes[at..], b"<style")?;
+        if is_term(bytes.get(p + 6)) {
+            break p;
+        }
+        at = p + 6;
+    };
+    let content_start = memchr(b'>', &bytes[style_start..])? + style_start + 1;
+    // Exact `</style` close tag, searched from the content start (the tag may
+    // have whitespace before its `>`, e.g. `</style   >`).
+    let mut at = content_start;
+    let style_end = loop {
+        let p = at + memmem::find(&bytes[at..], b"</style")?;
+        if is_term(bytes.get(p + 7)) {
+            break p;
+        }
+        at = p + 7;
+    };
 
     if content_start >= style_end {
         return None;
@@ -1336,6 +1366,17 @@ fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 
 /// Implementation of complex selector unused check
 fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
+    // A non-global selector can never match when the component renders no
+    // scopeable elements. Mirrors upstream `prune()`, which only sets
+    // `metadata.used` while iterating over `elements`; with zero elements every
+    // non-global-like selector is reported unused (e.g. a `<style>`-only file).
+    if !ctx.has_dynamic_elements
+        && ctx.dom_structure.elements.is_empty()
+        && !is_complex_selector_global_like(complex)
+    {
+        return true;
+    }
+
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
         // Check for :host > element pattern FIRST (before the global-like check)

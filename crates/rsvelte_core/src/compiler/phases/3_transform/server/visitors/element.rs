@@ -2688,57 +2688,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     AttrExprEval::Wrap
                 }
             }
-            // Upstream `scope.evaluate` (Svelte 5.55.9 `a5df6616e`) treats a
-            // ternary as provably-string when BOTH branches are provably-string,
-            // so the wrapping `$.stringify(...)` can be elided.
-            "ConditionalExpression" => {
-                let Some(consequent) = obj.get("consequent") else {
-                    return AttrExprEval::Wrap;
-                };
-                let Some(alternate) = obj.get("alternate") else {
-                    return AttrExprEval::Wrap;
-                };
-                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(consequent))
-                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(alternate))
-                {
-                    AttrExprEval::StringNoWrap
-                } else {
-                    AttrExprEval::Wrap
-                }
-            }
-            // String concatenation `a + b` where both operands are provably-string
-            // is itself provably-string.
-            "BinaryExpression" => {
-                let operator = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("");
-                if operator != "+" {
-                    return AttrExprEval::Wrap;
-                }
-                let Some(left) = obj.get("left") else {
-                    return AttrExprEval::Wrap;
-                };
-                let Some(right) = obj.get("right") else {
-                    return AttrExprEval::Wrap;
-                };
-                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(left))
-                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(right))
-                {
-                    AttrExprEval::StringNoWrap
-                } else {
-                    AttrExprEval::Wrap
-                }
-            }
+            // Ternaries (`ConditionalExpression`) and string concatenation
+            // (`BinaryExpression "+"`) are handled by the `evaluate_estree`
+            // pass above: it elides `$.stringify` only when BOTH branches /
+            // operands are provably string (`is_string()`). A ternary with
+            // numeric branches (`cond ? 1 : 0`) is NOT a string, so it keeps
+            // `$.stringify`, matching upstream `scope.evaluate`.
             _ => AttrExprEval::Wrap,
-        }
-    }
-
-    /// Helper for `eval_attr_expr_json`: whether a sub-expression's evaluation
-    /// proves it returns a (non-nullish) string.
-    fn eval_is_string_or_inline(eval: &AttrExprEval) -> bool {
-        match eval {
-            AttrExprEval::InlineLiteral(_) | AttrExprEval::StringNoWrap => true,
-            // `Empty` corresponds to `null`/`undefined` — these are NOT strings,
-            // so a ternary with an `undefined` branch is not provably-string.
-            AttrExprEval::Empty | AttrExprEval::Wrap => false,
         }
     }
 

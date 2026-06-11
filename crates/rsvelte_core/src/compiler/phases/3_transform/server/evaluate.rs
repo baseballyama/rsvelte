@@ -775,7 +775,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // (each/snippet/@const fragments). Bindings inside script functions
         // (params, function-local lets) can never be referenced from a
         // template expression, so they must not veto the agreement rule.
-        let bindings: Vec<_> = self
+        let mut bindings: Vec<_> = self
             .analysis
             .map(|a| {
                 let template_scopes = self
@@ -808,6 +808,33 @@ impl<'a> ServerCodeGenerator<'a> {
                     b.initial,
                     b.initial_node_type
                 );
+            }
+        }
+
+        // Upstream `scope.declare()` overwrites a same-named `var`
+        // redeclaration (`declarations.set(name, binding)` — last wins), so
+        // `var test = ""; var test = 42;` resolves to the `42` binding. Our
+        // flat bindings Vec keeps both; collapse bindings that share a scope to
+        // the latest-declared one before evaluating, so the agreement rule
+        // below only spans genuinely distinct (shadowing) scopes.
+        if bindings.len() > 1 {
+            use std::collections::HashMap;
+            let mut by_scope: HashMap<
+                usize,
+                &crate::compiler::phases::phase2_analyze::scope::Binding,
+            > = HashMap::new();
+            for &b in &bindings {
+                by_scope
+                    .entry(b.scope_index)
+                    .and_modify(|cur| {
+                        if b.declaration_start > cur.declaration_start {
+                            *cur = b;
+                        }
+                    })
+                    .or_insert(b);
+            }
+            if by_scope.len() < bindings.len() {
+                bindings = by_scope.into_values().collect();
             }
         }
 

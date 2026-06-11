@@ -2093,6 +2093,13 @@ fn is_value_known_defined(
                 && let Some(binding) = root.bindings.get(binding_idx)
             {
                 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                // An each-block index (`{#each … as item, i}`) is always a
+                // number, so upstream `scope.evaluate` reports it defined and
+                // the `?? ""` fallback is elided (scope.js: an Identifier whose
+                // binding initial is an EachBlock with `index === name` → NUMBER).
+                if matches!(binding.kind, BindingKind::EachIndex) {
+                    return true;
+                }
                 let is_prop = matches!(
                     binding.kind,
                     BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
