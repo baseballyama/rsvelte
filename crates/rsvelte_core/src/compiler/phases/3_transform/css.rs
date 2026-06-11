@@ -6315,10 +6315,17 @@ fn get_selector_text(node: &Value) -> String {
             // Check if this is a RelativeSelector with a combinator
             if let Some(combinator) = child.get("combinator")
                 && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
-                && !result.is_empty()
             {
-                // Add combinator (space for descendant, or the actual combinator)
-                if name == " " {
+                if result.is_empty() {
+                    // Leading combinator in a relative selector list (e.g.
+                    // `:has(> [open])`): the `>` / `+` / `~` is significant and
+                    // must be preserved. A leading descendant combinator (" ")
+                    // is implicit and emitted as nothing.
+                    if name != " " {
+                        let _ = write!(result, "{} ", name);
+                    }
+                } else if name == " " {
+                    // Add combinator (space for descendant, or the actual combinator)
                     result.push(' ');
                 } else {
                     let _ = write!(result, " {} ", name);

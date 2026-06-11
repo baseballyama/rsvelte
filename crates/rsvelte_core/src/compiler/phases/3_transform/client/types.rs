@@ -1134,11 +1134,11 @@ impl<'a> ComponentContext<'a> {
             };
             let block = visit_fragment_impl(&inner_fragment, self, false);
 
-            if block.body.is_empty() {
-                b::null()
-            } else {
-                b::arrow_block(vec![b::id_pattern("$$anchor")], block.body)
-            }
+            // Upstream emits the fallback arrow whenever `node.fragment.nodes`
+            // is non-empty — a comment-only fallback (`<slot><!-- x --></slot>`)
+            // still yields `($$anchor) => {}`, not `null`. Don't downgrade to
+            // null just because the generated body came out empty.
+            b::arrow_block(vec![b::id_pattern("$$anchor")], block.body)
         };
 
         // Restore original transforms after visiting children

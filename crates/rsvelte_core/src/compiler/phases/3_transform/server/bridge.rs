@@ -1969,10 +1969,12 @@ fn convert_slot(
         JsLiteral::String("<!--[-->".into()),
     )));
 
-    // Build fallback argument
+    // Build fallback argument. A non-null fallback whose body generates no
+    // output (e.g. a comment-only `<slot><!-- x --></slot>`) still emits the
+    // empty arrow `() => {}`, mirroring upstream's `length === 0 ? null : arrow`.
     let fallback_arg = if let Some(fallback_parts) = fallback {
         if fallback_parts.is_empty() {
-            "null".to_string()
+            "() => {}".to_string()
         } else {
             let fallback_code =
                 generate_inner_body_code_direct(fallback_parts, store_subs, each_counter, 1);

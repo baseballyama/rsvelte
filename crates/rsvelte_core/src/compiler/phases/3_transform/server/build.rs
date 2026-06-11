@@ -6542,7 +6542,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Generate $.slot() call
                     let fallback_arg = if let Some(fallback_parts) = fallback {
                         if fallback_parts.is_empty() {
-                            "null".to_string()
+                            // Non-null fallback whose body generates no output —
+                            // e.g. a comment-only `<slot><!-- x --></slot>`.
+                            // Upstream still emits the (empty) arrow, not null.
+                            "() => {}".to_string()
                         } else {
                             // Build fallback as a thunk: () => { ... }
                             let fallback_code = Self::build_parts_with_store_subs(
