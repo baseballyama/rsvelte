@@ -16,16 +16,16 @@ importers:
         version: 0.28.0
       oxfmt:
         specifier: ^0.53.0
-        version: 0.53.0(svelte@5.56.2)
+        version: 0.53.0(svelte@5.56.3)
       prettier:
         specifier: ^3.8.3
         version: 3.8.3
       prettier-plugin-svelte:
         specifier: ^4.1.0
-        version: 4.1.0(prettier@3.8.3)(svelte@5.56.2)
+        version: 4.1.0(prettier@3.8.3)(svelte@5.56.3)
       svelte:
         specifier: ^5.56.2
-        version: 5.56.2
+        version: 5.56.3
 
   apps/npm/compiler:
     publishDirectory: ../../../pkg
@@ -103,7 +103,7 @@ importers:
         version: link:../vite-plugin-svelte-native
       '@sveltejs/vite-plugin-svelte-inspector':
         specifier: ^5.0.0
-        version: 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0)))(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
+        version: 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0)))(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -125,7 +125,7 @@ importers:
         version: 1.100.0
       svelte:
         specifier: ^5.45.4
-        version: 5.56.2
+        version: 5.56.3
       vite:
         specifier: ^8.0.0
         version: 8.0.16(esbuild@0.28.0)(sass@1.100.0)
@@ -1262,6 +1262,10 @@ packages:
     resolution: {integrity: sha512-1lDf8TLqpxyAt3xgybfytWPJQbaUD6TiDgpiCLH0BKrKEwzecB9pjuNVnEJMpzH018xUzo6oxheK2HT0oa2RoQ==}
     engines: {node: '>=18'}
 
+  svelte@5.56.3:
+    resolution: {integrity: sha512-w7JvrM5IFl5cmfbY0TLik9o7mjRUJmRMhOR51tBPu708Gr/MjbGs7VnJnr/B0CaXeI4vtnOh7RKxDr0cwhMdDA==}
+    engines: {node: '>=18'}
+
   term-size@2.2.1:
     resolution: {integrity: sha512-wK0Ri4fOGjv/XPy8SBHZChl8CM7uMc5VML7SqiQ0zG7+J5Vr+RMQDoHa2CNT6KHUnTGIXH34UDMkPzAUyapBZg==}
     engines: {node: '>=8'}
@@ -1819,20 +1823,20 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0)))(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))':
+  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0)))(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
+      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
       obug: 2.1.2
-      svelte: 5.56.2
+      svelte: 5.56.3
       vite: 8.0.16(esbuild@0.28.0)(sass@1.100.0)
 
-  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))':
+  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0)))(svelte@5.56.2)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
+      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0)))(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.2
-      svelte: 5.56.2
+      svelte: 5.56.3
       vite: 8.0.16(esbuild@0.28.0)(sass@1.100.0)
       vitefu: 1.1.3(vite@8.0.16(esbuild@0.28.0)(sass@1.100.0))
 
@@ -2151,6 +2155,31 @@ snapshots:
       '@oxfmt/binding-win32-x64-msvc': 0.53.0
       svelte: 5.56.2
 
+  oxfmt@0.53.0(svelte@5.56.3):
+    dependencies:
+      tinypool: 2.1.0
+    optionalDependencies:
+      '@oxfmt/binding-android-arm-eabi': 0.53.0
+      '@oxfmt/binding-android-arm64': 0.53.0
+      '@oxfmt/binding-darwin-arm64': 0.53.0
+      '@oxfmt/binding-darwin-x64': 0.53.0
+      '@oxfmt/binding-freebsd-x64': 0.53.0
+      '@oxfmt/binding-linux-arm-gnueabihf': 0.53.0
+      '@oxfmt/binding-linux-arm-musleabihf': 0.53.0
+      '@oxfmt/binding-linux-arm64-gnu': 0.53.0
+      '@oxfmt/binding-linux-arm64-musl': 0.53.0
+      '@oxfmt/binding-linux-ppc64-gnu': 0.53.0
+      '@oxfmt/binding-linux-riscv64-gnu': 0.53.0
+      '@oxfmt/binding-linux-riscv64-musl': 0.53.0
+      '@oxfmt/binding-linux-s390x-gnu': 0.53.0
+      '@oxfmt/binding-linux-x64-gnu': 0.53.0
+      '@oxfmt/binding-linux-x64-musl': 0.53.0
+      '@oxfmt/binding-openharmony-arm64': 0.53.0
+      '@oxfmt/binding-win32-arm64-msvc': 0.53.0
+      '@oxfmt/binding-win32-ia32-msvc': 0.53.0
+      '@oxfmt/binding-win32-x64-msvc': 0.53.0
+      svelte: 5.56.3
+
   p-filter@2.1.0:
     dependencies:
       p-map: 2.1.0
@@ -2191,10 +2220,10 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier-plugin-svelte@4.1.0(prettier@3.8.3)(svelte@5.56.2):
+  prettier-plugin-svelte@4.1.0(prettier@3.8.3)(svelte@5.56.3):
     dependencies:
       prettier: 3.8.3
-      svelte: 5.56.2
+      svelte: 5.56.3
 
   prettier@2.8.8: {}
 
@@ -2280,6 +2309,28 @@ snapshots:
   strip-bom@3.0.0: {}
 
   svelte@5.56.2:
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      '@jridgewell/sourcemap-codec': 1.5.5
+      '@sveltejs/acorn-typescript': 1.0.10(acorn@8.16.0)
+      '@types/estree': 1.0.9
+      '@types/trusted-types': 2.0.7
+      acorn: 8.16.0
+      aria-query: 5.3.1
+      axobject-query: 4.1.0
+      clsx: 2.1.1
+      devalue: 5.8.1
+      esm-env: 1.2.2
+      esrap: 2.2.11
+      is-reference: 3.0.3
+      locate-character: 3.0.0
+      magic-string: 0.30.21
+      zimmerframe: 1.1.4
+    transitivePeerDependencies:
+      - '@typescript-eslint/types'
+    optional: true
+
+  svelte@5.56.3:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5
