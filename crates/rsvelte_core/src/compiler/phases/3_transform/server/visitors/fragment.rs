@@ -242,6 +242,37 @@ impl<'a> ServerCodeGenerator<'a> {
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
 
+        // Hoist `<title>` to the front of the fragment — upstream's clean_nodes
+        // hoists TitleElement alongside const/snippet tags, so a `<title>` that
+        // appears after other content in `<svelte:head>` is emitted first.
+        // After moving the title out, drop any now-trailing whitespace-only
+        // text so the last remaining node's close marker isn't followed by a
+        // stray space.
+        let sorted_meaningful_nodes = if sorted_meaningful_nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::TitleElement(_)))
+        {
+            let mut titles: Vec<&TemplateNode> = Vec::new();
+            let mut rest: Vec<&TemplateNode> = Vec::new();
+            for n in sorted_meaningful_nodes {
+                if matches!(n, TemplateNode::TitleElement(_)) {
+                    titles.push(n);
+                } else {
+                    rest.push(n);
+                }
+            }
+            while matches!(
+                rest.last(),
+                Some(TemplateNode::Text(t)) if is_svelte_whitespace_only(&t.data)
+            ) {
+                rest.pop();
+            }
+            titles.extend(rest);
+            titles
+        } else {
+            sorted_meaningful_nodes
+        };
+
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
 
         // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
