@@ -2125,9 +2125,61 @@ fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext
     false
 }
 
+/// True if a relative selector is an "outer global" tail per upstream `truncate`
+/// (css-prune.js:207-231): global-like (`:host`/`:root`/view-transition), a bare
+/// `:global` (no args), or a `:global(...)` whose compound stays global (every
+/// simple selector is a pseudo-class/element).
+fn relative_selector_is_outer_global(rel: &Value) -> bool {
+    if is_global_like(rel) {
+        return true;
+    }
+    let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    let Some(first) = selectors.first() else {
+        return false;
+    };
+    let first_is_global = first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+        && first.get("name").and_then(|n| n.as_str()) == Some("global");
+    if !first_is_global {
+        return false;
+    }
+    if first.get("args").is_none() {
+        return true; // bare :global
+    }
+    // `:global(...)` stays global only if every simple selector is pseudo.
+    selectors.iter().all(|s| {
+        matches!(
+            s.get("type").and_then(|t| t.as_str()),
+            Some("PseudoClassSelector") | Some("PseudoElementSelector")
+        )
+    })
+}
+
+/// Discard trailing global relative selectors (mirrors css-prune.js `truncate`).
+/// Returns the prefix up to and including the last non-global relative selector;
+/// if every selector is global, returns the input unchanged.
+fn truncate_trailing_globals(rel_selectors: &[Value]) -> &[Value] {
+    let mut last_kept = None;
+    for (i, rel) in rel_selectors.iter().enumerate() {
+        if !relative_selector_is_outer_global(rel) {
+            last_kept = Some(i);
+        }
+    }
+    match last_kept {
+        Some(i) => &rel_selectors[..=i],
+        None => rel_selectors,
+    }
+}
+
 /// Check if a sibling combinator selector is unused
 /// A + B or A ~ B is unused if no parent element has children that satisfy the relationship
 fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    // Upstream prunes via `get_relative_selectors` → `truncate`, which drops
+    // trailing `:global(...)` selectors before matching. `& + :global(&)`
+    // reduces to `[&]`, which resolves to the (used) parent prelude — the `+` is
+    // never tested.
+    let rel_selectors = truncate_trailing_globals(rel_selectors);
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
         return false;
     }
@@ -5211,7 +5263,18 @@ fn transform_complex_selector(
             let is_global_modifier = starts_with_bare_global && selectors_count > 1;
 
             if is_bare_global_only {
-                // Skip this selector entirely - mark that next selector is global
+                // Upstream (css/index.js:286-310): a standalone bare `:global`
+                // (args === null) at the start of a *nested* rule (combinator
+                // === null) becomes `&` — `div { :global x { … } }` →
+                // `div { & x { … } }`. The trailing parts stay unscoped (latched
+                // via `next_is_global`). Non-empty `parent_preludes` ⇒ nested.
+                if result.is_empty() && ctx.is_some_and(|c| !c.parent_preludes.borrow().is_empty())
+                {
+                    result.push('&');
+                }
+                // Mark that this AND every subsequent relative selector in this
+                // complex selector is global/unscoped (css-analyze.js:208-211
+                // sets `is_global_like` on all selectors after the bare `:global`).
                 next_is_global = true;
                 continue;
             }
@@ -5295,7 +5358,12 @@ fn transform_complex_selector(
                     }
                 }
                 _previous_was_scoped = false;
-                next_is_global = false;
+                // Do NOT reset `next_is_global` here: once a standalone bare
+                // `:global` is seen, EVERY following relative selector in this
+                // complex selector is global/unscoped (upstream marks them all
+                // `is_global_like`). The comma operator splits selector lists
+                // into separate `transform_complex_selector` calls, so the latch
+                // correctly resets per complex selector.
                 continue;
             }
 

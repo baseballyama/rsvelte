@@ -24,8 +24,6 @@
 	"svelte.dev/packages/repl/src/lib/Output/AstNode.svelte",
 	"svelte.dev/packages/repl/src/lib/Output/AstView.svelte",
 	"svelte.dev/packages/repl/src/lib/Output/Viewer.svelte",
-	"svelte.dev/packages/repl/src/lib/Output/console/ConsoleLine.svelte",
-	"svelte.dev/packages/repl/src/lib/Repl.svelte",
 	"svelte.dev/packages/repl/src/lib/Workspace.svelte.ts",
 	"svelte/documentation/docs/03-template-syntax/06-snippet.md/6.svelte",
 	"svelte/documentation/docs/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
