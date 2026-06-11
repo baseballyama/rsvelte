@@ -7,10 +7,10 @@ Status as of 2026-06-11 (branch `feat/corpus-burndown`, Svelte 5.56.2):
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
 | match (identical after normalization) | 5,394 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **79** (was 125) |
+| **known failures (baseline)** | **76** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 125 → 79 (this session).** Landed compiler-side fixes (all verified
+**Burn-down 125 → 76 (this session).** Landed compiler-side fixes (all verified
 against the byte-exact runtime/ssr/compiler_fixtures/css suites, no regressions):
 unbound-global refs → `root.conflicts` (naming `canvas_1`/`form_1`/…);
 svelte:element SSR class-clsx + valueless-attr; `keygen`/`command`/`!doctype`
@@ -27,7 +27,7 @@ slotted children; client constant-fold (ternary, no-arg `$state()`, known
 values (`url(&quot;…&quot;)` → `url("…")`); DeclarationTag each-item `$.get`
 wrapping (gated on `EACH_ITEM_REACTIVE` via `state.transform`).
 
-Remaining 79 = 69 parseable / 8 unparseable (await-in-non-async) / 2 css. The
+Remaining 76 = 66 parseable / 8 unparseable (await-in-non-async) / 2 css. The
 hard core left (deep / regression-prone — attempts here have produced 498-failure
 blowups, so verify against every suite): `$derived` currying (`yScale()(tick)` —
 reverted twice, do NOT retry naively); nested CSS `:global`/`&` transform (needs
