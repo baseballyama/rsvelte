@@ -5,12 +5,12 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,464 |
+| match (identical after normalization) | 5,465 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **54** (was 125) |
+| **known failures (baseline)** | **51** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 68 → 54 (latest session, 14 ids).** All byte-exact suites
+**Burn-down 68 → 51 (latest session, 17 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
 - `should_proxy` resolves an Identifier through its binding's initial node type
   (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
@@ -31,6 +31,11 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 - `USE_IMPORT_NODE` flag on a single-element slot custom element / `<video>`.
 - spread element marks an expression `has_state` + `has_call` (Phase-2 metadata +
   Phase-3 walkers) — `class={{ foo: true, ...rest }}` is now reactive/memoized.
+- wrap state reads in single-statement `$:` block bodies (`{ if (x) {...} }` was
+  mis-classified as an object literal — `inner_is_block_statement`).
+- hoist `<title>` to the front of a fragment on the server (clean_nodes parity).
+- elide option `?? ""` for a shadowed in-scope each-index (`<select bind:value={i}>`
+  + `{#each … as person, i}`).
 
 Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 (`normalize.astSignature` drops `shorthand`); uninitialized immutable
@@ -38,7 +43,7 @@ Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>` prior-content
 trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0).
 
-### Remaining 54 — dominant hard clusters (each needs a real port/refactor)
+### Remaining 51 — dominant hard clusters (each needs a real port/refactor)
 
 - **Comment-mangling / TS-cast printer** (~12) — `export let`/decls with interspersed
   `//` / `/* */` comments and stripped TS-cast comments mis-indent and go unparseable
@@ -55,11 +60,20 @@ trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0
   runes.md/5 `count += 1`) — client `$.set(s, $.get(s)+1)` loses `+=` vs `= … +`.
 - **snippet/slot hoisting** (snippet.md/6, slot-usages, shadowed-forwarded-slot,
   svelte-component, head-raw-dynamic title reorder) + boundary `<!---->` whitespace.
-- **store/runes name conflicts** (no-runes-mode `$state()()` — removing the
-  empty-arg getter-call skip in `transform_store_sub_calls` clears it but regresses
-  2 runtime suites + 6 corpus ids: some `$store()` must stay `$store()`, so the fix
-  needs to know whether the store value is callable; store-runes-conflict statement
-  order, runes-conflicting-store-in-module).
+- **store/runes name conflicts** (no-runes-mode, store-runes-conflict,
+  runes-conflicting-store-in-module). TWO independent sub-bugs, both attempted &
+  reverted: (1) runes is wrongly auto-detected as TRUE for a shadowed rune
+  (`const state = 42; $state()`) because the early `uses_runes` exclusion set
+  (types.rs ~1921) only contains IMPORTED names; adding local non-rune-initialised
+  rune-base declarations (`extract_local_store_bases`) fixes the `flags/legacy`
+  import (server MATCH) with no regressions BUT clears nothing alone. (2) The legacy
+  `$state()` (user-calling a store value) must become `$state()()`, but the
+  empty-arg getter-call skip in `transform_store_sub_calls` can't be removed: after
+  the store-assignment transform runs, getter forms like `$count()` inside
+  `$.update_store(count, $count())` are indistinguishable from user calls by
+  pattern, so removing the skip regresses 6 corpus + 2 runtime suites. Both
+  sub-bugs must land together AND distinguish getter-vs-user-call by CONTEXT (inside
+  a `$.store_*(...)` helper arg) — non-trivial.
 - **misc** destructured-props-3 (`$.fallback` + multi-declarator), reassign-derived-private
   (`#deps`/`#_deps`), rest-eachblock-binding (`$.get($$array_1)` over-wrap on bind LHS),
   unreferenced-variables-each (`$$index_1` counter order), declaration-tag-maybe-runes /
