@@ -176,6 +176,15 @@ pub fn transform_server_module(
     // $.effect_root(...) and $.user_effect(...) -> noop (should already be stripped)
     let transformed = post_process_for_server(&transformed);
 
+    // After the server lowering turns `$.get(x)` → `x()` for derived reads,
+    // a `$derived(<bare derived>)` initializer reads as
+    // `$.derived(() => source())`. Collapse it back to `$.derived(source)`,
+    // mirroring the component instance-script path (the server runtime treats
+    // a derived passed directly as a re-callable dependency). Modules went
+    // through the CLIENT module transform, so this server-only pass wasn't
+    // applied there.
+    let transformed = transform_script::unthunk_bare_derived_arg(&transformed);
+
     // Split imports from body
     let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
 
@@ -526,6 +535,16 @@ fn post_process_for_server(source: &str) -> String {
                     } else {
                         format!("{signal}({value})")
                     };
+                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
+                } else if derived_names.contains(signal) {
+                    // Assignment to a derived binding becomes a setter call on
+                    // the server: `$.set(value, v)` → `value(v)` (the server
+                    // runtime exposes a writable derived as a callable).
+                    let mut replacement = String::with_capacity(signal.len() + 2 + value.len());
+                    replacement.push_str(signal);
+                    replacement.push('(');
+                    replacement.push_str(value);
+                    replacement.push(')');
                     result = splice!(result, pos, &replacement, call_start + content_end + 1);
                 } else {
                     // Simple identifier: assignment form

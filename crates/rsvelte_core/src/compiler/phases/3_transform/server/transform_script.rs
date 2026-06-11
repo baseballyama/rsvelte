@@ -2364,7 +2364,7 @@ fn scan_assignment_rhs_end(script: &str, from: usize) -> usize {
 /// calculate `@const` blockers" — the bare-identifier argument is passed
 /// directly so the runtime can wire up the dependency without an extra
 /// thunk hop.
-fn unthunk_bare_derived_arg(script: &str) -> String {
+pub(crate) fn unthunk_bare_derived_arg(script: &str) -> String {
     let (derived_names, _, _) = collect_derived_names_from_script(script);
     if derived_names.is_empty() {
         return script.to_string();
