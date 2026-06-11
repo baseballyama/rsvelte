@@ -1,5 +1,11 @@
 # @rsvelte/svelte-check
 
+## 0.2.13
+
+### Patch Changes
+
+- 359c84d: fix(svelte-check): a syntactically-invalid generated `.tsx` overlay no longer silently suppresses all real type errors — `--tsgo` now reports it loudly and exits non-zero instead of producing a false pass (#728)
+
 ## 0.2.12
 
 ### Patch Changes
