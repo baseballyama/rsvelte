@@ -3512,6 +3512,21 @@ pub(crate) fn get_literal_value(
                     return None;
                 }
 
+                // A no-arg `$state()` / `$state.raw()` evaluates to `undefined`
+                // (known), so a read of it omits the `?? ""` fallback. Mirrors
+                // upstream scope.js `$state`/`$state.raw` with no argument.
+                // `$state(foo)` is excluded — it records `initial_node_type` — so
+                // it correctly stays unknown.
+                {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                        && binding.initial.is_none()
+                        && binding.initial_node_type.is_none()
+                    {
+                        return Some(None);
+                    }
+                }
+
                 // Check if we have a known initial value (stored as source string)
                 let init = binding.initial.as_ref()?;
                 // Parse simple string literals like 'world' or "world"
@@ -3593,7 +3608,11 @@ pub(crate) fn get_literal_value(
                     }
                 }
             }
-            "LogicalExpression" | "CallExpression" | "BinaryExpression" | "UnaryExpression" => {
+            "LogicalExpression"
+            | "CallExpression"
+            | "BinaryExpression"
+            | "UnaryExpression"
+            | "ConditionalExpression" => {
                 // These complex branches need JSON access for deep traversal
                 let json_value = expr.as_json();
                 let obj = json_value.as_object()?;
@@ -3850,6 +3869,29 @@ fn get_literal_value_complex(
                 },
                 _ => None,
             }
+        }
+        "ConditionalExpression" => {
+            // Fold a ternary when its test folds to a known constant, taking
+            // only the chosen branch (upstream scope.js `ConditionalExpression`
+            // case: evaluate the test; if known, use the matching branch).
+            let test = obj.get("test")?;
+            let test_expr = serde_json::from_value::<Expression>(test.clone()).ok()?;
+            let test_val = get_literal_value(&test_expr, context)?;
+            let truthy = match test_val.as_deref() {
+                None => false, // null / undefined
+                Some("") | Some("false") => false,
+                Some(s) => s
+                    .parse::<f64>()
+                    .map(|n| n != 0.0 && !n.is_nan())
+                    .unwrap_or(true),
+            };
+            let branch = if truthy {
+                obj.get("consequent")?
+            } else {
+                obj.get("alternate")?
+            };
+            let branch_expr = serde_json::from_value::<Expression>(branch.clone()).ok()?;
+            get_literal_value(&branch_expr, context)
         }
         _ => None,
     }
