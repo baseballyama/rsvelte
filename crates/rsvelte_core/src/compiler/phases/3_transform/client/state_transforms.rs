@@ -1926,8 +1926,9 @@ pub(super) fn transform_legacy_state_declarations(
                     }
 
                     // Build the replacement - no initial value, so pass nothing to $.mutable_source()
+                    // (upstream emits `void 0`, not the `undefined` identifier).
                     let replacement = if immutable {
-                        format!("{} {} = $.mutable_source(undefined, true);", keyword, var)
+                        format!("{} {} = $.mutable_source(void 0, true);", keyword, var)
                     } else {
                         format!("{} {} = $.mutable_source();", keyword, var)
                     };
@@ -2010,7 +2011,7 @@ pub(super) fn transform_legacy_state_declarations(
                         break;
                     }
                     let replacement = if immutable {
-                        format!("{} {} = $.mutable_source(undefined, true)", keyword, var)
+                        format!("{} {} = $.mutable_source(void 0, true)", keyword, var)
                     } else {
                         format!("{} {} = $.mutable_source()", keyword, var)
                     };
