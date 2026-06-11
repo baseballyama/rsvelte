@@ -51,6 +51,14 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
     // Strip existing indentation before OXC parsing (OXC expects unindented input)
     let stripped = strip_indent_for_oxc(&js_normalized, indent_level);
 
+    // OXC's codegen drops "dangling" comments — whole-line comments whose
+    // next token is a closing block brace (`// c` right before `}`), since
+    // there is no following statement to attach them to as leading comments.
+    // The official compiler (esrap) flushes such comments before the `}`.
+    // Protect them by inserting a placeholder statement after the comment
+    // run; the placeholder is removed again after codegen.
+    let (stripped, has_dangling) = protect_dangling_comments(&stripped);
+
     SSR_SCRIPT_ALLOCATOR.with(|cell| {
         let mut alloc = cell.borrow_mut();
         alloc.reset();
@@ -83,6 +91,13 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
             &stripped, &code,
         );
 
+        // Restore source spelling of numeric literals that OXC minified
+        // (e.g. `1000` -> `1e3`); the official compiler (esrap) prints the
+        // raw source text of literals.
+        code = crate::compiler::phases::phase3_transform::client::restore_number_literals(
+            &stripped, &code,
+        );
+
         // Re-escape ASCII control characters inside string literals. OXC's
         // codegen unescapes `\t` / `\b` / `\v` / `\f` to their literal byte
         // values when emitting string literals, but esrap (and the official
@@ -91,6 +106,31 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         // diffs against the expected fixture even though it's semantically
         // equivalent.
         code = reescape_control_chars_in_string_literals(&code);
+
+        // OXC's codegen prints leading comments but drops trailing same-line
+        // `// ...` comments (e.g. `value === proxy; // always false`). The
+        // official compiler preserves them (esrap re-inserts every comment
+        // positionally), so re-attach the dropped ones by matching the code
+        // part of each commented line against the generated output.
+        code = reattach_trailing_line_comments(&stripped, &code);
+
+        // Decode smuggled in-call comments: `(VALUE, void '$$C$$<hex>')`
+        // becomes `VALUE <comment>` (with a newline after a `//` comment so
+        // it can't swallow the closing paren). See the export-let lowering in
+        // transform_legacy.rs.
+        if memmem::find(code.as_bytes(), b"$$C$$").is_some() {
+            code = decode_in_call_comment_placeholders(&code);
+        }
+
+        // Remove dangling-comment placeholder statements (the comments they
+        // protected are now leading comments of the placeholder and survive).
+        if has_dangling {
+            code = code
+                .lines()
+                .filter(|l| l.trim() != DANGLING_COMMENT_PLACEHOLDER_STMT)
+                .collect::<Vec<_>>()
+                .join("\n");
+        }
 
         // Restore `;;` markers
         if has_double_semi {
@@ -141,6 +181,576 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         }
         result_str
     })
+}
+
+/// Blank out (replace with spaces) the instance / module script content
+/// ranges of `source`, so searches for template-expression text can't match
+/// inside the scripts.
+fn blank_out_script_regions(
+    source: &str,
+    instance: Option<&crate::ast::template::Script>,
+    module: Option<&crate::ast::template::Script>,
+) -> String {
+    let mut blanked = source.as_bytes().to_vec();
+    for script in [instance, module].into_iter().flatten() {
+        let s = script.content.start().unwrap_or(0) as usize;
+        let e = script.content.end().unwrap_or(0) as usize;
+        if e > s && e <= blanked.len() {
+            for b in &mut blanked[s..e] {
+                if !b.is_ascii_whitespace() {
+                    *b = b' ';
+                }
+            }
+        }
+    }
+    String::from_utf8(blanked).unwrap_or_else(|_| source.to_string())
+}
+
+/// Find the matching `)` for an open paren at `open` (the index of `(`)
+/// inside `s`, skipping strings, template literals, and comments. Returns the
+/// index of the `)` or `None`.
+fn find_close_paren(s: &str, open: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut depth = 0i32;
+    let mut i = open;
+    while i < len {
+        match bytes[i] {
+            b'"' | b'\'' | b'`' => {
+                let q = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                i = memchr::memchr(b'\n', &bytes[i..])
+                    .map(|p| i + p)
+                    .unwrap_or(len);
+                continue;
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i = memmem::find(&bytes[i + 2..], b"*/")
+                    .map(|p| i + 2 + p + 2)
+                    .unwrap_or(len);
+                continue;
+            }
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Check whether `needle` occurs in `haystack` at a word boundary, starting
+/// the search at `from`. Returns the match offset.
+fn find_word(haystack: &str, needle: &str, from: usize) -> Option<usize> {
+    if needle.is_empty() || from >= haystack.len() {
+        return None;
+    }
+    let hb = haystack.as_bytes();
+    let mut cursor = from;
+    while let Some(p) = memmem::find(&hb[cursor..], needle.as_bytes()) {
+        let pos = cursor + p;
+        let before_ok = pos == 0 || {
+            let c = hb[pos - 1];
+            !(c.is_ascii_alphanumeric() || c == b'_' || c == b'$' || c == b'.')
+        };
+        let after = pos + needle.len();
+        let after_ok = after >= hb.len() || {
+            let c = hb[after];
+            !(c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+        };
+        if before_ok && after_ok {
+            return Some(pos);
+        }
+        cursor = pos + 1;
+    }
+    None
+}
+
+/// Flush pending comments (sorted by source offset) into the first
+/// "positioned" template expression of `body_code`, mirroring esrap's
+/// positional comment re-insertion: a comment prints right before the next
+/// node whose source position is greater. Candidate anchors are the
+/// arguments of `$.escape(...)` and `$.ensure_array_like(...)`; an argument
+/// counts as positioned when its text occurs (word-bounded) in the
+/// script-blanked component source after the comment's offset. Returns the
+/// updated body and the comments that could not be anchored (to be emitted
+/// at the end of the component body).
+fn flush_pending_comments_into_body(
+    body_code: &str,
+    pending: Vec<(usize, String)>,
+    blanked_source: &str,
+) -> (String, Vec<String>) {
+    let mut remaining: std::collections::VecDeque<(usize, String)> = pending.into();
+    let mut out = String::with_capacity(body_code.len() + 64);
+    let mut emitted_upto = 0usize; // cursor into body_code
+    let mut src_cursor = 0usize; // cursor into blanked_source
+    let patterns: [&str; 2] = ["$.escape(", "$.ensure_array_like("];
+
+    let bytes = body_code.as_bytes();
+    let mut scan = 0usize;
+    while !remaining.is_empty() && scan < body_code.len() {
+        // Find the next candidate hole.
+        let mut next: Option<(usize, usize)> = None; // (idx, pat_len)
+        for pat in patterns {
+            if let Some(p) = memmem::find(&bytes[scan..], pat.as_bytes()) {
+                let idx = scan + p;
+                if next.is_none() || idx < next.unwrap().0 {
+                    next = Some((idx, pat.len()));
+                }
+            }
+        }
+        let Some((idx, pat_len)) = next else { break };
+        let open = idx + pat_len - 1; // index of `(`
+        let Some(close) = find_close_paren(body_code, open) else {
+            scan = idx + pat_len;
+            continue;
+        };
+        let arg = body_code[open + 1..close].trim();
+        scan = idx + pat_len;
+        if arg.is_empty() {
+            continue;
+        }
+        // Positioned check: the argument text must occur in the blanked
+        // source (i.e. in the template) at/after the moving source cursor.
+        let Some(pos) = find_word(blanked_source, arg, src_cursor) else {
+            continue;
+        };
+        src_cursor = pos + 1;
+        // Flush every pending comment that precedes this expression.
+        let mut flushed: Vec<String> = Vec::new();
+        while let Some((off, _)) = remaining.front() {
+            if *off < pos {
+                flushed.push(remaining.pop_front().unwrap().1);
+            } else {
+                break;
+            }
+        }
+        if flushed.is_empty() {
+            continue;
+        }
+        // Indentation of the line containing the hole.
+        let line_start = body_code[..idx].rfind('\n').map(|p| p + 1).unwrap_or(0);
+        let indent: String = body_code[line_start..]
+            .chars()
+            .take_while(|c| *c == '\t' || *c == ' ')
+            .collect();
+        let inner_indent = format!("{indent}\t");
+        out.push_str(&body_code[emitted_upto..=open]);
+        out.push('\n');
+        for c in &flushed {
+            out.push_str(&inner_indent);
+            out.push_str(c);
+            out.push('\n');
+        }
+        out.push_str(&inner_indent);
+        out.push_str(arg);
+        out.push('\n');
+        out.push_str(&indent);
+        out.push_str(&body_code[close..close + 1]);
+        emitted_upto = close + 1;
+        scan = close + 1;
+    }
+    out.push_str(&body_code[emitted_upto..]);
+    let leftover = remaining.into_iter().map(|(_, c)| c).collect();
+    (out, leftover)
+}
+
+/// Decode `(VALUE, void '$$C$$<hex>')` placeholders (created by the
+/// export-let lowering to carry a comment through OXC normalization) back
+/// into `VALUE <comment>`.
+fn decode_in_call_comment_placeholders(code: &str) -> String {
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code;
+    loop {
+        let Some(marker) = memmem::find(rest.as_bytes(), b", void '$$C$$") else {
+            out.push_str(rest);
+            break;
+        };
+        // Find the enclosing `(` by scanning backward with reverse depth.
+        let before = &rest[..marker];
+        let bytes = before.as_bytes();
+        let mut depth = 0i32;
+        let mut open = None;
+        for i in (0..bytes.len()).rev() {
+            match bytes[i] {
+                b')' | b']' | b'}' => depth += 1,
+                b'(' | b'[' | b'{' => {
+                    if depth == 0 {
+                        open = Some(i);
+                        break;
+                    }
+                    depth -= 1;
+                }
+                _ => {}
+            }
+        }
+        // Find the closing `')` after the hex payload.
+        let hex_start = marker + ", void '$$C$$".len();
+        let Some(quote_end_rel) = rest[hex_start..].find('\'') else {
+            out.push_str(rest);
+            break;
+        };
+        let hex = &rest[hex_start..hex_start + quote_end_rel];
+        let after_quote = hex_start + quote_end_rel + 1;
+        let close = if rest[after_quote..].starts_with(')') {
+            after_quote + 1
+        } else {
+            // Unexpected shape: leave as-is to be safe.
+            out.push_str(&rest[..after_quote]);
+            rest = &rest[after_quote..];
+            continue;
+        };
+        let Some(open) = open else {
+            out.push_str(&rest[..close]);
+            rest = &rest[close..];
+            continue;
+        };
+        // Decode the comment text (hex-encoded UTF-8 bytes).
+        let hb = hex.as_bytes();
+        let mut decoded: Vec<u8> = Vec::with_capacity(hb.len() / 2);
+        let mut ok = hb.len().is_multiple_of(2);
+        if ok {
+            for pair in hb.chunks(2) {
+                match u8::from_str_radix(std::str::from_utf8(pair).unwrap_or("zz"), 16) {
+                    Ok(b) => decoded.push(b),
+                    Err(_) => {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+        }
+        let comment = String::from_utf8(decoded).unwrap_or_else(|_| {
+            ok = false;
+            String::new()
+        });
+        if !ok {
+            out.push_str(&rest[..close]);
+            rest = &rest[close..];
+            continue;
+        }
+        let value = rest[open + 1..marker].trim();
+        out.push_str(&rest[..open]);
+        out.push_str(value);
+        out.push(' ');
+        out.push_str(&comment);
+        if comment.starts_with("//") {
+            out.push('\n');
+        }
+        rest = &rest[close..];
+    }
+    out
+}
+
+/// Statement inserted after a dangling comment run so OXC's codegen keeps the
+/// comments (as leading comments of the placeholder); removed after codegen.
+const DANGLING_COMMENT_PLACEHOLDER_STMT: &str = "void '$$DANGLING_COMMENT$$';";
+
+/// Find whole-line comments whose next token is a closing block brace and
+/// insert a placeholder statement between the comment run and the `}` so the
+/// comments survive OXC codegen (which drops comments with no following
+/// statement). Returns the protected source and whether anything was inserted.
+fn protect_dangling_comments(src: &str) -> (String, bool) {
+    // Fast path: nothing to protect without comments.
+    if memmem::find(src.as_bytes(), b"//").is_none()
+        && memmem::find(src.as_bytes(), b"/*").is_none()
+    {
+        return (src.to_string(), false);
+    }
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut insertions: Vec<usize> = Vec::new();
+    let mut i = 0usize;
+    let mut line_start = 0usize;
+    while i < len {
+        let c = bytes[i];
+        match c {
+            b'\n' => {
+                line_start = i + 1;
+                i += 1;
+            }
+            b'"' | b'\'' => {
+                let q = c;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q || bytes[i] == b'\n' {
+                        break;
+                    }
+                    i += 1;
+                }
+                if i < len && bytes[i] == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+            }
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        break;
+                    }
+                    if bytes[i] == b'\n' {
+                        line_start = i + 1;
+                    }
+                    i += 1;
+                }
+                i += 1;
+            }
+            b'/' if i + 1 < len && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*') => {
+                let whole_line = src[line_start..i].trim().is_empty();
+                // Consume the whole run of comments / whitespace after this
+                // comment to find the next real token.
+                let mut j = i;
+                loop {
+                    if j + 1 < len && bytes[j] == b'/' && bytes[j + 1] == b'/' {
+                        j = memchr::memchr(b'\n', &bytes[j..])
+                            .map(|p| j + p)
+                            .unwrap_or(len);
+                    } else if j + 1 < len && bytes[j] == b'/' && bytes[j + 1] == b'*' {
+                        j = memmem::find(&bytes[j + 2..], b"*/")
+                            .map(|p| j + 2 + p + 2)
+                            .unwrap_or(len);
+                    } else if j < len && bytes[j].is_ascii_whitespace() {
+                        j += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if whole_line && j < len && bytes[j] == b'}' {
+                    // Distinguish a block-closing `}` from object/expression
+                    // closers: the char after `}` (skipping spaces/tabs) must
+                    // be a newline, EOF, or a letter (`else`, `while`, …).
+                    let mut k = j + 1;
+                    while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
+                        k += 1;
+                    }
+                    if k >= len || bytes[k] == b'\n' || bytes[k].is_ascii_alphabetic() {
+                        let brace_line_start = src[..j].rfind('\n').map(|p| p + 1).unwrap_or(0);
+                        insertions.push(brace_line_start);
+                    }
+                }
+                // Continue scanning just past this single comment so inner
+                // comment runs are still examined normally.
+                if bytes[i + 1] == b'/' {
+                    i = memchr::memchr(b'\n', &bytes[i..])
+                        .map(|p| i + p)
+                        .unwrap_or(len);
+                } else {
+                    i = memmem::find(&bytes[i + 2..], b"*/")
+                        .map(|p| i + 2 + p + 2)
+                        .unwrap_or(len);
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    if insertions.is_empty() {
+        return (src.to_string(), false);
+    }
+    insertions.dedup();
+    let mut out = String::with_capacity(src.len() + insertions.len() * 32);
+    let mut prev = 0usize;
+    for pos in insertions {
+        out.push_str(&src[prev..pos]);
+        out.push_str(DANGLING_COMMENT_PLACEHOLDER_STMT);
+        out.push('\n');
+        prev = pos;
+    }
+    out.push_str(&src[prev..]);
+    (out, true)
+}
+
+/// Re-attach trailing same-line `// ...` comments that OXC's codegen drops.
+///
+/// `original` and `generated` are both unindented script sources. OXC keeps
+/// statement order, so commented lines are matched sequentially: for each
+/// `code; // comment` line in `original`, the first generated line (from a
+/// moving cursor) whose trimmed text equals the trimmed code part gets the
+/// comment appended. Lines that don't round-trip verbatim through OXC simply
+/// don't match and are skipped (no worse than the previous behavior).
+fn reattach_trailing_line_comments(original: &str, generated: &str) -> String {
+    // Fast path: no line comments in the source, nothing was dropped.
+    if memmem::find(original.as_bytes(), b"//").is_none() {
+        return generated.to_string();
+    }
+    // Collect (code_part, comment) pairs from `original`, skipping string and
+    // template-literal contents and block comments.
+    let mut entries: Vec<(&str, &str)> = Vec::new();
+    {
+        let bytes = original.as_bytes();
+        let mut i = 0usize;
+        let mut line_start = 0usize;
+        let mut in_string: Option<u8> = None;
+        let mut in_block_comment = false;
+        while i < bytes.len() {
+            let c = bytes[i];
+            if in_block_comment {
+                if c == b'*' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                    in_block_comment = false;
+                    i += 2;
+                    continue;
+                }
+                if c == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            if let Some(q) = in_string {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == q || (c == b'\n' && q != b'`') {
+                    in_string = None;
+                }
+                if c == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            match c {
+                b'"' | b'\'' | b'`' => {
+                    in_string = Some(c);
+                    i += 1;
+                }
+                b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                    in_block_comment = true;
+                    i += 2;
+                }
+                b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                    let eol = memchr::memchr(b'\n', &bytes[i..])
+                        .map(|p| i + p)
+                        .unwrap_or(bytes.len());
+                    let code_part = original[line_start..i].trim();
+                    let comment = original[i..eol].trim_end();
+                    // Whole-line comments (no code before them) are leading
+                    // comments, which OXC already preserves.
+                    if !code_part.is_empty() {
+                        entries.push((code_part, comment));
+                    }
+                    line_start = eol + 1;
+                    i = eol + 1;
+                }
+                b'\n' => {
+                    line_start = i + 1;
+                    i += 1;
+                }
+                _ => i += 1,
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        return generated.to_string();
+    }
+
+    let mut out_lines: Vec<String> = generated.lines().map(|l| l.to_string()).collect();
+    let mut cursor = 0usize;
+    for (code_part, comment) in entries {
+        let mut found = None;
+        for (idx, line) in out_lines.iter().enumerate().skip(cursor) {
+            if line.trim() == code_part {
+                found = Some(idx);
+                break;
+            }
+        }
+        if let Some(idx) = found {
+            if !out_lines[idx].ends_with(comment) {
+                out_lines[idx].push(' ');
+                out_lines[idx].push_str(comment);
+            }
+            cursor = idx + 1;
+        }
+    }
+
+    let mut result = out_lines.join("\n");
+    if generated.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
+/// Split the trailing run of comment-only lines off the end of the
+/// transformed instance script.
+///
+/// esrap re-emits comments positionally: a comment that follows the last
+/// positioned statement of the script is flushed at the END of the component
+/// body — i.e. *after* the template `$$renderer.push(...)` statements — not
+/// glued to the script section. Returns `(script_without_trailing_comments,
+/// comments)` where each comment is trimmed of surrounding whitespace.
+fn split_trailing_script_comments(script: &str) -> (String, Vec<String>) {
+    let lines: Vec<&str> = script.lines().collect();
+
+    // Mark lines inside multi-line template literals so string content is
+    // never mistaken for a comment.
+    let mut inside_template = vec![false; lines.len()];
+    let mut state = false;
+    for (i, line) in lines.iter().enumerate() {
+        inside_template[i] = state;
+        state = super::helpers::update_template_literal_state_for_indent(line, state);
+    }
+
+    let mut idx = lines.len();
+    let mut comments_rev: Vec<String> = Vec::new();
+    while idx > 0 {
+        if inside_template[idx - 1] {
+            break;
+        }
+        let trimmed = lines[idx - 1].trim();
+        if trimmed.is_empty() {
+            idx -= 1;
+            continue;
+        }
+        let is_line_comment = trimmed.starts_with("//");
+        let is_block_comment = trimmed.starts_with("/*")
+            && trimmed.ends_with("*/")
+            && !trimmed.contains("$$async_hole")
+            && !trimmed.contains("$$async_void_noop");
+        if is_line_comment || is_block_comment {
+            comments_rev.push(trimmed.to_string());
+            idx -= 1;
+            continue;
+        }
+        break;
+    }
+
+    if comments_rev.is_empty() {
+        return (script.to_string(), Vec::new());
+    }
+
+    let mut remainder = lines[..idx].join("\n");
+    while remainder.ends_with('\n') || remainder.ends_with(' ') || remainder.ends_with('\t') {
+        remainder.pop();
+    }
+    comments_rev.reverse();
+    (remainder, comments_rev)
 }
 
 /// Decide whether a `/` at the *next* byte position can start a regex literal.
@@ -945,6 +1555,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     &raw_script,
                 )
                 .into_owned();
+            // Hide nested (non-top-level) `$:` labels from the line-based
+            // legacy reactive transforms — upstream only treats top-level
+            // `$:` statements as reactive; nested ones are plain JS labels
+            // that stay in place. Unmasked after OXC normalization.
+            let (raw_script, _) = super::transform_legacy::mask_nested_reactive_labels(&raw_script);
             let raw_script = remove_effect_blocks(&raw_script, self.use_async, self.dev);
             let has_bindable_props = self.analysis.is_some_and(|a| {
                 a.root.bindings.iter().any(|b| {
@@ -1089,13 +1704,82 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 strip_async_placeholders(&script_code)
             }
+        } else if memmem::find(script_code.as_bytes(), b"$$async_hole").is_some()
+            || memmem::find(script_code.as_bytes(), b"$$async_void_noop").is_some()
+        {
+            // Even when the component is not async, the SSR script transform
+            // may have left `/* $$async_hole */` markers behind ($inspect
+            // removal). Rewrite them to `;;` so the internal marker never
+            // leaks into emitted code.
+            strip_async_placeholders(&script_code)
         } else {
             script_code
         };
 
+        // Pull trailing comment-only lines off the script. The official
+        // compiler (esrap) flushes comments that follow the last positioned
+        // script statement before the next printed node with a later source
+        // position — typically the first template expression (`$.escape(...)`
+        // / `$.ensure_array_like(...)` argument), or at the END of the
+        // component body when no positioned template expression follows.
+        let (script_code, trailing_script_comments) = split_trailing_script_comments(&script_code);
+
+        // Combine script-trailing comments (anchored at their script source
+        // offsets) with comments lost from dropped template expressions
+        // (event handlers). These are flushed into the first positioned
+        // template expression of the emitted body like esrap does; whatever
+        // can't be anchored stays as end-of-body trailing comments.
+        let pending_comments: Vec<(usize, String)> = {
+            let mut pending: Vec<(usize, String)> = Vec::new();
+            if !trailing_script_comments.is_empty()
+                && let Some(script) = self.instance_script
+            {
+                let s = script.content.start().unwrap_or(0) as usize;
+                let e = script.content.end().unwrap_or(0) as usize;
+                let mut cursor = s;
+                for c in &trailing_script_comments {
+                    let off = if e > cursor && e <= self.source.len() {
+                        memmem::find(&self.source.as_bytes()[cursor..e], c.as_bytes())
+                            .map(|p| cursor + p)
+                            .unwrap_or(s)
+                    } else {
+                        s
+                    };
+                    cursor = off.max(cursor);
+                    pending.push((off, c.clone()));
+                }
+            }
+            pending.extend(self.lost_comments.borrow().iter().cloned());
+            pending.sort_by_key(|(off, _)| *off);
+            pending
+        };
+        let blanked_source = if pending_comments.is_empty() {
+            String::new()
+        } else {
+            blank_out_script_regions(&self.source, self.instance_script, self.module_script)
+        };
+        // Default: everything trails at the end of the component body. The
+        // body-emission paths below (component wrapper / direct body) run the
+        // positional flush on the body text they actually emit and overwrite
+        // this with the leftover set.
+        let mut trailing_script_comments: Vec<String> =
+            pending_comments.iter().map(|(_, c)| c.clone()).collect();
+
         // Normalize the script code with OXC
         let script_code = if !script_code.trim().is_empty() {
             normalize_script_with_oxc(&script_code, 1)
+        } else {
+            script_code
+        };
+
+        // Restore nested `$:` labels hidden from the legacy transforms.
+        let script_code = if memmem::find(
+            script_code.as_bytes(),
+            super::transform_legacy::NESTED_REACTIVE_LABEL.as_bytes(),
+        )
+        .is_some()
+        {
+            super::transform_legacy::unmask_nested_reactive_labels(&script_code)
         } else {
             script_code
         };
@@ -1244,6 +1928,19 @@ impl<'a> ServerCodeGenerator<'a> {
                     &mut each_counter_w,
                     wrapper_indent,
                 );
+                // Flush pending comments into the first positioned template
+                // expression of the emitted body (esrap positional re-insertion).
+                let inner_body = if pending_comments.is_empty() {
+                    inner_body
+                } else {
+                    let (flushed, leftover) = flush_pending_comments_into_body(
+                        &inner_body,
+                        pending_comments.clone(),
+                        &blanked_source,
+                    );
+                    trailing_script_comments = leftover;
+                    flushed
+                };
                 let instance_snippets = self.build_instance_snippets(wrapper_indent);
                 let bind_props_code = self.build_bind_props(wrapper_indent);
                 let indent_str = "\t".repeat(wrapper_indent);
@@ -1286,6 +1983,24 @@ impl<'a> ServerCodeGenerator<'a> {
                     )
                 } else {
                     inner_body
+                };
+
+                // Trailing script comments flush at the end of the component
+                // callback body (after the template pushes), mirroring esrap's
+                // positional comment re-insertion.
+                let inner_body = if trailing_script_comments.is_empty() {
+                    inner_body
+                } else {
+                    let mut with_comments = inner_body;
+                    if !with_comments.is_empty() && !with_comments.ends_with('\n') {
+                        with_comments.push('\n');
+                    }
+                    for comment in &trailing_script_comments {
+                        with_comments.push_str(&indent_str);
+                        with_comments.push_str(comment);
+                        with_comments.push('\n');
+                    }
+                    with_comments
                 };
 
                 let component_second_arg = if self.dev {
@@ -1369,6 +2084,19 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 // Body code (template output)
                 if !body_code.is_empty() {
+                    // Flush pending comments into the first positioned
+                    // template expression (esrap positional re-insertion).
+                    let body_code = if pending_comments.is_empty() {
+                        body_code
+                    } else {
+                        let (flushed, leftover) = flush_pending_comments_into_body(
+                            &body_code,
+                            pending_comments.clone(),
+                            &blanked_source,
+                        );
+                        trailing_script_comments = leftover;
+                        flushed
+                    };
                     let body_section = if uses_component_bindings {
                         let body_code_extra_indent = {
                             let mut result = String::new();
@@ -1434,6 +2162,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         bind_props_code.trim_end_matches('\n'),
                     )));
                 }
+
+                // Trailing script comments flush at the end of the function
+                // body (after the template pushes), mirroring esrap's
+                // positional comment re-insertion. Raw comment statements are
+                // typed "Comment" by the codegen, so no blank line is added.
+                if !trailing_script_comments.is_empty() {
+                    fn_body.push(JsStatement::Raw(CompactString::from(
+                        trailing_script_comments.join("\n"),
+                    )));
+                }
             }
         } else if needs_component_wrapper {
             // Empty body but needs component wrapper
@@ -1443,10 +2181,24 @@ impl<'a> ServerCodeGenerator<'a> {
                 String::new()
             };
             let bind_props_code = self.build_bind_props(1);
-            fn_body.push(JsStatement::Raw(CompactString::from(format!(
-                "$$renderer.component(($$renderer) => {{}}{});",
-                component_second_arg
-            ))));
+            if trailing_script_comments.is_empty() {
+                fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                    "$$renderer.component(($$renderer) => {{}}{});",
+                    component_second_arg
+                ))));
+            } else {
+                // The script reduced to comments only (e.g. a removed
+                // `$effect(...)` whose body held a comment). Upstream still
+                // prints those comments inside the component callback.
+                let comments_block: String = trailing_script_comments
+                    .iter()
+                    .map(|c| format!("\t\t{}\n", c))
+                    .collect();
+                fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                    "$$renderer.component(($$renderer) => {{\n{}\t}}{});",
+                    comments_block, component_second_arg
+                ))));
+            }
             if !bind_props_code.is_empty() {
                 fn_body.push(JsStatement::Raw(strip_first_line_indent(
                     bind_props_code.trim_end_matches('\n'),
@@ -1458,6 +2210,11 @@ impl<'a> ServerCodeGenerator<'a> {
             if !bind_props_code.is_empty() {
                 fn_body.push(JsStatement::Raw(strip_first_line_indent(
                     bind_props_code.trim_end_matches('\n'),
+                )));
+            }
+            if !trailing_script_comments.is_empty() {
+                fn_body.push(JsStatement::Raw(CompactString::from(
+                    trailing_script_comments.join("\n"),
                 )));
             }
         }
@@ -1523,7 +2280,15 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn hoist_const_declarations_and_strip_ws(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut consts: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
-        let mut in_const_region = true; // Start in const region (beginning of block)
+        // The whitespace strip exists to drop whitespace-only Html
+        // between/around hoisted ConstDeclarations. When the body has no
+        // consts at all, nothing may be stripped — a leading whitespace-only
+        // Html can then only come from a folded expression tag like `{' '}`,
+        // which upstream renders as a real `$$renderer.push(\` \`)`.
+        let has_consts = parts
+            .iter()
+            .any(|p| matches!(p, OutputPart::ConstDeclaration(_)));
+        let mut in_const_region = has_consts; // Start in const region (beginning of block)
 
         for part in parts {
             match part {
@@ -2648,7 +3413,24 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn hoist_const_and_snippet_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut hoisted: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
-        let mut in_hoisted_region = true;
+        // Like `hoist_const_declarations_and_strip_ws`: only strip
+        // whitespace-only Html when there actually are hoistable
+        // declarations — a leading whitespace-only Html without any
+        // declarations comes from a folded `{' '}` expression tag, which
+        // upstream renders as a real push.
+        let has_decls = parts.iter().any(|p| {
+            matches!(
+                p,
+                OutputPart::ConstDeclaration(_)
+                    | OutputPart::VarDeclaration(_)
+                    | OutputPart::SnippetFunction { .. }
+            ) || matches!(
+                p,
+                OutputPart::RawStatement(s)
+                    if s.starts_with("let ") || s.starts_with("var ") || s.starts_with("const ")
+            )
+        });
+        let mut in_hoisted_region = has_decls;
 
         for part in parts {
             match part {
@@ -3410,6 +4192,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         let all_props = collect_all_props(props_and_spreads);
 
                         // Separate snippets into true snippets (hoisted functions) and slot children
+                        #[allow(clippy::type_complexity)]
                         let (true_snippets, slot_children_binding): (
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -3650,6 +4433,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Separate snippets into:
                         // 1. True snippets (SnippetBlocks - need hoisting, passed as props)
                         // 2. Slot children (inline in $$slots, may have destructured params from let directives)
+                        #[allow(clippy::type_complexity)]
                         let (true_snippets, slot_children): (
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                             Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -4875,6 +5659,11 @@ impl<'a> ServerCodeGenerator<'a> {
                             store_subs,
                         );
                         body_code.push_str(&if_code);
+                        // `if_code` ends with `}` (no newline). Terminate the
+                        // statement and add a blank line so the following
+                        // `$$renderer.push(`<!--]-->…`)` lands on its own line,
+                        // matching esrap's blank line after a multi-line statement.
+                        body_code.push_str("\n\n");
                     }
 
                     // Add closing marker to current_html to combine with subsequent content
@@ -4944,6 +5733,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     body,
                     is_rich,
                     css_hash,
+                    classes,
                 } => {
                     // Flush current HTML before select element
                     if !current_html.is_empty() {
@@ -4952,8 +5742,15 @@ impl<'a> ServerCodeGenerator<'a> {
                         current_html.clear();
                     }
 
-                    // Generate $$renderer.select() call with multiline formatting when css_hash is present
-                    if css_hash.is_some() || *is_rich {
+                    let rest = super::bridge::select_rest_args(
+                        css_hash.as_deref(),
+                        classes.as_deref(),
+                        *is_rich,
+                    );
+
+                    // Generate $$renderer.select() call with multiline
+                    // formatting when trailing args are present
+                    if !rest.is_empty() {
                         let _ = writeln!(
                             body_code,
                             "{}$$renderer.select(\n{}\t{},\n{}\t($$renderer) => {{",
@@ -4976,31 +5773,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     );
                     body_code.push_str(&body_code_inner);
 
-                    // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
-                    // The full signature is: $$renderer.select(attrs, fn, css_hash, classes, styles, flags, is_rich)
-                    // When intermediate arguments are undefined, they must be `void 0`
-                    if *is_rich {
-                        if let Some(hash) = css_hash {
-                            // With css_hash: select(attrs, fn, 'hash', void 0, void 0, void 0, true)
-                            let _ = writeln!(
-                                body_code,
-                                "{}\t}},\n{}\t'{}',\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});",
-                                indent, indent, hash, indent, indent, indent, indent, indent
-                            );
-                        } else {
-                            // Without css_hash: select(attrs, fn, void 0, void 0, void 0, void 0, true)
-                            let _ = writeln!(
-                                body_code,
-                                "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});",
-                                indent, indent, indent, indent, indent, indent, indent
-                            );
+                    // Close callback with optional css_hash, classes, styles,
+                    // flags and is_rich arguments. Trailing undefined args are
+                    // dropped (upstream b.call), interior ones print `void 0`.
+                    if !rest.is_empty() {
+                        let _ = write!(body_code, "{}\t}},", indent);
+                        for arg in &rest {
+                            let _ = write!(body_code, "\n{}\t{},", indent, arg);
                         }
-                    } else if let Some(hash) = css_hash {
-                        let _ = writeln!(
-                            body_code,
-                            "{}\t}},\n{}\t'{}'\n{});",
-                            indent, indent, hash, indent
-                        );
+                        body_code.pop(); // strip trailing comma
+                        let _ = writeln!(body_code, "\n{});", indent);
                     } else {
                         let _ = writeln!(body_code, "{}}});", indent);
                     }
@@ -5011,6 +5793,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     is_rich,
                     direct_value,
                     css_hash,
+                    classes,
                     dev_location,
                 } => {
                     // Flush current HTML before option element
@@ -5022,6 +5805,12 @@ impl<'a> ServerCodeGenerator<'a> {
                         );
                         current_html.clear();
                     }
+
+                    let rest = super::bridge::select_rest_args(
+                        css_hash.as_deref(),
+                        classes.as_deref(),
+                        *is_rich,
+                    );
 
                     // Generate $$renderer.option() call
                     let attrs_str = attr_entries.join(", ");
@@ -5042,14 +5831,27 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // If we have a direct value (from synthetic_value_node), pass it directly
                     if let Some(value_expr) = direct_value {
-                        let _ = writeln!(
-                            body_code,
-                            "{}$$renderer.option({}, {});",
-                            indent, attrs_obj, value_expr
-                        );
-                    } else if *is_rich {
-                        // Build the $$renderer.option() call
-                        // If is_rich, we need to pass 7 arguments: attrs, body, void 0, void 0, void 0, void 0, true
+                        if rest.is_empty() {
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.option({}, {});",
+                                indent, attrs_obj, value_expr
+                            );
+                        } else {
+                            let _ = write!(
+                                body_code,
+                                "{}$$renderer.option(\n{}\t{},\n{}\t{},",
+                                indent, indent, attrs_obj, indent, value_expr
+                            );
+                            for arg in &rest {
+                                let _ = write!(body_code, "\n{}\t{},", indent, arg);
+                            }
+                            body_code.pop(); // strip trailing comma
+                            let _ = writeln!(body_code, "\n{});", indent);
+                        }
+                    } else if !rest.is_empty() {
+                        // Trailing args (css_hash / classes / customizable
+                        // `true`): multiline formatting
                         let _ = writeln!(
                             body_code,
                             "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{",
@@ -5075,45 +5877,15 @@ impl<'a> ServerCodeGenerator<'a> {
                             let _ = writeln!(body_code, "{}\t\t$.pop_element();", indent);
                         }
 
-                        // Close callback with remaining args
-                        let _ = writeln!(
-                            body_code,
-                            "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});",
-                            indent, indent, indent, indent, indent, indent, indent
-                        );
-                    } else if let Some(hash) = css_hash {
-                        // Has CSS hash - pass as 3rd argument
-                        let _ = writeln!(
-                            body_code,
-                            "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{",
-                            indent, indent, attrs_obj, indent
-                        );
-
-                        // Dev mode: push_element
-                        if !dev_push.is_empty() {
-                            let _ = write!(body_code, "{}\t\t{}", indent, dev_push);
+                        // Close callback with remaining args. Trailing
+                        // undefined args are dropped (upstream b.call),
+                        // interior ones print `void 0`.
+                        let _ = write!(body_code, "{}\t}},", indent);
+                        for arg in &rest {
+                            let _ = write!(body_code, "\n{}\t{},", indent, arg);
                         }
-
-                        // Body
-                        let body_code_inner = Self::build_parts_with_store_subs(
-                            body,
-                            indent_level + 2,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&body_code_inner);
-
-                        // Dev mode: pop_element
-                        if !dev_push.is_empty() {
-                            let _ = writeln!(body_code, "{}\t\t$.pop_element();", indent);
-                        }
-
-                        // Close callback with CSS hash
-                        let _ = writeln!(
-                            body_code,
-                            "{}\t}},\n{}\t'{}'\n{});",
-                            indent, indent, hash, indent
-                        );
+                        body_code.pop(); // strip trailing comma
+                        let _ = writeln!(body_code, "\n{});", indent);
                     } else {
                         let _ = writeln!(
                             body_code,
@@ -6017,6 +6789,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Build an EachBlock without surrounding `<!--[-->` / `<!--]-->` markers.
     /// Used when rendering an EachBlock inside an AsyncBlock callback,
     /// where the markers should be placed outside the callback.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_each_block_inner(
         iterable: &str,
         context_name: &Option<String>,
@@ -6630,6 +7403,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// This is the standalone extraction of the Component code generation from
     /// `build_parts_with_store_subs`. It produces the raw component call code
     /// (at indent_level=0) plus metadata about leading/trailing markers.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_component_call_code(
         name: &str,
         props_and_spreads: &[ComponentPropItem],
@@ -6657,6 +7431,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let has_css_props = !css_custom_props.is_empty();
 
         if has_snippets || has_children {
+            #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children): (
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -7351,6 +8126,7 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate the JavaScript code for a ComponentWithBindings call.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_component_with_bindings_call_code(
         name: &str,
         props_and_spreads: &[ComponentPropItem],
@@ -7375,6 +8151,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // snippets / slot children alongside the binding getter/setters
             // — previously this branch only emitted the bindings, silently
             // dropping everything else (issue #448, H-106).
+            #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children_binding): (
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -7534,6 +8311,7 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         } else {
             let all_props = collect_all_props(props_and_spreads);
+            #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children_binding): (
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                 Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
@@ -7690,7 +8468,11 @@ impl<'a> ServerCodeGenerator<'a> {
 /// (`export let foo, bar;`).
 fn is_declared_via_export_let(script: &str, name: &str) -> bool {
     for line in script.lines() {
-        let trimmed = line.trim();
+        let mut trimmed = line.trim();
+        // `/* ... */ export let x` — skip the leading block-comment close.
+        if let Some(p) = trimmed.find("*/") {
+            trimmed = trimmed[p + 2..].trim_start();
+        }
         let rest = if let Some(s) = trimmed.strip_prefix("export let ") {
             s
         } else if let Some(s) = trimmed.strip_prefix("export var ") {
@@ -7698,6 +8480,10 @@ fn is_declared_via_export_let(script: &str, name: &str) -> bool {
         } else {
             continue;
         };
+
+        // Strip a trailing `// ...` / `/* ...` comment so
+        // `export let foo; // comment` still parses as a plain declaration.
+        let rest = super::transform_legacy::strip_trailing_comment_for_decl(rest);
 
         // Strip trailing semicolon
         let decl = rest.trim_end_matches(';').trim();

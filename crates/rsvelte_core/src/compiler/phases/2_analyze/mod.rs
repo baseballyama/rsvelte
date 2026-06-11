@@ -76,21 +76,27 @@ pub fn analyze_component(
         return Err(parse_err.into());
     }
 
-    if let Some(ref mut instance) = ast.instance {
-        crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
-            &ast.arena,
-            instance,
-            source,
-            &line_offsets,
-        );
+    if let Some(ref mut instance) = ast.instance
+        && let Some(parse_err) =
+            crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                instance,
+                source,
+                &line_offsets,
+            )
+    {
+        return Err(parse_err.into());
     }
-    if let Some(ref mut module) = ast.module {
-        crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
-            &ast.arena,
-            module,
-            source,
-            &line_offsets,
-        );
+    if let Some(ref mut module) = ast.module
+        && let Some(parse_err) =
+            crate::compiler::phases::phase1_parse::read::script::ensure_script_parsed(
+                &ast.arena,
+                module,
+                source,
+                &line_offsets,
+            )
+    {
+        return Err(parse_err.into());
     }
 
     let mut analysis = ComponentAnalysis::new(source, options);
@@ -139,17 +145,61 @@ pub fn analyze_component(
     if let Some(ref svelte_options) = ast.options
         && let Some(ref ce_opts) = svelte_options.custom_element
     {
+        // Extract the `extend` option's source text. When the component uses
+        // TypeScript, strip type annotations (mirrors compiler/index.js lines
+        // 49-53: `remove_typescript_nodes(customElementOptions.extend)`).
+        let extend = ce_opts.extend.as_ref().and_then(|expr| {
+            let json = expr.as_json();
+            let start = json.get("start")?.as_u64()? as usize;
+            let end = json.get("end")?.as_u64()? as usize;
+            let text = source.get(start..end)?.to_string();
+            let is_ts = |script: &Option<Box<crate::ast::Script>>| {
+                script.as_ref().is_some_and(|s| {
+                    s.attributes.iter().any(|attr| {
+                        attr.name.as_str() == "lang"
+                            && matches!(
+                                &attr.value,
+                                crate::ast::AttributeValue::Sequence(parts)
+                                    if matches!(
+                                        parts.first(),
+                                        Some(crate::ast::AttributeValuePart::Text(t))
+                                            if t.data.as_str() == "ts" || t.data.as_str() == "typescript"
+                                    )
+                            )
+                    })
+                })
+            };
+            if is_ts(&ast.instance) || is_ts(&ast.module) {
+                Some(types::strip_typescript(&text))
+            } else {
+                Some(text)
+            }
+        });
+        // ShadowRootInit object form (`shadow: { mode: 'open', ... }`):
+        // upstream passes the AST through to `create_custom_element`
+        // (transform-client.js line 641: `shadow_root_init = ce.shadow`).
+        let shadow_object_source = ce_opts.shadow_object.as_ref().and_then(|obj| {
+            let start = obj.get("start")?.as_u64()? as usize;
+            let end = obj.get("end")?.as_u64()? as usize;
+            Some(source.get(start..end)?.to_string())
+        });
         analysis.custom_element = Some(types::CustomElementConfig {
             tag: ce_opts.tag.as_ref().map(|t| t.to_string()),
             shadow: ce_opts.shadow.map(|s| match s {
                 crate::ast::template::ShadowMode::Open => "open".to_string(),
                 crate::ast::template::ShadowMode::None => "none".to_string(),
             }),
+            shadow_object_source,
             props: ce_opts.props.clone(),
+            extend,
         });
         // Custom elements always inject styles (into shadow DOM)
         // Reference: analyze/index.js line 527: inject_styles: options.css === 'injected' || is_custom_element
         analysis.inject_styles = true;
+        // Custom elements always get accessors so that props are reflected as
+        // element properties. Reference: analyze/index.js lines 536-540:
+        // accessors: is_custom_element || (runes ? false : !!options.accessors) || ...
+        analysis.accessors = true;
     }
 
     // Check for options_missing_custom_element warning
@@ -218,16 +268,17 @@ pub fn analyze_component(
     let fragment_results = fragment_check_features(&ast.fragment, &ast.arena, &store_sub_names);
 
     // Check the instance script for both await expressions and rune references
-    // in a single traversal. For script checks, we use an empty set for store_subs
-    // (scripts can have both runes and stores, but store_subs are created from
-    // template/instance references after scope building, so they are not relevant
-    // for script-level rune detection).
+    // in a single traversal. The store-sub exclusion set applies to scripts
+    // too: upstream deletes synthetic store-subscription names (e.g. `$state`
+    // when `state` is imported from a non-svelte module) from
+    // `module.scope.references` *before* runes detection reads it
+    // (2-analyze/index.js, `module.scope.references.delete(name)`), so a
+    // store-subscribed rune name in the script must not flip runes mode on.
     let (instance_has_await, instance_has_rune_reference) = ast
         .instance
         .as_ref()
         .map(|inst| {
-            let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-            let r = expression_check_features(&inst.content, &ast.arena, &empty_subs);
+            let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
             (r.has_await, r.has_rune_reference)
         })
         .unwrap_or((false, false));
@@ -238,8 +289,7 @@ pub fn analyze_component(
         ast.module
             .as_ref()
             .map(|module| {
-                let empty_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
-                expression_check_features(&module.content, &ast.arena, &empty_subs)
+                expression_check_features(&module.content, &ast.arena, &store_sub_names)
                     .has_rune_reference
             })
             .unwrap_or(false)
@@ -670,7 +720,7 @@ pub fn analyze_component(
         // properly considering combinators (>, space, +, ~).
         if !analysis.css.hash.is_empty() {
             let css_selectors = css_scoping::extract_css_selectors(stylesheet);
-            css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors);
+            css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors, Some(&analysis));
 
             // When a `@keyframes` rule contains a percentage step (`0%`, `50%`, ...),
             // the official Svelte css-prune walker visits the `Percentage` selector
@@ -2494,15 +2544,6 @@ impl From<crate::error::ParseError> for AnalysisError {
             crate::error::ParseError::SvelteError { code, message, .. } => {
                 AnalysisError::ValidationWithCode { code, message }
             }
-            crate::error::ParseError::TypeScriptInvalidFeature { feature, .. } => {
-                AnalysisError::ValidationWithCode {
-                    code: "typescript_invalid_feature".to_string(),
-                    message: format!(
-                        "TypeScript language features like {} are not natively supported",
-                        feature
-                    ),
-                }
-            }
             other => AnalysisError::Validation(format!("{}", other)),
         }
     }
@@ -2994,13 +3035,115 @@ fn expression_check_features(
     match expr {
         Expression::Typed(te) => {
             let mut results = JsonCheckResults::default();
-            js_node_check_features(&te.node, arena, store_subs, &mut results, false);
+            let mut shadowed = Vec::new();
+            js_node_check_features(
+                &te.node,
+                arena,
+                store_subs,
+                &mut results,
+                false,
+                &mut shadowed,
+            );
             results
         }
         Expression::Value(v) => json_check_features(v, store_subs),
         // `resolve_lazy_expressions` runs before analyze, so Lazy should never
         // reach here. Return empty results defensively rather than panicking.
         Expression::Lazy { .. } => JsonCheckResults::default(),
+    }
+}
+
+/// Collect `$`-prefixed identifier names from a function-parameter *pattern*
+/// (typed `JsNode` form) into `out`. Default values (`AssignmentPattern.right`)
+/// are expressions, not declarations, so they are not collected.
+///
+/// Used for shadow-aware rune detection: upstream determines runes mode from
+/// `module.scope.references` — a reference that resolves to a function
+/// parameter (e.g. `function bar($derived) { $derived(...) }`) never reaches
+/// the module scope and therefore never flips runes mode on.
+fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match node {
+        JsNode::Identifier { name, .. } if name.starts_with('$') => {
+            out.push(name.to_string());
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property { value, .. } => {
+                        collect_dollar_param_names(arena.get_js_node(*value), arena, out);
+                    }
+                    JsNode::RestElement { argument, .. }
+                    | JsNode::SpreadElement { argument, .. } => {
+                        collect_dollar_param_names(arena.get_js_node(*argument), arena, out);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                collect_dollar_param_names(elem, arena, out);
+            }
+        }
+        JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+            collect_dollar_param_names(arena.get_js_node(*argument), arena, out);
+        }
+        JsNode::AssignmentPattern { left, .. } => {
+            collect_dollar_param_names(arena.get_js_node(*left), arena, out);
+        }
+        _ => {}
+    }
+}
+
+/// Collect `$`-prefixed identifier names from a function-parameter pattern
+/// (JSON form). See `collect_dollar_param_names`.
+fn collect_dollar_param_names_json(node: &serde_json::Value, out: &mut Vec<String>) {
+    match node.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = node.get("name").and_then(|n| n.as_str())
+                && name.starts_with('$')
+            {
+                out.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    match prop.get("type").and_then(|t| t.as_str()) {
+                        Some("RestElement") | Some("SpreadElement") => {
+                            if let Some(arg) = prop.get("argument") {
+                                collect_dollar_param_names_json(arg, out);
+                            }
+                        }
+                        _ => {
+                            if let Some(value) = prop.get("value") {
+                                collect_dollar_param_names_json(value, out);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        collect_dollar_param_names_json(elem, out);
+                    }
+                }
+            }
+        }
+        Some("RestElement") | Some("SpreadElement") => {
+            if let Some(arg) = node.get("argument") {
+                collect_dollar_param_names_json(arg, out);
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = node.get("left") {
+                collect_dollar_param_names_json(left, out);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -3029,6 +3172,7 @@ fn js_node_check_features(
     store_subs: &rustc_hash::FxHashSet<&str>,
     results: &mut JsonCheckResults,
     inside_function: bool,
+    shadowed: &mut Vec<String>,
 ) {
     if results.all_found() {
         return;
@@ -3041,6 +3185,7 @@ fn js_node_check_features(
     if let JsNode::Identifier { name, .. } = node
         && is_rune_name(name.as_str())
         && !store_subs.contains(name.as_str())
+        && !shadowed.iter().any(|s| s == name.as_str())
     {
         results.has_rune_reference = true;
     }
@@ -3057,6 +3202,21 @@ fn js_node_check_features(
                 | JsNode::FunctionDeclaration { .. }
         );
 
+    // Shadow-aware rune detection: `$`-prefixed function parameters (e.g.
+    // `function bar($derived, $effect) {}`) shadow the rune names inside the
+    // function, mirroring upstream where such references resolve to the
+    // parameter binding and never reach `module.scope.references` (the set
+    // runes-mode detection is computed from).
+    let shadow_base = shadowed.len();
+    if let JsNode::FunctionDeclaration { params, .. }
+    | JsNode::FunctionExpression { params, .. }
+    | JsNode::ArrowFunctionExpression { params, .. } = node
+    {
+        for param in arena.get_js_children(*params) {
+            collect_dollar_param_names(param, arena, shadowed);
+        }
+    }
+
     macro_rules! walk_id {
         ($id:expr) => {{
             js_node_check_features(
@@ -3065,8 +3225,10 @@ fn js_node_check_features(
                 store_subs,
                 results,
                 child_inside_function,
+                shadowed,
             );
             if results.all_found() {
+                shadowed.truncate(shadow_base);
                 return;
             }
         }};
@@ -3081,8 +3243,16 @@ fn js_node_check_features(
     macro_rules! walk_range {
         ($range:expr) => {{
             for child in arena.get_js_children($range) {
-                js_node_check_features(child, arena, store_subs, results, child_inside_function);
+                js_node_check_features(
+                    child,
+                    arena,
+                    store_subs,
+                    results,
+                    child_inside_function,
+                    shadowed,
+                );
                 if results.all_found() {
+                    shadowed.truncate(shadow_base);
                     return;
                 }
             }
@@ -3158,7 +3328,14 @@ fn js_node_check_features(
 
         JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
-                js_node_check_features(elem, arena, store_subs, results, child_inside_function);
+                js_node_check_features(
+                    elem,
+                    arena,
+                    store_subs,
+                    results,
+                    child_inside_function,
+                    shadowed,
+                );
                 if results.all_found() {
                     return;
                 }
@@ -3405,10 +3582,12 @@ fn js_node_check_features(
         // that carry leadingComments (rare). The recursion stops at this
         // boundary; descendants of Raw are not pattern-matched on JsNode.
         JsNode::Raw(value) => {
-            let sub = json_check_features_inner(value, store_subs, child_inside_function);
+            let sub = json_check_features_inner(value, store_subs, child_inside_function, shadowed);
             results.merge(&sub);
         }
     }
+
+    shadowed.truncate(shadow_base);
 }
 
 /// Check if a name is a rune identifier.
@@ -3441,13 +3620,15 @@ fn json_check_features(
     node: &serde_json::Value,
     store_subs: &rustc_hash::FxHashSet<&str>,
 ) -> JsonCheckResults {
-    json_check_features_inner(node, store_subs, false)
+    let mut shadowed = Vec::new();
+    json_check_features_inner(node, store_subs, false, &mut shadowed)
 }
 
 fn json_check_features_inner(
     node: &serde_json::Value,
     store_subs: &rustc_hash::FxHashSet<&str>,
     inside_function: bool,
+    shadowed: &mut Vec<String>,
 ) -> JsonCheckResults {
     let mut results = JsonCheckResults::default();
     let node_type = node.get("type").and_then(|t| t.as_str());
@@ -3463,6 +3644,7 @@ fn json_check_features_inner(
         && let Some(name) = node.get("name").and_then(|n| n.as_str())
         && is_rune_name(name)
         && !store_subs.contains(name)
+        && !shadowed.iter().any(|s| s == name)
     {
         results.has_rune_reference = true;
     }
@@ -3478,6 +3660,15 @@ fn json_check_features_inner(
         Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
     );
     let child_inside_function = inside_function || is_function_boundary;
+
+    // `$`-prefixed function parameters shadow rune names inside the function
+    // (see `js_node_check_features`).
+    let shadow_base = shadowed.len();
+    if is_function_boundary && let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+        for param in params {
+            collect_dollar_param_names_json(param, shadowed);
+        }
+    }
 
     match node {
         serde_json::Value::Object(map) => {
@@ -3522,9 +3713,10 @@ fn json_check_features_inner(
                     continue;
                 }
                 let child_results =
-                    json_check_features_inner(val, store_subs, child_inside_function);
+                    json_check_features_inner(val, store_subs, child_inside_function, shadowed);
                 results.merge(&child_results);
                 if results.all_found() {
+                    shadowed.truncate(shadow_base);
                     return results;
                 }
             }
@@ -3532,9 +3724,10 @@ fn json_check_features_inner(
         serde_json::Value::Array(arr) => {
             for val in arr {
                 let child_results =
-                    json_check_features_inner(val, store_subs, child_inside_function);
+                    json_check_features_inner(val, store_subs, child_inside_function, shadowed);
                 results.merge(&child_results);
                 if results.all_found() {
+                    shadowed.truncate(shadow_base);
                     return results;
                 }
             }
@@ -3542,6 +3735,7 @@ fn json_check_features_inner(
         _ => {}
     }
 
+    shadowed.truncate(shadow_base);
     results
 }
 

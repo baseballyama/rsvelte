@@ -127,19 +127,6 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // Check for invalid state/derived exports in VariableDeclarations
-    // This applies to BOTH instance and module scripts
-    // Corresponds to Svelte's check in ExportNamedDeclaration.js
-    if let Some(declaration) = node.get("declaration")
-        && declaration.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-        && let Some(declarators) = declaration.get("declarations").and_then(|d| d.as_array())
-    {
-        for declarator in declarators {
-            // Extract identifiers from the pattern and check bindings
-            check_export_bindings(declarator.get("id"), context)?;
-        }
-    }
-
     // In runes mode, handle export declarations - only for instance script
     if context.analysis.runes
         && context.ast_type == super::AstType::Instance
@@ -263,6 +250,22 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Reference: The official Svelte compiler's visitor calls context.next() which walks children.
     if let Some(declaration) = node.get("declaration") {
         super::script::walk_js_node(declaration, context)?;
+    }
+
+    // Check for invalid state/derived exports in VariableDeclarations.
+    // This applies to BOTH instance and module scripts.
+    // Runs AFTER walking the declaration — upstream's ExportNamedDeclaration.js
+    // calls `context.next()` first, so errors raised while visiting children
+    // (e.g. `experimental_async` for `export const a = $derived(await ...)`)
+    // take precedence over `derived_invalid_export` / `state_invalid_export`.
+    if let Some(declaration) = node.get("declaration")
+        && declaration.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+        && let Some(declarators) = declaration.get("declarations").and_then(|d| d.as_array())
+    {
+        for declarator in declarators {
+            // Extract identifiers from the pattern and check bindings
+            check_export_bindings(declarator.get("id"), context)?;
+        }
     }
 
     Ok(())
@@ -576,18 +579,6 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             }
         });
 
-        // Check for invalid state/derived exports in VariableDeclarations
-        if let Some(ref declaration_val) = decl_value
-            && declaration_val.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-            && let Some(declarators) = declaration_val
-                .get("declarations")
-                .and_then(|d| d.as_array())
-        {
-            for declarator in declarators {
-                check_export_bindings(declarator.get("id"), context)?;
-            }
-        }
-
         // In runes mode, handle export declarations - only for instance script
         if context.analysis.runes
             && context.ast_type == super::AstType::Instance
@@ -702,6 +693,22 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         if let Some(decl_id) = declaration {
             let decl_node = arena.get_js_node(*decl_id);
             super::script::walk_js_node_typed(decl_node, context)?;
+        }
+
+        // Check for invalid state/derived exports in VariableDeclarations.
+        // Runs AFTER walking the declaration — upstream's ExportNamedDeclaration.js
+        // calls `context.next()` first, so errors raised while visiting children
+        // (e.g. `experimental_async` for `export const a = $derived(await ...)`)
+        // take precedence over `derived_invalid_export` / `state_invalid_export`.
+        if let Some(ref declaration_val) = decl_value
+            && declaration_val.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+            && let Some(declarators) = declaration_val
+                .get("declarations")
+                .and_then(|d| d.as_array())
+        {
+            for declarator in declarators {
+                check_export_bindings(declarator.get("id"), context)?;
+            }
         }
     }
 

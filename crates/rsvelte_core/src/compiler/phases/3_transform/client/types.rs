@@ -1855,6 +1855,13 @@ pub struct ComponentClientTransformState<'a> {
     /// Transformed {@const} declarations
     pub consts: Vec<JsStatement>,
 
+    /// Statements to duplicate at the very top of the NEXT snippet function
+    /// body built by `snippet_block`. Used by `<svelte:boundary>` (non-async
+    /// mode): upstream duplicates boundary-level `{@const}` declarations into
+    /// every hoisted snippet (SvelteBoundary.js "we cheat: we duplicate const
+    /// tags inside snippets"). Consumed (taken) by `snippet_block`.
+    pub snippet_body_prepend: Vec<JsStatement>,
+
     /// Transformed async {@const} declarations (if any)
     pub async_consts: Option<AsyncConsts>,
 
@@ -2201,6 +2208,7 @@ impl<'a> ComponentClientTransformState<'a> {
             update: Vec::new(),
             after_update: Vec::new(),
             consts: Vec::new(),
+            snippet_body_prepend: Vec::new(),
             async_consts: None,
             let_directives: Vec::new(),
             node,
@@ -2284,6 +2292,26 @@ impl<'a> ComponentClientTransformState<'a> {
         // Fall back to searching all scopes (handles cases where scope linkage is missing)
         let index = self.scope_root.find_binding_any_scope(name)?;
         self.scope_root.bindings.get(index)
+    }
+
+    /// Whether `scope_index` is the current scope (`self.scope`) or one of its
+    /// ancestors. Used to restrict constant-folding of snippet-scoped template
+    /// declarations to lexically reachable references (upstream resolves these
+    /// through `scope.evaluate`, which walks the scope chain).
+    pub fn scope_chain_contains(&self, scope_index: usize) -> bool {
+        if let Some(target) = self.scope_root.all_scopes.get(scope_index)
+            && std::ptr::eq(self.scope as *const Scope, target as *const Scope)
+        {
+            return true;
+        }
+        let mut parent = self.scope.parent;
+        while let Some(idx) = parent {
+            if idx == scope_index {
+                return true;
+            }
+            parent = self.scope_root.all_scopes.get(idx).and_then(|s| s.parent);
+        }
+        false
     }
 
     /// Look up a local variable's init expression AST node type.

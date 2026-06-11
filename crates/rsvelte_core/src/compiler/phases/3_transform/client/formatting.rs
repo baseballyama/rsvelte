@@ -577,8 +577,16 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         result.code.trim_end().to_string()
     });
 
+    // OXC's comment printer emits multi-line block-comment continuation lines
+    // with `line.trim_start()`, losing the ` * ` alignment esrap preserves
+    // (upstream dedents the comment by the `/*` line's indentation and prints
+    // each line verbatim). Restore the original continuation-line text.
+    let code = restore_block_comment_alignment(js, &code);
+
     // Restore double-quoted strings that OXC normalized to single quotes
     let code = restore_original_quotes(js, &code);
+    // Restore source spelling of numeric literals that OXC minified (1000 -> 1e3)
+    let code = restore_number_literals(js, &code);
     let code = &code;
 
     // Rejoin consecutive `;` lines (from $inspect() removal) BEFORE any other
@@ -654,6 +662,223 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         }
     }
     result_lines.join("\n")
+}
+
+/// Collect byte spans (`/*` start .. after `*/`) of MULTI-LINE block comments
+/// in `src`, skipping comment-lookalikes inside strings, template literals and
+/// line comments. Single-line block comments are not collected — OXC prints
+/// them verbatim, so they need no restoration.
+fn collect_multiline_block_comment_spans(src: &str) -> Vec<(usize, usize)> {
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut spans = Vec::new();
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                // Line comment — skip to end of line
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                let start = i;
+                i += 2;
+                let mut multiline = false;
+                while i < len {
+                    if bytes[i] == b'\n' {
+                        multiline = true;
+                    }
+                    if bytes[i] == b'*' && i + 1 < len && bytes[i + 1] == b'/' {
+                        i += 2;
+                        break;
+                    }
+                    i += 1;
+                }
+                if multiline {
+                    spans.push((start, i.min(len)));
+                }
+            }
+            q @ (b'\'' | b'"') => {
+                i += 1;
+                while i < len && bytes[i] != q && bytes[i] != b'\n' {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+                i += 1;
+            }
+            b'`' => {
+                // Template literal — skip text, including `${...}` interpolations
+                // (brace-depth tracked; nested templates handled recursively via depth).
+                i += 1;
+                let mut depth_stack: Vec<u32> = Vec::new();
+                while i < len {
+                    match bytes[i] {
+                        b'\\' => i += 1,
+                        b'`' if depth_stack.is_empty() => break,
+                        b'$' if i + 1 < len && bytes[i + 1] == b'{' => {
+                            depth_stack.push(0);
+                            i += 1;
+                        }
+                        b'{' if !depth_stack.is_empty() => {
+                            *depth_stack.last_mut().unwrap() += 1;
+                        }
+                        b'}' if !depth_stack.is_empty() => {
+                            let d = depth_stack.last_mut().unwrap();
+                            if *d == 0 {
+                                depth_stack.pop();
+                            } else {
+                                *d -= 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    spans
+}
+
+/// Restore multi-line block-comment continuation lines that OXC's codegen
+/// mangled. OXC prints each continuation line as `indent + line.trim_start()`,
+/// dropping the leading whitespace esrap keeps (upstream dedents each line by
+/// the indentation of the line containing `/*`, then prints the dedented line
+/// verbatim — so ` * @param ...` keeps its leading space).
+///
+/// `original` is the pre-codegen source whose comments still carry their
+/// original interior whitespace. Comments are matched in order by their
+/// trimmed line contents; unmatched comments are left as OXC printed them.
+pub(super) fn restore_block_comment_alignment(original: &str, code: &str) -> String {
+    if memmem::find(code.as_bytes(), b"/*").is_none() {
+        return code.to_string();
+    }
+
+    // Dedent rule: upstream strips the `/*` line's indentation from every
+    // subsequent line of the comment. By this point our transform pipeline may
+    // have re-anchored the `/*` line to column 0 while interior lines still
+    // carry their source indentation, so we dedent by the common whitespace
+    // prefix of the continuation lines instead — for well-formed comments
+    // (where the closing `*/` line shares the opener's indent) this computes
+    // the same result as the upstream rule.
+    let orig_spans = collect_multiline_block_comment_spans(original);
+    if orig_spans.is_empty() {
+        return code.to_string();
+    }
+    let orig_comments: Vec<Vec<String>> = orig_spans
+        .iter()
+        .map(|&(s, e)| {
+            let lines: Vec<&str> = original[s..e].split('\n').collect();
+            let mut indent: Option<&str> = None;
+            for line in lines.iter().skip(1) {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let ws_len = line.len() - line.trim_start_matches([' ', '\t']).len();
+                let ws = &line[..ws_len];
+                indent = Some(match indent {
+                    None => ws,
+                    Some(prev) => {
+                        let common = prev
+                            .bytes()
+                            .zip(ws.bytes())
+                            .take_while(|(a, b)| a == b)
+                            .count();
+                        &prev[..common.min(ws_len)]
+                    }
+                });
+            }
+            let mut indent = indent.unwrap_or("");
+            // JSDoc-style comments align continuation `*`s one column past the
+            // `/` of `/*`, so each continuation line carries one alignment
+            // space after the opener's indentation (`\t * x`, `\t */`). The
+            // common prefix would swallow that space — keep it so the
+            // continuation lines stay ` * x` / ` */` like esrap prints them.
+            if indent.ends_with(' ')
+                && lines.iter().skip(1).all(|line| {
+                    line.trim().is_empty()
+                        || line
+                            .strip_prefix(indent)
+                            .is_some_and(|r| r.starts_with('*'))
+                })
+            {
+                indent = &indent[..indent.len() - 1];
+            }
+            lines
+                .iter()
+                .enumerate()
+                .map(|(k, line)| {
+                    if k == 0 {
+                        line.to_string()
+                    } else {
+                        line.strip_prefix(indent).unwrap_or(line).to_string()
+                    }
+                })
+                .collect()
+        })
+        .collect();
+
+    let code_spans = collect_multiline_block_comment_spans(code);
+    if code_spans.is_empty() {
+        return code.to_string();
+    }
+
+    let mut out = String::with_capacity(code.len() + 64);
+    let mut cursor = 0;
+    let mut oc_idx = 0;
+    for (s, e) in code_spans {
+        let text = &code[s..e];
+        let out_lines: Vec<&str> = text.split('\n').collect();
+
+        // Find the next original comment with the same (trimmed) content.
+        let matched = orig_comments
+            .iter()
+            .enumerate()
+            .skip(oc_idx)
+            .find(|(_, cand)| {
+                cand.len() == out_lines.len()
+                    && cand
+                        .iter()
+                        .zip(out_lines.iter())
+                        .all(|(a, b)| a.trim() == b.trim())
+            })
+            .map(|(j, _)| j);
+
+        out.push_str(&code[cursor..s]);
+        if let Some(j) = matched {
+            // Indentation OXC gave the comment's first line — continuation
+            // lines get the same indent (esrap prints newline + indent + line).
+            let line_start = code[..s].rfind('\n').map(|p| p + 1).unwrap_or(0);
+            let indent = &code[line_start..s];
+            let indent = if indent.bytes().all(|b| b == b' ' || b == b'\t') {
+                indent
+            } else {
+                ""
+            };
+            for (k, oline) in orig_comments[j].iter().enumerate() {
+                if k == 0 {
+                    out.push_str(out_lines[0]);
+                } else {
+                    out.push('\n');
+                    if !oline.is_empty() {
+                        out.push_str(indent);
+                        out.push_str(oline);
+                    }
+                }
+            }
+            oc_idx = j + 1;
+        } else {
+            out.push_str(text);
+        }
+        cursor = e;
+    }
+    out.push_str(&code[cursor..]);
+    out
 }
 
 /// Track whether we're inside a template literal by counting unescaped backticks on a line.
@@ -1208,6 +1433,16 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
         rustc_hash::FxHashMap::default();
     // Track indent levels that have a pending leading comment for the next statement
     let mut comment_at_indent: rustc_hash::FxHashSet<usize> = rustc_hash::FxHashSet::default();
+    // Result index where the pending leading-comment run begins, per indent level.
+    // esrap treats comments as leading trivia of the following statement, so any
+    // blank-line margin belongs BEFORE the comment run, not between the comment
+    // and its statement.
+    let mut comment_run_start: rustc_hash::FxHashMap<usize, usize> =
+        rustc_hash::FxHashMap::default();
+    // True while inside a multi-line `/* ... */` block comment. Interior lines
+    // are emitted verbatim: they are comment text, not statements, so no blank
+    // lines may be inserted between them and no type/bracket tracking applies.
+    let mut in_block_comment = false;
 
     let mut result: Vec<&str> = Vec::with_capacity(lines.len() + 20);
 
@@ -1223,6 +1458,17 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
+
+        // Interior lines of a multi-line block comment pass through verbatim
+        // (including blank lines — they are comment content, not layout).
+        if in_block_comment {
+            result.push(line);
+            if memmem::find(line.as_bytes(), b"*/").is_some() {
+                in_block_comment = false;
+            }
+            i += 1;
+            continue;
+        }
 
         let in_template_literal =
             matches!(template_stack.last(), Some(TemplateStateFrame::Template));
@@ -1285,9 +1531,21 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
         // However, they make the following statement multiline (since comment + statement
         // spans multiple lines).
         if stmt_type == "Comment" {
-            // Mark that the next statement at this indent level has a leading comment
-            comment_at_indent.insert(indent_level);
+            // Mark that the next statement at this indent level has a leading comment.
+            // Record where the comment run starts so blank-line margins can be
+            // inserted BEFORE the run (esrap attaches comments to the following
+            // statement, so the margin goes above the comment).
+            if comment_at_indent.insert(indent_level) {
+                comment_run_start.insert(indent_level, result.len());
+            }
             result.push(line);
+            // A `/*` opener without `*/` on the same line starts a multi-line
+            // block comment whose interior must pass through untouched.
+            if let Some(after_open) = trimmed.strip_prefix("/*")
+                && memmem::find(after_open.as_bytes(), b"*/").is_none()
+            {
+                in_block_comment = true;
+            }
             i += 1;
             continue;
         }
@@ -1297,6 +1555,18 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
         let has_leading_comment = comment_at_indent.remove(&indent_level);
         let is_multiline =
             has_leading_comment || is_stmt_multiline_at_indent(&lines, i, indent_level);
+
+        // Where a blank-line margin should go: above the leading-comment run
+        // when there is one (esrap prints the margin before the comment that
+        // is attached to this statement), otherwise at the end of `result`.
+        let insert_at = if has_leading_comment {
+            comment_run_start
+                .remove(&indent_level)
+                .unwrap_or(result.len())
+        } else {
+            result.len()
+        };
+        let can_insert_blank = insert_at > 0 && !result[insert_at - 1].trim().is_empty();
 
         // Add blank line if needed (only for statement context, not inside arrays)
         // Inside arrays (bracket_depth > 0), blank line rules are different:
@@ -1308,12 +1578,8 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
                     .get(&indent_level)
                     .copied()
                     .unwrap_or(false);
-                if is_multiline
-                    && prev_ml
-                    && !result.is_empty()
-                    && !result.last().is_some_and(|l| l.trim().is_empty())
-                {
-                    result.push("");
+                if is_multiline && prev_ml && can_insert_blank {
+                    result.insert(insert_at, "");
                 }
             }
         } else if let Some(prev_type) = prev_type_at_indent.get(&indent_level) {
@@ -1321,11 +1587,8 @@ pub(super) fn add_esrap_blank_lines(code: &str) -> String {
                 .get(&indent_level)
                 .copied()
                 .unwrap_or(false);
-            if (stmt_type != *prev_type || is_multiline || prev_ml)
-                && !result.is_empty()
-                && !result.last().is_some_and(|l| l.trim().is_empty())
-            {
-                result.push("");
+            if (stmt_type != *prev_type || is_multiline || prev_ml) && can_insert_blank {
+                result.insert(insert_at, "");
             }
         }
 
@@ -1645,4 +1908,246 @@ pub(crate) fn restore_original_quotes(original: &str, oxc_output: &str) -> Strin
     }
 
     String::from_utf8(result).unwrap_or_else(|_| oxc_output.to_string())
+}
+
+/// Parse a JS numeric literal raw text (without sign) into its f64 value.
+/// Underscore separators are allowed; hex/binary/octal prefixes are handled.
+/// Returns `None` for BigInt literals, legacy octals, or unparseable text.
+fn parse_js_number(raw: &str) -> Option<f64> {
+    if raw.ends_with('n') {
+        return None; // BigInt
+    }
+    let s: String = raw.chars().filter(|c| *c != '_').collect();
+    let bytes = s.as_bytes();
+    if bytes.len() > 2 && bytes[0] == b'0' {
+        match bytes[1] | 0x20 {
+            b'x' => return u128::from_str_radix(&s[2..], 16).ok().map(|v| v as f64),
+            b'b' => return u128::from_str_radix(&s[2..], 2).ok().map(|v| v as f64),
+            b'o' => return u128::from_str_radix(&s[2..], 8).ok().map(|v| v as f64),
+            _ => {}
+        }
+    }
+    // Reject legacy octal (`0123`) — ambiguous value, never emitted by OXC.
+    if bytes.len() > 1 && bytes[0] == b'0' && bytes[1].is_ascii_digit() {
+        return None;
+    }
+    s.parse::<f64>().ok()
+}
+
+/// Consume a numeric literal token starting at `start` and return the end index.
+fn scan_number_token(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut i = start;
+    // Radix prefix (0x / 0b / 0o)
+    if i + 1 < len && bytes[i] == b'0' && matches!(bytes[i + 1] | 0x20, b'x' | b'b' | b'o') {
+        i += 2;
+        while i < len && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+            i += 1;
+        }
+        return i;
+    }
+    // Integer part
+    while i < len && (bytes[i].is_ascii_digit() || bytes[i] == b'_') {
+        i += 1;
+    }
+    // Fraction
+    if i < len && bytes[i] == b'.' {
+        i += 1;
+        while i < len && (bytes[i].is_ascii_digit() || bytes[i] == b'_') {
+            i += 1;
+        }
+    }
+    // Exponent
+    if i < len && (bytes[i] | 0x20) == b'e' {
+        let mut j = i + 1;
+        if j < len && (bytes[j] == b'+' || bytes[j] == b'-') {
+            j += 1;
+        }
+        if j < len && bytes[j].is_ascii_digit() {
+            i = j;
+            while i < len && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+        }
+    }
+    // BigInt suffix
+    if i < len && bytes[i] == b'n' {
+        i += 1;
+    }
+    i
+}
+
+/// Walk JS source, skipping strings / comments / template-literal text
+/// (but descending into `${...}` substitutions), and invoke `f(start, end)`
+/// for every numeric literal token found in code position.
+fn for_each_number_token(src: &str, mut f: impl FnMut(usize, usize)) {
+    /// Scanner frame: inside a template literal, or inside a `${...}`
+    /// substitution opened from a template (tracking nested brace depth).
+    enum Frame {
+        Template,
+        Substitution { brace_depth: u32 },
+    }
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut frames: Vec<Frame> = Vec::new();
+    let mut i = 0;
+    while i < len {
+        if matches!(frames.last(), Some(Frame::Template)) {
+            // Template-literal text mode
+            match bytes[i] {
+                b'\\' => i += 2,
+                b'$' if i + 1 < len && bytes[i + 1] == b'{' => {
+                    frames.push(Frame::Substitution { brace_depth: 0 });
+                    i += 2;
+                }
+                b'`' => {
+                    frames.pop();
+                    i += 1;
+                }
+                _ => i += 1,
+            }
+            continue;
+        }
+        // Code mode
+        let b = bytes[i];
+        match b {
+            b'\'' | b'"' => {
+                let quote = b;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                    } else if bytes[i] == quote {
+                        i += 1;
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+            b'`' => {
+                frames.push(Frame::Template);
+                i += 1;
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                while i < len && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+            }
+            b'{' => {
+                if let Some(Frame::Substitution { brace_depth }) = frames.last_mut() {
+                    *brace_depth += 1;
+                }
+                i += 1;
+            }
+            b'}' => {
+                if let Some(Frame::Substitution { brace_depth }) = frames.last_mut() {
+                    if *brace_depth == 0 {
+                        frames.pop();
+                    } else {
+                        *brace_depth -= 1;
+                    }
+                }
+                i += 1;
+            }
+            _ if b.is_ascii_digit()
+                || (b == b'.' && i + 1 < len && bytes[i + 1].is_ascii_digit()) =>
+            {
+                // A literal cannot start right after an identifier char or `.`
+                // (e.g. `x1`, `a.0`, `1..5` continuation).
+                let prev_blocks = i > 0
+                    && (bytes[i - 1].is_ascii_alphanumeric()
+                        || bytes[i - 1] == b'_'
+                        || bytes[i - 1] == b'$'
+                        || bytes[i - 1] == b'.');
+                if prev_blocks {
+                    // Skip the whole identifier-ish run to avoid re-triggering
+                    i += 1;
+                    continue;
+                }
+                let end = scan_number_token(bytes, i);
+                // A real literal cannot be immediately followed by an
+                // identifier-start char.
+                let next_blocks = end < len
+                    && (bytes[end].is_ascii_alphanumeric()
+                        || bytes[end] == b'_'
+                        || bytes[end] == b'$');
+                if !next_blocks {
+                    f(i, end);
+                }
+                i = end.max(i + 1);
+            }
+            _ => i += 1,
+        }
+    }
+}
+
+/// Restore original numeric literal spelling after OXC codegen.
+///
+/// OXC's codegen always prints numeric literals in "minified number" form
+/// (`1000` → `1e3`, `0xFF` → `255`, `0.5` → `.5`), but the official compiler
+/// prints `node.raw` via esrap, preserving the source spelling. Collect the
+/// raw text of every numeric literal in `original` keyed by numeric value,
+/// then rewrite number tokens in `oxc_output` whose value matches a
+/// uniquely-spelled source literal back to that raw text.
+pub(crate) fn restore_number_literals(original: &str, oxc_output: &str) -> String {
+    // Fast path: nothing to restore without digits on both sides.
+    if !oxc_output.bytes().any(|b| b.is_ascii_digit())
+        || !original.bytes().any(|b| b.is_ascii_digit())
+    {
+        return oxc_output.to_string();
+    }
+
+    // Phase 1: collect source literal spellings by value.
+    // `None` marks an ambiguous value (spelled two different ways).
+    let mut raw_by_value: rustc_hash::FxHashMap<u64, Option<&str>> =
+        rustc_hash::FxHashMap::default();
+    for_each_number_token(original, |start, end| {
+        let raw = &original[start..end];
+        if let Some(value) = parse_js_number(raw) {
+            raw_by_value
+                .entry(value.to_bits())
+                .and_modify(|e| {
+                    if e.is_some_and(|existing| existing != raw) {
+                        *e = None;
+                    }
+                })
+                .or_insert(Some(raw));
+        }
+    });
+    if raw_by_value.is_empty() {
+        return oxc_output.to_string();
+    }
+
+    // Phase 2: rewrite output tokens whose value maps to a different spelling.
+    let mut replacements: Vec<(usize, usize, &str)> = Vec::new();
+    for_each_number_token(oxc_output, |start, end| {
+        let token = &oxc_output[start..end];
+        if let Some(value) = parse_js_number(token)
+            && let Some(Some(raw)) = raw_by_value.get(&value.to_bits())
+            && *raw != token
+        {
+            replacements.push((start, end, raw));
+        }
+    });
+    if replacements.is_empty() {
+        return oxc_output.to_string();
+    }
+
+    let mut result = String::with_capacity(oxc_output.len());
+    let mut pos = 0;
+    for (start, end, raw) in replacements {
+        result.push_str(&oxc_output[pos..start]);
+        result.push_str(raw);
+        pos = end;
+    }
+    result.push_str(&oxc_output[pos..]);
+    result
 }

@@ -77,17 +77,6 @@ pub enum ParseError {
         #[label("{message}")]
         span: (usize, usize),
     },
-
-    /// TypeScript feature that is not supported.
-    #[error(
-        "typescript_invalid_feature: TypeScript language features like {feature} are not natively supported"
-    )]
-    #[diagnostic(code(svelte::parse::typescript_invalid_feature))]
-    TypeScriptInvalidFeature {
-        feature: String,
-        #[label("TypeScript feature not supported")]
-        span: (usize, usize),
-    },
 }
 
 impl ParseError {
@@ -112,11 +101,20 @@ impl ParseError {
     }
 
     /// Create a TypeScript invalid feature error.
+    ///
+    /// Mirrors upstream `e.typescript_invalid_feature(node, feature)` — the
+    /// message (including the `svelte.dev/e/…` URL) matches the official
+    /// compiler so the error code can be extracted from the message text the
+    /// same way as every other Svelte-coded error.
     pub fn typescript_invalid_feature(feature: impl Into<String>, span: (usize, usize)) -> Self {
-        ParseError::TypeScriptInvalidFeature {
-            feature: feature.into(),
+        ParseError::svelte(
+            "typescript_invalid_feature",
+            format!(
+                "TypeScript language features like {} are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({{ script: true }})`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+                feature.into()
+            ),
             span,
-        }
+        )
     }
 
     /// Return the `(start, end)` byte-offset span associated with this error.
@@ -132,8 +130,7 @@ impl ParseError {
             | ParseError::InvalidAttribute { span }
             | ParseError::InvalidExpression { span, .. }
             | ParseError::Generic { span, .. }
-            | ParseError::SvelteError { span, .. }
-            | ParseError::TypeScriptInvalidFeature { span, .. } => *span,
+            | ParseError::SvelteError { span, .. } => *span,
         }
     }
 }

@@ -48,6 +48,14 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.dev = self.dev;
         body_generator.is_typescript = self.is_typescript;
         body_generator.uses_store_subs = self.uses_store_subs;
+        body_generator.current_scope_index = self.current_scope_index;
+        // Track the snippet body's Phase-2 scope so the evaluator resolves
+        // template declarations lexically (a sibling snippet's `{@const}` is
+        // not reachable from this body and must not be constant-folded).
+        body_generator.current_scope_index = self
+            .analysis
+            .and_then(|a| a.root.template_scope_map.get(&block.start).copied())
+            .or(self.current_scope_index);
         // Snippet parameters shadow outer derived bindings: drop any derived
         // name that matches a parameter binding from the body's derived_names
         // / derived_var_names so we don't wrap reads of the parameter as
@@ -62,28 +70,34 @@ impl<'a> ServerCodeGenerator<'a> {
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
         let len = body_nodes.len();
 
-        // Find first non-whitespace node
+        // Find first non-whitespace node. Comments are removed by clean_nodes
+        // (when preserveComments is off), so leading comments — and the
+        // whitespace around them — are trimmed too.
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                start_idx += 1;
-                continue;
+            match body_nodes[start_idx] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    start_idx += 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    start_idx += 1;
+                }
+                _ => break,
             }
-            break;
         }
 
-        // Find last non-whitespace node
+        // Find last non-whitespace node (trailing comments trimmed likewise)
         let mut end_idx = len;
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                end_idx -= 1;
-                continue;
+            match body_nodes[end_idx - 1] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    end_idx -= 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    end_idx -= 1;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Compute standalone-ness for the trimmed fragment
@@ -99,7 +113,35 @@ impl<'a> ServerCodeGenerator<'a> {
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
         // This prevents text from being fused with its surroundings during hydration
         if !is_standalone {
-            let first_node = body_nodes.get(start_idx);
+            // Hoisted nodes (const / declaration / debug tags, nested
+            // snippets) are lifted out by upstream's clean_nodes before the
+            // text-first check, so skip them (and the whitespace runs between
+            // them) when probing for the first content node.
+            let mut probe = start_idx;
+            let mut prev_was_hoisted = false;
+            while probe < end_idx {
+                match body_nodes[probe] {
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::DeclarationTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_) => {
+                        probe += 1;
+                        prev_was_hoisted = true;
+                    }
+                    TemplateNode::Text(text)
+                        if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                    {
+                        probe += 1;
+                        prev_was_hoisted = false;
+                    }
+                    _ => break,
+                }
+            }
+            let first_node = if probe < end_idx {
+                body_nodes.get(probe)
+            } else {
+                None
+            };
             let is_text_first = matches!(
                 first_node,
                 Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
@@ -217,34 +259,68 @@ impl<'a> ServerCodeGenerator<'a> {
         let body_nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = body_nodes.len();
 
-        // Find first non-whitespace node
+        // Find first non-whitespace node. Comments are removed by clean_nodes
+        // (when preserveComments is off), so leading comments — and the
+        // whitespace around them — are trimmed too.
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                start_idx += 1;
-                continue;
+            match body_nodes[start_idx] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    start_idx += 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    start_idx += 1;
+                }
+                _ => break,
             }
-            break;
         }
 
-        // Find last non-whitespace node
+        // Find last non-whitespace node (trailing comments trimmed likewise)
         let mut end_idx = len;
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                end_idx -= 1;
-                continue;
+            match body_nodes[end_idx - 1] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    end_idx -= 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    end_idx -= 1;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Check if first node is text or expression tag - if so, we need hydration marker
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
         // This prevents text from being fused with its surroundings during hydration
-        let first_node = body_nodes.get(start_idx);
+        // Hoisted nodes (const / declaration / debug tags, nested snippets)
+        // are lifted out by upstream's clean_nodes before the text-first
+        // check, so skip them (and the whitespace runs between them) when
+        // probing for the first content node.
+        let mut probe = start_idx;
+        let mut prev_was_hoisted = false;
+        while probe < end_idx {
+            match body_nodes[probe] {
+                TemplateNode::ConstTag(_)
+                | TemplateNode::DeclarationTag(_)
+                | TemplateNode::SnippetBlock(_)
+                | TemplateNode::DebugTag(_) => {
+                    probe += 1;
+                    prev_was_hoisted = true;
+                }
+                TemplateNode::Text(text)
+                    if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                {
+                    probe += 1;
+                    prev_was_hoisted = false;
+                }
+                _ => break,
+            }
+        }
+        let first_node = if probe < end_idx {
+            body_nodes.get(probe)
+        } else {
+            None
+        };
         let is_text_first = matches!(
             first_node,
             Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))

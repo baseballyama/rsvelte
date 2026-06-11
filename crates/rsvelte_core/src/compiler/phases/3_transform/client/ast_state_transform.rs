@@ -2286,6 +2286,19 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
 
+        // `$host()` -> `$$props.$$host`. Whole-call replacement.
+        // Reference: 3-transform/client/visitors/CallExpression.js `case '$host'`.
+        if self.is_runes
+            && !self.is_shadowed("$host")
+            && !self.store_sub_vars.contains("$host")
+            && expr.arguments.is_empty()
+            && let Expression::Identifier(callee) = &expr.callee
+            && callee.name == "$host"
+        {
+            self.add_replacement(expr.span.start, expr.span.end, "$$props.$$host".to_string());
+            return;
+        }
+
         // `$state.eager(x)` -> `$.eager(() => x)`. Whole-call rewrite that
         // wraps the single argument in a thunk; inner state-var refs in
         // the argument still need `$.get(...)` wrapping, so we walk the
@@ -3607,6 +3620,10 @@ pub(super) fn transform_state_vars_ast(
     let has_props_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$props")
         && memchr::memmem::find(script.as_bytes(), b"$props").is_some();
+    // `$host()` → `$$props.$$host` (custom elements).
+    let has_host_calls = is_runes
+        && !store_sub_vars.iter().any(|v| v == "$host")
+        && memchr::memmem::find(script.as_bytes(), b"$host").is_some();
     // Dev-mode `===` / `!==` → `$.strict_equals(...)` rewrite (formerly
     // `rune_transforms::transform_strict_equals`). The visitor walks
     // every BinaryExpression so we only need a byte probe to know
@@ -3624,6 +3641,7 @@ pub(super) fn transform_state_vars_ast(
         && !has_state_calls
         && !has_derived_calls
         && !has_props_calls
+        && !has_host_calls
         && !has_strict_equals
     {
         return None;
@@ -3679,6 +3697,7 @@ pub(super) fn transform_state_vars_ast(
         || (has_state_calls && script_ids.contains("$state"))
         || (has_derived_calls && script_ids.contains("$derived"))
         || (has_props_calls && script_ids.contains("$props"))
+        || (has_host_calls && script_ids.contains("$host"))
         || has_strict_equals;
 
     if !has_any_match {

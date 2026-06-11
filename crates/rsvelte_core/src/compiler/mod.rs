@@ -555,21 +555,25 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     // We need to parse it first so remove_typescript_nodes can inspect the AST.
     {
         let line_offsets = phases::phase1_parse::compute_line_offsets(source, false);
-        if let Some(ref mut instance) = ast.instance {
-            phases::phase1_parse::read::script::ensure_script_parsed(
+        if let Some(ref mut instance) = ast.instance
+            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
                 &ast.arena,
                 instance,
                 source,
                 &line_offsets,
-            );
+            )
+        {
+            return Err(parse_err.into());
         }
-        if let Some(ref mut module) = ast.module {
-            phases::phase1_parse::read::script::ensure_script_parsed(
+        if let Some(ref mut module) = ast.module
+            && let Some(parse_err) = phases::phase1_parse::read::script::ensure_script_parsed(
                 &ast.arena,
                 module,
                 source,
                 &line_offsets,
-            );
+            )
+        {
+            return Err(parse_err.into());
         }
     }
 
@@ -758,22 +762,18 @@ pub fn compile_module(
     source: &str,
     options: ModuleCompileOptions,
 ) -> Result<CompileResult, CompileError> {
-    // Detect TypeScript from filename
-    let is_typescript = options
-        .filename
-        .as_ref()
-        .map(|f| f.ends_with(".ts") || f.ends_with(".svelte.ts"))
-        .unwrap_or(false);
-
-    // Parse JS source into an AST using the same infrastructure as component scripts
+    // Parse JS source into an AST using the same infrastructure as component scripts.
+    // Upstream `compileModule` → `analyze_module` always parses with
+    // `typescript: false` (2-analyze/index.js `parse(source, comments, false,
+    // false)`), so TypeScript syntax in a module is a `js_parse_error` — even
+    // for `.svelte.ts` filenames (callers like Vite strip TS first).
     // Pass empty line_offsets to skip loc object creation (not needed during compilation)
     let arena = crate::ast::arena::ParseArena::new();
     // RAII install of the serialize arena. We install it *twice* across
-    // this function — once for the parse_program / TypeScript-strip step
-    // here, then again below after `arena` is moved into `ast` — because
-    // the second guard refers to the moved arena. Each guard restores
-    // the prior pointer on drop, so the outer scope's arena (if any) is
-    // preserved.
+    // this function — once for the parse_program step here, then again
+    // below after `arena` is moved into `ast` — because the second guard
+    // refers to the moved arena. Each guard restores the prior pointer on
+    // drop, so the outer scope's arena (if any) is preserved.
     //
     // SAFETY: `arena` lives until it is moved into `ast` below, which
     // outlives `_pre_move_guard`. The `?`/early-return paths only fire
@@ -782,31 +782,24 @@ pub fn compile_module(
         // SAFETY: `arena` outlives `_pre_move_guard` — it is moved into `ast` only after
         // the program is built, and the guard restores the prior pointer on drop.
         let _pre_move_guard = unsafe { SerializeArenaGuard::new(&arena as *const _) };
-        let program = phases::phase1_parse::read::expression::parse_program(
-            &arena,
-            source,
-            0, // offset = 0 (source is the entire file)
-            &[],
-            is_typescript,
-            &[],          // no leading comments
-            0,            // script_tag_start
-            source.len(), // script_tag_end
-        );
-
-        // Remove TypeScript nodes if needed. Propagate any error (e.g. an
-        // unsupported `@decorator`, which `remove_typescript_nodes` rejects)
-        // instead of silently dropping it — the component compile path already
-        // does this with `?`. (issue #450, H-085)
-        if is_typescript {
-            let mut val_clone = program.as_json().clone();
-            phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(
-                &mut val_clone,
+        let (program, parse_error) =
+            phases::phase1_parse::read::expression::parse_program_with_error(
+                &arena,
+                source,
+                0, // offset = 0 (source is the entire file)
                 &[],
-            )?;
-            crate::ast::js::Expression::Value(val_clone)
-        } else {
-            program
+                false,        // upstream analyze_module always parses plain JS
+                &[],          // no leading comments
+                0,            // script_tag_start
+                source.len(), // script_tag_end
+            );
+
+        // Mirror upstream acorn's throw-on-error behaviour (js_parse_error).
+        if let Some(parse_err) = parse_error {
+            return Err(parse_err.into());
         }
+
+        program
     };
 
     // Build a synthetic Root AST that treats the JS source as a module script.
@@ -880,27 +873,11 @@ pub fn compile_module(
 
     // Phase 3: Generate module output using the module-specific transform.
     // Unlike transform_component, this does NOT generate a component wrapper.
-    //
-    // The text-based rune rewrites inside `transform_module` work on the raw
-    // source string, not the AST. If the file is TypeScript, those rewrites
-    // would otherwise run against TS annotations (`(x: T) => …`, return-type
-    // `: T`, optional parameter `?`, etc.), corrupting the output and leaking
-    // TS into the emitted JS. Feed the TS-stripped source to the transform so
-    // every downstream string operation sees pure JS — matching what the
-    // analyzer has already stripped from the AST.
-    let stripped_source: String;
-    let source_for_transform: &str = if is_typescript {
-        stripped_source = phases::phase2_analyze::types::strip_typescript(source);
-        &stripped_source
-    } else {
-        source
-    };
-
-    let transform_result = phases::phase3_transform::transform_module(
-        &analysis,
-        source_for_transform,
-        &compile_options,
-    );
+    // Modules are always plain JS (upstream `analyze_module` parses with
+    // `typescript: false`; TS input is rejected above as `js_parse_error`),
+    // so the transform operates on the raw source directly.
+    let transform_result =
+        phases::phase3_transform::transform_module(&analysis, source, &compile_options);
 
     // Propagate transform errors — the previous code swallowed every error,
     // emitting the raw source with a header comment instead, which silently

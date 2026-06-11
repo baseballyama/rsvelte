@@ -3471,6 +3471,27 @@ pub(crate) fn get_literal_value(
                 // Check if the identifier is a constant binding
                 let binding = context.state.get_binding(name)?;
 
+                // `{@const}` / `{const}` / `{let}` template declarations made
+                // inside a `{#snippet}` body are local to that snippet's
+                // generated function. Upstream resolves identifiers through
+                // `scope.evaluate`, so a binding declared in a sibling snippet
+                // is simply not reachable and the reference stays a (possibly
+                // global) identifier. `get_binding`'s any-scope fallback would
+                // otherwise leak the binding here and substitute its value
+                // across snippet boundaries.
+                if matches!(
+                    binding.kind,
+                    crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
+                ) && context
+                    .state
+                    .scope_root
+                    .snippet_scope_indices
+                    .contains(&binding.scope_index)
+                    && !context.state.scope_chain_contains(binding.scope_index)
+                {
+                    return None;
+                }
+
                 // Only fold if:
                 // 1. Not updated (reassigned or mutated)
                 // 2. Not a prop (props come from outside and can change)
@@ -3922,6 +3943,14 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
                 if let Some(transform) = context.state.transform.get(name)
                     && transform.is_defined
                 {
+                    return true;
+                }
+
+                // `const uid = $props.id()` always evaluates to a string.
+                // Upstream's scope.evaluate resolves the const binding's initial
+                // `$props.id()` to STRING (scope.js `case '$props.id'`), so
+                // `is_defined` is true and no `?? ''` is appended.
+                if context.state.analysis.props_id.as_deref() == Some(name) {
                     return true;
                 }
 

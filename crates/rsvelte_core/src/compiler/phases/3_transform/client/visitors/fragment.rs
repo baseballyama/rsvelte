@@ -145,6 +145,7 @@ pub fn fragment(
         update: Vec::new(),
         after_update: Vec::new(),
         consts: Vec::new(),
+        snippet_body_prepend: Vec::new(),
         async_consts: None,
         let_directives: Vec::new(),
         node: context.state.node.clone(),

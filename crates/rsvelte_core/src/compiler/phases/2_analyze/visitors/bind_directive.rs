@@ -242,45 +242,7 @@ fn visit_common(
     // TODO: Set node.metadata.binding = binding
 
     // For Identifier (not MemberExpression), validate the binding kind
-    if directive.expression.is_identifier_node() {
-        // bind:this also works for regular variables, so skip validation for it
-        if directive.name != "this" {
-            // In the official Svelte, if there's no binding, or the binding is not a valid type,
-            // it should error with bind_invalid_value
-            // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js L193-207
-            let is_valid = if let Some(binding) = binding {
-                // In runes mode, check binding kind strictly
-                // In legacy mode, `let` declarations are allowed for bindings
-                // (their `updated` flag will be set during template analysis)
-                let valid_kind = matches!(
-                    binding.kind,
-                    crate::compiler::phases::phase2_analyze::BindingKind::State
-                        | crate::compiler::phases::phase2_analyze::BindingKind::RawState
-                        | crate::compiler::phases::phase2_analyze::BindingKind::Prop
-                        | crate::compiler::phases::phase2_analyze::BindingKind::BindableProp
-                        | crate::compiler::phases::phase2_analyze::BindingKind::EachItem
-                        | crate::compiler::phases::phase2_analyze::BindingKind::StoreSub
-                        // Legacy mode: allow let declarations (Normal kind)
-                        | crate::compiler::phases::phase2_analyze::BindingKind::Normal
-                        | crate::compiler::phases::phase2_analyze::BindingKind::Let
-                );
-                // Also valid if the binding has been updated (reassigned/mutated)
-                valid_kind || binding.reassigned || binding.mutated
-            } else {
-                // No binding found - this is an error (undefined variable)
-                false
-            };
-
-            if !is_valid {
-                return Err(AnalysisError::ValidationWithCode {
-                    code: "bind_invalid_value".to_string(),
-                    message:
-                        "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value"
-                            .to_string(),
-                });
-            }
-        }
-    }
+    validate_bind_value_identifier(directive, binding)?;
 
     // Handle bind:group special logic
     if directive.name == "group"
@@ -341,6 +303,103 @@ fn visit_common(
     // if node.metadata.expression.has_await { return Err(errors::illegal_await_expression()); }
 
     Ok(())
+}
+
+/// Validate that an Identifier `bind:x={y}` expression targets state or props.
+///
+/// Corresponds to BindDirective.js L193-207:
+/// ```js
+/// if (assignee.type === 'Identifier') {
+///   if (
+///     node.name !== 'this' &&
+///     (!binding ||
+///       (binding.kind !== 'state' && ... && !binding.updated))
+///   ) {
+///     e.bind_invalid_value(node.expression);
+///   }
+/// }
+/// ```
+///
+/// Upstream's scope.js marks every bound identifier as `reassigned` (the bind
+/// itself is an update), so with a resolved binding this effectively only
+/// fires for kinds that escape that marking; with no binding (undeclared /
+/// global identifier) it always fires. This check applies to bindings on
+/// elements AND components alike (upstream's BindDirective visitor runs for
+/// both).
+pub(super) fn validate_bind_value_identifier(
+    directive: &BindDirective,
+    binding: Option<&crate::compiler::phases::phase2_analyze::Binding>,
+) -> Result<(), AnalysisError> {
+    if !directive.expression.is_identifier_node() {
+        return Ok(());
+    }
+
+    // bind:this also works for regular variables, so skip validation for it
+    if directive.name == "this" {
+        return Ok(());
+    }
+
+    // In the official Svelte, if there's no binding, or the binding is not a valid type,
+    // it should error with bind_invalid_value
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js L193-207
+    let is_valid = if let Some(binding) = binding {
+        // In runes mode, check binding kind strictly
+        // In legacy mode, `let` declarations are allowed for bindings
+        // (their `updated` flag will be set during template analysis)
+        let valid_kind = matches!(
+            binding.kind,
+            crate::compiler::phases::phase2_analyze::BindingKind::State
+                | crate::compiler::phases::phase2_analyze::BindingKind::RawState
+                | crate::compiler::phases::phase2_analyze::BindingKind::Prop
+                | crate::compiler::phases::phase2_analyze::BindingKind::BindableProp
+                | crate::compiler::phases::phase2_analyze::BindingKind::EachItem
+                | crate::compiler::phases::phase2_analyze::BindingKind::StoreSub
+                // Legacy mode: allow let declarations (Normal kind)
+                | crate::compiler::phases::phase2_analyze::BindingKind::Normal
+                | crate::compiler::phases::phase2_analyze::BindingKind::Let
+        );
+        // Also valid if the binding has been updated (reassigned/mutated)
+        valid_kind || binding.reassigned || binding.mutated
+    } else {
+        // No binding found - this is an error (undefined variable)
+        false
+    };
+
+    if !is_valid {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "bind_invalid_value".to_string(),
+            message: "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value"
+                .to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Resolve the binding for an Identifier bind expression and run
+/// `validate_bind_value_identifier`. Used by the component visitor
+/// (`shared/component.rs`), which does not go through `visit_common`.
+pub(super) fn validate_bind_value_for_component(
+    directive: &BindDirective,
+    context: &VisitorContext,
+) -> Result<(), AnalysisError> {
+    if !directive.expression.is_identifier_node() {
+        return Ok(());
+    }
+
+    let expr_node = directive.expression.as_node();
+    let name = expr_node.name().unwrap_or_default();
+    if name.is_empty() {
+        return Ok(());
+    }
+
+    let binding = context
+        .analysis
+        .root
+        .get_binding(name, context.scope)
+        .map(|idx| &context.analysis.root.bindings[idx]);
+
+    validate_bind_value_identifier(directive, binding)
 }
 
 /// Validate a binding for a specific element type.

@@ -51,7 +51,7 @@ pub(crate) fn expr_contains_await(expr: &str) -> bool {
         }
 
         // Check for `function` keyword - skip function body
-        if ch == b'f' && i + 8 <= len && &expr[i..i + 8] == "function" {
+        if ch == b'f' && i + 8 <= len && &bytes[i..i + 8] == b"function" {
             let next = if i + 8 < len { bytes[i + 8] } else { 0 };
             if next == b' ' || next == b'(' || next == b'*' {
                 i += 8;
@@ -85,7 +85,7 @@ pub(crate) fn expr_contains_await(expr: &str) -> bool {
         }
 
         // Check for `await` keyword
-        if ch == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+        if ch == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'
@@ -196,7 +196,7 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
         }
 
         // Check for `await` keyword
-        if ch == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+        if ch == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'
@@ -2516,7 +2516,7 @@ fn try_extract_spread_await(
         }
 
         // Look for ...await
-        if i + 8 <= len && &expr[i..i + 3] == "..." {
+        if i + 8 <= len && &bytes[i..i + 3] == b"..." {
             let after_dots = i + 3;
             // Skip whitespace
             let mut k = after_dots;
@@ -2582,7 +2582,7 @@ fn extract_all_awaits(
         }
 
         // Check for `await` keyword
-        if bytes[i] == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+        if bytes[i] == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'

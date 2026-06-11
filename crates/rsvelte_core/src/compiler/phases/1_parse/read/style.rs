@@ -397,6 +397,13 @@ impl<'a> CssParser<'a> {
                     break;
                 }
 
+                // Skip comments so they don't get folded into the next child's
+                // span (they're preserved via source gap copying in the printer).
+                if self.match_str("/*") {
+                    self.skip_block_comment();
+                    continue;
+                }
+
                 // Check for nested at-rule
                 if self.current_char() == '@' {
                     if let Some(rule) = self.parse_atrule() {
@@ -1125,78 +1132,14 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
-            // Handle nested at-rules (like @apply, @media, etc.)
+            // Handle nested at-rules (like @media, @supports, etc.) using the same
+            // parsing as top-level at-rules so the block children (declarations and
+            // nested rules) are fully populated. Mirrors the official parser, where
+            // `read_block_item` recurses into at-rules regardless of nesting depth.
             if self.current_char() == '@' {
-                let at_start = self.offset + self.index;
-                // Read the at-rule name
-                self.advance(); // skip '@'
-                let name_start = self.index;
-                while !self.is_eof()
-                    && !self.current_char().is_whitespace()
-                    && self.current_char() != '{'
-                    && self.current_char() != ';'
-                    && self.current_char() != '('
-                {
-                    self.advance();
+                if let Some(at_rule) = self.parse_atrule() {
+                    declarations.push(at_rule);
                 }
-                let at_name = self.source[name_start..self.index].to_string();
-
-                // Read the prelude (everything before { or ;)
-                let prelude_start = self.index;
-                let mut paren_depth = 0;
-                while !self.is_eof() {
-                    let ch = self.current_char();
-                    if ch == '(' {
-                        paren_depth += 1;
-                    } else if ch == ')' {
-                        paren_depth -= 1;
-                    } else if paren_depth == 0 && (ch == '{' || ch == ';') {
-                        break;
-                    }
-                    self.advance();
-                }
-                let at_prelude = self.source[prelude_start..self.index].trim().to_string();
-
-                // Check if the at-rule has a block
-                let block = if !self.is_eof() && self.current_char() == '{' {
-                    self.eat_optional("{");
-                    // Track brace depth to properly skip nested blocks
-                    let mut brace_depth = 1;
-                    while !self.is_eof() && brace_depth > 0 {
-                        match self.current_char() {
-                            '{' => brace_depth += 1,
-                            '}' => brace_depth -= 1,
-                            _ => {}
-                        }
-                        if brace_depth > 0 {
-                            self.advance();
-                        }
-                    }
-                    self.eat_optional("}");
-                    // Return a non-null block value so the at-rule is recognized as having a block
-                    let block_end = self.offset + self.index;
-                    let mut block_obj = Map::new();
-                    block_obj.insert("type".to_string(), Value::String("Block".to_string()));
-                    block_obj.insert("start".to_string(), Value::Number((at_start as i64).into()));
-                    block_obj.insert("end".to_string(), Value::Number((block_end as i64).into()));
-                    block_obj.insert("children".to_string(), Value::Array(Vec::new()));
-                    Value::Object(block_obj)
-                } else {
-                    self.eat_optional(";");
-                    Value::Null
-                };
-
-                let at_end = self.offset + self.index;
-
-                let mut at_obj = Map::new();
-                at_obj.insert("type".to_string(), Value::String("Atrule".to_string()));
-                at_obj.insert("start".to_string(), Value::Number((at_start as i64).into()));
-                at_obj.insert("end".to_string(), Value::Number((at_end as i64).into()));
-                at_obj.insert("name".to_string(), Value::String(at_name));
-                at_obj.insert("prelude".to_string(), Value::String(at_prelude));
-                at_obj.insert("block".to_string(), block);
-                declarations.push(Value::Object(at_obj));
-
                 self.skip_whitespace();
                 continue;
             }
@@ -1389,7 +1332,31 @@ impl<'a> CssParser<'a> {
         }
         let property = self.source[property_start..self.index].trim().to_string();
 
-        if property.is_empty() || self.current_char() != ':' {
+        if property.is_empty() || self.is_eof() || self.current_char() != ':' {
+            // No `property: value` shape. Upstream's `read_declaration` reads
+            // the property up to the first whitespace-or-colon, optionally eats
+            // a `:`, then reads the value up to `;` / `}`. When that value is
+            // empty (and the property is not a `--custom-property`), it raises
+            // `css_empty_declaration` (read/style.js L474-476). Examples:
+            // `div { ... }`, `div { ; }`, `:global { p {...} }`.
+            // A non-empty remainder after the first token (`div { foo bar }`)
+            // parses upstream as a declaration with property `foo` and value
+            // `bar`, so it is NOT an error — keep skipping it silently.
+            let upstream_property = property.split_whitespace().next().unwrap_or("");
+            let upstream_value = property
+                .split_once(char::is_whitespace)
+                .map(|(_, rest)| rest.trim())
+                .unwrap_or("");
+            if upstream_value.is_empty() && !upstream_property.starts_with("--") {
+                record_first_error(
+                    &self.error,
+                    crate::error::ParseError::svelte(
+                        "css_empty_declaration",
+                        "Declaration cannot be empty",
+                        (start, self.offset + self.index),
+                    ),
+                );
+            }
             return None;
         }
 

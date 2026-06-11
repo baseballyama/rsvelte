@@ -145,8 +145,34 @@ pub fn visit(
     }
 
     // Analyze the 'this' expression to track template references
-    // This is crucial for legacy state promotion to work correctly
-    super::script::walk_expression(&element.tag, context)?;
+    // This is crucial for legacy state promotion to work correctly.
+    //
+    // Mirror upstream SvelteElement.js `context.visit(node.tag, { ...state,
+    // expression: node.metadata.expression })`: the tag is a reactive template
+    // expression, so it is walked with the element's ExpressionMetadata (the
+    // same pattern as `expression_tag.rs`). This makes an `await` inside
+    // `this={await …}` set has_await and trip the `experimental_async` gate
+    // under default options, while keeping the pickled-await detection
+    // root-relative (a bare `this={await p}` IS the last evaluated expression
+    // and must not get a `$.save(...)` wrap).
+    {
+        let saved_in_expression_tag = context.in_expression_tag;
+        context.in_expression_tag = true;
+        let node = element.tag.as_node();
+        let result = super::shared::utils::walk_js_expression_node(
+            &node,
+            context,
+            &mut element.metadata.expression,
+        );
+        context.in_expression_tag = saved_in_expression_tag;
+        result?;
+
+        super::await_block::collect_pickled_awaits_node(
+            &node,
+            &mut context.analysis.pickled_awaits,
+            context.parse_arena,
+        );
+    }
 
     // Determine SVG/MathML metadata based on xmlns attribute or ancestor context.
     // This follows the official Svelte compiler's SvelteElement.js analysis logic.

@@ -110,10 +110,16 @@ impl ScriptContent {
         // `$state` is a store subscription, not a rune call.
         let imported_names = extract_imported_names(&raw);
 
-        let uses_runes = has_rune_text_not_imported(&raw, "$state", &imported_names)
-            || has_rune_text_not_imported(&raw, "$derived", &imported_names)
-            || has_rune_text_not_imported(&raw, "$effect", &imported_names)
-            || has_rune_text(&raw, "$props");
+        // Rune detection is a lexical scan, so blank out comments and string
+        // literal contents first — `// use $state instead` or `"$state"` are
+        // not references in upstream's scope-based detection
+        // (2-analyze/index.js `module.scope.references.keys()`).
+        let rune_scan_text = blank_comments_and_strings(&raw);
+
+        let uses_runes = has_rune_text_not_imported(&rune_scan_text, "$state", &imported_names)
+            || has_rune_text_not_imported(&rune_scan_text, "$derived", &imported_names)
+            || has_rune_text_not_imported(&rune_scan_text, "$effect", &imported_names)
+            || has_rune_text(&rune_scan_text, "$props");
 
         Self {
             raw,
@@ -122,6 +128,135 @@ impl ScriptContent {
             uses_runes,
         }
     }
+}
+
+/// Replace the contents of comments (`// …`, `/* … */`) and string literals
+/// (`'…'`, `"…"`, and template-literal text segments) with spaces, byte for
+/// byte, so a lexical scan over the result cannot match text that is not code.
+/// Template-literal `${ … }` interpolations are kept (they contain real code).
+/// The output has the same byte length as the input, so byte offsets are
+/// preserved.
+fn blank_comments_and_strings(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = bytes.to_vec();
+    let len = bytes.len();
+    let mut i = 0;
+    // Stack of brace depths at which an enclosing template literal's `${` was
+    // opened, so nested templates inside interpolations are handled.
+    let mut template_stack: Vec<usize> = Vec::new();
+    let mut brace_depth: usize = 0;
+    // `in_template` is true when scanning template-literal TEXT (not an
+    // interpolation).
+    let mut in_template = false;
+
+    while i < len {
+        let b = bytes[i];
+
+        if in_template {
+            if b == b'\\' {
+                if i + 1 < len {
+                    out[i + 1] = b' ';
+                }
+                out[i] = b' ';
+                i += 2;
+                continue;
+            }
+            if b == b'`' {
+                in_template = false;
+                i += 1;
+                continue;
+            }
+            if b == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                // Enter interpolation: resume code scanning.
+                template_stack.push(brace_depth);
+                brace_depth += 1;
+                in_template = false;
+                i += 2;
+                continue;
+            }
+            out[i] = b' ';
+            i += 1;
+            continue;
+        }
+
+        match b {
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                // Line comment: blank until newline (keep the newline itself).
+                while i < len && bytes[i] != b'\n' {
+                    out[i] = b' ';
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                // Block comment: blank until `*/` inclusive.
+                out[i] = b' ';
+                out[i + 1] = b' ';
+                i += 2;
+                while i < len {
+                    if bytes[i] == b'*' && i + 1 < len && bytes[i + 1] == b'/' {
+                        out[i] = b' ';
+                        out[i + 1] = b' ';
+                        i += 2;
+                        break;
+                    }
+                    if bytes[i] != b'\n' {
+                        out[i] = b' ';
+                    }
+                    i += 1;
+                }
+            }
+            b'\'' | b'"' => {
+                // String literal: blank contents (keep the quotes).
+                let quote = b;
+                i += 1;
+                while i < len {
+                    let c = bytes[i];
+                    if c == b'\\' {
+                        out[i] = b' ';
+                        if i + 1 < len {
+                            out[i + 1] = b' ';
+                        }
+                        i += 2;
+                        continue;
+                    }
+                    if c == quote {
+                        i += 1;
+                        break;
+                    }
+                    out[i] = b' ';
+                    i += 1;
+                }
+            }
+            b'`' => {
+                in_template = true;
+                i += 1;
+            }
+            b'{' => {
+                brace_depth += 1;
+                i += 1;
+            }
+            b'}' => {
+                brace_depth = brace_depth.saturating_sub(1);
+                // Closing a template interpolation returns to template text.
+                if let Some(&enter_depth) = template_stack.last()
+                    && brace_depth == enter_depth
+                {
+                    template_stack.pop();
+                    in_template = true;
+                }
+                i += 1;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    // out only replaces bytes with ASCII spaces, never splits multi-byte
+    // sequences partially: every replaced byte becomes b' ', and replacement
+    // happens for whole comment/string regions, so any multi-byte char is
+    // either fully kept or fully blanked.
+    String::from_utf8(out).unwrap_or_else(|_| raw.to_string())
 }
 
 /// Check if a rune name appears as a genuine rune usage in the source text.
@@ -385,6 +520,25 @@ pub fn strip_typescript(source: &str) -> String {
         if *remove_start > pos {
             output.push_str(&source[pos as usize..*remove_start as usize]);
         }
+        // The official compiler PARSES TypeScript and only removes the
+        // type-only nodes — comments inside a removed declaration (e.g. the
+        // per-property JSDoc of an `interface Props { ... }`) survive in
+        // `analysis.comments` and esrap re-prints them before the next
+        // statement. Keep them: re-emit every comment found inside a removed
+        // multi-line region in place.
+        let start = *remove_start as usize;
+        let end = (*remove_end as usize).min(source.len());
+        if pos as usize <= start && start < end {
+            let removed = &source[start..end];
+            if removed.contains('\n') && (removed.contains("/*") || removed.contains("//")) {
+                for comment in
+                    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(removed)
+                {
+                    output.push_str(&comment);
+                    output.push('\n');
+                }
+            }
+        }
         pos = pos.max(*remove_end);
     }
 
@@ -394,6 +548,49 @@ pub fn strip_typescript(source: &str) -> String {
     }
 
     output
+}
+
+/// Blank TypeScript-specific syntax with spaces instead of removing it, so the
+/// output has the same byte length as the input and byte positions are
+/// preserved. Used by lexical scanners (e.g. the `$store` reference scan) that
+/// must not see TS type-only syntax such as `interface $$Props { … }` or
+/// `let foo: $$Props['foo']` — upstream's scope analysis never registers TS
+/// type declarations/references as JS variable references.
+///
+/// Returns the input unchanged when TS parsing fails (downstream handles those
+/// errors).
+pub fn blank_typescript(source: &str) -> String {
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let allocator = Allocator::default();
+    let source_type = SourceType::ts();
+    let parser = Parser::new(&allocator, source, source_type);
+    let result = parser.parse();
+
+    if !result.errors.is_empty() {
+        return source.to_string();
+    }
+
+    let mut removals: Vec<(u32, u32)> = Vec::new();
+    collect_ts_removals_from_program(&result.program, source, &mut removals);
+
+    if removals.is_empty() {
+        return source.to_string();
+    }
+
+    let mut out = source.as_bytes().to_vec();
+    for (start, end) in removals {
+        let (start, end) = (start as usize, (end as usize).min(out.len()));
+        for b in &mut out[start..end] {
+            if *b != b'\n' {
+                *b = b' ';
+            }
+        }
+    }
+
+    String::from_utf8(out).unwrap_or_else(|_| source.to_string())
 }
 
 /// Collect TypeScript-specific source spans to remove from a program.
@@ -678,6 +875,22 @@ fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
     )
 }
 
+/// Collect TS removals from a call/new argument. `Argument::as_expression()`
+/// returns `None` for spread arguments, so `...(<expr> as T)` (and any TS
+/// syntax nested inside a spread) must be unwrapped explicitly — otherwise
+/// the cast survives stripping and the output is not valid JavaScript.
+fn collect_ts_removals_from_argument(
+    arg: &oxc_ast::ast::Argument,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    if let oxc_ast::ast::Argument::SpreadElement(spread) = arg {
+        collect_ts_removals_from_expression(&spread.argument, source, removals);
+    } else if let Some(e) = arg.as_expression() {
+        collect_ts_removals_from_expression(e, source, removals);
+    }
+}
+
 /// Collect TS removals from an expression.
 fn collect_ts_removals_from_expression(
     expr: &oxc_ast::ast::Expression,
@@ -717,9 +930,7 @@ fn collect_ts_removals_from_expression(
                 removals.push((type_args.span.start, type_args.span.end));
             }
             for arg in &call.arguments {
-                if let Some(e) = arg.as_expression() {
-                    collect_ts_removals_from_expression(e, source, removals);
-                }
+                collect_ts_removals_from_argument(arg, source, removals);
             }
         }
         E::NewExpression(new_expr) => {
@@ -728,9 +939,7 @@ fn collect_ts_removals_from_expression(
                 removals.push((type_args.span.start, type_args.span.end));
             }
             for arg in &new_expr.arguments {
-                if let Some(e) = arg.as_expression() {
-                    collect_ts_removals_from_expression(e, source, removals);
-                }
+                collect_ts_removals_from_argument(arg, source, removals);
             }
         }
         E::TaggedTemplateExpression(tagged) => {
@@ -906,9 +1115,7 @@ fn collect_ts_removals_from_expression(
                     removals.push((type_args.span.start, type_args.span.end));
                 }
                 for arg in &call.arguments {
-                    if let Some(e) = arg.as_expression() {
-                        collect_ts_removals_from_expression(e, source, removals);
-                    }
+                    collect_ts_removals_from_argument(arg, source, removals);
                 }
             }
             oxc_ast::ast::ChainElement::StaticMemberExpression(static_member) => {
@@ -1523,7 +1730,7 @@ pub struct ComponentAnalysis {
     pub binding_groups: FxHashMap<String, String>,
 
     /// Slot names mapped to their SlotElement nodes
-    pub slot_names: FxHashMap<String, String>,
+    pub slot_names: indexmap::IndexMap<String, String, rustc_hash::FxBuildHasher>,
 
     /// Every render tag/component and whether it could be definitively resolved
     pub snippet_renderers: FxHashMap<String, bool>,
@@ -1666,7 +1873,7 @@ impl ComponentAnalysis {
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),
             binding_groups: FxHashMap::default(),
-            slot_names: FxHashMap::default(),
+            slot_names: indexmap::IndexMap::default(),
             snippet_renderers: FxHashMap::default(),
             instance_body: InstanceBody::default(),
             comments: Vec::new(),
@@ -1698,8 +1905,28 @@ impl ComponentAnalysis {
 
         // Extract instance script content
         if let Some(ref script) = ast.instance {
-            let content =
+            let mut content =
                 ScriptContent::from_script_with_ts(script, &self.source, any_script_is_typescript);
+            // `uses_runes` is a lexical guess; re-verify a positive with a
+            // shadow-aware AST walk so rune names that only occur where they
+            // are shadowed by `$`-prefixed function parameters (e.g.
+            // `function bar($derived, $effect) { $derived(...) }`) or that
+            // are store subscriptions of imported names don't flip runes mode
+            // on. Upstream detects runes from `module.scope.references`,
+            // which such references never reach. Only clear the flag (the
+            // walk recognises a superset of the lexically-scanned runes).
+            if content.uses_runes
+                && !matches!(script.content, crate::ast::js::Expression::Lazy { .. })
+            {
+                let imported = extract_imported_names(&content.raw);
+                let dollar_names: Vec<String> = imported.iter().map(|n| format!("${n}")).collect();
+                let subs: rustc_hash::FxHashSet<&str> =
+                    dollar_names.iter().map(|s| s.as_str()).collect();
+                let r = super::expression_check_features(&script.content, &ast.arena, &subs);
+                if !r.has_rune_reference {
+                    content.uses_runes = false;
+                }
+            }
             // Only auto-detect runes from script content if runes wasn't explicitly set.
             // When options.runes is Some(false), we must respect that and not override.
             if content.uses_runes && self.runes_explicitly_set.is_none() {
@@ -2169,6 +2396,11 @@ pub struct CustomElementConfig {
     pub tag: Option<String>,
     /// Shadow DOM mode
     pub shadow: Option<String>,
+    /// Source text of a ShadowRootInit object passed as `shadow: {...}`.
+    pub shadow_object_source: Option<String>,
     /// Custom element property configuration
     pub props: Option<serde_json::Value>,
+    /// Source text of the `extend` option function (TypeScript-stripped when
+    /// the component uses `lang="ts"`).
+    pub extend: Option<String>,
 }

@@ -5,9 +5,14 @@ fn main() {
 
     // Read the Svelte version from the submodule's package.json
     // so that the generated code can include the correct version string.
-    let svelte_pkg = std::path::Path::new("submodules/svelte/packages/svelte/package.json");
+    // The submodule lives at the workspace root (two levels above this
+    // crate's manifest dir), so resolve relative to CARGO_MANIFEST_DIR.
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
+    let svelte_pkg = std::path::Path::new(&manifest_dir)
+        .join("../../submodules/svelte/packages/svelte/package.json");
+    println!("cargo::rerun-if-changed={}", svelte_pkg.display());
     if svelte_pkg.exists()
-        && let Ok(contents) = std::fs::read_to_string(svelte_pkg)
+        && let Ok(contents) = std::fs::read_to_string(&svelte_pkg)
     {
         // Simple JSON parsing for "version": "X.Y.Z"
         if let Some(start) = contents.find("\"version\"") {

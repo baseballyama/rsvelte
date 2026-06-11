@@ -32,6 +32,14 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         let is_instance_script = context.ast_type == AstType::Instance;
         let is_reactive_statement = is_instance_script && is_at_top_level;
 
+        // In runes mode, a top-level `$:` reactive statement is a hard error.
+        // Mirrors upstream LabeledStatement.js:
+        //   if (is_reactive_statement) { if (context.state.analysis.runes)
+        //     e.legacy_reactive_statement_invalid(node); ... }
+        if is_reactive_statement && context.analysis.runes {
+            return Err(super::super::errors::legacy_reactive_statement_invalid());
+        }
+
         if !context.analysis.runes && !is_reactive_statement {
             // In non-runes mode, $: outside of top level of instance script is a warning.
             // This includes:
@@ -85,6 +93,12 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
             let is_instance_script = context.ast_type == AstType::Instance;
             let is_reactive_statement = is_instance_script && is_at_top_level;
+
+            // In runes mode, a top-level `$:` reactive statement is a hard
+            // error (upstream LabeledStatement.js `legacy_reactive_statement_invalid`).
+            if is_reactive_statement && context.analysis.runes {
+                return Err(super::super::errors::legacy_reactive_statement_invalid());
+            }
 
             if !context.analysis.runes
                 && !is_reactive_statement

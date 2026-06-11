@@ -6,6 +6,7 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{collapse_whitespace, needs_clsx, prop_string, quote_prop_name};
 use super::super::types::OutputPart;
+use super::shared::utils::has_top_level_comma;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, ClassDirective,
     RegularElement, StyleDirective, TemplateNode,
@@ -18,6 +19,18 @@ use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
 };
 use std::fmt::Write as _;
+
+/// Wrap a top-level sequence (comma) expression in parens so it remains a
+/// single call argument. esrap prints `class={size, color}` as
+/// `$.clsx((size, color))` — without the parens the comma would be parsed as
+/// an argument separator.
+fn paren_if_sequence(expr: String) -> String {
+    if has_top_level_comma(&expr) {
+        format!("({})", expr)
+    } else {
+        expr
+    }
+}
 
 /// Compute 1-based line number and 0-based column for a byte offset in source.
 pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
@@ -946,7 +959,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let value = self.extract_attribute_value_as_string(node)?;
                     // Wrap class attribute dynamic expressions in $.clsx()
                     let value = if attr_name == "class" && needs_clsx(&node.value) {
-                        format!("$.clsx({})", value)
+                        format!("$.clsx({})", paren_if_sequence(value))
                     } else {
                         value
                     };
@@ -1232,6 +1245,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             format!("$.attributes({})", args.join(", "))
         };
+        // Match esrap's newline-presence for the `${$.attributes(...)}` slot
+        // (the spread object breaks when its measured width exceeds 60).
+        let attributes_call = super::super::esrap_layout::reflow_template_expr(&attributes_call);
         self.output_parts
             .push(OutputPart::RawExpression(attributes_call));
 
@@ -2101,6 +2117,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     // Skip event handler attributes (onclick, onmousedown, etc.)
                     if name.starts_with("on") {
+                        // Comments inside the dropped handler survive in the
+                        // official output (esrap re-inserts them before the
+                        // next positioned node).
+                        self.record_lost_expression_comments(
+                            expr_tag.expression.start().unwrap_or(0) as usize,
+                            expr_tag.expression.end().unwrap_or(0) as usize,
+                        );
                         return Ok(None);
                     }
 
@@ -2120,6 +2143,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
                         let expr = self.transform_store_refs(&expr);
+                        // Template runes (`$state.eager(x)` → `x`, etc.) are
+                        // simplified AFTER the derived-read wrap, mirroring
+                        // expression_tag.rs (upstream's server CallExpression
+                        // visitor returns `node.arguments[0]` for $state.eager).
+                        let expr = Self::transform_rune_in_template_expr(&expr);
                         let expr = self.strip_ts_from_expr(&expr);
                         return Ok(Some(make_attr_call(name, &expr)));
                     } else {
@@ -2221,6 +2249,13 @@ impl<'a> ServerCodeGenerator<'a> {
             AttributeValue::Expression(expr_tag) => {
                 // Skip event handler attributes (onclick, onmousedown, etc.)
                 if name.starts_with("on") {
+                    // Comments inside the dropped handler survive in the
+                    // official output (esrap re-inserts them before the next
+                    // positioned node).
+                    self.record_lost_expression_comments(
+                        expr_tag.expression.start().unwrap_or(0) as usize,
+                        expr_tag.expression.end().unwrap_or(0) as usize,
+                    );
                     return Ok(None);
                 }
 
@@ -2240,6 +2275,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
                     let expr = self.transform_store_refs(&expr);
+                    // Template runes (`$state.eager(x)` → `x`, etc.) — see the
+                    // single-expression Sequence arm above.
+                    let expr = Self::transform_rune_in_template_expr(&expr);
                     let expr = self.strip_ts_from_expr(&expr);
                     Ok(Some(make_attr_call(name, &expr)))
                 } else {
@@ -2475,7 +2513,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Check if we need to wrap in $.clsx() for dynamic class expressions
                     let should_clsx = needs_clsx(&node.value);
                     let value_expr = if should_clsx {
-                        format!("$.clsx({})", expr)
+                        format!("$.clsx({})", paren_if_sequence(expr.clone()))
                     } else {
                         // Pass simple expressions directly to $.attr_class()
                         // The runtime handles coercion, no need for $.stringify()
@@ -2502,11 +2540,45 @@ impl<'a> ServerCodeGenerator<'a> {
     /// `scope.evaluate(node.expression)`:
     /// known → inline; null/undefined → drop; defined-string → no `$.stringify`; else wrap.
     fn evaluate_attribute_expression(&self, expr: &crate::ast::js::Expression) -> AttrExprEval {
+        // Bare identifier: resolve without the expensive `as_json`
+        // serialization (mirrors evaluate_template_expression's fast path).
+        if let Some(name) = expr.identifier_name() {
+            use super::super::evaluate::{EvalValue, js_display_string};
+            let evaluation = self.evaluate_identifier_pub(name);
+            if let Some(value) = evaluation.known_value() {
+                return match value {
+                    EvalValue::Null | EvalValue::Undefined => AttrExprEval::Empty,
+                    v => AttrExprEval::InlineLiteral(js_display_string(v)),
+                };
+            }
+            if evaluation.is_string() && evaluation.is_defined() {
+                return AttrExprEval::StringNoWrap;
+            }
+            return AttrExprEval::Wrap;
+        }
         self.eval_attr_expr_json(expr.as_json())
     }
 
     fn eval_attr_expr_json(&self, json: &serde_json::Value) -> AttrExprEval {
         use serde_json::Value;
+
+        // First run the scope.evaluate port (upstream `build_template_chunk`
+        // evaluates every attribute chunk): a known value inlines, a known
+        // nullish drops, and a provably-defined-string skips `$.stringify`.
+        {
+            use super::super::evaluate::{EvalValue, js_display_string};
+            let evaluation = self.evaluate_estree(json, 0);
+            if let Some(value) = evaluation.known_value() {
+                return match value {
+                    EvalValue::Null | EvalValue::Undefined => AttrExprEval::Empty,
+                    v => AttrExprEval::InlineLiteral(js_display_string(v)),
+                };
+            }
+            if evaluation.is_string() && evaluation.is_defined() {
+                return AttrExprEval::StringNoWrap;
+            }
+        }
+
         let Some(obj) = json.as_object() else {
             return AttrExprEval::Wrap;
         };
@@ -2794,7 +2866,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let expr = &base_class.unwrap()["__EXPR__:".len()..];
             // Transform store refs in class expression
             let expr = self.transform_store_refs(expr);
-            let base = format!("$.clsx({})", expr);
+            let base = format!("$.clsx({})", paren_if_sequence(expr));
             let hash = if let Some(hash) = css_hash {
                 format!("'{}'", hash)
             } else {
@@ -2981,10 +3053,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 "''".to_string()
             }
         };
-        Ok(format!(
-            "${{$.attr_style({}, {})}}",
+        // Match esrap's newline-presence: the style-directives object breaks
+        // when its measured width exceeds 60 (esrap `sequence()` rule).
+        let call = super::super::esrap_layout::reflow_template_expr(&format!(
+            "$.attr_style({}, {})",
             base_arg, directives_arg
-        ))
+        ));
+        Ok(format!("${{{}}}", call))
     }
 }
 

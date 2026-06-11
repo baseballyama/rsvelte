@@ -36,7 +36,6 @@ use super::ParseOptions;
 pub struct LastAutoClosedTag {
     pub tag: CompactString,
     pub reason: CompactString,
-    #[allow(dead_code)]
     pub depth: usize,
 }
 
@@ -70,6 +69,13 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `ts` field in JavaScript Parser.
     pub(crate) ts: bool,
+    /// Whether attributes are currently being parsed for a top-level
+    /// `<script>` / `<style>` tag. Upstream reads these with
+    /// `read_static_attribute` (element.js `is_top_level_script_or_style`),
+    /// so `{...}` chunks in quoted values (e.g.
+    /// `generics="T extends { foo: number }"`) are plain text, never JS
+    /// expressions — and must not raise `js_parse_error`.
+    pub(crate) in_root_script_or_style: bool,
     /// Meta tags (e.g., svelte:head, svelte:options).
     ///
     /// Corresponds to `meta_tags` field in JavaScript Parser.
@@ -185,6 +191,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             pending_leading_comments: Vec::new(),
             ts,
+            in_root_script_or_style: false,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
             parse_warnings: Vec::new(),
@@ -218,6 +225,7 @@ impl<'a> Parser<'a> {
         }
 
         self.ts = Self::detect_typescript_mode(source);
+        self.in_root_script_or_style = false;
         self.instance_script = None;
         self.module_script = None;
         self.stylesheet = None;
@@ -478,6 +486,68 @@ impl<'a> Parser<'a> {
     #[inline(always)]
     pub fn match_byte(&self, b: u8) -> bool {
         self.index < self.bytes.len() && self.bytes[self.index] == b
+    }
+
+    /// When positioned at `{`, return the absolute index of the first
+    /// non-whitespace byte after it. Upstream `tag()` runs
+    /// `parser.allow_whitespace()` between `{` and the marker char
+    /// (`#` / `:` / `/` / `@`), so `{   /if}` and `{  :else}` are valid
+    /// close/continuation tags.
+    fn index_after_open_brace_ws(&self) -> Option<usize> {
+        if self.index >= self.bytes.len() || self.bytes[self.index] != b'{' {
+            return None;
+        }
+        let mut i = self.index + 1;
+        while i < self.bytes.len() {
+            let b = self.bytes[i];
+            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                i += 1;
+            } else if b < 0x80 {
+                return Some(i);
+            } else {
+                let c = self.source[i..].chars().next().unwrap_or('\0');
+                if c.is_whitespace() {
+                    i += c.len_utf8();
+                } else {
+                    return Some(i);
+                }
+            }
+        }
+        None
+    }
+
+    /// If the parser is positioned at a block close marker — `{` + optional
+    /// whitespace + `/` (but not a `/*` or `//` comment) — return the absolute
+    /// index of the `/` byte. Mirrors upstream `tag()`:
+    /// `allow_whitespace(); if (parser.match('/')) { if (!parser.match('/*') &&
+    /// !parser.match('//')) { … close(parser); } }`.
+    pub fn match_block_close_marker(&self) -> Option<usize> {
+        let i = self.index_after_open_brace_ws()?;
+        if self.bytes[i] != b'/' {
+            return None;
+        }
+        match self.bytes.get(i + 1) {
+            Some(b'*') | Some(b'/') => None,
+            _ => Some(i),
+        }
+    }
+
+    /// If the parser is positioned at a block continuation marker — `{` +
+    /// optional whitespace + `:` — return the absolute index of the `:` byte.
+    /// Mirrors upstream `tag()`: `allow_whitespace(); if (parser.eat(':'))
+    /// return next(parser);`. (`{://` / `{:/*` keep rsvelte's existing comment
+    /// exclusion.)
+    pub fn match_block_continuation_marker(&self) -> Option<usize> {
+        let i = self.index_after_open_brace_ws()?;
+        if self.bytes[i] != b':' {
+            return None;
+        }
+        if self.bytes.get(i + 1) == Some(&b'/')
+            && matches!(self.bytes.get(i + 2), Some(b'*') | Some(b'/'))
+        {
+            return None;
+        }
+        Some(i)
     }
 
     /// Consume a string if it matches.

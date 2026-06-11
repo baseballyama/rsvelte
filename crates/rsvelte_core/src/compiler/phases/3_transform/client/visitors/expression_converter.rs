@@ -3739,18 +3739,138 @@ fn convert_block_statement(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsBlockStatement {
+    // `analysis` is an `&'a ComponentAnalysis` — copying the reference out
+    // releases the borrow of `context`, so the source can be read while
+    // `context` is mutably borrowed in the loop below.
+    let analysis = context.state.analysis;
+    let source = analysis.source.as_str();
     let body = obj
         .get("body")
         .and_then(|b| b.as_array())
         .map(|stmts| {
-            stmts
-                .iter()
-                .filter_map(|stmt| convert_statement(stmt, context))
-                .collect()
+            let mut body: Vec<JsStatement> = Vec::with_capacity(stmts.len());
+            let mut prev_end: Option<usize> = None;
+            for stmt in stmts {
+                let stmt_start = stmt
+                    .as_object()
+                    .and_then(|o| o.get("start"))
+                    .and_then(|s| s.as_u64())
+                    .map(|s| s as usize);
+                let stmt_end = stmt
+                    .as_object()
+                    .and_then(|o| o.get("end"))
+                    .and_then(|e| e.as_u64())
+                    .map(|e| e as usize);
+                if let Some(start) = stmt_start {
+                    let gap_start =
+                        prev_end.unwrap_or_else(|| own_line_comment_scan_start(source, start));
+                    push_own_line_comment_raws(source, gap_start, start, &mut body);
+                }
+                if let Some(converted) = convert_statement(stmt, context) {
+                    body.push(converted);
+                }
+                if stmt_end.is_some() {
+                    prev_end = stmt_end;
+                }
+            }
+            body
         })
         .unwrap_or_default();
 
     JsBlockStatement { body }
+}
+
+/// Find where to start scanning for own-line leading comments above the FIRST
+/// statement of a block: walk upward over lines that are entirely blank or
+/// single-line comments (`// ...` / `/* ... */`) and return the byte offset of
+/// the topmost such line. Stops at any line containing other content (e.g. the
+/// block opener), so code outside the gap is never rescanned.
+fn own_line_comment_scan_start(source: &str, stmt_start: usize) -> usize {
+    if stmt_start > source.len() || !source.is_char_boundary(stmt_start) {
+        return stmt_start;
+    }
+    let mut line_start = source[..stmt_start].rfind('\n').map(|p| p + 1).unwrap_or(0);
+    loop {
+        if line_start == 0 {
+            return 0;
+        }
+        let prev_line_start = source[..line_start - 1]
+            .rfind('\n')
+            .map(|p| p + 1)
+            .unwrap_or(0);
+        let prev_line = source[prev_line_start..line_start - 1].trim();
+        let is_comment_line = prev_line.starts_with("//")
+            || (prev_line.starts_with("/*") && prev_line.ends_with("*/"));
+        if prev_line.is_empty() || is_comment_line {
+            line_start = prev_line_start;
+        } else {
+            return line_start;
+        }
+    }
+}
+
+/// Scan `source[gap_start..stmt_start]` (the trivia gap before a statement)
+/// for comments that sit on their own line and push them as `JsStatement::Raw`
+/// entries — esrap prints a statement's leading comments as separate lines
+/// above it. Trailing comments on the previous statement's line are skipped
+/// (they are not own-line leading trivia).
+fn push_own_line_comment_raws(
+    source: &str,
+    gap_start: usize,
+    stmt_start: usize,
+    body: &mut Vec<JsStatement>,
+) {
+    if gap_start >= stmt_start
+        || stmt_start > source.len()
+        || !source.is_char_boundary(gap_start)
+        || !source.is_char_boundary(stmt_start)
+    {
+        return;
+    }
+    let gap = &source[gap_start..stmt_start];
+    let bytes = gap.as_bytes();
+    // `clean` = only whitespace seen on the current line so far
+    let mut clean = gap_start == 0 || source.as_bytes()[gap_start - 1] == b'\n';
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\n' => {
+                clean = true;
+                i += 1;
+            }
+            b' ' | b'\t' | b'\r' => i += 1,
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                let s = i;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                if clean {
+                    body.push(JsStatement::Raw(gap[s..i].trim_end().into()));
+                }
+            }
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                let s = i;
+                i += 2;
+                let mut closed = false;
+                while i < bytes.len() {
+                    if bytes[i] == b'*' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                        i += 2;
+                        closed = true;
+                        break;
+                    }
+                    i += 1;
+                }
+                if clean && closed {
+                    body.push(JsStatement::Raw(gap[s..i].into()));
+                }
+                clean = false;
+            }
+            _ => {
+                clean = false;
+                i += 1;
+            }
+        }
+    }
 }
 
 /// Convert a statement node to JsStatement.
@@ -5726,11 +5846,23 @@ fn convert_block_statement_from_jsnode(
     // raw pointer only decouples the lifetime from `context`. The referent
     // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
+    let analysis = context.state.analysis;
+    let source = analysis.source.as_str();
     let children: Vec<&JsNode> = pa.get_js_children(*body_range).iter().collect();
-    let body: Vec<JsStatement> = children
-        .iter()
-        .filter_map(|child| convert_statement_from_jsnode(child, context))
-        .collect();
+    let mut body: Vec<JsStatement> = Vec::with_capacity(children.len());
+    let mut prev_end: Option<usize> = None;
+    for child in &children {
+        if let Some(start) = child.start().map(|s| s as usize) {
+            let gap_start = prev_end.unwrap_or_else(|| own_line_comment_scan_start(source, start));
+            push_own_line_comment_raws(source, gap_start, start, &mut body);
+        }
+        if let Some(converted) = convert_statement_from_jsnode(child, context) {
+            body.push(converted);
+        }
+        if let Some(end) = child.end().map(|e| e as usize) {
+            prev_end = Some(end);
+        }
+    }
     JsBlockStatement { body }
 }
 

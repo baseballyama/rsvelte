@@ -37,7 +37,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     // comment statements that acorn surfaces via `leadingComments` /
     // `trailingComments` attachment.
     let skip_tests: &[&str] = if !modern {
-        &["javascript-comments"]
+        &["javascript-comments", "implicitly-closed-li-block"]
     } else {
         &[]
     };
@@ -53,6 +53,8 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         if skip_tests.contains(&name.as_str()) {
             let reason = if name == "javascript-comments" {
                 "Known incompatibility with OXC parser"
+            } else if name == "implicitly-closed-li-block" {
+                "Upstream skips it (skip: true) — the official compiler errors block_unexpected_close; output.json is stale"
             } else {
                 "Comments-in-tags (Svelte 5.53.0) not yet ported"
             };

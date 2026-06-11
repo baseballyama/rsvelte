@@ -581,8 +581,17 @@ impl<'a> ServerCodeGenerator<'a> {
                     .filter(|s| !s.is_empty())
                     .collect();
 
-                // Generate snippet body
+                // Generate snippet body. Track the snippet's Phase-2 scope for
+                // the duration so the evaluator resolves template declarations
+                // lexically (a `{@const}` in a SIBLING snippet must not fold
+                // here, while one declared in THIS snippet's body still does).
+                let saved_scope_idx = self.current_scope_index;
+                self.current_scope_index = self
+                    .analysis
+                    .and_then(|a| a.root.template_scope_map.get(&snippet_block.start).copied())
+                    .or(saved_scope_idx);
                 let body_parts = self.generate_snippet_body(&snippet_block.body)?;
+                self.current_scope_index = saved_scope_idx;
 
                 // Add to slot names
                 let slot_name = if snippet_name == "children" {

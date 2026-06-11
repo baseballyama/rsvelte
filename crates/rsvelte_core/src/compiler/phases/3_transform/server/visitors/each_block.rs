@@ -65,26 +65,33 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
 
         if !self.preserve_whitespace {
-            // Skip leading whitespace and hoisted nodes (ConstTag, SnippetBlock, Comment)
-            // Hoisted nodes are transparent for whitespace trimming, matching clean_nodes behavior.
+            // Skip leading whitespace and (unless preserved) comments.
+            // Upstream's clean_nodes filters comments FIRST and then trims
+            // leading whitespace, so `\n<!-- c -->\n{#if ...}` has no leading
+            // text at all.
             while start_idx < len {
                 match body_nodes[start_idx] {
                     TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        start_idx += 1;
+                    }
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
                         start_idx += 1;
                     }
                     _ => break,
                 }
             }
 
-            // Skip trailing whitespace
+            // Skip trailing whitespace and (unless preserved) comments
             while end_idx > start_idx {
-                if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                    && is_svelte_whitespace_only(&text.data)
-                {
-                    end_idx -= 1;
-                    continue;
+                match body_nodes[end_idx - 1] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        end_idx -= 1;
+                    }
+                    TemplateNode::Comment(_) if !self.preserve_comments => {
+                        end_idx -= 1;
+                    }
+                    _ => break,
                 }
-                break;
             }
         }
 
@@ -182,6 +189,11 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Track if previous node was a ConstTag to skip whitespace after it
         let mut prev_was_const = false;
+        // Track whether the previous visible text ended with whitespace, for collapsing
+        // whitespace across removed comments / hoisted nodes. Mirrors clean_nodes:
+        // `prev_is_text_ending_with_whitespace` strips (rather than collapses) the
+        // leading whitespace of the following text node.
+        let mut prev_text_ends_with_ws = false;
         let nodes_to_process_ref: Vec<_> = body_nodes
             .iter()
             .skip(start_idx)
@@ -269,6 +281,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     if i == 0 {
                         data = data.trim_start().to_string();
                     }
+                    // When the previous visible text ended with whitespace (e.g. either
+                    // side of a removed comment), strip this node's leading whitespace
+                    // entirely instead of collapsing it to a second space.
+                    if prev_text_ends_with_ws {
+                        data = data
+                            .trim_start_matches(|c: char| {
+                                matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C')
+                            })
+                            .to_string();
+                    }
                     // Trim trailing whitespace from last meaningful text node
                     // Use last_meaningful_idx to account for hoisted nodes at the end
                     let is_last = last_meaningful_idx.map_or(i == num_nodes - 1, |li| i >= li);
@@ -276,6 +298,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         data = data.trim_end().to_string();
                     }
                 }
+                prev_text_ends_with_ws = data.ends_with([' ', '\t', '\r', '\n']);
                 // Output the text with expression context for proper whitespace handling
                 if !data.is_empty() {
                     let mut modified_text = text.clone();
@@ -287,6 +310,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     )?;
                 }
             } else {
+                // Comments (when not preserved) and hoisted nodes are transparent for
+                // whitespace collapsing; any other node resets the tracking.
+                let transparent = matches!(node, TemplateNode::Comment(_) if !self.preserve_comments)
+                    || matches!(
+                        node,
+                        TemplateNode::ConstTag(_)
+                            | TemplateNode::DeclarationTag(_)
+                            | TemplateNode::SnippetBlock(_)
+                    );
+                if !transparent {
+                    prev_text_ends_with_ws = false;
+                }
                 body_generator.generate_node(node, false)?;
             }
         }
@@ -305,6 +340,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.use_async,
             );
             fallback_generator.constant_vars = self.constant_vars.clone();
+            fallback_generator.current_scope_index = self.current_scope_index;
             fallback_generator.const_promises_counter = self.const_promises_counter.clone();
             fallback_generator.const_blocker_map = self.const_blocker_map.clone();
             fallback_generator.is_typescript = self.is_typescript;

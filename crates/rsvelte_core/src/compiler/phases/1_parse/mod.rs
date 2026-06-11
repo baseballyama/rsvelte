@@ -162,7 +162,7 @@ pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::
     // without the guard active those arena-indexed children (e.g. an import's
     // `source` / `specifiers`) come back empty.
     crate::ast::arena::with_serialize_arena(&arena, || {
-        let program = expression::parse_program(
+        let (program, _parse_error) = expression::parse_program_with_error(
             &arena,
             source,
             0,

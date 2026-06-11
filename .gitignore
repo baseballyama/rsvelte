@@ -109,3 +109,12 @@ artifacts/
 
 # Claude scheduled task lock (runtime artifact)
 .claude/scheduled_tasks.lock
+
+# Corpus-compat pipeline (generated; see scripts/compat-corpus/)
+.corpus-cache/
+compat/corpus/sources/
+compat/corpus/expected/
+compat/corpus/actual/
+compat/corpus/manifest.json
+compat/corpus/report.json
+compat/corpus/.oxfmt-ignore-nothing

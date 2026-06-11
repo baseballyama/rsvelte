@@ -187,7 +187,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 match nodes[first_visible] {
                     TemplateNode::ConstTag(_)
                     | TemplateNode::DeclarationTag(_)
-                    | TemplateNode::SnippetBlock(_) => {
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_) => {
                         first_visible += 1;
                         prev_was_hoisted = true;
                     }
@@ -232,6 +233,29 @@ impl<'a> ServerCodeGenerator<'a> {
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
 
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
+
+        // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
+        // visitor visits them BEFORE process_children, so their console.log /
+        // debugger statements precede the fragment's $$renderer.push calls
+        // (and the surrounding HTML merges into a single push).
+        //
+        // Exception: when the fragment also contains const/declaration tags,
+        // keep the debug tag inline — a `{@debug d}` may depend on a preceding
+        // `{@const d = await ...}` blocker registered during const processing
+        // (upstream visits the hoisted const first for the same reason).
+        let hoist_debug = !meaningful_nodes.iter().any(|n| {
+            matches!(
+                n,
+                TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_)
+            )
+        });
+        if hoist_debug {
+            for node in meaningful_nodes.iter() {
+                if matches!(node, TemplateNode::DebugTag(_)) {
+                    body_generator.generate_node(node, false)?;
+                }
+            }
+        }
         let is_first_text = |idx: usize| -> bool {
             // Check if this is the first text node (ignoring hoisted/transparent nodes)
             for n in meaningful_nodes.iter().take(idx) {
@@ -301,6 +325,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_hoisted = is_const_tag
                 || matches!(node, TemplateNode::SnippetBlock(_))
                 || matches!(node, TemplateNode::DeclarationTag(_))
+                || (hoist_debug && matches!(node, TemplateNode::DebugTag(_)))
                 || is_transparent_comment;
             // Flush accumulated async consts before processing non-const content.
             // Also skip SnippetBlock and transparent comments since those are hoisted/stripped.
@@ -404,6 +429,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 seen_real_content = true;
             }
 
+            // DebugTags were already emitted in the hoisted pre-pass above.
+            if hoist_debug && matches!(node, TemplateNode::DebugTag(_)) {
+                continue;
+            }
+
             body_generator.generate_node(node, false)?;
         }
 
@@ -428,11 +458,24 @@ impl<'a> ServerCodeGenerator<'a> {
         // In the official compiler, snippet blocks are hoisted and emitted as function
         // declarations within the same scope (matching Fragment visitor behavior).
         let mut parts = body_generator.output_parts;
-        for snippet in body_generator.snippets {
-            // Insert snippet function BEFORE the async consts run call
-            // (snippets are hoisted in JS, so they can reference promises declared later)
-            // Find the position of the last RawStatement that starts with "let " or
-            // the last ConstDeclaration, and insert after that.
+        // Insert snippet functions BEFORE the async consts run call
+        // (snippets are hoisted in JS, so they can reference promises declared
+        // later). Find the position of the last RawStatement that starts with
+        // "let " or the last ConstDeclaration, and insert after that. The
+        // anchor is computed ONCE and advanced per snippet so multiple
+        // snippets keep their source order (inserting each at the same anchor
+        // would reverse them).
+        let snippet_parts: Vec<OutputPart> = body_generator
+            .snippets
+            .into_iter()
+            .map(|snippet| OutputPart::SnippetFunction {
+                name: snippet.name,
+                params: snippet.params,
+                body: snippet.body_parts,
+                dev: self.dev,
+            })
+            .collect();
+        if !snippet_parts.is_empty() {
             let insert_pos = parts
                 .iter()
                 .rposition(|p| {
@@ -441,15 +484,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 })
                 .map(|pos| pos + 1)
                 .unwrap_or(0);
-            parts.insert(
-                insert_pos,
-                OutputPart::SnippetFunction {
-                    name: snippet.name,
-                    params: snippet.params,
-                    body: snippet.body_parts,
-                    dev: self.dev,
-                },
-            );
+            parts.splice(insert_pos..insert_pos, snippet_parts);
         }
 
         // Apply const-tag-level async wrapping to fragment body parts
@@ -562,7 +597,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 _ => break,
             }
         }
-        let first_content = nodes.get(first_visible_idx);
+        // Bound by `end_idx`: trailing whitespace-only text was trimmed above
+        // and must not re-trigger the anchor (e.g. `{@const …}\n` where the
+        // only meaningful child is the const tag).
+        let first_content = if first_visible_idx < end_idx {
+            nodes.get(first_visible_idx)
+        } else {
+            None
+        };
         let needs_anchor = add_text_anchor
             && matches!(
                 first_content,
@@ -651,6 +693,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     body_generator.use_async,
                 );
                 frag_generator.constant_vars = body_generator.constant_vars.clone();
+                frag_generator.current_scope_index = body_generator.current_scope_index;
                 frag_generator.namespace = body_generator.namespace.clone();
                 frag_generator.dev = body_generator.dev;
                 frag_generator.uses_store_subs = body_generator.uses_store_subs;

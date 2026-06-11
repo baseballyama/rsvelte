@@ -37,6 +37,14 @@ pub struct ScopeRoot {
     /// Key: start position of the template node
     /// Value: scope index in all_scopes
     pub template_scope_map: FxHashMap<u32, usize>,
+    /// Scope indices created for `{#snippet …}` bodies. Snippet bodies become
+    /// separate functions in the generated output, so template declarations
+    /// (`{@const}` / `{const}` / `{let}`) made inside one snippet are NOT
+    /// visible from sibling snippets or the enclosing fragment. Phase 3 uses
+    /// this set to restrict constant-folding of `BindingKind::Template`
+    /// bindings to lexically reachable scopes (mirrors upstream
+    /// `scope.evaluate`, which resolves identifiers through the scope chain).
+    pub snippet_scope_indices: FxHashSet<usize>,
     /// All declaration names from all scopes, used for unique name generation.
     /// Mirrors the `conflicts` set in the official Svelte compiler's ScopeRoot.
     /// Every `declare()` call adds the name here.
@@ -55,6 +63,7 @@ impl ScopeRoot {
             function_scope_map: FxHashMap::default(),
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            snippet_scope_indices: FxHashSet::default(),
             conflicts: Rc::new(RefCell::new(FxHashSet::default())),
         }
     }

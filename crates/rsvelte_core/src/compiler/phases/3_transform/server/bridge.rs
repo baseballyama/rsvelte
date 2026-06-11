@@ -18,6 +18,8 @@
 //!   with the results emitted as `TemplateItem::Statement(Raw(...))` and appropriate
 //!   marker `TemplateItem::Expression`s for coalescing by `build_template()`.
 
+use std::fmt::Write as _;
+
 use super::ServerCodeGenerator;
 use super::types::{
     ComponentCodeResult, DynamicComponentWrap, OutputPart, TemplateItem, TrailingMarkerBehavior,
@@ -25,7 +27,6 @@ use super::types::{
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
-use std::fmt::Write as _;
 
 /// Convert an `OutputPart` list to a `TemplateItem` list for AST-based code generation.
 ///
@@ -649,12 +650,14 @@ fn convert_part_to_item(
             body,
             is_rich,
             css_hash,
+            classes,
         } => {
             convert_select_element(
                 attrs_obj,
                 body,
                 *is_rich,
                 css_hash.as_deref(),
+                classes.as_deref(),
                 items,
                 store_subs,
                 each_counter,
@@ -668,6 +671,7 @@ fn convert_part_to_item(
             is_rich,
             direct_value,
             css_hash,
+            classes,
             dev_location,
         } => {
             convert_option_element(
@@ -676,6 +680,7 @@ fn convert_part_to_item(
                 *is_rich,
                 direct_value.as_deref(),
                 css_hash.as_deref(),
+                classes.as_deref(),
                 *dev_location,
                 items,
                 store_subs,
@@ -993,22 +998,69 @@ fn needs_component_marker_compensation(part: &OutputPart) -> bool {
     }
 }
 
+/// Build the trailing `$$renderer.select` / `$$renderer.option` arguments
+/// (upstream: `b.call(..., attributes, fn, css_hash, classes, styles, flags)`
+/// with `true` appended for customizable selects; upstream `b.call` drops
+/// trailing `undefined` arguments and esrap prints interior ones as `void 0`).
+pub(crate) fn select_rest_args(
+    css_hash: Option<&str>,
+    classes: Option<&str>,
+    is_rich: bool,
+) -> Vec<String> {
+    let mut rest: Vec<Option<String>> = vec![
+        css_hash.map(|h| format!("'{}'", h)),
+        classes.map(|c| c.to_string()),
+    ];
+    if is_rich {
+        // styles, flags, then the customizable-select `true`
+        rest.push(None);
+        rest.push(None);
+        rest.push(Some("true".to_string()));
+    }
+    while rest.last().is_some_and(|o| o.is_none()) {
+        rest.pop();
+    }
+    rest.into_iter()
+        .map(|o| o.unwrap_or_else(|| "void 0".to_string()))
+        .collect()
+}
+
+/// Append the closing of a `$$renderer.select` / `$$renderer.option` call:
+/// `});` when there are no trailing args, otherwise the multiline
+/// `\t},\n\targ,\n...\n);` form.
+pub(crate) fn push_call_close(code: &mut String, rest: &[String]) {
+    if rest.is_empty() {
+        code.push_str("});");
+    } else {
+        code.push_str("\t},");
+        for arg in rest {
+            let _ = write!(code, "\n\t{},", arg);
+        }
+        code.pop(); // strip the trailing comma
+        code.push_str("\n);");
+    }
+}
+
 /// Convert a `SelectElement` to `TemplateItem`s.
 ///
 /// Generates `$$renderer.select(attrs, ($$renderer) => { ... }, ...)` calls.
+#[allow(clippy::too_many_arguments)]
 fn convert_select_element(
     attrs_obj: &str,
     body: &[OutputPart],
     is_rich: bool,
     css_hash: Option<&str>,
+    classes: Option<&str>,
     items: &mut Vec<TemplateItem>,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
 ) {
     let mut code = String::new();
+    let rest = select_rest_args(css_hash, classes, is_rich);
 
-    // Generate $$renderer.select() call with multiline formatting when css_hash is present
-    if css_hash.is_some() || is_rich {
+    // Generate $$renderer.select() call with multiline formatting when
+    // trailing args are present
+    if !rest.is_empty() {
         let _ = writeln!(
             code,
             "$$renderer.select(\n\t{},\n\t($$renderer) => {{",
@@ -1023,21 +1075,7 @@ fn convert_select_element(
     code.push_str(&body_code);
 
     // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
-    if is_rich {
-        if let Some(hash) = css_hash {
-            let _ = write!(
-                code,
-                "\t}},\n\t'{}',\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);",
-                hash
-            );
-        } else {
-            code.push_str("\t},\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);");
-        }
-    } else if let Some(hash) = css_hash {
-        let _ = write!(code, "\t}},\n\t'{}'\n);", hash);
-    } else {
-        code.push_str("});");
-    }
+    push_call_close(&mut code, &rest);
 
     let trimmed = code.trim();
     if !trimmed.is_empty() {
@@ -1050,18 +1088,21 @@ fn convert_select_element(
 /// Convert an `OptionElement` to `TemplateItem`s.
 ///
 /// Generates `$$renderer.option(attrs, ...)` calls with various argument formats.
+#[allow(clippy::too_many_arguments)]
 fn convert_option_element(
     attr_entries: &[String],
     body: &[OutputPart],
     is_rich: bool,
     direct_value: Option<&str>,
     css_hash: Option<&str>,
+    classes: Option<&str>,
     dev_location: Option<(usize, usize)>,
     items: &mut Vec<TemplateItem>,
     store_subs: &[(&str, &str)],
     each_counter: &mut usize,
 ) {
     let mut code = String::new();
+    let rest = select_rest_args(css_hash, classes, is_rich);
 
     let attrs_str = attr_entries.join(", ");
     let attrs_obj = if attrs_str.is_empty() {
@@ -1079,9 +1120,23 @@ fn convert_option_element(
 
     if let Some(value_expr) = direct_value {
         // Direct value (from synthetic_value_node)
-        let _ = write!(code, "$$renderer.option({}, {});", attrs_obj, value_expr);
-    } else if is_rich {
-        // is_rich: 7 arguments with multiline formatting
+        if rest.is_empty() {
+            let _ = write!(code, "$$renderer.option({}, {});", attrs_obj, value_expr);
+        } else {
+            let _ = write!(
+                code,
+                "$$renderer.option(\n\t{},\n\t{},",
+                attrs_obj, value_expr
+            );
+            for arg in &rest {
+                let _ = write!(code, "\n\t{},", arg);
+            }
+            code.pop(); // strip the trailing comma
+            code.push_str("\n);");
+        }
+    } else if !rest.is_empty() {
+        // Trailing args (css_hash / classes / customizable `true`):
+        // multiline formatting
         let _ = writeln!(
             code,
             "$$renderer.option(\n\t{},\n\t($$renderer) => {{",
@@ -1099,27 +1154,7 @@ fn convert_option_element(
             code.push_str("\t\t$.pop_element();\n");
         }
 
-        code.push_str("\t},\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\tvoid 0,\n\ttrue\n);");
-    } else if let Some(hash) = css_hash {
-        // Has CSS hash
-        let _ = writeln!(
-            code,
-            "$$renderer.option(\n\t{},\n\t($$renderer) => {{",
-            attrs_obj
-        );
-
-        if !dev_push.is_empty() {
-            let _ = write!(code, "\t\t{}", dev_push);
-        }
-
-        let body_code = generate_inner_body_code_direct(body, store_subs, each_counter, 2);
-        code.push_str(&body_code);
-
-        if !dev_push.is_empty() {
-            code.push_str("\t\t$.pop_element();\n");
-        }
-
-        let _ = write!(code, "\t}},\n\t'{}'\n);", hash);
+        push_call_close(&mut code, &rest);
     } else {
         // Simple case
         let _ = writeln!(code, "$$renderer.option({}, ($$renderer) => {{", attrs_obj);
@@ -1544,6 +1579,7 @@ fn convert_if_block(
 ///
 /// For fallback: emits the if/else structure as a statement (with `<!--[-->` and `<!--[!-->`
 /// inside branches), then `<!--]-->` as an expression literal.
+#[allow(clippy::too_many_arguments)]
 fn convert_each_block(
     iterable: &str,
     context_name: &Option<String>,
@@ -1737,6 +1773,7 @@ fn convert_each_block(
 ///
 /// Generates the if/else structure: if the value expression is truthy, push it;
 /// otherwise push the children body.
+#[allow(clippy::too_many_arguments)]
 fn convert_content_editable_body(
     value_expr: &str,
     children_body: &[OutputPart],
@@ -1823,6 +1860,7 @@ fn convert_render_call(call_str: &str, skip_boundary: bool, items: &mut Vec<Temp
 /// Convert a SnippetFunction OutputPart to TemplateItems.
 ///
 /// Generates a function declaration with optional dev mode wrappers.
+#[allow(clippy::too_many_arguments)]
 fn convert_snippet_function(
     name: &str,
     params: &[String],
@@ -1983,6 +2021,7 @@ fn convert_slot(
 /// Convert a SvelteBoundaryWithPending OutputPart to TemplateItems.
 ///
 /// Generates: `if (pending_expr) { <!--[!--> pending_body <!--]--> } else { <!--[--> main_body <!--]--> }`
+#[allow(clippy::too_many_arguments)]
 fn convert_svelte_boundary_with_pending(
     pending_expr: &str,
     pending_body: &[OutputPart],
@@ -2047,6 +2086,7 @@ fn convert_svelte_boundary_with_pending(
 ///
 /// Generates `$.await($$renderer, promise, pending_fn, then_fn);` followed
 /// by `<!--]-->` as an expression for coalescing.
+#[allow(clippy::too_many_arguments)]
 fn convert_await_block(
     promise: &str,
     then_param: &str,
