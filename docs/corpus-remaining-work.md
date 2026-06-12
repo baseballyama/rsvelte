@@ -5,12 +5,12 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,465 |
+| match (identical after normalization) | 5,469 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **51** (was 125) |
+| **known failures (baseline)** | **50** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 68 → 51 (latest session, 17 ids).** All byte-exact suites
+**Burn-down 68 → 50 (latest session, 18 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
 - `should_proxy` resolves an Identifier through its binding's initial node type
   (component `non_proxy_vars` gated on `initial_node_type`, not literal-only
@@ -36,6 +36,10 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 - hoist `<title>` to the front of a fragment on the server (clean_nodes parity).
 - elide option `?? ""` for a shadowed in-scope each-index (`<select bind:value={i}>`
   + `{#each … as person, i}`).
+- decode `\u`/`\x` escapes when folding a known-const string to its cooked value
+  (client + server) + re-escape bidi-control/format chars in server string literals
+  (clears bidirectional-control-characters — the string-folding subset of the
+  Evaluation port).
 
 Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 (`normalize.astSignature` drops `shorthand`); uninitialized immutable
@@ -43,15 +47,18 @@ Earlier (125 → 68): object-property shorthand absorbed in the comparison layer
 `to_array` arg; `$$slots`-before-`$$sanitized_props` order; `<slot>` prior-content
 trailing marker; nested CSS `:global`/`&` scoping + pruning port (css-mismatch 0).
 
-### Remaining 51 — dominant hard clusters (each needs a real port/refactor)
+### Remaining 50 — dominant hard clusters (each needs a real port/refactor)
 
 - **Comment-mangling / TS-cast printer** (~12) — `export let`/decls with interspersed
   `//` / `/* */` comments and stripped TS-cast comments mis-indent and go unparseable
   by oxfmt → byte mismatch. Needs the Phase-3 AST→esrap printer
   (`docs/phase3-ast-refactor-plan.md`).
-- **client `Evaluation` port** (window-bindings, declaration-tag-state-referenced-locally,
-  bidirectional-control-characters — inlines a known-const string whose source uses
-  `\u….` escapes; rsvelte inlines the raw escape text, not the decoded value). Plan below.
+- **client `Evaluation` port** (window-bindings, declaration-tag-state-referenced-locally).
+  bidirectional-control-characters is now CLEARED (string-fold subset). Remaining two
+  need the deeper stages: window-bindings = stage E (`Math.round(y)` with `y=$state`
+  must be has_call→memoized→reactive, NOT folded — the doc flags this as the riskiest,
+  regression-prone has_call change); declaration-tag = stages C+D (chain-resolve
+  `f=e`→`e`→0 so has_state is false → one-shot nodeValue, then fold a/c/e/f→0). Plan below.
 - **`$derived` currying** `yScale()(tick)` (bar-chart, area-chart, raw-state, scatterplot)
   — off-limits without the derived-shape work (reverted twice).
 - **each-item reactivity wrapping** (customizing-use-enhance, 7guis-crud, ownership-invalid)
