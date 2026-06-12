@@ -1810,7 +1810,21 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Find indices of first and last non-whitespace nodes (excluding SSR-invisible elements)
         let first_meaningful_idx = nodes.iter().position(is_ssr_meaningful);
-        let last_meaningful_idx = nodes.iter().rposition(is_ssr_meaningful);
+        // For the *trailing*-whitespace trim, also exclude hoisted const /
+        // declaration / snippet tags: upstream's clean_nodes pulls them out of
+        // `regular` before trimming, so a text node sitting just before a
+        // trailing `{@const}` / `{const …}` / `{#snippet}` is the real last node
+        // and its trailing whitespace must be trimmed (not collapsed to a space).
+        let is_last_meaningful = |n: &&TemplateNode| {
+            is_ssr_meaningful(n)
+                && !matches!(
+                    n,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                )
+        };
+        let last_meaningful_idx = nodes.iter().rposition(is_last_meaningful);
 
         // Check if the root fragment is standalone (only a single RenderTag/Component)
         // to determine if we should skip hydration boundaries
