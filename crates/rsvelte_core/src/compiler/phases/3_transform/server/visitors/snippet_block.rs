@@ -469,7 +469,7 @@ impl<'a> ServerCodeGenerator<'a> {
     /// insertion logic in `generate_fragment_body_parts_inner`: insert after
     /// the last `let `-RawStatement / ConstDeclaration so hoisted promise
     /// declarations stay first, preserving source order.
-    fn splice_nested_snippets(
+    pub(crate) fn splice_nested_snippets(
         parts: &mut Vec<OutputPart>,
         snippets: Vec<super::super::types::SnippetDef>,
         dev: bool,

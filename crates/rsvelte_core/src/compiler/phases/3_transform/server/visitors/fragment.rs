@@ -926,12 +926,23 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Apply const-tag-level async wrapping to children body parts
         let const_blocker_map = body_generator.const_blocker_map.borrow();
-        let body_parts = if !const_blocker_map.is_empty() {
+        let mut body_parts = if !const_blocker_map.is_empty() {
             Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
         } else {
             body_generator.output_parts
         };
         drop(const_blocker_map);
+
+        // Splice any snippets that were collected while visiting child nodes
+        // (e.g. {#snippet foo(…)} blocks nested inside a <span> or other
+        // element that is itself the default-slot content of a component).
+        // Upstream's Fragment visitor calls `context.state.init.push(fn)`
+        // for each SnippetBlock, and those declarations end up inside the
+        // enclosing `children: ($$renderer) => { … }` lambda.
+        if !body_generator.snippets.is_empty() {
+            let dev = body_generator.dev;
+            Self::splice_nested_snippets(&mut body_parts, body_generator.snippets, dev);
+        }
 
         Ok(Some(body_parts))
     }
