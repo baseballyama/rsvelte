@@ -22,7 +22,6 @@
 	"svelte/documentation/docs/03-template-syntax/06-snippet.md/6.svelte",
 	"svelte/documentation/docs/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
 	"svelte/packages/svelte/tests/manual/each-stress-test/main.svelte",
-	"svelte/packages/svelte/tests/migrate/samples/effects/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/jsdoc-with-comments/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/props-ts/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/shadowed-forwarded-slot/input.svelte",

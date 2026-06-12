@@ -1954,12 +1954,21 @@ fn extract_simple_assignments(code: &str) -> Vec<String> {
             }
             let ident: String = chars[start..i].iter().collect();
 
+            // A member property (`foo.x = …` / `foo.x++`) is not a declared
+            // variable: the assignment mutates the *base object*, not the
+            // property. Recording the property would create a false reactive
+            // dependency for any statement that reads an identifier of that
+            // name (e.g. `$: { if (x) … }` spuriously depending on
+            // `$: foo.x = count`), reordering otherwise-independent `$:`
+            // statements away from source order.
+            let is_member_prop = start > 0 && chars[start - 1] == '.';
+
             // Check for postfix `++` or `--`
             if i + 1 < len
                 && ((chars[i] == '+' && chars[i + 1] == '+')
                     || (chars[i] == '-' && chars[i + 1] == '-'))
             {
-                if !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                if !is_member_prop && !is_reactive_keyword(&ident) && !vars.contains(&ident) {
                     vars.push(ident.clone());
                 }
                 i += 2;
@@ -1990,7 +1999,8 @@ fn extract_simple_assignments(code: &str) -> Vec<String> {
                         && prev != '^'
                     {
                         // This is an assignment to `ident`
-                        if !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                        if !is_member_prop && !is_reactive_keyword(&ident) && !vars.contains(&ident)
+                        {
                             vars.push(ident.clone());
                         }
                     }

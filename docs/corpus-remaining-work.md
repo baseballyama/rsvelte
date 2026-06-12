@@ -7,11 +7,17 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
 | match (identical after normalization) | 5,476 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **43** (was 125) — 42 js-mismatch + 1 error-mismatch |
+| **known failures (baseline)** | **42** (was 125) — 41 js-mismatch + 1 error-mismatch |
 | error-presence / error-code mismatches | 1 (migrate/svelte-component client; see below) |
 
-**Burn-down 50 → 43 (latest session, 7 ids).** All byte-exact suites stayed
+**Burn-down 50 → 42 (latest session, 8 ids).** All byte-exact suites stayed
 green; corpus showed no regressions at each step. Fixes:
+- Legacy reactive-statement ordering: `extract_simple_assignments` recorded a
+  member-assignment's *property* (`foo.x = count` → `x`) as a declared var,
+  creating a false dependency for any `$:` statement reading an identifier of
+  that name (`$: { if (x) … }`), which the topological sort then hoisted out
+  of source order. Member properties are no longer recorded (the base object
+  is what's mutated). [migrate/effects]
 - Server class-field deconfliction: a public `$state`/`$derived` field whose
   backing `#name` collides with an existing private member is renamed
   (`deps` → `#_deps`), mirroring the client's `private_ids` pass. Fixes the
