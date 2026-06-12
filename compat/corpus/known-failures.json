@@ -1,11 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/06-snippet.md/6.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
-	"svelte.dev/apps/svelte.dev/content/examples/12-svg/02-bar-chart/+assets/App.svelte",
-	"svelte.dev/apps/svelte.dev/content/examples/12-svg/03-area-chart/+assets/App.svelte",
-	"svelte.dev/apps/svelte.dev/content/examples/12-svg/04-scatterplot/+assets/Scatterplot.svelte",
-	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/01-advanced-reactivity/01-raw-state/+assets/app-a/src/lib/App.svelte",
-	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/01-advanced-reactivity/01-raw-state/+assets/app-b/src/lib/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/04-advanced-bindings/03-media-elements/+assets/app-a/src/lib/AudioPlayer.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/04-advanced-bindings/06-component-bindings/+assets/app-a/src/lib/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/07-special-elements/02-svelte-window-bindings/+assets/app-a/src/lib/App.svelte",

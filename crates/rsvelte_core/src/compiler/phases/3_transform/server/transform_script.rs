@@ -2826,6 +2826,42 @@ fn is_after_ident_char(bytes: &[u8], i: usize) -> bool {
     c.is_ascii_alphanumeric() || c == b'_' || c == b'$' || c == b'#'
 }
 
+/// Given the index of an opening `(` in `bytes`, return the index of its
+/// matching `)`. Skips `'…'` / `"…"` string literals so a `)` inside a string
+/// argument doesn't break depth tracking. Returns `None` if unbalanced.
+fn matching_paren_close(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = open;
+    let mut string: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => string = Some(c),
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Decide whether the identifier at `bytes[start..end]` is a *read* of a
 /// derived binding (so it should be rewritten to `name()`).
 fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
@@ -2883,8 +2919,45 @@ fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
         .find(|&i| !bytes[i].is_ascii_whitespace())
         .map(|i| bytes[i]);
     match next_non_ws {
-        // Already a call: `foo(` — leave it.
-        Some(b'(') => false,
+        // `foo(...)`. Two cases:
+        // - `foo()` (empty call) is already a getter invocation (or text a prior
+        //   pass already wrapped); leave it so we never double-wrap to `foo()()`.
+        // - `foo(arg)` means the derived's VALUE is itself a function being
+        //   invoked, so the read still needs wrapping: `foo(arg)` -> `foo()(arg)`.
+        //   Mirrors upstream Identifier.js wrapping every derived ref with
+        //   b.call so the parent CallExpression's callee becomes `foo()`.
+        Some(b'(') => {
+            let paren_idx = (end..bytes.len()).find(|&i| bytes[i] == b'(');
+            match paren_idx {
+                Some(pi) => {
+                    let after = (pi + 1..bytes.len())
+                        .find(|&i| !bytes[i].is_ascii_whitespace())
+                        .map(|i| bytes[i]);
+                    if after == Some(b')') {
+                        // Empty call `foo()` — already a getter call; leave it.
+                        return false;
+                    }
+                    // `foo(args)`. Exclude method/accessor declarations like
+                    // `set y($$value) { ... }`: if the matching `)` of the arg
+                    // list is followed by `{`, it's a parameter list of a member
+                    // definition, not a call of the derived's function value.
+                    // Comment-agnostic, unlike a get/set keyword scan.
+                    let close = matching_paren_close(bytes, pi);
+                    if let Some(ci) = close {
+                        let next = (ci + 1..bytes.len())
+                            .find(|&i| !bytes[i].is_ascii_whitespace())
+                            .map(|i| bytes[i]);
+                        if next == Some(b'{') {
+                            return false;
+                        }
+                    }
+                    // Genuine call of the derived's function value:
+                    // `foo(arg)` -> `foo()(arg)` (mirrors upstream Identifier.js).
+                    true
+                }
+                None => false,
+            }
+        }
         // Property shorthand or object key: `{ foo: ... }` / `{ foo,` /
         // `{ foo }`. Detect by scanning back to the nearest `{` and ensuring
         // it's not a block context (e.g. `({ foo: ... })` in a return).
