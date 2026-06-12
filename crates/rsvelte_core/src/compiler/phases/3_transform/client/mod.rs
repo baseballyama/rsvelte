@@ -3517,10 +3517,19 @@ fn transform_destructured_state_assignments(
                     let rhs = rhs.trim().trim_end_matches(';').trim();
                     let inner = &pattern[1..pattern.len() - 1]; // strip [ ]
                     let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+                    // By the time this runs, the rune pipeline has already wrapped
+                    // state reads, so an LHS target `a` appears as `$.get(a)`.
+                    // Unwrap that to recover the underlying state-var name.
+                    let unwrap_get = |p: &str| -> String {
+                        p.strip_prefix("$.get(")
+                            .and_then(|s| s.strip_suffix(')'))
+                            .map(|s| s.trim().to_string())
+                            .unwrap_or_else(|| p.to_string())
+                    };
                     // Check if any parts are reactive state vars
                     let has_state_var = parts
                         .iter()
-                        .any(|p| reactive_state_vars.iter().any(|v| v == p));
+                        .any(|p| reactive_state_vars.iter().any(|v| *v == unwrap_get(p)));
                     if has_state_var {
                         // Build the IIFE
                         let indent: String =
@@ -3534,10 +3543,11 @@ fn transform_destructured_state_assignments(
                         ));
                         body_lines.push(String::new()); // blank line after var
                         for (idx, part) in parts.iter().enumerate() {
-                            if reactive_state_vars.iter().any(|v| v == *part) {
+                            let name = unwrap_get(part);
+                            if reactive_state_vars.iter().any(|v| *v == name) {
                                 body_lines.push(format!(
                                     "{}$.set({}, $$array[{}], true);",
-                                    inner_indent, part, idx
+                                    inner_indent, name, idx
                                 ));
                             } else {
                                 body_lines

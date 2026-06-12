@@ -6809,16 +6809,64 @@ fn flatten_destructured_let_ssr(
     let mut declarations = Vec::new();
     declarations.push(format!("tmp = {}", rhs));
 
-    flatten_destructured_let_ssr_inner(pattern, "tmp", reexported_props, &mut declarations)?;
+    // Upstream (server VariableDeclaration.js): when a destructuring pattern's
+    // bindings include ANY bindable_prop, EVERY leaf of that pattern is emitted
+    // as `$.fallback($$props['<alias ?? name>'], () => <path>, true)` — even
+    // leaves that are not themselves exported. Mirror that by computing once
+    // whether this pattern contains a reexported prop, then forcing the fallback
+    // form for all leaves when it does.
+    let mut leaf_names = Vec::new();
+    collect_destructure_leaf_names(pattern, &mut leaf_names);
+    let force_fallback = leaf_names
+        .iter()
+        .any(|n| reexported_props.iter().any(|(local, _)| local == n));
+
+    flatten_destructured_let_ssr_inner(
+        pattern,
+        "tmp",
+        reexported_props,
+        force_fallback,
+        &mut declarations,
+    )?;
 
     // Join as a single comma-separated let declaration to match the official compiler output
     Some(format!("let {};", declarations.join(", ")))
+}
+
+/// Collect the leaf binding names of a destructuring pattern string
+/// (`{ a, b: { c }, d = 1 }` → `[a, c, d]`), mirroring the traversal in
+/// `flatten_destructured_let_ssr_inner`.
+fn collect_destructure_leaf_names(pattern: &str, out: &mut Vec<String>) {
+    let pattern = pattern.trim();
+    if !(pattern.starts_with('{') && pattern.ends_with('}')) {
+        return;
+    }
+    let inner = &pattern[1..pattern.len() - 1];
+    for prop in split_by_comma_respecting_nesting(inner) {
+        let prop = prop.trim();
+        if prop.is_empty() {
+            continue;
+        }
+        if let Some(colon_pos) = find_colon_at_depth_0(prop) {
+            let value_pattern = prop[colon_pos + 1..].trim();
+            if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                collect_destructure_leaf_names(value_pattern, out);
+            } else {
+                let (name, _) = split_name_default(value_pattern);
+                out.push(name.to_string());
+            }
+        } else {
+            let (name, _) = split_name_default(prop);
+            out.push(name.to_string());
+        }
+    }
 }
 
 fn flatten_destructured_let_ssr_inner(
     pattern: &str,
     base_path: &str,
     reexported_props: &[(String, String)],
+    force_fallback: bool,
     declarations: &mut Vec<String>,
 ) -> Option<()> {
     let pattern = pattern.trim();
@@ -6843,62 +6891,31 @@ fn flatten_destructured_let_ssr_inner(
                         value_pattern,
                         &new_path,
                         reexported_props,
+                        force_fallback,
                         declarations,
                     )?;
                 } else {
                     let (binding_name, default_value) = split_name_default(value_pattern);
-                    let is_reexported = reexported_props
-                        .iter()
-                        .find(|(local, _)| local == binding_name);
-
-                    if let Some((_, prop_name)) = is_reexported {
-                        if let Some(default_val) = default_value {
-                            declarations.push(format!(
-                                "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
-                                binding_name, prop_name, new_path, default_val
-                            ));
-                        } else {
-                            declarations.push(format!(
-                                "{} = $.fallback($$props['{}'], () => {}, true)",
-                                binding_name, prop_name, new_path
-                            ));
-                        }
-                    } else if let Some(default_val) = default_value {
-                        declarations.push(format!(
-                            "{} = {} ?? {}",
-                            binding_name, new_path, default_val
-                        ));
-                    } else {
-                        declarations.push(format!("{} = {}", binding_name, new_path));
-                    }
+                    push_leaf_declaration(
+                        binding_name,
+                        &new_path,
+                        default_value,
+                        reexported_props,
+                        force_fallback,
+                        declarations,
+                    );
                 }
             } else {
                 let (binding_name, default_value) = split_name_default(prop);
                 let new_path = format!("{}.{}", base_path, binding_name);
-                let is_reexported = reexported_props
-                    .iter()
-                    .find(|(local, _)| local == binding_name);
-
-                if let Some((_, prop_name)) = is_reexported {
-                    if let Some(default_val) = default_value {
-                        declarations.push(format!(
-                            "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
-                            binding_name, prop_name, new_path, default_val
-                        ));
-                    } else {
-                        declarations.push(format!(
-                            "{} = $.fallback($$props['{}'], () => {}, true)",
-                            binding_name, prop_name, new_path
-                        ));
-                    }
-                } else if let Some(default_val) = default_value {
-                    declarations.push(format!(
-                        "{} = {} ?? {}",
-                        binding_name, new_path, default_val
-                    ));
-                } else {
-                    declarations.push(format!("{} = {}", binding_name, new_path));
-                }
+                push_leaf_declaration(
+                    binding_name,
+                    &new_path,
+                    default_value,
+                    reexported_props,
+                    force_fallback,
+                    declarations,
+                );
             }
         }
     } else {
@@ -6906,6 +6923,68 @@ fn flatten_destructured_let_ssr_inner(
     }
 
     Some(())
+}
+
+/// Emit a single destructure-leaf declaration for the SSR flattener.
+///
+/// - A reexported leaf always uses its prop alias as the `$$props` key.
+/// - When `force_fallback` is set (the enclosing pattern contains a bindable
+///   prop), a non-reexported leaf is ALSO wrapped in `$.fallback`, keyed by its
+///   own name — mirroring upstream's per-pattern `has_props` branch which
+///   fallback-wraps every leaf. Otherwise a non-reexported leaf is a plain
+///   `name = path` / `name = path ?? default`.
+fn push_leaf_declaration(
+    binding_name: &str,
+    new_path: &str,
+    default_value: Option<&str>,
+    reexported_props: &[(String, String)],
+    force_fallback: bool,
+    declarations: &mut Vec<String>,
+) {
+    let prop_key = reexported_props
+        .iter()
+        .find(|(local, _)| local == binding_name)
+        .map(|(_, alias)| alias.as_str());
+
+    match prop_key {
+        Some(prop_name) => {
+            if let Some(default_val) = default_value {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                    binding_name, prop_name, new_path, default_val
+                ));
+            } else {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => {}, true)",
+                    binding_name, prop_name, new_path
+                ));
+            }
+        }
+        None if force_fallback => {
+            // Non-reexported leaf inside a prop-bearing pattern: keyed by own name.
+            if let Some(default_val) = default_value {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                    binding_name, binding_name, new_path, default_val
+                ));
+            } else {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => {}, true)",
+                    binding_name, binding_name, new_path
+                ));
+            }
+        }
+        None => {
+            if let Some(default_val) = default_value {
+                declarations.push(format!(
+                    "{} = {} ?? {}",
+                    binding_name, new_path, default_val
+                ));
+            } else {
+                declarations.push(format!("{} = {}", binding_name, new_path));
+            }
+        }
+    }
 }
 
 fn split_name_default(s: &str) -> (&str, Option<&str>) {
