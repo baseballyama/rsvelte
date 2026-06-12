@@ -2958,6 +2958,70 @@ pub(crate) fn transform_module_script_runes(
         }
     }
 
+    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
+    // Mirrors the same logic in rune_transforms.rs for instance scripts.
+    if !dev {
+        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+            let trace_start = pos + b"$inspect.trace(".len();
+            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
+                let mut end = trace_start + content_end + 1;
+                while end < result.len()
+                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
+                {
+                    end += 1;
+                }
+                let mut start = pos;
+                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                    start -= 1;
+                }
+                result = format!("{}{}", &result[..start], &result[end..]);
+            } else {
+                break;
+            }
+        }
+    }
+
+    // In non-dev mode, remove $inspect(...) and $inspect(...).with(...) calls from
+    // module scripts. Mirrors CallExpression.js `transform_inspect_rune`: `if (!dev)
+    // return b.empty`. The component-instance path handles this in rune_transforms.rs;
+    // module scripts use this dedicated loop.
+    if !dev {
+        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+            let inspect_start = pos + b"$inspect(".len();
+            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
+                let after_call = &result[inspect_start + content_end + 1..];
+                let total_call_len = if after_call.trim_start().starts_with(".with(") {
+                    let with_offset = memmem::find(after_call.as_bytes(), b".with(").unwrap();
+                    let with_content_start =
+                        inspect_start + content_end + 1 + with_offset + b".with(".len();
+                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
+                        with_content_start + with_end + 1 - pos
+                    } else {
+                        inspect_start + content_end + 1 - pos
+                    }
+                } else {
+                    inspect_start + content_end + 1 - pos
+                };
+                // Remove leading whitespace on the same line
+                let mut start = pos;
+                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                    start -= 1;
+                }
+                // Consume optional trailing semicolon then newline
+                let mut end = pos + total_call_len;
+                while end < result.len() && result.as_bytes()[end] == b';' {
+                    end += 1;
+                }
+                if end < result.len() && result.as_bytes()[end] == b'\n' {
+                    end += 1;
+                }
+                result = format!("{}{}", &result[..start], &result[end..]);
+            } else {
+                break;
+            }
+        }
+    }
+
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
     let module_state_vars_with_const = extract_local_reactive_vars(&result);
@@ -4681,6 +4745,7 @@ fn transform_instance_script_for_visitors(
                 store_sub_vars.to_vec()
             };
 
+            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
             let transformed = transform_store_assignments_client(
                 &transformed,
                 &effective_store_sub_vars,
@@ -4688,7 +4753,6 @@ fn transform_instance_script_for_visitors(
                 state_vars,
                 non_reactive_state_vars,
             );
-            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
             transform_store_reads_client(&transformed, &effective_store_sub_vars)
         } else {
             transformed

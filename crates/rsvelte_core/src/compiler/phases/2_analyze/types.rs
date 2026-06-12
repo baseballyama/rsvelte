@@ -404,6 +404,62 @@ pub fn extract_imported_names(raw: &str) -> rustc_hash::FxHashSet<String> {
     names
 }
 
+/// Extract locally-declared variable names whose initialiser is NOT a rune call.
+///
+/// Mirrors the upstream `module.scope.references` behaviour: if `state` is declared
+/// as `const state = 42` (non-rune initialiser), then the reference `$state` resolves
+/// to the `state` binding and is therefore NOT a free reference — it is a store
+/// subscription, not a rune call.  We add these names to the exclusion set used by
+/// the re-verification walk so they are treated as store subs rather than runes.
+///
+/// Known rune prefixes (`$state`, `$derived`, `$props`, …) guard against treating a
+/// rune-initialised variable (`const count = $state(0)`) as a non-rune binding.
+pub fn extract_local_non_rune_declared_names(raw: &str) -> rustc_hash::FxHashSet<String> {
+    // If the RHS of a declaration starts with one of these, the variable is
+    // rune-initialised and must NOT be added to the exclusion set.
+    const RUNE_PREFIXES: &[&str] = &[
+        "$state",
+        "$derived",
+        "$props",
+        "$bindable",
+        "$effect",
+        "$inspect",
+        "$host",
+    ];
+    let mut names = rustc_hash::FxHashSet::default();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        // Look for `const/let/var NAME = <rhs>`
+        let rest = trimmed
+            .strip_prefix("const ")
+            .or_else(|| trimmed.strip_prefix("let "))
+            .or_else(|| trimmed.strip_prefix("var "));
+        let rest = match rest {
+            Some(r) => r.trim(),
+            None => continue,
+        };
+        // Find the `= ` separator (simple assignment, not destructuring)
+        if let Some(eq_pos) = rest.find(" = ") {
+            let name_part = rest[..eq_pos].trim();
+            // Only simple identifiers (no destructuring patterns)
+            if name_part.is_empty()
+                || !name_part
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+            {
+                continue;
+            }
+            let rhs = rest[eq_pos + 3..].trim();
+            // If the RHS starts with a rune call, this variable IS rune-initialised
+            let is_rune_init = RUNE_PREFIXES.iter().any(|p| rhs.starts_with(p));
+            if !is_rune_init {
+                names.insert(name_part.to_string());
+            }
+        }
+    }
+    names
+}
+
 /// Extract the source module string from an import statement.
 /// Returns the module path without quotes.
 fn extract_import_source(import_line: &str) -> Option<String> {
@@ -1919,7 +1975,16 @@ impl ComponentAnalysis {
                 && !matches!(script.content, crate::ast::js::Expression::Lazy { .. })
             {
                 let imported = extract_imported_names(&content.raw);
-                let dollar_names: Vec<String> = imported.iter().map(|n| format!("${n}")).collect();
+                // Also include locally-declared names whose initialiser is not a rune
+                // call (e.g. `const state = 42`).  Upstream resolves `$state` to the
+                // `state` binding in that case, so it never reaches `module.scope
+                // .references` and does not flip runes mode on.
+                let local_non_rune = extract_local_non_rune_declared_names(&content.raw);
+                let dollar_names: Vec<String> = imported
+                    .iter()
+                    .chain(local_non_rune.iter())
+                    .map(|n| format!("${n}"))
+                    .collect();
                 let subs: rustc_hash::FxHashSet<&str> =
                     dollar_names.iter().map(|s| s.as_str()).collect();
                 let r = super::expression_check_features(&script.content, &ast.arena, &subs);
