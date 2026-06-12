@@ -5069,6 +5069,37 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut derived_field_is_by = false;
 
     let all_lines: Vec<&str> = class_body.lines().collect();
+
+    // Pre-scan user-declared private member names (`#foo = …` / `#foo(…) {`),
+    // so a public `$state` / `$derived` field whose deconflicted backing name
+    // would collide with one of them is renamed (`deps` → `#_deps` when a
+    // `#deps` field already exists). Mirrors the client's `private_ids`
+    // deconfliction in `2-analyze` class_body. Without this the backing
+    // `#deps` shadows the existing `#deps`, duplicating the get/set accessors
+    // and turning `this.#deps = f` into a spurious derived setter call.
+    let mut existing_private_names: Vec<String> = Vec::new();
+    for raw in &all_lines {
+        let t = raw.trim();
+        if let Some(rest) = t.strip_prefix('#') {
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+                .collect();
+            if !name.is_empty() && !existing_private_names.contains(&name) {
+                existing_private_names.push(name);
+            }
+        }
+    }
+    // Compute a backing private name for a public state/derived field that does
+    // not collide with an existing private member (prefix `_` until unique).
+    let backing_private = |name: &str| -> String {
+        let mut candidate = sanitize_identifier(name);
+        while existing_private_names.contains(&candidate) {
+            candidate = format!("_{}", candidate);
+        }
+        format!("#{}", candidate)
+    };
+
     let mut line_idx = 0;
 
     while line_idx < all_lines.len() {
@@ -5102,7 +5133,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
                         let value = after_paren[..value_end].to_string();
                         let sanitized_name = sanitize_identifier(&derived_field_name);
-                        let private_name = format!("#{}", sanitized_name);
+                        let private_name = if derived_field_is_private {
+                            format!("#{}", sanitized_name)
+                        } else {
+                            backing_private(&derived_field_name)
+                        };
 
                         let value_str = value.trim();
                         let wrapped_value = if value_str.starts_with('{') {
@@ -5250,7 +5285,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
                         let value = after_paren[..value_end].to_string();
                         let sanitized_name = sanitize_identifier(&name);
-                        let private_name = format!("#{}", sanitized_name);
+                        let private_name = if is_private {
+                            format!("#{}", sanitized_name)
+                        } else {
+                            backing_private(&name)
+                        };
 
                         let value_str = value.trim();
                         let wrapped_value = if value_str.starts_with('{') {
@@ -5367,7 +5406,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         if let Some(value_end) = find_matching_paren_server(after_paren) {
                             let value = after_paren[..value_end].to_string();
                             let sanitized = sanitize_identifier(&name);
-                            let private_ref = format!("#{}", sanitized);
+                            let private_ref = if is_private {
+                                format!("#{}", sanitized)
+                            } else {
+                                backing_private(&name)
+                            };
 
                             let value_str = value.trim();
                             let wrapped_value = if value_str.starts_with('{') {
@@ -5439,8 +5482,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let derived_private_names: Vec<String> = derived_fields
         .iter()
         .map(|f| {
-            let sanitized = sanitize_identifier(&f.name);
-            format!("#{}", sanitized)
+            if f.is_private {
+                format!("#{}", sanitize_identifier(&f.name))
+            } else {
+                backing_private(&f.name)
+            }
         })
         .collect();
 
@@ -5454,8 +5500,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         .iter()
         .filter(|f| f.constructor_declared && !f.is_private)
     {
-        let sanitized_name = sanitize_identifier(&field.name);
-        let private_name = format!("#{}", sanitized_name);
+        let private_name = backing_private(&field.name);
 
         let _ = writeln!(new_class_body, "\t\t{};", private_name);
         new_class_body.push('\n');
@@ -5507,8 +5552,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     .iter()
                     .filter(|f| !f.constructor_declared && !f.is_private)
                 {
-                    let sanitized_name = sanitize_identifier(&field.name);
-                    let private_name = format!("#{}", sanitized_name);
+                    let private_name = backing_private(&field.name);
                     // Check exact match: the line starts with the private name and the
                     // next character is not an identifier char (prevents #on_class matching #on_class_private)
                     let is_exact_match = line.starts_with(&private_name)

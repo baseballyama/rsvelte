@@ -5,13 +5,22 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,475 |
+| match (identical after normalization) | 5,477 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **44** (was 125) |
+| **known failures (baseline)** | **42** (was 125) |
 | error-presence / error-code mismatches | 0 |
 
-**Burn-down 50 → 44 (latest session, 6 ids).** All byte-exact suites stayed
+**Burn-down 50 → 42 (latest session, 8 ids).** All byte-exact suites stayed
 green; corpus showed no regressions at each step. Fixes:
+- Server class-field deconfliction: a public `$state`/`$derived` field whose
+  backing `#name` collides with an existing private member is renamed
+  (`deps` → `#_deps`), mirroring the client's `private_ids` pass. Fixes the
+  duplicate get/set accessors and the spurious `this.#deps(f)` derived-setter
+  call. With the client-side `this.#field` parse fix this fully clears
+  reassign-derived-private-public-field.
+- `<Component let:comp={stuff}>` keeps the slot-prop rename: svelte:component
+  children now emit the `{ comp: stuff }` snippet-param destructure (was
+  dropping the `: stuff`). [migrate/svelte-component/input.svelte]
 - Server compound-assignment recompaction: `$.set(s, s + 1)` (the collapsed
   form of a `$state` `s += 1`) folds back to `s += 1` in
   `post_process_for_server` (single-operand RHS only). [derived-server-memoization, runes.md blog block]
