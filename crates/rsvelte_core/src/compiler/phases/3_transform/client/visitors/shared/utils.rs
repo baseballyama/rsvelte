@@ -3512,7 +3512,7 @@ pub(crate) fn get_literal_value(
                         }
                         LiteralValue::Bool(b_val) => Some(Some(b_val.to_string())),
                         LiteralValue::Null => Some(None),
-                        LiteralValue::Regex(_) => None,
+                        LiteralValue::Regex(r) => Some(Some(format!("/{}/{}", r.pattern, r.flags))),
                     },
                     crate::ast::typed_expr::JsNode::Raw(val) => {
                         if let Some(value) = val.get("value") {
@@ -3531,6 +3531,19 @@ pub(crate) fn get_literal_value(
                             } else {
                                 None
                             }
+                        } else if val.get("regex").is_some() {
+                            // Raw JSON regex node: {"type":"Literal","regex":{"pattern":"...","flags":"..."}}
+                            let pattern = val
+                                .get("regex")
+                                .and_then(|r| r.get("pattern"))
+                                .and_then(|p| p.as_str())
+                                .unwrap_or("");
+                            let flags = val
+                                .get("regex")
+                                .and_then(|r| r.get("flags"))
+                                .and_then(|f| f.as_str())
+                                .unwrap_or("");
+                            Some(Some(format!("/{}/{}", pattern, flags)))
                         } else {
                             None
                         }
@@ -3639,6 +3652,20 @@ pub(crate) fn get_literal_value(
                             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(init)
                             && parsed.get("type").and_then(|t| t.as_str()) == Some("Literal")
                         {
+                            // Regex literal: value is null but "regex" field is present.
+                            if parsed.get("regex").is_some() {
+                                let pattern = parsed
+                                    .get("regex")
+                                    .and_then(|r| r.get("pattern"))
+                                    .and_then(|p| p.as_str())
+                                    .unwrap_or("");
+                                let flags = parsed
+                                    .get("regex")
+                                    .and_then(|r| r.get("flags"))
+                                    .and_then(|f| f.as_str())
+                                    .unwrap_or("");
+                                return Some(Some(format!("/{}/{}", pattern, flags)));
+                            }
                             return match parsed.get("value") {
                                 Some(v) if v.is_string() => {
                                     Some(Some(v.as_str().unwrap().to_string()))
@@ -3684,6 +3711,21 @@ pub(crate) fn get_literal_value(
                                     }
                                 }
                                 return Some(Some(result));
+                            }
+                        }
+                        // Fix D: binding.initial for declaration tags is stored as a full AST
+                        // JSON node (e.g. CallExpression, BinaryExpression). Parse it and
+                        // recursively evaluate — mirrors upstream scope.js `evaluate()` which
+                        // recurses into `binding.initial`. Skip Derived bindings: their
+                        // runtime value is `$.get(binding)`, not the compile-time init.
+                        {
+                            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                            if !matches!(binding.kind, BindingKind::Derived)
+                                && init.contains("\"type\":")
+                                && let Ok(parsed_expr) =
+                                    serde_json::from_str::<crate::ast::js::Expression>(init)
+                            {
+                                return get_literal_value(&parsed_expr, context);
                             }
                         }
                         None
@@ -3812,6 +3854,38 @@ fn get_literal_value_complex(
                     }
                     return Some(Some(result.to_string()));
                 }
+
+                // Fix C: $state.raw(arg) — MemberExpression callee with object=$state, property=raw
+                if obj_type == "Identifier" && obj_name == "$state" && prop_name == "raw" {
+                    let args = obj.get("arguments").and_then(|a| a.as_array());
+                    if let Some(args) = args
+                        && let Some(first_arg) = args.first()
+                        && let Ok(arg_expr) =
+                            serde_json::from_value::<Expression>(first_arg.clone())
+                    {
+                        return get_literal_value(&arg_expr, context);
+                    }
+                    return Some(None); // no arg → undefined
+                }
+            }
+
+            // Fix C: $state(arg) / $derived(arg) — Identifier callee
+            // Mirrors upstream scope.js lines 465-481: recurse into the single argument.
+            let callee = obj.get("callee").and_then(|v| v.as_object())?;
+            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+            if callee_type == "Identifier" {
+                let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                if matches!(rune_name, "$state" | "$derived") {
+                    let args = obj.get("arguments").and_then(|a| a.as_array());
+                    if let Some(args) = args
+                        && let Some(first_arg) = args.first()
+                        && let Ok(arg_expr) =
+                            serde_json::from_value::<Expression>(first_arg.clone())
+                    {
+                        return get_literal_value(&arg_expr, context);
+                    }
+                    return Some(None); // no arg → undefined
+                }
             }
             None
         }
@@ -3890,6 +3964,15 @@ fn get_literal_value_complex(
                     "+" => return Some(Some(format!("{}{}", l, r))),
                     _ => {}
                 }
+            }
+
+            // JavaScript coercion: arithmetic on non-numeric operands yields NaN.
+            // e.g. 'ab' / 2 → NaN, 'ab' * x → NaN (mirrors JS spec).
+            if let (Some(l), Some(r)) = (&left_val, &right_val)
+                && (l.parse::<f64>().is_err() || r.parse::<f64>().is_err())
+                && matches!(operator, "/" | "*" | "-" | "**" | "%")
+            {
+                return Some(Some("NaN".to_string()));
             }
 
             None
@@ -5837,8 +5920,50 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         }
 
         // Function calls are generally NOT known (can't evaluate at compile time)
-        // except for some pure global functions
-        "CallExpression" => false,
+        // except for rune calls $state / $state.raw / $derived whose argument IS known.
+        // Mirrors upstream scope.js lines 465-507.
+        "CallExpression" => {
+            let callee = obj.get("callee").and_then(|v| v.as_object());
+            if let Some(callee) = callee {
+                let callee_type = callee.get("type").and_then(|t| t.as_str());
+                // $state(arg) / $derived(arg)
+                if callee_type == Some("Identifier") {
+                    let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    if matches!(rune_name, "$state" | "$derived") {
+                        if let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
+                            && let Some(first_arg) = args.first()
+                        {
+                            return is_expression_known_json(first_arg, context);
+                        }
+                        return true; // no arg → undefined (known)
+                    }
+                }
+                // $state.raw(arg)
+                if callee_type == Some("MemberExpression") {
+                    let obj_name = callee
+                        .get("object")
+                        .and_then(|o| o.as_object())
+                        .and_then(|o| o.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("");
+                    let prop_name = callee
+                        .get("property")
+                        .and_then(|p| p.as_object())
+                        .and_then(|p| p.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("");
+                    if obj_name == "$state" && prop_name == "raw" {
+                        if let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
+                            && let Some(first_arg) = args.first()
+                        {
+                            return is_expression_known_json(first_arg, context);
+                        }
+                        return true; // no arg → undefined (known)
+                    }
+                }
+            }
+            false
+        }
 
         // Arrow/function expressions are "known" (they evaluate to a function)
         "ArrowFunctionExpression" | "FunctionExpression" => true,

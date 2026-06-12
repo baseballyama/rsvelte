@@ -1034,8 +1034,14 @@ impl<'a> ServerCodeGenerator<'a> {
 
         match ty {
             "Literal" => {
-                if node.get("regex").is_some() || node.get("bigint").is_some() {
+                if node.get("bigint").is_some() {
                     return Evaluation::unknown();
+                }
+                // Regex literal: return its string representation (e.g. /[}]/gi)
+                if let Some(regex) = node.get("regex") {
+                    let pattern = regex.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
+                    let flags = regex.get("flags").and_then(|f| f.as_str()).unwrap_or("");
+                    return Evaluation::single(EvalValue::Str(format!("/{}/{}", pattern, flags)));
                 }
                 match node.get("value") {
                     Some(Value::String(s)) => Evaluation::single(EvalValue::Str(s.clone())),

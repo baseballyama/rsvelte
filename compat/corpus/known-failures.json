@@ -29,13 +29,10 @@
 	"svelte/packages/svelte/tests/migrate/samples/slot-usages/output.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/output.svelte",
-	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/input.svelte",
-	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/output.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-precedence/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js",
 	"svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte"
 ]
