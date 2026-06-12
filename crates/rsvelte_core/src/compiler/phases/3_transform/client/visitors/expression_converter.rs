@@ -3964,7 +3964,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ReturnStatement" => {
-            let argument = obj.get("argument").map(|a| {
+            // Filter out JSON null: `{ "argument": null }` means `return;` (no value),
+            // not `return null;`. Without this filter, convert_json_value(Null) produces
+            // a null literal, turning bare `return;` into `return null;`.
+            let argument = obj.get("argument").filter(|a| !a.is_null()).map(|a| {
                 let __tmp = convert_json_value(a, context);
                 context.arena.alloc_expr(__tmp)
             });
