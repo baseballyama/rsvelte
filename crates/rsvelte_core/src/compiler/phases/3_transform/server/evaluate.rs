@@ -650,6 +650,35 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
                         '"' => out.push('"'),
                         '`' => out.push('`'),
                         '0' => out.push('\0'),
+                        // `\uXXXX` / `\u{X…}` / `\xHH` → the actual character, so
+                        // a known-const string of escapes folds to its cooked
+                        // value (e.g. bidirectional-control chars).
+                        'u' => {
+                            if chars.clone().next() == Some('{') {
+                                chars.next();
+                                let mut hex = String::new();
+                                for h in chars.by_ref() {
+                                    if h == '}' {
+                                        break;
+                                    }
+                                    hex.push(h);
+                                }
+                                out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                            } else {
+                                let mut hex = String::new();
+                                for _ in 0..4 {
+                                    hex.push(chars.next()?);
+                                }
+                                out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                            }
+                        }
+                        'x' => {
+                            let mut hex = String::new();
+                            for _ in 0..2 {
+                                hex.push(chars.next()?);
+                            }
+                            out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                        }
                         _ => return None,
                     }
                 } else if c == quote as char {

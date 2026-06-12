@@ -39,7 +39,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/derived-server-memoization/state.svelte.js",
 	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js",
-	"svelte/packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte",

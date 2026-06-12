@@ -955,6 +955,21 @@ fn slash_starts_regex(prev_significant: u8, out: &str) -> bool {
 /// (e.g. `/"/`, `/['"]/`) must NOT be mistaken for string-literal openers —
 /// otherwise the scanner stays in fake-string mode through the rest of the
 /// file and escapes every subsequent tab/newline byte. (baseballyama/rsvelte#154)
+/// Unicode bidirectional-control / format characters and line/paragraph
+/// separators that esrap escapes (`\uXXXX`) inside JS string literals. These
+/// are invisible and a source-injection hazard, so the official printer never
+/// emits them raw. Ordinary non-ASCII (accents, CJK, emoji) is NOT in this set.
+fn is_bidi_or_separator_char(cp: u32) -> bool {
+    matches!(cp,
+        0x061C            // ARABIC LETTER MARK
+        | 0x200E | 0x200F // LRM / RLM
+        | 0x2028 | 0x2029 // LINE / PARAGRAPH SEPARATOR
+        | 0x202A..=0x202E // LRE RLE PDF LRO RLO
+        | 0x2066..=0x2069 // LRI RLI FSI PDI
+        | 0xFEFF          // ZERO WIDTH NO-BREAK SPACE (BOM)
+    )
+}
+
 fn reescape_control_chars_in_string_literals(code: &str) -> String {
     let bytes = code.as_bytes();
     let mut out = String::with_capacity(code.len());
@@ -1107,7 +1122,19 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
                             i += 1;
                         } else {
                             let ch_len = utf8_char_len(c);
-                            out.push_str(&code[i..i + ch_len]);
+                            let ch = code[i..i + ch_len].chars().next().unwrap_or('\u{0}');
+                            // esrap escapes Unicode bidirectional-control / format
+                            // characters (and line/paragraph separators) inside
+                            // string literals — they are invisible and unsafe in
+                            // source — while leaving ordinary non-ASCII (accents,
+                            // emoji, CJK) literal. Mirror that here so a string
+                            // literal containing e.g. U+2067 round-trips as the
+                            // escape sequence, not the raw byte.
+                            if is_bidi_or_separator_char(ch as u32) {
+                                let _ = write!(out, "\\u{:04x}", ch as u32);
+                            } else {
+                                out.push_str(&code[i..i + ch_len]);
+                            }
                             i += ch_len;
                         }
                     }

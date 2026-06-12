@@ -3406,6 +3406,88 @@ fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) 
 /// - `Some(Some(value))` - expression evaluates to a non-null/undefined string value
 /// - `Some(None)` - expression evaluates to null/undefined (should be omitted)
 /// - `None` - expression cannot be evaluated at compile time
+/// Decode `\uXXXX`, `\u{X…}` and `\xHH` escape sequences in a string-literal's
+/// raw inner text to their actual characters. Other escapes (`\n`, `\t`, `\'`,
+/// …) and a literal `\\` are left untouched — only the arbitrary-codepoint
+/// escapes are resolved, because those produce plain characters that inline
+/// verbatim wherever the folded value lands (e.g. a known-const string of
+/// bidirectional-control escapes folds to the literal characters, matching
+/// upstream's `scope.evaluate` which returns the cooked value).
+fn decode_unicode_escapes(s: &str) -> String {
+    if !s.contains('\\') {
+        return s.to_string();
+    }
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            match bytes[i + 1] {
+                b'\\' => {
+                    // Literal escaped backslash — keep both bytes, don't reinterpret.
+                    out.push_str("\\\\");
+                    i += 2;
+                    continue;
+                }
+                b'u' if i + 2 < bytes.len() && bytes[i + 2] == b'{' => {
+                    if let Some(close) = s[i + 3..].find('}') {
+                        let hex = &s[i + 3..i + 3 + close];
+                        if let Ok(cp) = u32::from_str_radix(hex, 16)
+                            && let Some(c) = char::from_u32(cp)
+                        {
+                            out.push(c);
+                            i = i + 3 + close + 1;
+                            continue;
+                        }
+                    }
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+                b'u' if i + 6 <= bytes.len() => {
+                    let hex = &s[i + 2..i + 6];
+                    if let Ok(cp) = u32::from_str_radix(hex, 16)
+                        && let Some(c) = char::from_u32(cp)
+                    {
+                        out.push(c);
+                        i += 6;
+                        continue;
+                    }
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+                b'x' if i + 4 <= bytes.len() => {
+                    let hex = &s[i + 2..i + 4];
+                    if let Ok(cp) = u32::from_str_radix(hex, 16)
+                        && let Some(c) = char::from_u32(cp)
+                    {
+                        out.push(c);
+                        i += 4;
+                        continue;
+                    }
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+                _ => {
+                    // Other escapes (`\n`, `\t`, `\'`, …) — leave as-is.
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+        let mut next = i + 1;
+        while next < bytes.len() && !s.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&s[i..next]);
+        i = next;
+    }
+    out
+}
+
 pub(crate) fn get_literal_value(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
@@ -3534,7 +3616,7 @@ pub(crate) fn get_literal_value(
                 let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
                     || (trimmed.starts_with('"') && trimmed.ends_with('"'));
                 if is_string_literal && trimmed.len() >= 2 {
-                    return Some(Some(trimmed[1..trimmed.len() - 1].to_string()));
+                    return Some(Some(decode_unicode_escapes(&trimmed[1..trimmed.len() - 1])));
                 }
                 // Parse number literals
                 if let Ok(n) = trimmed.parse::<f64>() {
