@@ -650,6 +650,35 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
                         '"' => out.push('"'),
                         '`' => out.push('`'),
                         '0' => out.push('\0'),
+                        // `\uXXXX` / `\u{X…}` / `\xHH` → the actual character, so
+                        // a known-const string of escapes folds to its cooked
+                        // value (e.g. bidirectional-control chars).
+                        'u' => {
+                            if chars.clone().next() == Some('{') {
+                                chars.next();
+                                let mut hex = String::new();
+                                for h in chars.by_ref() {
+                                    if h == '}' {
+                                        break;
+                                    }
+                                    hex.push(h);
+                                }
+                                out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                            } else {
+                                let mut hex = String::new();
+                                for _ in 0..4 {
+                                    hex.push(chars.next()?);
+                                }
+                                out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                            }
+                        }
+                        'x' => {
+                            let mut hex = String::new();
+                            for _ in 0..2 {
+                                hex.push(chars.next()?);
+                            }
+                            out.push(char::from_u32(u32::from_str_radix(&hex, 16).ok()?)?);
+                        }
                         _ => return None,
                     }
                 } else if c == quote as char {
@@ -775,7 +804,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // (each/snippet/@const fragments). Bindings inside script functions
         // (params, function-local lets) can never be referenced from a
         // template expression, so they must not veto the agreement rule.
-        let bindings: Vec<_> = self
+        let mut bindings: Vec<_> = self
             .analysis
             .map(|a| {
                 let template_scopes = self
@@ -808,6 +837,33 @@ impl<'a> ServerCodeGenerator<'a> {
                     b.initial,
                     b.initial_node_type
                 );
+            }
+        }
+
+        // Upstream `scope.declare()` overwrites a same-named `var`
+        // redeclaration (`declarations.set(name, binding)` — last wins), so
+        // `var test = ""; var test = 42;` resolves to the `42` binding. Our
+        // flat bindings Vec keeps both; collapse bindings that share a scope to
+        // the latest-declared one before evaluating, so the agreement rule
+        // below only spans genuinely distinct (shadowing) scopes.
+        if bindings.len() > 1 {
+            use std::collections::HashMap;
+            let mut by_scope: HashMap<
+                usize,
+                &crate::compiler::phases::phase2_analyze::scope::Binding,
+            > = HashMap::new();
+            for &b in &bindings {
+                by_scope
+                    .entry(b.scope_index)
+                    .and_modify(|cur| {
+                        if b.declaration_start > cur.declaration_start {
+                            *cur = b;
+                        }
+                    })
+                    .or_insert(b);
+            }
+            if by_scope.len() < bindings.len() {
+                bindings = by_scope.into_values().collect();
             }
         }
 

@@ -955,6 +955,21 @@ fn slash_starts_regex(prev_significant: u8, out: &str) -> bool {
 /// (e.g. `/"/`, `/['"]/`) must NOT be mistaken for string-literal openers —
 /// otherwise the scanner stays in fake-string mode through the rest of the
 /// file and escapes every subsequent tab/newline byte. (baseballyama/rsvelte#154)
+/// Unicode bidirectional-control / format characters and line/paragraph
+/// separators that esrap escapes (`\uXXXX`) inside JS string literals. These
+/// are invisible and a source-injection hazard, so the official printer never
+/// emits them raw. Ordinary non-ASCII (accents, CJK, emoji) is NOT in this set.
+fn is_bidi_or_separator_char(cp: u32) -> bool {
+    matches!(cp,
+        0x061C            // ARABIC LETTER MARK
+        | 0x200E | 0x200F // LRM / RLM
+        | 0x2028 | 0x2029 // LINE / PARAGRAPH SEPARATOR
+        | 0x202A..=0x202E // LRE RLE PDF LRO RLO
+        | 0x2066..=0x2069 // LRI RLI FSI PDI
+        | 0xFEFF          // ZERO WIDTH NO-BREAK SPACE (BOM)
+    )
+}
+
 fn reescape_control_chars_in_string_literals(code: &str) -> String {
     let bytes = code.as_bytes();
     let mut out = String::with_capacity(code.len());
@@ -1107,7 +1122,19 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
                             i += 1;
                         } else {
                             let ch_len = utf8_char_len(c);
-                            out.push_str(&code[i..i + ch_len]);
+                            let ch = code[i..i + ch_len].chars().next().unwrap_or('\u{0}');
+                            // esrap escapes Unicode bidirectional-control / format
+                            // characters (and line/paragraph separators) inside
+                            // string literals — they are invisible and unsafe in
+                            // source — while leaving ordinary non-ASCII (accents,
+                            // emoji, CJK) literal. Mirror that here so a string
+                            // literal containing e.g. U+2067 round-trips as the
+                            // escape sequence, not the raw byte.
+                            if is_bidi_or_separator_char(ch as u32) {
+                                let _ = write!(out, "\\u{:04x}", ch as u32);
+                            } else {
+                                out.push_str(&code[i..i + ch_len]);
+                            }
                             i += ch_len;
                         }
                     }
@@ -1741,13 +1768,27 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 Vec::new()
             };
+            // Store-subscription base names (e.g. `state` for a `$state`
+            // auto-subscription on a destructured prop). These shadow the
+            // same-named rune so `$state(...)` is lowered as a store, not a rune.
+            let store_sub_bases: rustc_hash::FxHashSet<String> = self
+                .get_store_sub_names()
+                .into_iter()
+                .map(|(_, base)| base)
+                .collect();
             let transformed = if reexported_props.is_empty() {
-                transform_script_content_with_imports(&rest, &imported_names, self.dev)
+                transform_script_content_with_imports(
+                    &rest,
+                    &imported_names,
+                    &store_sub_bases,
+                    self.dev,
+                )
             } else {
                 transform_script_content_with_props_and_imports(
                     &rest,
                     &reexported_props,
                     &imported_names,
+                    &store_sub_bases,
                     self.dev,
                 )
             };
@@ -6528,7 +6569,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Generate $.slot() call
                     let fallback_arg = if let Some(fallback_parts) = fallback {
                         if fallback_parts.is_empty() {
-                            "null".to_string()
+                            // Non-null fallback whose body generates no output —
+                            // e.g. a comment-only `<slot><!-- x --></slot>`.
+                            // Upstream still emits the (empty) arrow, not null.
+                            "() => {}".to_string()
                         } else {
                             // Build fallback as a thunk: () => { ... }
                             let fallback_code = Self::build_parts_with_store_subs(
@@ -7553,6 +7597,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // hydration guard, so the call itself is always direct (no `?.`).
         let call_syntax = "";
         let has_css_props = !css_custom_props.is_empty();
+        // Capture where the component call code begins so a `<Component --x="…">`
+        // with slotted content can be wrapped in `$.css_props(...)` afterwards
+        // (the no-children branch self-wraps; the children/snippets one does not).
+        let comp_code_start = code.len();
 
         if has_snippets || has_children {
             #[allow(clippy::type_complexity)]
@@ -8200,6 +8248,31 @@ impl<'a> ServerCodeGenerator<'a> {
                         all_props.join(", ")
                     );
                 }
+            }
+        }
+
+        // Component CSS custom properties (`<Component --x="…">`): the
+        // children/snippets branch above does not self-wrap in `$.css_props(...)`
+        // (only the no-children branch does), so wrap its slotted output here,
+        // mirroring upstream's css_props wrapper around the whole component call.
+        if has_css_props && (has_snippets || has_children) {
+            let segment = code[comp_code_start..].to_string();
+            code.truncate(comp_code_start);
+            let css_props_str = css_custom_props
+                .iter()
+                .map(|(n, v)| format!("{}: {}", n, v))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(
+                code,
+                "\n$.css_props($$renderer, {}, {{ {} }}, () => {{",
+                css_props_is_html, css_props_str
+            );
+            code.push_str(&segment);
+            if dynamic {
+                code.push_str("}, true);\n");
+            } else {
+                code.push_str("});\n");
             }
         }
 

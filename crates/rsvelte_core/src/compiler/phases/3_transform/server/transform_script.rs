@@ -20,14 +20,18 @@ pub(crate) fn transform_script_content_module(script: &str, dev: bool) -> String
         &[],
         &FxHashSet::default(),
         &FxHashSet::default(),
+        &FxHashSet::default(),
         dev,
     )
 }
 
-/// Transform script content for server-side rendering, with pre-extracted imported names.
+/// Transform script content for server-side rendering, with pre-extracted
+/// imported names and store-subscription base names (e.g. `state` when a
+/// destructured prop `state` shadows the `$state` rune).
 pub(crate) fn transform_script_content_with_imports(
     script: &str,
     imported_names: &FxHashSet<String>,
+    store_sub_bases: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     transform_script_content_inner(
@@ -36,6 +40,7 @@ pub(crate) fn transform_script_content_with_imports(
         &[],
         imported_names,
         &FxHashSet::default(),
+        store_sub_bases,
         dev,
     )
 }
@@ -45,6 +50,7 @@ pub(crate) fn transform_script_content_with_props_and_imports(
     script: &str,
     reexported_props: &[(String, String)],
     imported_names: &FxHashSet<String>,
+    store_sub_bases: &FxHashSet<String>,
     dev: bool,
 ) -> String {
     transform_script_content_inner(
@@ -53,6 +59,7 @@ pub(crate) fn transform_script_content_with_props_and_imports(
         reexported_props,
         imported_names,
         &FxHashSet::default(),
+        store_sub_bases,
         dev,
     )
 }
@@ -66,7 +73,15 @@ pub(crate) fn transform_script_content_with_imports_and_derived(
     extra_derived: &FxHashSet<String>,
     dev: bool,
 ) -> String {
-    transform_script_content_inner(script, false, &[], imported_names, extra_derived, dev)
+    transform_script_content_inner(
+        script,
+        false,
+        &[],
+        imported_names,
+        extra_derived,
+        &FxHashSet::default(),
+        dev,
+    )
 }
 
 fn transform_script_content_inner(
@@ -75,12 +90,17 @@ fn transform_script_content_inner(
     reexported_props: &[(String, String)],
     imported_names: &FxHashSet<String>,
     extra_derived: &FxHashSet<String>,
+    store_sub_bases: &FxHashSet<String>,
     dev: bool,
 ) -> String {
-    // Check if rune base names are imported (making $state/$derived store subscriptions, not runes).
-    // If `state` is imported, `$state(0)` is a store subscription call, not a rune call.
-    let state_imported = imported_names.contains("state");
-    let derived_imported = imported_names.contains("derived");
+    // Check if rune base names are imported OR are store-subscription bases
+    // (making `$state(...)` a store subscription, not a rune). Upstream
+    // `get_global_keypath` returns null for any `$x` whose base `x` resolves to
+    // a binding — import vs prop is irrelevant (scope.js:1467). So a destructured
+    // prop `let { state } = $props()` also shadows the `$state` rune.
+    let state_imported = imported_names.contains("state") || store_sub_bases.contains("state");
+    let derived_imported =
+        imported_names.contains("derived") || store_sub_bases.contains("derived");
 
     // NOTE: split_comma_separated_declarations has been moved to build.rs to run
     // BEFORE transform_reassigned_destructures. This ensures user-written comma-separated
@@ -287,8 +307,143 @@ fn transform_script_content_inner(
     if !is_module {
         super::transform_legacy::reorder_reactive_statements_after_functions(&result)
     } else {
-        result
+        // In a `<script module>` body, a top-level `$:` labeled reactive
+        // statement is dropped on the server: upstream's server
+        // LabeledStatement visitor returns `b.empty` and collects it into the
+        // (instance) reactive-statement set, which a module has no component
+        // body to emit, so it vanishes. The client keeps it as a plain label.
+        strip_top_level_reactive_labels(&result)
     }
+}
+
+/// Remove top-level (brace-depth 0) `$:` labeled statements from a module body.
+/// String / template / comment contents are skipped so a `$:` inside them is
+/// never matched. A `$: { … }` block and a `$: expr;` single statement are both
+/// consumed in full.
+fn strip_top_level_reactive_labels(script: &str) -> String {
+    let bytes = script.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(len);
+    let mut i = 0;
+    let mut depth: i32 = 0;
+    // Whether the next significant token begins a statement at depth 0.
+    let mut at_stmt_start = true;
+    while i < len {
+        let b = bytes[i];
+        // Line comment.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            let s = i;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        // Block comment.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let s = i;
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(len);
+            out.push_str(&script[s..i]);
+            continue;
+        }
+        // String / template literal.
+        if b == b'"' || b == b'\'' || b == b'`' {
+            let q = b;
+            let s = i;
+            i += 1;
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == q {
+                    i += 1;
+                    break;
+                }
+                i += 1;
+            }
+            out.push_str(&script[s..i]);
+            at_stmt_start = false;
+            continue;
+        }
+        // A top-level `$:` label at the start of a statement (not `$::`).
+        if depth == 0
+            && at_stmt_start
+            && b == b'$'
+            && i + 1 < len
+            && bytes[i + 1] == b':'
+            && bytes.get(i + 2) != Some(&b':')
+        {
+            i += 2; // skip `$:`
+            while i < len && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i < len && bytes[i] == b'{' {
+                // Block statement — consume to the matching `}`.
+                let mut d = 0i32;
+                while i < len {
+                    match bytes[i] {
+                        b'{' => d += 1,
+                        b'}' => {
+                            d -= 1;
+                            i += 1;
+                            if d == 0 {
+                                break;
+                            }
+                            continue;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            } else {
+                // Single statement — consume to the terminating `;` at depth 0.
+                let mut d = 0i32;
+                while i < len {
+                    match bytes[i] {
+                        b'(' | b'[' | b'{' => d += 1,
+                        b')' | b']' | b'}' => d -= 1,
+                        b';' if d == 0 => {
+                            i += 1;
+                            break;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            // Drop any leftover blank line the removed statement occupied.
+            while i < len && (bytes[i] == b' ' || bytes[i] == b'\t') {
+                i += 1;
+            }
+            if i < len && bytes[i] == b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        match b {
+            b'{' | b'(' | b'[' => depth += 1,
+            b'}' | b')' | b']' => depth -= 1,
+            _ => {}
+        }
+        if b == b';' || b == b'\n' || b == b'{' || b == b'}' {
+            at_stmt_start = true;
+        } else if !b.is_ascii_whitespace() {
+            at_stmt_start = false;
+        }
+        // UTF-8 safe copy of the current code byte / multibyte char.
+        let mut next = i + 1;
+        while next < len && !script.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&script[i..next]);
+        i = next;
+    }
+    out
 }
 
 /// Collapse multi-line `${}` interpolation expressions within template literals.
@@ -2344,7 +2499,7 @@ fn scan_assignment_rhs_end(script: &str, from: usize) -> usize {
 /// calculate `@const` blockers" — the bare-identifier argument is passed
 /// directly so the runtime can wire up the dependency without an extra
 /// thunk hop.
-fn unthunk_bare_derived_arg(script: &str) -> String {
+pub(crate) fn unthunk_bare_derived_arg(script: &str) -> String {
     let (derived_names, _, _) = collect_derived_names_from_script(script);
     if derived_names.is_empty() {
         return script.to_string();
@@ -4914,6 +5069,37 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut derived_field_is_by = false;
 
     let all_lines: Vec<&str> = class_body.lines().collect();
+
+    // Pre-scan user-declared private member names (`#foo = …` / `#foo(…) {`),
+    // so a public `$state` / `$derived` field whose deconflicted backing name
+    // would collide with one of them is renamed (`deps` → `#_deps` when a
+    // `#deps` field already exists). Mirrors the client's `private_ids`
+    // deconfliction in `2-analyze` class_body. Without this the backing
+    // `#deps` shadows the existing `#deps`, duplicating the get/set accessors
+    // and turning `this.#deps = f` into a spurious derived setter call.
+    let mut existing_private_names: Vec<String> = Vec::new();
+    for raw in &all_lines {
+        let t = raw.trim();
+        if let Some(rest) = t.strip_prefix('#') {
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+                .collect();
+            if !name.is_empty() && !existing_private_names.contains(&name) {
+                existing_private_names.push(name);
+            }
+        }
+    }
+    // Compute a backing private name for a public state/derived field that does
+    // not collide with an existing private member (prefix `_` until unique).
+    let backing_private = |name: &str| -> String {
+        let mut candidate = sanitize_identifier(name);
+        while existing_private_names.contains(&candidate) {
+            candidate = format!("_{}", candidate);
+        }
+        format!("#{}", candidate)
+    };
+
     let mut line_idx = 0;
 
     while line_idx < all_lines.len() {
@@ -4947,7 +5133,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
                         let value = after_paren[..value_end].to_string();
                         let sanitized_name = sanitize_identifier(&derived_field_name);
-                        let private_name = format!("#{}", sanitized_name);
+                        let private_name = if derived_field_is_private {
+                            format!("#{}", sanitized_name)
+                        } else {
+                            backing_private(&derived_field_name)
+                        };
 
                         let value_str = value.trim();
                         let wrapped_value = if value_str.starts_with('{') {
@@ -5095,7 +5285,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
                         let value = after_paren[..value_end].to_string();
                         let sanitized_name = sanitize_identifier(&name);
-                        let private_name = format!("#{}", sanitized_name);
+                        let private_name = if is_private {
+                            format!("#{}", sanitized_name)
+                        } else {
+                            backing_private(&name)
+                        };
 
                         let value_str = value.trim();
                         let wrapped_value = if value_str.starts_with('{') {
@@ -5212,7 +5406,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         if let Some(value_end) = find_matching_paren_server(after_paren) {
                             let value = after_paren[..value_end].to_string();
                             let sanitized = sanitize_identifier(&name);
-                            let private_ref = format!("#{}", sanitized);
+                            let private_ref = if is_private {
+                                format!("#{}", sanitized)
+                            } else {
+                                backing_private(&name)
+                            };
 
                             let value_str = value.trim();
                             let wrapped_value = if value_str.starts_with('{') {
@@ -5284,8 +5482,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let derived_private_names: Vec<String> = derived_fields
         .iter()
         .map(|f| {
-            let sanitized = sanitize_identifier(&f.name);
-            format!("#{}", sanitized)
+            if f.is_private {
+                format!("#{}", sanitize_identifier(&f.name))
+            } else {
+                backing_private(&f.name)
+            }
         })
         .collect();
 
@@ -5299,8 +5500,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         .iter()
         .filter(|f| f.constructor_declared && !f.is_private)
     {
-        let sanitized_name = sanitize_identifier(&field.name);
-        let private_name = format!("#{}", sanitized_name);
+        let private_name = backing_private(&field.name);
 
         let _ = writeln!(new_class_body, "\t\t{};", private_name);
         new_class_body.push('\n');
@@ -5352,8 +5552,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     .iter()
                     .filter(|f| !f.constructor_declared && !f.is_private)
                 {
-                    let sanitized_name = sanitize_identifier(&field.name);
-                    let private_name = format!("#{}", sanitized_name);
+                    let private_name = backing_private(&field.name);
                     // Check exact match: the line starts with the private name and the
                     // next character is not an identifier char (prevents #on_class matching #on_class_private)
                     let is_exact_match = line.starts_with(&private_name)
@@ -5992,6 +6191,10 @@ fn transform_reexported_prop_declarations(
 
         // Check if this is a `let x = value;` or `let x;` declaration for a reexported prop
         if trimmed.starts_with("let ") || trimmed.starts_with("var ") {
+            // Preserve the original declaration keyword: upstream keeps a
+            // `var`-declared exported binding as `var` (it only rewrites the
+            // initializer to `$.fallback(...)`).
+            let kw = &trimmed[..3]; // "let" or "var"
             let rest = &trimmed[4..]; // skip "let " or "var "
             let rest_trimmed = rest.trim().trim_end_matches(';').trim();
 
@@ -6028,18 +6231,18 @@ fn transform_reexported_prop_declarations(
                     let indent = &line[..line.len() - trimmed.len()];
                     let transformed = if is_simple_default_value(value) {
                         format!(
-                            "{}let {} = $.fallback($$props['{}'], {});",
-                            indent, name, prop_name, value
+                            "{}{} {} = $.fallback($$props['{}'], {});",
+                            indent, kw, name, prop_name, value
                         )
                     } else if let Some(fn_name) = is_no_arg_function_call(value) {
                         format!(
-                            "{}let {} = $.fallback($$props['{}'], {}, true);",
-                            indent, name, prop_name, fn_name
+                            "{}{} {} = $.fallback($$props['{}'], {}, true);",
+                            indent, kw, name, prop_name, fn_name
                         )
                     } else {
                         format!(
-                            "{}let {} = $.fallback($$props['{}'], () => ({}), true);",
-                            indent, name, prop_name, value
+                            "{}{} {} = $.fallback($$props['{}'], () => ({}), true);",
+                            indent, kw, name, prop_name, value
                         )
                     };
                     result.push_str(&transformed);
@@ -6071,11 +6274,11 @@ fn transform_reexported_prop_declarations(
                             {
                                 let _ = write!(
                                     result,
-                                    "{}let {} = $$props['{}'];",
-                                    indent, part_name, prop_name
+                                    "{}{} {} = $$props['{}'];",
+                                    indent, kw, part_name, prop_name
                                 );
                             } else {
-                                let _ = write!(result, "{}let {};", indent, part_name);
+                                let _ = write!(result, "{}{} {};", indent, kw, part_name);
                             }
                             result.push('\n');
                         }
@@ -6085,7 +6288,11 @@ fn transform_reexported_prop_declarations(
                     reexported_props.iter().find(|(local, _)| local == name)
                 {
                     let indent = &line[..line.len() - trimmed.len()];
-                    let _ = write!(result, "{}let {} = $$props['{}'];", indent, name, prop_name);
+                    let _ = write!(
+                        result,
+                        "{}{} {} = $$props['{}'];",
+                        indent, kw, name, prop_name
+                    );
                     result.push('\n');
                     continue;
                 }

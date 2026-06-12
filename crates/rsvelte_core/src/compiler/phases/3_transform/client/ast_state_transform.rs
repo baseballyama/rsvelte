@@ -389,6 +389,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// For `$count`, the base is `count`. The access depends on whether
     /// `count` is a prop, state var, or plain variable.
     fn store_access_for(&self, store_sub: &str) -> String {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        use crate::compiler::phases::phase3_transform::client::utils::is_prop_source;
         let store_name = &store_sub[1..]; // Strip leading $
         if self.prop_vars_for_store.contains(store_name) {
             format!("{}()", store_name) // prop getter
@@ -396,6 +398,19 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             && !self.non_reactive_vars.contains(store_name)
         {
             format!("$.get({})", store_name) // reactive state getter
+        } else if let Some(analysis) = self.analysis
+            && let Some(idx) = analysis.root.find_binding_any_scope(store_name)
+            && let Some(binding) = analysis.root.bindings.get(idx)
+            && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+            && !is_prop_source(binding, analysis)
+        {
+            // Non-source prop store (`const { store } = $props()`): the store
+            // object is the prop value, read via `$$props.store` /
+            // `$$props['alias']` — mirrors the store-getter declaration.
+            match binding.prop_alias.as_deref().filter(|a| *a != store_name) {
+                Some(alias) => format!("$$props[\"{}\"]", alias),
+                None => format!("$$props.{}", store_name),
+            }
         } else {
             store_name.to_string() // regular variable
         }

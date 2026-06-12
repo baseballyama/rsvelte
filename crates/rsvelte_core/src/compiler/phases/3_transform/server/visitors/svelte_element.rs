@@ -219,6 +219,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                     }
                                 }
                             }
+                        } else if matches!(node.value, AttributeValue::True(_)) {
+                            // A valueless attribute (`<svelte:element scope>`) is
+                            // static; upstream bakes ` scope=""` into the markup
+                            // rather than emitting a dynamic `$.attr(name, true)`.
+                            attr_parts.push(format!(" {}=\"\"", name));
                         } else {
                             let value = self.extract_attribute_value_as_literal(node)?;
                             if let Some(val) = value {

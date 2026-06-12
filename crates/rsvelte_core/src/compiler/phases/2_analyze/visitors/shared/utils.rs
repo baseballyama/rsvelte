@@ -3123,6 +3123,17 @@ pub fn walk_js_expression_node(
                 context.analysis.needs_context = true;
             }
 
+            // `$effect` / `$effect.pre` always need the component context
+            // (upstream CallExpression.js cases `$effect`/`$effect.pre` →
+            // `needs_context = true`). This matters for a rune used only inside
+            // a template directive (e.g. `{@attach … $effect(…)}`), which would
+            // otherwise leave the component without its `$.push`/`$.pop`.
+            if let Some(ref rn) = rune_name
+                && matches!(rn.as_str(), "$effect" | "$effect.pre")
+            {
+                context.analysis.needs_context = true;
+            }
+
             walk_js_expression_node(callee_node, context, metadata)?;
             for arg in arena.get_js_children(*arguments) {
                 walk_js_expression_node(arg, context, metadata)?;
@@ -3179,8 +3190,12 @@ pub fn walk_js_expression_node(
                 {
                     walk_js_expression_node(arena.get_js_node(key_id), context, metadata)?;
                 }
-                // Handle SpreadElement in object (rest/spread)
+                // Handle SpreadElement in object (rest/spread). Like the
+                // top-level SpreadElement arm, a spread marks the enclosing
+                // expression `has_call` + `has_state` (upstream SpreadElement.js).
                 if let JsNode::SpreadElement { argument, .. } = property {
+                    metadata.set_has_call(true);
+                    metadata.set_has_state(true);
                     walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
                 }
             }
@@ -3295,6 +3310,12 @@ pub fn walk_js_expression_node(
             walk_js_expression_node(arena.get_js_node(*expr), context, metadata)?;
         }
         JsNode::SpreadElement { argument, .. } => {
+            // Mirrors upstream's SpreadElement analyze visitor: `[...x]` is
+            // treated like `[...x.values()]`, whose result is unknown at
+            // compile time, so the enclosing expression is both `has_call` and
+            // `has_state`.
+            metadata.set_has_call(true);
+            metadata.set_has_state(true);
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::TemplateLiteral { expressions, .. } => {

@@ -5074,6 +5074,20 @@ fn convert_assignment_target(
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
             convert_array_assignment_target(arena, arr_target, offset, line_offsets)
         }
+        AssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — mirror the simple-target arm so the
+            // `this.#field` MemberExpression is visited in 2-analyze.
+            let start = offset + member.span.start as usize - 1;
+            let end = offset + member.span.end as usize - 1;
+            expr_to_node(create_private_member_expression(
+                arena,
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
+        }
         _ => {
             // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
@@ -5158,6 +5172,22 @@ fn convert_simple_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_computed_member_expression(
+                arena,
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
+        }
+        SimpleAssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — without this arm it falls to `JsNode::Null`,
+            // so 2-analyze never visits the `this.#field` MemberExpression and
+            // `is_safe_identifier` can't flag it, leaving `needs_context` unset
+            // (no `$.push`/`$.pop`). Mirror the program-path arm.
+            let start = offset + member.span.start as usize - 1;
+            let end = offset + member.span.end as usize - 1;
+            expr_to_node(create_private_member_expression(
                 arena,
                 member,
                 start,
@@ -8176,6 +8206,33 @@ fn convert_expression_for_program(
                 optional: member.optional,
             })
         }
+        OxcExpression::PrivateFieldExpression(member) => {
+            // `this.#field` — without this arm the object falls through to the
+            // `unknown` identifier fallback, which defeats `is_safe_identifier`
+            // in 2-analyze (so `needs_context` is never set). Mirror
+            // `create_private_member_expression` with the program-offset
+            // convention (`offset + span.start`, no `-1`).
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            Expression::from_node(JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
+                optional: member.optional,
+            })
+        }
         OxcExpression::ImportExpression(import_expr) => {
             let start = offset + import_expr.span.start as usize;
             let end = offset + import_expr.span.end as usize;
@@ -9240,6 +9297,33 @@ fn convert_assignment_target_for_program(
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
             convert_array_assignment_target_for_program(arena, arr_target, offset, line_offsets),
         ),
+        AssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS in a function-body statement (program
+            // context). Without this arm it falls to `JsNode::Null`, so the
+            // `this.#field` MemberExpression is never visited in 2-analyze and
+            // `needs_context` stays unset (no `$.push`/`$.pop`) — e.g. a class
+            // constructor reassigning a private field.
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
+                optional: member.optional,
+            }
+        }
         _ => {
             // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
@@ -9514,6 +9598,30 @@ fn convert_simple_assignment_target_for_program(
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
                 computed: true,
+                optional: member.optional,
+            }
+        }
+        SimpleAssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — without this arm it becomes `JsNode::Null`,
+            // which breaks constructor state-field dedup and `is_safe_identifier`.
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
                 optional: member.optional,
             }
         }
@@ -10346,6 +10454,55 @@ fn convert_expression_with_adjustment(
             obj.insert("object".to_string(), object);
             obj.insert("property".to_string(), property);
             obj.insert("computed".to_string(), Value::Bool(true));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+            Value::Object(obj)
+        }
+        OxcExpression::PrivateFieldExpression(member) => {
+            // `this.#field` — without this arm the object falls through to the
+            // `unknown` identifier fallback, defeating `is_safe_identifier` in
+            // 2-analyze. Build a MemberExpression with a PrivateIdentifier
+            // property (binding-offset convention: `doc_offset + span - prefix_len`).
+            let start = doc_offset + member.span.start as usize - prefix_len;
+            let end = doc_offset + member.span.end as usize - prefix_len;
+            let object = convert_expression_with_adjustment(
+                arena,
+                &member.object,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let prop_start = doc_offset + member.field.span.start as usize - prefix_len;
+            let prop_end = doc_offset + member.field.span.end as usize - prefix_len;
+            let mut prop = Map::new();
+            prop.insert(
+                "type".to_string(),
+                Value::String("PrivateIdentifier".to_string()),
+            );
+            prop.insert(
+                "start".to_string(),
+                Value::Number((prop_start as i64).into()),
+            );
+            prop.insert("end".to_string(), Value::Number((prop_end as i64).into()));
+            if let Some(loc) = create_loc_for_binding(prop_start, prop_end, line_offsets) {
+                prop.insert("loc".to_string(), loc);
+            }
+            prop.insert(
+                "name".to_string(),
+                Value::String(member.field.name.as_str().to_string()),
+            );
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
+                obj.insert("loc".to_string(), loc);
+            }
+            obj.insert("object".to_string(), object);
+            obj.insert("property".to_string(), Value::Object(prop));
+            obj.insert("computed".to_string(), Value::Bool(false));
             obj.insert("optional".to_string(), Value::Bool(member.optional));
             Value::Object(obj)
         }

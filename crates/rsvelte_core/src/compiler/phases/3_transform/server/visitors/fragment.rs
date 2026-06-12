@@ -242,6 +242,37 @@ impl<'a> ServerCodeGenerator<'a> {
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
 
+        // Hoist `<title>` to the front of the fragment — upstream's clean_nodes
+        // hoists TitleElement alongside const/snippet tags, so a `<title>` that
+        // appears after other content in `<svelte:head>` is emitted first.
+        // After moving the title out, drop any now-trailing whitespace-only
+        // text so the last remaining node's close marker isn't followed by a
+        // stray space.
+        let sorted_meaningful_nodes = if sorted_meaningful_nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::TitleElement(_)))
+        {
+            let mut titles: Vec<&TemplateNode> = Vec::new();
+            let mut rest: Vec<&TemplateNode> = Vec::new();
+            for n in sorted_meaningful_nodes {
+                if matches!(n, TemplateNode::TitleElement(_)) {
+                    titles.push(n);
+                } else {
+                    rest.push(n);
+                }
+            }
+            while matches!(
+                rest.last(),
+                Some(TemplateNode::Text(t)) if is_svelte_whitespace_only(&t.data)
+            ) {
+                rest.pop();
+            }
+            titles.extend(rest);
+            titles
+        } else {
+            sorted_meaningful_nodes
+        };
+
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
 
         // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
@@ -280,8 +311,25 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             true
         };
+        // The last *rendered* (non-hoisted) node is what upstream trims trailing
+        // whitespace on: hoisted nodes (const / snippet / declaration / debug)
+        // are pulled out of `regular` before the trailing-whitespace pass, so a
+        // trailing hoisted node must not stop the preceding text from being
+        // treated as the last node (utils.js: trim runs on post-hoist `regular`).
+        let last_render_idx = meaningful_nodes
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, n)| {
+                !(matches!(n, TemplateNode::ConstTag(_))
+                    || matches!(n, TemplateNode::SnippetBlock(_))
+                    || matches!(n, TemplateNode::DeclarationTag(_))
+                    || matches!(n, TemplateNode::DebugTag(_))
+                    || (matches!(n, TemplateNode::Comment(_)) && !self.preserve_comments))
+            })
+            .map(|(i, _)| i);
         for (i, node) in meaningful_nodes.iter().enumerate() {
-            let is_last = i == meaningful_nodes.len() - 1;
+            let is_last = Some(i) == last_render_idx;
 
             // Whitespace-only text before any real content (after hoisted/transparent nodes):
             // In the official compiler, hoisted nodes are removed before leading whitespace

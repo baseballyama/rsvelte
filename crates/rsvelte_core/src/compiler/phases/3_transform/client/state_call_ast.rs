@@ -39,7 +39,7 @@ use oxc_ast_visit::walk;
 use oxc_parser::Parser;
 use oxc_span::{GetSpan, SourceType};
 
-use super::expression_utils::{collapse_to_single_line, expression_needs_proxy};
+use super::expression_utils::{collapse_to_single_line, expression_needs_proxy_with_scope};
 
 thread_local! {
     static MODULE_STATE_CALL_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -52,6 +52,7 @@ thread_local! {
 pub fn transform_state_call_ast(
     source: &str,
     non_reactive_vars: &[String],
+    non_proxy_vars: &[String],
     is_ts: bool,
 ) -> Option<String> {
     memchr::memmem::find(source.as_bytes(), b"$state")?;
@@ -72,6 +73,7 @@ pub fn transform_state_call_ast(
         let mut collector = StateCallCollector {
             source,
             non_reactive_vars,
+            non_proxy_vars,
             current_var: None,
             replacements: Vec::new(),
         };
@@ -101,6 +103,7 @@ pub fn transform_state_call_ast(
 struct StateCallCollector<'a, 'src> {
     source: &'src str,
     non_reactive_vars: &'a [String],
+    non_proxy_vars: &'a [String],
     current_var: Option<String>,
     replacements: Vec<(u32, u32, String)>,
 }
@@ -142,7 +145,8 @@ impl<'a, 'src, 'ast> Visit<'ast> for StateCallCollector<'a, 'src> {
             .current_var
             .as_deref()
             .is_some_and(|name| self.non_reactive_vars.iter().any(|v| v == name));
-        let needs_proxy = !trimmed_is_empty && expression_needs_proxy(content.trim());
+        let needs_proxy = !trimmed_is_empty
+            && expression_needs_proxy_with_scope(content.trim(), self.non_proxy_vars);
 
         let rewrite = match (is_non_reactive, needs_proxy, trimmed_is_empty) {
             (true, true, _) => format!("$.proxy({})", collapsed),
@@ -170,25 +174,25 @@ mod tests {
 
     #[test]
     fn reactive_primitive_wraps_in_state() {
-        let out = transform_state_call_ast("let x = $state(0);", &[], false).unwrap();
+        let out = transform_state_call_ast("let x = $state(0);", &[], &[], false).unwrap();
         assert_eq!(out, "let x = $.state(0);");
     }
 
     #[test]
     fn reactive_object_wraps_in_state_proxy() {
-        let out = transform_state_call_ast("let x = $state({a: 1});", &[], false).unwrap();
+        let out = transform_state_call_ast("let x = $state({a: 1});", &[], &[], false).unwrap();
         assert_eq!(out, "let x = $.state($.proxy({a: 1}));");
     }
 
     #[test]
     fn reactive_array_wraps_in_state_proxy() {
-        let out = transform_state_call_ast("let x = $state([1, 2, 3]);", &[], false).unwrap();
+        let out = transform_state_call_ast("let x = $state([1, 2, 3]);", &[], &[], false).unwrap();
         assert_eq!(out, "let x = $.state($.proxy([1, 2, 3]));");
     }
 
     #[test]
     fn reactive_empty_emits_state_void_zero() {
-        let out = transform_state_call_ast("let x = $state();", &[], false).unwrap();
+        let out = transform_state_call_ast("let x = $state();", &[], &[], false).unwrap();
         assert_eq!(out, "let x = $.state(void 0);");
     }
 
@@ -197,28 +201,28 @@ mod tests {
     #[test]
     fn non_reactive_primitive_emits_value() {
         let nrv = nrv(&["x"]);
-        let out = transform_state_call_ast("let x = $state(42);", &nrv, false).unwrap();
+        let out = transform_state_call_ast("let x = $state(42);", &nrv, &[], false).unwrap();
         assert_eq!(out, "let x = 42;");
     }
 
     #[test]
     fn non_reactive_object_emits_proxy() {
         let nrv = nrv(&["x"]);
-        let out = transform_state_call_ast("let x = $state({a: 1});", &nrv, false).unwrap();
+        let out = transform_state_call_ast("let x = $state({a: 1});", &nrv, &[], false).unwrap();
         assert_eq!(out, "let x = $.proxy({a: 1});");
     }
 
     #[test]
     fn non_reactive_array_emits_proxy() {
         let nrv = nrv(&["x"]);
-        let out = transform_state_call_ast("let x = $state([1, 2]);", &nrv, false).unwrap();
+        let out = transform_state_call_ast("let x = $state([1, 2]);", &nrv, &[], false).unwrap();
         assert_eq!(out, "let x = $.proxy([1, 2]);");
     }
 
     #[test]
     fn non_reactive_empty_emits_void_zero() {
         let nrv = nrv(&["x"]);
-        let out = transform_state_call_ast("let x = $state();", &nrv, false).unwrap();
+        let out = transform_state_call_ast("let x = $state();", &nrv, &[], false).unwrap();
         assert_eq!(out, "let x = void 0;");
     }
 
@@ -228,7 +232,7 @@ mod tests {
     fn destructuring_falls_to_reactive_branch() {
         let nrv = nrv(&["x"]);
         let src = "let { x } = $state({a: 1});";
-        let out = transform_state_call_ast(src, &nrv, false).unwrap();
+        let out = transform_state_call_ast(src, &nrv, &[], false).unwrap();
         // current_var is None for destructuring → reactive branch
         assert_eq!(out, "let { x } = $.state($.proxy({a: 1}));");
     }
@@ -241,7 +245,7 @@ mod tests {
         // objects/arrays at runtime), so the rewrite is the full
         // `$.state($.proxy(value))` shape.
         let src = "fn($state(value));";
-        let out = transform_state_call_ast(src, &[], false).unwrap();
+        let out = transform_state_call_ast(src, &[], &[], false).unwrap();
         assert_eq!(out, "fn($.state($.proxy(value)));");
     }
 
@@ -250,7 +254,7 @@ mod tests {
         // Literal arg doesn't need a proxy, so the rewrite is the
         // primitive shape `$.state(0)`.
         let src = "fn($state(0));";
-        let out = transform_state_call_ast(src, &[], false).unwrap();
+        let out = transform_state_call_ast(src, &[], &[], false).unwrap();
         assert_eq!(out, "fn($.state(0));");
     }
 
@@ -259,7 +263,7 @@ mod tests {
         // $state.raw / $state.snapshot are not bare `$state(...)`.
         for src in ["$state.raw(x)", "$state.snapshot(x)", "$state.frozen(x)"] {
             assert!(
-                transform_state_call_ast(src, &[], false).is_none(),
+                transform_state_call_ast(src, &[], &[], false).is_none(),
                 "should not rewrite: {src}"
             );
         }
@@ -268,13 +272,13 @@ mod tests {
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "$state(x)";"#;
-        assert!(transform_state_call_ast(src, &[], false).is_none());
+        assert!(transform_state_call_ast(src, &[], &[], false).is_none());
     }
 
     #[test]
     fn rewrites_inside_template_expression() {
         let src = "let s = `${$state(0)}`;";
-        let out = transform_state_call_ast(src, &[], false).unwrap();
+        let out = transform_state_call_ast(src, &[], &[], false).unwrap();
         assert_eq!(out, "let s = `${$.state(0)}`;");
     }
 
@@ -282,17 +286,17 @@ mod tests {
     fn ts_source_works() {
         let nrv = nrv(&["x"]);
         let src = "let x: number = $state(1);";
-        let out = transform_state_call_ast(src, &nrv, true).unwrap();
+        let out = transform_state_call_ast(src, &nrv, &[], true).unwrap();
         assert!(out.contains("let x: number = 1;"));
     }
 
     #[test]
     fn parse_error_returns_none() {
-        assert!(transform_state_call_ast("let x = $state(", &[], false).is_none());
+        assert!(transform_state_call_ast("let x = $state(", &[], &[], false).is_none());
     }
 
     #[test]
     fn no_op_without_keyword() {
-        assert!(transform_state_call_ast("let x = 1;", &[], false).is_none());
+        assert!(transform_state_call_ast("let x = 1;", &[], &[], false).is_none());
     }
 }

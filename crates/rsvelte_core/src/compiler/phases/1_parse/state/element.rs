@@ -1763,7 +1763,10 @@ impl Parser<'_> {
                                 start: text_start as u32,
                                 end: self.index as u32,
                                 raw: CompactString::from(&self.source[text_start..self.index]),
-                                data: CompactString::from(&self.source[text_start..self.index]),
+                                data: CompactString::from(decode_html_entities(
+                                    &self.source[text_start..self.index],
+                                    true,
+                                )),
                             }));
                         }
                         let expr_start = self.index;
@@ -1793,7 +1796,10 @@ impl Parser<'_> {
                         start: text_start as u32,
                         end: self.index as u32,
                         raw: CompactString::from(&self.source[text_start..self.index]),
-                        data: CompactString::from(&self.source[text_start..self.index]),
+                        data: CompactString::from(decode_html_entities(
+                            &self.source[text_start..self.index],
+                            true,
+                        )),
                     }));
                 }
 
@@ -1818,7 +1824,10 @@ impl Parser<'_> {
                                 start: text_start as u32,
                                 end: self.index as u32,
                                 raw: CompactString::from(&self.source[text_start..self.index]),
-                                data: CompactString::from(&self.source[text_start..self.index]),
+                                data: CompactString::from(decode_html_entities(
+                                    &self.source[text_start..self.index],
+                                    true,
+                                )),
                             }));
                         }
                         let expr_start = self.index;
@@ -1848,7 +1857,10 @@ impl Parser<'_> {
                         start: text_start as u32,
                         end: self.index as u32,
                         raw: CompactString::from(&self.source[text_start..self.index]),
-                        data: CompactString::from(&self.source[text_start..self.index]),
+                        data: CompactString::from(decode_html_entities(
+                            &self.source[text_start..self.index],
+                            true,
+                        )),
                     }));
                 }
 

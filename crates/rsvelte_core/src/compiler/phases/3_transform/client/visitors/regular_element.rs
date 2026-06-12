@@ -2066,6 +2066,7 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
 fn is_value_known_defined(
     value: &JsExpr,
     scope_root: Option<&crate::compiler::phases::phase2_analyze::scope::ScopeRoot>,
+    scope: Option<&crate::compiler::phases::phase2_analyze::scope::Scope>,
 ) -> bool {
     match value {
         // null and undefined literals are explicitly not defined
@@ -2089,10 +2090,33 @@ fn is_value_known_defined(
         // then recursively evaluates the initial value.
         JsExpr::Identifier(name) => {
             if let Some(root) = scope_root
-                && let Some(binding_idx) = root.find_binding_any_scope(name)
+                // Scope-aware resolution so a shadowed name resolves to the
+                // INNERMOST binding (e.g. an each-index `i` shadowing an outer
+                // `<select bind:value={i}>` `i`), not an arbitrary same-named
+                // binding. Walk the scope chain from the current scope; fall
+                // back to any-scope when the chain has no match.
+                && let Some(binding_idx) = {
+                    let mut found = None;
+                    let mut cur = scope;
+                    while let Some(s) = cur {
+                        if let Some(&b) = s.declarations.get(name.as_str()) {
+                            found = Some(b);
+                            break;
+                        }
+                        cur = s.parent.and_then(|p| root.all_scopes.get(p));
+                    }
+                    found.or_else(|| root.find_binding_any_scope(name))
+                }
                 && let Some(binding) = root.bindings.get(binding_idx)
             {
                 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                // An each-block index (`{#each … as item, i}`) is always a
+                // number, so upstream `scope.evaluate` reports it defined and
+                // the `?? ""` fallback is elided (scope.js: an Identifier whose
+                // binding initial is an EachBlock with `index === name` → NUMBER).
+                if matches!(binding.kind, BindingKind::EachIndex) {
+                    return true;
+                }
                 let is_prop = matches!(
                     binding.kind,
                     BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
@@ -2143,8 +2167,27 @@ fn build_element_special_value_attribute(
     // - Known literals (numbers, strings, booleans): defined
     // - Everything else (identifiers, calls, reactive values): NOT defined (could be UNKNOWN)
     // Reference: svelte/packages/svelte/src/compiler/phases/scope.js L574
-    let value_is_defined =
-        is_value_known_defined(&transformed_value, Some(context.state.scope_root));
+    // An each-block index (`{#each … as item, i}`) is always a number, so the
+    // `?? ""` fallback is elided. Check the in-scope each-index names directly:
+    // template scope tracking is imprecise, so a name shadowed by an outer
+    // binding (`<select bind:value={i}>` + `{#each … as person, i}`) would
+    // otherwise resolve to the wrong binding via `find_binding_any_scope`.
+    let is_in_scope_each_index = matches!(
+        &transformed_value,
+        JsExpr::Identifier(name)
+            if context.state.each_index_name.as_deref() == Some(name.as_str())
+                || context
+                    .state
+                    .ancestor_each_index_names
+                    .iter()
+                    .any(|(n, _)| n == name.as_str())
+    );
+    let value_is_defined = is_in_scope_each_index
+        || is_value_known_defined(
+            &transformed_value,
+            Some(context.state.scope_root),
+            Some(context.state.scope),
+        );
 
     // node.__value = transformed_value
     let assignment = b::assign(

@@ -904,12 +904,42 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
 /// Extract CSS content from source (finds the <style> block)
 /// Returns (css_content, start_position_in_source)
 fn extract_css_content(source: &str) -> Option<(String, usize)> {
-    let style_start = memmem::find(source.as_bytes(), b"<style")?;
-    let content_start = memchr(b'>', &source.as_bytes()[style_start..])? + style_start + 1;
-    // Match the closing tag START (`</style`), not the exact `</style>` — the
-    // tag may have whitespace before its `>` (`</style   >`), which the parser
-    // accepts; the CSS content ends at `</style` regardless.
-    let style_end = memmem::find(source.as_bytes(), b"</style")?;
+    let bytes = source.as_bytes();
+    // A `<style`/`</style` prefix is only the real stylesheet tag when the next
+    // byte terminates the tag name — otherwise `<style-foo>` (a custom element)
+    // would be misread as the stylesheet.
+    let is_term = |b: Option<&u8>| {
+        matches!(
+            b,
+            None | Some(b'>')
+                | Some(b'/')
+                | Some(b' ')
+                | Some(b'\t')
+                | Some(b'\n')
+                | Some(b'\r')
+                | Some(0x0c)
+        )
+    };
+    // Exact `<style` open tag (reject `<style-foo`, `<styles`, …).
+    let mut at = 0;
+    let style_start = loop {
+        let p = at + memmem::find(&bytes[at..], b"<style")?;
+        if is_term(bytes.get(p + 6)) {
+            break p;
+        }
+        at = p + 6;
+    };
+    let content_start = memchr(b'>', &bytes[style_start..])? + style_start + 1;
+    // Exact `</style` close tag, searched from the content start (the tag may
+    // have whitespace before its `>`, e.g. `</style   >`).
+    let mut at = content_start;
+    let style_end = loop {
+        let p = at + memmem::find(&bytes[at..], b"</style")?;
+        if is_term(bytes.get(p + 7)) {
+            break p;
+        }
+        at = p + 7;
+    };
 
     if content_start >= style_end {
         return None;
@@ -1336,6 +1366,17 @@ fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 
 /// Implementation of complex selector unused check
 fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
+    // A non-global selector can never match when the component renders no
+    // scopeable elements. Mirrors upstream `prune()`, which only sets
+    // `metadata.used` while iterating over `elements`; with zero elements every
+    // non-global-like selector is reported unused (e.g. a `<style>`-only file).
+    if !ctx.has_dynamic_elements
+        && ctx.dom_structure.elements.is_empty()
+        && !is_complex_selector_global_like(complex)
+    {
+        return true;
+    }
+
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
         // Check for :host > element pattern FIRST (before the global-like check)
@@ -2084,9 +2125,61 @@ fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext
     false
 }
 
+/// True if a relative selector is an "outer global" tail per upstream `truncate`
+/// (css-prune.js:207-231): global-like (`:host`/`:root`/view-transition), a bare
+/// `:global` (no args), or a `:global(...)` whose compound stays global (every
+/// simple selector is a pseudo-class/element).
+fn relative_selector_is_outer_global(rel: &Value) -> bool {
+    if is_global_like(rel) {
+        return true;
+    }
+    let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        return false;
+    };
+    let Some(first) = selectors.first() else {
+        return false;
+    };
+    let first_is_global = first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+        && first.get("name").and_then(|n| n.as_str()) == Some("global");
+    if !first_is_global {
+        return false;
+    }
+    if first.get("args").is_none() {
+        return true; // bare :global
+    }
+    // `:global(...)` stays global only if every simple selector is pseudo.
+    selectors.iter().all(|s| {
+        matches!(
+            s.get("type").and_then(|t| t.as_str()),
+            Some("PseudoClassSelector") | Some("PseudoElementSelector")
+        )
+    })
+}
+
+/// Discard trailing global relative selectors (mirrors css-prune.js `truncate`).
+/// Returns the prefix up to and including the last non-global relative selector;
+/// if every selector is global, returns the input unchanged.
+fn truncate_trailing_globals(rel_selectors: &[Value]) -> &[Value] {
+    let mut last_kept = None;
+    for (i, rel) in rel_selectors.iter().enumerate() {
+        if !relative_selector_is_outer_global(rel) {
+            last_kept = Some(i);
+        }
+    }
+    match last_kept {
+        Some(i) => &rel_selectors[..=i],
+        None => rel_selectors,
+    }
+}
+
 /// Check if a sibling combinator selector is unused
 /// A + B or A ~ B is unused if no parent element has children that satisfy the relationship
 fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    // Upstream prunes via `get_relative_selectors` → `truncate`, which drops
+    // trailing `:global(...)` selectors before matching. `& + :global(&)`
+    // reduces to `[&]`, which resolves to the (used) parent prelude — the `+` is
+    // never tested.
+    let rel_selectors = truncate_trailing_globals(rel_selectors);
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
         return false;
     }
@@ -5170,7 +5263,18 @@ fn transform_complex_selector(
             let is_global_modifier = starts_with_bare_global && selectors_count > 1;
 
             if is_bare_global_only {
-                // Skip this selector entirely - mark that next selector is global
+                // Upstream (css/index.js:286-310): a standalone bare `:global`
+                // (args === null) at the start of a *nested* rule (combinator
+                // === null) becomes `&` — `div { :global x { … } }` →
+                // `div { & x { … } }`. The trailing parts stay unscoped (latched
+                // via `next_is_global`). Non-empty `parent_preludes` ⇒ nested.
+                if result.is_empty() && ctx.is_some_and(|c| !c.parent_preludes.borrow().is_empty())
+                {
+                    result.push('&');
+                }
+                // Mark that this AND every subsequent relative selector in this
+                // complex selector is global/unscoped (css-analyze.js:208-211
+                // sets `is_global_like` on all selectors after the bare `:global`).
                 next_is_global = true;
                 continue;
             }
@@ -5254,7 +5358,12 @@ fn transform_complex_selector(
                     }
                 }
                 _previous_was_scoped = false;
-                next_is_global = false;
+                // Do NOT reset `next_is_global` here: once a standalone bare
+                // `:global` is seen, EVERY following relative selector in this
+                // complex selector is global/unscoped (upstream marks them all
+                // `is_global_like`). The comma operator splits selector lists
+                // into separate `transform_complex_selector` calls, so the latch
+                // correctly resets per complex selector.
                 continue;
             }
 
@@ -6206,10 +6315,17 @@ fn get_selector_text(node: &Value) -> String {
             // Check if this is a RelativeSelector with a combinator
             if let Some(combinator) = child.get("combinator")
                 && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
-                && !result.is_empty()
             {
-                // Add combinator (space for descendant, or the actual combinator)
-                if name == " " {
+                if result.is_empty() {
+                    // Leading combinator in a relative selector list (e.g.
+                    // `:has(> [open])`): the `>` / `+` / `~` is significant and
+                    // must be preserved. A leading descendant combinator (" ")
+                    // is implicit and emitted as nothing.
+                    if name != " " {
+                        let _ = write!(result, "{} ", name);
+                    }
+                } else if name == " " {
+                    // Add combinator (space for descendant, or the actual combinator)
                     result.push(' ');
                 } else {
                     let _ = write!(result, " {} ", name);

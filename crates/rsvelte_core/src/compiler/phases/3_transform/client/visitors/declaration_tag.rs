@@ -92,6 +92,32 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         &[],
     );
 
+    // The instance-script pipeline wraps instance-state reads but is unaware of
+    // the enclosing each block's item bindings. Inside `{#each boxes as box}` a
+    // `{const area = box.width}` must read the reactive item as `$.get(box)`
+    // (mirroring the template-expression transform's each-item handling). Only
+    // REACTIVE each-items qualify — a non-reactive item (e.g. keyed by itself,
+    // `{#each xs as n (n)}`) stays bare. Reactive items are exactly those with a
+    // registered read transform in `context.state.transform` (each_block.rs only
+    // inserts one when `EACH_ITEM_REACTIVE` is set).
+    let reactive_each_names: Vec<String> = context
+        .state
+        .each_item_names
+        .iter()
+        .filter(|n| context.state.transform.contains_key(n.as_str()))
+        .map(|n| n.to_string())
+        .collect();
+    let transformed = if reactive_each_names.is_empty() {
+        transformed
+    } else {
+        crate::compiler::phases::phase3_transform::client::expression_utils::wrap_state_vars_in_expr(
+            &transformed,
+            &reactive_each_names,
+            &[],
+            &[],
+        )
+    };
+
     let trimmed = transformed.trim();
     if trimmed.is_empty() {
         return;

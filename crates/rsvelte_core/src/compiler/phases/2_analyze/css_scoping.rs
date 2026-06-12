@@ -443,7 +443,40 @@ pub fn extract_css_selectors(stylesheet: &crate::ast::css::StyleSheet) -> Vec<Cs
     for child in &stylesheet.children {
         extract_selectors_from_css_node(child, &mut selectors, &[]);
     }
+    // A bare `:global` marker (the prelude of a `:global { ... }` BLOCK, no
+    // args) makes everything AT AND AFTER it global. A nested global block
+    // desugars to e.g. `article :global aside p`; without flagging the
+    // `:global` and its tail as global, the bare `:global` compound matches
+    // every element in `element_matches_simple_selectors`, so intermediate
+    // ancestors get wrongly scoped (e.g. `<header>` for
+    // `article { p {} :global { aside p {} } }`). Marking the tail global lets
+    // `truncate_globals` strip it, leaving only the scoped prefix (`article`).
+    for sel in &mut selectors {
+        mark_global_block_tail(sel);
+    }
     selectors
+}
+
+/// True when a relative selector is a bare `:global` marker — a single
+/// `:global` pseudo-class with no argument list. This is the prelude of a
+/// `:global { ... }` BLOCK (as opposed to the inline `:global(sel)` form,
+/// which carries args).
+fn is_bare_global_relative(rel: &CssRelativeSelector) -> bool {
+    rel.selectors.len() == 1
+        && matches!(
+            &rel.selectors[0],
+            CssSimpleSelector::PseudoClass(name, args) if name == "global" && args.is_none()
+        )
+}
+
+/// Flag a bare `:global` block marker and every relative selector after it as
+/// global, so `truncate_globals` / ancestor matching treat them as unscoped.
+fn mark_global_block_tail(sel: &mut CssComplexSelector) {
+    if let Some(pos) = sel.children.iter().position(is_bare_global_relative) {
+        for rel in &mut sel.children[pos..] {
+            rel.is_global = true;
+        }
+    }
 }
 
 fn extract_selectors_from_css_node(

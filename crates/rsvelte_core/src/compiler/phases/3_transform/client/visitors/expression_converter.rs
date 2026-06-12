@@ -783,9 +783,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let saved_transform = context.state.transform.clone();
             let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
+            // Track which param names are newly shadowed so a prop name bound by a
+            // (possibly destructured) param — e.g. `({ title }) => title` — is NOT
+            // rewritten to `$$props.title`. The non-source-prop rewrite gates on
+            // `shadowed_prop_names`, which the `transform` removal above misses.
+            let newly_shadowed: Vec<String> = param_names
+                .iter()
+                .filter(|n| !context.state.shadowed_prop_names.contains(n.as_str()))
+                .cloned()
+                .collect();
             for name in &param_names {
                 context.state.transform.remove(name);
                 context.state.transform_deep_read.remove(name);
+            }
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             context.state.push_local_scope();
@@ -836,6 +848,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             context.state.event_handler_arrow_body_level = saved_arrow_level;
 
             context.state.pop_local_scope();
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.remove(name);
+            }
             context.state.transform = saved_transform;
             context.state.transform_deep_read = saved_transform_deep_read;
 
@@ -876,9 +891,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let saved_transform = context.state.transform.clone();
             let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
+            // Track which param names are newly shadowed so a prop name bound by a
+            // (possibly destructured) param — e.g. `({ title }) => title` — is NOT
+            // rewritten to `$$props.title`. The non-source-prop rewrite gates on
+            // `shadowed_prop_names`, which the `transform` removal above misses.
+            let newly_shadowed: Vec<String> = param_names
+                .iter()
+                .filter(|n| !context.state.shadowed_prop_names.contains(n.as_str()))
+                .cloned()
+                .collect();
             for name in &param_names {
                 context.state.transform.remove(name);
                 context.state.transform_deep_read.remove(name);
+            }
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             context.state.push_local_scope();
@@ -911,6 +938,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 .unwrap_or_default();
 
             context.state.pop_local_scope();
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.remove(name);
+            }
             context.state.transform = saved_transform;
             context.state.transform_deep_read = saved_transform_deep_read;
 
@@ -6273,6 +6303,37 @@ fn apply_store_ref_transform(
         {
             *first_arg = transformed_ref;
         }
+        return result;
+    }
+
+    // Non-source props (`const { store } = $props()`) don't register a read
+    // transform — their reads are emitted as `$$props.store` by the default
+    // identifier path. The store-mutation builders, however, emit the bare
+    // store name as the first argument, so resolve it here directly from the
+    // binding: a non-source prop store object must be `$$props.store`
+    // (or `$$props['alias']`). Mirrors the store-getter declaration.
+    if let Some(binding) = context.state.get_binding(store_name)
+        && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+        && !crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+            binding,
+            context.state.analysis,
+        )
+        && let JsExpr::Call(ref mut call) = result
+        && let Some(first_arg) = call.arguments.first_mut()
+        && matches!(first_arg, JsExpr::Identifier(n) if n.as_str() == store_name)
+    {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        let alias = binding.prop_alias.as_deref().filter(|a| *a != store_name);
+        *first_arg = if let Some(a) = alias {
+            JsExpr::Member(JsMemberExpression {
+                object: context.arena.alloc_expr(b::id("$$props")),
+                property: JsMemberProperty::Expression(context.arena.alloc_expr(b::string(a))),
+                computed: true,
+                optional: false,
+            })
+        } else {
+            b::member_path(&context.arena, &format!("$$props.{}", store_name))
+        };
     }
 
     result

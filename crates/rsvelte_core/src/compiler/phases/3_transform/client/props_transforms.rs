@@ -267,10 +267,15 @@ pub(super) fn transform_let_with_reexported_props(
 
     let trimmed = line.trim();
 
-    // Only handle `let` declarations (not `const`, `var`, etc.)
-    if !trimmed.starts_with("let ") {
+    // Handle `let` / `var` declarations (a re-exported `var d` keeps its `var`
+    // keyword — upstream only rewrites the initializer to `$.prop(...)`).
+    let kw = if trimmed.starts_with("let ") {
+        "let"
+    } else if trimmed.starts_with("var ") {
+        "var"
+    } else {
         return None;
-    }
+    };
 
     // Preserve the leading whitespace from the original line
     let leading_ws: &str = &line[..line.len() - line.trim_start().len()];
@@ -410,37 +415,37 @@ pub(super) fn transform_let_with_reexported_props(
                 let flags = calculate_prop_flags(name, analysis, !is_simple);
                 if is_simple {
                     results.push(format!(
-                        "{}let {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, name, prop_name, flags, val
+                        "{}{} {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, kw, name, prop_name, flags, val
                     ));
                 } else if is_prop_ref {
                     // Prop/state identifier: after transform it becomes val() (no-arg call).
                     // The official compiler unwraps no-arg calls to just the callee,
                     // so we pass the identifier directly.
                     results.push(format!(
-                        "{}let {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, name, prop_name, flags, val
+                        "{}{} {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, kw, name, prop_name, flags, val
                     ));
                 } else {
                     let lazy_arg = make_lazy_prop_arg(val);
                     results.push(format!(
-                        "{}let {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, name, prop_name, flags, lazy_arg
+                        "{}{} {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, kw, name, prop_name, flags, lazy_arg
                     ));
                 }
             } else {
                 let flags = calculate_prop_flags(name, analysis, false);
                 results.push(format!(
-                    "{}let {} = $.prop($$props, '{}', {});",
-                    leading_ws, name, prop_name, flags
+                    "{}{} {} = $.prop($$props, '{}', {});",
+                    leading_ws, kw, name, prop_name, flags
                 ));
             }
         } else {
             // Non-exported variable, keep as-is
             if let Some(val) = value {
-                results.push(format!("{}let {} = {};", leading_ws, name, val));
+                results.push(format!("{}{} {} = {};", leading_ws, kw, name, val));
             } else {
-                results.push(format!("{}let {};", leading_ws, name));
+                results.push(format!("{}{} {};", leading_ws, kw, name));
             }
         }
     }
@@ -746,16 +751,22 @@ pub(super) fn apply_store_reads_in_prop_default_values(
 pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
     let trimmed = line.trim();
 
-    // Pattern: export let name = value; or export let name;
-    if !trimmed.starts_with("export let ") {
+    // Pattern: `export let name = value;` / `export var name = value;` / `export let name;`
+    // Upstream keeps the source declaration keyword (`export var` → `var`),
+    // rewriting only the initializer to `$.prop(...)`.
+    let kw = if trimmed.starts_with("export let ") {
+        "let"
+    } else if trimmed.starts_with("export var ") {
+        "var"
+    } else {
         return line.to_string();
-    }
+    };
 
     // Preserve the leading whitespace from the original line so that the
     // generated $.prop() call keeps the same indentation as surrounding code.
     let leading_ws: &str = &line[..line.len() - line.trim_start().len()];
 
-    let rest = trimmed[11..].trim(); // After "export let "
+    let rest = trimmed[11..].trim(); // After "export let " / "export var "
     let rest = rest.trim_end_matches(';').trim();
 
     // Handle multiple declarators: export let a, b, c;
@@ -801,8 +812,8 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 // Store accessor: pass the getter function directly with PROPS_IS_LAZY_INITIAL
                 let flags = calculate_prop_flags(name, analysis, true);
                 results.push(format!(
-                    "{}let {} = $.prop($$props, '{}', {}, {});",
-                    leading_ws, name, name, flags, value
+                    "{}{} {} = $.prop($$props, '{}', {}, {});",
+                    leading_ws, kw, name, name, flags, value
                 ));
             } else {
                 // Check if the value is a "simple expression" that can be passed directly
@@ -837,14 +848,14 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
                 if is_simple {
                     results.push(format!(
-                        "{}let {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, name, name, flags, value
+                        "{}{} {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, kw, name, name, flags, value
                     ));
                 } else if is_prop_ref {
                     // Prop/state identifier: pass directly (official compiler unwraps no-arg calls)
                     results.push(format!(
-                        "{}let {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, name, name, flags, value
+                        "{}{} {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, kw, name, name, flags, value
                     ));
                 } else {
                     // Wrap non-simple values in a thunk: () => value
@@ -853,8 +864,8 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                     // instead of arrow returning object literal
                     let lazy_arg = make_lazy_prop_arg(value);
                     results.push(format!(
-                        "{}let {} = $.prop($$props, '{}', {}, {});",
-                        leading_ws, name, name, flags, lazy_arg
+                        "{}{} {} = $.prop($$props, '{}', {}, {});",
+                        leading_ws, kw, name, name, flags, lazy_arg
                     ));
                 }
             }
@@ -864,8 +875,8 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             let flags = calculate_prop_flags(name, analysis, false);
 
             results.push(format!(
-                "{}let {} = $.prop($$props, '{}', {});",
-                leading_ws, name, name, flags
+                "{}{} {} = $.prop($$props, '{}', {});",
+                leading_ws, kw, name, name, flags
             ));
         }
     }
@@ -920,7 +931,25 @@ pub(super) fn transform_destructured_export_let(
         analysis,
     )?;
 
-    Some(format!("let {};", declarations.join(",\n\t")))
+    // Upstream emits all generated `$$array`/`$$array_N` `$.to_array(...)`
+    // deriveds together right after `tmp`, before the individual prop getters
+    // (which reference them). Reorder to match — `tmp` first, then the array
+    // deriveds in creation order, then the prop declarators in walk order.
+    let ordered = if let Some((tmp_decl, rest_decls)) = declarations.split_first() {
+        let (array_decls, prop_decls): (Vec<String>, Vec<String>) = rest_decls
+            .iter()
+            .cloned()
+            .partition(|d| d.trim_start().starts_with("$$array"));
+        let mut ordered = Vec::with_capacity(declarations.len());
+        ordered.push(tmp_decl.clone());
+        ordered.extend(array_decls);
+        ordered.extend(prop_decls);
+        ordered
+    } else {
+        declarations
+    };
+
+    Some(format!("let {};", ordered.join(",\n\t")))
 }
 
 /// Find the end position of a destructuring pattern in `{ ... } = RHS` or `[ ... ] = RHS`.
@@ -1073,10 +1102,18 @@ pub(super) fn extract_destructured_export_paths(
         };
         *array_counter += 1;
 
-        declarations.push(format!(
-            "{} = $.derived(() => $.to_array({}, {}))",
-            array_var, base_path, total_count
-        ));
+        // A rest element makes the destructure unbounded, so `$.to_array` is
+        // called without the element-count argument (upstream omits it when the
+        // pattern has a `...rest`).
+        let has_rest = elements.iter().any(|e| e.trim().starts_with("..."));
+        declarations.push(if has_rest {
+            format!("{} = $.derived(() => $.to_array({}))", array_var, base_path)
+        } else {
+            format!(
+                "{} = $.derived(() => $.to_array({}, {}))",
+                array_var, base_path, total_count
+            )
+        });
 
         for (idx, elem) in elements.iter().enumerate() {
             let elem = elem.trim();
@@ -1882,7 +1919,13 @@ pub(super) fn transform_props_destructuring(
                     )
                     .unwrap_or(dv);
                 }
-                if !prop_source_vars.is_empty() {
+                // In runes mode the instance-script AST pass
+                // (`ast_state_transform`) already wraps prop-source reads
+                // (`b` → `b()`) across the whole statement, including these
+                // `$.prop(..., () => <default>)` thunks. Wrapping here too
+                // double-wraps (`b()()`), so only do the text wrap in legacy
+                // mode, where the AST pass doesn't run on this output.
+                if !analysis.runes && !prop_source_vars.is_empty() {
                     dv = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
                         &dv,
                         prop_source_vars,

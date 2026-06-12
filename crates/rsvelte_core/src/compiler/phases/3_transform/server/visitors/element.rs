@@ -928,7 +928,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Transform rune calls in spread expressions
                         let expr = Self::transform_rune_in_template_expr(&expr);
                         // Wrap bare reads of $derived bindings (Svelte 5.52+).
-                        let mut expr = self.wrap_derived_reads(&expr);
+                        let expr = self.wrap_derived_reads(&expr);
+                        // Legacy `$$props` reads become `$$sanitized_props`
+                        // (upstream's server Identifier visitor), so a spread
+                        // `{...$$props}` emits `{ ...$$sanitized_props }`.
+                        let mut expr = self.transform_special_vars(&expr);
                         // In dev mode, if the parent element has a svelte-ignore
                         // state_snapshot_uncloneable comment, add `true` arg to $.snapshot()
                         if self.dev
@@ -1137,38 +1141,73 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                         AttributeValue::Sequence(parts) => {
-                            // For sequences, build a template literal or concatenation
-                            let mut expr_parts: Vec<String> = Vec::new();
-                            for part in parts {
-                                match part {
+                            // A single bare part (one text or one expression) is
+                            // emitted as-is. A mixed text+expression sequence
+                            // (e.g. `rgb({c}, 0, 0)`) becomes a template literal
+                            // with each dynamic part interpolated through
+                            // `$.stringify`, matching the official server output
+                            // (`\`rgb(${$.stringify(c)}, 0, 0)\``) rather than a
+                            // string concatenation.
+                            if parts.len() == 1 {
+                                match &parts[0] {
                                     AttributeValuePart::Text(text) => {
-                                        let text_start = text.start as usize;
-                                        let text_end = text.end as usize;
-                                        if text_end > text_start && text_end <= self.source.len() {
-                                            expr_parts.push(format!(
-                                                "'{}'",
-                                                &self.source[text_start..text_end]
-                                            ));
+                                        let s = text.start as usize;
+                                        let e = text.end as usize;
+                                        if e > s && e <= self.source.len() {
+                                            format!("'{}'", &self.source[s..e])
+                                        } else {
+                                            "''".to_string()
                                         }
                                     }
                                     AttributeValuePart::ExpressionTag(expr) => {
-                                        let expr_start =
-                                            expr.expression.start().unwrap_or(0) as usize;
-                                        let expr_end = expr.expression.end().unwrap_or(0) as usize;
-                                        if expr_end > expr_start && expr_end <= self.source.len() {
-                                            expr_parts.push(
-                                                self.source[expr_start..expr_end]
-                                                    .trim()
-                                                    .to_string(),
-                                            );
+                                        let s = expr.expression.start().unwrap_or(0) as usize;
+                                        let e = expr.expression.end().unwrap_or(0) as usize;
+                                        if e > s && e <= self.source.len() {
+                                            self.source[s..e].trim().to_string()
+                                        } else {
+                                            "true".to_string()
                                         }
                                     }
                                 }
-                            }
-                            if expr_parts.len() == 1 {
-                                expr_parts.remove(0)
                             } else {
-                                expr_parts.join(" + ")
+                                let mut tmpl = String::from("`");
+                                for part in parts {
+                                    match part {
+                                        AttributeValuePart::Text(text) => {
+                                            let s = text.start as usize;
+                                            let e = text.end as usize;
+                                            if e > s && e <= self.source.len() {
+                                                let text = &self.source[s..e];
+                                                let bytes = text.as_bytes();
+                                                for (i, ch) in text.char_indices() {
+                                                    match ch {
+                                                        '`' => tmpl.push_str("\\`"),
+                                                        '\\' => tmpl.push_str("\\\\"),
+                                                        // Only escape `$` that begins a `${`
+                                                        // interpolation; a lone `$` stays raw.
+                                                        '$' if bytes.get(i + 1) == Some(&b'{') => {
+                                                            tmpl.push_str("\\$")
+                                                        }
+                                                        _ => tmpl.push(ch),
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        AttributeValuePart::ExpressionTag(expr) => {
+                                            let s = expr.expression.start().unwrap_or(0) as usize;
+                                            let e = expr.expression.end().unwrap_or(0) as usize;
+                                            if e > s && e <= self.source.len() {
+                                                let _ = write!(
+                                                    tmpl,
+                                                    "${{$.stringify({})}}",
+                                                    self.source[s..e].trim()
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                                tmpl.push('`');
+                                tmpl
                             }
                         }
                     };
@@ -2684,57 +2723,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     AttrExprEval::Wrap
                 }
             }
-            // Upstream `scope.evaluate` (Svelte 5.55.9 `a5df6616e`) treats a
-            // ternary as provably-string when BOTH branches are provably-string,
-            // so the wrapping `$.stringify(...)` can be elided.
-            "ConditionalExpression" => {
-                let Some(consequent) = obj.get("consequent") else {
-                    return AttrExprEval::Wrap;
-                };
-                let Some(alternate) = obj.get("alternate") else {
-                    return AttrExprEval::Wrap;
-                };
-                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(consequent))
-                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(alternate))
-                {
-                    AttrExprEval::StringNoWrap
-                } else {
-                    AttrExprEval::Wrap
-                }
-            }
-            // String concatenation `a + b` where both operands are provably-string
-            // is itself provably-string.
-            "BinaryExpression" => {
-                let operator = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("");
-                if operator != "+" {
-                    return AttrExprEval::Wrap;
-                }
-                let Some(left) = obj.get("left") else {
-                    return AttrExprEval::Wrap;
-                };
-                let Some(right) = obj.get("right") else {
-                    return AttrExprEval::Wrap;
-                };
-                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(left))
-                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(right))
-                {
-                    AttrExprEval::StringNoWrap
-                } else {
-                    AttrExprEval::Wrap
-                }
-            }
+            // Ternaries (`ConditionalExpression`) and string concatenation
+            // (`BinaryExpression "+"`) are handled by the `evaluate_estree`
+            // pass above: it elides `$.stringify` only when BOTH branches /
+            // operands are provably string (`is_string()`). A ternary with
+            // numeric branches (`cond ? 1 : 0`) is NOT a string, so it keeps
+            // `$.stringify`, matching upstream `scope.evaluate`.
             _ => AttrExprEval::Wrap,
-        }
-    }
-
-    /// Helper for `eval_attr_expr_json`: whether a sub-expression's evaluation
-    /// proves it returns a (non-nullish) string.
-    fn eval_is_string_or_inline(eval: &AttrExprEval) -> bool {
-        match eval {
-            AttrExprEval::InlineLiteral(_) | AttrExprEval::StringNoWrap => true,
-            // `Empty` corresponds to `null`/`undefined` — these are NOT strings,
-            // so a ternary with an `undefined` branch is not provably-string.
-            AttrExprEval::Empty | AttrExprEval::Wrap => false,
         }
     }
 
@@ -2944,6 +2939,25 @@ impl<'a> ServerCodeGenerator<'a> {
                 AttributeValue::True(_) => {
                     // Shorthand: style:color means style:color={color}
                     dir.name.to_string()
+                }
+                AttributeValue::Sequence(parts) if parts.len() == 1 => {
+                    // A single chunk maps to upstream `build_attribute_value`'s
+                    // `!Array.isArray(value) || value.length === 1` branch: a lone
+                    // `ExpressionTag` (e.g. quoted `style:x="{color}"`) becomes the
+                    // bare expression with no `$.stringify` template.
+                    match &parts[0] {
+                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let raw = self.source[expr_start..expr_end].trim().to_string();
+                                self.transform_store_refs(&raw)
+                            } else {
+                                "undefined".to_string()
+                            }
+                        }
+                        AttributeValuePart::Text(text) => format!("'{}'", text.data),
+                    }
                 }
                 AttributeValue::Sequence(parts) => {
                     // Check if any part is an expression (dynamic value)

@@ -786,8 +786,26 @@ pub fn analyze_component(
         if let Some(script) = ast.module.as_ref() {
             collect_identifier_names_from_expression(&script.content, &mut global_names);
         }
+        // Template expressions also produce references (`scope.reference()` is
+        // called on every identifier inside `{...}` mustaches, attribute values,
+        // directives and block heads). An unbound one (e.g. `{progress.current}`
+        // with no `let progress`) is a global and must enter `root.conflicts`.
+        collect_template_reference_names(&ast.fragment.nodes, &mut global_names);
         // Filter to only those NOT already declared (true globals/unbound).
         global_names.retain(|n| !used_names.contains(n.as_str()));
+
+        // Unbound (global) references at the top level are added to
+        // `scope.root.conflicts` by the official compiler's `scope.reference()`
+        // (scope.js: "no binding was found ... which means this is a global").
+        // Mirror that so generated template variables (e.g. a `<canvas>` local
+        // named `canvas`) avoid colliding with a referenced-but-undeclared global
+        // of the same name and get suffixed (`canvas_1`).
+        {
+            let mut conflicts = analysis.root.conflicts.borrow_mut();
+            for name in &global_names {
+                conflicts.insert(name.clone());
+            }
+        }
 
         let mut name = analysis.name.clone();
         let base = name.clone();
@@ -3838,7 +3856,58 @@ fn attribute_check_features(
                 has_rune_reference: false,
             }
         }
-        _ => FragmentCheckResults::default(),
+        // A rune used only inside a directive/attach expression (e.g.
+        // `{@attach (n) => { $effect(...) }}`) still flips the component to
+        // runes mode upstream, because every template identifier reference is
+        // propagated into `module.scope.references` (scope.js reference()) and
+        // `is_rune` is checked over the full set (2-analyze/index.js:454-456).
+        Attribute::AttachTag(attach) => {
+            let r = expression_check_features(&attach.expression, arena, store_subs);
+            FragmentCheckResults {
+                has_await: r.has_await,
+                has_rune_reference: r.has_rune_reference,
+            }
+        }
+        Attribute::UseDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
+        Attribute::TransitionDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
+        Attribute::AnimateDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
+        Attribute::LetDirective(dir) => match &dir.expression {
+            Some(expr) => {
+                let r = expression_check_features(expr, arena, store_subs);
+                FragmentCheckResults {
+                    has_await: r.has_await,
+                    has_rune_reference: r.has_rune_reference,
+                }
+            }
+            None => FragmentCheckResults::default(),
+        },
     }
 }
 
@@ -3948,6 +4017,13 @@ fn assign_each_block_indices_in_node(
         }
         TemplateNode::SlotElement(slot) => {
             assign_each_block_indices_in_fragment(&mut slot.fragment, index_counter);
+        }
+        TemplateNode::SvelteFragment(frag) => {
+            // `<svelte:fragment>` wraps a fragment; without recursing here the
+            // post-order `$$index` numbering never reaches each blocks nested
+            // inside a component slot, so the transform falls back to its own
+            // pre-order naming (reversed from upstream).
+            assign_each_block_indices_in_fragment(&mut frag.fragment, index_counter);
         }
         TemplateNode::SvelteBoundary(boundary) => {
             assign_each_block_indices_in_fragment(&mut boundary.fragment, index_counter);
@@ -4471,6 +4547,199 @@ fn collect_template_component_names<'a>(
                 collect_template_component_names(&t.fragment.nodes, names);
             }
             _ => {}
+        }
+    }
+}
+
+/// Collect every reference-position identifier name appearing in template
+/// expressions (mustache tags, attribute values, directives and block heads).
+///
+/// Mirrors the official compiler, where `scope.reference()` runs on every
+/// identifier use in the template. Names that don't resolve to a binding become
+/// globals and are added to `scope.root.conflicts`; the caller filters out the
+/// declared ones, so over-collecting binding/declaration identifiers here is
+/// harmless. `collect_identifier_names_from_expression` already drops non-ref
+/// slots (member properties, object keys, declaration ids).
+fn collect_template_reference_names(
+    nodes: &[crate::ast::template::TemplateNode],
+    out: &mut rustc_hash::FxHashSet<String>,
+) {
+    use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, TemplateNode};
+
+    fn collect_attr_value(value: &AttributeValue, out: &mut rustc_hash::FxHashSet<String>) {
+        match value {
+            AttributeValue::True(_) => {}
+            AttributeValue::Expression(tag) => {
+                collect_identifier_names_from_expression(&tag.expression, out);
+            }
+            AttributeValue::Sequence(parts) => {
+                for part in parts {
+                    if let AttributeValuePart::ExpressionTag(tag) = part {
+                        collect_identifier_names_from_expression(&tag.expression, out);
+                    }
+                }
+            }
+        }
+    }
+
+    fn collect_attrs(attributes: &[Attribute], out: &mut rustc_hash::FxHashSet<String>) {
+        for attr in attributes {
+            match attr {
+                Attribute::Attribute(a) => collect_attr_value(&a.value, out),
+                Attribute::SpreadAttribute(s) => {
+                    collect_identifier_names_from_expression(&s.expression, out)
+                }
+                Attribute::AttachTag(t) => {
+                    collect_identifier_names_from_expression(&t.expression, out)
+                }
+                Attribute::BindDirective(d) => {
+                    collect_identifier_names_from_expression(&d.expression, out)
+                }
+                Attribute::ClassDirective(d) => {
+                    collect_identifier_names_from_expression(&d.expression, out)
+                }
+                Attribute::StyleDirective(d) => collect_attr_value(&d.value, out),
+                Attribute::OnDirective(d) => {
+                    if let Some(e) = &d.expression {
+                        collect_identifier_names_from_expression(e, out)
+                    }
+                }
+                Attribute::TransitionDirective(d) => {
+                    if let Some(e) = &d.expression {
+                        collect_identifier_names_from_expression(e, out)
+                    }
+                }
+                Attribute::AnimateDirective(d) => {
+                    if let Some(e) = &d.expression {
+                        collect_identifier_names_from_expression(e, out)
+                    }
+                }
+                Attribute::UseDirective(d) => {
+                    if let Some(e) = &d.expression {
+                        collect_identifier_names_from_expression(e, out)
+                    }
+                }
+                Attribute::LetDirective(d) => {
+                    if let Some(e) = &d.expression {
+                        collect_identifier_names_from_expression(e, out)
+                    }
+                }
+            }
+        }
+    }
+
+    for node in nodes {
+        match node {
+            TemplateNode::ExpressionTag(t) => {
+                collect_identifier_names_from_expression(&t.expression, out)
+            }
+            TemplateNode::HtmlTag(t) => {
+                collect_identifier_names_from_expression(&t.expression, out)
+            }
+            TemplateNode::ConstTag(t) => {
+                collect_identifier_names_from_expression(&t.declaration, out)
+            }
+            TemplateNode::DeclarationTag(t) => {
+                collect_identifier_names_from_expression(&t.declaration, out)
+            }
+            TemplateNode::DebugTag(t) => {
+                for e in &t.identifiers {
+                    collect_identifier_names_from_expression(e, out)
+                }
+            }
+            TemplateNode::RenderTag(t) => {
+                collect_identifier_names_from_expression(&t.expression, out)
+            }
+            TemplateNode::AttachTag(t) => {
+                collect_identifier_names_from_expression(&t.expression, out)
+            }
+            TemplateNode::IfBlock(b) => {
+                collect_identifier_names_from_expression(&b.test, out);
+                collect_template_reference_names(&b.consequent.nodes, out);
+                if let Some(alt) = &b.alternate {
+                    collect_template_reference_names(&alt.nodes, out);
+                }
+            }
+            TemplateNode::EachBlock(b) => {
+                collect_identifier_names_from_expression(&b.expression, out);
+                if let Some(ctx) = &b.context {
+                    collect_identifier_names_from_expression(ctx, out);
+                }
+                if let Some(key) = &b.key {
+                    collect_identifier_names_from_expression(key, out);
+                }
+                collect_template_reference_names(&b.body.nodes, out);
+                if let Some(fallback) = &b.fallback {
+                    collect_template_reference_names(&fallback.nodes, out);
+                }
+            }
+            TemplateNode::AwaitBlock(b) => {
+                collect_identifier_names_from_expression(&b.expression, out);
+                if let Some(v) = &b.value {
+                    collect_identifier_names_from_expression(v, out);
+                }
+                if let Some(e) = &b.error {
+                    collect_identifier_names_from_expression(e, out);
+                }
+                if let Some(pending) = &b.pending {
+                    collect_template_reference_names(&pending.nodes, out);
+                }
+                if let Some(then) = &b.then {
+                    collect_template_reference_names(&then.nodes, out);
+                }
+                if let Some(catch) = &b.catch {
+                    collect_template_reference_names(&catch.nodes, out);
+                }
+            }
+            TemplateNode::KeyBlock(b) => {
+                collect_identifier_names_from_expression(&b.expression, out);
+                collect_template_reference_names(&b.fragment.nodes, out);
+            }
+            TemplateNode::SnippetBlock(b) => {
+                collect_identifier_names_from_expression(&b.expression, out);
+                for p in &b.parameters {
+                    collect_identifier_names_from_expression(p, out);
+                }
+                collect_template_reference_names(&b.body.nodes, out);
+            }
+            TemplateNode::RegularElement(e) => {
+                collect_attrs(&e.attributes, out);
+                collect_template_reference_names(&e.fragment.nodes, out);
+            }
+            TemplateNode::Component(c) => {
+                collect_attrs(&c.attributes, out);
+                collect_template_reference_names(&c.fragment.nodes, out);
+            }
+            TemplateNode::SvelteComponent(c) => {
+                collect_attrs(&c.attributes, out);
+                collect_identifier_names_from_expression(&c.expression, out);
+                collect_template_reference_names(&c.fragment.nodes, out);
+            }
+            TemplateNode::SvelteElement(e) => {
+                collect_attrs(&e.attributes, out);
+                collect_identifier_names_from_expression(&e.tag, out);
+                collect_template_reference_names(&e.fragment.nodes, out);
+            }
+            TemplateNode::TitleElement(t) => {
+                collect_attrs(&t.attributes, out);
+                collect_template_reference_names(&t.fragment.nodes, out);
+            }
+            TemplateNode::SlotElement(s) => {
+                collect_attrs(&s.attributes, out);
+                collect_template_reference_names(&s.fragment.nodes, out);
+            }
+            TemplateNode::SvelteBody(e)
+            | TemplateNode::SvelteDocument(e)
+            | TemplateNode::SvelteFragment(e)
+            | TemplateNode::SvelteBoundary(e)
+            | TemplateNode::SvelteHead(e)
+            | TemplateNode::SvelteOptions(e)
+            | TemplateNode::SvelteSelf(e)
+            | TemplateNode::SvelteWindow(e) => {
+                collect_attrs(&e.attributes, out);
+                collect_template_reference_names(&e.fragment.nodes, out);
+            }
+            TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
         }
     }
 }

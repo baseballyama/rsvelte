@@ -176,6 +176,15 @@ pub fn transform_server_module(
     // $.effect_root(...) and $.user_effect(...) -> noop (should already be stripped)
     let transformed = post_process_for_server(&transformed);
 
+    // After the server lowering turns `$.get(x)` → `x()` for derived reads,
+    // a `$derived(<bare derived>)` initializer reads as
+    // `$.derived(() => source())`. Collapse it back to `$.derived(source)`,
+    // mirroring the component instance-script path (the server runtime treats
+    // a derived passed directly as a re-callable dependency). Modules went
+    // through the CLIENT module transform, so this server-only pass wasn't
+    // applied there.
+    let transformed = transform_script::unthunk_bare_derived_arg(&transformed);
+
     // Split imports from body
     let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
 
@@ -290,17 +299,39 @@ fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
-    // Replace $effect.root(() => { ... }) with () => {} (a no-op cleanup function)
-    // $effect.root returns a cleanup function, so we need to provide one.
+    // `$effect.root(...)` has two upstream lowerings:
+    //   - statement position  → removed entirely (ExpressionStatement.js → b.empty)
+    //   - expression position  → `() => {}` no-op cleanup fn (CallExpression.js)
     while let Some(pos) = next_code_match(&result, "$effect.root(", 0) {
         let call_start = pos + 13; // after "$effect.root("
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1; // after closing paren
-            let mut new_result = String::with_capacity(pos + 7 + result.len() - expr_end);
-            new_result.push_str(&result[..pos]);
-            new_result.push_str("() => {}");
-            new_result.push_str(&result[expr_end..]);
-            result = new_result;
+            // Statement position when everything from the line start to `pos` is
+            // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
+            let line_start = result[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            let is_statement = result[line_start..pos].chars().all(|c| c.is_whitespace());
+            if is_statement {
+                // Consume trailing whitespace + an optional `;` so no stray
+                // `() => {};` remains (mirrors the $effect.pre removal below).
+                let bytes = result.as_bytes();
+                let mut end = expr_end;
+                while end < result.len() && bytes[end].is_ascii_whitespace() {
+                    end += 1;
+                }
+                if end < result.len() && bytes[end] == b';' {
+                    end += 1;
+                }
+                let mut new_result = String::with_capacity(pos + result.len() - end);
+                new_result.push_str(&result[..pos]);
+                new_result.push_str(&result[end..]);
+                result = new_result;
+            } else {
+                let mut new_result = String::with_capacity(pos + 8 + result.len() - expr_end);
+                new_result.push_str(&result[..pos]);
+                new_result.push_str("() => {}");
+                new_result.push_str(&result[expr_end..]);
+                result = new_result;
+            }
         } else {
             break;
         }
@@ -353,6 +384,118 @@ fn strip_effects_from_source(source: &str) -> String {
     }
 
     result
+}
+
+/// Recompact a state setter value back into a compound assignment.
+///
+/// The shared client module transform lowers `s += 1` (a `$state` compound
+/// assignment) to `$.set(s, $.get(s) + 1)`. On the server, state is a plain
+/// mutable binding, so the upstream `AssignmentExpression` visitor keeps the
+/// original compound operator. By the time `post_process_for_server` reaches
+/// the `$.set` rewrite, the inner `$.get(s)` read has already collapsed to a
+/// bare `s`, so `value` reads `s + 1`. When `value` is exactly
+/// `<signal> <binop> <single-operand>`, fold it back to `s += 1`.
+///
+/// Conservative on purpose: only arithmetic / bitwise operators (logical
+/// `&&`/`||`/`??` are skipped), and the right-hand side must be a single
+/// operand (no top-level binary operator) so there is never a precedence
+/// ambiguity between `s += a + b` and `s = (s + a) + b`.
+fn recompact_compound_set(signal: &str, value: &str) -> Option<String> {
+    if signal.is_empty() || !value.starts_with(signal) {
+        return None;
+    }
+    let after = &value[signal.len()..];
+    // `signal` must be the whole left operand — the next char cannot continue
+    // the identifier (`s.foo`, `state2`) or start a member access (`s.x += 1`
+    // is a member assignment, handled elsewhere).
+    match after.chars().next() {
+        Some(c) if c.is_alphanumeric() || c == '_' || c == '$' || c == '.' => return None,
+        None => return None,
+        _ => {}
+    }
+    let after = after.trim_start();
+    // longest-first so `**`/`<<`/`>>>`/`>>` win over their prefixes
+    const OPS: &[(&str, &str)] = &[
+        (">>>", ">>>="),
+        ("**", "**="),
+        ("<<", "<<="),
+        (">>", ">>="),
+        ("+", "+="),
+        ("-", "-="),
+        ("*", "*="),
+        ("/", "/="),
+        ("%", "%="),
+        ("&", "&="),
+        ("|", "|="),
+        ("^", "^="),
+    ];
+    for (bin, comp) in OPS {
+        let Some(rest) = after.strip_prefix(bin) else {
+            continue;
+        };
+        // Guard against logical / longer operators that share a prefix:
+        // `&&`, `||`, and a stray `>` after `>>` (i.e. `>>>`, already matched).
+        if (*bin == "&" && rest.starts_with('&'))
+            || (*bin == "|" && rest.starts_with('|'))
+            || (*bin == "*" && rest.starts_with('*'))
+            || (*bin == ">>" && rest.starts_with('>'))
+        {
+            continue;
+        }
+        let rhs = rest.trim();
+        if rhs.is_empty() || has_top_level_binary_operator(rhs) {
+            return None;
+        }
+        return Some(format!("{signal} {comp} {rhs}"));
+    }
+    None
+}
+
+/// True if `expr` contains a binary/logical operator at paren/bracket/brace
+/// depth 0 (after skipping leading unary `+`/`-`/`!`/`~`). Used to keep
+/// [`recompact_compound_set`] from folding a multi-operand right-hand side
+/// where operator precedence would make `s += a + b` mean something other than
+/// the original `s = s + a + b`.
+fn has_top_level_binary_operator(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    // Skip a run of leading unary operators (`-x`, `!flag`, `~mask`, `+n`).
+    while i < len && matches!(bytes[i], b'-' | b'+' | b'!' | b'~') {
+        i += 1;
+        while i < len && bytes[i] == b' ' {
+            i += 1;
+        }
+    }
+    let mut depth: i32 = 0;
+    while i < len {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'"' | b'\'' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'<' | b'>' | b'&' | b'|' | b'^' | b'=' | b'?'
+                if depth == 0 =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
 }
 
 /// Post-process client module transform output for server context.
@@ -505,6 +648,25 @@ fn post_process_for_server(source: &str) -> String {
                         format!("{signal}({value})")
                     };
                     result = splice!(result, pos, &replacement, call_start + content_end + 1);
+                } else if derived_names.contains(signal) {
+                    // Assignment to a derived binding becomes a setter call on
+                    // the server: `$.set(value, v)` → `value(v)` (the server
+                    // runtime exposes a writable derived as a callable).
+                    let mut replacement = String::with_capacity(signal.len() + 2 + value.len());
+                    replacement.push_str(signal);
+                    replacement.push('(');
+                    replacement.push_str(value);
+                    replacement.push(')');
+                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
+                } else if let Some(compound) = recompact_compound_set(signal, value) {
+                    // Compound assignment recompaction. The shared client
+                    // transform lowered a state compound assignment `s += 1`
+                    // to `$.set(s, $.get(s) + 1)`; by this point the inner
+                    // `$.get(s)` read already collapsed to `s`, so the value
+                    // reads `s + 1`. The upstream server `AssignmentExpression`
+                    // visitor keeps the original compound operator for a plain
+                    // (server-flat) state binding, so fold it back to `s += 1`.
+                    result = splice!(result, pos, &compound, call_start + content_end + 1);
                 } else {
                     // Simple identifier: assignment form
                     let mut replacement = String::with_capacity(signal.len() + 3 + value.len());
@@ -1648,7 +1810,21 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Find indices of first and last non-whitespace nodes (excluding SSR-invisible elements)
         let first_meaningful_idx = nodes.iter().position(is_ssr_meaningful);
-        let last_meaningful_idx = nodes.iter().rposition(is_ssr_meaningful);
+        // For the *trailing*-whitespace trim, also exclude hoisted const /
+        // declaration / snippet tags: upstream's clean_nodes pulls them out of
+        // `regular` before trimming, so a text node sitting just before a
+        // trailing `{@const}` / `{const …}` / `{#snippet}` is the real last node
+        // and its trailing whitespace must be trimmed (not collapsed to a space).
+        let is_last_meaningful = |n: &&TemplateNode| {
+            is_ssr_meaningful(n)
+                && !matches!(
+                    n,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                )
+        };
+        let last_meaningful_idx = nodes.iter().rposition(is_last_meaningful);
 
         // Check if the root fragment is standalone (only a single RenderTag/Component)
         // to determine if we should skip hydration boundaries

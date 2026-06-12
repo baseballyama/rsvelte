@@ -3400,6 +3400,88 @@ fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) 
     }
 }
 
+/// Decode `\uXXXX`, `\u{X…}` and `\xHH` escape sequences in a string-literal's
+/// raw inner text to their actual characters. Other escapes (`\n`, `\t`, `\'`,
+/// …) and a literal `\\` are left untouched — only the arbitrary-codepoint
+/// escapes are resolved, because those produce plain characters that inline
+/// verbatim wherever the folded value lands (e.g. a known-const string of
+/// bidirectional-control escapes folds to the literal characters, matching
+/// upstream's `scope.evaluate` which returns the cooked value).
+fn decode_unicode_escapes(s: &str) -> String {
+    if !s.contains('\\') {
+        return s.to_string();
+    }
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            match bytes[i + 1] {
+                b'\\' => {
+                    // Literal escaped backslash — keep both bytes, don't reinterpret.
+                    out.push_str("\\\\");
+                    i += 2;
+                    continue;
+                }
+                b'u' if i + 2 < bytes.len() && bytes[i + 2] == b'{' => {
+                    if let Some(close) = s[i + 3..].find('}') {
+                        let hex = &s[i + 3..i + 3 + close];
+                        if let Ok(cp) = u32::from_str_radix(hex, 16)
+                            && let Some(c) = char::from_u32(cp)
+                        {
+                            out.push(c);
+                            i = i + 3 + close + 1;
+                            continue;
+                        }
+                    }
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+                b'u' if i + 6 <= bytes.len() => {
+                    let hex = &s[i + 2..i + 6];
+                    if let Ok(cp) = u32::from_str_radix(hex, 16)
+                        && let Some(c) = char::from_u32(cp)
+                    {
+                        out.push(c);
+                        i += 6;
+                        continue;
+                    }
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+                b'x' if i + 4 <= bytes.len() => {
+                    let hex = &s[i + 2..i + 4];
+                    if let Ok(cp) = u32::from_str_radix(hex, 16)
+                        && let Some(c) = char::from_u32(cp)
+                    {
+                        out.push(c);
+                        i += 4;
+                        continue;
+                    }
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+                _ => {
+                    // Other escapes (`\n`, `\t`, `\'`, …) — leave as-is.
+                    out.push('\\');
+                    i += 1;
+                    continue;
+                }
+            }
+        }
+        let mut next = i + 1;
+        while next < bytes.len() && !s.is_char_boundary(next) {
+            next += 1;
+        }
+        out.push_str(&s[i..next]);
+        i = next;
+    }
+    out
+}
+
 /// Get literal value from an expression if it can be evaluated at compile time.
 ///
 /// Returns:
@@ -3512,6 +3594,21 @@ pub(crate) fn get_literal_value(
                     return None;
                 }
 
+                // A no-arg `$state()` / `$state.raw()` evaluates to `undefined`
+                // (known), so a read of it omits the `?? ""` fallback. Mirrors
+                // upstream scope.js `$state`/`$state.raw` with no argument.
+                // `$state(foo)` is excluded — it records `initial_node_type` — so
+                // it correctly stays unknown.
+                {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                        && binding.initial.is_none()
+                        && binding.initial_node_type.is_none()
+                    {
+                        return Some(None);
+                    }
+                }
+
                 // Check if we have a known initial value (stored as source string)
                 let init = binding.initial.as_ref()?;
                 // Parse simple string literals like 'world' or "world"
@@ -3519,7 +3616,7 @@ pub(crate) fn get_literal_value(
                 let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
                     || (trimmed.starts_with('"') && trimmed.ends_with('"'));
                 if is_string_literal && trimmed.len() >= 2 {
-                    return Some(Some(trimmed[1..trimmed.len() - 1].to_string()));
+                    return Some(Some(decode_unicode_escapes(&trimmed[1..trimmed.len() - 1])));
                 }
                 // Parse number literals
                 if let Ok(n) = trimmed.parse::<f64>() {
@@ -3593,7 +3690,11 @@ pub(crate) fn get_literal_value(
                     }
                 }
             }
-            "LogicalExpression" | "CallExpression" | "BinaryExpression" | "UnaryExpression" => {
+            "LogicalExpression"
+            | "CallExpression"
+            | "BinaryExpression"
+            | "UnaryExpression"
+            | "ConditionalExpression" => {
                 // These complex branches need JSON access for deep traversal
                 let json_value = expr.as_json();
                 let obj = json_value.as_object()?;
@@ -3850,6 +3951,29 @@ fn get_literal_value_complex(
                 },
                 _ => None,
             }
+        }
+        "ConditionalExpression" => {
+            // Fold a ternary when its test folds to a known constant, taking
+            // only the chosen branch (upstream scope.js `ConditionalExpression`
+            // case: evaluate the test; if known, use the matching branch).
+            let test = obj.get("test")?;
+            let test_expr = serde_json::from_value::<Expression>(test.clone()).ok()?;
+            let test_val = get_literal_value(&test_expr, context)?;
+            let truthy = match test_val.as_deref() {
+                None => false, // null / undefined
+                Some("") | Some("false") => false,
+                Some(s) => s
+                    .parse::<f64>()
+                    .map(|n| n != 0.0 && !n.is_nan())
+                    .unwrap_or(true),
+            };
+            let branch = if truthy {
+                obj.get("consequent")?
+            } else {
+                obj.get("alternate")?
+            };
+            let branch_expr = serde_json::from_value::<Expression>(branch.clone()).ok()?;
+            get_literal_value(&branch_expr, context)
         }
         _ => None,
     }
@@ -4890,9 +5014,16 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "ObjectExpression" => {
-            // Check all property values
+            // Check all property values. A spread member (`...rest`) has no
+            // `value` field; upstream's SpreadElement visitor unconditionally
+            // marks the enclosing expression `has_state` (it treats `{...x}`
+            // like `{...x.values()}`), so a spread always makes the object
+            // reactive.
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
+                    if prop.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                        return true;
+                    }
                     if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
                         && has_reactive_state_json(value, context)
                     {
@@ -4936,10 +5067,10 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "SpreadElement" => {
-            if let Some(argument) = obj.get("argument") {
-                return has_reactive_state_json(argument, context);
-            }
-            false
+            // Upstream's SpreadElement analyze visitor unconditionally sets
+            // `has_state = true` (and `has_call = true`) — `[...x]` is treated
+            // like `[...x.values()]`, whose result is unknown at compile time.
+            true
         }
         _ => {
             // Unknown expression type - conservatively assume reactive
@@ -5161,6 +5292,11 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
         "ObjectExpression" => {
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
+                    // A spread member (`...x`) is treated like `...x.values()`:
+                    // upstream's SpreadElement visitor marks `has_call = true`.
+                    if prop.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                        return true;
+                    }
                     if let Some(prop_obj) = prop.as_object() {
                         // Check property value for calls
                         if let Some(value) = prop_obj.get("value")
@@ -5199,10 +5335,9 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "SpreadElement" => {
-            if let Some(argument) = obj.get("argument") {
-                return has_call_json(argument, context);
-            }
-            false
+            // Upstream's SpreadElement visitor unconditionally sets
+            // `has_call = true` (`[...x]` ≡ `[...x.values()]`).
+            true
         }
         "ChainExpression" => {
             if let Some(expression) = obj.get("expression") {
