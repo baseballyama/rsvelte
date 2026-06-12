@@ -95,7 +95,19 @@ impl<'a> ServerCodeGenerator<'a> {
             .iter()
             .filter_map(|attr| {
                 if let Attribute::LetDirective(let_dir) = attr {
-                    Some(let_dir.name.to_string())
+                    let name = let_dir.name.to_string();
+                    // `let:comp={stuff}` renames the slot prop, so emit
+                    // `comp: stuff` (not just `comp`) for the snippet param
+                    // destructure — mirrors the shared `build_slot_fn` path.
+                    let local = match &let_dir.expression {
+                        Some(expr) => expr.name().unwrap_or(&name).to_string(),
+                        None => name.clone(),
+                    };
+                    Some(if local == name {
+                        name
+                    } else {
+                        format!("{}: {}", name, local)
+                    })
                 } else {
                     None
                 }
@@ -211,7 +223,19 @@ impl<'a> ServerCodeGenerator<'a> {
             .iter()
             .filter_map(|attr| {
                 if let Attribute::LetDirective(let_dir) = attr {
-                    Some(let_dir.name.to_string())
+                    let name = let_dir.name.to_string();
+                    // `let:comp={stuff}` renames the slot prop, so emit
+                    // `comp: stuff` (not just `comp`) for the snippet param
+                    // destructure — mirrors the shared `build_slot_fn` path.
+                    let local = match &let_dir.expression {
+                        Some(expr) => expr.name().unwrap_or(&name).to_string(),
+                        None => name.clone(),
+                    };
+                    Some(if local == name {
+                        name
+                    } else {
+                        format!("{}: {}", name, local)
+                    })
                 } else {
                     None
                 }
