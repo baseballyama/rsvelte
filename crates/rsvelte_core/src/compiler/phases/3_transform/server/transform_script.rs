@@ -4926,15 +4926,38 @@ fn line_ends_with_continuation(trimmed: &str) -> bool {
         && !trimmed.ends_with("--")
 }
 
-/// Count bracket depth change for a line (positive = more opens, negative = more closes).
-/// Update `depth` for the curly-brace nesting of a class member body as `line`
-/// is consumed. `{`/`}` that sit inside parentheses/brackets (e.g. a `{}`
-/// default-parameter value in `getTimeline(opts = {}) {`) or inside string /
-/// template literals are ignored, so an object-literal default parameter does
-/// not prematurely close the method block. Returns `true` if `depth` reached 0
-/// on this line (the member body closed). (issue #648)
-fn update_member_brace_depth(line: &str, depth: &mut i32) -> bool {
-    let mut paren: i32 = 0;
+/// Update brace-depth for a class member body as `line` is consumed.
+///
+/// `depth` tracks curly-brace nesting for the method body; `paren` is a
+/// persistent paren-nesting counter carried across lines; `param_brace` tracks
+/// curly braces that were opened *inside* parens (e.g. the `{` of a destructure
+/// parameter `constructor({ a, b }) {`). Together they correctly handle the
+/// multi-line-param case:
+///
+/// ```text
+/// constructor({          // paren=1, { at paren>0 → param_brace=1
+///   svelte_version,      // no change
+/// }) {                   // ) → paren=0, then } at paren=0 but param_brace=1
+///                        //   → this } closes a param-level brace, not the body
+///                        //   → param_brace=0; then { at paren=0, param_brace=0
+///                        //   → body opens → depth=1
+///   this.x = 1;
+/// }                      // depth 1→0 → closed=true
+/// ```
+///
+/// Without the `param_brace` counter the `)` in `}) {` moves `paren` from 1 to 0,
+/// then the `}` (at `paren=0`) is wrongly counted as closing the body (depth −1),
+/// and the body-opening `{` merely brings depth back to 0 — leaving the scanner
+/// stuck at depth=0 forever and swallowing all subsequent class methods.
+///
+/// Returns `true` if `depth` reached 0 on this line (the member body closed).
+/// (issue #648 + multi-line-param fix)
+fn update_member_brace_depth(
+    line: &str,
+    depth: &mut i32,
+    paren: &mut i32,
+    param_brace: &mut i32,
+) -> bool {
     let mut in_str = false;
     let mut str_ch = ' ';
     let mut closed = false;
@@ -4950,13 +4973,22 @@ fn update_member_brace_depth(line: &str, depth: &mut i32) -> bool {
                 in_str = true;
                 str_ch = ch;
             }
-            '(' | '[' => paren += 1,
-            ')' | ']' => paren -= 1,
-            '{' if paren == 0 => *depth += 1,
-            '}' if paren == 0 => {
-                *depth -= 1;
-                if *depth == 0 {
-                    closed = true;
+            '(' | '[' => *paren += 1,
+            ')' | ']' => *paren -= 1,
+            '{' if *paren > 0 => *param_brace += 1,
+            '}' if *paren > 0 => *param_brace -= 1,
+            '{' if *paren == 0 => *depth += 1,
+            '}' if *paren == 0 => {
+                if *param_brace > 0 {
+                    // This `}` closes a brace that was opened inside a param list
+                    // (e.g. the `{...}` destructure in `constructor({a,b}) {`).
+                    // It balances against `param_brace`, NOT the method body.
+                    *param_brace -= 1;
+                } else {
+                    *depth -= 1;
+                    if *depth == 0 {
+                        closed = true;
+                    }
                 }
             }
             _ => {}
@@ -5130,6 +5162,16 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
 
     let mut in_block = false;
     let mut block_depth = 0;
+    // Persistent paren-nesting counter for the current in-block scan. Carried
+    // across lines so that multi-line parameter lists (e.g. `constructor({\n…\n}) {`)
+    // are handled correctly: the `{` that opens the method body sits after the `)` that
+    // closes the params, and the paren tracker must be at 0 at that point.
+    let mut block_paren = 0i32;
+    // Persistent "brace opened inside paren" counter. Tracks `{`/`}` at paren>0 so
+    // that `}` from a destructure parameter (which appears at paren=0 after `)` closes
+    // the param list) is recognised as a param-brace close rather than a body-brace
+    // close. See `update_member_brace_depth` for a detailed explanation.
+    let mut block_param_brace = 0i32;
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_is_arrow_fn = false;
 
@@ -5140,6 +5182,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut derived_field_name = String::new();
     let mut derived_field_is_private = false;
     let mut derived_field_is_by = false;
+
+    // For multiline plain (non-rune) field initializers: accumulate lines until
+    // the bracket depth returns to 0. E.g. `bundler = new Bundler({\n  ...\n})`
+    // where the `{` is inside the initializer and spans multiple lines.
+    let mut in_plain_field = false;
+    let mut plain_field_lines: Vec<String> = Vec::new();
+    let mut plain_field_depth: i32 = 0;
 
     let all_lines: Vec<&str> = class_body.lines().collect();
 
@@ -5237,10 +5286,42 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
+        // Continue accumulating a multiline plain (non-rune) field initializer.
+        // Once the bracket depth returns to 0 the full field text is pushed as a
+        // single Field member so the emitter can write it verbatim.
+        if in_plain_field {
+            plain_field_lines.push(line.to_string());
+            for c in trimmed.chars() {
+                match c {
+                    '(' | '{' | '[' => plain_field_depth += 1,
+                    ')' | '}' | ']' => plain_field_depth -= 1,
+                    _ => {}
+                }
+            }
+            if plain_field_depth <= 0 {
+                in_plain_field = false;
+                // Emit the full multi-line field as a single Field entry whose
+                // text is the source lines joined. The emitter handles it
+                // specially when it sees newlines inside the Field value.
+                let field_text = plain_field_lines.join("\n");
+                members.push(ClassMember::Field(field_text));
+                plain_field_lines.clear();
+                plain_field_depth = 0;
+            }
+            continue;
+        }
+
         if in_block {
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 if block_is_arrow_fn {
                     members.push(ClassMember::ArrowFn(block_lines.clone()));
                 } else {
@@ -5271,10 +5352,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;
+            block_paren = 0;
+            block_param_brace = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 members.push(ClassMember::Method(block_lines.clone()));
                 block_lines.clear();
             }
@@ -5292,10 +5382,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             in_block = true;
             block_is_arrow_fn = true;
             block_depth = 0;
+            block_paren = 0;
+            block_param_brace = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 members.push(ClassMember::ArrowFn(block_lines.clone()));
                 block_lines.clear();
             }
@@ -5325,10 +5424,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;
+            block_paren = 0;
+            block_param_brace = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 members.push(ClassMember::Method(block_lines.clone()));
                 block_lines.clear();
             }
@@ -5436,7 +5544,27 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        members.push(ClassMember::Field(trimmed.to_string()));
+        // Detect multi-line plain (non-rune) field initializers.
+        // If the trimmed line has unbalanced brackets/parens it spans multiple
+        // lines (e.g. `bundler = new Bundler({\n  ...\n})`). Accumulate until
+        // the depth returns to 0 so the full initializer is emitted verbatim
+        // instead of just the first line with a spurious `;` appended.
+        let mut field_bracket_depth: i32 = 0;
+        for c in trimmed.chars() {
+            match c {
+                '(' | '{' | '[' => field_bracket_depth += 1,
+                ')' | '}' | ']' => field_bracket_depth -= 1,
+                _ => {}
+            }
+        }
+        if field_bracket_depth > 0 {
+            in_plain_field = true;
+            plain_field_lines.clear();
+            plain_field_lines.push(line.to_string());
+            plain_field_depth = field_bracket_depth;
+        } else {
+            members.push(ClassMember::Field(trimmed.to_string()));
+        }
     }
 
     // Scan constructor members for $derived/$state assignments
