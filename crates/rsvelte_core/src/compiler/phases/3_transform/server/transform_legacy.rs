@@ -299,6 +299,13 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
         let trimmed = line.trim();
 
         if trimmed.starts_with("export let ") || trimmed.starts_with("export var ") {
+            // Preserve the source declaration keyword (`export var x` stays a
+            // `var` binding; only the initializer is rewritten).
+            let kw = if trimmed.starts_with("export var ") {
+                "var"
+            } else {
+                "let"
+            };
             let rest = &trimmed[11..];
 
             // Split off a trailing comment so it doesn't leak into the
@@ -365,7 +372,7 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
             let declaration = strip_at_top_level_semicolon(&full_declaration);
 
             let had_default = find_assignment_eq(&declaration).is_some();
-            let mut transformed = transform_single_export_let(&declaration);
+            let mut transformed = transform_single_export_let(&declaration, kw);
             // Re-attach the trailing comment. esrap attaches it to the last
             // node of the statement: with a default value that's the value
             // inside the `$.fallback(...)` call (the comment prints before
@@ -417,7 +424,7 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
     result
 }
 
-fn transform_single_export_let(declaration: &str) -> String {
+fn transform_single_export_let(declaration: &str, kw: &str) -> String {
     let mut result = String::new();
 
     // Check if this is a destructured export let pattern
@@ -449,18 +456,18 @@ fn transform_single_export_let(declaration: &str) -> String {
             let transformed_default = if is_store_accessor {
                 // Store accessor: wrap as lazy thunk, will be converted to $.store_get(...) by transform_store_refs_in_script
                 format!(
-                    "let {} = $.fallback($$props['{}'], () => {}, true);",
-                    name, name, default_value
+                    "{} {} = $.fallback($$props['{}'], () => {}, true);",
+                    kw, name, name, default_value
                 )
             } else if is_simple_default_value(default_value) {
                 format!(
-                    "let {} = $.fallback($$props['{}'], {});",
-                    name, name, default_value
+                    "{} {} = $.fallback($$props['{}'], {});",
+                    kw, name, name, default_value
                 )
             } else if let Some(fn_name) = is_no_arg_function_call(default_value) {
                 format!(
-                    "let {} = $.fallback($$props['{}'], {}, true);",
-                    name, name, fn_name
+                    "{} {} = $.fallback($$props['{}'], {}, true);",
+                    kw, name, name, fn_name
                 )
             } else {
                 // Wrap object literals with () to disambiguate from block statements
@@ -471,14 +478,14 @@ fn transform_single_export_let(declaration: &str) -> String {
                     default_value.to_string()
                 };
                 format!(
-                    "let {} = $.fallback($$props['{}'], () => {}, true);",
-                    name, name, wrapped_value
+                    "{} {} = $.fallback($$props['{}'], () => {}, true);",
+                    kw, name, name, wrapped_value
                 )
             };
             result.push_str(&transformed_default);
         } else {
             let name = declarator.trim();
-            let _ = write!(result, "let {} = $$props['{}'];", name, name);
+            let _ = write!(result, "{} {} = $$props['{}'];", kw, name, name);
         }
         result.push('\n');
     }

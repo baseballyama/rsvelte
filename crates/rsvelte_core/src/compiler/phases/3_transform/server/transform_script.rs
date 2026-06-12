@@ -6147,6 +6147,10 @@ fn transform_reexported_prop_declarations(
 
         // Check if this is a `let x = value;` or `let x;` declaration for a reexported prop
         if trimmed.starts_with("let ") || trimmed.starts_with("var ") {
+            // Preserve the original declaration keyword: upstream keeps a
+            // `var`-declared exported binding as `var` (it only rewrites the
+            // initializer to `$.fallback(...)`).
+            let kw = &trimmed[..3]; // "let" or "var"
             let rest = &trimmed[4..]; // skip "let " or "var "
             let rest_trimmed = rest.trim().trim_end_matches(';').trim();
 
@@ -6183,18 +6187,18 @@ fn transform_reexported_prop_declarations(
                     let indent = &line[..line.len() - trimmed.len()];
                     let transformed = if is_simple_default_value(value) {
                         format!(
-                            "{}let {} = $.fallback($$props['{}'], {});",
-                            indent, name, prop_name, value
+                            "{}{} {} = $.fallback($$props['{}'], {});",
+                            indent, kw, name, prop_name, value
                         )
                     } else if let Some(fn_name) = is_no_arg_function_call(value) {
                         format!(
-                            "{}let {} = $.fallback($$props['{}'], {}, true);",
-                            indent, name, prop_name, fn_name
+                            "{}{} {} = $.fallback($$props['{}'], {}, true);",
+                            indent, kw, name, prop_name, fn_name
                         )
                     } else {
                         format!(
-                            "{}let {} = $.fallback($$props['{}'], () => ({}), true);",
-                            indent, name, prop_name, value
+                            "{}{} {} = $.fallback($$props['{}'], () => ({}), true);",
+                            indent, kw, name, prop_name, value
                         )
                     };
                     result.push_str(&transformed);
@@ -6226,11 +6230,11 @@ fn transform_reexported_prop_declarations(
                             {
                                 let _ = write!(
                                     result,
-                                    "{}let {} = $$props['{}'];",
-                                    indent, part_name, prop_name
+                                    "{}{} {} = $$props['{}'];",
+                                    indent, kw, part_name, prop_name
                                 );
                             } else {
-                                let _ = write!(result, "{}let {};", indent, part_name);
+                                let _ = write!(result, "{}{} {};", indent, kw, part_name);
                             }
                             result.push('\n');
                         }
@@ -6240,7 +6244,11 @@ fn transform_reexported_prop_declarations(
                     reexported_props.iter().find(|(local, _)| local == name)
                 {
                     let indent = &line[..line.len() - trimmed.len()];
-                    let _ = write!(result, "{}let {} = $$props['{}'];", indent, name, prop_name);
+                    let _ = write!(
+                        result,
+                        "{}{} {} = $$props['{}'];",
+                        indent, kw, name, prop_name
+                    );
                     result.push('\n');
                     continue;
                 }

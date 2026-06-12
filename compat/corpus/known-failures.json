@@ -1,5 +1,4 @@
 [
-	"svelte.dev/apps/svelte.dev/content/blog/2023-09-20-runes.md/5.svelte.js",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/06-snippet.md/6.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
 	"svelte.dev/apps/svelte.dev/content/examples/12-svg/02-bar-chart/+assets/App.svelte",
@@ -35,8 +34,6 @@
 	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/output.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-precedence/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-in-reactive-declaration-2/App.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/derived-server-memoization/state.svelte.js",
 	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js",
 	"svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte",
@@ -47,6 +44,5 @@
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js",
 	"svelte/packages/svelte/tests/validator/samples/store-runes-conflict/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte"
+	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte"
 ]

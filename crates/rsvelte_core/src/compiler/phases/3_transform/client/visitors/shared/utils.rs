@@ -3400,12 +3400,6 @@ fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) 
     }
 }
 
-/// Get literal value from an expression if it can be evaluated at compile time.
-///
-/// Returns:
-/// - `Some(Some(value))` - expression evaluates to a non-null/undefined string value
-/// - `Some(None)` - expression evaluates to null/undefined (should be omitted)
-/// - `None` - expression cannot be evaluated at compile time
 /// Decode `\uXXXX`, `\u{X…}` and `\xHH` escape sequences in a string-literal's
 /// raw inner text to their actual characters. Other escapes (`\n`, `\t`, `\'`,
 /// …) and a literal `\\` are left untouched — only the arbitrary-codepoint
@@ -3488,6 +3482,12 @@ fn decode_unicode_escapes(s: &str) -> String {
     out
 }
 
+/// Get literal value from an expression if it can be evaluated at compile time.
+///
+/// Returns:
+/// - `Some(Some(value))` - expression evaluates to a non-null/undefined string value
+/// - `Some(None)` - expression evaluates to null/undefined (should be omitted)
+/// - `None` - expression cannot be evaluated at compile time
 pub(crate) fn get_literal_value(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,

@@ -4372,8 +4372,12 @@ fn transform_instance_script_for_visitors(
             return;
         }
 
-        // Handle legacy export let declarations
-        if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
+        // Handle legacy export let declarations (and `export var`, which keeps
+        // its `var` keyword while the initializer becomes `$.prop(...)`).
+        if has_legacy_export_let
+            && (first_line_trimmed.starts_with("export let ")
+                || first_line_trimmed.starts_with("export var "))
+        {
             // Check if this is a destructured export let pattern
             let after_export_let = first_line_trimmed[11..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
@@ -4457,7 +4461,10 @@ fn transform_instance_script_for_visitors(
         // When we have `let a, b, c, d;` and `export { a, c }`, the variables `a` and `c`
         // are marked as BindableProp and need to become `$.prop()` calls.
         // We need to split the multi-declarator `let` statement and transform each declarator.
-        if !analysis.runes && has_legacy_export_let && first_line_trimmed.starts_with("let ") {
+        if !analysis.runes
+            && has_legacy_export_let
+            && (first_line_trimmed.starts_with("let ") || first_line_trimmed.starts_with("var "))
+        {
             // Check if any of the declarators are BindableProp
             if let Some(transformed) = transform_let_with_reexported_props(&statement, analysis) {
                 result.push_str(&transformed);

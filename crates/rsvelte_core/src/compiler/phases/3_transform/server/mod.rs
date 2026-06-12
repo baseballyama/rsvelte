@@ -386,6 +386,118 @@ fn strip_effects_from_source(source: &str) -> String {
     result
 }
 
+/// Recompact a state setter value back into a compound assignment.
+///
+/// The shared client module transform lowers `s += 1` (a `$state` compound
+/// assignment) to `$.set(s, $.get(s) + 1)`. On the server, state is a plain
+/// mutable binding, so the upstream `AssignmentExpression` visitor keeps the
+/// original compound operator. By the time `post_process_for_server` reaches
+/// the `$.set` rewrite, the inner `$.get(s)` read has already collapsed to a
+/// bare `s`, so `value` reads `s + 1`. When `value` is exactly
+/// `<signal> <binop> <single-operand>`, fold it back to `s += 1`.
+///
+/// Conservative on purpose: only arithmetic / bitwise operators (logical
+/// `&&`/`||`/`??` are skipped), and the right-hand side must be a single
+/// operand (no top-level binary operator) so there is never a precedence
+/// ambiguity between `s += a + b` and `s = (s + a) + b`.
+fn recompact_compound_set(signal: &str, value: &str) -> Option<String> {
+    if signal.is_empty() || !value.starts_with(signal) {
+        return None;
+    }
+    let after = &value[signal.len()..];
+    // `signal` must be the whole left operand — the next char cannot continue
+    // the identifier (`s.foo`, `state2`) or start a member access (`s.x += 1`
+    // is a member assignment, handled elsewhere).
+    match after.chars().next() {
+        Some(c) if c.is_alphanumeric() || c == '_' || c == '$' || c == '.' => return None,
+        None => return None,
+        _ => {}
+    }
+    let after = after.trim_start();
+    // longest-first so `**`/`<<`/`>>>`/`>>` win over their prefixes
+    const OPS: &[(&str, &str)] = &[
+        (">>>", ">>>="),
+        ("**", "**="),
+        ("<<", "<<="),
+        (">>", ">>="),
+        ("+", "+="),
+        ("-", "-="),
+        ("*", "*="),
+        ("/", "/="),
+        ("%", "%="),
+        ("&", "&="),
+        ("|", "|="),
+        ("^", "^="),
+    ];
+    for (bin, comp) in OPS {
+        let Some(rest) = after.strip_prefix(bin) else {
+            continue;
+        };
+        // Guard against logical / longer operators that share a prefix:
+        // `&&`, `||`, and a stray `>` after `>>` (i.e. `>>>`, already matched).
+        if (*bin == "&" && rest.starts_with('&'))
+            || (*bin == "|" && rest.starts_with('|'))
+            || (*bin == "*" && rest.starts_with('*'))
+            || (*bin == ">>" && rest.starts_with('>'))
+        {
+            continue;
+        }
+        let rhs = rest.trim();
+        if rhs.is_empty() || has_top_level_binary_operator(rhs) {
+            return None;
+        }
+        return Some(format!("{signal} {comp} {rhs}"));
+    }
+    None
+}
+
+/// True if `expr` contains a binary/logical operator at paren/bracket/brace
+/// depth 0 (after skipping leading unary `+`/`-`/`!`/`~`). Used to keep
+/// [`recompact_compound_set`] from folding a multi-operand right-hand side
+/// where operator precedence would make `s += a + b` mean something other than
+/// the original `s = s + a + b`.
+fn has_top_level_binary_operator(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    // Skip a run of leading unary operators (`-x`, `!flag`, `~mask`, `+n`).
+    while i < len && matches!(bytes[i], b'-' | b'+' | b'!' | b'~') {
+        i += 1;
+        while i < len && bytes[i] == b' ' {
+            i += 1;
+        }
+    }
+    let mut depth: i32 = 0;
+    while i < len {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'"' | b'\'' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'<' | b'>' | b'&' | b'|' | b'^' | b'=' | b'?'
+                if depth == 0 =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Post-process client module transform output for server context.
 /// Replaces client-specific runtime calls with server equivalents.
 fn post_process_for_server(source: &str) -> String {
@@ -546,6 +658,15 @@ fn post_process_for_server(source: &str) -> String {
                     replacement.push_str(value);
                     replacement.push(')');
                     result = splice!(result, pos, &replacement, call_start + content_end + 1);
+                } else if let Some(compound) = recompact_compound_set(signal, value) {
+                    // Compound assignment recompaction. The shared client
+                    // transform lowered a state compound assignment `s += 1`
+                    // to `$.set(s, $.get(s) + 1)`; by this point the inner
+                    // `$.get(s)` read already collapsed to `s`, so the value
+                    // reads `s + 1`. The upstream server `AssignmentExpression`
+                    // visitor keeps the original compound operator for a plain
+                    // (server-flat) state binding, so fold it back to `s += 1`.
+                    result = splice!(result, pos, &compound, call_start + content_end + 1);
                 } else {
                     // Simple identifier: assignment form
                     let mut replacement = String::with_capacity(signal.len() + 3 + value.len());

@@ -5074,6 +5074,20 @@ fn convert_assignment_target(
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
             convert_array_assignment_target(arena, arr_target, offset, line_offsets)
         }
+        AssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — mirror the simple-target arm so the
+            // `this.#field` MemberExpression is visited in 2-analyze.
+            let start = offset + member.span.start as usize - 1;
+            let end = offset + member.span.end as usize - 1;
+            expr_to_node(create_private_member_expression(
+                arena,
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
+        }
         _ => {
             // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
@@ -5158,6 +5172,22 @@ fn convert_simple_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_computed_member_expression(
+                arena,
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
+        }
+        SimpleAssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — without this arm it falls to `JsNode::Null`,
+            // so 2-analyze never visits the `this.#field` MemberExpression and
+            // `is_safe_identifier` can't flag it, leaving `needs_context` unset
+            // (no `$.push`/`$.pop`). Mirror the program-path arm.
+            let start = offset + member.span.start as usize - 1;
+            let end = offset + member.span.end as usize - 1;
+            expr_to_node(create_private_member_expression(
                 arena,
                 member,
                 start,
@@ -9267,6 +9297,33 @@ fn convert_assignment_target_for_program(
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
             convert_array_assignment_target_for_program(arena, arr_target, offset, line_offsets),
         ),
+        AssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS in a function-body statement (program
+            // context). Without this arm it falls to `JsNode::Null`, so the
+            // `this.#field` MemberExpression is never visited in 2-analyze and
+            // `needs_context` stays unset (no `$.push`/`$.pop`) — e.g. a class
+            // constructor reassigning a private field.
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
+                optional: member.optional,
+            }
+        }
         _ => {
             // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
