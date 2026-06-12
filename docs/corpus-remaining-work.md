@@ -5,10 +5,29 @@ Status as of 2026-06-12 (branch `feat/corpus-burndown`, Svelte 5.56.3):
 | metric | count |
 |---|---|
 | corpus entries (CSR + SSR both compiled & compared) | 6,409 |
-| match (identical after normalization) | 5,469 |
+| match (identical after normalization) | 5,475 |
 | error parity (official rejects, rsvelte rejects with the SAME code) | 890 |
-| **known failures (baseline)** | **50** (was 125) |
+| **known failures (baseline)** | **44** (was 125) |
 | error-presence / error-code mismatches | 0 |
+
+**Burn-down 50 → 44 (latest session, 6 ids).** All byte-exact suites stayed
+green; corpus showed no regressions at each step. Fixes:
+- Server compound-assignment recompaction: `$.set(s, s + 1)` (the collapsed
+  form of a `$state` `s += 1`) folds back to `s += 1` in
+  `post_process_for_server` (single-operand RHS only). [derived-server-memoization, runes.md blog block]
+- `var`-declared exported props keep their `var` keyword on client and server
+  (`export var g`, re-exported `var d`). [unreferenced-variables]
+- `this.#field = …` LHS now converts to a `MemberExpression` (was
+  `JsNode::Null`) in all three assignment-target converters, so a private
+  field write in a class constructor is visited in 2-analyze and sets
+  `needs_context` → `$.push`/`$.pop` emitted (client half of reassign-derived;
+  server still needs class-field deconfliction).
+- Store-unsub wrap on a destructuring reactive assignment
+  (`$: ({ store } = container)`). [store-auto-subscribe-in-reactive-declaration-2]
+- SSR trailing-whitespace trim before a hoisted `{@const}`/`{const …}`/`{#snippet}`
+  (`generate_component`'s `last_meaningful_idx` excludes them). [declaration-tag-maybe-runes]
+- `$$index` post-order numbering recurses into `<svelte:fragment>` so each
+  blocks in a component slot match upstream outer/inner naming. [unreferenced-variables-each]
 
 **Burn-down 68 → 50 (latest session, 18 ids).** All byte-exact suites
 (runtime/ssr/compiler_fixtures/css) stayed green throughout. Fixes:
