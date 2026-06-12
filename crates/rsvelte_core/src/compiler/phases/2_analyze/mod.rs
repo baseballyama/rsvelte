@@ -4018,6 +4018,13 @@ fn assign_each_block_indices_in_node(
         TemplateNode::SlotElement(slot) => {
             assign_each_block_indices_in_fragment(&mut slot.fragment, index_counter);
         }
+        TemplateNode::SvelteFragment(frag) => {
+            // `<svelte:fragment>` wraps a fragment; without recursing here the
+            // post-order `$$index` numbering never reaches each blocks nested
+            // inside a component slot, so the transform falls back to its own
+            // pre-order naming (reversed from upstream).
+            assign_each_block_indices_in_fragment(&mut frag.fragment, index_counter);
+        }
         TemplateNode::SvelteBoundary(boundary) => {
             assign_each_block_indices_in_fragment(&mut boundary.fragment, index_counter);
         }
