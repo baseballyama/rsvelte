@@ -1,5 +1,4 @@
 [
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/06-snippet.md/6.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/04-advanced-bindings/03-media-elements/+assets/app-a/src/lib/AudioPlayer.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/04-advanced-bindings/06-component-bindings/+assets/app-a/src/lib/App.svelte",
@@ -14,7 +13,6 @@
 	"svelte.dev/packages/repl/src/lib/Output/AstView.svelte",
 	"svelte.dev/packages/repl/src/lib/Output/Viewer.svelte",
 	"svelte.dev/packages/repl/src/lib/Workspace.svelte.ts",
-	"svelte/documentation/docs/03-template-syntax/06-snippet.md/6.svelte",
 	"svelte/documentation/docs/99-legacy/02-legacy-reactive-assignments.md/1.svelte",
 	"svelte/packages/svelte/tests/manual/each-stress-test/main.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/jsdoc-with-comments/input.svelte",
