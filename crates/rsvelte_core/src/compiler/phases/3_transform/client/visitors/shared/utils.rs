@@ -3505,6 +3505,34 @@ pub(crate) fn get_literal_value(
     {
         let expr_type = expr.node_type()?;
 
+        // Upstream `build_template_chunk` memoizes the expression FIRST
+        // (`memoizer.add` replaces any `has_call` / `has_await` chunk with an
+        // opaque `$N` identifier) and only THEN runs `scope.evaluate` on the
+        // result. An opaque identifier never evaluates to a known constant, so a
+        // chunk that contains a (non-pure) call is ALWAYS kept reactive — even
+        // when its branches would otherwise fold to a literal (e.g.
+        // `duration ? format(duration) : '--:--'` with `duration === 0`). Mirror
+        // that ordering here by refusing to fold any expression whose
+        // `has_call` flag is set, so the chunk falls through to memoization.
+        // This subsumes the per-`Math.*` state-arg guard below.
+        if matches!(
+            expr_type,
+            "CallExpression"
+                | "BinaryExpression"
+                | "LogicalExpression"
+                | "ConditionalExpression"
+                | "UnaryExpression"
+                | "TemplateLiteral"
+                | "MemberExpression"
+                | "SequenceExpression"
+                | "ChainExpression"
+        ) {
+            let jv = expr.as_json();
+            if has_call_json(jv, context) {
+                return None;
+            }
+        }
+
         match expr_type {
             "Literal" => {
                 let node = expr.as_node();
@@ -3779,6 +3807,26 @@ pub(crate) fn get_literal_value(
     }
 }
 
+/// Format an `f64` the way JS `String(n)` would for a known constant fold:
+/// `NaN`, `Infinity`, `-Infinity`, an integer with no decimal point, or the
+/// shortest float representation. Mirrors the value upstream's `scope.evaluate`
+/// stringifies into the template quasi when folding an arithmetic chunk.
+fn format_js_number(n: f64) -> String {
+    if n.is_nan() {
+        "NaN".to_string()
+    } else if n.is_infinite() {
+        if n > 0.0 {
+            "Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        }
+    } else if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
+        format!("{}", n as i64)
+    } else {
+        n.to_string()
+    }
+}
+
 /// Handle complex expression types for get_literal_value that need JSON access.
 fn get_literal_value_complex(
     expr_type: &str,
@@ -3831,19 +3879,12 @@ fn get_literal_value_complex(
                 if obj_type == "Identifier" && obj_name == "Math" {
                     let args = obj.get("arguments").and_then(|a| a.as_array())?;
 
-                    // Do not fold Math.*(…) at compile time if any argument references a
-                    // State or RawState binding.  Such variables are runtime-reactive even
-                    // when their initial value is a literal (e.g. `let y = $state(0)` can
-                    // be updated by `bind:scrollY={y}`).  Upstream's Phase-2 analysis adds
-                    // every binding to `expression.dependencies`, so `dependencies.size > 0`
-                    // sets `has_call = true`, preventing the static fold.  Matching that
-                    // behaviour here keeps the call expression reactive (memoized as `$0`).
-                    if args
-                        .iter()
-                        .any(|arg| arg_contains_state_or_raw_state_binding(arg, context))
-                    {
-                        return None;
-                    }
+                    // NOTE: a `Math.*(…)` whose argument references a runtime-reactive
+                    // State/RawState binding has already been rejected by the top-level
+                    // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
+                    // adds every binding reference to `expression.dependencies`, so a
+                    // pure-callee call with such an argument still gets `has_call = true`).
+                    // Only genuinely-constant argument folds reach this point.
 
                     // Evaluate all arguments
                     let mut arg_values: Vec<f64> = Vec::new();
@@ -3933,46 +3974,17 @@ fn get_literal_value_complex(
                     ">" => Some(format!("{}", l > r)),
                     "<=" => Some(format!("{}", l <= r)),
                     ">=" => Some(format!("{}", l >= r)),
-                    "+" => {
-                        let res = l + r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
+                    "+" => Some(format_js_number(l + r)),
+                    "-" => Some(format_js_number(l - r)),
+                    "*" => Some(format_js_number(l * r)),
+                    "/" => {
+                        // JS division never throws: `0/0` → NaN, `x/0` → ±Infinity.
+                        // Mirror upstream `binary['/'](a, b)` (plain JS `/`), which
+                        // returns a *known* number (NaN/Infinity) so the chunk folds
+                        // to that literal string instead of staying reactive.
+                        Some(format_js_number(l / r))
                     }
-                    "-" => {
-                        let res = l - r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
-                    "*" => {
-                        let res = l * r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
-                    "/" if r != 0.0 => {
-                        let res = l / r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
-                    "%" if r != 0.0 => {
-                        let res = l % r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
+                    "%" => Some(format_js_number(l % r)),
                     _ => None,
                 };
                 return result.map(Some);
