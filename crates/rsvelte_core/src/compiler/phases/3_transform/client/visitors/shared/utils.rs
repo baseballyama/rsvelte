@@ -3831,6 +3831,20 @@ fn get_literal_value_complex(
                 if obj_type == "Identifier" && obj_name == "Math" {
                     let args = obj.get("arguments").and_then(|a| a.as_array())?;
 
+                    // Do not fold Math.*(…) at compile time if any argument references a
+                    // State or RawState binding.  Such variables are runtime-reactive even
+                    // when their initial value is a literal (e.g. `let y = $state(0)` can
+                    // be updated by `bind:scrollY={y}`).  Upstream's Phase-2 analysis adds
+                    // every binding to `expression.dependencies`, so `dependencies.size > 0`
+                    // sets `has_call = true`, preventing the static fold.  Matching that
+                    // behaviour here keeps the call expression reactive (memoized as `$0`).
+                    if args
+                        .iter()
+                        .any(|arg| arg_contains_state_or_raw_state_binding(arg, context))
+                    {
+                        return None;
+                    }
+
                     // Evaluate all arguments
                     let mut arg_values: Vec<f64> = Vec::new();
                     for arg in args {
@@ -5283,6 +5297,57 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
     }
 }
 
+/// Returns true if the JSON expression tree contains any Identifier that resolves to
+/// a `State` or `RawState` binding.
+///
+/// Used by `get_literal_value_complex` and `has_call_json` to prevent compile-time
+/// folding of calls like `Math.round(y)` where `y = $state(0)`.  Although the binding
+/// has a known literal initial value, it is runtime-reactive (e.g. updated via
+/// `bind:scrollY={y}`).  Upstream avoids the fold because Phase-2 adds every binding
+/// to `expression.dependencies`, so `dependencies.size > 0` → `has_call = true`.
+fn arg_contains_state_or_raw_state_binding(
+    json_value: &serde_json::Value,
+    context: &ComponentContext,
+) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                return context.state.get_binding(name).is_some_and(|b| {
+                    matches!(
+                        b.kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::State
+                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::RawState
+                    )
+                });
+            }
+            false
+        }
+        _ => {
+            // Recursively walk all JSON children.
+            for (_key, val) in obj {
+                if val.is_object() && arg_contains_state_or_raw_state_binding(val, context) {
+                    return true;
+                }
+                if let Some(arr) = val.as_array() {
+                    for item in arr {
+                        if arg_contains_state_or_raw_state_binding(item, context) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+    }
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// Returns true for calls that have reactive dependencies, matching the official Svelte compiler
 /// behavior from CallExpression.js:
@@ -5314,7 +5379,13 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
                 return true;
             }
             // Even for pure callees, reactive dependencies in arguments make has_call true.
+            // This includes State/RawState bindings even when their initial is a known literal,
+            // because they are runtime-reactive (can change via bindings/effects at runtime).
+            // Corresponds to upstream's `context.state.expression.dependencies.size > 0` check:
+            // Phase-2 adds every binding reference to `dependencies`, so a pure call whose
+            // argument is a $state variable still gets has_call=true upstream.
             has_reactive_state_json(json_value, context)
+                || arg_contains_state_or_raw_state_binding(json_value, context)
         }
         "MemberExpression" => {
             if let Some(object) = obj.get("object")
