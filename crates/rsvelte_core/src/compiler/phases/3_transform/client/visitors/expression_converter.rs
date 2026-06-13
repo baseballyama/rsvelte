@@ -3774,6 +3774,11 @@ fn convert_block_statement(
     // `context` is mutably borrowed in the loop below.
     let analysis = context.state.analysis;
     let source = analysis.source.as_str();
+
+    // Save the shadow set at block entry; restore at exit so that names
+    // declared inside this block do not leak into the enclosing scope.
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
+
     let body = obj
         .get("body")
         .and_then(|b| b.as_array())
@@ -3799,6 +3804,9 @@ fn convert_block_statement(
                 if let Some(converted) = convert_statement(stmt, context) {
                     body.push(converted);
                 }
+                // After each statement is processed, register any variable names
+                // it declares so that subsequent statements see them as shadowed.
+                register_block_decl_names_json(stmt, context);
                 if stmt_end.is_some() {
                     prev_end = stmt_end;
                 }
@@ -3807,7 +3815,34 @@ fn convert_block_statement(
         })
         .unwrap_or_default();
 
+    // Restore the shadow set to its state before this block was entered.
+    context.state.shadowed_prop_names = saved_shadowed;
+
     JsBlockStatement { body }
+}
+
+/// Add the top-level variable-declaration names from a JSON statement value to
+/// `shadowed_prop_names` so that subsequent statements in the same block do not
+/// rewrite those names as `$$props.name`.
+fn register_block_decl_names_json(stmt: &Value, context: &mut ComponentContext) {
+    let Some(obj) = stmt.as_object() else { return };
+    if obj.get("type").and_then(|t| t.as_str()) != Some("VariableDeclaration") {
+        return;
+    }
+    let Some(decls) = obj.get("declarations").and_then(|d| d.as_array()) else {
+        return;
+    };
+    for decl in decls {
+        if let Some(name) = decl
+            .as_object()
+            .and_then(|d| d.get("id"))
+            .and_then(|id| id.as_object())
+            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+        {
+            context.state.shadowed_prop_names.insert(name.to_string());
+        }
+    }
 }
 
 /// Find where to start scanning for own-line leading comments above the FIRST
@@ -5882,6 +5917,13 @@ fn convert_block_statement_from_jsnode(
     let analysis = context.state.analysis;
     let source = analysis.source.as_str();
     let children: Vec<&JsNode> = pa.get_js_children(*body_range).iter().collect();
+
+    // Save the current set of shadowed prop names at block entry so we can
+    // restore it at block exit. As we encounter variable declarations inside
+    // the block we add their declared names progressively so that subsequent
+    // statements (and nested blocks) don't rewrite them as `$$props.name`.
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
+
     let mut body: Vec<JsStatement> = Vec::with_capacity(children.len());
     let mut prev_end: Option<usize> = None;
     for child in &children {
@@ -5892,11 +5934,86 @@ fn convert_block_statement_from_jsnode(
         if let Some(converted) = convert_statement_from_jsnode(child, context) {
             body.push(converted);
         }
+        // After processing each statement, add any newly-declared variable names
+        // to the shadow set so they are visible to subsequent statements.
+        register_block_decl_names_jsnode(child, pa, context);
         if let Some(end) = child.end().map(|e| e as usize) {
             prev_end = Some(end);
         }
     }
+
+    // Restore the shadow set to its state before this block was entered.
+    context.state.shadowed_prop_names = saved_shadowed;
+
     JsBlockStatement { body }
+}
+
+/// Add the top-level variable-declaration names from a JsNode statement to
+/// `shadowed_prop_names`.  Only simple `Identifier` lhs patterns are handled;
+/// destructuring patterns are ignored (they rarely shadow a prop name and the
+/// code is cleaner without the extra complexity).
+fn register_block_decl_names_jsnode(
+    node: &JsNode,
+    pa: &ParseArena,
+    context: &mut ComponentContext,
+) {
+    let names: Vec<String> = match node {
+        JsNode::VariableDeclaration { declarations, .. } => pa
+            .get_js_children(*declarations)
+            .iter()
+            .filter_map(|d| match d {
+                JsNode::VariableDeclarator { id, .. } => match pa.get_js_node(*id) {
+                    JsNode::Identifier { name, .. } => Some(name.to_string()),
+                    JsNode::Raw(v) => v
+                        .as_object()
+                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                        .map(|n| n.to_string()),
+                    _ => None,
+                },
+                JsNode::Raw(v) => v
+                    .as_object()
+                    .and_then(|o| o.get("id"))
+                    .and_then(|id| id.as_object())
+                    .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                    .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                    .map(|n| n.to_string()),
+                _ => None,
+            })
+            .collect(),
+        JsNode::Raw(v) => {
+            if v.as_object()
+                .and_then(|o| o.get("type").and_then(|t| t.as_str()))
+                == Some("VariableDeclaration")
+            {
+                v.as_object()
+                    .and_then(|o| o.get("declarations"))
+                    .and_then(|d| d.as_array())
+                    .map(|decls| {
+                        decls
+                            .iter()
+                            .filter_map(|decl| {
+                                decl.as_object()
+                                    .and_then(|d| d.get("id"))
+                                    .and_then(|id| id.as_object())
+                                    .filter(|o| {
+                                        o.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                                    })
+                                    .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                                    .map(|n| n.to_string())
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            }
+        }
+        _ => vec![],
+    };
+    for name in names {
+        context.state.shadowed_prop_names.insert(name);
+    }
 }
 
 /// Convert a single statement from a JsNode.

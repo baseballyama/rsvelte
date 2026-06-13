@@ -1648,8 +1648,16 @@ fn apply_transforms_to_statement_with_shadowed(
         }),
 
         JsStatement::Block(block) => {
-            let transformed_body: Vec<JsStatement> =
-                block.body.iter().map(transform_stmt).collect();
+            // Create a new scope with block-local variable declarations so that
+            // locally-declared names (e.g. `const children = ...`) shadow outer
+            // transforms and are not rewritten to `$$props.children`.
+            let mut block_scope = local_scope.clone();
+            register_block_local_vars(&block.body, &context.arena, &mut block_scope);
+            let transformed_body: Vec<JsStatement> = block
+                .body
+                .iter()
+                .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
+                .collect();
             JsStatement::Block(JsBlockStatement {
                 body: transformed_body,
             })

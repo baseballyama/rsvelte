@@ -3343,14 +3343,24 @@ pub(crate) fn transform_module_script_runes(
     // In module scripts, declarations and assignments coexist, so we need to
     // process non-declaration lines separately.
     if !reactive_module_state_vars.is_empty() {
-        // Collect derived vars (these should NOT get proxy flag in $.set())
+        // Collect no-proxy vars (these should NOT get proxy flag in $.set())
         // The official Svelte compiler skips the proxy flag for derived, raw_state,
         // prop, bindable_prop, and store_sub bindings (AssignmentExpression.js L136-141).
-        let derived_vars: Vec<String> = module_state_vars_with_const
+        // This includes: $derived vars (is_state=false) AND $state.raw vars (BindingKind::RawState).
+        let mut derived_vars: Vec<String> = module_state_vars_with_const
             .iter()
             .filter(|(_, _, is_state)| !is_state) // is_state=false means $derived
             .map(|(name, _, _)| name.clone())
             .collect();
+        // Also add $state.raw vars from bindings — they never use the proxy flag.
+        for (name, &binding_idx) in &analysis.root.scope.declarations {
+            if let Some(b) = analysis.root.bindings.get(binding_idx)
+                && matches!(b.kind, BindingKind::RawState)
+                && !derived_vars.contains(name)
+            {
+                derived_vars.push(name.clone());
+            }
+        }
 
         // Whole-script AST pass for assignment transforms. The
         // three helpers (simple / compound / update) visit
