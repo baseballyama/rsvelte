@@ -5281,12 +5281,69 @@ fn transform_instance_script_for_visitors(
 ///
 /// Transforms `=> (expr)` to `=> expr` when `expr` is not an object literal `{...}`.
 /// This matches the official Svelte compiler behavior where esrap strips redundant parens.
+///
+/// All non-ASCII (multibyte UTF-8) content is preserved verbatim via range slicing —
+/// bytes are only used for ASCII pattern detection, never for character-by-character copying.
 fn strip_unnecessary_arrow_body_parens(code: &str) -> String {
     let bytes = code.as_bytes();
     let mut result = String::with_capacity(code.len());
     let mut i = 0;
 
     while i < bytes.len() {
+        // Skip string/template literals: their content must not be modified.
+        // Arrow patterns inside template literal raw segments are string values, not JS code.
+        // Use range slicing (&code[start..end]) so multibyte UTF-8 chars are copied intact.
+        if bytes[i] == b'\'' || bytes[i] == b'"' {
+            let quote = bytes[i];
+            let lit_start = i;
+            i += 1; // skip opening quote
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2; // skip escaped char (always ASCII in escape sequences)
+                } else if bytes[i] == quote {
+                    i += 1; // include closing quote
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+            result.push_str(&code[lit_start..i]);
+            continue;
+        }
+        // Skip template literals completely (raw segments and ${} interpolations alike).
+        // Arrow patterns inside a template literal are raw string data — not JS code — so
+        // paren-stripping must not touch them.  ${} interpolations inside the template
+        // are not processed by this pass either; they receive the correct generated form
+        // from the upstream code-gen and do not need paren-stripping.
+        if bytes[i] == b'`' {
+            let lit_start = i;
+            i += 1; // skip opening backtick
+            let mut tpl_depth: u32 = 0; // nesting depth of ${} interpolations
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2; // skip escaped char
+                    continue;
+                }
+                if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    tpl_depth += 1;
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == b'}' && tpl_depth > 0 {
+                    tpl_depth -= 1;
+                    i += 1;
+                    continue;
+                }
+                if bytes[i] == b'`' && tpl_depth == 0 {
+                    i += 1; // include closing backtick
+                    break;
+                }
+                i += 1;
+            }
+            result.push_str(&code[lit_start..i]);
+            continue;
+        }
+
         // Look for "=> (" or "=>(" patterns (with or without space)
         let (matched, paren_start, match_len) = if i + 4 <= bytes.len()
             && bytes[i] == b'='
@@ -5343,8 +5400,12 @@ fn strip_unnecessary_arrow_body_parens(code: &str) -> String {
                 }
             }
         }
-        result.push(bytes[i] as char);
-        i += 1;
+        // Copy one byte (always ASCII at this point: multibyte chars are handled by the
+        // string/template-literal branches above, and the pattern characters => ( are ASCII).
+        // However, to be safe against any non-ASCII byte reaching here, use a char-aware copy.
+        let ch_len = code[i..].chars().next().map_or(1, |c| c.len_utf8());
+        result.push_str(&code[i..i + ch_len]);
+        i += ch_len;
     }
     result
 }

@@ -4782,9 +4782,14 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit an await block.
     fn visit_await_block(&mut self, block: &AwaitBlock) {
-        // Pending doesn't create a scope
+        // Pending creates a child scope (mirrors upstream: Fragment visitor always creates child scope)
         if let Some(ref pending) = block.pending {
+            let old_scope = self.push_scope();
+            // Map block.start to the pending scope so Phase 2 analysis can switch to it
+            self.template_scope_map
+                .insert(block.start, self.current_scope);
             self.visit_fragment(pending);
+            self.pop_scope(old_scope);
         }
 
         // Then creates a scope for the value
