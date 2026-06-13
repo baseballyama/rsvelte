@@ -2463,11 +2463,23 @@ impl<'a> ServerCodeGenerator<'a> {
                     in_const_region = true; // After a const, we're still in const region
                 }
                 OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
-                    if in_const_region && html.trim().is_empty() {
-                        // Skip whitespace-only Html between/after ConstDeclarations
+                    if in_const_region && html.trim().is_empty() && !html.is_empty() {
+                        // Skip whitespace-only NON-EMPTY Html parts (spaces/newlines)
+                        // between/after ConstDeclarations — these are inter-declaration
+                        // whitespace that the official compiler never emits (ConstTag goes
+                        // to state.init, whitespace between/around it is trimmed by
+                        // clean_nodes before process_children runs).
+                        //
+                        // An empty `Html("")` (from an expression tag that evaluated to
+                        // the empty string, e.g. `{x}` where `x = $state("")`) is NOT
+                        // stripped: it represents real template output (even if empty)
+                        // and exits the const region so that whitespace following it
+                        // (e.g. the space between `{x}` and the next element) is
+                        // preserved rather than incorrectly stripped.
+                        //
                         // Don't add to rest - it gets discarded
                     } else {
-                        in_const_region = false; // Real HTML content, leave const region
+                        in_const_region = false; // Real HTML content (or empty expr), leave const region
                         rest.push(part.clone());
                     }
                 }

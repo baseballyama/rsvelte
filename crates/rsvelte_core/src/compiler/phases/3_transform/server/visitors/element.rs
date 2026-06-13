@@ -851,10 +851,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 self.generate_node(child, false)?;
-                // Snippet blocks and debug tags are hoisted/transparent and don't produce inline output
+                // Snippet blocks, debug tags, const tags, and declaration tags are
+                // hoisted/transparent and don't produce inline output, so they must
+                // not advance the "has real content" cursor — otherwise the
+                // whitespace text that follows them inside an element body would be
+                // suppressed as "leading" whitespace.
                 if !matches!(
                     child,
-                    TemplateNode::SnippetBlock(_) | TemplateNode::DebugTag(_)
+                    TemplateNode::SnippetBlock(_)
+                        | TemplateNode::DebugTag(_)
+                        | TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
                 ) {
                     has_output_content = true;
                     is_first_content = false;
