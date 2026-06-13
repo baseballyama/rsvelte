@@ -4458,12 +4458,38 @@ fn transform_instance_script_for_visitors(
 
         // Handle legacy export let declarations (and `export var`, which keeps
         // its `var` keyword while the initializer becomes `$.prop(...)`).
+        // The first line may be a block-comment line (e.g. `/**` or `/*...*/
+        // export let`), so we also check the statement text after stripping
+        // any leading block comments.
+        let effective_export_kw_line = {
+            let mut s = first_line_trimmed;
+            while s.starts_with("/*") {
+                if let Some(end) = s.find("*/") {
+                    s = s[end + 2..].trim_start();
+                } else {
+                    // Unclosed block comment — scan across accumulated lines
+                    let full = statement.as_str();
+                    let mut t: &str = full.trim();
+                    while t.starts_with("/*") {
+                        if let Some(e) = t.find("*/") {
+                            t = t[e + 2..].trim_start();
+                        } else {
+                            t = "";
+                            break;
+                        }
+                    }
+                    s = t;
+                    break;
+                }
+            }
+            s
+        };
         if has_legacy_export_let
-            && (first_line_trimmed.starts_with("export let ")
-                || first_line_trimmed.starts_with("export var "))
+            && (effective_export_kw_line.starts_with("export let ")
+                || effective_export_kw_line.starts_with("export var "))
         {
             // Check if this is a destructured export let pattern
-            let after_export_let = first_line_trimmed[11..].trim();
+            let after_export_let = effective_export_kw_line[11..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
                 // Destructured export let: flatten using extract_paths pattern
                 if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
