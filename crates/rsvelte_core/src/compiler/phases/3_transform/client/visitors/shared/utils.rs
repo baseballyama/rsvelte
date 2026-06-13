@@ -5904,15 +5904,58 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         }
 
         "ConditionalExpression" => {
-            // All three parts must be known
-            if let (Some(test), Some(consequent), Some(alternate)) =
+            // Port of upstream scope.js ConditionalExpression case (lines 374-393):
+            //
+            // If the test evaluates to a known constant, prune to only the taken
+            // branch — e.g. `pin ? pin.replace(…) : 'enter your pin'` where
+            // `pin = $state('')` (non-state-source, known `""`) folds to the
+            // alternate `'enter your pin'`, which is known.
+            //
+            // If the test is unknown, the result is known only when BOTH branches
+            // evaluate to the SAME single known value (upstream: values.size === 1).
+            // e.g. `der1 ? "1" : "0"` → two different values → not known.
+            let (Some(test), Some(consequent), Some(alternate)) =
                 (obj.get("test"), obj.get("consequent"), obj.get("alternate"))
-            {
-                is_expression_known_json(test, context)
-                    && is_expression_known_json(consequent, context)
-                    && is_expression_known_json(alternate, context)
-            } else {
-                false
+            else {
+                return false;
+            };
+            // Try to fold the test to a constant via get_literal_value.
+            use crate::ast::js::Expression;
+            let test_known = serde_json::from_value::<Expression>(test.clone())
+                .ok()
+                .and_then(|test_expr| get_literal_value(&test_expr, context));
+            match test_known {
+                Some(test_val) => {
+                    // Test is a known constant — only the taken branch needs to be known.
+                    let truthy = match test_val.as_deref() {
+                        None => false, // null / undefined
+                        Some("") | Some("false") | Some("0") => false,
+                        Some(s) => s
+                            .parse::<f64>()
+                            .map(|n| n != 0.0 && !n.is_nan())
+                            .unwrap_or(true),
+                    };
+                    if truthy {
+                        is_expression_known_json(consequent, context)
+                    } else {
+                        is_expression_known_json(alternate, context)
+                    }
+                }
+                None => {
+                    // Test is unknown — result is known only if both branches yield the
+                    // SAME single compile-time value (mirrors upstream values.size === 1
+                    // after adding both branches' values to the set).
+                    let c_val = serde_json::from_value::<Expression>(consequent.clone())
+                        .ok()
+                        .and_then(|e| get_literal_value(&e, context));
+                    let a_val = serde_json::from_value::<Expression>(alternate.clone())
+                        .ok()
+                        .and_then(|e| get_literal_value(&e, context));
+                    match (c_val, a_val) {
+                        (Some(c), Some(a)) => c == a,
+                        _ => false,
+                    }
+                }
             }
         }
 
