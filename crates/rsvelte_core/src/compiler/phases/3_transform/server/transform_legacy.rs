@@ -2204,14 +2204,15 @@ fn extract_reactive_rhs_identifiers(stmt: &str) -> Vec<String> {
             '}' => {
                 // If the current `}` closes the innermost template interpolation `${...}`,
                 // pop the stack and return to template-text scanning.
-                if let Some(&saved_depth) = template_interp_stack.last() {
-                    if brace_depth == saved_depth + 1 {
-                        template_interp_stack.pop();
-                        in_template_text = true; // back to template text scanning
-                        brace_depth -= 1;
-                        i += 1;
-                        continue;
-                    }
+                if template_interp_stack
+                    .last()
+                    .is_some_and(|&saved_depth| brace_depth == saved_depth + 1)
+                {
+                    template_interp_stack.pop();
+                    in_template_text = true; // back to template text scanning
+                    brace_depth -= 1;
+                    i += 1;
+                    continue;
                 }
                 brace_depth -= 1;
                 i += 1;

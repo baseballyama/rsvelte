@@ -2796,6 +2796,22 @@ impl<'a> ServerCodeGenerator<'a> {
                     .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
 
                 if has_expr {
+                    // Upstream rule (build_attribute_value): when the value array has
+                    // exactly one element and it is an ExpressionTag, pass the
+                    // expression BARE — no $.stringify template wrapper.  Only when
+                    // there are multiple parts (text + expr interleaved) do we build a
+                    // template-literal with $.stringify slots.
+                    if parts.len() == 1
+                        && let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0]
+                    {
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_src = self.source[expr_start..expr_end].trim();
+                            let transformed = self.transform_store_refs(expr_src);
+                            return Some(format!("__EXPR__:{}", transformed));
+                        }
+                    }
                     // Generate a template literal with $.stringify() for dynamic parts
                     // Collapse whitespace (newlines/tabs/spaces) in text parts to single spaces,
                     // matching the official Svelte compiler's behavior for style attributes.
@@ -2826,7 +2842,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     }
                     template.push('`');
-                    // Use __TEMPL__: prefix so generate_attr_style_call knows it's a raw expression
+                    // Use __EXPR__: prefix so generate_attr_style_call knows it's a raw expression
                     Some(format!("__EXPR__:{}", template))
                 } else {
                     // All static text

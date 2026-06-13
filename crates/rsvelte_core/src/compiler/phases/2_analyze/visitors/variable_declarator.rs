@@ -612,7 +612,18 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
         }
     }
 
-    // Set initial value for constant folding
+    // Set initial value for constant folding.
+    // For destructured patterns (`const { i } = obj`, `const [x] = arr`), each
+    // binding's *actual* value is a property/element access on the RHS — not the
+    // RHS itself.  The upstream `scope.evaluate` resolves `binding.initial`
+    // (which is the whole RHS) via ObjectExpression → UNKNOWN, so `is_defined`
+    // ends up false.  We mirror that: only mark `initial_is_defined` for the
+    // binding when the declarator id is a plain Identifier (no destructuring).
+    let id_is_plain_identifier = node
+        .get("id")
+        .and_then(|id| id.get("type"))
+        .and_then(|t| t.as_str())
+        == Some("Identifier");
     if let Some(init) = init {
         for path in &paths {
             if let Some(name) = path.get("name").and_then(|n| n.as_str())
@@ -620,7 +631,11 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);
-                binding.initial_is_defined = is_expression_defined(init);
+                // Only propagate `is_defined` when this is a simple binding
+                // (`const x = expr`).  For destructured bindings the runtime
+                // value comes from a property/index access on the RHS, so we
+                // cannot confirm it is defined without full evaluation.
+                binding.initial_is_defined = id_is_plain_identifier && is_expression_defined(init);
                 binding.initial_node_type =
                     init.get("type").and_then(|t| t.as_str()).map(String::from);
             }
@@ -1670,7 +1685,14 @@ fn visit_non_runes_mode_typed(
         }
     }
 
-    // Set initial value for constant folding
+    // Set initial value for constant folding.
+    // For destructured patterns (`const { i } = obj`, `const [x] = arr`), each
+    // binding's *actual* value is a property/element access on the RHS — not the
+    // RHS itself.  The upstream `scope.evaluate` resolves `binding.initial`
+    // (which is the whole RHS) via ObjectExpression → UNKNOWN, so `is_defined`
+    // ends up false.  We mirror that: only mark `initial_is_defined` for the
+    // binding when the declarator id is a plain Identifier (no destructuring).
+    let id_is_plain_identifier_typed = matches!(id_node, JsNode::Identifier { .. });
     if let Some(init) = init_node {
         for path in &paths {
             if let Some(&binding_idx) = context
@@ -1682,7 +1704,12 @@ fn visit_non_runes_mode_typed(
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
-                binding.initial_is_defined = is_expression_defined_typed(init, arena);
+                // Only propagate `is_defined` when this is a simple binding
+                // (`const x = expr`).  For destructured bindings the runtime
+                // value comes from a property/index access on the RHS, so we
+                // cannot confirm it is defined without full evaluation.
+                binding.initial_is_defined =
+                    id_is_plain_identifier_typed && is_expression_defined_typed(init, arena);
                 binding.initial_node_type = Some(init.type_str().to_string());
                 if binding.initial_node_type.as_deref() == Some("Identifier")
                     && let JsNode::Identifier { name, .. } = init

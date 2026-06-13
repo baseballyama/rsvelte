@@ -3554,7 +3554,7 @@ fn transform_destructured_state_assignments(
                         body_lines.push(String::new()); // blank line after var
                         for (idx, part) in parts.iter().enumerate() {
                             let name = unwrap_get(part);
-                            if reactive_state_vars.iter().any(|v| *v == name) {
+                            if reactive_state_vars.contains(&name) {
                                 body_lines.push(format!(
                                     "{}$.set({}, $$array[{}], true);",
                                     inner_indent, name, idx

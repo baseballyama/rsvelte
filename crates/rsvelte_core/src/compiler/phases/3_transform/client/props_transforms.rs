@@ -332,15 +332,32 @@ pub(super) fn transform_let_with_reexported_props(
                 let rhs_part = decl[pattern_end..].trim();
                 if let Some(rhs) = rhs_part.strip_prefix('=') {
                     let rhs = rhs.trim().trim_end_matches(';').trim();
-                    // Create a tmp variable and flatten the destructuring
-                    results.push(format!("{}let tmp = {};", leading_ws, rhs));
-                    if let Some(flattened) =
-                        flatten_destructured_let_with_reexported_props(pattern, "tmp", analysis)
+                    // Upstream merges `tmp = rhs` and all the flattened declarators into a
+                    // SINGLE `let` VariableDeclaration with comma-separated declarators.
+                    // The continuation declarators are indented by `leading_ws + "  "`.
+                    let continuation_ws = format!("{}  ", leading_ws);
+                    if let Some(flat_decls) =
+                        flatten_destructured_let_as_declarators(pattern, "tmp", analysis)
                     {
-                        results.push(flattened);
+                        // Build: `  let tmp = rhs,\n    a = ...,\n    b = ...,\n    c = ...;`
+                        let mut merged = format!("{}let tmp = {}", leading_ws, rhs);
+                        for d in &flat_decls {
+                            merged.push_str(",\n");
+                            merged.push_str(&continuation_ws);
+                            merged.push_str(d);
+                        }
+                        merged.push(';');
+                        results.push(merged);
                     } else {
-                        // Fallback: keep original
-                        results.push(format!("{}let {} = {};", leading_ws, pattern, rhs));
+                        // Fallback for non-ObjectPattern (e.g. ArrayPattern)
+                        results.push(format!("{}let tmp = {};", leading_ws, rhs));
+                        if let Some(flattened) =
+                            flatten_destructured_let_with_reexported_props(pattern, "tmp", analysis)
+                        {
+                            results.push(flattened);
+                        } else {
+                            results.push(format!("{}let {} = {};", leading_ws, pattern, rhs));
+                        }
                     }
                     continue;
                 }
@@ -1280,6 +1297,112 @@ pub(super) fn flatten_destructured_let_with_reexported_props(
     }
 
     Some(declarations.join("\n"))
+}
+
+/// Like `flatten_destructured_let_with_reexported_props` but returns each
+/// declarator as a bare `name = rhs` string (no leading `let`, no trailing `;`).
+/// This allows the caller to merge them into a single `let tmp = rhs, a = ...,
+/// b = ..., c = ...;` statement, matching the upstream AST output where a
+/// single `VariableDeclaration` node holds all declarators.
+///
+/// Returns `None` if the pattern is unsupported (non-ObjectPattern).
+pub(super) fn flatten_destructured_let_as_declarators(
+    pattern: &str,
+    base_path: &str,
+    analysis: &ComponentAnalysis,
+) -> Option<Vec<String>> {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    let pattern = pattern.trim();
+    let mut declarators: Vec<String> = Vec::new();
+
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_destructuring_properties(inner);
+
+        for prop in properties {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+
+            if let Some((key, value_pattern)) = split_property_key_value(prop) {
+                let new_path = format!("{}.{}", base_path, key);
+
+                if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                    // Nested destructuring — recurse and collect nested declarators
+                    if let Some(nested) =
+                        flatten_destructured_let_as_declarators(value_pattern, &new_path, analysis)
+                    {
+                        declarators.extend(nested);
+                    }
+                } else {
+                    let (binding_name, default_value) = split_binding_name_default(value_pattern);
+                    let is_prop = analysis
+                        .root
+                        .find_binding_any_scope(binding_name)
+                        .and_then(|idx| analysis.root.bindings.get(idx))
+                        .is_some_and(|b| b.kind == BindingKind::BindableProp);
+
+                    if is_prop {
+                        let flags = calculate_prop_flags(binding_name, analysis, true);
+                        if let Some(default_val) = default_value {
+                            declarators.push(format!(
+                                "{} = $.prop($$props, '{}', {}, () => $.fallback({}, {}))",
+                                binding_name, binding_name, flags, new_path, default_val
+                            ));
+                        } else {
+                            declarators.push(format!(
+                                "{} = $.prop($$props, '{}', {}, () => {})",
+                                binding_name, binding_name, flags, new_path
+                            ));
+                        }
+                    } else if let Some(default_val) = default_value {
+                        declarators.push(format!(
+                            "{} = {} !== undefined ? {} : {}",
+                            binding_name, new_path, new_path, default_val
+                        ));
+                    } else {
+                        declarators.push(format!("{} = {}", binding_name, new_path));
+                    }
+                }
+            } else {
+                let (binding_name, default_value) = split_binding_name_default(prop);
+                let new_path = format!("{}.{}", base_path, binding_name);
+                let is_prop = analysis
+                    .root
+                    .find_binding_any_scope(binding_name)
+                    .and_then(|idx| analysis.root.bindings.get(idx))
+                    .is_some_and(|b| b.kind == BindingKind::BindableProp);
+
+                if is_prop {
+                    let flags = calculate_prop_flags(binding_name, analysis, true);
+                    if let Some(default_val) = default_value {
+                        declarators.push(format!(
+                            "{} = $.prop($$props, '{}', {}, () => $.fallback({}, {}))",
+                            binding_name, binding_name, flags, new_path, default_val
+                        ));
+                    } else {
+                        declarators.push(format!(
+                            "{} = $.prop($$props, '{}', {}, () => {})",
+                            binding_name, binding_name, flags, new_path
+                        ));
+                    }
+                } else if let Some(default_val) = default_value {
+                    declarators.push(format!(
+                        "{} = {} !== undefined ? {} : {}",
+                        binding_name, new_path, new_path, default_val
+                    ));
+                } else {
+                    declarators.push(format!("{} = {}", binding_name, new_path));
+                }
+            }
+        }
+    } else {
+        return None;
+    }
+
+    Some(declarators)
 }
 
 /// Split a property pattern into key and value parts around `:`.

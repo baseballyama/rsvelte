@@ -3235,9 +3235,21 @@ fn compute_shadow_ranges(
                     }
                     match cc {
                         b'(' => depth_paren += 1,
-                        b')' => depth_paren -= 1,
+                        b')' => {
+                            depth_paren -= 1;
+                            // If we've exited the enclosing `for (` / `while (`
+                            // / `if (` paren, the declarator is done.
+                            if depth_paren < 0 {
+                                break;
+                            }
+                        }
                         b'[' => depth_bracket += 1,
-                        b']' => depth_bracket -= 1,
+                        b']' => {
+                            depth_bracket -= 1;
+                            if depth_bracket < 0 {
+                                break;
+                            }
+                        }
                         b'{' => depth_brace_inline += 1,
                         b'}' => {
                             if depth_brace_inline == 0 {
@@ -3266,7 +3278,11 @@ fn compute_shadow_ranges(
                     j += 1;
                 }
                 let decl_text = &script[decl_start..j];
-                for (rel_start, n) in extract_declarator_names_with_pos(decl_text) {
+                // Truncate to LHS pattern only (stops at `of`/`in` keywords
+                // so that `for (const key of Object.keys(a))` doesn't
+                // accidentally register `a` as a shadowing declaration).
+                let pattern_text = declarator_pattern_only(decl_text);
+                for (rel_start, n) in extract_declarator_names_with_pos(pattern_text) {
                     let abs_start = decl_start + rel_start;
                     // Skip the derived's own declaration — references to
                     // the derived inside the enclosing block should still
@@ -3433,25 +3449,32 @@ fn compute_shadow_ranges(
                     false
                 } else {
                     let prev_ident = &script[p..prev_end];
-                    !matches!(
-                        prev_ident,
-                        "if" | "for"
-                            | "while"
-                            | "switch"
-                            | "catch"
-                            | "with"
-                            | "do"
-                            | "return"
-                            | "typeof"
-                            | "void"
-                            | "delete"
-                            | "new"
-                            | "in"
-                            | "of"
-                            | "await"
-                            | "yield"
-                            | "throw"
-                    )
+                    // If the identifier is preceded by `.`, it's a property
+                    // access call like `Object.keys(params) { ... }` — the
+                    // `{` is a `for`/control-flow body, not a function body.
+                    // Method calls can never open a new parameter scope, so
+                    // treat them the same as control-flow keywords.
+                    let preceded_by_dot = p > 0 && bytes[p - 1] == b'.';
+                    !preceded_by_dot
+                        && !matches!(
+                            prev_ident,
+                            "if" | "for"
+                                | "while"
+                                | "switch"
+                                | "catch"
+                                | "with"
+                                | "do"
+                                | "return"
+                                | "typeof"
+                                | "void"
+                                | "delete"
+                                | "new"
+                                | "in"
+                                | "of"
+                                | "await"
+                                | "yield"
+                                | "throw"
+                        )
                 }
             };
             if is_arrow || is_fn_like_body {
@@ -3528,6 +3551,92 @@ fn compute_shadow_ranges(
         i += 1;
     }
     ranges
+}
+
+/// Truncate a declarator text to only the LHS binding pattern, stopping at a
+/// top-level `of` / `in` keyword (for-of / for-in) at depth 0.  This prevents
+/// identifiers that appear in the iterable expression (`for (const key of
+/// Object.keys(a))`) from being treated as declared names.
+fn declarator_pattern_only(decl: &str) -> &str {
+    let bytes = decl.as_bytes();
+    let len = bytes.len();
+    let mut i = 0usize;
+    let mut depth_paren = 0i32;
+    let mut depth_bracket = 0i32;
+    let mut depth_brace = 0i32;
+    while i < len {
+        let b = bytes[i];
+        match b {
+            b'"' | b'\'' => {
+                let q = b;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'(' => depth_paren += 1,
+            b')' => depth_paren -= 1,
+            b'[' => depth_bracket += 1,
+            b']' => depth_bracket -= 1,
+            b'{' => depth_brace += 1,
+            b'}' => depth_brace -= 1,
+            _ => {}
+        }
+        // At depth 0, check for `of` or `in` keyword boundaries.
+        if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 {
+            // Must be preceded by a non-identifier char (word boundary).
+            let preceded_by_ident = i > 0 && {
+                let pb = bytes[i - 1];
+                pb.is_ascii_alphanumeric() || pb == b'_' || pb == b'$'
+            };
+            if !preceded_by_ident {
+                // Check for `of ` or `in ` (keyword + whitespace/end).
+                let rest = &bytes[i..];
+                let kw_len = if rest.starts_with(b"of") || rest.starts_with(b"in") {
+                    Some(2)
+                } else {
+                    None
+                };
+                if let Some(kl) = kw_len {
+                    // Ensure what follows is not an identifier char (word boundary).
+                    let after = i + kl;
+                    let followed_by_ident = after < len && {
+                        let ab = bytes[after];
+                        ab.is_ascii_alphanumeric() || ab == b'_' || ab == b'$'
+                    };
+                    if !followed_by_ident {
+                        return &decl[..i];
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    decl
 }
 
 /// Same as `extract_declarator_names` but also returns the byte offset of
