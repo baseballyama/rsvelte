@@ -209,6 +209,7 @@ pub fn fragment(
         const_blocker_map: context.state.const_blocker_map.clone(),
         needs_mutation_validation: context.state.needs_mutation_validation.clone(),
         templates: Rc::clone(&context.state.templates),
+        pending_error: None,
     };
 
     // Swap context.state with our local state so that process_children uses it
@@ -454,6 +455,11 @@ pub fn fragment(
 
     // Swap the state back and get the modified state
     let state = std::mem::replace(&mut context.state, saved_state);
+
+    // Propagate any pending error from the fragment state to the parent state.
+    if state.pending_error.is_some() {
+        context.state.pending_error = state.pending_error.clone();
+    }
 
     // Build the final body
     // Add snippets, let_directives, and consts (matches official Fragment.js line 154)

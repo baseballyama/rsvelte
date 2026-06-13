@@ -530,6 +530,13 @@ fn transform_client_with_visitors(
     let _fragment_start = super::profile::timer_start();
     let template_body = fragment(&ast.fragment, &mut context, true);
     super::profile::record_template_fragment(super::profile::timer_elapsed(_fragment_start));
+
+    // Propagate any error that was recorded during template traversal (e.g. "Not implemented:
+    // LetDirective" from visit_svelte_element when a SvelteElement carries a let: directive).
+    if let Some(msg) = context.state.pending_error.take() {
+        return Err(TransformError::CodeGen(msg));
+    }
+
     let _assembly_start = super::profile::timer_start();
 
     // Collect results from state
