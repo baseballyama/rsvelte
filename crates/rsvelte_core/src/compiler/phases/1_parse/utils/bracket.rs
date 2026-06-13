@@ -47,6 +47,53 @@ fn find_regex_end(string: &str, search_start_index: usize) -> usize {
     find_unescaped_char(string, search_start_index, '/')
 }
 
+/// Find the closing backtick of a template literal, properly handling `${...}`
+/// interpolations (which may themselves contain regex literals with backticks,
+/// nested template literals, strings, and comments).
+///
+/// # Arguments
+/// * `string` - The full string being searched
+/// * `start` - The index to start searching at (immediately after the opening `` ` ``)
+///
+/// # Returns
+/// The index of the closing `` ` ``, or `usize::MAX` if not found
+fn find_template_literal_end(string: &str, start: usize) -> usize {
+    let bytes = string.as_bytes();
+    let mut i = start;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => {
+                // Escaped character — skip both the backslash and the next byte.
+                i += 2;
+            }
+            b'`' => {
+                // Unescaped closing backtick.
+                return i;
+            }
+            b'$' if i + 1 < bytes.len() && bytes[i + 1] == b'{' => {
+                // Template expression `${...}`. Use `find_matching_bracket` to
+                // skip the entire expression — it handles nested strings, regex
+                // literals (including those that contain backticks), comments,
+                // and nested template literals correctly.
+                match find_matching_bracket(string, i + 2, '{') {
+                    Some(close) => {
+                        // `close` is the index of the matching `}`.
+                        i = close + 1;
+                    }
+                    None => {
+                        // Unterminated interpolation — bail to EOF.
+                        return usize::MAX;
+                    }
+                }
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    usize::MAX
+}
+
 /// Find the first unescaped instance of a character.
 ///
 /// # Arguments
@@ -175,12 +222,25 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
         let ch = bytes[i] as char;
 
         match ch {
-            '\'' | '"' | '`' => {
+            '\'' | '"' => {
                 i = find_string_end(template, i + 1, ch);
                 if i == usize::MAX {
                     i = template.len();
                 } else {
                     prev_non_ws = Some(bytes[i]);
+                    i += 1;
+                }
+                continue;
+            }
+            '`' => {
+                // Use the template-literal-aware scanner so that backticks
+                // inside `${...}` interpolations (e.g. inside a regex like
+                // `/`(.+?)`/g`) do not prematurely terminate the template.
+                i = find_template_literal_end(template, i + 1);
+                if i == usize::MAX {
+                    i = template.len();
+                } else {
+                    prev_non_ws = Some(b'`');
                     i += 1;
                 }
                 continue;

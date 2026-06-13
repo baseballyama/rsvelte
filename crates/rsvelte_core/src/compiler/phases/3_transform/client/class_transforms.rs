@@ -14,6 +14,45 @@ fn find_matching_paren_lexical(s: &str) -> Option<usize> {
     find_matching_bracket(s, 0, '(')
 }
 
+/// Given `s` positioned just after an opening `<` in a TypeScript generic type
+/// parameter list, return the byte offset of the matching `>`, respecting nested
+/// angle-bracket pairs and string literals.  Used to skip past `$state<T>(`
+/// to the actual call-argument `(`.
+fn find_matching_bracket_angle(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth: i32 = 1;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() {
+                    match bytes[i] {
+                        b'\\' => i += 2,
+                        b if b == quote => {
+                            i += 1;
+                            break;
+                        }
+                        _ => i += 1,
+                    }
+                }
+                continue;
+            }
+            b'<' => depth += 1,
+            b'>' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Replace every occurrence of `needle` in `haystack` with `replacement`, but
 /// only when `needle` is not immediately followed by a JS identifier character.
 ///
@@ -240,12 +279,32 @@ pub(super) struct ClassStateField {
     pub(super) private_backing_name: String,
     /// Whether this field was declared in the constructor
     pub(super) constructor_declared: bool,
+    /// An inline trailing comment (e.g. `// TODO …`) that preceded this field
+    /// on its own line in the source.  When present, it is appended after the
+    /// private backing field declaration instead of being emitted as a
+    /// separate comment member — matching the official Svelte compiler's
+    /// behaviour of attaching leading comments to the field line.
+    pub(super) trailing_comment: Option<String>,
 }
 
 /// Emit a transformed class field definition with optional getter/setter.
 pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassStateField]) -> String {
     let mut output = String::new();
     let private_name = format!("#{}", field.private_backing_name);
+
+    // When a `//` comment preceded this field on its own line in the source,
+    // mirror the official Svelte compiler's esrap-based output: the comment is
+    // emitted as a leading comment on the value node, so it appears between
+    // the `=` and the RHS on a line of its own, e.g.:
+    //   #creating = // TODO this stuff should all be readonly
+    //   $.state(null);
+    // We implement this by inserting the comment text followed by a newline
+    // and the field-body indentation before the value expression.
+    let comment_infix: String = field
+        .trailing_comment
+        .as_deref()
+        .map(|c| format!("{}\n\t", c))
+        .unwrap_or_default();
 
     if field.constructor_declared {
         let _ = writeln!(output, "\t\t{};", private_name);
@@ -281,7 +340,11 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         } else {
             field.value.clone()
         };
-        let _ = writeln!(output, "\t\t{} = $.state({});", private_name, wrapped_value);
+        let _ = writeln!(
+            output,
+            "\t\t{} = {}$.state({});",
+            private_name, comment_infix, wrapped_value
+        );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
@@ -298,7 +361,11 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
             );
         }
     } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
-        let _ = writeln!(output, "\t\t{} = $.state({});", private_name, field.value);
+        let _ = writeln!(
+            output,
+            "\t\t{} = {}$.state({});",
+            private_name, comment_infix, field.value
+        );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
             output.push('\n');
@@ -332,8 +399,8 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         };
         let _ = writeln!(
             output,
-            "\t\t{} = $.derived({});",
-            private_name, wrapped_value
+            "\t\t{} = {}$.derived({});",
+            private_name, comment_infix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -362,8 +429,8 @@ pub(super) fn emit_class_field(field: &ClassStateField, all_fields: &[ClassState
         }
         let _ = writeln!(
             output,
-            "\t\t{} = $.derived({});",
-            private_name, derived_expr
+            "\t\t{} = {}$.derived({});",
+            private_name, comment_infix, derived_expr
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -753,6 +820,10 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
             let section_lines: Vec<&str> = section.lines().collect();
             let mut si = 0;
             let mut pending_non_rune: Vec<String> = Vec::new();
+            // Track brace depth so that lines inside method bodies (depth > 0)
+            // are never mis-classified as standalone "plain field declarations".
+            // Depth increases on `{` and decreases on `}` in the PENDING accumulator.
+            let mut brace_depth: i32 = 0;
 
             while si < section_lines.len() {
                 let line = section_lines[si];
@@ -775,30 +846,56 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 for &(rune_type, _) in &rune_types_list {
                     let pattern_eq = format!("= {}(", rune_type);
                     let pattern_nospace = format!("={}(", rune_type);
-                    let has_pattern =
-                        trimmed.contains(&pattern_eq) || trimmed.contains(&pattern_nospace);
+                    // Also match TypeScript generic forms: `= $state<T>(` / `= $state.raw<T>(`
+                    let pattern_eq_generic = format!("= {}<", rune_type);
+                    let pattern_nospace_generic = format!("={}<", rune_type);
+                    let has_pattern = trimmed.contains(&pattern_eq)
+                        || trimmed.contains(&pattern_nospace)
+                        || trimmed.contains(&pattern_eq_generic)
+                        || trimmed.contains(&pattern_nospace_generic);
                     if !has_pattern {
                         continue;
                     }
                     if rune_type == "$state"
                         && (memmem::find(trimmed.as_bytes(), b"$state.raw(").is_some()
-                            || memmem::find(trimmed.as_bytes(), b"$state.frozen(").is_some())
+                            || memmem::find(trimmed.as_bytes(), b"$state.raw<").is_some()
+                            || memmem::find(trimmed.as_bytes(), b"$state.frozen(").is_some()
+                            || memmem::find(trimmed.as_bytes(), b"$state.frozen<").is_some())
                     {
                         continue;
                     }
                     if rune_type == "$derived"
-                        && memmem::find(trimmed.as_bytes(), b"$derived.by(").is_some()
+                        && (memmem::find(trimmed.as_bytes(), b"$derived.by(").is_some()
+                            || memmem::find(trimmed.as_bytes(), b"$derived.by<").is_some())
                     {
                         continue;
                     }
 
+                    // Helper: extract a leading `//` comment from pending_non_rune
+                    // and return it so it can be attached inline to the rune field,
+                    // matching the official Svelte compiler's behaviour.
+                    let take_leading_comment = |pending: &mut Vec<String>| -> Option<String> {
+                        // If the last pending line is a `//` comment AND there are
+                        // no non-comment lines after it, pop it and return it.
+                        if let Some(last) = pending.last()
+                            && last.trim().starts_with("//")
+                        {
+                            return Some(pending.pop().unwrap());
+                        }
+                        None
+                    };
+
                     // Try single-line parse
-                    if let Some(field) = parse_state_field(trimmed, rune_type) {
-                        // Flush pending non-rune lines
+                    if let Some(mut field) = parse_state_field(trimmed, rune_type) {
+                        let leading_comment = take_leading_comment(&mut pending_non_rune);
+                        // Flush remaining pending non-rune lines
                         if !pending_non_rune.is_empty() {
                             let content = pending_non_rune.join("\n");
                             members.push(ClassMember::NonRune(content));
                             pending_non_rune.clear();
+                        }
+                        if let Some(comment) = leading_comment {
+                            field.trailing_comment = Some(comment.trim().to_string());
                         }
                         let field_idx = fields.len();
                         fields.push(field);
@@ -813,12 +910,16 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     while j < section_lines.len() {
                         accumulated.push('\n');
                         accumulated.push_str(section_lines[j].trim());
-                        if let Some(field) = parse_state_field(&accumulated, rune_type) {
-                            // Flush pending non-rune lines
+                        if let Some(mut field) = parse_state_field(&accumulated, rune_type) {
+                            let leading_comment = take_leading_comment(&mut pending_non_rune);
+                            // Flush remaining pending non-rune lines
                             if !pending_non_rune.is_empty() {
                                 let content = pending_non_rune.join("\n");
                                 members.push(ClassMember::NonRune(content));
                                 pending_non_rune.clear();
+                            }
+                            if let Some(comment) = leading_comment {
+                                field.trailing_comment = Some(comment.trim().to_string());
                             }
                             let field_idx = fields.len();
                             fields.push(field);
@@ -835,13 +936,18 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                 }
 
                 if !parsed_as_rune {
-                    // Track plain field declarations for later removal by constructor fields
+                    // Track plain field declarations for later removal by constructor fields.
+                    // Only treat as a plain field when we are at the top class-body depth
+                    // (brace_depth == 0).  Lines inside method bodies / block statements
+                    // (depth > 0) are never standalone declarations — they must stay
+                    // in pending_non_rune to keep method bodies intact.
                     let field_trimmed = trimmed.trim_end_matches(';').trim();
-                    if !field_trimmed.contains('(')
+                    let is_plain_field = brace_depth == 0
+                        && !field_trimmed.contains('(')
                         && !field_trimmed.contains('{')
                         && !field_trimmed.starts_with("//")
-                        && !field_trimmed.starts_with("/*")
-                    {
+                        && !field_trimmed.starts_with("/*");
+                    if is_plain_field {
                         // Flush current pending + this line, remember its member index
                         if !pending_non_rune.is_empty() {
                             let content = pending_non_rune.join("\n");
@@ -860,6 +966,14 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                         }
                         members.push(ClassMember::NonRune(line.to_string()));
                     } else {
+                        // Update brace depth for lines going into pending_non_rune.
+                        for ch in trimmed.chars() {
+                            match ch {
+                                '{' => brace_depth += 1,
+                                '}' => brace_depth = (brace_depth - 1).max(0),
+                                _ => {}
+                            }
+                        }
                         pending_non_rune.push(line.to_string());
                     }
                 }
@@ -1199,10 +1313,29 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
         return None;
     }
 
-    // Find the rune call
+    // Find the rune call — handles both plain `$state(` and TypeScript-generic
+    // forms `$state<T>(` / `$state.raw<A | B>(`.
     let rune_pattern = format!("{}(", rune_type);
-    let rune_start = trimmed.find(&rune_pattern)?;
-    let value_start = rune_start + rune_pattern.len();
+    let rune_pattern_generic = format!("{}<", rune_type);
+    let rune_start = trimmed
+        .find(&rune_pattern)
+        .or_else(|| trimmed.find(&rune_pattern_generic))?;
+    // Skip past an optional `<…>` type-parameter list to reach the `(`.
+    let after_rune = &trimmed[rune_start + rune_type.len()..];
+    let value_start = if after_rune.starts_with('(') {
+        // Plain form: `$state(`
+        rune_start + rune_type.len() + 1
+    } else if let Some(angle_inner) = after_rune.strip_prefix('<') {
+        // Generic form: `$state<T>(` — find the matching `>` then expect `(`
+        let angle_end = find_matching_bracket_angle(angle_inner)?;
+        let after_angle = &after_rune[1 + angle_end + 1..]; // skip `<`, inner, `>`
+        if !after_angle.starts_with('(') {
+            return None;
+        }
+        rune_start + rune_type.len() + 1 + angle_end + 1 + 1 // `<` + inner + `>` + `(`
+    } else {
+        return None;
+    };
 
     // Find matching closing paren
     let after_paren = &trimmed[value_start..];
@@ -1221,6 +1354,7 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
         value,
         private_backing_name, // Sanitized to be a valid identifier
         constructor_declared: false,
+        trailing_comment: None,
     })
 }
 
@@ -1297,6 +1431,7 @@ pub(super) fn parse_constructor_state_assignment(
         value,
         private_backing_name,
         constructor_declared: true,
+        trailing_comment: None,
     })
 }
 
@@ -2075,5 +2210,38 @@ export class Counter {
     fn script_without_runes_is_unchanged() {
         let script = "class Helper {\n\tvalue = 1;\n}\n";
         assert_eq!(transform_class_fields_client(script), script);
+    }
+
+    #[test]
+    fn public_state_field_with_nested_backtick_in_derived() {
+        // Regression: when $derived.by() body contains a multiline template literal
+        // with nested backtick regex `/`(.+?)`/g`, the multi-line accumulation for
+        // the derived field fails to complete, causing the entire class transform
+        // to fall back to verbatim output. All public $state fields in the class
+        // then miss their #private backing field + getter/setter.
+        let script = r#"export class Workspace {
+  creating = $state.raw(null);
+  modified = $state({});
+  diagnostics = $derived.by(() => {
+    x = `${a.replace(
+          /`(.+?)`/g,
+          `<code>$1</code>`
+        )}`;
+  });
+  constructor() {}
+}"#;
+        let out = transform_class_fields_client(script);
+        assert!(
+            out.contains("#creating"),
+            "creating should be transformed to private backing field:\n{out}"
+        );
+        assert!(
+            out.contains("get creating()"),
+            "creating should have a getter:\n{out}"
+        );
+        assert!(
+            out.contains("#modified"),
+            "modified should be transformed to private backing field:\n{out}"
+        );
     }
 }

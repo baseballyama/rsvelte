@@ -4,7 +4,6 @@
 	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/07-special-elements/02-svelte-window-bindings/+assets/app-a/src/lib/App.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/03-sveltekit/06-forms/05-customizing-use-enhance/index.md/5.svelte",
 	"svelte.dev/packages/repl/src/lib/Output/Viewer.svelte",
-	"svelte.dev/packages/repl/src/lib/Workspace.svelte.ts",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/output.svelte",
 	"svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte"
