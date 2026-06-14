@@ -113,8 +113,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/keyed-each-dev-unique-update/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/nbsp-div/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/paren-wrapped-expressions/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/pre-tag/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/preserve-whitespaces/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/raw-anchor-first-child/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/raw-anchor-last-child/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/reactive-import-statement/main.svelte",

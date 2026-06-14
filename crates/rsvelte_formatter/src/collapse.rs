@@ -44,6 +44,27 @@ pub(crate) fn collapse_pure_text_elements(
         apply_edits(out, edits)
     };
 
+    // 1.5-th pass: run a targeted `try_fill_mixed` sweep on block elements whose
+    // mixed inline children were just collapsed by the first pass. Example: a
+    // `<div>` containing `A\n  B\n  <span>\n  C\n  </span>\n  E\n  F` could not
+    // be prose-reflowed in pass 1 because the `<span>` was still multi-line at
+    // that point. After the span's collapse edit the div's content is now
+    // single-line elements surrounded by multi-line text, so a targeted second
+    // fill-mixed sweep can reflow it to `A B\n  <span> C D </span>\n  E F`.
+    // This pass intentionally skips try_collapse / try_hug_mixed so it doesn't
+    // disturb elements that were already correctly hugged by pass 1.
+    let result = if let Ok(root1b) = parse(&result, ParseOptions::default()) {
+        let mut edits1b: Vec<(u32, u32, String)> = Vec::new();
+        collect_fill_mixed_only(&result, &root1b.fragment, line_width, options, &mut edits1b);
+        if edits1b.is_empty() {
+            result
+        } else {
+            apply_edits(&result, edits1b)
+        }
+    } else {
+        result
+    };
+
     // Second pass: the hug/break edits above may leave a long expression mustache
     // on an overflowing line (a hugged element's trailing `{a.b().c()}`). Re-parse
     // and member-chain-break those in place — this can't run in the first pass
@@ -432,6 +453,98 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
     }
     let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
     (printed != whole).then_some((s as u32, e as u32, printed))
+}
+
+/// Targeted second-pass: only try `try_fill_mixed` on block elements whose
+/// mixed inline children were just collapsed by pass 1. Skips `try_collapse`,
+/// `try_hug_mixed`, and `try_break_content_tag_block` so it does not disturb
+/// elements already correctly laid out by pass 1 (e.g. hugged inline elements
+/// or single-content-tag blocks).
+fn collect_fill_mixed_only(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(elem) => {
+                // Only apply fill-mixed to block-display elements — inline
+                // elements were already handled (or correctly skipped) by pass 1.
+                if is_block_display(elem.name.as_str())
+                    && let Some(edit) = try_fill_mixed(
+                        out,
+                        elem.name.as_str(),
+                        elem.start,
+                        elem.end,
+                        &elem.fragment,
+                        line_width,
+                        options,
+                    )
+                {
+                    edits.push(edit);
+                    continue; // edit owns this element, don't recurse
+                }
+                collect_fill_mixed_only(out, &elem.fragment, line_width, options, edits);
+            }
+            TemplateNode::Component(c) => {
+                collect_fill_mixed_only(out, &c.fragment, line_width, options, edits);
+            }
+            TemplateNode::TitleElement(t) => {
+                collect_fill_mixed_only(out, &t.fragment, line_width, options, edits);
+            }
+            TemplateNode::SvelteBody(s)
+            | TemplateNode::SvelteDocument(s)
+            | TemplateNode::SvelteFragment(s)
+            | TemplateNode::SvelteBoundary(s)
+            | TemplateNode::SvelteHead(s)
+            | TemplateNode::SvelteOptions(s)
+            | TemplateNode::SvelteSelf(s)
+            | TemplateNode::SvelteWindow(s) => {
+                collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
+            }
+            TemplateNode::SvelteComponent(c) => {
+                collect_fill_mixed_only(out, &c.fragment, line_width, options, edits);
+            }
+            TemplateNode::SvelteElement(e) => {
+                collect_fill_mixed_only(out, &e.fragment, line_width, options, edits);
+            }
+            TemplateNode::IfBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.consequent, line_width, options, edits);
+                if let Some(alt) = &blk.alternate {
+                    collect_fill_mixed_only(out, alt, line_width, options, edits);
+                }
+            }
+            TemplateNode::EachBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.body, line_width, options, edits);
+                if let Some(fb) = &blk.fallback {
+                    collect_fill_mixed_only(out, fb, line_width, options, edits);
+                }
+            }
+            TemplateNode::AwaitBlock(blk) => {
+                if let Some(f) = &blk.pending {
+                    collect_fill_mixed_only(out, f, line_width, options, edits);
+                }
+                if let Some(f) = &blk.then {
+                    collect_fill_mixed_only(out, f, line_width, options, edits);
+                }
+                if let Some(f) = &blk.catch {
+                    collect_fill_mixed_only(out, f, line_width, options, edits);
+                }
+            }
+            TemplateNode::KeyBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.fragment, line_width, options, edits);
+            }
+            TemplateNode::SnippetBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.body, line_width, options, edits);
+            }
+            TemplateNode::SlotElement(s) => {
+                collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn collect(
@@ -1377,7 +1490,6 @@ fn try_fill_mixed(
     if !has_non_text {
         return None; // pure text is handled by try_collapse
     }
-
     let content_start = node_start(fragment.nodes.first()?) as usize;
     let content_end = node_end(fragment.nodes.last()?) as usize;
     let open = out.get(s..content_start)?;
