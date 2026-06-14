@@ -591,6 +591,23 @@ fn collect_info_from_node(
             collect_info_from_fragment(&el.fragment, source, info, scope);
         }
         TemplateNode::Component(comp) => {
+            // Forwarded component events (`<Inner on:bar />`, no handler) surface
+            // in the events return as
+            // `bar: __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(Inner).$$events_def, "bar")`.
+            for attr in &comp.attributes {
+                if let Attribute::OnDirective(on) = attr
+                    && on.expression.is_none()
+                {
+                    let event_name = on.name.to_string();
+                    let event_value = format!(
+                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({}).$$events_def, '{}')",
+                        comp.name, event_name
+                    );
+                    if !info.element_events.iter().any(|(n, _)| n == &event_name) {
+                        info.element_events.push((event_name, event_value));
+                    }
+                }
+            }
             collect_info_from_fragment(&comp.fragment, source, info, scope);
         }
         TemplateNode::SvelteComponent(comp) => {
