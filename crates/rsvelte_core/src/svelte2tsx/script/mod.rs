@@ -3845,6 +3845,33 @@ fn collect_store_references(source: &str) -> HashSet<String> {
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
     // pass returns `None`) and avoids per-match string allocations.
+    //
+    // HTML comments are blanked first: a `$name` inside `<!-- … -->` is not a
+    // real reference (official builds stores from parsed expressions, never
+    // comments), so e.g. a `<!-- … `$derived` … -->` migration-task comment
+    // must not make a local `derived` variable look like a store subscription.
+    let blanked;
+    let source: &str = if source.contains("<!--") {
+        let mut buf = source.as_bytes().to_vec();
+        let mut j = 0usize;
+        while let Some(rel) = source[j..].find("<!--") {
+            let start = j + rel;
+            let end = source[start..]
+                .find("-->")
+                .map(|e| start + e + 3)
+                .unwrap_or(buf.len());
+            for b in &mut buf[start..end] {
+                if *b != b'\n' && *b != b'\r' {
+                    *b = b' ';
+                }
+            }
+            j = end;
+        }
+        blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
+        &blanked
+    } else {
+        source
+    };
     let mut stores = HashSet::new();
     let bytes = source.as_bytes();
     let len = bytes.len();
