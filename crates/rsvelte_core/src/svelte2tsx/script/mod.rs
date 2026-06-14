@@ -3125,6 +3125,29 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
         oxc::Statement::LabeledStatement(labeled) => {
             detect_rune_in_stmt(&labeled.body, declared_names)
         }
+        oxc::Statement::ForOfStatement(f) => {
+            detect_rune_in_expr(&f.right, declared_names)
+                || detect_rune_in_stmt(&f.body, declared_names)
+        }
+        oxc::Statement::ForInStatement(f) => {
+            detect_rune_in_expr(&f.right, declared_names)
+                || detect_rune_in_stmt(&f.body, declared_names)
+        }
+        oxc::Statement::TryStatement(t) => {
+            detect_rune_in_nested_body(&t.block.body, declared_names)
+                || t.handler
+                    .as_ref()
+                    .is_some_and(|h| detect_rune_in_nested_body(&h.body.body, declared_names))
+                || t.finalizer
+                    .as_ref()
+                    .is_some_and(|f| detect_rune_in_nested_body(&f.body, declared_names))
+        }
+        oxc::Statement::SwitchStatement(s) => s.cases.iter().any(|c| {
+            c.test
+                .as_ref()
+                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || detect_rune_in_nested_body(&c.consequent, declared_names)
+        }),
         oxc::Statement::FunctionDeclaration(func) => func
             .body
             .as_ref()

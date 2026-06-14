@@ -191,7 +191,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/svelte-meta-parent/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/wrapped-$state-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/async-snippet/main.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/attribute-template-literal-sanitization/main.svelte",
