@@ -321,14 +321,20 @@ impl ExportedNames {
                 return format!("/** @type {} */({{}})", jsdoc_type);
             }
 
-            // Otherwise, list the prop entries from $props() destructuring
-            // In runes mode, named exports (export { x as y }) are NOT props
-            let entries: Vec<String> = self
-                .get_ordered()
-                .iter()
-                .filter(|(_, info)| info.is_prop && !info.is_named_export)
-                .map(|(en, info)| format!("{}: {}", en, info.local_name))
-                .collect();
+            // Otherwise, list the prop entries from $props() destructuring.
+            // In runes mode, props ONLY come from a `$props()` call; a stray
+            // `export let foo` is not a prop (it's a runes-mode error), so
+            // without a `$props()` call there are no props. Named exports
+            // (`export { x as y }`) are likewise not props.
+            let entries: Vec<String> = if self.has_props_rune {
+                self.get_ordered()
+                    .iter()
+                    .filter(|(_, info)| info.is_prop && !info.is_named_export)
+                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                    .collect()
+            } else {
+                Vec::new()
+            };
             if entries.is_empty() {
                 // Reference: addComponentExport.ts `props()` function —
                 // runes mode with no props: TS uses `{} as Record<string, never>`,
