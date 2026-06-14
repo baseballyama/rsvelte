@@ -7,7 +7,6 @@
 	"svelte/packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/render-tag-invalid-call/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/store-contextual/main.svelte",
 	"svelte/packages/svelte/tests/css/samples/comment-html/input.svelte",
 	"svelte/packages/svelte/tests/css/samples/comments-after-last-selector/input.svelte",
 	"svelte/packages/svelte/tests/css/samples/general-siblings-combinator-nested-slots-flattened/input.svelte",
