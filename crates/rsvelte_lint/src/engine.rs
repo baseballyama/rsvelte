@@ -17,7 +17,7 @@ use crate::script::{ScriptKind, ScriptRule};
 use crate::visitor::{EnabledRule, LintVisitor};
 
 /// Run every enabled native rule over `source`, returning raw findings.
-pub fn run_native_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
+pub fn run_native_rules(source: &str, filename: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
     let rules = all_rules();
     let enabled: Vec<EnabledRule> = rules
         .iter()
@@ -41,7 +41,7 @@ pub fn run_native_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic
     let Ok(root) = parse(source, ParseOptions::default()) else {
         return Vec::new();
     };
-    let mut ctx = LintContext::new(config, source);
+    let mut ctx = LintContext::new(config, source, filename);
     // Re-install the arena pointer so that `Expression::Typed::as_json()` can
     // resolve arena-indexed children while the visitor walks the template.
     // The pointer was cleared when `parse()` dropped its `SerializeArenaGuard`.
@@ -101,10 +101,11 @@ fn enabled_script_rules<'a>(
 fn run_over_programs(
     programs: &[(ScriptKind, Value)],
     source: &str,
+    filename: &str,
     config: &LintConfig,
     enabled: &[EnabledScriptRule<'_>],
 ) -> Vec<LintDiagnostic> {
-    let mut ctx = LintContext::new(config, source);
+    let mut ctx = LintContext::new(config, source, filename);
     for (kind, program) in programs {
         for (rule, meta, severity) in enabled {
             ctx.enter_rule(meta, *severity);
@@ -120,7 +121,7 @@ fn run_over_programs(
 /// Each program is materialised as an owned `serde_json::Value` (with absolute
 /// byte offsets) inside the parse arena, then handed to each rule's
 /// `check_program`.
-pub fn run_script_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
+pub fn run_script_rules(source: &str, filename: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
     let enabled = enabled_script_rules(&rules, config);
     if enabled.is_empty() {
@@ -147,7 +148,7 @@ pub fn run_script_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic
     if programs.is_empty() {
         return Vec::new();
     }
-    run_over_programs(&programs, source, config, &enabled)
+    run_over_programs(&programs, source, filename, config, &enabled)
 }
 
 /// Run every enabled script-AST rule over a standalone JS/TS **module** file
@@ -157,6 +158,7 @@ pub fn run_script_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic
 /// file), so script rules report at file-accurate positions.
 pub fn run_script_rules_module(
     source: &str,
+    filename: &str,
     is_ts: bool,
     config: &LintConfig,
 ) -> Vec<LintDiagnostic> {
@@ -167,5 +169,5 @@ pub fn run_script_rules_module(
     }
     let program = rsvelte_core::compiler::phases::parse_module_to_estree(source, is_ts);
     let programs = [(ScriptKind::Module, program)];
-    run_over_programs(&programs, source, config, &enabled)
+    run_over_programs(&programs, source, filename, config, &enabled)
 }

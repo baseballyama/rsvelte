@@ -19,17 +19,26 @@ pub struct LintContext<'a> {
     cur_severity: Severity,
     config: &'a LintConfig,
     source: &'a str,
+    /// The file name (base name only, e.g. `+page.svelte`), used by rules that
+    /// need to gate on the SvelteKit route file type.
+    filename: &'a str,
 }
 
 impl<'a> LintContext<'a> {
-    pub fn new(config: &'a LintConfig, source: &'a str) -> Self {
+    pub fn new(config: &'a LintConfig, source: &'a str, filename: &'a str) -> Self {
         Self {
             diagnostics: Vec::new(),
             cur_rule: "",
             cur_severity: Severity::Warn,
             config,
             source,
+            filename,
         }
+    }
+
+    /// The base file name of the file being linted (e.g. `+page.svelte`).
+    pub fn filename(&self) -> &'a str {
+        self.filename
     }
 
     /// The full source text of the file being linted.

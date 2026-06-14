@@ -107,9 +107,9 @@ pub fn lint(source: &str, filename: &str) -> String {
     }
 
     // 2. Native rules (template walk) + script-AST rules.
-    let native = run_native_rules(source, &config)
+    let native = run_native_rules(source, filename, &config)
         .into_iter()
-        .chain(crate::engine::run_script_rules(source, &config));
+        .chain(crate::engine::run_script_rules(source, filename, &config));
     for d in native {
         let (l, c) = line_index.position(d.start);
         if suppressions.is_suppressed(&d.rule, l) {
