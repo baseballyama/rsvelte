@@ -517,11 +517,30 @@ fn push_open_tag(
     // by that lead (#795).
     let attr_depth = depth + 1;
 
-    if let Some(expr) = this_expression
-        && let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
-    {
-        // `this={X}` is emitted first regardless of source position.
-        items.push((element_start, format!("this={{{formatted}}}")));
+    if let Some(expr) = this_expression {
+        let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
+            return Ok(false);
+        };
+        // Detect `this="string"` — the byte before the expression start is a
+        // quote, meaning the attribute was written as a plain string value rather
+        // than `this={expr}`. Preserve the string form (`this="value"`) rather
+        // than converting to the brace form, which would turn `this="div"` into
+        // `this={div}` (an identifier reference, not a string literal).
+        let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
+        let this_attr = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
+            // String attribute: keep as `this="value"`.
+            let raw = source
+                .get(expr_start as usize..expr_end as usize)
+                .unwrap_or("")
+                .trim();
+            format!("this=\"{raw}\"")
+        } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)? {
+            format!("this={{{formatted}}}")
+        } else {
+            return Ok(false);
+        };
+        // `this={X}` / `this="X"` is emitted first regardless of source position.
+        items.push((element_start, this_attr));
     }
 
     for attr in attributes {
