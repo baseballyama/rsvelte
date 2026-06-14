@@ -1105,6 +1105,41 @@ fn is_shallow_value(src: &str) -> bool {
     !(t.starts_with('{') || t.starts_with('[') || t.starts_with("function"))
 }
 
+/// Render an attribute whose value is a single `{expr}` mustache (whether the
+/// source wrote it bare `attr={expr}` or quoted `attr="{expr}"` — prettier
+/// renders both unquoted). Applies the `name={name}` → `{name}` shorthand.
+fn render_single_expression_value(
+    node: &AttributeNode,
+    inner_src: &str,
+    _source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    narrow_value: bool,
+) -> Result<String, FormatError> {
+    if inner_src.is_empty() {
+        return Ok(format!("{}={{}}", node.name));
+    }
+    // When the open tag wraps, a SHALLOW value (a ternary / binary / logical
+    // chain — no block body) is narrowed by the `name={` prefix so it breaks at
+    // its top level where prettier does, even when it already spans multiple
+    // lines. A value with a block body (an arrow handler / object / array) is
+    // left at the indent-only width: its continuation lines sit at the attribute
+    // indent with full width, so narrowing by the prefix would wrongly over-wrap.
+    let prefix = visual_width(node.name.as_str()) + 2;
+    let extra = if narrow_value && is_shallow_value(inner_src) {
+        prefix
+    } else {
+        0
+    };
+    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
+    // Svelte attribute shorthand: `name={name}` → `{name}`.
+    if formatted == node.name.as_str() {
+        Ok(format!("{{{formatted}}}"))
+    } else {
+        Ok(format!("{}={{{formatted}}}", node.name))
+    }
+}
+
 fn render_attribute_node(
     node: &AttributeNode,
     source: &str,
@@ -1116,30 +1151,22 @@ fn render_attribute_node(
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
             let inner_src = expression_tag_inner(tag, source).trim();
-            if inner_src.is_empty() {
-                return Ok(format!("{}={{}}", node.name));
-            }
-            // When the open tag wraps, a SHALLOW value (a ternary / binary /
-            // logical chain — no block body) is narrowed by the `name={` prefix
-            // so it breaks at its top level where prettier does, even when it
-            // already spans multiple lines. A value with a block body (an arrow
-            // handler / object / array) is left at the indent-only width: its
-            // continuation lines sit at the attribute indent with full width, so
-            // narrowing by the prefix would wrongly over-wrap them.
-            let prefix = visual_width(node.name.as_str()) + 2;
-            let extra = if narrow_value && is_shallow_value(inner_src) {
-                prefix
-            } else {
-                0
-            };
-            let formatted =
-                format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
-            // Svelte attribute shorthand: `name={name}` → `{name}`.
-            if formatted == node.name.as_str() {
-                Ok(format!("{{{formatted}}}"))
-            } else {
-                Ok(format!("{}={{{formatted}}}", node.name))
-            }
+            render_single_expression_value(node, inner_src, source, options, attr_depth, narrow_value)
+        }
+        // prettier-plugin-svelte strips the quotes around a value that is a
+        // single mustache and nothing else: `attr="{expr}"` → `attr={expr}`
+        // (which then shorthands to `{attr}` when the expression is exactly the
+        // attribute name). A value with surrounding text (`"a {x}"`) or multiple
+        // interpolations (`"{a}{b}"`) keeps its quotes — handled below.
+        AttributeValue::Sequence(parts)
+            if matches!(parts.as_slice(), [AttributeValuePart::ExpressionTag(_)]) =>
+        {
+            let AttributeValuePart::ExpressionTag(tag) = &parts[0] else { unreachable!() };
+            let inner_src = source
+                .get(tag.start as usize + 1..tag.end as usize - 1)
+                .unwrap_or("")
+                .trim();
+            render_single_expression_value(node, inner_src, source, options, attr_depth, narrow_value)
         }
         AttributeValue::Sequence(parts) => {
             // Columns before the value body on the first line: `name="`.
