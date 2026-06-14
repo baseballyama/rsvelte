@@ -1339,11 +1339,80 @@ pub(crate) fn format_pattern_source(
     // oxc_formatter regardless of `line_width` / `expand`. A multi-line
     // pattern can't safely sit inside a Svelte block header
     // (`{#each as ...}` re-reads the header as a single line), so
-    // fall back to a light source-normalization for those.
+    // collapse the OXC multi-line output onto one line by joining trimmed
+    // non-empty lines, handling trailing commas before closing brackets/braces.
     if candidate.contains('\n') {
-        return Ok(light_normalize_pattern(pattern_source));
+        return Ok(collapse_multiline_pattern(&candidate));
     }
     Ok(candidate)
+}
+
+/// Collapse an OXC-formatted multi-line destructuring pattern onto one line.
+///
+/// OXC may produce:
+/// ```
+/// {
+///   0: first,
+///   [length - 1]: last,
+/// }
+/// ```
+/// We join each trimmed token line, re-inserting a single space after each
+/// comma. Trailing commas before `}` / `]` are stripped (OXC adds them in
+/// multi-line mode; prettier does not in single-line).
+fn collapse_multiline_pattern(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut prev_was_open = false;
+    for line in src.lines() {
+        let t = line.trim();
+        if t.is_empty() {
+            continue;
+        }
+        // Strip trailing comma from lines that close a bracket/brace on the next token.
+        // We detect this if the trimmed line ends with `,` and the *next* non-empty
+        // trimmed line starts with `}` or `]`. For simplicity: strip trailing comma
+        // from any line whose content, after trimming, ends with `,` when the
+        // next non-empty line starts with `}` or `]`. We do a two-pass approach:
+        // collect all trimmed non-empty tokens first.
+        let _ = prev_was_open;
+        out.push_str(t);
+        out.push(' ');
+        prev_was_open = t.ends_with('{') || t.ends_with('[');
+    }
+    // Now we have tokens separated by spaces. Post-process to fix up:
+    //   - Remove spaces BEFORE `}` and `]` and `)`.
+    //   - Remove trailing comma before `}` / `]`.
+    //   - Remove trailing space.
+    // Use a different approach: collect tokens line by line and join properly.
+    drop(out);
+
+    let tokens: Vec<&str> = src
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect();
+    let mut result = String::with_capacity(src.len());
+    for (i, tok) in tokens.iter().enumerate() {
+        let next = tokens.get(i + 1).copied().unwrap_or("");
+        // Strip a trailing comma if the next line is just `}` or `]` or `]:`
+        let effective = if tok.ends_with(',') && (next.starts_with('}') || next.starts_with(']')) {
+            &tok[..tok.len() - 1]
+        } else {
+            tok
+        };
+        // If this token starts with `}` or `]`, remove any trailing space we added.
+        if effective.starts_with('}') || effective.starts_with(']') {
+            // Remove the trailing space from the last push.
+            if result.ends_with(' ') {
+                result.pop();
+            }
+        }
+        result.push_str(effective);
+        // After the token, add a space unless we're at the end.
+        if i + 1 < tokens.len() {
+            result.push(' ');
+        }
+    }
+    result
 }
 
 /// Conservative whitespace-only normalization used when the JS formatter

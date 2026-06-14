@@ -1509,10 +1509,29 @@ fn try_break_block_overflow(
         return None;
     }
 
-    // Must overflow.
-    let column = current_column(out, start);
-    if column + whole.width() <= line_width {
-        return None;
+    // prettier-plugin-svelte's `forceBreakContent`: a block-display element whose
+    // fragment contains any control-flow block child (IfBlock, EachBlock, AwaitBlock,
+    // KeyBlock, SnippetBlock) ALWAYS breaks its content onto a new indented line —
+    // even when the whole element fits in 80 columns. This mirrors prettier's
+    // `breakParent` / `forceBreakContent` mechanism where Svelte flow-control
+    // blocks generate `hardline` separators that force the enclosing group to break.
+    let has_flow_block_child = fragment.nodes.iter().any(|n| {
+        matches!(
+            n,
+            TemplateNode::IfBlock(_)
+                | TemplateNode::EachBlock(_)
+                | TemplateNode::AwaitBlock(_)
+                | TemplateNode::KeyBlock(_)
+                | TemplateNode::SnippetBlock(_)
+        )
+    });
+
+    if !has_flow_block_child {
+        // Must overflow.
+        let column = current_column(out, start);
+        if column + whole.width() <= line_width {
+            return None;
+        }
     }
 
     // Need at least one non-whitespace child.
