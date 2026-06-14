@@ -2888,7 +2888,9 @@ fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) -> Str
                 if node.name == "slot" {
                     continue;
                 }
-                if let Some(s) = format_attribute_node(node, source) {
+                // Named-slot elements become `svelteHTML.createElement(…)` calls,
+                // so they are real DOM elements — apply data-* wrapping.
+                if let Some(s) = format_attribute_node(node, source, true) {
                     parts.push(s);
                 }
             }
@@ -3302,7 +3304,9 @@ fn handle_svelte_self(
             }
             _ => match attr {
                 Attribute::Attribute(node) => {
-                    if let Some(s) = format_attribute_node(node, source) {
+                    // `<svelte:self>` is component-like (`__sveltets_2_createComponentAny`),
+                    // so apply --* CSS-prop wrapping, not data-* element wrapping.
+                    if let Some(s) = format_attribute_node(node, source, false) {
                         prop_parts.push(s);
                     }
                 }
@@ -3664,18 +3668,10 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                 if node.name == "slot" {
                     continue;
                 }
-                if let Some(s) = format_attribute_node(node, source) {
-                    if node.name.starts_with("--") {
-                        // CSS custom properties on components must be wrapped
-                        // with `__sveltets_2_cssProp` so TS does not flag the
-                        // `--xx` key as an invalid prop. Mirrors the JS
-                        // reference's `name.unshift('...__sveltets_2_cssProp({')`
-                        // / `value.push('})')` in `htmlxtojsx_v2/nodes/Attribute.ts`.
-                        let inner = s.strip_suffix(',').unwrap_or(&s);
-                        parts.push(format!("...__sveltets_2_cssProp({{{}}}),", inner));
-                    } else {
-                        parts.push(s);
-                    }
+                // is_element=false: --* attrs are wrapped with __sveltets_2_cssProp
+                // inside format_attribute_node (mirrors Attribute.ts `addProp`).
+                if let Some(s) = format_attribute_node(node, source, false) {
+                    parts.push(s);
                 }
             }
             Attribute::SpreadAttribute(spread) => {
@@ -3774,27 +3770,10 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 if node.name == "slot" {
                     continue;
                 }
+                // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
+                // inside format_attribute_node_segments (mirrors Attribute.ts).
                 if let Some(part) = format_attribute_node_segments(node, source, false) {
-                    if node.name.starts_with("--") {
-                        // CSS custom property wrap: `--x:val,` →
-                        // `...__sveltets_2_cssProp({--x:val}),`. Strip the
-                        // trailing `,` literal from the inner segment list
-                        // before wrapping.
-                        let mut inner_stripped = part;
-                        if let Some(Seg::Lit(last)) = inner_stripped.last_mut()
-                            && last.ends_with(',')
-                        {
-                            last.pop();
-                            if last.is_empty() {
-                                inner_stripped.pop();
-                            }
-                        }
-                        segs_push_lit(&mut inner, "...__sveltets_2_cssProp({");
-                        extend_segs(&mut inner, inner_stripped);
-                        segs_push_lit(&mut inner, "}),");
-                    } else {
-                        extend_segs(&mut inner, part);
-                    }
+                    extend_segs(&mut inner, part);
                 }
             }
             Attribute::SpreadAttribute(spread) => {
@@ -3911,22 +3890,59 @@ fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &str) 
 ///
 /// Shorthand attributes like `{propB}` (where name equals expression text)
 /// produce `propB,` instead of `"propB":propB,`.
-fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
+///
+/// Wrapping rules (mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`):
+/// - `is_element` && name starts with `data-` (but NOT `data-sveltekit-`):
+///   `...__sveltets_2_empty({ "data-foo": value })` — boolean/no-value → `__sveltets_2_any()`.
+/// - `!is_element` && name starts with `--`:
+///   `...__sveltets_2_cssProp({ "--x": value })` — boolean/no-value → `""`.
+fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -> Option<String> {
     let name = &node.name;
+
+    // Determine wrapping: data-* on elements, --* on components.
+    let is_data_attr =
+        is_element && name.starts_with("data-") && !name.starts_with("data-sveltekit-");
+    let is_css_prop = !is_element && name.starts_with("--");
+
+    /// Wrap the inner `"name":value` (without trailing comma) in the
+    /// appropriate helper and re-attach the comma.
+    fn wrap(inner: &str, is_data: bool, is_css: bool) -> String {
+        if is_data {
+            format!("...__sveltets_2_empty({{{}}}),", inner)
+        } else if is_css {
+            format!("...__sveltets_2_cssProp({{{}}}),", inner)
+        } else {
+            format!("{},", inner)
+        }
+    }
 
     match &node.value {
         AttributeValue::True(_) => {
             // Boolean attribute: `disabled` → `"disabled":true,`
-            Some(format!("\"{}\":true,", name))
+            // For data-* on elements: boolean means no value → __sveltets_2_any()
+            // For --* on components: boolean means no value → ""
+            if is_data_attr {
+                Some(format!(
+                    "...__sveltets_2_empty({{\"{}\":__sveltets_2_any()}}),",
+                    name
+                ))
+            } else if is_css_prop {
+                Some(format!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name))
+            } else {
+                Some(format!("\"{}\":true,", name))
+            }
         }
         AttributeValue::Expression(expr) => {
             // Expression value: `name={expr}` → `"name":expr,`
             let expr_text = get_expression_text(&expr.expression, source);
-            // Check for shorthand: `{propB}` where name equals expression text
+            // Check for shorthand: `{propB}` where name equals expression text.
+            // Shorthand names are plain identifiers so they cannot start with
+            // `data-` or `--`; skip wrapping for them.
             if name.as_str() == expr_text {
                 Some(format!("{},", name))
             } else {
-                Some(format!("\"{}\":{},", name, expr_text))
+                let inner = format!("\"{}\":{}", name, expr_text);
+                Some(wrap(&inner, is_data_attr, is_css_prop))
             }
         }
         AttributeValue::Sequence(parts) => {
@@ -3936,7 +3952,8 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
                 && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
             {
                 let expr_text = get_expression_text(&expr.expression, source);
-                return Some(format!("\"{}\":{},", name, expr_text));
+                let inner = format!("\"{}\":{}", name, expr_text);
+                return Some(wrap(&inner, is_data_attr, is_css_prop));
             }
 
             // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
@@ -3961,7 +3978,8 @@ fn format_attribute_node(node: &AttributeNode, source: &str) -> Option<String> {
                     }
                 }
             }
-            Some(format!("\"{}\":`{}`,", name, value_parts.join("")))
+            let inner = format!("\"{}\":`{}`", name, value_parts.join(""));
+            Some(wrap(&inner, is_data_attr, is_css_prop))
         }
     }
 }
@@ -4042,17 +4060,72 @@ fn is_js_numeric(data: &str) -> bool {
     t.parse::<f64>().is_ok()
 }
 
+/// Structured-bake variant of [`format_attribute_node`]. Wraps every
+/// expression site in `Seg::Src` so the resulting MagicString chunks
+/// retain per-character source-map fidelity.
+///
+/// Applies the same wrapping rules as `format_attribute_node`:
+/// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
+/// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
+/// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
 fn format_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
     is_element: bool,
 ) -> Option<Vec<Seg>> {
     let name = &node.name;
+
+    let is_data_attr =
+        is_element && name.starts_with("data-") && !name.starts_with("data-sveltekit-");
+    let is_css_prop = !is_element && name.starts_with("--");
+
+    // Helper: prepend/append the wrapper literals around a segment list that
+    // already represents the `"name":value` content (no trailing comma).
+    // Returns the final list with the trailing comma appended.
+    let wrap_segs = |mut inner: Vec<Seg>| -> Vec<Seg> {
+        if is_data_attr {
+            let mut out = Vec::with_capacity(inner.len() + 2);
+            segs_push_lit(&mut out, "...__sveltets_2_empty({");
+            out.append(&mut inner);
+            segs_push_lit(&mut out, "}),");
+            out
+        } else if is_css_prop {
+            let mut out = Vec::with_capacity(inner.len() + 2);
+            segs_push_lit(&mut out, "...__sveltets_2_cssProp({");
+            out.append(&mut inner);
+            segs_push_lit(&mut out, "}),");
+            out
+        } else {
+            let mut out = inner;
+            segs_push_lit(&mut out, ",");
+            out
+        }
+    };
+
     let mut out: Vec<Seg> = Vec::new();
 
     match &node.value {
         AttributeValue::True(_) => {
-            segs_push_lit(&mut out, &format!("\"{}\":true,", name));
+            // Boolean / valueless attribute.
+            // data-* on elements: no-value → __sveltets_2_any()
+            // --* on components: no-value → ""
+            // Others: true
+            if is_data_attr {
+                segs_push_lit(
+                    &mut out,
+                    &format!(
+                        "...__sveltets_2_empty({{\"{}\":__sveltets_2_any()}}),",
+                        name
+                    ),
+                );
+            } else if is_css_prop {
+                segs_push_lit(
+                    &mut out,
+                    &format!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name),
+                );
+            } else {
+                segs_push_lit(&mut out, &format!("\"{}\":true,", name));
+            }
             Some(out)
         }
         AttributeValue::Expression(expr) => {
@@ -4060,19 +4133,23 @@ fn format_attribute_node_segments(
             let expr_text = get_expression_text(&expr.expression, source);
             let is_shorthand = name.as_str() == expr_text;
 
+            // Shorthand identifiers can't start with `data-` or `--` — no wrap.
             if let Some((s, e)) = expr_range {
                 if is_shorthand {
                     segs_push_src(&mut out, s, e);
                     segs_push_lit(&mut out, ",");
                 } else {
-                    segs_push_lit(&mut out, &format!("\"{}\":", name));
-                    segs_push_src(&mut out, s, e);
-                    segs_push_lit(&mut out, ",");
+                    let mut inner: Vec<Seg> = Vec::new();
+                    segs_push_lit(&mut inner, &format!("\"{}\":", name));
+                    segs_push_src(&mut inner, s, e);
+                    return Some(wrap_segs(inner));
                 }
             } else if is_shorthand {
                 segs_push_lit(&mut out, &format!("{},", name));
             } else {
-                segs_push_lit(&mut out, &format!("\"{}\":{},", name, expr_text));
+                let mut inner: Vec<Seg> = Vec::new();
+                segs_push_lit(&mut inner, &format!("\"{}\":{}", name, expr_text));
+                return Some(wrap_segs(inner));
             }
             Some(out)
         }
@@ -4083,14 +4160,14 @@ fn format_attribute_node_segments(
                 && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
             {
                 let range = get_expression_range(&expr.expression);
-                segs_push_lit(&mut out, &format!("\"{}\":", name));
+                let mut inner: Vec<Seg> = Vec::new();
+                segs_push_lit(&mut inner, &format!("\"{}\":", name));
                 if let Some((s, e)) = range {
-                    segs_push_src(&mut out, s, e);
+                    segs_push_src(&mut inner, s, e);
                 } else {
-                    segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                    segs_push_lit(&mut inner, get_expression_text(&expr.expression, source));
                 }
-                segs_push_lit(&mut out, ",");
-                return Some(out);
+                return Some(wrap_segs(inner));
             }
 
             // Numeric DOM attribute written as a string literal (`tabindex="-1"`,
@@ -4100,6 +4177,8 @@ fn format_attribute_node_segments(
             // the author's string), only for the `numberOnlyAttributes` set, and
             // only when the value actually coerces to a number (#939). Mirrors
             // svelte2tsx's `needsNumberConversion` in `Attribute.ts`.
+            // Note: number-only attributes (tabindex, colspan, etc.) cannot start
+            // with `data-` or `--`, so no extra wrap is needed here.
             if is_element
                 && parts.len() == 1
                 && let AttributeValuePart::Text(text) = &parts[0]
@@ -4114,7 +4193,8 @@ fn format_attribute_node_segments(
 
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
-            segs_push_lit(&mut out, &format!("\"{}\":`", name));
+            let mut inner: Vec<Seg> = Vec::new();
+            segs_push_lit(&mut inner, &format!("\"{}\":`", name));
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
@@ -4125,22 +4205,25 @@ fn format_attribute_node_segments(
                             .replace('\\', "\\\\")
                             .replace('`', "\\`")
                             .replace('$', "\\$");
-                        segs_push_lit(&mut out, &escaped);
+                        segs_push_lit(&mut inner, &escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
                         let range = get_expression_range(&expr.expression);
-                        segs_push_lit(&mut out, "${");
+                        segs_push_lit(&mut inner, "${");
                         if let Some((s, e)) = range {
-                            segs_push_src(&mut out, s, e);
+                            segs_push_src(&mut inner, s, e);
                         } else {
-                            segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
+                            segs_push_lit(
+                                &mut inner,
+                                get_expression_text(&expr.expression, source),
+                            );
                         }
-                        segs_push_lit(&mut out, "}");
+                        segs_push_lit(&mut inner, "}");
                     }
                 }
             }
-            segs_push_lit(&mut out, "`,");
-            Some(out)
+            segs_push_lit(&mut inner, "`");
+            Some(wrap_segs(inner))
         }
     }
 }
@@ -4867,7 +4950,9 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
                 if node.name == "name" {
                     continue;
                 }
-                if let Some(s) = format_attribute_node(node, source) {
+                // Slot props are neither DOM-element props nor component props;
+                // use is_element=false (no data-* wrapping; --* wrapping if present).
+                if let Some(s) = format_attribute_node(node, source, false) {
                     parts.push(s);
                 }
             }
@@ -5166,5 +5251,80 @@ mod tests {
         let mut s = MagicString::new(source);
         emit_segmented_overwrite(&mut s, 1, 4, &[Seg::Lit("xyz".to_string())]);
         assert_eq!(s.to_string(), "AxyzE");
+    }
+
+    // Tests for data-* and --* attribute wrapping rules.
+    // Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute` / `addProp`.
+
+    use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
+
+    fn compile_template(src: &str) -> String {
+        svelte2tsx(src, Svelte2TsxOptions::default()).unwrap().code
+    }
+
+    #[test]
+    fn test_data_attr_on_element_is_wrapped_with_empty() {
+        // `data-foo="foobarbaz"` on a DOM element must become
+        // `...__sveltets_2_empty({"data-foo":\`foobarbaz\`})`.
+        let src = "<p data-foo=\"foobarbaz\">hello</p>";
+        let out = compile_template(src);
+        assert!(
+            out.contains("...__sveltets_2_empty({\"data-foo\":`foobarbaz`})"),
+            "expected __sveltets_2_empty wrap, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_data_sveltekit_attr_not_wrapped() {
+        // `data-sveltekit-*` must NOT be wrapped — it is valid in `svelte/elements`.
+        let src = "<a data-sveltekit-preload-data=\"hover\">link</a>";
+        let out = compile_template(src);
+        assert!(
+            !out.contains("__sveltets_2_empty"),
+            "data-sveltekit-* should not be wrapped, got:\n{out}"
+        );
+        assert!(
+            out.contains("\"data-sveltekit-preload-data\""),
+            "data-sveltekit-preload-data should be a plain prop, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_data_attr_boolean_on_element_uses_any() {
+        // Boolean `data-foo` (no value) on a DOM element → `__sveltets_2_any()`.
+        let src = "<p data-foo>hello</p>";
+        let out = compile_template(src);
+        assert!(
+            out.contains("...__sveltets_2_empty({\"data-foo\":__sveltets_2_any()})"),
+            "boolean data-* should use __sveltets_2_any(), got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_css_prop_on_component_is_wrapped_with_cssprop() {
+        // `--my-var={x}` on a component must become
+        // `...__sveltets_2_cssProp({"--my-var":x})`.
+        let src = "<script>import Comp from \"./Comp.svelte\"; let x = 5;</script>\
+                   <Comp --my-var={x} />";
+        let out = compile_template(src);
+        assert!(
+            out.contains("...__sveltets_2_cssProp({\"--my-var\":x})"),
+            "expected __sveltets_2_cssProp wrap, got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_normal_attr_not_wrapped() {
+        // Regular attributes (no data-* or --*) must remain unwrapped.
+        let src = "<p class=\"foo\" id=\"bar\">hello</p>";
+        let out = compile_template(src);
+        assert!(
+            !out.contains("__sveltets_2_empty"),
+            "regular attrs should not be wrapped, got:\n{out}"
+        );
+        assert!(
+            out.contains("\"class\":`foo`"),
+            "class attr should be plain prop, got:\n{out}"
+        );
     }
 }
