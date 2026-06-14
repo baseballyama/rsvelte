@@ -3204,9 +3204,41 @@ fn handle_svelte_component(
 
     let ctor_var = reversed_component_name(&scomp_name, depth);
     let inst_var = reversed_component_instance_name(&scomp_name, depth);
-    // Need an instance variable when there are `on:` events OR `let:`
-    // directives — both rely on `inst.$on(...)` / `inst.$$slot_def`.
-    let needs_inst = has_events || has_lets_scomp;
+    // A `bind:` directive on the component needs the instance variable too: it
+    // emits a `inst.$$bindings = 'name'` marker (and a type-widener) after the
+    // `new` statement, mirroring `handle_component`.
+    let has_binds = comp
+        .attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::BindDirective(_)));
+    // Build the bind suffix (same shape as `handle_component`'s
+    // `component_bind_suffix`).
+    let component_bind_suffix = {
+        let mut out = String::new();
+        for attr in &comp.attributes {
+            if let Attribute::BindDirective(bind) = attr {
+                if bind.name == "this" {
+                    let bexpr = get_expression_text(&bind.expression, source);
+                    let _ = write!(out, "{} = {};", bexpr, inst_var);
+                    continue;
+                }
+                if get_set_binding_ranges(&bind.expression, source).is_some() {
+                    let _ = write!(out, "{}.$$bindings = '{}';", inst_var, bind.name);
+                    continue;
+                }
+                let bexpr = get_expression_text(&bind.expression, source);
+                let _ = write!(
+                    out,
+                    "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/{}.$$bindings = '{}';",
+                    bexpr, inst_var, bind.name
+                );
+            }
+        }
+        out
+    };
+    // Need an instance variable when there are `on:` events, `let:` directives,
+    // or `bind:` directives.
+    let needs_inst = has_events || has_lets_scomp || has_binds;
     let mut opener = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
@@ -3214,8 +3246,8 @@ fn handle_svelte_component(
             String::new()
         };
         format!(
-            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}",
-            ctor_var, expr_text, inst_var, ctor_var, attrs_str, on_calls
+            " {{ const {} = __sveltets_2_ensureComponent({}); const {} = new {}({{ target: __sveltets_2_any(), props: {{{}}}}});{}{}",
+            ctor_var, expr_text, inst_var, ctor_var, attrs_str, component_bind_suffix, on_calls
         )
     } else {
         format!(
@@ -3935,8 +3967,18 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                 if bind.name == "this" {
                     continue;
                 }
-                let expr_text = get_expression_text(&bind.expression, source);
-                parts.push(format!("{}:{},", bind.name, expr_text));
+                // Shorthand `bind:value` (expression right after `bind:`) →
+                // shorthand prop `value`; explicit `bind:foo={expr}` → `foo:expr`.
+                let expr_range = get_expression_range(&bind.expression);
+                let is_shorthand = get_set_binding_ranges(&bind.expression, source).is_none()
+                    && expr_range.is_some_and(|(s, _)| s == bind.start + "bind:".len() as u32);
+                if is_shorthand {
+                    let (s, e) = expr_range.unwrap();
+                    parts.push(format!("{},", &source[s as usize..e as usize]));
+                } else {
+                    let expr_text = get_expression_text(&bind.expression, source);
+                    parts.push(format!("{}:{},", bind.name, expr_text));
+                }
             }
             Attribute::OnDirective(_) => {
                 // Excluded from component props - handled as $on() calls
