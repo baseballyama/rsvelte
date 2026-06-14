@@ -675,6 +675,13 @@ fn collect_slot_prop_entries(
     };
     let mut props = Vec::new();
     for attr in attributes {
+        // `<slot {...slotProps}>` spreads the props object into the slot type:
+        // `slots: { default: { ...slotProps } }`.
+        if let Attribute::SpreadAttribute(spread) = attr {
+            let expr_text = get_expression_text(&spread.expression, source);
+            props.push(format!("...{}", expr_text));
+            continue;
+        }
         if let Attribute::Attribute(node) = attr {
             if node.name == "name" {
                 continue; // Skip the name attribute
