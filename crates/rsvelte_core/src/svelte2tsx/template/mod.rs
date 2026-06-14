@@ -1834,8 +1834,20 @@ fn handle_await_block(
             str.overwrite(catch_end, block.end, "}}");
         }
     } else {
-        // Just the expression
-        str.overwrite(block.start, block.end, &format!("{{{};  }}", expr_text));
+        // Bare await block `{#await promise}{/await}` (no pending/then/catch).
+        // Official `handleAwait` emits `{ await (EXPR);}` — the promise is
+        // always awaited, so the `await` keyword must be present (it was
+        // previously dropped, emitting `{EXPR;}`).
+        if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+            str.overwrite(block.start, expr_start, "{ await (");
+            if expr_end < block.end {
+                str.overwrite(expr_end, block.end, ");}");
+            } else {
+                str.append_left(expr_end, ");}");
+            }
+        } else {
+            str.overwrite(block.start, block.end, &format!("{{ await ({});}}", expr_text));
+        }
     }
 }
 
@@ -1854,10 +1866,22 @@ fn handle_key_block(
 
     let expr_text = get_expression_text(&block.expression, source);
 
+    // For an empty `{#key EXPR}{/key}` body, the block scope opens right after
+    // the `}` that closes the `{#key EXPR}` tag — NOT at `block.end` (after
+    // `{/key}`), which would make the header rewrite swallow `{/key}` and leave
+    // the `{` unbalanced.
     let content_start = if !block.fragment.nodes.is_empty() {
         block.fragment.nodes[0].start()
     } else {
-        block.end
+        let expr_end = get_expression_range(&block.expression)
+            .map(|(_, e)| e)
+            .unwrap_or(block.start);
+        let bytes = source.as_bytes();
+        let mut p = expr_end as usize;
+        while p < bytes.len() && bytes[p] != b'}' {
+            p += 1;
+        }
+        ((p + 1).min(bytes.len())) as u32
     };
 
     // Preserve the expression chunk in place so its per-character mapping
