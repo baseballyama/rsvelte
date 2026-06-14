@@ -877,12 +877,7 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     let take_leading_comment = |pending: &mut Vec<String>| -> Option<String> {
                         // If the last pending line is a `//` comment AND there are
                         // no non-comment lines after it, pop it and return it.
-                        if let Some(last) = pending.last()
-                            && last.trim().starts_with("//")
-                        {
-                            return Some(pending.pop().unwrap());
-                        }
-                        None
+                        pending.pop_if(|last| last.trim().starts_with("//"))
                     };
 
                     // Try single-line parse
