@@ -539,6 +539,11 @@ pub struct ComponentEvents {
     /// Generic type text from `createEventDispatcher<Type>()`, if any.
     /// Used to generate `{...__sveltets_2_toEventTypings<Type>()}` in the events return.
     pub dispatcher_generic_type: Option<String>,
+    /// Names of locally-created, *untyped* event dispatchers
+    /// (`const dispatch = createEventDispatcher()`). Their `dispatch("name")`
+    /// call sites are scanned across the whole component to populate the
+    /// `events: { name: __sveltets_2_customEvent }` return.
+    pub dispatcher_names: Vec<String>,
 }
 
 /// Metadata about a single component event.
@@ -557,6 +562,7 @@ impl ComponentEvents {
             events: HashMap::new(),
             forwards_all_events: false,
             dispatcher_generic_type: None,
+            dispatcher_names: Vec::new(),
         }
     }
 
@@ -581,6 +587,61 @@ impl ComponentEvents {
     /// Check if there are any events declared.
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
+    }
+
+    /// Scan `source` for `<dispatcher>("eventName", …)` call sites of every
+    /// recorded untyped dispatcher and add each event name. Mirrors official
+    /// `ComponentEventsFromEventsMap`, which walks the component for dispatcher
+    /// calls and records the first string-literal argument. A lightweight
+    /// lexical scan suffices here: find the dispatcher identifier as a word,
+    /// require the next non-space char to be `(`, then read a single quoted
+    /// string-literal first argument.
+    pub fn collect_dispatched_events(&mut self, source: &str) {
+        let names = self.dispatcher_names.clone();
+        let bytes = source.as_bytes();
+        let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+        for disp in &names {
+            let dn = disp.as_bytes();
+            let mut from = 0usize;
+            while let Some(rel) = source[from..].find(disp.as_str()) {
+                let idx = from + rel;
+                from = idx + 1;
+                // Word boundary: not part of a longer identifier / member access.
+                if idx > 0 && (is_ident(bytes[idx - 1]) || bytes[idx - 1] == b'.') {
+                    continue;
+                }
+                let mut p = idx + dn.len();
+                if p < bytes.len() && is_ident(bytes[p]) {
+                    continue;
+                }
+                while p < bytes.len() && (bytes[p] == b' ' || bytes[p] == b'\t') {
+                    p += 1;
+                }
+                if p >= bytes.len() || bytes[p] != b'(' {
+                    continue;
+                }
+                p += 1;
+                while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+                    p += 1;
+                }
+                if p >= bytes.len() || (bytes[p] != b'"' && bytes[p] != b'\'' && bytes[p] != b'`') {
+                    continue;
+                }
+                let quote = bytes[p];
+                p += 1;
+                let name_start = p;
+                while p < bytes.len() && bytes[p] != quote {
+                    p += 1;
+                }
+                if p < bytes.len() {
+                    let evt = &source[name_start..p];
+                    // Only simple identifier-ish names (skip interpolated/dynamic).
+                    if !evt.is_empty() && !self.events.contains_key(evt) {
+                        self.add(evt.to_string(), None, false);
+                    }
+                }
+            }
+        }
     }
 
     /// Get event entries for the return statement.
@@ -3197,9 +3258,12 @@ fn detect_create_event_dispatcher(
                 let type_text = raw_content[start..end].to_string();
                 events.dispatcher_generic_type = Some(type_text);
             }
+        } else if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+            // Untyped dispatcher: record its name so `dispatch("name")` call
+            // sites (anywhere in the component, incl. template handlers) can be
+            // scanned to populate the events return.
+            events.dispatcher_names.push(name);
         }
-        // Also detect dispatch('eventName') calls for individual events
-        // (but that requires analyzing all call sites, which we skip here)
     }
 }
 

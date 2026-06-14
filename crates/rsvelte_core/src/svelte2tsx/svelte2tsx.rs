@@ -1631,6 +1631,11 @@ pub fn svelte2tsx(
         format!("{{{}}}", slot_parts.join(", "))
     };
 
+    // Scan the whole component (instance script + template handlers) for
+    // `dispatch("name", …)` call sites of any untyped `createEventDispatcher()`
+    // so they surface in the events return.
+    events.collect_dispatched_events(source);
+
     // Build events string from template info and component events
     let events_str = {
         let mut event_parts = Vec::new();
