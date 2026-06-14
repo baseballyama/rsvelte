@@ -470,6 +470,12 @@ fn collect_fill_mixed_only(
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(elem) => {
+                // `<pre>` / `<textarea>` preserve their content verbatim — never
+                // reflow them or recurse into their (whitespace-significant)
+                // descendants.
+                if is_whitespace_preserving(elem.name.as_str()) {
+                    continue;
+                }
                 // Only apply fill-mixed to block-display elements — inline
                 // elements were already handled (or correctly skipped) by pass 1.
                 if is_block_display(elem.name.as_str())
