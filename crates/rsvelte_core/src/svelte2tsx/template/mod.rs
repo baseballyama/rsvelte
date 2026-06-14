@@ -2508,6 +2508,23 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
             // `handleImplicitChildren`, which skips `SnippetBlock` / `Comment`
             // and only fakes a `children` prop for a real default-slot child.
             TemplateNode::SnippetBlock(_) | TemplateNode::Comment(_) => {}
+            // Named-slot children (`<el slot="name">`, `<svelte:fragment
+            // slot="name">`, etc.) populate their named slot, NOT the default
+            // `children` prop, so they must not trigger the synthetic
+            // `children`. Only default-slot content (no `slot=` attribute)
+            // counts. Mirrors upstream `handleImplicitChildren`.
+            TemplateNode::RegularElement(el)
+                if get_slot_attr_value(&el.attributes, source).is_some() => {}
+            TemplateNode::Component(c)
+                if get_slot_attr_value(&c.attributes, source).is_some() => {}
+            TemplateNode::SvelteFragment(f)
+                if get_slot_attr_value(&f.attributes, source).is_some() => {}
+            TemplateNode::SvelteElement(e)
+                if get_slot_attr_value(&e.attributes, source).is_some() => {}
+            TemplateNode::SvelteSelf(s)
+                if get_slot_attr_value(&s.attributes, source).is_some() => {}
+            TemplateNode::SvelteComponent(sc)
+                if get_slot_attr_value(&sc.attributes, source).is_some() => {}
             _ => return true,
         }
     }
