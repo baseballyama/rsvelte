@@ -314,6 +314,58 @@ fn collect_indent_edits_inner(
                 edits.push((boundary, boundary, format!("\n{child_indent}")));
             }
         }
+
+        // When force_break_content is active, the fragment's first and last
+        // non-whitespace, non-text nodes also need edge newlines when there's no
+        // leading / trailing whitespace text node. This mirrors prettier's outer
+        // `hardline` wrapping around block element groups.
+        // NOTE: we only insert edge newlines when the edge child is NOT a text
+        // node — text content that abuts an element's open tag stays inline
+        // (e.g. `<Nested>\n  Hello\n\n  <p>` keeps "Hello" at its position).
+        if force_break_content {
+            // First non-whitespace child: needs a leading newline if no ws text
+            // AND the first non-ws child is a non-text node.
+            let first_non_ws = fragment.nodes.iter().find(
+                |n| !matches!(n, TemplateNode::Text(t) if is_whitespace_only(t.data.as_str())),
+            );
+            if let Some(first) = first_non_ws
+                && !matches!(first, TemplateNode::Text(_))
+            {
+                let first_idx = fragment
+                    .nodes
+                    .iter()
+                    .position(|n| std::ptr::eq(n, first))
+                    .unwrap_or(0);
+                let has_leading_ws = first_idx > 0
+                    && matches!(&fragment.nodes[first_idx - 1],
+                        TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
+                if !has_leading_ws {
+                    let first_start = crate::collapse::template_node_span(first).0;
+                    edits.push((first_start, first_start, format!("\n{child_indent}")));
+                }
+            }
+            // Last non-whitespace child: needs a trailing newline if no ws text
+            // AND the last non-ws child is a non-text node.
+            let last_non_ws = fragment.nodes.iter().rev().find(
+                |n| !matches!(n, TemplateNode::Text(t) if is_whitespace_only(t.data.as_str())),
+            );
+            if let Some(last) = last_non_ws
+                && !matches!(last, TemplateNode::Text(_))
+            {
+                let last_idx = fragment
+                    .nodes
+                    .iter()
+                    .rposition(|n| std::ptr::eq(n, last))
+                    .unwrap_or(0);
+                let has_trailing_ws = last_idx + 1 < fragment.nodes.len()
+                    && matches!(&fragment.nodes[last_idx + 1],
+                        TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
+                if !has_trailing_ws {
+                    let last_end = crate::collapse::template_node_span(last).1;
+                    edits.push((last_end, last_end, format!("\n{parent_indent}")));
+                }
+            }
+        }
     }
 
     for (i, node) in fragment.nodes.iter().enumerate() {
