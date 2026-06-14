@@ -1549,21 +1549,22 @@ fn render_directive_value_narrow(
         let indent_cols = attr_depth * options.js.indent_width.value() as usize;
         let line_width = options.js.line_width.value() as usize;
         // `{` + formatted + `}` = 1 brace on each side
-        let overflows = indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width;
-        let extra = if overflows {
-            crate::expression::format_directive_value_extra(
-                source,
-                expr,
-                value_end,
-                options,
-                attr_depth,
-                prefix + 1,
-            )?
-        } else {
-            None
-        };
-        if let Some(s) = extra {
-            return Ok(s);
+        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+            // For shallow (non-block) values use `prefix + 1` (the `{` counts
+            // against the first-line budget). For arrow-function values the
+            // continuation lines sit at `attr_depth + 1` indent so we use
+            // just `prefix` (omitting the `{`) to avoid over-narrowing their
+            // bodies and breaking nested object/array arguments.
+            let extra_lead = if is_shallow_value(&formatted) {
+                prefix + 1
+            } else {
+                prefix
+            };
+            if let Some(s) = crate::expression::format_directive_value_extra(
+                source, expr, value_end, options, attr_depth, extra_lead,
+            )? {
+                return Ok(s);
+            }
         }
     }
     Ok(formatted)

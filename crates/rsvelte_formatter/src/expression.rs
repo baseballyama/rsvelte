@@ -1346,15 +1346,17 @@ pub(crate) fn format_pattern_source(
         .unwrap_or(stripped_prefix);
     let candidate = pattern.trim().to_string();
 
-    // Some patterns (deeply nested destructuring) get hard-wrapped by
-    // oxc_formatter regardless of `line_width` / `expand`. A multi-line
-    // pattern can't safely sit inside a Svelte block header
-    // (`{#each as ...}` re-reads the header as a single line), so
-    // fall back to a light source-normalization for those.
-    if candidate.contains('\n') {
-        return Ok(light_normalize_pattern(pattern_source));
-    }
-    Ok(candidate)
+    // prettier-plugin-svelte preserves the original source representation for
+    // patterns: string-key quotes are kept as-is, computed keys preserve
+    // internal whitespace. OXC normalises all of this (double-quote, strip
+    // quotes from valid-identifier keys, etc.), so we use the source-based
+    // light_normalize_pattern in all cases.
+    //
+    // For the multi-line case OXC hard-wraps regardless of `line_width` /
+    // `expand`; for the single-line case OXC changes quote style.  Either way
+    // the source-normalizing path is more faithful to the oracle.
+    let _ = candidate; // keep the OXC parse/format step for error-detection only
+    Ok(light_normalize_pattern(pattern_source))
 }
 
 /// Conservative whitespace-only normalization used when the JS formatter
@@ -1401,12 +1403,14 @@ fn light_normalize_pattern(src: &str) -> String {
                         break; // end of this template literal
                     }
                     b'\\' => {
-                        // Escape sequence — emit both chars verbatim.
+                        // Escape sequence — emit both bytes verbatim using
+                        // char-boundary-safe slice rather than `as char`.
                         out.push('\\');
                         i += 1;
                         if i < bytes.len() {
-                            out.push(bytes[i] as char);
-                            i += 1;
+                            let seq = utf8_seq_at(src, i);
+                            out.push_str(seq);
+                            i += seq.len();
                         }
                     }
                     b'$' if i + 1 < bytes.len() && bytes[i + 1] == b'{' => {
@@ -1427,9 +1431,45 @@ fn light_normalize_pattern(src: &str) -> String {
                         i += 1;
                         depth -= 1;
                     }
-                    other => {
-                        out.push(other as char);
+                    _ => {
+                        // Verbatim passthrough — use char-boundary-safe slice.
+                        let seq = utf8_seq_at(src, i);
+                        out.push_str(seq);
+                        i += seq.len();
+                    }
+                }
+            }
+            continue;
+        }
+
+        // Single- and double-quoted string literals: pass verbatim to preserve
+        // the original quote style (the oracle does not normalize string quotes
+        // in destructuring pattern keys: `{ 'prop-1': x }` stays single-quoted).
+        if b == b'\'' || b == b'"' {
+            let quote = b;
+            out.push(quote as char);
+            last_non_ws = quote;
+            i += 1;
+            while i < bytes.len() {
+                match bytes[i] {
+                    c if c == quote => {
+                        out.push(quote as char);
                         i += 1;
+                        break;
+                    }
+                    b'\\' => {
+                        out.push('\\');
+                        i += 1;
+                        if i < bytes.len() {
+                            let seq = utf8_seq_at(src, i);
+                            out.push_str(seq);
+                            i += seq.len();
+                        }
+                    }
+                    _ => {
+                        let seq = utf8_seq_at(src, i);
+                        out.push_str(seq);
+                        i += seq.len();
                     }
                 }
             }
@@ -1451,21 +1491,28 @@ fn light_normalize_pattern(src: &str) -> String {
                     b'[' => {
                         depth += 1;
                         out.push('[');
+                        i += 1;
                     }
                     b']' => {
                         depth -= 1;
                         out.push(']');
+                        i += 1;
                     }
                     b'\\' => {
                         out.push('\\');
                         i += 1;
                         if i < bytes.len() {
-                            out.push(bytes[i] as char);
+                            let seq = utf8_seq_at(src, i);
+                            out.push_str(seq);
+                            i += seq.len();
                         }
                     }
-                    other => out.push(other as char),
+                    _ => {
+                        let seq = utf8_seq_at(src, i);
+                        out.push_str(seq);
+                        i += seq.len();
+                    }
                 }
-                i += 1;
             }
             last_non_ws = b']';
             continue;
@@ -1545,7 +1592,30 @@ fn light_normalize_pattern(src: &str) -> String {
                 last_non_ws = b'=';
             }
             other => {
-                out.push(other as char);
+                if other < 0x80 {
+                    // ASCII: emit as a single char.
+                    out.push(other as char);
+                } else {
+                    // Multi-byte UTF-8 sequence: determine length from the
+                    // leading byte and copy the full sequence as a Rust char.
+                    let seq_len = if other & 0xF8 == 0xF0 {
+                        4
+                    } else if other & 0xF0 == 0xE0 {
+                        3
+                    } else {
+                        // 0xC0..0xDF two-byte sequence (or a stray continuation byte)
+                        2
+                    };
+                    if let Some(slice) = src.get(i..i + seq_len) {
+                        out.push_str(slice);
+                        last_non_ws = other;
+                        i += seq_len;
+                        continue;
+                    } else {
+                        // Truncated sequence — emit best-effort.
+                        out.push(other as char);
+                    }
+                }
                 last_non_ws = other;
             }
         }
