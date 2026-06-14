@@ -36,7 +36,6 @@
 	"svelte/packages/svelte/tests/print/samples/declaration-tag/input.svelte",
 	"svelte/packages/svelte/tests/print/samples/declaration-tag/output.svelte",
 	"svelte/packages/svelte/tests/print/samples/formatting/input.svelte",
-	"svelte/packages/svelte/tests/print/samples/formatting/output.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/html-tag-script-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/await-then-destruct-array-nested-rest/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-group-each-15/main.svelte",
