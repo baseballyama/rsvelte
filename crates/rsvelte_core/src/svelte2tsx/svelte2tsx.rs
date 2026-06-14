@@ -1454,28 +1454,14 @@ pub fn svelte2tsx(
             }
         }
 
-        // Blank out trailing whitespace after </script> that is not part
-        // of any template content. Must be done BEFORE moves, since the
-        // overwrite walks the linked list.
-        if (script_end as usize) < source.len() {
-            let bytes = source.as_bytes();
-            let mut trailing_end = script_end;
-            while (trailing_end as usize) < bytes.len() {
-                let b = bytes[trailing_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    trailing_end += 1;
-                } else {
-                    break;
-                }
-            }
-            let has_template_node_after_script = ast.fragment.nodes.iter().any(|node| {
-                let ns = node_start_pos(node);
-                ns >= script_end && ns < trailing_end
-            });
-            if !has_template_node_after_script && trailing_end > script_end {
-                str.overwrite(script_end, trailing_end, "");
-            }
-        }
+        // NOTE: the trailing whitespace after `</script>` is intentionally
+        // left in place. Official svelte2tsx's `createRenderFunction` overwrites
+        // only `</script>` itself and then `str.append('};')` + the return
+        // string at the very end, leaving the source's trailing newline between
+        // `async () => {` and the closing `};`. For a template-less component
+        // that yields `async () => {\n};`; blanking the newline here produced
+        // `async () => {};`, which diverged for the await-error fixtures whose
+        // output oxfmt cannot reformat (so only blank-line stripping applies).
     }
 
     // Phase 3: Move scripts to their target positions (after all overwrites)
