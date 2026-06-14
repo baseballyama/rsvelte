@@ -22,7 +22,7 @@
 		"generate-fmt-corpus:force": "node scripts/fixtures/generate-fmt-corpus.mjs --force",
 		"test-results": "cargo run --release --bin test_reporter -- --output apps/playground/static/test-results.json",
 		"generate-benchmark": "node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json",
-		"compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",
+		"compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture",
 		"list-categories": "cargo test --release --test compatibility_report list_test_categories -- --nocapture",
 		"update-docs": "node scripts/dev/update-docs.mjs",
 		"test-and-update": "npm run compatibility-report && npm run update-docs",

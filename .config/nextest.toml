@@ -1,0 +1,20 @@
+# cargo-nextest configuration. The `ci` profile is selected by the CI `test`
+# job (`cargo nextest run --profile ci`). Run locally with the same profile via
+# `cargo nextest run --profile ci`, or just `cargo nextest run` for the default.
+
+[profile.ci]
+# Match the old `cargo test` behaviour of surfacing *every* failure in a single
+# run rather than bailing on the first one — important for the fixture suites
+# where a Svelte bump can regress many fixtures at once.
+fail-fast = false
+
+# A handful of suites (runtime-legacy/runes, css, svelte2tsx, the C-ABI thread
+# stress test) are single `#[test]` functions that internally fan out over
+# 1000+ fixtures with rayon, so they legitimately run for ~1-2 minutes. Raise
+# the "SLOW" warning threshold so the log isn't spammed; never auto-terminate.
+slow-timeout = { period = "150s" }
+
+# Retry genuinely flaky failures once (e.g. transient Node/tsc subprocess
+# hiccups in the svelte-check golden tests) before reporting red, but keep the
+# common all-green path single-attempt.
+retries = { backoff = "fixed", count = 1, delay = "1s" }

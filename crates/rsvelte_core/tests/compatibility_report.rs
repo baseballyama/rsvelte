@@ -1442,7 +1442,17 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // Main Test
 // ============================================================================
 
+// `#[ignore]` by default: this is a *reporting* artifact, not a correctness
+// gate. It re-runs every category (parser, css, validator, runtime, …) purely
+// to assemble `compatibility-report.json`, and it deliberately never fails
+// (see the comment at the end of the body). Those categories are each already
+// gated by their own dedicated test binaries (tests/runtime.rs, tests/css.rs,
+// tests/validator.rs, …), so running this in the default `cargo test` /
+// `cargo nextest run` only duplicates ~all of the suite (it was the single
+// slowest "test" by a wide margin). The dedicated `Compatibility Report` CI
+// job — and `pnpm run compatibility-report` — opt back in via `--ignored`.
 #[test]
+#[ignore = "reporting-only; run explicitly via `pnpm run compatibility-report` (re-runs every category, asserts nothing)"]
 fn generate_compatibility_report() {
     let mut report = CompatibilityReport::new();
 
