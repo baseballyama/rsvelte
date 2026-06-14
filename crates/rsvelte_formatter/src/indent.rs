@@ -562,8 +562,12 @@ fn section_close_before(source: &str, start: u32) -> bool {
 /// Elements whose interior whitespace is meaningful and must survive
 /// verbatim. Matches prettier-plugin-svelte's `whitespaceSensitive`
 /// list for the common cases.
+///
+/// Note: `<textarea>` is intentionally NOT listed here. While its text
+/// content is collapsed to a single line by the collapse pass, its interior
+/// indentation is still normalized (tabs → spaces) by the indent pass.
 fn is_whitespace_preserving(tag_name: &str) -> bool {
-    matches!(tag_name, "pre" | "textarea")
+    matches!(tag_name, "pre")
 }
 
 fn indent_for_level(level: usize, opts: &JsFormatOptions) -> String {
