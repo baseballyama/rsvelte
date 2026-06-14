@@ -30,7 +30,7 @@ pub(crate) fn collect_indent_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    collect_indent_edits_inner(source, fragment, child_depth, false, options, edits)
+    collect_indent_edits_inner(source, fragment, child_depth, false, false, options, edits)
 }
 
 /// `force` makes the fragment re-indent its children even when it holds only
@@ -38,11 +38,19 @@ pub(crate) fn collect_indent_edits(
 /// always render their content on its own line(s). Element children instead pass
 /// `force = false`: a pure-text element collapses to one line and is handled
 /// elsewhere, not re-indented here.
+///
+/// `is_block_body` is `true` only for control-flow block bodies
+/// (`{#if}` / `{:else}` / `{#each}` / `{#snippet}` / …). It is `false` for
+/// element children (even when `force=true` from a multiline open tag). The flag
+/// controls whether an inline whitespace separator between two mustache siblings
+/// becomes a newline: element children always split when the fragment is broken;
+/// block bodies only split when a non-ExpressionTag sibling is present.
 fn collect_indent_edits_inner(
     source: &str,
     fragment: &Fragment,
     child_depth: usize,
     force: bool,
+    is_block_body: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -94,25 +102,83 @@ fn collect_indent_edits_inner(
         };
         let last = fragment.nodes.len().saturating_sub(1);
 
+        // Whether the fragment has at least one whitespace-only text node
+        // that contains a newline. When true the fragment is "broken" —
+        // its children are laid out on separate lines. For element children
+        // (not block bodies), this is sufficient to split inline mustache
+        // separators. For block bodies the fragment is always broken (has
+        // surrounding whitespace newlines), so a stricter check is used.
+        let fragment_is_broken = fragment.nodes.iter().any(|n| {
+            matches!(n, TemplateNode::Text(t) if t.data.contains('\n') && is_whitespace_only(t.data.as_str()))
+        });
+
+        // Whether the fragment has at least one indent-provoking child that
+        // is NOT an ExpressionTag (i.e., a "real" block child: ConstTag,
+        // HtmlTag, Comment, RegularElement, Component, IfBlock, etc.).
+        // Used for block bodies: only split inline spaces when such a sibling
+        // is present. Without one (fragment is only ExpressionTags + ws),
+        // the space is prose-sensitive and stays on one line.
+        let has_non_expression_block_child = fragment.nodes.iter().any(|n| {
+            is_indent_provoking(n) && !matches!(n, TemplateNode::ExpressionTag(_))
+        });
+
         for (i, node) in fragment.nodes.iter().enumerate() {
             let TemplateNode::Text(t) = node else {
                 continue;
             };
             if is_whitespace_only(t.data.as_str()) {
                 if !t.data.contains('\n') {
-                    // Inline spacing (no line break in the source). Between inline
-                    // content like `{a} {b}` it is whitespace-sensitive — keep it
-                    // on one line, collapsed to a single space. But leading /
-                    // trailing inline whitespace at the document root (e.g. a
-                    // markdown code block's indentation before a root element) is
-                    // insignificant and is removed.
-                    let replacement = if child_depth == 0 && (i == 0 || i == last) {
-                        ""
+                    // Inline spacing (no line break in the source).
+                    //
+                    // In a broken fragment, whitespace-only text between two
+                    // indent-provoking siblings (e.g. `{a} {b}`) becomes a
+                    // newline so each mustache lands on its own line — UNLESS
+                    // the next node is a RegularElement (inline HTML), in
+                    // which case the prose stays on one line (e.g.
+                    // `{field} <input />` or `{a} <br />`).
+                    //
+                    // The "broken" criterion differs by context:
+                    // - Element children (not block body): broken whenever the
+                    //   fragment has any whitespace-text-with-newline sibling.
+                    // - Block bodies (`{#if}` / `{#snippet}` / etc.): broken
+                    //   only when there is a non-ExpressionTag indent-provoking
+                    //   sibling (ConstTag, HtmlTag, Comment, elements, …).
+                    //   A block body of only `{a} {b}` stays inline because
+                    //   prettier treats it as prose in that context.
+                    //
+                    // Leading/trailing inline whitespace at the document root
+                    // is insignificant and is removed.
+                    let prev_provoking = i > 0 && is_indent_provoking(&fragment.nodes[i - 1]);
+                    let next_not_regular =
+                        i < last
+                            && !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
+                    let next_provoking =
+                        i < last && is_indent_provoking(&fragment.nodes[i + 1]);
+                    let effectively_broken = if is_block_body {
+                        has_non_expression_block_child
                     } else {
-                        " "
+                        fragment_is_broken
                     };
+                    let replacement =
+                        if effectively_broken
+                            && prev_provoking
+                            && next_provoking
+                            && next_not_regular
+                        {
+                            // Between two block-level nodes in an already-broken
+                            // fragment: convert the space to a line-break.
+                            if i == last {
+                                format!("\n{parent_indent}")
+                            } else {
+                                format!("\n{child_indent}")
+                            }
+                        } else if child_depth == 0 && (i == 0 || i == last) {
+                            String::new()
+                        } else {
+                            " ".to_string()
+                        };
                     if t.data.as_str() != replacement {
-                        edits.push((t.start, t.end, replacement.to_string()));
+                        edits.push((t.start, t.end, replacement));
                     }
                     continue;
                 }
@@ -128,7 +194,18 @@ fn collect_indent_edits_inner(
                 // block from the markup that follows with one blank line. A
                 // blank is NOT forced *before* an opening `<script>` / `<style>`:
                 // a leading `<!--@component-->` doc comment stays glued to it.
-                let keep_blank = (child_depth == 0 && section_close_before(source, t.start))
+                // A forced block body (`{#snippet}` / `{#if}` / `{#each}` / …)
+                // whose ONLY content is whitespace (an "empty" block) always
+                // keeps exactly one blank line — even when the source has just
+                // a single newline. prettier-plugin-svelte / oxfmt: an empty
+                // `{#snippet x()}\n{/snippet}` expands to
+                // `{#snippet x()}\n\n{/snippet}`. This does NOT apply when the
+                // block is on one line (`{#if true} {/if}` — no newline in the
+                // body text) since that case is handled by the `!contains('\n')`
+                // branch above and stays inline.
+                let empty_forced_body = is_block_body && i == 0 && i == last;
+                let keep_blank = empty_forced_body
+                    || (child_depth == 0 && section_close_before(source, t.start))
                     || (t.data.matches('\n').count() >= 2
                         && blank_line_allowed(source, t.start, t.end, i, last, child_depth));
                 let lead = if keep_blank { "\n" } else { "" };
@@ -225,7 +302,15 @@ fn recurse_into_children(
             // tag. (When the content *does* still fit one line, the collapse
             // pass overrides this, so forcing is safe.)
             let force = open_tag_is_multiline(source, elem.start, &elem.fragment);
-            collect_indent_edits_inner(source, &elem.fragment, next_depth, force, options, edits)?;
+            collect_indent_edits_inner(
+                source,
+                &elem.fragment,
+                next_depth,
+                force,
+                false, // element fragment, not a block body
+                options,
+                edits,
+            )?;
         }
         TemplateNode::Component(c) => {
             collect_indent_edits(source, &c.fragment, next_depth, options, edits)?;
@@ -266,6 +351,7 @@ fn recurse_into_children(
                     &current.consequent,
                     next_depth,
                     true,
+                    true, // if/else body is a block body
                     options,
                     edits,
                 )?;
@@ -274,7 +360,7 @@ fn recurse_into_children(
                         Some(chained) => current = chained,
                         None => {
                             collect_indent_edits_inner(
-                                source, alt, next_depth, true, options, edits,
+                                source, alt, next_depth, true, true, options, edits,
                             )?;
                             break;
                         }
@@ -284,27 +370,39 @@ fn recurse_into_children(
             }
         }
         TemplateNode::EachBlock(blk) => {
-            collect_indent_edits_inner(source, &blk.body, next_depth, true, options, edits)?;
+            collect_indent_edits_inner(source, &blk.body, next_depth, true, true, options, edits)?;
             if let Some(fb) = &blk.fallback {
-                collect_indent_edits_inner(source, fb, next_depth, true, options, edits)?;
+                collect_indent_edits_inner(
+                    source, fb, next_depth, true, true, options, edits,
+                )?;
             }
         }
         TemplateNode::AwaitBlock(blk) => {
             if let Some(frag) = &blk.pending {
-                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
+                collect_indent_edits_inner(
+                    source, frag, next_depth, true, true, options, edits,
+                )?;
             }
             if let Some(frag) = &blk.then {
-                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
+                collect_indent_edits_inner(
+                    source, frag, next_depth, true, true, options, edits,
+                )?;
             }
             if let Some(frag) = &blk.catch {
-                collect_indent_edits_inner(source, frag, next_depth, true, options, edits)?;
+                collect_indent_edits_inner(
+                    source, frag, next_depth, true, true, options, edits,
+                )?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
-            collect_indent_edits_inner(source, &blk.fragment, next_depth, true, options, edits)?;
+            collect_indent_edits_inner(
+                source, &blk.fragment, next_depth, true, true, options, edits,
+            )?;
         }
         TemplateNode::SnippetBlock(blk) => {
-            collect_indent_edits_inner(source, &blk.body, next_depth, true, options, edits)?;
+            collect_indent_edits_inner(
+                source, &blk.body, next_depth, true, true, options, edits,
+            )?;
         }
         _ => {}
     }
