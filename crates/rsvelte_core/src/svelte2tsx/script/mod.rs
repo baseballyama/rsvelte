@@ -3131,6 +3131,29 @@ fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>)
         oxc::Expression::UnaryExpression(unary) => {
             detect_rune_in_expr(&unary.argument, declared_names)
         }
+        oxc::Expression::NewExpression(new_expr) => {
+            // e.g. `new class Counter { constructor() { this.x = $state(0) } }`
+            // or `new Foo($derived(...))`.
+            detect_rune_in_expr(&new_expr.callee, declared_names)
+                || new_expr.arguments.iter().any(|arg| match arg {
+                    oxc::Argument::SpreadElement(spread) => {
+                        detect_rune_in_expr(&spread.argument, declared_names)
+                    }
+                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+                })
+        }
+        oxc::Expression::TemplateLiteral(tpl) => tpl
+            .expressions
+            .iter()
+            .any(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::TaggedTemplateExpression(tagged) => {
+            detect_rune_in_expr(&tagged.tag, declared_names)
+                || tagged
+                    .quasi
+                    .expressions
+                    .iter()
+                    .any(|e| detect_rune_in_expr(e, declared_names))
+        }
         oxc::Expression::AwaitExpression(aw) => detect_rune_in_expr(&aw.argument, declared_names),
         oxc::Expression::YieldExpression(y) => y
             .argument
