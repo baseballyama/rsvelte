@@ -3434,6 +3434,27 @@ fn handle_svelte_dynamic_element(
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
     let attrs_str = build_attributes_string(&el.attributes, source);
 
+    // `use:` / `transition:` / `animate:` directives, same V4 emission as on a
+    // regular element. The action's `mapElementTag` uses the literal element
+    // name (`svelte:element`); the `createElement` first arg stays the dynamic
+    // tag expression.
+    let (directive_prefix, directive_suffix, action_count) =
+        build_directive_prefix_suffix(&el.attributes, source, &el.name);
+    let actions_arg = if action_count > 0 {
+        let mut args = String::from(", __sveltets_2_union(");
+        for i in 0..action_count {
+            if i > 0 {
+                args.push(',');
+            }
+            let _ = write!(args, "$$action_{}", i);
+        }
+        args.push(')');
+        args
+    } else {
+        String::new()
+    };
+    let has_directives = !directive_prefix.is_empty() || !directive_suffix.is_empty();
+
     // Check if this is a self-closing element (no separate closing tag).
     // Also covers HTML void elements like `<input>`, `<br>`, `<img>` which have
     // no closing tag in the source — `is_void_element` keeps the opener and
@@ -3445,29 +3466,45 @@ fn handle_svelte_dynamic_element(
             .ends_with("/>")
             || crate::compiler::utils::is_void_element(&el.name));
 
+    let attrs_self = if attrs_str.is_empty() {
+        "  "
+    } else {
+        &attrs_str
+    };
+    let attrs_open = if attrs_str.is_empty() {
+        " "
+    } else {
+        &attrs_str
+    };
+    // With directives an extra inner block scope wraps the createElement so the
+    // action declarations (in `directive_prefix`) are in scope: ` {<prefix>{ … }}`.
+    let inner_open = if has_directives { "{" } else { "" };
+    let inner_close = if has_directives { "}" } else { "" };
+    // ` svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
+    // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
+    // when directives add an extra scope).
+    let create = |attrs: &str| {
+        format!(
+            " svelteHTML.createElement({}{}, {{{}}});{}",
+            tag_text, actions_arg, attrs, directive_suffix
+        )
+    };
     if is_self_closing {
-        // Self-closing: emit everything in one go
+        // Self-closing: outer block, optional inner directive block, close both.
         let opener = format!(
-            " {{ svelteHTML.createElement({}, {{{}{}}});}}",
-            tag_text,
-            if attrs_str.is_empty() {
-                "  "
-            } else {
-                &attrs_str
-            },
-            ""
+            " {{{}{}{}{}}}",
+            directive_prefix,
+            inner_open,
+            create(attrs_self),
+            inner_close
         );
         str.overwrite(el.start, el.end, &opener);
     } else {
         let opener = format!(
-            " {{ svelteHTML.createElement({}, {{{}{}}});",
-            tag_text,
-            if attrs_str.is_empty() {
-                " "
-            } else {
-                &attrs_str
-            },
-            ""
+            " {{{}{}{}",
+            directive_prefix,
+            inner_open,
+            create(attrs_open)
         );
         str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -3475,10 +3512,11 @@ fn handle_svelte_dynamic_element(
         process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
         let closing_tag_start = find_closing_tag_start(source, el.end);
+        let close = format!(" }}{}", inner_close);
         if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, " }");
+            str.overwrite(closing_tag_start, el.end, &close);
         } else {
-            str.append_left(el.end, " }");
+            str.append_left(el.end, &close);
         }
     }
 }
