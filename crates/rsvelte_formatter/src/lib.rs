@@ -86,6 +86,11 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     expression::collect_template_edits(source, &root.fragment, 0, options, &mut edits)?;
     indent::collect_indent_edits(source, &root.fragment, 0, options, &mut edits)?;
     if let Some(css) = &root.css {
+        // Normalize the `<style …>` open tag (e.g. strip trailing space from
+        // `<style >`) using the same routine that normalises `<script>` tags.
+        if let Some(edit) = script::format_open_tag(source, css.start, css.end) {
+            edits.push(edit);
+        }
         style::collect_style_edit(source, css, options, &mut edits)?;
     }
     // `<style>` elements nested in the markup (e.g. in `<svelte:head>` or a
