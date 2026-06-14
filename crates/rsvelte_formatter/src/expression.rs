@@ -461,15 +461,60 @@ fn push_bare_expression(
     }
     let formatted = format_inline_expression(slice, options)?;
 
+    // prettier-plugin-svelte wraps assignment expressions in block-header
+    // positions with parentheses to make intent clear:
+    //   `{#if a = 0}` → `{#if (a = 0)}`
+    //   `{#key c = 0}` → `{#key (c = 0)}`
+    // OXC formats `(a = 0);` as `a = 0;` (statement context strips parens),
+    // so we must re-add them when the expression is a top-level assignment.
+    let formatted = if is_top_level_assignment(slice, options.typescript) {
+        format!("({formatted})")
+    } else {
+        formatted
+    };
+
     // prettier-plugin-svelte strips unnecessary outer parens from block-header
     // expressions: `{#if (b)}` → `{#if b}`, `{#each (c) as x}` → `{#each c as x}`.
     // The Svelte AST stores the inner expression span (just `b` / `c`), so the
     // parens are in the source *outside* the span. Walk outward and include them
     // in the edit so they are replaced together with the inner expression.
+    // For assignment expressions we always emit with parens, so also consume any
+    // existing source parens (they would be replaced by our canonical `(expr)` pair).
     let (edit_start, edit_end) = widen_to_source_parens(source, start, end).unwrap_or((start, end));
 
     edits.push((edit_start, edit_end, formatted));
     Ok(edit_end)
+}
+
+/// Returns `true` when `expr_source` (trimmed) is a top-level assignment
+/// expression (includes `=`, `+=`, `-=`, etc.).
+/// Used to decide whether to wrap the formatted result in `()` in block-header
+/// positions where prettier-plugin-svelte always parenthesises assignments.
+fn is_top_level_assignment(expr_source: &str, typescript: bool) -> bool {
+    let allocator = Allocator::default();
+    let source_type = if typescript {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let wrapped = format!("({expr_source});");
+    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.errors.is_empty() {
+        return false;
+    }
+    let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parser_ret.program.body.first()
+    else {
+        return false;
+    };
+    // Unwrap a single layer of ParenthesizedExpression (from our `(expr)` wrapper)
+    // and check whether the inner expression is an assignment.
+    let inner = match &stmt.expression {
+        oxc_ast::ast::Expression::ParenthesizedExpression(p) => &p.expression,
+        other => other,
+    };
+    matches!(inner, oxc_ast::ast::Expression::AssignmentExpression(_))
 }
 
 /// If the source has `(` immediately before `inner_start` (possibly with
