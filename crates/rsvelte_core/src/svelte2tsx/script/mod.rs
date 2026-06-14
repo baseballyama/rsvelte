@@ -282,7 +282,7 @@ impl ExportedNames {
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
-    pub fn create_props_str(&self, is_ts: bool) -> String {
+    pub fn create_props_str(&self, is_ts: bool, uses_dollar_props: bool) -> String {
         if self.is_runes_mode() {
             // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
             if self.has_component_props_typedef && self.props_type_text.is_some() {
@@ -339,10 +339,13 @@ impl ExportedNames {
             })
             .collect();
         if entries.is_empty() {
-            // Reference: ExportedNames.ts createPropsStr —
-            // non-runes mode with no props: TS uses `{} as Record<string, never>`,
+            // Reference: ExportedNames.ts createPropsStr — non-runes mode with
+            // no props. When `$$props`/`$$restProps` is used, props flattens to
+            // a bare `{}`; otherwise TS uses `{} as Record<string, never>` and
             // JS uses `/** @type {Record<string, never>} */ ({})`.
-            if is_ts {
+            if uses_dollar_props {
+                "{}".to_string()
+            } else if is_ts {
                 "{} as Record<string, never>".to_string()
             } else {
                 "/** @type {Record<string, never>} */ ({})".to_string()

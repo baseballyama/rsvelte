@@ -1710,12 +1710,10 @@ pub fn svelte2tsx(
 
     // Append the closing of async wrapper, return statement, and component export
     let use_partial_with_any = uses_dollar_props || uses_dollar_rest_props;
-    let props_str = if use_partial_with_any {
-        // When $$props or $$restProps is used, props is just an empty object
-        "{}".to_string()
-    } else {
-        exported_names.create_props_str(options.is_ts_file)
-    };
+    // `$$props`/`$$restProps` only flattens the props type to `{}` when there
+    // are NO explicitly-declared props; named `export let`s are still listed
+    // (mirrors official `createPropsStr(uses$$propsOr$$restProps)`).
+    let props_str = exported_names.create_props_str(options.is_ts_file, use_partial_with_any);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     // Determine effective accessors setting: from options OR <svelte:options accessors>
     let effective_accessors = options.accessors
