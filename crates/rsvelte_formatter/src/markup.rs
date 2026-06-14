@@ -1074,7 +1074,11 @@ fn render_attribute(
                 narrow_value,
                 prefix,
             )?;
-            if value.is_empty() {
+            // Shorthand: `style:color={color}` → `style:color` when the
+            // expression is a simple identifier matching the directive name,
+            // mirroring prettier-plugin-svelte's shorthand collapsing.
+            let shorthand_value = format!("{{{}}}", d.name);
+            if value.is_empty() || (modifiers.is_empty() && value == shorthand_value) {
                 Ok(format!("style:{}{modifiers}", d.name))
             } else {
                 Ok(format!("style:{}{modifiers}={value}", d.name))
