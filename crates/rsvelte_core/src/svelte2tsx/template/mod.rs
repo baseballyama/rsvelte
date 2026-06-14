@@ -4659,6 +4659,27 @@ fn format_attribute_node_segments(
                     segs_push_src(&mut out, s, e);
                     segs_push_lit(&mut out, ",");
                 } else {
+                    // Preserve a trailing TS postfix the parser narrowed out of
+                    // the expression span (`attr={false as true}` → keep
+                    // `false as true`, not `false`), same as expression tags.
+                    let e = {
+                        let bytes = source.as_bytes();
+                        let mut c = node.end as usize;
+                        while c > e as usize && bytes[c - 1] != b'}' {
+                            c -= 1;
+                        }
+                        let close = c.saturating_sub(1);
+                        let tail = source.get(e as usize..close).unwrap_or("").trim_start();
+                        if close > e as usize
+                            && (tail.starts_with("as ")
+                                || tail.starts_with("satisfies ")
+                                || tail.starts_with('!'))
+                        {
+                            close as u32
+                        } else {
+                            e
+                        }
+                    };
                     let mut inner: Vec<Seg> = Vec::new();
                     segs_push_lit(&mut inner, &format!("\"{}\":", name));
                     segs_push_src(&mut inner, s, e);
