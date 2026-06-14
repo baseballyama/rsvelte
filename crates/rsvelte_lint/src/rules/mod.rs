@@ -4,10 +4,12 @@
 
 pub mod button_has_type;
 pub mod first_attribute_linebreak;
+pub mod html_closing_bracket_new_line;
 pub mod html_closing_bracket_spacing;
 pub mod html_quotes;
 pub mod html_self_closing;
 pub mod known_css_properties;
+pub mod max_attributes_per_line;
 pub mod max_lines_per_block;
 pub mod mustache_spacing;
 pub mod no_add_event_listener;
@@ -58,6 +60,7 @@ pub mod require_store_reactive_access;
 pub mod require_stores_init;
 pub mod shorthand_attribute;
 pub mod shorthand_directive;
+pub mod sort_attributes;
 pub mod spaced_html_comment;
 pub mod store_refs;
 pub mod valid_each_key;

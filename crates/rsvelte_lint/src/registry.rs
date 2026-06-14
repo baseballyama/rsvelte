@@ -80,6 +80,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::html_self_closing::HtmlSelfClosing),
         Box::new(crate::rules::mustache_spacing::MustacheSpacing),
         Box::new(crate::rules::no_trailing_spaces::NoTrailingSpaces),
+        Box::new(crate::rules::html_closing_bracket_new_line::HtmlClosingBracketNewLine),
+        Box::new(crate::rules::max_attributes_per_line::MaxAttributesPerLine),
+        Box::new(crate::rules::sort_attributes::SortAttributes),
     ]
 }
 
