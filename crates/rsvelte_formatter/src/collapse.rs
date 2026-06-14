@@ -711,14 +711,55 @@ fn collect(
             TemplateNode::SvelteHead(s)
             | TemplateNode::SvelteBody(s)
             | TemplateNode::SvelteDocument(s)
-            | TemplateNode::SvelteFragment(s)
             | TemplateNode::SvelteOptions(s)
-            | TemplateNode::SvelteSelf(s)
             | TemplateNode::SvelteWindow(s) => {
                 collect(out, &s.fragment, line_width, options, edits)
             }
+            TemplateNode::SvelteFragment(s) | TemplateNode::SvelteSelf(s) => {
+                if let Some(edit) = try_collapse(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &s.fragment, line_width, options, edits);
+                }
+            }
             TemplateNode::SvelteComponent(c) => {
-                collect(out, &c.fragment, line_width, options, edits)
+                if let Some(edit) = try_collapse(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &c.fragment, line_width, options, edits);
+                }
             }
             TemplateNode::SvelteElement(e) => {
                 if let Some(edit) = try_collapse(
@@ -896,6 +937,19 @@ fn try_collapse(
         if open.contains('\n') || !open.ends_with('>') {
             return None;
         }
+        // Same-line hug: `<a href="…">text</a\n>` — content stays on the open
+        // tag's line. Try this first; only fall through to the inner-indent form
+        // when the same-line layout overflows the print width.
+        // `column` is the number of columns before the element (the indent), and
+        // `open` does NOT include that leading indent — so the total line width
+        // is `column + open.width() + collapsed.width() + 2 + tag.width()`.
+        let same_line_width = column + open.width() + collapsed.width() + 2 + tag.width();
+        if same_line_width <= line_width {
+            let result = format!("{open}{collapsed}</{tag}\n{indent}>");
+            return (result != whole).then_some((start, end, result));
+        }
+        // Inner-indent hug: open tag wraps so `>` moves to the next indented line
+        // and content glues directly to it: `<a\n  href="…"\n  >text</a\n>`.
         let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
         if hug_width > line_width {
             return None;
