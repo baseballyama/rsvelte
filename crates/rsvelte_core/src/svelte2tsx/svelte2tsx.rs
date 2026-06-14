@@ -3498,24 +3498,38 @@ fn expression_is_await(
     use crate::ast::js::Expression;
     use crate::ast::typed_expr::JsNode;
 
-    match expr {
+    // A top-level `await` ANYWHERE inside the expression makes the component
+    // async (→ runes), not only when the whole expression IS an await — e.g.
+    // `{(await user).name}`, `{foo(await x)}`, `{cond ? await a : b}`. Fast-path
+    // the direct `{await x}` form, then scan the expression's source span for
+    // `await` as a word, which covers every nesting depth. (A literal "await"
+    // string is a rare false positive; svelte itself treats such components as
+    // async too once a template `await` is present.)
+    let direct = match expr {
         Expression::Typed(te) => matches!(&te.node, JsNode::AwaitExpression { .. }),
         Expression::Value(v) => v.get("type").and_then(|t| t.as_str()) == Some("AwaitExpression"),
-        Expression::Lazy { start, end, .. } => {
-            let s = *start as usize;
-            let e = *end as usize;
-            if s < e && e <= source.len() {
-                let slice = source[s..e].trim_start();
-                // The expression starts with `await` as a word boundary
-                slice == "await"
-                    || slice.starts_with("await ")
-                    || slice.starts_with("await\t")
-                    || slice.starts_with("await\n")
-            } else {
-                false
-            }
+        Expression::Lazy { .. } => false,
+    };
+    if direct {
+        return true;
+    }
+    // Non-direct: a `await` nested in e.g. `(await user).name` / `foo(await x)`
+    // still makes the component async — BUT an `await` inside a nested function
+    // (`() => await x`) is a different scope and must NOT count (mirrors the
+    // upstream `scope === rootScope` rule). Approximate the function-boundary
+    // check on the source span: count the `await` only when the expression
+    // contains no function boundary (`=>` / `function`), which keeps the common
+    // member/call/conditional cases without over-triggering on callbacks.
+    if let (Some(s), Some(e)) = (expr.start(), expr.end()) {
+        let (s, e) = (s as usize, e as usize);
+        if s < e && e <= source.len() {
+            let span = &source.as_bytes()[s..e];
+            return contains_word(span, b"await")
+                && !span.windows(2).any(|w| w == b"=>")
+                && !contains_word(span, b"function");
         }
     }
+    false
 }
 
 // =============================================================================
