@@ -1828,6 +1828,7 @@ pub fn svelte2tsx(
                         &raw_bindings,
                         &exports_return,
                         has_slot_elements,
+                        !events.is_empty(),
                     );
                 } else {
                     // Runes mode, TS syntax, no generics — the most common path.
@@ -2045,6 +2046,7 @@ fn emit_runes_generics_component(
     raw_bindings: &str,
     exports_return: &str,
     has_slot_elements: bool,
+    has_events: bool,
 ) {
     let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
     let _ = writeln!(
@@ -2075,14 +2077,25 @@ fn emit_runes_generics_component(
         closing,
         "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
-    let slots_children_suffix = if has_slot_elements {
-        format!(", $$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>, children?: any")
-    } else {
-        String::new()
-    };
+    // Mirror official addComponentExport: `$$events?` is only included when the
+    // component has events (or, in legacy mode, always — but this is the runes
+    // path, so just `has_events`). `$$slots?`/`children?` only when slotted.
+    let mut events_slots_parts: Vec<String> = Vec::new();
+    if has_events {
+        events_slots_parts.push(format!(
+            "$$events?: ReturnType<__sveltets_Render<{gn}>['events']>"
+        ));
+    }
+    if has_slot_elements {
+        events_slots_parts.push(format!(
+            "$$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>"
+        ));
+        events_slots_parts.push("children?: any".to_string());
+    }
+    let events_slots_inner = events_slots_parts.join(", ");
     let _ = writeln!(
         closing,
-        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
+        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{{events_slots_inner}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
     let _ = writeln!(
         closing,
