@@ -3079,11 +3079,24 @@ fn handle_named_slot_element(
     // This named-slot element is a RegularElement — its children are at depth+1.
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
-    let closing_tag_start = find_closing_tag_start(source, el.end);
-    if closing_tag_start < el.end {
-        str.overwrite(closing_tag_start, el.end, " }}");
-    } else {
+    // Void elements (`<input slot="x">`) and source-self-closing tags have no
+    // `</tag>`; calling `find_closing_tag_start` would scan backward and match
+    // an unrelated earlier `</…>` (e.g. `</script>`), overwriting everything in
+    // between. Append the closing braces at `el.end` instead. Mirrors
+    // `handle_regular_element`.
+    let is_self_closing_source = source[el.start as usize..el.end as usize]
+        .trim_end()
+        .ends_with("/>");
+    let is_void = crate::compiler::utils::is_void_element(&el.name);
+    if is_void || is_self_closing_source {
         str.append_left(el.end, " }}");
+    } else {
+        let closing_tag_start = find_closing_tag_start(source, el.end);
+        if closing_tag_start < el.end {
+            str.overwrite(closing_tag_start, el.end, " }}");
+        } else {
+            str.append_left(el.end, " }}");
+        }
     }
 }
 
