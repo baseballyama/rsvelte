@@ -2011,6 +2011,20 @@ fn handle_regular_element(
         return;
     }
 
+    // A nested `<style>` element is removed entirely from the output,
+    // mirroring official svelte2tsx's `handleStyleTag` (the `case 'Style'`
+    // arm), which does `str.remove(node.start, node.end)` for every verbatim
+    // style node at any nesting depth. (A top-level `<style>` becomes
+    // `root.css` and never reaches this fragment walk, so any `style`
+    // RegularElement here is necessarily nested.) Note: nested `<script>`
+    // elements are NOT removed — official emits `createElement("script", {})`
+    // for them (only the JS content is blanked, which `handle_text` already
+    // does), so they fall through to the normal element path.
+    if el.name == "style" {
+        str.remove(el.start, el.end);
+        return;
+    }
+
     // Find the end of the opening tag (after the `>`)
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
