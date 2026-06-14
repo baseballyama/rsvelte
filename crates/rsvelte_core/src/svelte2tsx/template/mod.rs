@@ -1398,6 +1398,14 @@ fn handle_each_block(
         let closing = if needs_temp_var { "}}" } else { "}" };
         if body_end < block.end {
             str.overwrite(body_end, block.end, closing);
+        } else {
+            // Empty each body (`{#each x as i}{/each}`): body_end == block.end,
+            // so there is no source region left to overwrite with the closing
+            // brace (the opening-tag remainder + `{/each}` were already cleared
+            // by the header handling). Append it so the `for(...){` opened by
+            // the header is balanced — otherwise the unclosed brace cascades up
+            // and leaves `$$render` itself unterminated.
+            str.append_left(block.end, closing);
         }
     }
 }
