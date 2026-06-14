@@ -1,7 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/kit/20-core-concepts/50-state-management.md/8.svelte",
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/02-$state.md/12.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/06-$bindable.md/2.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/04-key.md/1.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/04-key.md/2.svelte",
@@ -133,7 +132,6 @@
 	"svelte.dev/packages/site-kit/src/lib/search/Search.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchResults.svelte",
-	"svelte/documentation/docs/02-runes/02-$state.md/12.svelte",
 	"svelte/documentation/docs/02-runes/06-$bindable.md/2.svelte",
 	"svelte/documentation/docs/03-template-syntax/04-key.md/1.svelte",
 	"svelte/documentation/docs/03-template-syntax/04-key.md/2.svelte",
@@ -733,7 +731,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/form-default-value/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/hydration-attribute-changed-ignored/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/if-transition-inert/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/inline-expressions/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-derived-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-exception/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-recursive-2/main.svelte",
