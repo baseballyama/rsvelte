@@ -182,9 +182,10 @@ pub(crate) fn format_nested_script(
 /// - Collapse runs of whitespace (outside attribute-value quotes) to a single
 ///   space and drop space before the closing `>`.
 /// - Normalize attribute value quotes to double-quotes: single-quoted values
-///   become double-quoted, and unquoted values receive double-quotes.
+///   become double-quoted, and unquoted values receive double-quotes
 ///   (`<script context=module>` → `<script context="module">`,
-///    `<script lang='ts'>` → `<script lang="ts">`)
+///   `<script lang='ts'>` → `<script lang="ts">`).
+///
 /// Returns the edit only when it changes something.
 pub(crate) fn format_open_tag(source: &str, start: u32, end: u32) -> Option<(u32, u32, String)> {
     let block = source.get(start as usize..end as usize)?;

@@ -172,16 +172,16 @@ fn collect_node_edits(
                 // Ensure a space before the key's opening `(` when context ends
                 // immediately adjacent to it (e.g. `as $state(key)` → `as $state (key)`).
                 // prettier-plugin-svelte always emits a space before the key parens.
-                if let Some(ctx) = &blk.context {
-                    if let (Some(ctx_end), Some(key_start)) = (ctx.end(), key.start()) {
-                        let between = source
-                            .get(ctx_end as usize..key_start as usize)
-                            .unwrap_or("");
-                        // `between` is the text from context end to the key expr start.
-                        // If it starts with `(` (no preceding space), insert one.
-                        if between.starts_with('(') {
-                            edits.push((ctx_end, ctx_end, " ".to_string()));
-                        }
+                if let Some(ctx) = &blk.context
+                    && let (Some(ctx_end), Some(key_start)) = (ctx.end(), key.start())
+                {
+                    let between = source
+                        .get(ctx_end as usize..key_start as usize)
+                        .unwrap_or("");
+                    // `between` is the text from context end to the key expr start.
+                    // If it starts with `(` (no preceding space), insert one.
+                    if between.starts_with('(') {
+                        edits.push((ctx_end, ctx_end, " ".to_string()));
                     }
                 }
             }

@@ -388,12 +388,8 @@ fn recurse_into_children(
             let pending_collapsed = crate::expression::await_pending_is_empty(blk.pending.as_ref())
                 && ((blk.then.is_some() && blk.value.is_some())
                     || (blk.catch.is_some() && blk.error.is_some()));
-            if !pending_collapsed {
-                if let Some(frag) = &blk.pending {
-                    collect_indent_edits_inner(
-                        source, frag, next_depth, true, true, options, edits,
-                    )?;
-                }
+            if !pending_collapsed && let Some(frag) = &blk.pending {
+                collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
             if let Some(frag) = &blk.then {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;

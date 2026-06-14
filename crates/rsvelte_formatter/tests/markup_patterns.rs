@@ -169,11 +169,11 @@ fn let_directive_with_destructuring() {
 #[test]
 fn snippet_long_param_list_breaks_like_function_signature() {
     let out = fmt_ts(
-        "{#snippet rowSnippet({ row }: { row: SomeVeryLongRowTypeNameThatPushesPastThePrintWidthLimit })}\n  <Cell />\n{/snippet}",
+        "{#snippet rowSnippet({ row }: { row: SomeVeryLongRowTypeNameThatPushesWayBeyondTheDefaultPrintWidthLimitForReal })}\n  <Cell />\n{/snippet}",
     );
     assert!(
         out.contains(
-            "{#snippet rowSnippet({\n  row,\n}: {\n  row: SomeVeryLongRowTypeNameThatPushesPastThePrintWidthLimit;\n})}"
+            "{#snippet rowSnippet({\n  row,\n}: {\n  row: SomeVeryLongRowTypeNameThatPushesWayBeyondTheDefaultPrintWidthLimitForReal;\n})}"
         ),
         "long snippet header should break across lines:\n{out}"
     );

@@ -120,6 +120,17 @@ node scripts/compat-corpus/fmt-cluster.mjs --show '<sig>'   # list ids in a clus
 node scripts/compat-corpus/fmt-verify.mjs --update-baseline # shrink the ratchet after a fix
 ```
 
+> **Baseline / environment note.** `oxfmt` (the oracle) decides which entries are
+> formattable, and that decision can differ slightly across platforms — Linux CI
+> currently *includes* ~13 loose-declaration-tag entries (`{const …}` / `{let …}`)
+> that macOS `oxfmt` skips. The CI Linux environment is the source of truth, so the
+> committed `fmt-known-failures.json` is the **CI** failure set. Do **not**
+> `--update-baseline` from a macOS run and commit it — that would drop the
+> CI-only entries and break the `fmt-parity` job. To shrink the ratchet after a
+> fix, run `--update-baseline` and then re-add any CI-only ids (download the
+> `corpus-fmt-report` artifact from the CI run), or update the baseline from a CI
+> run.
+
 ## CI / automation
 
 - `.github/workflows/corpus-compat.yml` — runs both tracks (`corpus` and
