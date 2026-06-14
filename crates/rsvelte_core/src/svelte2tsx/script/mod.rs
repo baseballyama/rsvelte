@@ -117,6 +117,10 @@ pub struct ExportedNameInfo {
     pub is_prop: bool,
     pub is_let: bool,
     pub is_named_export: bool,
+    /// Leading JSDoc `/** @type {…} */` comment on the export declaration,
+    /// preserved in the legacy `props: { … }` return (mirrors official's
+    /// `value.doc`).
+    pub doc: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -200,6 +204,7 @@ impl ExportedNames {
                 is_prop,
                 is_let: false,
                 is_named_export: false,
+                doc: None,
             },
         );
     }
@@ -225,6 +230,7 @@ impl ExportedNames {
                 is_prop,
                 is_let,
                 is_named_export,
+                doc: None,
             },
         );
     }
@@ -260,6 +266,12 @@ impl ExportedNames {
     /// is keyed by `a1`, but its local name is `v1`.
     pub fn has_local(&self, local: &str) -> bool {
         self.names.values().any(|info| info.local_name == local)
+    }
+    /// Attach the leading JSDoc comment to an exported name (by export key).
+    pub fn set_doc(&mut self, name: &str, doc: String) {
+        if let Some(info) = self.names.get_mut(name) {
+            info.doc = Some(doc);
+        }
     }
     pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
         self.names.get(name)
@@ -315,10 +327,16 @@ impl ExportedNames {
             }
             return format!("{{{}}}", entries.join(" , "));
         }
+        // In JS (non-TS) files the props object omits the `as {…}` type assert
+        // (`dontAddTypeDef`), so a captured leading JSDoc `/** @type {…} */` is
+        // emitted before the prop — mirrors official `createReturnElements`.
         let entries: Vec<String> = self
             .get_ordered()
             .iter()
-            .map(|(en, info)| format!("{}: {}", en, info.local_name))
+            .map(|(en, info)| match (&info.doc, is_ts) {
+                (Some(doc), false) => format!("{} {}: {}", doc, en, info.local_name),
+                _ => format!("{}: {}", en, info.local_name),
+            })
             .collect();
         if entries.is_empty() {
             // Reference: ExportedNames.ts createPropsStr —
@@ -2600,6 +2618,17 @@ fn handle_export_named_decl(
                             info.type_annotation = Some(ta_text.clone());
                         }
 
+                        // Preserve a leading JSDoc `/** @type {…} */` on the
+                        // export so it round-trips into the legacy props return
+                        // (`props: { /** @type {boolean} */ visible: visible }`),
+                        // mirroring official's `value.doc`.
+                        if let Some(name) = binding_pattern_simple_name(&declarator.id)
+                            && let Some(doc) =
+                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                        {
+                            exported_names.set_doc(&name, doc);
+                        }
+
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
                         // This splits them into separate `let` statements,
@@ -3840,6 +3869,29 @@ const SVELTE_RUNES: &[&str] = &[
 /// - Reserved names (`$$props`, `$$restProps`, `$$slots`)
 /// - Member access like `obj.$store` (preceded by `.`)
 /// - String literals like `'$store'` or `"$store"` (preceded by `'` or `"`)
+/// Return the leading `/** … */` JSDoc comment immediately before `before`
+/// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
+fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
+    let bytes = source.as_bytes();
+    let before = before.min(bytes.len());
+    // Skip whitespace immediately before the declaration.
+    let mut p = before;
+    while p > 0 && bytes[p - 1].is_ascii_whitespace() {
+        p -= 1;
+    }
+    // Require a block comment terminator `*/` right there.
+    if p < 2 || &source[p - 2..p] != "*/" {
+        return None;
+    }
+    // Find the matching `/**` (JSDoc) opener.
+    let open = source[..p].rfind("/**")?;
+    // Ensure the `/**` is the opener for THIS `*/` (no intervening `*/`).
+    if source[open..p - 2].contains("*/") {
+        return None;
+    }
+    Some(source[open..p].to_string())
+}
+
 fn collect_store_references(source: &str) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
