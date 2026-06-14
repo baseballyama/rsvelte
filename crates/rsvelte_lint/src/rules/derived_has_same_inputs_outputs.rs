@@ -7,7 +7,7 @@
 //!
 //! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook.
 //! A `derived` call from `svelte/store` (detected via import tracking in
-//! [`store_refs`]) must satisfy:
+//! the `store_refs` helper module) must satisfy:
 //! - `derived(a, ($a) => …)` — single-store form: param must be `$a`.
 //! - `derived([a, b], ([$a, $b]) => …)` — array-store form: each array-pattern
 //!   element at index `i` must be `$stores[i]`.
