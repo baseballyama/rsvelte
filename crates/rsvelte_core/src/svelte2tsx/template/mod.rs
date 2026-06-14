@@ -748,10 +748,18 @@ fn process_node_inplace(
         TemplateNode::AttachTag(tag) => handle_attach_tag(tag, str),
         // Control-flow blocks do NOT increment depth (mirrors official computeDepth which
         // only counts ancestor Element/InlineComponent nodes, not block nodes or root).
-        TemplateNode::IfBlock(block) => handle_if_block(block, source, options, str, counter, depth),
-        TemplateNode::EachBlock(block) => handle_each_block(block, source, options, str, counter, depth),
-        TemplateNode::AwaitBlock(block) => handle_await_block(block, source, options, str, counter, depth),
-        TemplateNode::KeyBlock(block) => handle_key_block(block, source, options, str, counter, depth),
+        TemplateNode::IfBlock(block) => {
+            handle_if_block(block, source, options, str, counter, depth)
+        }
+        TemplateNode::EachBlock(block) => {
+            handle_each_block(block, source, options, str, counter, depth)
+        }
+        TemplateNode::AwaitBlock(block) => {
+            handle_await_block(block, source, options, str, counter, depth)
+        }
+        TemplateNode::KeyBlock(block) => {
+            handle_key_block(block, source, options, str, counter, depth)
+        }
         TemplateNode::SnippetBlock(block) => {
             handle_snippet_block(block, source, options, str, counter, depth)
         }
@@ -759,16 +767,24 @@ fn process_node_inplace(
         TemplateNode::RegularElement(el) => {
             handle_regular_element(el, source, options, str, counter, depth)
         }
-        TemplateNode::Component(comp) => handle_component(comp, source, options, str, counter, depth),
+        TemplateNode::Component(comp) => {
+            handle_component(comp, source, options, str, counter, depth)
+        }
         TemplateNode::SvelteComponent(comp) => {
             handle_svelte_component(comp, source, options, str, counter, depth)
         }
         TemplateNode::SvelteElement(el) => {
             handle_svelte_dynamic_element(el, source, options, str, counter, depth)
         }
-        TemplateNode::TitleElement(el) => handle_title_element(el, source, options, str, counter, depth),
-        TemplateNode::SlotElement(el) => handle_slot_element(el, source, options, str, counter, depth),
-        TemplateNode::SvelteSelf(el) => handle_svelte_self(el, source, options, str, counter, depth),
+        TemplateNode::TitleElement(el) => {
+            handle_title_element(el, source, options, str, counter, depth)
+        }
+        TemplateNode::SlotElement(el) => {
+            handle_slot_element(el, source, options, str, counter, depth)
+        }
+        TemplateNode::SvelteSelf(el) => {
+            handle_svelte_self(el, source, options, str, counter, depth)
+        }
         TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
@@ -2608,7 +2624,9 @@ fn process_component_children_with_slots(
                     );
                 }
                 TemplateNode::SvelteFragment(el) => {
-                    handle_named_slot_svelte_fragment(el, inst_var, source, options, str, counter, depth);
+                    handle_named_slot_svelte_fragment(
+                        el, inst_var, source, options, str, counter, depth,
+                    );
                 }
                 _ => {
                     process_node_inplace(node, source, options, str, counter, depth);
@@ -4956,7 +4974,10 @@ mod tests {
         );
         assert_eq!(reversed_component_instance_name("Button", 0), "$$_nottuB0");
         // sanitizePropName applied before reversing for instance names too.
-        assert_eq!(reversed_component_instance_name("Foo.Bar", 0), "$$_raB_ooF0");
+        assert_eq!(
+            reversed_component_instance_name("Foo.Bar", 0),
+            "$$_raB_ooF0"
+        );
     }
 
     #[test]

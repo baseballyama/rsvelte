@@ -270,6 +270,15 @@ pub fn svelte2tsx(
         );
     }
 
+    // Step 7.4: Detect `{await expr}` in template expression tags.
+    // Await-in-template forces runes mode (async template expressions are
+    // Svelte 5 runes-only).
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+    //   `isRunes` doc: "True if uses runes or top level await or await in template expressions"
+    if detect_await_in_template(&ast, source) {
+        exported_names.set_uses_runes(true);
+    }
+
     // Step 7.5: Early slot detection (before script tag overwrites)
     let has_slot_elements = source.contains("<slot") || source.contains("<slot>");
 
@@ -632,9 +641,16 @@ pub fn svelte2tsx(
         let content_start = instance.content_offset;
         let content_end = find_script_close_tag_start(source, script_end);
 
-        // Detect top-level `await` in the script content
+        // Detect top-level `await` in the script content.
+        // Top-level await in the instance script forces runes mode — async
+        // components are Svelte 5 runes-only.
+        // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+        //   `isRunes = true when component has TOP-LEVEL AWAIT in the instance script`
         let raw_content = &source[content_start as usize..content_end as usize];
         let has_top_level_await = detect_top_level_await(raw_content);
+        if has_top_level_await {
+            exported_names.set_uses_runes(true);
+        }
         let async_prefix = if has_top_level_await { "async " } else { "" };
 
         // Detect `generics` attribute on the script tag
@@ -3055,6 +3071,227 @@ fn detect_runes_mode(ast: &Root) -> bool {
     false
 }
 
+/// Detect `await` expressions inside template expression tags, e.g. `{await t}`.
+///
+/// This walks the template fragment AST looking for `ExpressionTag` nodes whose
+/// expression is (or begins with) an `AwaitExpression`. Await-in-template forces
+/// runes mode — async template expressions are Svelte 5 runes-only.
+///
+/// NOTE: `{#await ...}` block syntax is NOT detected here — only bare `await`
+/// inside `{...}` expression tags counts.
+///
+/// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+///   `isRunes = true when component has AWAIT INSIDE A TEMPLATE EXPRESSION`
+///   ("True if uses runes or top level await or await in template expressions")
+fn detect_await_in_template(ast: &Root, source: &str) -> bool {
+    // Fast path: if the source doesn't contain `await` as a word, bail immediately.
+    if !contains_word(source.as_bytes(), b"await") {
+        return false;
+    }
+
+    fragment_has_template_await(&ast.fragment, source, &ast.arena)
+}
+
+/// Recursively walk a template fragment checking for `{await ...}` ExpressionTags.
+fn fragment_has_template_await(
+    fragment: &crate::ast::template::Fragment,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    for node in &fragment.nodes {
+        if template_node_has_await(node, source, arena) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check a single template node for `{await ...}` patterns, recursing into children.
+fn template_node_has_await(
+    node: &crate::ast::template::TemplateNode,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    match node {
+        // The key check: ExpressionTag with an AwaitExpression.
+        TemplateNode::ExpressionTag(tag) => expression_is_await(&tag.expression, source, arena),
+        // Recurse into element children and attributes
+        TemplateNode::RegularElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::Component(comp) => {
+            comp.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&comp.fragment, source, arena)
+        }
+        TemplateNode::IfBlock(block) => {
+            // Also check the `{#if await cond}` test expression — mirrors 2_analyze
+            // which walks `block.test` for has_await.
+            expression_is_await(&block.test, source, arena)
+                || fragment_has_template_await(&block.consequent, source, arena)
+                || block
+                    .alternate
+                    .as_ref()
+                    .map(|alt| fragment_has_template_await(alt, source, arena))
+                    .unwrap_or(false)
+        }
+        TemplateNode::EachBlock(block) => {
+            expression_is_await(&block.expression, source, arena)
+                || fragment_has_template_await(&block.body, source, arena)
+                || block
+                    .fallback
+                    .as_ref()
+                    .map(|fb| fragment_has_template_await(fb, source, arena))
+                    .unwrap_or(false)
+        }
+        TemplateNode::KeyBlock(block) => {
+            expression_is_await(&block.expression, source, arena)
+                || fragment_has_template_await(&block.fragment, source, arena)
+        }
+        // NOTE: SnippetBlock — awaits inside snippets do NOT force runes on the
+        // parent component (they are async in their own context). Mirror the
+        // 2_analyze `node_check_features` which skips SnippetBlock for await.
+        TemplateNode::SnippetBlock(_) => false,
+        // AwaitBlock ({#await expr}) — the `expression` could itself contain an
+        // await (e.g. `{#await await promise}`). Also recurse into the pending /
+        // then / catch sub-fragments since they can contain nested {await ...}
+        // ExpressionTags. Mirrors 2_analyze AwaitBlock fragment_check_features walk.
+        TemplateNode::AwaitBlock(block) => {
+            expression_is_await(&block.expression, source, arena)
+                || block
+                    .pending
+                    .as_ref()
+                    .map(|f| fragment_has_template_await(f, source, arena))
+                    .unwrap_or(false)
+                || block
+                    .then
+                    .as_ref()
+                    .map(|f| fragment_has_template_await(f, source, arena))
+                    .unwrap_or(false)
+                || block
+                    .catch
+                    .as_ref()
+                    .map(|f| fragment_has_template_await(f, source, arena))
+                    .unwrap_or(false)
+        }
+        // SvelteHead, SvelteFragment, SvelteBody, SvelteWindow, SvelteDocument,
+        // SvelteBoundary, SvelteOptions, SvelteSelf — all use the SvelteElement struct.
+        TemplateNode::SvelteHead(elem)
+        | TemplateNode::SvelteFragment(elem)
+        | TemplateNode::SvelteBody(elem)
+        | TemplateNode::SvelteWindow(elem)
+        | TemplateNode::SvelteDocument(elem)
+        | TemplateNode::SvelteBoundary(elem)
+        | TemplateNode::SvelteOptions(elem)
+        | TemplateNode::SvelteSelf(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::SvelteComponent(comp) => {
+            comp.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&comp.fragment, source, arena)
+        }
+        TemplateNode::SvelteElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::TitleElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::SlotElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        // HtmlTag ({@html expr}) and RenderTag ({@render expr}) — if the expression
+        // itself is an AwaitExpression (e.g. `{@html await t}`) trigger runes mode.
+        TemplateNode::HtmlTag(tag) => expression_is_await(&tag.expression, source, arena),
+        TemplateNode::RenderTag(tag) => expression_is_await(&tag.expression, source, arena),
+        // Text, Comment, ConstTag, DeclarationTag, DebugTag, AttachTag — the primary
+        // trigger is ExpressionTag; these are less common. The fast-path `contains_word`
+        // check at the top of detect_await_in_template guards the common case.
+        _ => false,
+    }
+}
+
+/// Check if an attribute value contains an await expression in any ExpressionTag part.
+fn attr_has_await(
+    attr: &crate::ast::template::Attribute,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::template::Attribute;
+    use crate::ast::template::AttributeValue;
+    use crate::ast::template::AttributeValuePart;
+    // Only plain AttributeNode can carry await in its value; directives,
+    // SpreadAttribute, etc., don't have ExpressionTag values.
+    let Attribute::Attribute(attr_node) = attr else {
+        return false;
+    };
+    match &attr_node.value {
+        AttributeValue::Expression(expr_tag) => {
+            expression_is_await(&expr_tag.expression, source, arena)
+        }
+        AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+            if let AttributeValuePart::ExpressionTag(tag) = part {
+                expression_is_await(&tag.expression, source, arena)
+            } else {
+                false
+            }
+        }),
+        AttributeValue::True(_) => false,
+    }
+}
+
+/// Check if an Expression node is (or begins with) an AwaitExpression.
+///
+/// For `Typed` expressions, checks the top-level JsNode variant.
+/// For `Lazy` expressions (source spans), checks the source text.
+/// For `Value` (JSON) expressions, checks the JSON `type` field.
+fn expression_is_await(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+    _arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::js::Expression;
+    use crate::ast::typed_expr::JsNode;
+
+    match expr {
+        Expression::Typed(te) => matches!(&te.node, JsNode::AwaitExpression { .. }),
+        Expression::Value(v) => v.get("type").and_then(|t| t.as_str()) == Some("AwaitExpression"),
+        Expression::Lazy { start, end, .. } => {
+            let s = *start as usize;
+            let e = *end as usize;
+            if s < e && e <= source.len() {
+                let slice = source[s..e].trim_start();
+                // The expression starts with `await` as a word boundary
+                slice == "await"
+                    || slice.starts_with("await ")
+                    || slice.starts_with("await\t")
+                    || slice.starts_with("await\n")
+            } else {
+                false
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3282,6 +3519,121 @@ mod tests {
         assert!(
             result.code.contains("svelteHTML.createElement(\"span\","),
             "Should contain inner span"
+        );
+    }
+
+    // =============================================================================
+    // Runes-mode detection tests
+    //
+    // Ground truth: empirically verified against the official svelte2tsx tool.
+    // RUNES components emit `__sveltets_2_fn_component`.
+    // LEGACY components emit `__sveltets_2_isomorphic_component`.
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+    //   `isRunesMode() { return this.hasRunesGlobals || this.hasPropsRune() || this.isRunes; }`
+    // =============================================================================
+
+    fn run_svelte2tsx_v5(source: &str) -> String {
+        let opts = Svelte2TsxOptions {
+            filename: "Test.svelte".to_string(),
+            ..Default::default()
+        };
+        svelte2tsx(source, opts)
+            .unwrap_or_else(|e| panic!("svelte2tsx failed: {e:?}"))
+            .code
+    }
+
+    // --- RUNES cases (must emit fn_component) ---
+
+    /// `$state(0)` in a variable declaration → hasRunesGlobals ($state is undeclared).
+    #[test]
+    fn test_runes_state_var_decl() {
+        let code = run_svelte2tsx_v5("<script>let x=$state(0)</script>{x}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$state() var-decl should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$props()` usage → hasPropsRune.
+    #[test]
+    fn test_runes_props_rune() {
+        let code = run_svelte2tsx_v5("<script>let {a}=$props()</script>{a}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$props() should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$derived(1)` in a variable declaration → hasRunesGlobals.
+    #[test]
+    fn test_runes_derived_var_decl() {
+        let code = run_svelte2tsx_v5("<script>let x=$derived(1)</script>{x}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$derived() var-decl should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$effect(() => {})` as a standalone ExpressionStatement → hasRunesGlobals.
+    /// This was previously missed (only VariableDeclarations were checked).
+    #[test]
+    fn test_runes_effect_expr_stmt() {
+        let code = run_svelte2tsx_v5("<script>$effect(()=>{})</script>x");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$effect() expr-stmt should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// Top-level `await` in the instance script → isRunes (async components are runes-only).
+    #[test]
+    fn test_runes_top_level_await_script() {
+        let code = run_svelte2tsx_v5("<script>const x=await fetch(1)</script>{x}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "top-level await in script should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `await` inside a template expression tag → isRunes.
+    #[test]
+    fn test_runes_await_in_template_expr() {
+        let code = run_svelte2tsx_v5("<script>const t=getTime()</script>{await t}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "await in template expression should be runes mode; got:\n{code}"
+        );
+    }
+
+    // --- LEGACY cases (must emit isomorphic_component) ---
+
+    /// No script at all → legacy.
+    #[test]
+    fn test_legacy_no_script() {
+        let code = run_svelte2tsx_v5("<p>hi</p>");
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "no-script should be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// `export let` props → legacy.
+    #[test]
+    fn test_legacy_export_let() {
+        let code = run_svelte2tsx_v5("<script>export let a</script>{a}");
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "export-let should be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// Plain `let a = 1` (no rune) → legacy.
+    #[test]
+    fn test_legacy_plain_let() {
+        let code = run_svelte2tsx_v5("<script>let a=1</script>{a}");
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "plain let should be legacy mode; got:\n{code}"
         );
     }
 }

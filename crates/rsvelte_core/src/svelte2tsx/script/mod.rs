@@ -892,6 +892,14 @@ pub fn process_instance_script(
                             .push((type_alias.span.start, type_alias.span.end));
                     }
                 }
+                // Detect rune globals used as standalone expression statements,
+                // e.g. `$effect(() => { ... })` or `$effect.pre(() => { ... })`.
+                // These are missed by `detect_runes_call` which only visits
+                // VariableDeclarator inits.
+                // Reference: svelte2tsx ExportedNames.ts `hasRunesGlobals` check.
+                oxc::Statement::ExpressionStatement(es) => {
+                    detect_runes_expr_stmt(es, exported_names, &declared_names);
+                }
                 _ => {}
             }
         }
@@ -2658,17 +2666,70 @@ fn detect_runes_call(
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
-    if let Some(ref init) = declarator.init
-        && let oxc::Expression::CallExpression(call) = init
-        && let oxc::Expression::Identifier(ref callee) = call.callee
-        && matches!(callee.name.as_str(), "$state" | "$derived" | "$effect")
-    {
-        // Don't treat as rune if the base name (without $) is already declared
-        // (e.g., `import { derived } from 'svelte/store'` means $derived is a store)
-        let base_name = &callee.name[1..];
-        if !declared_names.contains(base_name) {
+    if let Some(ref init) = declarator.init {
+        if detect_rune_global_call_expr(init, declared_names) {
             exported_names.set_uses_runes(true);
         }
+    }
+}
+
+/// Detect `$state(...)`, `$derived(...)`, `$effect(...)` — including member-call
+/// variants such as `$state.raw(...)`, `$effect.pre(...)` — anywhere as an
+/// expression (not just as a VariableDeclarator init).
+///
+/// Mirrors the official `isRunesMode` `hasRunesGlobals` check which looks for
+/// undeclared `$state`/`$derived`/`$effect` identifiers in the instance scope.
+/// We check both direct calls (`$state(v)`) and member calls (`$state.raw(v)`)
+/// since both reference the `$state` global.
+///
+/// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+///   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
+fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
+    match expr {
+        // Direct call: $state(...), $derived(...), $effect(...)
+        oxc::Expression::CallExpression(call) => {
+            match &call.callee {
+                // $state(...), $derived(...), $effect(...)
+                oxc::Expression::Identifier(id)
+                    if matches!(id.name.as_str(), "$state" | "$derived" | "$effect") =>
+                {
+                    // Exclude store subscriptions: if `state` is declared (imported),
+                    // `$state` is a store auto-sub, not a rune.
+                    let base = &id.name[1..]; // "$state" -> "state"
+                    !declared_names.contains(base)
+                }
+                // Member call: $state.raw(...), $effect.pre(...), etc.
+                // The object identifier must be $state/$derived/$effect.
+                oxc::Expression::StaticMemberExpression(mem) => {
+                    if let oxc::Expression::Identifier(obj) = &mem.object
+                        && matches!(obj.name.as_str(), "$state" | "$derived" | "$effect")
+                    {
+                        let base = &obj.name[1..];
+                        !declared_names.contains(base)
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Detect rune globals used as top-level ExpressionStatements in the instance
+/// script, e.g. `$effect(() => { ... })`.
+///
+/// These don't have a VariableDeclarator so `detect_runes_call` misses them.
+/// Reference: official svelte2tsx `hasRunesGlobals` which checks ALL undeclared
+/// `$state`/`$derived`/`$effect` references in the instance script scope.
+fn detect_runes_expr_stmt(
+    expr_stmt: &oxc::ExpressionStatement,
+    exported_names: &mut ExportedNames,
+    declared_names: &HashSet<String>,
+) {
+    if detect_rune_global_call_expr(&expr_stmt.expression, declared_names) {
+        exported_names.set_uses_runes(true);
     }
 }
 
