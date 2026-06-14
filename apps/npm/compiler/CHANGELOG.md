@@ -1,5 +1,78 @@
 # @rsvelte/compiler
 
+## 0.7.11
+
+### Patch Changes
+
+- 2fa1412: Corpus output-parity fixes (known failures 262 → 125, on top of wave 6):
+  `should_proxy` identifier-binding resolution + `SequenceExpression`; comment-only
+  `<script module>` dropped; `$props.id()` evaluates to a defined string (server);
+  `TEMPLATE_USE_IMPORT_NODE` for static `<video>` / custom elements; known-global
+  calls (`Math.*`/`Number`/`String`/`BigInt`) skip the `?? ""` coalesce in text
+  interpolation; server-module public `$state` class fields stay public; scoped
+  `<svelte:element>` emits its scope class on the server; CSS rendering handles
+  whitespace in the `</style>` closing tag.
+- c52c829: Corpus output-parity fixes (known failures 125 → 42, on top of the 262 → 125
+  wave). Faithful upstream-aligned codegen fixes, each verified against the full
+  CSR/SSR corpus and the byte-exact runtime/ssr/compiler_fixtures/css suites with
+  zero regressions:
+  - decode `\u`/`\x` escapes when folding a known-const string to its cooked
+    value (client + server) and re-escape bidi-control/format characters in
+    server string literals;
+  - `should_proxy` resolves an Identifier through its binding's initial node type;
+    nested `:global { … }` blocks and `:has(> [open])` leading combinators scope
+    correctly; SSR multi-part style-directive values; `<title>` hoisting; spread
+    element reactivity; `<option>` `?? ""` elide for a shadowed each-index;
+  - server compound-assignment recompaction (`$.set(s, s + 1)` → `s += 1`);
+    `var`-declared exported props keep their `var` keyword (client + server);
+    `this.#field = …` LHS now parses to a `MemberExpression` (sets `needs_context`)
+    and public class-field backing names are deconflicted against existing private
+    members (`deps` → `#_deps`);
+  - `$.store_unsub` wrap on a destructuring reactive assignment; SSR
+    trailing-whitespace trim before a hoisted `{@const}`/`{const …}`/`{#snippet}`;
+    `$$index` numbering recurses into `<svelte:fragment>`; `<svelte:component>`
+    `let:x={y}` slot-prop rename preserved; member-assignment properties are no
+    longer recorded as reactive declared vars (reactive-statement ordering).
+
+  Remaining failures are tracked in `docs/corpus-remaining-work.md`; the dominant
+  cluster requires the Phase-3 AST → printer refactor
+  (`docs/phase3-ast-refactor-plan.md`).
+
+- d7ef569: Corpus burn-down wave 6: SSR output parity fixes (clean_nodes edge-whitespace/comment handling, Svelte whitespace set so `&nbsp;` survives trimming, SVG single-space removal, load/error capture events from `use:` directives, `<!doctype>` voidness, `$props.id()` string evaluation, nested-snippet hoisting, esrap positional-comment recovery) — real-world corpus known failures 316 → 262.
+- 5f0b53e: Corpus output-parity fixes: real-world corpus known failures **42 → 0**. Every
+  one of the 6,409 `.svelte` / `.svelte.(js|ts)` corpus sources now compiles to
+  output that is AST/byte-identical to the official Svelte compiler for both CSR
+  and SSR (`compat/corpus/known-failures.json` is empty). Each fix is an
+  upstream-aligned codegen change verified against the full CSR/SSR corpus and the
+  byte-exact runtime/ssr/compiler_fixtures/validator/compiler_errors/print/css
+  suites with zero regressions:
+  - **Evaluation / constant-folding**: rune-call (`$state`/`$state.raw`/`$derived`)
+    and chained declaration-tag initial-value folding; `ConditionalExpression`
+    branch-pruning when the test folds to a known constant (textContent
+    optimisation); RegExp / NaN / ±Infinity literal folds; and the upstream
+    memoize-**then**-evaluate ordering so a `has_call` chunk is never folded
+    (`{duration ? format(duration) : '…'}` stays reactive while `{a / b}` of two
+    non-updated `$state` vars folds to a static literal).
+  - **store-vs-rune detection** (locally-declared non-rune names no longer flip
+    runes mode; `$state()` store-getter call lowering; `$inspect` removal in
+    `.svelte.js` module scripts).
+  - **`$derived`-returning-function currying** (`yScale()(tick)`) on the server,
+    via a comment-agnostic member-declaration discriminator.
+  - **Server class-member parsing** (multi-line constructor params + field
+    initialisers), public `$state` class fields lowered to `#private` + get/set
+    accessors, `$state.raw` no-proxy `$.set`, and a parser `find_matching_bracket`
+    fix for template literals containing regex backticks.
+  - **Comment-aware instance-script prop lowering**, legacy `$:` topological order
+    via template-literal dependency extraction, nested-snippet hoisting + render-tag
+    lexical scope resolution, server slot-forwarding + nested snippets, await-pending
+    block scope, each-block dependency collection no longer descending into nested
+    function bodies, SSR `{@const}` whitespace preservation, and assorted targeted
+    codegen fixes (bare-derived prop arg, `return;`, single-statement `while` body,
+    destructure assignment IIFE, rest-eachblock bind LHS).
+  - **Error parity**: a `<svelte:element>` carrying a `let:` directive now fails to
+    compile with `Not implemented: LetDirective`, matching the official compiler
+    (previously rsvelte compiled it).
+
 ## 0.7.10
 
 ### Patch Changes
