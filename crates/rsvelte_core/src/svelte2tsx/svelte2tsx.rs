@@ -3877,6 +3877,20 @@ fn template_node_has_rune_global(
         TemplateNode::AttachTag(tag) => {
             expression_references_rune_global(&tag.expression, source, arena)
         }
+        // `{@const x = $derived(…)}` and `{let x = $state(0), …}` carry rune
+        // calls in their declaration; official collects their globals like any
+        // other template expression, so a runes-only component with no script
+        // (only template declaration tags) still enters runes mode. The
+        // declaration is a `VariableDeclaration` (which the typed/JSON rune
+        // walkers don't descend into), so scan the tag's source slice directly.
+        TemplateNode::ConstTag(tag) => {
+            let (s, e) = (tag.start as usize, tag.end as usize);
+            s < e && e <= source.len() && lazy_slice_references_rune_global(&source[s..e])
+        }
+        TemplateNode::DeclarationTag(tag) => {
+            let (s, e) = (tag.start as usize, tag.end as usize);
+            s < e && e <= source.len() && lazy_slice_references_rune_global(&source[s..e])
+        }
         _ => false,
     }
 }
