@@ -2,6 +2,7 @@
 //! [`Rule`](crate::rule::Rule); the full set is assembled in
 //! [`registry`](crate::registry).
 
+pub mod block_lang;
 pub mod button_has_type;
 pub mod derived_has_same_inputs_outputs;
 pub mod first_attribute_linebreak;
@@ -58,6 +59,7 @@ pub mod prefer_style_directive;
 pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
 pub mod require_each_key;
+pub mod require_optimized_style_attribute;
 pub mod require_store_callbacks_use_set_param;
 pub mod require_store_reactive_access;
 pub mod require_stores_init;
