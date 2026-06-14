@@ -662,16 +662,42 @@ fn collect_slot_prop_entries(
     source: &str,
     scope: &[(String, String)],
 ) -> Vec<String> {
-    // Resolve a slot-prop value through the template scope: an `{#each}`
-    // context variable types as `__sveltets_2_unwrapArr(<collection>)` so the
-    // slot type reflects the array element type, not the array.
+    // Resolve a slot-prop value through the template scope: each `{#each}`
+    // context variable is substituted (as a whole identifier token) with
+    // `__sveltets_2_unwrapArr(<collection>)` so the slot type reflects the
+    // array element type — both for a bare value (`{item}`) and inside an
+    // expression (`item={process(data)}` → `process(__sveltets_2_unwrapArr(…))`).
     let resolve = |value: &str| -> String {
-        scope
-            .iter()
-            .rev()
-            .find(|(name, _)| name == value)
-            .map(|(_, expr)| expr.clone())
-            .unwrap_or_else(|| value.to_string())
+        if scope.is_empty() {
+            return value.to_string();
+        }
+        let chars: Vec<char> = value.chars().collect();
+        let is_ident = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
+        let mut out = String::with_capacity(value.len());
+        let mut i = 0usize;
+        while i < chars.len() {
+            let c = chars[i];
+            // Start of an identifier token (not a member-access tail or a
+            // continuation of a longer identifier)?
+            let starts_ident = (c.is_alphabetic() || c == '_' || c == '$')
+                && (i == 0 || (!is_ident(chars[i - 1]) && chars[i - 1] != '.'));
+            if starts_ident {
+                let mut j = i + 1;
+                while j < chars.len() && is_ident(chars[j]) {
+                    j += 1;
+                }
+                let token: String = chars[i..j].iter().collect();
+                match scope.iter().rev().find(|(name, _)| name == &token) {
+                    Some((_, expr)) => out.push_str(expr),
+                    None => out.push_str(&token),
+                }
+                i = j;
+            } else {
+                out.push(c);
+                i += 1;
+            }
+        }
+        out
     };
     let mut props = Vec::new();
     for attr in attributes {
