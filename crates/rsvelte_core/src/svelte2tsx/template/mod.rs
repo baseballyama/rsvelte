@@ -5052,10 +5052,10 @@ mod tests {
         // sanitizePropName: '.' is not [0-9A-Za-z$_], replaced with '_' before reversing.
         // "Foo.Bar" → sanitized "Foo_Bar" → reversed "raB_ooF" → "$$_raB_ooF0C"
         assert_eq!(reversed_component_name("Foo.Bar", 0), "$$_raB_ooF0C");
-        // Namespaced component: "Namespace:Comp" → "Namespace_Comp" → "pmoC_ecapsmaN" → "$$_pmoC_ecapsmaN0C"
+        // Namespaced component: "Namespace:Comp" → "Namespace_Comp" → "pmoC_ecapsemaN" → "$$_pmoC_ecapsemaN0C"
         assert_eq!(
             reversed_component_name("Namespace:Comp", 0),
-            "$$_pmoC_ecapsmaN0C"
+            "$$_pmoC_ecapsemaN0C"
         );
     }
 
