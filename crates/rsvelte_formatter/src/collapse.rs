@@ -699,6 +699,19 @@ fn collect(
                     line_width,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) =
+                    try_strip_trailing_slot_space(out, s.start, s.end, &s.fragment)
+                {
+                    edits.push(edit);
                 } else {
                     collect(out, &s.fragment, line_width, options, edits);
                 }
@@ -1420,7 +1433,11 @@ fn try_break_content_tag_block(
         }
         // Break: remove the trailing `>` from the open, put `>` on a new line,
         // then the content, then close.
-        let open_without_gt = open[..open.len() - 1].trim_end_matches([' ', '\t']);
+        // Use `trim_end()` (not just spaces/tabs) so that the trailing `\n    `
+        // before the `>` is also removed — otherwise the format string's `\n`
+        // prefix would produce a double-newline (blank line) between the last
+        // attribute and the `>`.
+        let open_without_gt = open[..open.len() - 1].trim_end();
         let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
         let width = line_width.saturating_sub(inner_indent.width() + kw_lead + kw_trail);
         let wrapped = crate::expression::reformat_content_at_width(
@@ -1540,6 +1557,47 @@ fn try_break_block_overflow(
 
     let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
+}
+
+/// Strip trailing whitespace from a `<slot>` element's inline content.
+/// prettier-plugin-svelte trims trailing edge whitespace for component-like elements:
+///   `<slot><!-- placeholder--> </slot>` → `<slot><!-- placeholder--></slot>`
+///   `<slot><!-- note--> foobar </slot>` → `<slot><!-- note--> foobar</slot>`
+fn try_strip_trailing_slot_space(
+    out: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+) -> Option<(u32, u32, String)> {
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    if whole.contains('\n') {
+        return None; // only collapse inline slots
+    }
+    // The last child must be a Text node (possibly whitespace-only, possibly with content).
+    let last = fragment.nodes.last()?;
+    let TemplateNode::Text(t) = last else {
+        return None;
+    };
+    if t.data.is_empty() {
+        return None;
+    }
+    // The rendered text in `out` for this node's span.
+    let ts = node_start(last) as usize;
+    let te = node_end(last) as usize;
+    let rendered = out.get(ts..te)?;
+    if rendered.is_empty() {
+        return None;
+    }
+    let trimmed = rendered.trim_end();
+    // Only act if there actually IS trailing whitespace to remove.
+    if trimmed.len() == rendered.len() {
+        return None;
+    }
+    // Build replacement: open..content_before_trailing_ws + trimmed_text + close_tag.
+    let close = out.get(te..e)?;
+    let replacement = format!("{}{}{}", &out[s..ts], trimmed, close);
+    (replacement != whole).then_some((start, end, replacement))
 }
 
 /// Hug-break an inline element whose mixed inline content (expression tags /
