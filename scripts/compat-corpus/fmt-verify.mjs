@@ -107,9 +107,24 @@ console.log(`  failed    ${failures.length}`);
 console.log(`  report:   ${path.relative(ROOT, REPORT_PATH)}`);
 
 if (UPDATE_BASELINE) {
-	const baseline = failures.map((f) => f.id).sort();
+	// Preserve any existing baseline id whose oracle is NOT present in this run's
+	// parity set: those entries can't be checked locally (e.g. the loose
+	// declaration-tag entries that Linux CI's oxfmt includes but macOS skips), so
+	// dropping them here would silently break the CI gate. CI (Linux) regenerates
+	// the full set, so re-running --update-baseline there collapses correctly.
+	const localFailures = new Set(failures.map((f) => f.id));
+	const existing = fs.existsSync(BASELINE_PATH)
+		? JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
+		: [];
+	const carriedOver = existing.filter(
+		(id) => !localFailures.has(id) && !fs.existsSync(path.join(ORACLE, id)),
+	);
+	const baseline = [...new Set([...failures.map((f) => f.id), ...carriedOver])].sort();
 	fs.writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, '\t') + '\n');
-	console.log(`\n[fmt-verify] baseline updated: ${baseline.length} known failures -> ${path.relative(ROOT, BASELINE_PATH)}`);
+	console.log(
+		`\n[fmt-verify] baseline updated: ${baseline.length} known failures ` +
+			`(${carriedOver.length} carried over as not-locally-checkable) -> ${path.relative(ROOT, BASELINE_PATH)}`,
+	);
 	process.exit(0);
 }
 
