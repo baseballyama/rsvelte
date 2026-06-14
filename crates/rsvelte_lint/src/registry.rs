@@ -141,5 +141,6 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(
             crate::rules::no_export_load_in_svelte_module_in_kit_pages::NoExportLoadInSvelteModuleInKitPages,
         ),
+        Box::new(crate::rules::infinite_reactive_loop::InfiniteReactiveLoop),
     ]
 }
