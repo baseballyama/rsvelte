@@ -2034,8 +2034,12 @@ fn handle_snippet_block_inner(
     };
     if has_body_nodes {
         str.overwrite(block.start, body_start, &header);
-        // Process body
-        process_fragment_inplace(&block.body, source, options, str, counter, depth);
+        // Process body at depth 0: official resets `element = undefined` when
+        // entering a SnippetBlock, so element/component names inside a snippet
+        // body always count depth from the snippet (e.g. `<Child>` directly in
+        // a snippet is `$$_…C0C`), regardless of how deeply the snippet itself
+        // is nested in elements / `<svelte:boundary>`.
+        process_fragment_inplace(&block.body, source, options, str, counter, 0);
 
         let body_end = block.body.nodes.last().unwrap().end();
         if body_end < block.end {
