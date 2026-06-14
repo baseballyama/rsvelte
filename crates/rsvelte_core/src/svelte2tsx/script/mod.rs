@@ -619,8 +619,20 @@ struct PropsRuneInfo {
     colon_pos: Option<u32>,
     /// Whether the TS type annotation is hoistable (inline object type, not a named reference)
     is_hoistable_type: bool,
+    /// Whether the TS type annotation is a simple named type reference (TSTypeReference).
+    /// Only `TSTypeReference` nodes (e.g. `Props`, `Props<T>`) are used directly;
+    /// all other annotated types (TSIndexedAccessType, TSUnionType, etc.) get wrapped
+    /// in `$$ComponentProps` — mirrors the official `ts.isTypeReferenceNode` check.
+    is_named_type_reference: bool,
+    /// Whether the $props() binding pattern is an identifier (whole-object form),
+    /// e.g. `let props = $props()` rather than a destructuring `let { a } = $props()`.
+    is_identifier_pattern: bool,
     /// Whether the pattern has a rest element (`...rest`)
     has_rest: bool,
+    /// Whether the pattern has any non-identifier property keys (mirrors official `withUnknown`).
+    /// Set when a prop uses a string literal, numeric, or computed key (e.g. `'kebab-case': x`).
+    /// When true, contributes `& Record<string, any>` to the generated type.
+    has_unknown_props: bool,
     /// Prop type entries: (name, optional, inferred_type)
     prop_types: Vec<(String, bool, String)>,
     /// Names of $bindable() props
@@ -1140,8 +1152,41 @@ fn apply_props_typedef(
             }
         }
         exported_names.props_let_abs_pos = Some(p as u32 + offset);
-    } else if info.has_type_annotation && !info.is_hoistable_type {
-        // TS case with named type reference: `: Props` or `: Props<T>`
+    } else if info.has_type_annotation && !info.is_hoistable_type && !info.is_named_type_reference {
+        // TS case with non-TSTypeReference annotation (e.g. `SvelteHTMLElements["div"]`,
+        // union types, intersection types, etc.).
+        // Mirrors the official `!ts.isTypeReferenceNode(generic_arg)` branch:
+        // create a `$$ComponentProps` alias and replace the annotation with
+        // `/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/`.
+        // The type alias is placed BEFORE `$$render` (same mechanism as the hoistable
+        // TSTypeLiteral case) via `props_let_abs_pos` + `props_type_text`.
+        if let (Some(colon), Some(ta_end)) = (info.colon_pos, info.type_annotation_end) {
+            let abs_colon = colon + offset;
+            let abs_end = ta_end + offset;
+            str.overwrite(
+                abs_colon + 1,
+                abs_end,
+                "/*\u{03A9}ignore_start\u{03A9}*/$$ComponentProps/*\u{03A9}ignore_end\u{03A9}*/",
+            );
+        }
+        exported_names.has_component_props_typedef = true;
+        // props_type_text is the original type text (set by detect_props_rune_oxc).
+        // svelte2tsx.rs uses it in `ts_component_props_before_render` to emit
+        // `;type $$ComponentProps = <type_text>;` before `function $$render`.
+        // Leave type_already_inserted = false so it goes BEFORE render.
+        let raw_bytes = raw_content.as_bytes();
+        let mut p = info.let_pos as usize;
+        while p > 0 {
+            let prev = raw_bytes[p - 1];
+            if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
+                p -= 1;
+            } else {
+                break;
+            }
+        }
+        exported_names.props_let_abs_pos = Some(p as u32 + offset);
+    } else if info.has_type_annotation && !info.is_hoistable_type && info.is_named_type_reference {
+        // TS case with simple named type reference: `: Props` or `: Props<T>`
         // Keep the type annotation as-is, use it directly in props_type_text
         // (props_type_text is already set by detect_props_rune_oxc)
         // Don't create $$ComponentProps
@@ -1156,17 +1201,45 @@ fn apply_props_typedef(
 
         if is_inline_object_type {
             // Inline object type: transform `/** @type {{ a: number }} */` to
-            // `/** @typedef {{ a: number }} $$ComponentProps *//** @type {$$ComponentProps} */`.
-            // Mirrors the JS reference's `overwrite(end, end + 2, ' $$ComponentProps */' + ...)`
-            // which produces a single space between the closing `}}` and the
-            // alias name.
+            // `/** @typedef {{ a: number }}  $$ComponentProps *//** @type {$$ComponentProps} */`.
+            //
+            // Mirrors the official JS two-step:
+            //   1. overwrite `@type` → `@typedef`
+            //   2. overwrite `*/` at end → ` $$ComponentProps */` + `/** @type {$$ComponentProps} */`
+            //
+            // The original comment typically has a space before `*/` (e.g. `}} */`).
+            // After step 2, that space is preserved and the new ` $$ComponentProps */`
+            // contributes another space → two spaces between `}}` and `$$ComponentProps`.
+            // We replicate by finding the `*/` position in the original and capturing
+            // the trailing whitespace between the type text and `*/`.
             if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
+                let orig_comment = &raw_content[jsdoc_start as usize..jsdoc_end as usize];
+                // Locate `@type` and `*/` positions within the original comment text
+                let typedef = if let (Some(at_type_rel), Some(star_slash_rel)) =
+                    (orig_comment.find("@type"), orig_comment.rfind("*/"))
+                {
+                    // Everything from `/**` up to (but not including) `@type`
+                    let prefix = &orig_comment[..at_type_rel];
+                    // The type content including surrounding whitespace up to `*/`
+                    // e.g. for `/** @type {{ a: string }} */`: after-@typedef text
+                    let after_typedef_kw = &orig_comment[at_type_rel + 5..star_slash_rel];
+                    // after_typedef_kw is like ` {{ a: string }} ` (includes surrounding spaces)
+                    // Produce: `/** @typedef{{ a: string }} $$ComponentProps *//** @type {$$ComponentProps} */`
+                    // The official replaces `*/` with ` $$ComponentProps */`, so the space before `*/`
+                    // in the original is preserved plus one new space → two spaces for the typical case.
+                    format!(
+                        "{}@typedef{} $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                        prefix, after_typedef_kw
+                    )
+                } else {
+                    // Fallback: generate from extracted type (may lose trailing space)
+                    format!(
+                        "/** @typedef {} $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                        jsdoc_type
+                    )
+                };
                 let abs_start = jsdoc_start + offset;
                 let abs_end = jsdoc_end + offset;
-                let typedef = format!(
-                    "/** @typedef {} $$ComponentProps *//** @type {{$$ComponentProps}} */",
-                    jsdoc_type
-                );
                 str.overwrite(abs_start, abs_end, &typedef);
             }
             exported_names.has_component_props_typedef = true;
@@ -1176,7 +1249,25 @@ fn apply_props_typedef(
             // Use the type name directly in create_props_str
             exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
         }
-    } else if !info.prop_types.is_empty() || info.has_rest {
+    } else if info.prop_types.is_empty() && !info.has_rest && !info.has_unknown_props {
+        // No named props, no rest element, no non-identifier keys:
+        // whole-object identifier (`let props = $props()`) or empty ObjectPattern (`let {} = $props()`).
+        //
+        // Official sets `this.$props.type = '$$ComponentProps'` (TS) or
+        // `this.$props.comment = '/** @type {$$ComponentProps} */'` (JS) unconditionally,
+        // without emitting any type alias — the identifier `$$ComponentProps` is left
+        // unresolved but that's intentional (mirrors official behavior exactly).
+        // Reference: ExportedNames.ts handle$propsRune lines 376-401.
+        if is_ts {
+            // TS: props_type_text = "$$ComponentProps" → create_props_str returns `{} as any as $$ComponentProps`
+            // has_component_props_typedef stays false (no alias emitted)
+            exported_names.props_type_text = Some("$$ComponentProps".to_string());
+        } else {
+            // JS: has_component_props_typedef = true → create_props_str returns `/** @type {$$ComponentProps} */({})`
+            // No source changes needed, no typedef inserted
+            exported_names.has_component_props_typedef = true;
+        }
+    } else if !info.prop_types.is_empty() || info.has_rest || info.has_unknown_props {
         // Auto-generate typedef from destructured props.
         //
         // For SvelteKit `+page.svelte` / `+layout.svelte` route files, override
@@ -1184,12 +1275,21 @@ fn apply_props_typedef(
         // `params` with `import('./$types.js').*` references — matches the JS
         // reference's `isKitRouteFile` branch in `ExportedNames.handle$propsRune`.
         let kit_layout = classify_kit_route_file(basename);
-        let type_entries: Vec<String> = info
+        // Build type entries for each named prop.
+        //
+        // For SvelteKit route files, the official code only includes the well-known
+        // kit props (`data`, `form`, `params`) and silently skips any other names
+        // (their types are not inferred). After the loop, layout files get
+        // `children: import('svelte').Snippet` appended unconditionally.
+        // For non-kit files, all named props are included with inferred types.
+        // Mirrors official ExportedNames.ts lines 296-366.
+        let mut type_entries: Vec<String> = info
             .prop_types
             .iter()
-            .map(|(name, optional, inferred_type)| {
-                let actual_type = if let Some(is_layout) = kit_layout {
-                    match name.as_str() {
+            .filter_map(|(name, optional, inferred_type)| {
+                if let Some(is_layout) = kit_layout {
+                    // Kit route file: only include special props
+                    let kit_type = match name.as_str() {
                         "data" => Some(
                             if is_layout {
                                 "import('./$types.js').LayoutData"
@@ -1209,24 +1309,49 @@ fn apply_props_typedef(
                             }
                             .to_string(),
                         ),
-                        _ => None,
+                        _ => return None, // skip non-kit props; they're not inferred for kit files
+                    };
+                    Some(format!("{}: {}", name, kit_type.unwrap()))
+                } else {
+                    // Non-kit file: include all props with inferred types
+                    let resolved = inferred_type.as_str();
+                    if *optional {
+                        Some(format!("{}?: {}", name, resolved))
+                    } else {
+                        Some(format!("{}: {}", name, resolved))
                     }
-                } else {
-                    None
-                };
-                let resolved = actual_type.as_deref().unwrap_or(inferred_type);
-                if *optional {
-                    format!("{}?: {}", name, resolved)
-                } else {
-                    format!("{}: {}", name, resolved)
                 }
             })
             .collect();
 
-        let type_body = if info.has_rest {
+        // For SvelteKit layout files, always append `children: import('svelte').Snippet`.
+        // Mirrors official ExportedNames.ts line 364-366:
+        //   `if (isKitLayoutFile) { props.push('children: import(\'svelte\').Snippet'); }`
+        if kit_layout == Some(true) {
+            type_entries.push("children: import('svelte').Snippet".to_string());
+        }
+
+        // `with_unknown` mirrors official's `withUnknown`: true when there's a rest
+        // element OR non-identifier property keys (e.g. 'kebab-case': x).
+        let with_unknown = info.has_rest || info.has_unknown_props;
+
+        // Build the type body string, mirroring official lines 368-377:
+        //   if props.length > 0:
+        //     `{ p1: T1, p2?: T2 }` + (withUnknown ? ' & Record<string, any>' : '')
+        //   else if withUnknown (rest only or unknown-prop only):
+        //     `Record<string, any>`
+        //   else (no props, no unknown):
+        //     `Record<string, never>`
+        let type_body = if !type_entries.is_empty() && with_unknown {
+            // Named props AND (rest element or unknown props): `{ ... } & Record<string, any>`
+            format!("{{ {} }} & Record<string, any>", type_entries.join(", "))
+        } else if !type_entries.is_empty() {
+            format!("{{ {} }}", type_entries.join(", "))
+        } else if with_unknown {
+            // Only rest/unknown, no named props
             "Record<string, any>".to_string()
         } else {
-            format!("{{ {} }}", type_entries.join(", "))
+            "Record<string, never>".to_string()
         };
 
         if is_ts {
@@ -3201,6 +3326,7 @@ fn collect_props_rune_info(
         type_annotation_end,
         type_text,
         is_hoistable_type,
+        is_named_type_reference,
         colon_pos,
     ) = if let Some(ref ta) = declarator.type_annotation {
         let ts_type = &ta.type_annotation;
@@ -3211,8 +3337,13 @@ fn collect_props_rune_info(
         } else {
             None
         };
-        // Inline object types are hoistable, named type references are not
+        // Inline object types are hoistable, named type references are not.
+        // Mirrors official `ts.isTypeReferenceNode` check:
+        // - TSTypeLiteral (`{ a: T }`) → hoistable (inline object)
+        // - TSTypeReference (`Props`, `Props<T>`) → named reference, use directly
+        // - Everything else (TSIndexedAccessType, TSUnionType, etc.) → create $$ComponentProps
         let is_hoistable = matches!(&ts_type, oxc::TSType::TSTypeLiteral(_));
+        let is_named_ref = matches!(&ts_type, oxc::TSType::TSTypeReference(_));
         // The colon position is the start of the TSTypeAnnotation span (includes `:`)
         let colon = ta.span.start;
         (
@@ -3221,10 +3352,11 @@ fn collect_props_rune_info(
             Some(end),
             text,
             is_hoistable,
+            is_named_ref,
             Some(colon),
         )
     } else {
-        (false, None, None, None, false, None)
+        (false, None, None, None, false, false, None)
     };
 
     // Detect JSDoc @type comment before the let statement
@@ -3235,19 +3367,43 @@ fn collect_props_rune_info(
         stmt_index,
     );
 
-    // Detect rest element and collect prop types
+    // Detect rest element and collect prop types.
+    // Also detect whether the binding is an identifier (whole-object) vs destructure.
     let mut has_rest = false;
+    // `has_unknown_props` mirrors official's `withUnknown` flag: set to true when
+    // a property has a non-identifier key (string literal, numeric, computed) or
+    // a non-identifier name. Mirrors official check:
+    //   `!ts.isIdentifier(element.name) || (element.propertyName && !ts.isIdentifier(element.propertyName))`
+    let mut has_unknown_props = false;
     let mut prop_types: Vec<(String, bool, String)> = Vec::new();
     let mut bindable_names: Vec<String> = Vec::new();
+    let is_identifier_pattern = matches!(&declarator.id, oxc::BindingPattern::BindingIdentifier(_));
 
     if let oxc::BindingPattern::ObjectPattern(obj_pat) = &declarator.id {
         has_rest = obj_pat.rest.is_some();
 
         for prop in obj_pat.properties.iter() {
+            // Only include a prop in the type if its key is a plain identifier.
+            // For non-identifier keys (string literals like `'kebab-case'`, numeric
+            // literals like `0`, computed properties), set `has_unknown_props = true`
+            // which will contribute `& Record<string, any>` or `Record<string, any>`
+            // to the generated type — mirrors official's `withUnknown` path.
+            let is_identifier_key = matches!(&prop.key, oxc::PropertyKey::StaticIdentifier(_));
+            if !is_identifier_key {
+                has_unknown_props = true;
+                continue;
+            }
             let key_name = property_key_to_string(&prop.key);
             if let Some(key) = key_name {
+                // Also check that the binding target name is a simple identifier
+                // (not a nested destructure, which is a non-identifier).
                 match &prop.value {
                     oxc::BindingPattern::AssignmentPattern(assign) => {
+                        if binding_pattern_simple_name(&assign.left).is_none() {
+                            // Complex binding (nested destructure) → unknown
+                            has_unknown_props = true;
+                            continue;
+                        }
                         let inferred_type = infer_type_from_default(&assign.right, raw_content);
                         let (bindable, _) = is_bindable_call(&assign.right, raw_content);
                         prop_types.push((key.clone(), true, inferred_type));
@@ -3255,8 +3411,12 @@ fn collect_props_rune_info(
                             bindable_names.push(key);
                         }
                     }
-                    _ => {
+                    oxc::BindingPattern::BindingIdentifier(_) => {
                         prop_types.push((key, false, "any".to_string()));
+                    }
+                    _ => {
+                        // Nested destructure in value position → unknown
+                        has_unknown_props = true;
                     }
                 }
             }
@@ -3274,10 +3434,13 @@ fn collect_props_rune_info(
         type_text,
         colon_pos,
         is_hoistable_type,
+        is_named_type_reference,
+        is_identifier_pattern,
         jsdoc_type,
         jsdoc_start,
         jsdoc_end,
         has_rest,
+        has_unknown_props,
         prop_types,
         bindable_names,
     })
@@ -4663,6 +4826,232 @@ mod tests {
         assert!(
             result.code.contains(store2_block),
             "store2 should have separate ignore block"
+        );
+    }
+
+    // =========================================================================
+    // $$ComponentProps generation tests
+    // Reference: ExportedNames.ts handle$propsRune / createPropsStr
+    // =========================================================================
+
+    /// Helper to run svelte2tsx with TS enabled
+    fn run_svelte2tsx_ts(source: &str) -> crate::svelte2tsx::svelte2tsx::Svelte2TsxResult {
+        svelte2tsx(
+            source,
+            Svelte2TsxOptions {
+                filename: "Component.svelte".to_string(),
+                is_ts_file: true,
+                ..Default::default()
+            },
+        )
+        .expect("svelte2tsx should not fail")
+    }
+
+    /// Case A: JS whole-object `let props = $props()` — no typedef, but props slot
+    /// uses `/** @type {$$ComponentProps} */({})` (mirrors official behavior).
+    /// Reference: ExportedNames.ts handle$propsRune, else-branch line 393.
+    #[test]
+    fn test_component_props_js_whole_object() {
+        let source = "<script>\nlet props = $props();\n</script>\n<p>{props.x}</p>";
+        let result = run_svelte2tsx(source);
+        // No typedef should be emitted
+        assert!(
+            !result.code.contains("@typedef"),
+            "JS whole-object: no @typedef expected, got:\n{}",
+            result.code
+        );
+        // Props slot should use $$ComponentProps
+        assert!(
+            result.code.contains("/** @type {$$ComponentProps} */({})"),
+            "JS whole-object: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case A-TS: TS whole-object `let props = $props()` — no typedef, but props slot
+    /// uses `{} as any as $$ComponentProps` (mirrors official behavior).
+    #[test]
+    fn test_component_props_ts_whole_object() {
+        let source = "<script lang=\"ts\">\nlet props = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // No typedef should be emitted
+        assert!(
+            !result.code.contains("type $$ComponentProps"),
+            "TS whole-object: no type alias expected, got:\n{}",
+            result.code
+        );
+        // Props slot should use $$ComponentProps
+        assert!(
+            result.code.contains("{} as any as $$ComponentProps"),
+            "TS whole-object: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case B: TS with inline object type annotation — creates hoistable `$$ComponentProps` alias.
+    /// `let { x }: { a: string } = $props()` →
+    ///   `;type $$ComponentProps = { a: string };` (before $$render)
+    ///   annotation becomes `/*Ωignore_start*/$$ComponentProps/*Ωignore_end*/`
+    ///   props slot: `{} as any as $$ComponentProps`
+    /// Reference: ExportedNames.ts handle$propsRune, TSTypeLiteral branch.
+    #[test]
+    fn test_component_props_ts_inline_object_type() {
+        let source = "<script lang=\"ts\">\nlet { x }: { a: string } = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // Should emit type alias before $$render
+        assert!(
+            result.code.contains("type $$ComponentProps ="),
+            "TS inline type: should emit $$ComponentProps alias, got:\n{}",
+            result.code
+        );
+        // Annotation should be replaced with $$ComponentProps
+        assert!(
+            result.code.contains("$$ComponentProps"),
+            "annotation should reference $$ComponentProps, got:\n{}",
+            result.code
+        );
+        // Props slot should use `{} as any as $$ComponentProps`
+        assert!(
+            result.code.contains("{} as any as $$ComponentProps"),
+            "props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case C: TS with named type reference — uses type directly, no $$ComponentProps.
+    /// `let { x }: Props = $props()` → props slot: `{} as any as Props`
+    /// Reference: ExportedNames.ts handle$propsRune, TSTypeReferenceNode branch.
+    #[test]
+    fn test_component_props_ts_named_type_ref() {
+        let source = "<script lang=\"ts\">\ninterface Props { x: string }\nlet { x }: Props = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // Should NOT emit $$ComponentProps alias
+        assert!(
+            !result.code.contains("type $$ComponentProps"),
+            "TS named ref: should NOT emit $$ComponentProps alias, got:\n{}",
+            result.code
+        );
+        // Props slot should use Props directly
+        assert!(
+            result.code.contains("{} as any as Props"),
+            "TS named ref: props slot should use Props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case D: TS with non-TSTypeReference annotation (e.g. TSIndexedAccessType) — creates $$ComponentProps.
+    /// `let { x }: SvelteHTMLElements["div"] = $props()` →
+    ///   `type $$ComponentProps = SvelteHTMLElements["div"];` (before $$render)
+    ///   props slot: `{} as any as $$ComponentProps`
+    /// Reference: ExportedNames.ts handle$propsRune, !isTypeReferenceNode branch.
+    #[test]
+    fn test_component_props_ts_indexed_access_type() {
+        let source = "<script lang=\"ts\">\nlet { x }: SomeType[\"key\"] = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // Should emit $$ComponentProps alias
+        assert!(
+            result.code.contains("type $$ComponentProps ="),
+            "TS indexed access: should emit $$ComponentProps alias, got:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("{} as any as $$ComponentProps"),
+            "TS indexed access: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case E: JS with inline JSDoc type `/** @type {{ a: string }} */`.
+    /// The `@type` is rewritten to `@typedef` and the type is renamed to `$$ComponentProps`.
+    /// Reference: ExportedNames.ts handle$propsRune, JSDoc inline object branch.
+    #[test]
+    fn test_component_props_js_jsdoc_inline_type() {
+        let source = "<script>\n/** @type {{ adjective: string }} */\nlet { adjective } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        // Should have @typedef with $$ComponentProps
+        assert!(
+            result.code.contains("@typedef"),
+            "JS JSDoc inline: should have @typedef, got:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("$$ComponentProps"),
+            "JS JSDoc inline: should reference $$ComponentProps, got:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("/** @type {$$ComponentProps} */({})"),
+            "JS JSDoc inline: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+        // The @typedef should have two spaces before $$ComponentProps (preserving original trailing space)
+        assert!(
+            result.code.contains("}}  $$ComponentProps"),
+            "JS JSDoc inline: should have two spaces before $$ComponentProps (orig space preserved), got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case F: JS destructure with rest element + named props.
+    /// `let { a, ...rest } = $props()` →
+    ///   `@typedef {{ a: any } & Record<string, any>} $$ComponentProps`
+    /// Reference: ExportedNames.ts, lines 369-370.
+    #[test]
+    fn test_component_props_js_rest_with_named_props() {
+        let source = "<script>\nlet { a, ...rest } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("{ a: any } & Record<string, any>"),
+            "JS rest+named: type should include named props AND Record, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case G: JS destructure with only rest element.
+    /// `let { ...rest } = $props()` → `@typedef {Record<string, any>} $$ComponentProps`
+    #[test]
+    fn test_component_props_js_rest_only() {
+        let source = "<script>\nlet { ...rest } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("Record<string, any>"),
+            "JS rest-only: type should be Record<string, any>, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case H: JS empty destructure `let {} = $props()`.
+    /// No typedef, but props slot uses `/** @type {$$ComponentProps} */({})`.
+    /// Reference: ExportedNames.ts, empty ObjectBindingPattern path (propsStr = Record<string,never>
+    /// but $props.comment = '/** @type {$$ComponentProps} */').
+    #[test]
+    fn test_component_props_js_empty_destructure() {
+        let source = "<script>\nlet {} = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("/** @type {$$ComponentProps} */({})"),
+            "JS empty destructure: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+        // No typedef should be inserted (only the @type comment in props slot)
+        assert!(
+            !result.code.contains("@typedef"),
+            "JS empty destructure: no @typedef expected, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case I: JS with non-identifier property key (string literal key).
+    /// `let { 'kebab-case': x } = $props()` → `withUnknown = true` → `Record<string, any>`
+    /// Reference: ExportedNames.ts withUnknown condition line 299-303.
+    #[test]
+    fn test_component_props_js_non_identifier_key() {
+        let source = "<script>\nlet { 'kebab-case': x } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("Record<string, any>"),
+            "JS non-identifier key: should generate Record<string, any>, got:\n{}",
+            result.code
         );
     }
 }
