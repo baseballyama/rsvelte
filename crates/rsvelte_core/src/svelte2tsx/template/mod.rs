@@ -511,29 +511,46 @@ pub fn process_template_inplace(
 /// - Forwarded events (for the return statement `events: {...}`)
 pub fn collect_template_info(fragment: &Fragment, source: &str) -> TemplateInfo {
     let mut info = TemplateInfo::default();
-    collect_info_from_fragment(fragment, source, &mut info);
+    // `scope` maps an in-scope template binding name (e.g. an `{#each}` context
+    // variable) to the expression that types it at the top level — for an each
+    // block, `__sveltets_2_unwrapArr(<collection>)`. Slot props referencing
+    // such a binding emit that expression instead of the bare name, so the
+    // `slots: { … }` return reflects the element type. Mirrors official
+    // `SlotHandler.getResolveExpressionStr` (EachBlock → unwrapArr).
+    let mut scope: Vec<(String, String)> = Vec::new();
+    collect_info_from_fragment(fragment, source, &mut info, &mut scope);
     info
 }
 
-fn collect_info_from_fragment(fragment: &Fragment, source: &str, info: &mut TemplateInfo) {
+fn collect_info_from_fragment(
+    fragment: &Fragment,
+    source: &str,
+    info: &mut TemplateInfo,
+    scope: &mut Vec<(String, String)>,
+) {
     for node in &fragment.nodes {
-        collect_info_from_node(node, source, info);
+        collect_info_from_node(node, source, info, scope);
     }
 }
 
-fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut TemplateInfo) {
+fn collect_info_from_node(
+    node: &TemplateNode,
+    source: &str,
+    info: &mut TemplateInfo,
+    scope: &mut Vec<(String, String)>,
+) {
     match node {
         TemplateNode::SlotElement(el) => {
             // Collect slot name and props
             let slot_name = get_slot_name(&el.attributes, source);
-            let slot_props = collect_slot_prop_entries(&el.attributes, source);
+            let slot_props = collect_slot_prop_entries(&el.attributes, source, scope);
             let entry = info.slots.entry(slot_name).or_default();
             for prop in slot_props {
                 if !entry.contains(&prop) {
                     entry.push(prop);
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info);
+            collect_info_from_fragment(&el.fragment, source, info, scope);
         }
         TemplateNode::RegularElement(el) => {
             // Collect forwarded events (on:event without handler)
@@ -549,7 +566,7 @@ fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut Template
                     }
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info);
+            collect_info_from_fragment(&el.fragment, source, info, scope);
         }
         TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
@@ -571,48 +588,67 @@ fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut Template
                     }
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info);
+            collect_info_from_fragment(&el.fragment, source, info, scope);
         }
         TemplateNode::Component(comp) => {
-            collect_info_from_fragment(&comp.fragment, source, info);
+            collect_info_from_fragment(&comp.fragment, source, info, scope);
         }
         TemplateNode::SvelteComponent(comp) => {
-            collect_info_from_fragment(&comp.fragment, source, info);
+            collect_info_from_fragment(&comp.fragment, source, info, scope);
         }
         TemplateNode::IfBlock(block) => {
-            collect_info_from_fragment(&block.consequent, source, info);
+            collect_info_from_fragment(&block.consequent, source, info, scope);
             if let Some(ref alt) = block.alternate {
-                collect_info_from_fragment(alt, source, info);
+                collect_info_from_fragment(alt, source, info, scope);
             }
         }
         TemplateNode::EachBlock(block) => {
-            collect_info_from_fragment(&block.body, source, info);
+            // Bind a simple `{#each coll as item}` context to
+            // `__sveltets_2_unwrapArr(coll)` for the body's slot props. (The
+            // fallback is outside the each scope.) Destructuring / index / key
+            // patterns are left unbound — they need the destructure-thunk shape
+            // and are rare for slot props.
+            let pushed = if let Some(ctx) = block.context.as_ref() {
+                if let Some(name) = expression_simple_identifier(ctx, source) {
+                    let coll = get_expression_text(&block.expression, source);
+                    scope.push((name, format!("__sveltets_2_unwrapArr({})", coll)));
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            collect_info_from_fragment(&block.body, source, info, scope);
+            if pushed {
+                scope.pop();
+            }
             if let Some(ref fallback) = block.fallback {
-                collect_info_from_fragment(fallback, source, info);
+                collect_info_from_fragment(fallback, source, info, scope);
             }
         }
         TemplateNode::AwaitBlock(block) => {
             if let Some(ref pending) = block.pending {
-                collect_info_from_fragment(pending, source, info);
+                collect_info_from_fragment(pending, source, info, scope);
             }
             if let Some(ref then) = block.then {
-                collect_info_from_fragment(then, source, info);
+                collect_info_from_fragment(then, source, info, scope);
             }
             if let Some(ref catch) = block.catch {
-                collect_info_from_fragment(catch, source, info);
+                collect_info_from_fragment(catch, source, info, scope);
             }
         }
         TemplateNode::KeyBlock(block) => {
-            collect_info_from_fragment(&block.fragment, source, info);
+            collect_info_from_fragment(&block.fragment, source, info, scope);
         }
         TemplateNode::SnippetBlock(block) => {
-            collect_info_from_fragment(&block.body, source, info);
+            collect_info_from_fragment(&block.body, source, info, scope);
         }
         TemplateNode::TitleElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info);
+            collect_info_from_fragment(&el.fragment, source, info, scope);
         }
         TemplateNode::SvelteElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info);
+            collect_info_from_fragment(&el.fragment, source, info, scope);
         }
         // Leaf nodes don't have children to recurse into
         _ => {}
@@ -621,7 +657,22 @@ fn collect_info_from_node(node: &TemplateNode, source: &str, info: &mut Template
 
 /// Collect slot prop entries from a <slot> element's attributes.
 /// Returns props like ["a:b", "c:d"] for `<slot a={b} c={d}>`.
-fn collect_slot_prop_entries(attributes: &[Attribute], source: &str) -> Vec<String> {
+fn collect_slot_prop_entries(
+    attributes: &[Attribute],
+    source: &str,
+    scope: &[(String, String)],
+) -> Vec<String> {
+    // Resolve a slot-prop value through the template scope: an `{#each}`
+    // context variable types as `__sveltets_2_unwrapArr(<collection>)` so the
+    // slot type reflects the array element type, not the array.
+    let resolve = |value: &str| -> String {
+        scope
+            .iter()
+            .rev()
+            .find(|(name, _)| name == value)
+            .map(|(_, expr)| expr.clone())
+            .unwrap_or_else(|| value.to_string())
+    };
     let mut props = Vec::new();
     for attr in attributes {
         if let Attribute::Attribute(node) = attr {
@@ -630,32 +681,46 @@ fn collect_slot_prop_entries(attributes: &[Attribute], source: &str) -> Vec<Stri
             }
             match &node.value {
                 AttributeValue::True(_) => {
-                    props.push(format!("{}:{}", node.name, node.name));
+                    props.push(format!("{}:{}", node.name, resolve(&node.name)));
                 }
                 AttributeValue::Expression(expr) => {
                     let expr_text = get_expression_text(&expr.expression, source);
-                    if node.name.as_str() == expr_text {
-                        // Shorthand {prop}
-                        props.push(format!("{}:{}", node.name, node.name));
-                    } else {
-                        props.push(format!("{}:{}", node.name, expr_text));
-                    }
+                    props.push(format!("{}:{}", node.name, resolve(expr_text)));
                 }
                 AttributeValue::Sequence(parts) => {
                     if parts.len() == 1
                         && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
                     {
                         let expr_text = get_expression_text(&expr.expression, source);
-                        props.push(format!("{}:{}", node.name, expr_text));
+                        props.push(format!("{}:{}", node.name, resolve(expr_text)));
                         continue;
                     }
                     // String literal value - not common for slots
-                    props.push(format!("{}:{}", node.name, node.name));
+                    props.push(format!("{}:{}", node.name, resolve(&node.name)));
                 }
             }
         }
     }
     props
+}
+
+/// Return the identifier name if `expr` is a bare identifier (`{#each x as item}`
+/// → `item`), else None. Used to bind each-block contexts in the slot scope.
+fn expression_simple_identifier(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+) -> Option<String> {
+    let text = get_expression_text(expr, source).trim();
+    if !text.is_empty()
+        && text
+            .chars()
+            .enumerate()
+            .all(|(i, c)| c == '_' || c == '$' || c.is_alphabetic() || (i > 0 && c.is_numeric()))
+    {
+        Some(text.to_string())
+    } else {
+        None
+    }
 }
 
 /// Hoist `{#snippet}` blocks to the top of their containing block/element.
