@@ -77,6 +77,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::html_quotes::HtmlQuotes),
         Box::new(crate::rules::first_attribute_linebreak::FirstAttributeLinebreak),
         Box::new(crate::rules::html_closing_bracket_spacing::HtmlClosingBracketSpacing),
+        Box::new(crate::rules::html_self_closing::HtmlSelfClosing),
+        Box::new(crate::rules::mustache_spacing::MustacheSpacing),
+        Box::new(crate::rules::no_trailing_spaces::NoTrailingSpaces),
     ]
 }
 

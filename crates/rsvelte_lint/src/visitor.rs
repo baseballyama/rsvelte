@@ -116,7 +116,13 @@ impl<'r> LintVisitor<'r> {
                     er.rule.check_debug_tag(ctx, t);
                 }
             }
-            TemplateNode::KeyBlock(b) => self.visit_fragment(ctx, &b.fragment),
+            TemplateNode::KeyBlock(b) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_key(ctx, b);
+                }
+                self.visit_fragment(ctx, &b.fragment)
+            }
             TemplateNode::RegularElement(el) => {
                 for er in &self.rules {
                     ctx.enter_rule(er.meta, er.severity);
@@ -134,10 +140,18 @@ impl<'r> LintVisitor<'r> {
                 self.visit_fragment(ctx, &c.fragment);
             }
             TemplateNode::SvelteComponent(c) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_svelte_component(ctx, c);
+                }
                 self.visit_attributes(ctx, &c.attributes);
                 self.visit_fragment(ctx, &c.fragment);
             }
             TemplateNode::SvelteElement(e) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_svelte_dynamic_element(ctx, e);
+                }
                 self.visit_attributes(ctx, &e.attributes);
                 self.visit_fragment(ctx, &e.fragment);
             }
@@ -162,6 +176,10 @@ impl<'r> LintVisitor<'r> {
             | TemplateNode::SvelteOptions(e)
             | TemplateNode::SvelteSelf(e)
             | TemplateNode::SvelteWindow(e) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_svelte_element(ctx, e);
+                }
                 self.visit_attributes(ctx, &e.attributes);
                 self.visit_fragment(ctx, &e.fragment);
             }
@@ -177,11 +195,20 @@ impl<'r> LintVisitor<'r> {
                     er.rule.check_comment(ctx, c);
                 }
             }
+            TemplateNode::DeclarationTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_declaration_tag(ctx, t);
+                }
+            }
+            TemplateNode::RenderTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_render_tag(ctx, t);
+                }
+            }
             // Leaf nodes with no template children and no hooks.
-            TemplateNode::Text(_)
-            | TemplateNode::DeclarationTag(_)
-            | TemplateNode::RenderTag(_)
-            | TemplateNode::AttachTag(_) => {}
+            TemplateNode::Text(_) | TemplateNode::AttachTag(_) => {}
         }
     }
 }
