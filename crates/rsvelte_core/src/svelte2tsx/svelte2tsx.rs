@@ -200,18 +200,72 @@ impl Svelte2TsxError {
 /// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
 /// println!("{}", result.code);
 /// ```
+/// Replace the content of every `<style …>…</style>` with spaces (newlines and
+/// carriage returns preserved) so the parser never CSS-parses it. Works at the
+/// BYTE level so the result is exactly the same length as `source` — every AST
+/// offset still indexes the original source. Case-insensitive on the tag name.
+fn blank_style_content(source: &str) -> String {
+    let mut bytes = source.as_bytes().to_vec();
+    let lower = source.to_ascii_lowercase();
+    let lb = lower.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = lower[search..].find("<style") {
+        let tag_start = search + rel;
+        // Must be the `<style` element, not e.g. `<styled`.
+        let after = lb.get(tag_start + 6).copied();
+        if !matches!(
+            after,
+            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+        ) {
+            search = tag_start + 6;
+            continue;
+        }
+        let Some(gt_rel) = lower[tag_start..].find('>') else {
+            break;
+        };
+        let content_start = tag_start + gt_rel + 1;
+        // Self-closing `<style/>` → no content to blank.
+        if content_start >= 2 && lb[content_start - 2] == b'/' {
+            search = content_start;
+            continue;
+        }
+        let Some(close_rel) = lower[content_start..].find("</style") else {
+            break;
+        };
+        let content_end = content_start + close_rel;
+        for b in &mut bytes[content_start..content_end] {
+            if *b != b'\n' && *b != b'\r' {
+                *b = b' ';
+            }
+        }
+        search = content_end;
+    }
+    String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
+}
+
 pub fn svelte2tsx(
     source: &str,
     options: Svelte2TsxOptions,
 ) -> Result<Svelte2TsxResult, Svelte2TsxError> {
-    // Step 1: Parse the Svelte source using the existing parser
+    // Step 1: Parse the Svelte source using the existing parser.
+    //
+    // Blank out `<style>` CONTENT before parsing (equal-length, newlines kept,
+    // so every AST offset still lines up with the original `source`). svelte2tsx
+    // does the same (utils/htmlxparser.ts: "Svelte tries to parse style/script
+    // tags which doesn't play well with typescript, so we blank them out") — the
+    // CSS is irrelevant to the TSX output (it's dropped anyway), and parsing it
+    // would surface CSS-only errors (e.g. doc placeholders like `div { ... }`)
+    // that the official tool never sees, breaking error-parity. The `<script>`
+    // is NOT blanked — rsvelte needs it (it processes the instance script from
+    // the parsed AST, unlike svelte2tsx which re-parses scripts separately).
+    let parse_source = blank_style_content(source);
     let parse_options = ParseOptions {
         modern: true,
         loose: false,
         skip_expression_loc: false,
         defer_script_parse: false,
     };
-    let ast = phase1_parse::parse(source, parse_options)?;
+    let ast = phase1_parse::parse(&parse_source, parse_options)?;
 
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);
@@ -3280,6 +3334,17 @@ mod scule_tests {
         assert_eq!(split_by_case("a1b2"), vec!["a1b2"]);
     }
 }
+
+// NOTE on runes detection: svelte2tsx deliberately uses its OWN runes heuristic
+// (the `detect_*`/`ExportedNames::is_runes_mode` machinery) rather than the
+// compiler's authoritative `ComponentAnalysis::runes` flag. The two genuinely
+// DIVERGE: the compiler treats `$host` / `$inspect` / `$bindable` (and certain
+// shadowing/scope cases) as runes — semantically correct — but official
+// `svelte2tsx`'s `hasRunesGlobals` only counts `$state` / `$derived` / `$effect`
+// (plus `$props` / explicit / top-level await). Since this port targets
+// byte-parity with official `svelte2tsx`, it must mirror svelte2tsx's narrower
+// definition; wiring in the compiler flag was measured to REGRESS the corpus
+// (it over-detects runes for ~24 `$host`-only / shadowed-derived components).
 
 /// Detect whether the component uses Svelte 5 runes mode.
 ///
