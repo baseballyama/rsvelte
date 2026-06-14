@@ -700,7 +700,12 @@ pub fn process_instance_script(
     with_parsed_script(script, source, |program, raw_content| {
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
-        let mut declared_names: HashSet<String> = HashSet::new();
+        // Pre-populate with ALL top-level declared names so rune-vs-store
+        // disambiguation (`$state` rune vs `$`-prefixed store of a declared
+        // `state`) sees the complete scope — incl. a name declared by the very
+        // statement whose initializer we're checking. See
+        // collect_top_level_declared_names.
+        let mut declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -3766,6 +3771,87 @@ fn collect_store_references(source: &str) -> HashSet<String> {
         i = end;
     }
     stores
+}
+
+/// Pre-pass: collect EVERY top-level declared binding name in the instance
+/// script before rune detection runs. Official `svelte2tsx` resolves a
+/// `$name` reference as a store auto-subscription (NOT the `$state`/`$derived`/
+/// `$effect` rune) whenever `name` is a declared binding, using the COMPLETE
+/// top-level scope. So `let state = $state(0)` must see its own `state` as
+/// declared (→ legacy), while `let x = $state(0)` stays runes. Without this
+/// pre-pass `declared_names` was still empty when a declarator's own
+/// initializer was checked, over-detecting runes. Mirrors upstream
+/// `ImplicitStoreValues` / `checkGlobalsForRunes`.
+fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashSet<String> {
+    fn add_var(vd: &oxc::VariableDeclaration, names: &mut HashSet<String>) {
+        for d in vd.declarations.iter() {
+            for n in extract_all_names_from_binding_pattern(&d.id) {
+                names.insert(n);
+            }
+        }
+    }
+    let mut names = HashSet::new();
+    for stmt in body {
+        match stmt {
+            oxc::Statement::VariableDeclaration(vd) => add_var(vd, &mut names),
+            oxc::Statement::FunctionDeclaration(f) => {
+                if let Some(id) = &f.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::ClassDeclaration(c) => {
+                if let Some(id) = &c.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::TSModuleDeclaration(m) => {
+                if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &m.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::TSEnumDeclaration(e) => {
+                names.insert(e.id.name.to_string());
+            }
+            oxc::Statement::ImportDeclaration(imp) => {
+                if let Some(specs) = &imp.specifiers {
+                    for s in specs.iter() {
+                        let n = match s {
+                            oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                            oxc::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                            oxc::ImportDeclarationSpecifier::ImportSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                        };
+                        names.insert(n);
+                    }
+                }
+            }
+            oxc::Statement::ExportNamedDeclaration(ex) => {
+                if let Some(decl) = &ex.declaration {
+                    match decl {
+                        oxc::Declaration::VariableDeclaration(vd) => add_var(vd, &mut names),
+                        oxc::Declaration::FunctionDeclaration(f) => {
+                            if let Some(id) = &f.id {
+                                names.insert(id.name.to_string());
+                            }
+                        }
+                        oxc::Declaration::ClassDeclaration(c) => {
+                            if let Some(id) = &c.id {
+                                names.insert(id.name.to_string());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    names
 }
 
 /// Extract all identifier names from a binding pattern (for destructuring support).
