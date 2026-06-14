@@ -176,21 +176,45 @@ fn collect_node_edits(
             }
         }
         TemplateNode::AwaitBlock(blk) => {
-            push_bare_expression(source, &blk.expression, options, edits)?;
-            if let Some(v) = &blk.value {
-                push_pattern_at_span(source, v, options, edits)?;
-            }
-            if let Some(e) = &blk.error {
-                push_pattern_at_span(source, e, options, edits)?;
-            }
-            if let Some(frag) = &blk.pending {
-                collect_template_edits(source, frag, child_depth, options, edits)?;
-            }
-            if let Some(frag) = &blk.then {
-                collect_template_edits(source, frag, child_depth, options, edits)?;
-            }
-            if let Some(frag) = &blk.catch {
-                collect_template_edits(source, frag, child_depth, options, edits)?;
+            // When the pending block is empty (whitespace-only) and there is a
+            // `{:then value}` or `{:catch error}` separator, prettier-plugin-svelte
+            // collapses the two headers into one:
+            //   `{#await expr}\n{:then value}` → `{#await expr then value}`
+            //   `{#await expr}\n{:catch error}` → `{#await expr catch error}`
+            // Emit a single rewrite spanning the entire collapsed region instead
+            // of the individual expression/pattern edits — those would conflict
+            // with the large rewrite if emitted separately.
+            let collapsed = if await_pending_is_empty(blk.pending.as_ref()) {
+                try_collapse_await_header(source, blk, options)?
+            } else {
+                None
+            };
+            if let Some((rewrite_start, rewrite_end, replacement)) = collapsed {
+                edits.push((rewrite_start, rewrite_end, replacement));
+                // Only recurse into the non-pending body fragments.
+                if let Some(frag) = &blk.then {
+                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                }
+                if let Some(frag) = &blk.catch {
+                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                }
+            } else {
+                push_bare_expression(source, &blk.expression, options, edits)?;
+                if let Some(v) = &blk.value {
+                    push_pattern_at_span(source, v, options, edits)?;
+                }
+                if let Some(e) = &blk.error {
+                    push_pattern_at_span(source, e, options, edits)?;
+                }
+                if let Some(frag) = &blk.pending {
+                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                }
+                if let Some(frag) = &blk.then {
+                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                }
+                if let Some(frag) = &blk.catch {
+                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                }
             }
         }
         TemplateNode::KeyBlock(blk) => {
@@ -359,6 +383,88 @@ fn push_bare_expression(
     let formatted = format_inline_expression(slice, options)?;
     edits.push((start, end, formatted));
     Ok(())
+}
+
+/// Returns `true` when the pending fragment of an `{#await}` block is **present**
+/// but contains only whitespace — i.e., the block was written in the expanded form
+/// `{#await expr}\n{:then value}` with nothing between the headers.
+///
+/// Returns `false` when `pending` is `None` (the source already uses the
+/// shorthand `{#await expr then value}` form and should not be re-collapsed).
+pub(crate) fn await_pending_is_empty(pending: Option<&rsvelte_core::ast::template::Fragment>) -> bool {
+    match pending {
+        None => false, // shorthand form — already collapsed in source
+        Some(frag) => frag.nodes.iter().all(|n| {
+            matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
+        }),
+    }
+}
+
+/// Attempt to collapse an `{#await expr}` block with an empty pending body and a
+/// `{:then value}` or `{:catch error}` separator into a single header:
+///   `{#await expr}\n\n{:then value}` → `{#await expr then value}`
+///
+/// Returns `(edit_start, edit_end, replacement)` covering the entire region from
+/// `{#await` through the closing `}` of the separator header. When the block
+/// can't be collapsed (no value/error binding found, span out of range, etc.)
+/// returns `None` — the caller falls back to the individual-edit path.
+fn try_collapse_await_header(
+    source: &str,
+    blk: &rsvelte_core::ast::template::AwaitBlock,
+    options: &FormatOptions,
+) -> Result<Option<(u32, u32, String)>, FormatError> {
+    // Determine which separator we're collapsing and its keyword + binding.
+    let (keyword, binding) = if blk.then.is_some() && blk.value.is_some() {
+        ("then", blk.value.as_ref())
+    } else if blk.catch.is_some() && blk.error.is_some() {
+        ("catch", blk.error.as_ref())
+    } else {
+        // No collapasable binding — fall back.
+        return Ok(None);
+    };
+
+    let binding = binding.expect("checked above");
+
+    // Formatted expression (the promise / async value).
+    let (Some(expr_start), Some(expr_end)) = (blk.expression.start(), blk.expression.end()) else {
+        return Ok(None);
+    };
+    let expr_src = source
+        .get(expr_start as usize..expr_end as usize)
+        .unwrap_or("")
+        .trim();
+    if expr_src.is_empty() {
+        return Ok(None);
+    }
+    let fmt_expr = format_inline_expression(expr_src, options)?;
+
+    // Formatted binding pattern (`value` / `error`).
+    let (Some(bind_start), Some(bind_end)) = (binding.start(), binding.end()) else {
+        return Ok(None);
+    };
+    let bind_src = source
+        .get(bind_start as usize..bind_end as usize)
+        .unwrap_or("")
+        .trim();
+    // If no binding source, skip collapse.
+    if bind_src.is_empty() {
+        return Ok(None);
+    }
+    let fmt_bind = format_pattern_source(bind_src, options)
+        .unwrap_or_else(|_| bind_src.to_string());
+
+    // Find the `}` that closes the `{:then value}` / `{:catch error}` separator
+    // header — it comes immediately after the binding expression end.
+    let separator_close = source
+        .get(bind_end as usize..)
+        .and_then(|s| s.find('}'))
+        .map(|rel| bind_end as usize + rel + 1);
+    let Some(separator_close) = separator_close else {
+        return Ok(None);
+    };
+
+    let replacement = format!("{{#await {fmt_expr} {keyword} {fmt_bind}}}");
+    Ok(Some((blk.start, separator_close as u32, replacement)))
 }
 
 /// If the AST expression at `[expr_start, expr_end)` is enclosed by `{`

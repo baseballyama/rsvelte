@@ -377,8 +377,19 @@ fn recurse_into_children(
             }
         }
         TemplateNode::AwaitBlock(blk) => {
-            if let Some(frag) = &blk.pending {
-                collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
+            // When the pending block is whitespace-only AND there is a then/catch
+            // binding, the expression pass collapses the two headers into one
+            // (`{#await expr then value}`). Skip the pending fragment here so we
+            // don't emit a spurious blank-line edit inside the collapsed region.
+            // `await_pending_is_empty` returns false when pending is None (shorthand form)
+            // and true only when pending is Some but whitespace-only (expanded form to collapse).
+            let pending_collapsed = crate::expression::await_pending_is_empty(blk.pending.as_ref())
+                && (blk.then.is_some() || blk.catch.is_some())
+                && (blk.value.is_some() || blk.error.is_some());
+            if !pending_collapsed {
+                if let Some(frag) = &blk.pending {
+                    collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
+                }
             }
             if let Some(frag) = &blk.then {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;

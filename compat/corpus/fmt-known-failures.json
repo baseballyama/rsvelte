@@ -153,8 +153,6 @@
 	"svelte/packages/svelte/tests/validator/samples/a11y-role-has-required-aria-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/a11y-role-supports-aria-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/animation-each-with-whitespace/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/binding-await-catch/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
