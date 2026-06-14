@@ -345,9 +345,21 @@ fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2T
 /// official svelte2tsx parses with svelte and so rejects these at parse. Each
 /// of these five "root-only meta tags" must appear at most once and only as a
 /// direct child of the component root (not inside any element or block).
-fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
+fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
     use crate::ast::template::{Fragment, TemplateNode as N};
     use std::collections::HashSet;
+
+    // `<svelte:element>` requires a `this` attribute with a value. svelte's
+    // parser stores it as the element's `tag` expression; a missing / valueless
+    // `this` leaves an empty span. Official svelte2tsx rejects it.
+    fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression, source: &str) -> bool {
+        match (tag.start(), tag.end()) {
+            (Some(s), Some(e)) if (s as usize) < (e as usize) && (e as usize) <= source.len() => {
+                source[s as usize..e as usize].trim().is_empty()
+            }
+            _ => true,
+        }
+    }
 
     fn meta_name(node: &N) -> Option<&str> {
         match node {
@@ -364,9 +376,10 @@ fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
         frag: &Fragment,
         at_root: bool,
         seen: &mut HashSet<String>,
+        source: &str,
     ) -> Result<(), Svelte2TsxError> {
         for node in &frag.nodes {
-            check_node(node, at_root, seen)?;
+            check_node(node, at_root, seen, source)?;
         }
         Ok(())
     }
@@ -375,7 +388,15 @@ fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
         node: &N,
         at_root: bool,
         seen: &mut HashSet<String>,
+        source: &str,
     ) -> Result<(), Svelte2TsxError> {
+        if let N::SvelteElement(e) = node
+            && dynamic_element_tag_is_empty(&e.tag, source)
+        {
+            return Err(Svelte2TsxError::Template(
+                "`<svelte:element>` must have a 'this' attribute with a value".to_string(),
+            ));
+        }
         if let Some(name) = meta_name(node) {
             if !at_root {
                 return Err(Svelte2TsxError::Template(format!(
@@ -393,10 +414,10 @@ fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
         // Recurse into children — anything nested below this node is no longer
         // at root level.
         match node {
-            N::RegularElement(e) => check_fragment(&e.fragment, false, seen)?,
-            N::Component(c) => check_fragment(&c.fragment, false, seen)?,
-            N::SvelteComponent(c) => check_fragment(&c.fragment, false, seen)?,
-            N::SvelteElement(e) => check_fragment(&e.fragment, false, seen)?,
+            N::RegularElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::Component(c) => check_fragment(&c.fragment, false, seen, source)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, false, seen, source)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, false, seen, source)?,
             N::SvelteHead(e)
             | N::SvelteFragment(e)
             | N::SvelteBody(e)
@@ -404,32 +425,32 @@ fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
             | N::SvelteDocument(e)
             | N::SvelteBoundary(e)
             | N::SvelteOptions(e)
-            | N::SvelteSelf(e) => check_fragment(&e.fragment, false, seen)?,
-            N::TitleElement(e) => check_fragment(&e.fragment, false, seen)?,
-            N::SlotElement(e) => check_fragment(&e.fragment, false, seen)?,
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, false, seen, source)?,
             N::IfBlock(b) => {
-                check_fragment(&b.consequent, false, seen)?;
+                check_fragment(&b.consequent, false, seen, source)?;
                 if let Some(alt) = &b.alternate {
-                    check_fragment(alt, false, seen)?;
+                    check_fragment(alt, false, seen, source)?;
                 }
             }
             N::EachBlock(b) => {
-                check_fragment(&b.body, false, seen)?;
+                check_fragment(&b.body, false, seen, source)?;
                 if let Some(fb) = &b.fallback {
-                    check_fragment(fb, false, seen)?;
+                    check_fragment(fb, false, seen, source)?;
                 }
             }
-            N::KeyBlock(b) => check_fragment(&b.fragment, false, seen)?,
-            N::SnippetBlock(b) => check_fragment(&b.body, false, seen)?,
+            N::KeyBlock(b) => check_fragment(&b.fragment, false, seen, source)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, false, seen, source)?,
             N::AwaitBlock(b) => {
                 if let Some(f) = &b.pending {
-                    check_fragment(f, false, seen)?;
+                    check_fragment(f, false, seen, source)?;
                 }
                 if let Some(f) = &b.then {
-                    check_fragment(f, false, seen)?;
+                    check_fragment(f, false, seen, source)?;
                 }
                 if let Some(f) = &b.catch {
-                    check_fragment(f, false, seen)?;
+                    check_fragment(f, false, seen, source)?;
                 }
             }
             _ => {}
@@ -438,7 +459,7 @@ fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
     }
 
     let mut seen = HashSet::new();
-    check_fragment(&ast.fragment, true, &mut seen)
+    check_fragment(&ast.fragment, true, &mut seen, source)
 }
 
 pub fn svelte2tsx(
@@ -470,7 +491,7 @@ pub fn svelte2tsx(
     // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
     // replicate it here to preserve error-parity with official svelte2tsx.
     validate_debug_tag_arguments(&ast, source)?;
-    validate_meta_element_placement(&ast)?;
+    validate_meta_element_placement(&ast, source)?;
 
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);

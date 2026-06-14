@@ -259,8 +259,6 @@
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/illegal-attribute-character/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte",
