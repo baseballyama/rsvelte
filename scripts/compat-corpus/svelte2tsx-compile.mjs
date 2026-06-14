@@ -204,6 +204,17 @@ function runRange(start, end) {
 		});
 		child.on('exit', (code, signal) => {
 			if (code === 0) return resolve();
+			if (last < start) {
+				// Worker exited before processing any entry — a fatal setup error
+				// (e.g. the official svelte2tsx or one of its deps failed to load),
+				// NOT a per-entry rsvelte panic. Fail loudly instead of recording a
+				// bogus panic for manifest[-1].
+				return reject(
+					new Error(
+						`[s2t-compile] worker for [${start},${end}) exited (${signal ?? code}) before processing any entry — likely a setup/module-resolution failure (see stderr above).`
+					)
+				);
+			}
 			console.error(`[s2t-compile] worker crashed (${signal ?? code}) on ${manifest[last]?.id}`);
 			recordPanic(last);
 			runRange(last + 1, end).then(resolve, reject);

@@ -95,23 +95,11 @@ jobs:
           cd submodules/svelte
           pnpm install --frozen-lockfile
 
-      - name: Resolve language-tools submodule SHA
-        id: lt-sha
-        run: echo "sha=$(git submodule status submodules/language-tools | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache official svelte2tsx build
-        id: s2t-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            submodules/language-tools/node_modules
-            submodules/language-tools/packages/svelte2tsx/index.js
-            submodules/language-tools/packages/svelte2tsx/index.mjs
-            submodules/language-tools/packages/svelte2tsx/index.d.ts
-          key: corpus-s2t-build-v2-${{ runner.os }}-${{ steps.lt-sha.outputs.sha }}-svelte-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/language-tools/pnpm-lock.yaml') }}
-
       - name: Build official svelte2tsx (parsing with the mirrored svelte)
-        if: steps.s2t-cache.outputs.cache-hit != 'true'
+        # Built fresh every run (not cached): pnpm's node_modules links into a
+        # content-addressable store, which actions/cache cannot round-trip
+        # intact — a restored cache loses runtime deps like `dedent-js`. The
+        # build is cheap, so correctness beats caching here.
         run: |
           cd submodules/language-tools
           pnpm install --frozen-lockfile --ignore-scripts
