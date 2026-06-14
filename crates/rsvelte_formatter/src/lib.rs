@@ -21,6 +21,7 @@ mod markup;
 mod options;
 mod reindent;
 mod script;
+mod sort_order;
 mod style;
 
 pub use error::FormatError;
@@ -99,6 +100,11 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
 
     // Post-pass: collapse pure-text elements onto one line when they fit.
     out = collapse::collapse_pure_text_elements(&out, options)?;
+
+    // Post-pass: reorder top-level sections into prettier's canonical order
+    // (options → module script → instance script → markup → styles). No-op when
+    // the file is already canonical.
+    out = sort_order::reorder_sections(&out);
 
     // Start the file at content: prettier / oxfmt strip leading blank lines and
     // indentation before the first node (e.g. a markdown code block that begins
