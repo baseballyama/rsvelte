@@ -1819,17 +1819,21 @@ fn handle_key_block(
         block.end
     };
 
-    // Preserve the expression chunk in place so its per-character
-    // mapping survives. `{#key ` → `{` (prefix); `}` → `;` (suffix).
+    // Preserve the expression chunk in place so its per-character mapping
+    // survives. Official emits the key expression as a bare statement followed
+    // by a block scope for the body — `{#key value}…{/key}` → `value; { … }`
+    // (NOT `{ value; … }`). So drop the `{#key ` prefix and turn the closing
+    // `}` of the opening tag into `; {`. Mirrors KeyBlock handling in upstream
+    // htmlxtojsx_v2.
     if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
-        str.overwrite(block.start, expr_start, "{");
+        str.overwrite(block.start, expr_start, "");
         if expr_end < content_start {
-            str.overwrite(expr_end, content_start, ";");
+            str.overwrite(expr_end, content_start, "; {");
         } else {
-            str.append_left(expr_end, ";");
+            str.append_left(expr_end, "; {");
         }
     } else {
-        str.overwrite(block.start, content_start, &format!("{{{};", expr_text));
+        str.overwrite(block.start, content_start, &format!("{expr_text}; {{"));
     }
 
     // Process children
