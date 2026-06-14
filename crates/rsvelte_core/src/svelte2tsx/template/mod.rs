@@ -3377,6 +3377,18 @@ fn handle_svelte_self(
 }
 
 /// Handle Svelte special elements (svelte:body, svelte:window, etc.).
+///
+/// `svelte:boundary` is special: like `InlineComponent` in the upstream
+/// svelte2tsx, any `{#snippet}` blocks that are **direct children** of
+/// `<svelte:boundary>` become **implicit properties** of the element's
+/// `createElement` attributes object instead of standalone `const` declarations.
+/// This mirrors upstream `SnippetBlock.ts::hoistSnippetBlock` which returns
+/// early for `SvelteBoundary` (treating it exactly like `InlineComponent`),
+/// and `Element.ts::addAttribute` which the upstream `handleSnippet` calls to
+/// insert the snippet body as an attr-value transform.
+///
+/// For all other special elements the snippet children remain standalone
+/// declarations (the default behaviour for elements/blocks).
 fn handle_svelte_special_element(
     el: &SvelteElement,
     source: &str,
@@ -3403,21 +3415,102 @@ fn handle_svelte_special_element(
         }
     }
 
-    let opener = format!(
-        " {{ svelteHTML.createElement(\"{}\", {{{}}});",
-        el.name, attrs_str
-    );
-    str.overwrite(el.start, opening_tag_end, &opener);
+    // `svelte:boundary` treats direct {#snippet} children as implicit props on
+    // the `createElement` attrs object — exactly like InlineComponent in the
+    // upstream. Check whether any direct children are snippet blocks.
+    let has_snippet_children = el.name == "svelte:boundary"
+        && el
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::SnippetBlock(s) if s.start < s.end));
 
-    // Special svelte elements (svelte:head, svelte:body, etc.) are element nodes
-    // → children at depth+1, consistent with RegularElement treatment.
-    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
+    if has_snippet_children {
+        // Emit the opener with the attrs object left OPEN so we can append the
+        // implicit snippet props into it before closing. Any regular element
+        // attributes (e.g. `onerror`) come first as normal.
+        //
+        // Result shape:
+        //   { svelteHTML.createElement("svelte:boundary", { <regular-attrs>
+        //     <snippet-name>: (params) => { … return __sveltets_2_any(0) },
+        //   });
+        //   <non-snippet children>
+        // }
+        let opener = format!(
+            " {{ svelteHTML.createElement(\"{}\", {{{}",
+            el.name, attrs_str
+        );
+        str.overwrite(el.start, opening_tag_end, &opener);
 
-    let closing_tag_start = find_closing_tag_start(source, el.end);
-    if closing_tag_start < el.end {
-        str.overwrite(closing_tag_start, el.end, " }");
+        // Process each direct child: transform snippet blocks as implicit props
+        // and move them to anchor (just after the opening tag), then process
+        // non-snippet children in-place (they will appear after the `});`).
+        // Mirrors the `use_snippet_props` branch in `handle_component`.
+        let mut anchor = opening_tag_end;
+        let mut last_snippet_end: Option<u32> = None;
+
+        for node in &el.fragment.nodes {
+            if let TemplateNode::SnippetBlock(s) = node {
+                if s.start >= s.end {
+                    continue;
+                }
+                // Transform the snippet as an implicit attr prop of this
+                // element (same form as a component implicit snippet prop):
+                //   name: (params) => { … return __sveltets_2_any(0) },
+                handle_snippet_block_as_component_prop(s, source, options, str, counter, depth + 1);
+                if s.start == anchor {
+                    anchor = s.end;
+                } else {
+                    str.move_range(s.start, s.end, anchor);
+                }
+                last_snippet_end = Some(s.end);
+            } else {
+                // Non-snippet children live AFTER the createElement call;
+                // svelte:boundary is an ancestor element → depth+1.
+                process_node_inplace(node, source, options, str, counter, depth + 1);
+            }
+        }
+
+        // Close the attrs object and the `createElement(...)` call right
+        // after the last relocated snippet prop.
+        let close_createElement = "});";
+        match last_snippet_end {
+            Some(end) => {
+                str.append_left(end, close_createElement);
+            }
+            None => {
+                // No usable snippet found (shouldn't happen given the guard
+                // above, but guard defensively): close immediately.
+                str.prepend_right(opening_tag_end, close_createElement);
+            }
+        }
+
+        // Close the outer `{ … }` block.
+        let closing_tag_start = find_closing_tag_start(source, el.end);
+        if closing_tag_start < el.end {
+            str.overwrite(closing_tag_start, el.end, " }");
+        } else {
+            str.append_left(el.end, "}");
+        }
     } else {
-        str.append_left(el.end, "}");
+        // Default path: all children (including any snippets) are processed
+        // as standalone declarations inside the block.
+        let opener = format!(
+            " {{ svelteHTML.createElement(\"{}\", {{{}}});",
+            el.name, attrs_str
+        );
+        str.overwrite(el.start, opening_tag_end, &opener);
+
+        // Special svelte elements (svelte:head, svelte:body, etc.) are element
+        // nodes → children at depth+1, consistent with RegularElement treatment.
+        process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
+
+        let closing_tag_start = find_closing_tag_start(source, el.end);
+        if closing_tag_start < el.end {
+            str.overwrite(closing_tag_start, el.end, " }");
+        } else {
+            str.append_left(el.end, "}");
+        }
     }
 }
 

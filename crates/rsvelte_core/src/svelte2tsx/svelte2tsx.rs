@@ -1497,26 +1497,35 @@ pub fn svelte2tsx(
         closing.push('\n');
     }
 
-    // Helper: build the prop_def string for the component export.
-    // When $$props or $$restProps is used, use __sveltets_2_partial_with_any.
+    // Helper: build the prop_def string for the component export. Mirrors the
+    // official `props(isTsFile, canHaveAnyProp, …)` in addComponentExport.ts:
+    //   - runes mode:        renderStr (no partial)
+    //   - TS file:           canHaveAnyProp ? __sveltets_2_with_any(renderStr) : renderStr
+    //   - JS file (legacy):  __sveltets_2_partial[_with_any]([optional], renderStr)
+    // where renderStr = `__sveltets_2_with_any_event($$render())` and
+    // canHaveAnyProp = uses $$props / $$restProps (`use_partial_with_any`).
+    // `__sveltets_2_partial` is therefore ONLY emitted for legacy JS components.
     let build_prop_def = |exported_names: &ExportedNames| -> String {
-        if use_partial_with_any {
-            "__sveltets_2_partial_with_any(__sveltets_2_with_any_event($$render()))".to_string()
+        let render_str = "__sveltets_2_with_any_event($$render())";
+        if exported_names.is_runes_mode() {
+            render_str.to_string()
+        } else if options.is_ts_file {
+            if use_partial_with_any {
+                format!("__sveltets_2_with_any({render_str})")
+            } else {
+                render_str.to_string()
+            }
         } else {
             let optional_props = exported_names.create_optional_props_array(options.is_ts_file);
-            if optional_props.is_empty() {
-                if options.is_ts_file && !exported_names.is_empty() {
-                    // For TS files with `as {...}` type assertions on props,
-                    // don't wrap with __sveltets_2_partial
-                    "__sveltets_2_with_any_event($$render())".to_string()
-                } else {
-                    "__sveltets_2_partial(__sveltets_2_with_any_event($$render()))".to_string()
-                }
+            let partial = if use_partial_with_any {
+                "__sveltets_2_partial_with_any"
             } else {
-                format!(
-                    "__sveltets_2_partial([{}], __sveltets_2_with_any_event($$render()))",
-                    optional_props.join(",")
-                )
+                "__sveltets_2_partial"
+            };
+            if optional_props.is_empty() {
+                format!("{partial}({render_str})")
+            } else {
+                format!("{partial}([{}], {render_str})", optional_props.join(","))
             }
         }
     };
@@ -3674,6 +3683,84 @@ mod tests {
         assert!(
             code.contains("__sveltets_2_isomorphic_component"),
             "plain let should be legacy mode; got:\n{code}"
+        );
+    }
+
+    // =============================================================================
+    // svelte:boundary snippet-as-implicit-prop tests
+    //
+    // Upstream `SnippetBlock.ts::hoistSnippetBlock` returns early for
+    // `SvelteBoundary`, treating it exactly like `InlineComponent`: direct
+    // `{#snippet}` children become implicit properties of the element's
+    // `createElement` attrs object instead of standalone `const` declarations.
+    // =============================================================================
+
+    /// `{#snippet pending()}` inside `<svelte:boundary>` must be emitted as an
+    /// implicit property of the `createElement` call, not as a standalone `const`.
+    ///
+    /// Ground truth: upstream svelte2tsx output for
+    ///   `<svelte:boundary><p>{await x}</p>{#snippet pending()}<p>loading</p>{/snippet}</svelte:boundary>`
+    /// is:
+    ///   `svelteHTML.createElement("svelte:boundary", { pending: () => { async () => { ... }; return __sveltets_2_any(0); }, });`
+    ///   followed by the non-snippet `<p>` child OUTSIDE the createElement call.
+    #[test]
+    fn test_boundary_pending_snippet_as_implicit_prop() {
+        // The canonical boundary/2.svelte example from the corpus.
+        let source = "<svelte:boundary>\n\t<p>child</p>\n\t{#snippet pending()}\n\t\t<p>loading</p>\n\t{/snippet}\n</svelte:boundary>";
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        let code = &result.code;
+        eprintln!("BOUNDARY SNIPPET OUTPUT:\n{code}");
+
+        // The snippet must appear as an implicit prop INSIDE the createElement attrs.
+        // Note: rsvelte emits `pending:()` (no space); oxfmt normalizes to `pending: ()`.
+        assert!(
+            code.contains("pending:() => {"),
+            "pending snippet must be an implicit attr prop (not a standalone const); got:\n{code}"
+        );
+        // There must be NO standalone `const pending = ...` declaration.
+        assert!(
+            !code.contains("const pending"),
+            "snippet must NOT also appear as a standalone const; got:\n{code}"
+        );
+        // The snippet body must close with return __sveltets_2_any(0)},
+        // (the trailing comma makes it an object property value).
+        assert!(
+            code.contains("return __sveltets_2_any(0)},"),
+            "snippet body must end with `return __sveltets_2_any(0)},`; got:\n{code}"
+        );
+        // The non-snippet <p>child</p> element must still appear (emitted AFTER `});`).
+        assert!(
+            code.contains("svelteHTML.createElement(\"p\","),
+            "non-snippet child <p> must still be emitted; got:\n{code}"
+        );
+        // Sanity: createElement for the boundary element must be present.
+        assert!(
+            code.contains("svelteHTML.createElement(\"svelte:boundary\","),
+            "boundary createElement call must be present; got:\n{code}"
+        );
+    }
+
+    /// `{#snippet failed(error, reset)}` (with parameters) inside `<svelte:boundary>`.
+    #[test]
+    fn test_boundary_failed_snippet_with_params() {
+        let source = "<svelte:boundary>\n\t<Component />\n\t{#snippet failed(error, reset)}\n\t\t<button onclick={reset}>retry</button>\n\t{/snippet}\n</svelte:boundary>";
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        let code = &result.code;
+        eprintln!("BOUNDARY FAILED SNIPPET OUTPUT:\n{code}");
+
+        // Note: rsvelte emits `failed:(error, reset)` (no space); oxfmt normalizes spacing.
+        assert!(
+            code.contains("failed:(error, reset) => {"),
+            "failed snippet with params must be an implicit attr prop; got:\n{code}"
+        );
+        assert!(
+            !code.contains("const failed"),
+            "snippet must NOT appear as a standalone const; got:\n{code}"
+        );
+        // The Component child must still be emitted after the createElement closes.
+        assert!(
+            code.contains("__sveltets_2_ensureComponent(Component)"),
+            "non-snippet Component child must still be emitted; got:\n{code}"
         );
     }
 }
