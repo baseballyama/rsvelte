@@ -14,10 +14,10 @@ svelte.dev@`49ee73732aef`, oxfmt 0.53.0):
 | metric | count |
 |---|---|
 | components in the parity set (oracle-included) | 6,059 |
-| byte-identical to the oracle | 5,897 |
-| **known failures (baseline)** | **162** (from an initial 431) |
+| byte-identical to the oracle | 5,903 |
+| **known failures (baseline)** | **156** (from an initial 431) |
 
-**Burn-down 431 → 162 (269 fixed, 0 regressions at every step).** Landed fixes:
+**Burn-down 431 → 156 (275 fixed, 0 regressions at every step).** Landed fixes:
 
 - **Attribute single-mustache quote stripping** — `attr="{expr}"` → `attr={expr}`
   (then shorthand `{attr}` when the expression is the attribute name). A quoted
@@ -42,21 +42,23 @@ svelte.dev@`49ee73732aef`, oxfmt 0.53.0):
   `lang="ts"`, `context=module` → `context="module"`). (`script.rs`)
 - **`<textarea>` interior indentation**, **`style:name` shorthand**,
   **`<svelte:window/>` self-closing when empty**, **`<!-- prettier-ignore -->`**,
-  and **`{#await expr}` empty-pending collapse**.
+  **`{#await expr}` empty-pending collapse**, **adjacent-markup merge after
+  section reorder**, **`{#each … as x (key)}` space before the key**, and
+  **`{#snippet}` header wrap width**.
 
-## Remaining 162, by class
+## Remaining 156, by class
 
 - **16 — `tests/migrate/` (out of scope).** Svelte 4 → 5 migrator fixtures
   (Svelte 4 syntax: legacy slots, `<svelte:self>`, etc.). rsvelte is a Svelte 5
   compiler; per `AGENTS.md` the migrator is intentionally out of scope, so these
   are tracked, not fixed.
-- **17 — rsvelte's parser correctly rejects the input.** Invalid Svelte 5 that
+- **17 — rsvelte's parser correctly rejects the input (correct behaviour).** Invalid Svelte 5 that
   prettier-plugin-svelte (a lenient formatter parser) reformats but rsvelte's
   compiler-grade parser rejects by design — e.g. `{@render f.apply(...)}`
   (`render_tag_invalid_call_expression`), snippet rest params, TS generic
   snippet headers rsvelte cannot yet parse. A formatter that refuses invalid
   input is correct behaviour, not a layout bug.
-- **~129 — deep prettier HTML-layout quirks.** The hard cluster also noted for
+- **123 — deep prettier HTML-layout quirks.** The hard cluster also noted for
   the svelte.dev formatter corpus: inline-element hug/keep-on-one-line vs break
   (`<label><input … /> text</label>` hug choice), long open-tag wrapping with
   child breaking, `<pre>` whitespace edge cases, nested destructuring-rest in
