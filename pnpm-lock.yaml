@@ -115,7 +115,7 @@ importers:
         version: 0.30.21
       obug:
         specifier: ^2.1.0
-        version: 2.1.2
+        version: 2.1.3
       vitefu:
         specifier: ^1.1.1
         version: 1.1.3(vite@8.0.16(esbuild@0.28.1)(sass@1.100.0))
@@ -1215,10 +1215,6 @@ packages:
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
 
-  obug@2.1.2:
-    resolution: {integrity: sha512-AWGB9WFcRXOQs48Z/udjI5ZcZMHXwX8XPByNpOydgcGsDLIzjGizhoMWJyKAWze7AVW/2W1i+/gPX4YtKe5cyg==}
-    engines: {node: '>=12.20.0'}
-
   obug@2.1.3:
     resolution: {integrity: sha512-9miFgM2OFba7hB+pRgvtV84pYTBaoTHohvmIgiRt6dRIzbwEOIaNaP+dIlGs2fNFoB0SeISs0Jz5WFVRid6Xyg==}
     engines: {node: '>=12.20.0'}
@@ -2021,7 +2017,7 @@ snapshots:
   '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.1)(sass@1.100.0)))(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.1)(sass@1.100.0))':
     dependencies:
       '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.56.3)(vite@8.0.16(esbuild@0.28.1)(sass@1.100.0))
-      obug: 2.1.2
+      obug: 2.1.3
       svelte: 5.56.3
       vite: 8.0.16(esbuild@0.28.1)(sass@1.100.0)
 
@@ -2320,8 +2316,6 @@ snapshots:
 
   node-addon-api@7.1.1:
     optional: true
-
-  obug@2.1.2: {}
 
   obug@2.1.3: {}
 
