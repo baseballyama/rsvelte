@@ -630,6 +630,15 @@ fn collect(
                     options,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_break_block_overflow(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
                 } else {
                     collect(out, &elem.fragment, line_width, options, edits);
                 }
@@ -1092,8 +1101,14 @@ fn is_whitespace_preserving(tag: &str) -> bool {
 /// plus the `display:contents` elements `<slot>` / `<svelte:boundary>`, which
 /// prettier / oxfmt also edge-trim (`<slot> x </slot>` → `<slot>x</slot>`).
 /// Everything else (inline, inline-block, table-cell, …) keeps one edge space.
+///
+/// Note: `<svelte:element>` is NOT listed here — it is a non-block dynamic
+/// element that prettier treats like an inline/component element for hugging
+/// purposes (shouldHugStart/End return true when content is directly adjacent).
+/// Its edge whitespace is still trimmed via `is_component_tag` in the `trims_edge`
+/// computation, so one-line edge spaces are suppressed without blocking hug.
 fn trims_edge_whitespace(tag: &str) -> bool {
-    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary" | "svelte:element")
+    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary")
 }
 
 /// Whether `tag` names a Svelte component (or component-like element) rather
@@ -1389,11 +1404,19 @@ fn try_break_content_tag_block(
         }
         let inner_indent = format!("{indent}  ");
         // The last line of `open` ends with `>`, e.g. `    >`.
-        // Check if the content fits glued onto the `>` line.
+        // When the `>` is already on its own line (the last line of `open` is
+        // purely whitespace + `>`), prettier's block-element behaviour always
+        // breaks the content onto its own indented line rather than gluing it to
+        // the `>` — matching how prettier formats `<p\n  attr\n>{expr}</p>`.
+        // Only skip breaking when the `>` is glued to the last attribute (hug_open
+        // form), where the last line contains more than just `>`.
         let open_last_line = open.rsplit('\n').next().unwrap_or(open);
-        let glued_width = open_last_line.width() + span.width() + close.width();
-        if glued_width <= line_width {
-            return None; // fits on the `>` line — leave as-is
+        let gt_on_own_line = open_last_line.trim_start_matches([' ', '\t']) == ">";
+        if !gt_on_own_line {
+            let glued_width = open_last_line.width() + span.width() + close.width();
+            if glued_width <= line_width {
+                return None; // fits on the attr+`>` line — leave as-is
+            }
         }
         // Break: remove the trailing `>` from the open, put `>` on a new line,
         // then the content, then close.
@@ -1434,6 +1457,88 @@ fn try_break_content_tag_block(
     let kw_prefix = &span[..kw_lead]; // `{@html ` / `{`
     let new_tag = format!("{kw_prefix}{wrapped}}}");
     let broken = format!("{open}\n{inner_indent}{new_tag}\n{indent}{close}");
+    (broken != whole).then_some((start, end, broken))
+}
+
+/// Break a block-display element whose ENTIRE content (any combination of
+/// expression tags, text, block nodes) is currently inline (the span has no
+/// newline) but the whole line overflows 80 cols.
+///
+/// prettier-plugin-svelte's fill/group layout always breaks a block element's
+/// content to its own indented line when the one-line form overflows:
+///
+///   <p>{_0}{_1}…{_40}</p>  →  <p>\n    {_0}{_1}…{_40}\n  </p>
+///   <div>{#each …}{/each}</div>  →  <div>\n  {#each …}{/each}\n</div>
+///
+/// This is the last-resort break: only fires when `try_collapse`, `try_fill_mixed`,
+/// `try_hug_mixed`, and `try_break_content_tag_block` all declined.
+fn try_break_block_overflow(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    if !is_block_display(tag) {
+        return None;
+    }
+
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+
+    // Only act on elements that are currently all inline.
+    if whole.contains('\n') {
+        return None;
+    }
+
+    // Must overflow.
+    let column = current_column(out, start);
+    if column + whole.width() <= line_width {
+        return None;
+    }
+
+    // Need at least one non-whitespace child.
+    let first_child = fragment
+        .nodes
+        .iter()
+        .find(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+    let last_child = fragment
+        .nodes
+        .iter()
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+
+    let first_start = node_start(first_child) as usize;
+    let last_end = node_end(last_child) as usize;
+
+    // open tag = element start up to first meaningful child.
+    let open = out.get(s..first_start)?;
+    // close tag = last meaningful child end to element end.
+    let close = out.get(last_end..e)?;
+    // content = everything from first to last meaningful child (inclusive).
+    let content = out.get(first_start..last_end)?;
+
+    if open.is_empty() || close.is_empty() || content.is_empty() {
+        return None;
+    }
+    // The open tag must end with `>` (no multi-line open).
+    if !open.ends_with('>') {
+        return None;
+    }
+    // Content must be fully inline (no newlines).
+    if content.contains('\n') {
+        return None;
+    }
+
+    // Derive element indent from the text before `start` on the same line.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+
+    let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
 }
 
