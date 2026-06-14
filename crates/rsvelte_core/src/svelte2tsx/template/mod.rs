@@ -3766,7 +3766,7 @@ fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: 
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
-                if let Some(part) = format_attribute_node_segments(node, source, true) {
+                if let Some(part) = format_attribute_node_segments(node, source, true, parent_tag) {
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
                 }
@@ -3952,7 +3952,8 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 }
                 // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
                 // inside format_attribute_node_segments (mirrors Attribute.ts).
-                if let Some(part) = format_attribute_node_segments(node, source, false) {
+                // Components preserve attribute-name case, so the tag is unused.
+                if let Some(part) = format_attribute_node_segments(node, source, false, "") {
                     extend_segs(&mut inner, part);
                 }
             }
@@ -4279,16 +4280,40 @@ fn is_js_numeric(data: &str) -> bool {
 /// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
 /// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
 /// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
+/// SVG attribute names that preserve their original (often camelCase) casing.
+/// Mirrors `htmlxtojsx_v2/svgattributes.ts`.
+const SVG_ATTRIBUTES: &str = "accent-height accumulate additive alignment-baseline allowReorder alphabetic amplitude arabic-form ascent attributeName attributeType autoReverse azimuth baseFrequency baseline-shift baseProfile bbox begin bias by calcMode cap-height class clip clipPathUnits clip-path clip-rule color color-interpolation color-interpolation-filters color-profile color-rendering contentScriptType contentStyleType cursor cx cy d decelerate descent diffuseConstant direction display divisor dominant-baseline dur dx dy edgeMode elevation enable-background end exponent externalResourcesRequired fill fill-opacity fill-rule filter filterRes filterUnits flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight format from fr fx fy g1 g2 glyph-name glyph-orientation-horizontal glyph-orientation-vertical glyphRef gradientTransform gradientUnits hanging height href horiz-adv-x horiz-origin-x id ideographic image-rendering in in2 intercept k k1 k2 k3 k4 kernelMatrix kernelUnitLength kerning keyPoints keySplines keyTimes lang lengthAdjust letter-spacing lighting-color limitingConeAngle local marker-end marker-mid marker-start markerHeight markerUnits markerWidth mask maskContentUnits maskUnits mathematical max media method min mode name numOctaves offset onabort onactivate onbegin onclick onend onerror onfocusin onfocusout onload onmousedown onmousemove onmouseout onmouseover onmouseup onrepeat onresize onscroll onunload opacity operator order orient orientation origin overflow overline-position overline-thickness panose-1 paint-order pathLength patternContentUnits patternTransform patternUnits pointer-events points pointsAtX pointsAtY pointsAtZ preserveAlpha preserveAspectRatio primitiveUnits r radius refX refY rendering-intent repeatCount repeatDur requiredExtensions requiredFeatures restart result rotate rx ry scale seed shape-rendering slope spacing specularConstant specularExponent speed spreadMethod startOffset stdDeviation stemh stemv stitchTiles stop-color stop-opacity strikethrough-position strikethrough-thickness string stroke stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width style surfaceScale systemLanguage tabindex tableValues target targetX targetY text-anchor text-decoration text-rendering textLength to transform type u1 u2 underline-position underline-thickness unicode unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical values version vert-adv-y vert-origin-x vert-origin-y viewBox viewTarget visibility width widths word-spacing writing-mode x x-height x1 x2 xChannelSelector xlink:actuate xlink:arcrole xlink:href xlink:role xlink:show xlink:title xlink:type xml:base xml:lang xml:space y y1 y2 yChannelSelector z zoomAndPan";
+
+fn is_svg_attribute(name: &str) -> bool {
+    SVG_ATTRIBUTES.split(' ').any(|a| a == name)
+}
+
+/// Lowercase an element attribute name so it matches the intrinsic-elements
+/// typings, mirroring official `transformAttributeCase`. Preserves the name for
+/// SVG attributes, custom elements (tag contains `-`), and svelte-5 `on*` event
+/// attributes; non-element (component/slot) attributes are never transformed.
+fn transform_attribute_case(name: &str, tag: &str, is_element: bool) -> String {
+    let is_custom_element = tag.contains('-');
+    if is_element && !is_svg_attribute(name) && !is_custom_element && !name.starts_with("on") {
+        name.to_lowercase()
+    } else {
+        name.to_string()
+    }
+}
+
 fn format_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
     is_element: bool,
+    tag: &str,
 ) -> Option<Vec<Seg>> {
-    let name = &node.name;
-
     let is_data_attr =
-        is_element && name.starts_with("data-") && !name.starts_with("data-sveltekit-");
-    let is_css_prop = !is_element && name.starts_with("--");
+        is_element && node.name.starts_with("data-") && !node.name.starts_with("data-sveltekit-");
+    let is_css_prop = !is_element && node.name.starts_with("--");
+    // Element attribute names are lowercased to match intrinsic typings
+    // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
+    let name_owned = transform_attribute_case(&node.name, tag, is_element);
+    let name = name_owned.as_str();
 
     // Helper: prepend/append the wrapper literals around a segment list that
     // already represents the `"name":value` content (no trailing comma).
