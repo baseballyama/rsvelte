@@ -876,9 +876,14 @@ fn render_multi_line(
         }
     }
     if hug_open && !self_closing {
-        // Whitespace-sensitive inline content: glue the `>` to the last
-        // attribute line (`}}>text`) so no significant whitespace is injected
-        // before the content (#798).
+        // Whitespace-sensitive inline content: prettier-plugin-svelte puts the
+        // `>` on a new line at the attribute indent level (`  >text`) so the
+        // content immediately follows without extra whitespace before or after
+        // the `>`.  The previous `out.push('>')` approach ("glue to last attr")
+        // was wrong — the `>` must be separated from the attribute by a newline
+        // so that it lands on its own line prefix before the inline text (#798).
+        out.push('\n');
+        out.push_str(&inner_indent);
         out.push('>');
     } else {
         out.push('\n');

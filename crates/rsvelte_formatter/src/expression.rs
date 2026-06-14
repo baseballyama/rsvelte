@@ -1373,6 +1373,30 @@ pub(crate) fn format_pattern_source(
 ///
 /// Computed object keys `[expr]` are passed through verbatim, preserving
 /// the original source whitespace and string-quote style.
+/// Return the UTF-8 byte sequence starting at byte offset `i` in `src`.
+/// For ASCII bytes this is a 1-byte slice; for multi-byte sequences we read
+/// the length from the leading byte.  Always returns at least one byte (the
+/// leading byte) so callers can advance `i` by `seq.len()` safely.
+#[inline]
+fn utf8_seq_at(src: &str, i: usize) -> &str {
+    let bytes = src.as_bytes();
+    let b = bytes[i];
+    let seq_len = if b < 0x80 {
+        1
+    } else if b & 0xF8 == 0xF0 {
+        4
+    } else if b & 0xF0 == 0xE0 {
+        3
+    } else {
+        2 // 0xC0..0xDF or stray continuation byte
+    };
+    let end = (i + seq_len).min(src.len());
+    // SAFETY: we computed seq_len from the UTF-8 leading byte so end is a
+    // char boundary; if the source is valid UTF-8 (it came from a &str) this
+    // is always safe.
+    &src[i..end]
+}
+
 fn light_normalize_pattern(src: &str) -> String {
     let bytes = src.as_bytes();
     let mut out = String::with_capacity(src.len());
