@@ -603,12 +603,24 @@ fn push_open_tag(
         0
     };
     let element_overflows = close_width > 0 && open_one_line_width + close_width > line_width;
+    // shape_two keeps attributes on one line and only breaks the `>` onto the
+    // next line. This matches prettier's group model for components / svelte:*
+    // special elements (the inner attr-group stays flat). For plain HTML block
+    // elements, prettier instead wraps the attributes (full multi-line shape),
+    // so shape_two is suppressed for them — they get the full `wrapped` path.
     let shape_two = !rendered_attrs.is_empty()
         && fits_one_line
         && element_overflows
-        && one_liner.ends_with('>');
+        && one_liner.ends_with('>')
+        && !is_block_element(tag_name);
+    // For HTML block elements (div, p, section, …), when the full empty element
+    // overflows the print width but the open tag alone fits, prettier still wraps
+    // the attributes. This matches the group-model where the outer element group
+    // breaking forces the inner attr-group to break too.
+    let force_wrap_block =
+        !rendered_attrs.is_empty() && fits_one_line && element_overflows && is_block_element(tag_name);
 
-    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two;
+    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two || force_wrap_block;
 
     // Second pass: once we know the open tag wraps (attributes each on their own
     // line at `attr_depth`), re-render the attributes narrowing each value

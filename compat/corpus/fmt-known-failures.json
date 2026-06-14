@@ -83,7 +83,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-text/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/fragment-trailing-whitespace/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/keyed-each-bind-read-index/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/nbsp-div/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/paren-wrapped-expressions/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/raw-anchor-first-child/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/raw-anchor-last-child/main.svelte",
@@ -130,7 +129,6 @@
 	"svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/non-empty-block-dev/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/textarea-value-children/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte"
