@@ -3473,15 +3473,15 @@ fn handle_svelte_special_element(
 
         // Close the attrs object and the `createElement(...)` call right
         // after the last relocated snippet prop.
-        let close_createElement = "});";
+        let close_create_element = "});";
         match last_snippet_end {
             Some(end) => {
-                str.append_left(end, close_createElement);
+                str.append_left(end, close_create_element);
             }
             None => {
                 // No usable snippet found (shouldn't happen given the guard
                 // above, but guard defensively): close immediately.
-                str.prepend_right(opening_tag_end, close_createElement);
+                str.prepend_right(opening_tag_end, close_create_element);
             }
         }
 

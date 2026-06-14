@@ -342,7 +342,6 @@ pub fn svelte2tsx(
                         attrs_parts.push(format!("\"{}\":{},", node.name, value));
                     }
                 }
-                _ => {}
             }
         }
         let attrs_str = if attrs_parts.is_empty() {
@@ -604,6 +603,14 @@ pub fn svelte2tsx(
     let has_instance_script = ast.instance.is_some();
     let has_module_script = ast.module.is_some();
 
+    // Tracks whether the instance script contains a top-level `await`
+    // (i.e. an await expression that is not inside any function or arrow body).
+    // Set inside the `if has_instance_script` block below; consulted by the
+    // export-assembly section further down.
+    // Reference: createRenderFunction.ts (async keyword on $$render) and
+    //            addComponentExport.ts (`renderCall` / `awaitDeclaration`).
+    let mut has_top_level_await = false;
+
     // Determine the target position for the instance script.
     // If there's a module script, the instance script goes after it.
     let mut instance_script_target: u32 = 0;
@@ -687,7 +694,7 @@ pub fn svelte2tsx(
         // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
         //   `isRunes = true when component has TOP-LEVEL AWAIT in the instance script`
         let raw_content = &source[content_start as usize..content_end as usize];
-        let has_top_level_await = detect_top_level_await(raw_content);
+        has_top_level_await = detect_top_level_await(raw_content);
         if has_top_level_await {
             exported_names.set_uses_runes(true);
         }
@@ -1497,23 +1504,45 @@ pub fn svelte2tsx(
         closing.push('\n');
     }
 
+    // Build the renderCall / awaitDeclaration pair used throughout the
+    // component export section below.
+    //
+    // Reference: `addComponentExport.ts` – `addSimpleComponentExport`:
+    //   const renderCall = hasTopLevelAwait ? `$${renderName}` : `${renderName}()`;
+    //   const awaitDeclaration = hasTopLevelAwait
+    //       ? surroundWithIgnoreComments(`const $${renderName} = await ${renderName}();`) + '\n'
+    //       : '';
+    //
+    // The rsvelte equivalent uses the same ignore markers (Ω = U+03A9).
+    let render_call: &str = if has_top_level_await {
+        "$$$render"
+    } else {
+        "$$render()"
+    };
+    let await_declaration: &str = if has_top_level_await {
+        "/*\u{03A9}ignore_start\u{03A9}*/ const $$$render = await $$render(); /*\u{03A9}ignore_end\u{03A9}*/\n"
+    } else {
+        ""
+    };
+
     // Helper: build the prop_def string for the component export. Mirrors the
     // official `props(isTsFile, canHaveAnyProp, …)` in addComponentExport.ts:
     //   - runes mode:        renderStr (no partial)
     //   - TS file:           canHaveAnyProp ? __sveltets_2_with_any(renderStr) : renderStr
     //   - JS file (legacy):  __sveltets_2_partial[_with_any]([optional], renderStr)
-    // where renderStr = `__sveltets_2_with_any_event($$render())` and
+    // where renderStr = `__sveltets_2_with_any_event($$render())` (non-async) or
+    //                   `__sveltets_2_with_any_event($$$render)` (async) and
     // canHaveAnyProp = uses $$props / $$restProps (`use_partial_with_any`).
     // `__sveltets_2_partial` is therefore ONLY emitted for legacy JS components.
     let build_prop_def = |exported_names: &ExportedNames| -> String {
-        let render_str = "__sveltets_2_with_any_event($$render())";
+        let render_str = format!("__sveltets_2_with_any_event({render_call})");
         if exported_names.is_runes_mode() {
-            render_str.to_string()
+            render_str
         } else if options.is_ts_file {
             if use_partial_with_any {
                 format!("__sveltets_2_with_any({render_str})")
             } else {
-                render_str.to_string()
+                render_str
             }
         } else {
             let optional_props = exported_names.create_optional_props_array(options.is_ts_file);
@@ -1575,11 +1604,17 @@ pub fn svelte2tsx(
             let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
             if exported_names.is_runes_mode() {
                 if !use_ts_syntax {
-                    // JS files with emitJsDoc: use `export const` and JSDoc typedef
+                    // JS files with emitJsDoc: use `export const` and JSDoc typedef.
+                    // Reference: addComponentExport.ts `addSimpleComponentExport`,
+                    // isSvelte5 + isRunesMode + useTypeScriptSyntax=false branch.
+                    // `awaitDeclaration` is emitted first when the component has a
+                    // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
+                    // in that case, `$$render()` otherwise.
+                    closing.push_str(await_declaration);
                     let _ = writeln!(
                         closing,
-                        "export const {} = __sveltets_2_fn_component($$render());",
-                        safe_name
+                        "export const {} = __sveltets_2_fn_component({});",
+                        safe_name, render_call
                     );
                     let _ = writeln!(
                         closing,
@@ -1624,10 +1659,17 @@ pub fn svelte2tsx(
                         has_slot_elements,
                     );
                 } else {
+                    // Runes mode, TS syntax, no generics — the most common path.
+                    // Reference: addComponentExport.ts `addSimpleComponentExport`,
+                    // isSvelte5 + isRunesMode + useTypeScriptSyntax=true branch.
+                    // `awaitDeclaration` is emitted first when the component has a
+                    // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
+                    // in that case, `$$render()` otherwise.
+                    closing.push_str(await_declaration);
                     let _ = writeln!(
                         closing,
-                        "const {} = __sveltets_2_fn_component($$render());",
-                        safe_name
+                        "const {} = __sveltets_2_fn_component({});",
+                        safe_name, render_call
                     );
                     let _ = writeln!(
                         closing,
@@ -1740,6 +1782,12 @@ pub fn svelte2tsx(
                     safe_name
                 );
             } else {
+                // Legacy V5 non-runes non-generics: isomorphic_component path.
+                // Reference: addComponentExport.ts `addSimpleComponentExport`,
+                // isSvelte5 + !isRunesMode + !has_generics branch.
+                // `awaitDeclaration` is emitted first; `render_call` is threaded
+                // through `build_prop_def` → `__sveltets_2_with_any_event(renderCall)`.
+                closing.push_str(await_declaration);
                 let prop_def = build_prop_def(&exported_names);
                 let has_non_empty_slots = !template_info.slots.is_empty();
                 let component_fn = if has_non_empty_slots {
@@ -2841,21 +2889,36 @@ fn detect_top_level_await(content: &str) -> bool {
     let parser = OxcParser::new(&allocator, content, source_type);
     let result = parser.parse();
 
-    // Look for top-level variable declarations with await in their init,
-    // or top-level expression statements with await.
+    // Mirror upstream `processInstanceScriptContent.ts` which sets
+    // `hasTopLevelAwait = true` whenever an AwaitExpression is visited at the
+    // root scope (i.e. not inside any Block / FunctionLike node).
+    //
+    // We do not have the upstream's full AST-walker machinery, but we can
+    // replicate the effect for the cases that actually occur in Svelte
+    // components:
+    //
+    //   • `VariableDeclaration` at module top-level whose initialiser
+    //     *contains* an AwaitExpression (e.g. `let x = $derived(await f())`
+    //     or `const user = await getUser()`).
+    //   • `ExpressionStatement` at module top-level whose expression
+    //     *contains* an AwaitExpression (e.g. `y = await promise`).
+    //
+    // For both, we use a deep recursive scan that stops at function
+    // boundaries (`FunctionExpression` / `ArrowFunctionExpression`) — those
+    // introduce a new scope and their inner `await` is NOT top-level.
     for stmt in result.program.body.iter() {
         match stmt {
             oxc::Statement::VariableDeclaration(decl) => {
                 for declarator in decl.declarations.iter() {
                     if let Some(ref init) = declarator.init
-                        && contains_await_expression(init)
+                        && expr_contains_await_deep(init)
                     {
                         return true;
                     }
                 }
             }
             oxc::Statement::ExpressionStatement(expr)
-                if contains_await_expression(&expr.expression) =>
+                if expr_contains_await_deep(&expr.expression) =>
             {
                 return true;
             }
@@ -2865,9 +2928,98 @@ fn detect_top_level_await(content: &str) -> bool {
     false
 }
 
-/// Check if an expression is or contains an AwaitExpression (shallow check).
-fn contains_await_expression(expr: &oxc_ast::ast::Expression) -> bool {
-    matches!(expr, oxc_ast::ast::Expression::AwaitExpression(_))
+/// Deep check: returns `true` if `expr` is, or transitively contains (outside
+/// any function boundary), an `AwaitExpression`.
+///
+/// Mirrors the upstream TypeScript walker's `scope === rootScope` predicate:
+/// we recurse into all expression sub-nodes but stop when entering a
+/// `FunctionExpression` or `ArrowFunctionExpression` (a new async scope
+/// whose internal `await` is not "top-level" for the Svelte component).
+///
+/// Reference: `processInstanceScriptContent.ts` lines 246-349
+///   `if (ts.isBlock(node) || ts.isFunctionLike(node)) pushScope();`
+///   `if (isSvelte5Plus && ts.isAwaitExpression(node) && scope === rootScope)`
+fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::{Argument, Expression as E};
+
+    match expr {
+        // Base case: this expression is an await.
+        E::AwaitExpression(_) => true,
+
+        // Function boundaries: do NOT recurse — their inner awaits are in a
+        // new scope and are not "top-level" from the component's perspective.
+        E::ArrowFunctionExpression(_) | E::FunctionExpression(_) => false,
+
+        // Parenthesised expression: transparent wrapper.
+        E::ParenthesizedExpression(p) => expr_contains_await_deep(&p.expression),
+
+        // Assignment: `x = await y` or `x = f(await y)` — check the RHS.
+        // (LHS is a pattern/identifier and cannot contain await directly.)
+        E::AssignmentExpression(a) => expr_contains_await_deep(&a.right),
+
+        // Binary / logical: check both sides.
+        E::BinaryExpression(b) => {
+            expr_contains_await_deep(&b.left) || expr_contains_await_deep(&b.right)
+        }
+        E::LogicalExpression(l) => {
+            expr_contains_await_deep(&l.left) || expr_contains_await_deep(&l.right)
+        }
+
+        // Conditional: test ? consequent : alternate.
+        E::ConditionalExpression(c) => {
+            expr_contains_await_deep(&c.test)
+                || expr_contains_await_deep(&c.consequent)
+                || expr_contains_await_deep(&c.alternate)
+        }
+
+        // Unary / yield: single argument.
+        E::UnaryExpression(u) => expr_contains_await_deep(&u.argument),
+        E::YieldExpression(y) => y
+            .argument
+            .as_ref()
+            .is_some_and(|a| expr_contains_await_deep(a)),
+
+        // Sequence: any expression in the list.
+        E::SequenceExpression(s) => s.expressions.iter().any(expr_contains_await_deep),
+
+        // Call expression: callee + arguments.  This is the key case for
+        // `$derived(await x)` — the callee is `$derived` and the argument
+        // is an AwaitExpression.
+        //
+        // `Argument` inherits `Expression` variants via `@inherit Expression`;
+        // `to_expression()` panics for `SpreadElement` (handled first in the
+        // match), and returns the inner `&Expression` for all other variants.
+        E::CallExpression(call) => {
+            expr_contains_await_deep(&call.callee)
+                || call.arguments.iter().any(|arg| match arg {
+                    Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
+                    _ => expr_contains_await_deep(arg.to_expression()),
+                })
+        }
+
+        // `new Foo(await x)`.
+        E::NewExpression(n) => n.arguments.iter().any(|arg| match arg {
+            Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
+            _ => expr_contains_await_deep(arg.to_expression()),
+        }),
+
+        // Member expressions: `obj[await key]` or `obj.prop`.
+        E::ComputedMemberExpression(c) => {
+            expr_contains_await_deep(&c.object) || expr_contains_await_deep(&c.expression)
+        }
+        E::StaticMemberExpression(s) => expr_contains_await_deep(&s.object),
+        E::PrivateFieldExpression(p) => expr_contains_await_deep(&p.object),
+
+        // Template literals: `${await x}`.
+        E::TemplateLiteral(tl) => tl.expressions.iter().any(expr_contains_await_deep),
+        E::TaggedTemplateExpression(tt) => {
+            expr_contains_await_deep(&tt.tag)
+                || tt.quasi.expressions.iter().any(expr_contains_await_deep)
+        }
+
+        // Everything else (literals, identifiers, `this`, …) cannot contain await.
+        _ => false,
+    }
 }
 
 // =============================================================================
@@ -3761,6 +3913,128 @@ mod tests {
         assert!(
             code.contains("__sveltets_2_ensureComponent(Component)"),
             "non-snippet Component child must still be emitted; got:\n{code}"
+        );
+    }
+
+    // =============================================================================
+    // Async component (top-level await) tests
+    //
+    // Reference: createRenderFunction.ts (async keyword on $$render) and
+    //            addComponentExport.ts (`renderCall` / `awaitDeclaration`).
+    // =============================================================================
+
+    /// Direct top-level await (`const x = await fetch(1)`) must produce:
+    ///   • `async function $$render() {` (the `async` keyword)
+    ///   • `/*Ωignore_startΩ*/ const $$$render = await $$render(); /*Ωignore_endΩ*/`
+    ///   • `const Foo__SvelteComponent_ = __sveltets_2_fn_component($$$render);`
+    #[test]
+    fn test_async_component_direct_await() {
+        let source = "<script>const x = await fetch('/');</script>{x}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Foo.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("ASYNC DIRECT:\n{code}");
+        assert!(
+            code.contains("async function $$render(") || code.contains(";async function $$render("),
+            "component with direct top-level await must use `async function $$render`; got:\n{code}"
+        );
+        assert!(
+            code.contains("const $$$render = await $$render()"),
+            "component with top-level await must emit `const $$$render = await $$render()` declaration; got:\n{code}"
+        );
+        assert!(
+            code.contains("__sveltets_2_fn_component($$$render)"),
+            "component with top-level await must pass `$$$render` (not `$$render()`) to fn_component; got:\n{code}"
+        );
+        assert!(
+            !code.contains("__sveltets_2_fn_component($$render())"),
+            "fn_component must NOT use `$$render()` when top-level await is present; got:\n{code}"
+        );
+    }
+
+    /// Nested top-level await inside `$derived(await x)` must also be detected.
+    ///
+    /// This tests the deep recursive `expr_contains_await_deep` walk that the old
+    /// shallow `contains_await_expression` missed.  Ground truth: upstream
+    /// `processInstanceScriptContent.ts` sets `hasTopLevelAwait` for any
+    /// AwaitExpression at the root scope, including inside a CallExpression argument.
+    #[test]
+    fn test_async_component_nested_await_in_derived() {
+        let source = "<script>let foo = $derived(await 1);</script>{foo}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Test.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("ASYNC NESTED DERIVED:\n{code}");
+        assert!(
+            code.contains("async function $$render(") || code.contains(";async function $$render("),
+            "$derived(await x) at top level must produce `async function $$render`; got:\n{code}"
+        );
+        assert!(
+            code.contains("const $$$render = await $$render()"),
+            "$derived(await x) must emit awaitDeclaration; got:\n{code}"
+        );
+        assert!(
+            code.contains("__sveltets_2_fn_component($$$render)"),
+            "$derived(await x) must pass `$$$render` to fn_component; got:\n{code}"
+        );
+    }
+
+    /// A normal (non-async) component must keep `function $$render` (no `async`)
+    /// and use `$$render()` (not `$$$render`) in the export.
+    #[test]
+    fn test_non_async_component_no_await_declaration() {
+        let source = "<script>let x = 1;</script>{x}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Normal.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("NON-ASYNC:\n{code}");
+        // The function header should NOT be async for a plain component
+        assert!(
+            !code.contains("async function $$render("),
+            "non-async component must NOT use `async function $$render`; got:\n{code}"
+        );
+        // No awaitDeclaration
+        assert!(
+            !code.contains("$$$render"),
+            "non-async component must NOT emit `$$$render`; got:\n{code}"
+        );
+    }
+
+    /// `await` inside a function body at the top level must NOT trigger async.
+    /// Only awaits at the *component* scope (not inside an inner function) count.
+    #[test]
+    fn test_async_only_in_inner_function_is_not_top_level() {
+        // The `await` is inside `async function c(a) { ... }` — its scope is
+        // NOT the component root scope, so `hasTopLevelAwait` must stay false.
+        let source =
+            "<script>async function c(a) { return await Promise.resolve(a); }</script>{c(1)}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Inner.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("INNER ASYNC:\n{code}");
+        assert!(
+            !code.contains("async function $$render("),
+            "await inside inner async function must NOT make $$render async; got:\n{code}"
+        );
+        assert!(
+            !code.contains("$$$render"),
+            "await inside inner async function must NOT emit $$$render; got:\n{code}"
         );
     }
 }
