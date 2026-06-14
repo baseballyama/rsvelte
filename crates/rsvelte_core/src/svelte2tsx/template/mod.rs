@@ -2249,7 +2249,7 @@ fn handle_regular_element(
     // For `bind:this` and one-way bindings on the element (`offsetHeight`,
     // …) we also need a `const $$_xxx = …` declaration so the assignment
     // can reference the element value.
-    let needs_element_var = any_bind_needs_element_var(&el.attributes);
+    let needs_element_var = any_bind_needs_element_var(&el.attributes, source);
     let element_var = if needs_element_var {
         // The `$$_<tag><N>` index is the element's nesting DEPTH (matching
         // upstream Element.ts `computeDepth()`), not a per-tag counter — same
@@ -3878,7 +3878,16 @@ fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: 
                 }
             }
             Attribute::BindDirective(bind) => {
-                if !bind_is_filtered_from_props(&bind.name, parent_tag) {
+                // A get/set binding stays a `"bind:…": __sveltets_2_get_set_binding(…)`
+                // prop even on one-way binding attributes (`clientWidth`), since
+                // official's one-way lowering only applies to non-get/set bindings.
+                let is_get_set = get_set_binding_ranges(&bind.expression, source).is_some();
+                // `bind:this` (even as get/set) is never a prop — it's lowered to
+                // an element-var assignment. The get/set exception only keeps
+                // one-way binding *attributes* (clientWidth, …) as props.
+                if (is_get_set && bind.name != "this")
+                    || !bind_is_filtered_from_props(&bind.name, parent_tag)
+                {
                     let part = format_bind_directive_segments(bind, source);
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
@@ -5021,10 +5030,18 @@ fn build_bind_directive_suffix(
 
 /// Whether any `bind:` directive on this element forces a `const $$_xxx = …`
 /// declaration of the createElement value.
-fn any_bind_needs_element_var(attributes: &[Attribute]) -> bool {
-    attributes
-        .iter()
-        .any(|attr| matches!(attr, Attribute::BindDirective(b) if bind_needs_element_var(&b.name)))
+fn any_bind_needs_element_var(attributes: &[Attribute], source: &str) -> bool {
+    attributes.iter().any(|attr| {
+        matches!(attr, Attribute::BindDirective(b)
+            if bind_needs_element_var(&b.name)
+                // A get/set binding on a one-way binding *attribute*
+                // (`bind:clientWidth={get, set}`) is kept as a
+                // `"bind:…": __sveltets_2_get_set_binding(…)` prop, so it needs
+                // no element var. `bind:this` always needs the element var
+                // (even as get/set — it's applied as `(setter)(elementVar)`).
+                && (b.name == "this"
+                    || get_set_binding_ranges(&b.expression, source).is_none()))
+    })
 }
 
 /// Sanitize an HTML/SVG tag name for use as a JavaScript identifier:

@@ -1,6 +1,5 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/12-bind.md/3.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/07-misc/06-v4-migration-guide.md/6.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/07-misc/07-v5-migration-guide.md/18.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/99-legacy/20-legacy-slots.md/6.svelte",
@@ -23,7 +22,6 @@
 	"svelte.dev/packages/site-kit/src/lib/search/Search.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchResults.svelte",
-	"svelte/documentation/docs/03-template-syntax/12-bind.md/3.svelte",
 	"svelte/documentation/docs/07-misc/06-v4-migration-guide.md/6.svelte",
 	"svelte/documentation/docs/07-misc/07-v5-migration-guide.md/18.svelte",
 	"svelte/documentation/docs/99-legacy/20-legacy-slots.md/6.svelte",
@@ -187,7 +185,6 @@
 	"svelte/packages/svelte/tests/validator/samples/a11y-role-supports-aria-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/animation-on-component/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/bind_group_invalid_expression/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-slot-dynamic-attribute/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte",
