@@ -4237,25 +4237,16 @@ fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source:
                             segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
                         }
                     }
-                    // Mirrors upstream StyleDirective.ts: a single text value
-                    // `style:xx="red"` becomes a quoted string `"red"` (NOT a
-                    // template literal), a single expression `style:xx={yy}`
-                    // stays the bare expression `yy`, and only a multi-part
-                    // value `style:xx="a{b}"` becomes a template `` `a${b}` ``.
+                    // Mirrors upstream StyleDirective.ts. svelte2tsx moves the
+                    // value range into the element's attrs object, so the
+                    // ensureType reference is left with the BLANKED text — every
+                    // static text run collapses to a single space. Hence:
+                    //   `style:x="red"`  → `, " ");`            (single text → " ")
+                    //   `style:x={y}`    → `, y);`              (single expr → bare)
+                    //   `style:x="a{b}"` → `, ` ${b}`);`        (text→space, expr kept)
                     AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
-                        AttributeValuePart::Text(text) => {
-                            // Use the source's original quote char (oxfmt
-                            // normalises it anyway) so embedded quotes survive.
-                            let quote = match source
-                                .as_bytes()
-                                .get(text.start.saturating_sub(1) as usize)
-                            {
-                                Some(b'\'') => "'",
-                                _ => "\"",
-                            };
-                            segs_push_lit(&mut out, quote);
-                            segs_push_src(&mut out, text.start, text.end);
-                            segs_push_lit(&mut out, quote);
+                        AttributeValuePart::Text(_) => {
+                            segs_push_lit(&mut out, "\" \"");
                         }
                         AttributeValuePart::ExpressionTag(expr) => {
                             if let Some((s, e)) = get_expression_range(&expr.expression) {
@@ -4269,17 +4260,13 @@ fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source:
                         }
                     },
                     AttributeValue::Sequence(parts) => {
-                        // `style:xx="a{b}"` → a template string `` `a${b}` ``.
+                        // Multi-part: a template literal where each text run is
+                        // blanked to a single space and each `{expr}` is kept.
                         segs_push_lit(&mut out, "`");
                         for part in parts {
                             match part {
-                                AttributeValuePart::Text(text) => {
-                                    let escaped = text
-                                        .raw
-                                        .replace('\\', "\\\\")
-                                        .replace('`', "\\`")
-                                        .replace('$', "\\$");
-                                    segs_push_lit(&mut out, &escaped);
+                                AttributeValuePart::Text(_) => {
+                                    segs_push_lit(&mut out, " ");
                                 }
                                 AttributeValuePart::ExpressionTag(expr) => {
                                     segs_push_lit(&mut out, "${");
