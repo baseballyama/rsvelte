@@ -391,7 +391,9 @@ fn push_bare_expression(
 ///
 /// Returns `false` when `pending` is `None` (the source already uses the
 /// shorthand `{#await expr then value}` form and should not be re-collapsed).
-pub(crate) fn await_pending_is_empty(pending: Option<&rsvelte_core::ast::template::Fragment>) -> bool {
+pub(crate) fn await_pending_is_empty(
+    pending: Option<&rsvelte_core::ast::template::Fragment>,
+) -> bool {
     match pending {
         None => false, // shorthand form — already collapsed in source
         Some(frag) => frag.nodes.iter().all(|n| {
@@ -450,8 +452,8 @@ fn try_collapse_await_header(
     if bind_src.is_empty() {
         return Ok(None);
     }
-    let fmt_bind = format_pattern_source(bind_src, options)
-        .unwrap_or_else(|_| bind_src.to_string());
+    let fmt_bind =
+        format_pattern_source(bind_src, options).unwrap_or_else(|_| bind_src.to_string());
 
     // Find the `}` that closes the `{:then value}` / `{:catch error}` separator
     // header — it comes immediately after the binding expression end.

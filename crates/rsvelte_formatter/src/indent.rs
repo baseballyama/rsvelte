@@ -388,7 +388,9 @@ fn recurse_into_children(
                 && (blk.value.is_some() || blk.error.is_some());
             if !pending_collapsed {
                 if let Some(frag) = &blk.pending {
-                    collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
+                    collect_indent_edits_inner(
+                        source, frag, next_depth, true, true, options, edits,
+                    )?;
                 }
             }
             if let Some(frag) = &blk.then {
