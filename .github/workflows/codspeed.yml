@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+    # Default + `labeled` so adding the `bench` label triggers a run; the
+    # job's `if:` below skips unlabeled events.
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 concurrency:
@@ -23,6 +26,16 @@ jobs:
     name: Run CodSpeed benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # CodSpeed's Valgrind-instrumented simulation runs ~15 min — far past the
+    # PR feedback budget, and the per-PR perf diff is rarely the gating signal.
+    # Mirror the `Benchmark` / `Coverage` jobs: always run on push to `main`
+    # (continuous perf tracking against the main baseline) and on manual
+    # dispatch; on PRs only when the author opts in with the `bench` label.
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'bench'))
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -34,7 +47,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-codspeed
-        run: cargo install cargo-codspeed --locked
+        # Prebuilt binary (no compile) instead of `cargo install --locked`.
+        uses: taiki-e/install-action@cargo-codspeed
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1

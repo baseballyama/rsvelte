@@ -93,6 +93,14 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # The release NAPI build compiles oxc from a git rev — ~15 min cold.
+          # rust-cache skips saving on a failed job by default, so a single
+          # timeout/failure left the cache cold forever and every later run
+          # recompiled from scratch and could time out again. Saving on failure
+          # preserves the compiled `target/` and breaks that deadlock (mirrors
+          # the same fix in bench.yml).
+          cache-on-failure: true
 
       - name: Build rsvelte NAPI binding
         run: |
