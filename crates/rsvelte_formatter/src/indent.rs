@@ -481,7 +481,12 @@ fn is_indent_provoking(node: &TemplateNode) -> bool {
 }
 
 fn is_whitespace_only(s: &str) -> bool {
-    !s.is_empty() && s.chars().all(|c| c.is_whitespace())
+    // Only ASCII whitespace (' ', '\t', '\n', '\r') counts as "whitespace only".
+    // U+00A0 (non-breaking space, decoded from `&nbsp;`) must NOT be treated as
+    // whitespace here — it is significant content that prettier preserves.
+    // `char::is_whitespace()` returns true for U+00A0, so we use an explicit
+    // ASCII-only check instead.
+    !s.is_empty() && s.chars().all(|c| matches!(c, ' ' | '\t' | '\n' | '\r'))
 }
 
 /// Re-indent the per-line leading whitespace of a mixed text node (text that

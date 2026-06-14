@@ -1446,17 +1446,26 @@ fn try_hug_mixed(
     if raw.starts_with([' ', '\t', '\r', '\n']) || raw.ends_with([' ', '\t', '\r', '\n']) {
         return None;
     }
-    // Only act on currently-one-line content; multi-line content is left alone
-    // (its exact reflow needs the full element-group model).
-    if raw.contains('\n') {
-        return None;
-    }
     let column = current_column(out, start);
 
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
+    }
+
+    // When the content is already multi-line (e.g. a child element whose
+    // attributes wrapped), prettier still applies the hug form: `>` glues
+    // to the content's first character and the closing `</tag` sits before
+    // the final `>`. Since the content is multi-line the element obviously
+    // doesn't fit on one line, so we skip straight to the hug transform.
+    // Only handle single-line open tags here; multi-line open tags are
+    // handled by the `open.contains('\n')` branch below.
+    if raw.contains('\n') && !open.contains('\n') {
+        let inner_indent = format!("{indent}  ");
+        let open_no_bracket = &open[..open.len() - 1];
+        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        return (result != whole).then_some((start, end, result));
     }
 
     // A multi-line open tag means markup already attribute-wrapped it. prettier's
