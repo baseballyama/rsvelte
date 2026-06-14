@@ -1901,7 +1901,11 @@ pub fn svelte2tsx(
             // (`on:click`) or has slots falls through to the isomorphic-component
             // path, exactly like a legacy component (mirrors official
             // addComponentExport: `isRunesMode() && !usesSlots && !hasEvents`).
-            if exported_names.is_runes_mode() && events.is_empty() && !has_slot_elements {
+            // "No events" must also account for forwarded element/component
+            // events (`<div on:click>` / `<Inner on:bar/>`), which live in
+            // `template_info.element_events`, not `events`.
+            let has_any_events = !events.is_empty() || !template_info.element_events.is_empty();
+            if exported_names.is_runes_mode() && !has_any_events && !has_slot_elements {
                 if !use_ts_syntax {
                     // JS files with emitJsDoc: use `export const` and JSDoc typedef.
                     // Reference: addComponentExport.ts `addSimpleComponentExport`,
