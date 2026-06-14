@@ -145,7 +145,6 @@
 	"svelte/packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-slotted-each-block/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte",

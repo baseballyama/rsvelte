@@ -3968,9 +3968,13 @@ fn template_node_has_rune_global(
             expression_references_rune_global(&block.expression, source, arena)
                 || fragment_has_template_rune_global(&block.fragment, source, arena)
         }
-        // SnippetBlock — mirror `detect_await_in_template` which also skips snippets.
-        // Snippets have their own scope and their globals are tracked separately.
-        TemplateNode::SnippetBlock(_) => false,
+        // SnippetBlock: official's global collection (checkGlobalsForRunes via
+        // implicitStoreValues) walks the whole component including snippet
+        // bodies, so a rune call inside a snippet (`{#snippet}{@const x =
+        // $derived(…)}{/snippet}`) forces runes mode. Recurse into the body.
+        TemplateNode::SnippetBlock(block) => {
+            fragment_has_template_rune_global(&block.body, source, arena)
+        }
         TemplateNode::AwaitBlock(block) => {
             expression_references_rune_global(&block.expression, source, arena)
                 || block
