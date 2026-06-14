@@ -2071,9 +2071,11 @@ fn handle_regular_element(
     // can reference the element value.
     let needs_element_var = any_bind_needs_element_var(&el.attributes);
     let element_var = if needs_element_var {
+        // The `$$_<tag><N>` index is the element's nesting DEPTH (matching
+        // upstream Element.ts `computeDepth()`), not a per-tag counter — same
+        // rule as component instance names.
         let sanitized = sanitize_tag_for_var(&el.name);
-        let idx = counter.next_for(&sanitized);
-        Some(format!("$$_{}{}", sanitized, idx))
+        Some(format!("$$_{}{}", sanitized, depth))
     } else {
         None
     };
