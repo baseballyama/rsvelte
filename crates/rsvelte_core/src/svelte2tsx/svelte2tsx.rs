@@ -4074,8 +4074,7 @@ fn json_references_rune_global(v: &serde_json::Value, depth: u8) -> bool {
         // CallExpression: the callee must be a rune-global target.
         // Also recurse into arguments to catch `foo($state(x))`.
         "CallExpression" => {
-            v.get("callee")
-                .is_some_and(|c| json_callee_is_rune_global(c))
+            v.get("callee").is_some_and(json_callee_is_rune_global)
                 || v.get("arguments")
                     .and_then(|a| a.as_array())
                     .is_some_and(|arr| {
