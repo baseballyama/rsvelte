@@ -3678,10 +3678,15 @@ fn template_node_has_await(
             expression_is_await(&block.expression, source, arena)
                 || fragment_has_template_await(&block.fragment, source, arena)
         }
-        // NOTE: SnippetBlock — awaits inside snippets do NOT force runes on the
-        // parent component (they are async in their own context). Mirror the
-        // 2_analyze `node_check_features` which skips SnippetBlock for await.
-        TemplateNode::SnippetBlock(_) => false,
+        // SnippetBlock: official svelte2tsx's `isRunes` sets true for an
+        // AwaitExpression whose ancestor path has no function-expression node —
+        // a SnippetBlock is NOT such a node, so an `await` inside a snippet body
+        // (e.g. `{#snippet}{@const x = await …}{/snippet}`) DOES force runes.
+        // (This is svelte2tsx-specific; the compiler's 2_analyze skips snippets,
+        // but this detector mirrors svelte2tsx, not the compiler.)
+        TemplateNode::SnippetBlock(block) => {
+            fragment_has_template_await(&block.body, source, arena)
+        }
         // AwaitBlock ({#await expr}) — the `expression` could itself contain an
         // await (e.g. `{#await await promise}`). Also recurse into the pending /
         // then / catch sub-fragments since they can contain nested {await ...}
