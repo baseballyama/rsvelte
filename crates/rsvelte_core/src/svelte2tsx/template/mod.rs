@@ -706,10 +706,7 @@ fn collect_slot_prop_entries(
 
 /// Return the identifier name if `expr` is a bare identifier (`{#each x as item}`
 /// → `item`), else None. Used to bind each-block contexts in the slot scope.
-fn expression_simple_identifier(
-    expr: &crate::ast::js::Expression,
-    source: &str,
-) -> Option<String> {
+fn expression_simple_identifier(expr: &crate::ast::js::Expression, source: &str) -> Option<String> {
     let text = get_expression_text(expr, source).trim();
     if !text.is_empty()
         && text
@@ -1911,7 +1908,11 @@ fn handle_await_block(
                 str.append_left(expr_end, ");}");
             }
         } else {
-            str.overwrite(block.start, block.end, &format!("{{ await ({});}}", expr_text));
+            str.overwrite(
+                block.start,
+                block.end,
+                &format!("{{ await ({});}}", expr_text),
+            );
         }
     }
 }
@@ -4165,7 +4166,11 @@ fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -
                 AttributeValuePart::ExpressionTag(_) => false,
             });
             if !has_expr && text_is_empty {
-                return Some(wrap(&format!("\"{}\":\"\"", name), is_data_attr, is_css_prop));
+                return Some(wrap(
+                    &format!("\"{}\":\"\"", name),
+                    is_data_attr,
+                    is_css_prop,
+                ));
             }
 
             // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
