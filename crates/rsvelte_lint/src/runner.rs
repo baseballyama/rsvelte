@@ -113,25 +113,38 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
 
-    // Gather candidate edits from non-suppressed fixable findings — from both
+    // Gather candidate fixes from non-suppressed fixable findings — from both
     // the template-walk rules and the script-AST rules (e.g. the autofix of
     // `$derived.by(() => x)` → `$derived(x)`).
-    let mut edits: Vec<TextEdit> = run_native_rules(source, config)
+    // Each fix is kept as a unit (Vec<TextEdit>) to mirror ESLint's per-diagnostic
+    // atomic conflict resolution: if the merged range of a fix conflicts with the
+    // already-consumed range, the ENTIRE fix is dropped.
+    let mut fixes: Vec<Vec<TextEdit>> = run_native_rules(source, config)
         .into_iter()
         .chain(run_script_rules(source, config))
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
         .filter_map(|d| d.fix)
-        .flat_map(|f| f.edits)
+        .map(|f| f.edits)
         .collect();
 
-    // Earliest-first; greedily drop edits that overlap an already-selected one.
-    edits.sort_by_key(|e| (e.start, e.end));
-    let mut selected: Vec<TextEdit> = Vec::with_capacity(edits.len());
-    let mut last_end = 0u32;
-    for e in edits {
-        if e.start >= last_end {
-            last_end = e.end;
-            selected.push(e);
+    // Sort fixes by the minimum start offset of their edits (mirrors ESLint's
+    // `compareMessagesByFixRange` which sorts by `fix.range[0]`).
+    fixes.sort_by_key(|edits| edits.iter().map(|e| e.start).min().unwrap_or(u32::MAX));
+
+    // Greedily select fixes using ESLint's conflict rule: a fix is rejected when
+    // its merged-range start <= `last_end` (i.e. `last_end >= fix_start`).
+    // Mirrors ESLint's `source-code-fixer.js`: `if (lastPos >= start) { conflict }`,
+    // where `lastPos` starts at `Number.NEGATIVE_INFINITY` (no prior end).
+    let mut selected: Vec<TextEdit> = Vec::new();
+    let mut last_end: Option<u32> = None; // None = NEGATIVE_INFINITY (no prior fix)
+    for fix_edits in fixes {
+        let fix_start = fix_edits.iter().map(|e| e.start).min().unwrap_or(u32::MAX);
+        let fix_end = fix_edits.iter().map(|e| e.end).max().unwrap_or(0);
+        // Conflict: lastPos >= start (ESLint semantics).
+        let conflict = last_end.is_some_and(|le| le >= fix_start);
+        if !conflict {
+            last_end = Some(fix_end.max(last_end.unwrap_or(0)));
+            selected.extend(fix_edits);
         }
     }
 

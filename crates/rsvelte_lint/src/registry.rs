@@ -83,6 +83,8 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::html_closing_bracket_new_line::HtmlClosingBracketNewLine),
         Box::new(crate::rules::max_attributes_per_line::MaxAttributesPerLine),
         Box::new(crate::rules::sort_attributes::SortAttributes),
+        Box::new(crate::rules::prefer_class_directive::PreferClassDirective),
+        Box::new(crate::rules::prefer_style_directive::PreferStyleDirective),
     ]
 }
 
@@ -128,5 +130,6 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoImmutableReactiveStatements),
         Box::new(NoDomManipulating),
         Box::new(NoReactiveReassign),
+        Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
     ]
 }

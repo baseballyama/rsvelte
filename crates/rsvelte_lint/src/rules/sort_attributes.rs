@@ -462,27 +462,32 @@ fn build_fix(src: &str, entries: &[SortEntry], prev_idx: usize, node_idx: usize)
         })
         .collect();
 
-    // Trailing whitespace of the original last element (node_idx) — preserved
-    // at the end of the replacement so adjacent attributes stay correctly spaced.
-    let last_raw = raw_texts[n];
-    let last_trimmed = trimmed[n];
-    let trailing = &last_raw[last_trimmed.len()..];
-
     // After rotation, the order of attribute texts is:
-    //   trimmed[n], seps[0], trimmed[0], seps[1], trimmed[1], …, seps[n-1], trimmed[n-1], trailing
+    //   trimmed[n], seps[0], trimmed[0], seps[1], trimmed[1], …, seps[n-1], trimmed[n-1]
+    //
+    // We do NOT include trailing whitespace of the last element in the fix range or
+    // new_text. This mirrors the upstream JS rule's behaviour of emitting one
+    // `fixer.replaceText(node, text)` per attribute (using the node's own range which
+    // does NOT include trailing inter-attribute whitespace). The merged fix range in
+    // ESLint's applyFixes therefore ends at the last attribute's trimmed end, leaving
+    // the trailing whitespace untouched — so the next attribute's fix (which starts
+    // right at the gap character) does NOT conflict.
     let mut new_text = String::new();
     new_text.push_str(trimmed[n]);
     for k in 0..n {
         new_text.push_str(seps[k]);
         new_text.push_str(trimmed[k]);
     }
-    new_text.push_str(trailing);
+
+    // The fix end is the trimmed end of the last attribute (= start + trimmed_len),
+    // NOT entries[node_idx].end (which may include trailing whitespace).
+    let last_trimmed_end = entries[node_idx].start + trimmed[n].len() as u32;
 
     Fix {
         message: "Sort attributes".to_string(),
         edits: vec![TextEdit {
             start: entries[prev_idx].start,
-            end: entries[node_idx].end,
+            end: last_trimmed_end,
             new_text,
         }],
     }

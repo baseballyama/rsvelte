@@ -42,7 +42,12 @@ pub fn run_native_rules(source: &str, config: &LintConfig) -> Vec<LintDiagnostic
         return Vec::new();
     };
     let mut ctx = LintContext::new(config, source);
-    LintVisitor::new(enabled).visit_root(&mut ctx, &root);
+    // Re-install the arena pointer so that `Expression::Typed::as_json()` can
+    // resolve arena-indexed children while the visitor walks the template.
+    // The pointer was cleared when `parse()` dropped its `SerializeArenaGuard`.
+    with_serialize_arena(&root.arena, || {
+        LintVisitor::new(enabled).visit_root(&mut ctx, &root);
+    });
     ctx.into_diagnostics()
 }
 

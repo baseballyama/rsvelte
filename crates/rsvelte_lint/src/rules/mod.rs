@@ -3,6 +3,7 @@
 //! [`registry`](crate::registry).
 
 pub mod button_has_type;
+pub mod derived_has_same_inputs_outputs;
 pub mod first_attribute_linebreak;
 pub mod html_closing_bracket_new_line;
 pub mod html_closing_bracket_spacing;
@@ -49,9 +50,11 @@ pub mod no_unknown_style_directive_property;
 pub mod no_unnecessary_state_wrap;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
+pub mod prefer_class_directive;
 pub mod prefer_const;
 pub mod prefer_derived_over_derived_by;
 pub mod prefer_destructured_store_props;
+pub mod prefer_style_directive;
 pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
 pub mod require_each_key;
