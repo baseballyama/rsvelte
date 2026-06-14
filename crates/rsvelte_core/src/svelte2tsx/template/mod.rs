@@ -4083,6 +4083,19 @@ fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -
                 return Some(wrap(&inner, is_data_attr, is_css_prop));
             }
 
+            // Pure-static empty value (`class=""`): emit the quoted empty
+            // string, matching official (not an empty template literal).
+            let has_expr = parts
+                .iter()
+                .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+            let text_is_empty = parts.iter().all(|p| match p {
+                AttributeValuePart::Text(t) => t.raw.is_empty(),
+                AttributeValuePart::ExpressionTag(_) => false,
+            });
+            if !has_expr && text_is_empty {
+                return Some(wrap(&format!("\"{}\":\"\"", name), is_data_attr, is_css_prop));
+            }
+
             // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
             let mut value_parts = Vec::new();
             for part in parts {
@@ -4318,6 +4331,21 @@ fn format_attribute_node_segments(
                 segs_push_lit(&mut out, &format!("\"{}\":", name));
                 segs_push_src(&mut out, text.start, text.end);
                 segs_push_lit(&mut out, ",");
+                return Some(out);
+            }
+
+            // Pure-static empty value (`class=""`, `href=""`): official emits
+            // the source's quoted empty string (`""`), not an empty template
+            // literal (` `` `), and oxfmt preserves the difference. Emit `""`.
+            let has_expr = parts
+                .iter()
+                .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+            let text_is_empty = parts.iter().all(|p| match p {
+                AttributeValuePart::Text(t) => t.raw.is_empty(),
+                AttributeValuePart::ExpressionTag(_) => false,
+            });
+            if !has_expr && text_is_empty {
+                segs_push_lit(&mut out, &format!("\"{}\":\"\",", name));
                 return Some(out);
             }
 
