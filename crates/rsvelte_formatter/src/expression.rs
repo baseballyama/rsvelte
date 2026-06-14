@@ -245,7 +245,21 @@ fn collect_node_edits(
             } else {
                 None
             };
-            if let Some((rewrite_start, rewrite_end, replacement)) = collapsed {
+            // When the await block is already in shorthand form (`pending` is
+            // `None`) but the `then` body is empty, strip the `then value`
+            // clause entirely: `{#await expr then value}{/await}` →
+            // `{#await expr}{/await}`. This matches prettier-plugin-svelte's
+            // behaviour.
+            let stripped = if blk.pending.is_none()
+                && blk.value.is_some()
+                && blk.catch.is_none()
+                && blk.then.as_ref().is_some_and(is_empty_fragment_for_await)
+            {
+                try_strip_await_then_clause(source, blk, options)?
+            } else {
+                None
+            };
+            if let Some((rewrite_start, rewrite_end, replacement)) = collapsed.or(stripped) {
                 edits.push((rewrite_start, rewrite_end, replacement));
                 // Only recurse into the non-pending body fragments.
                 if let Some(frag) = &blk.then {
@@ -668,6 +682,58 @@ fn try_collapse_await_header(
 
     let replacement = format!("{{#await {fmt_expr} {keyword} {fmt_bind}}}");
     Ok(Some((blk.start, separator_close as u32, replacement)))
+}
+
+/// Returns `true` when a fragment contains only whitespace-only text nodes or
+/// is entirely empty — used to detect an empty `then` body in a shorthand
+/// `{#await expr then value}{/await}` block.
+fn is_empty_fragment_for_await(frag: &rsvelte_core::ast::template::Fragment) -> bool {
+    frag.nodes.iter().all(|n| {
+        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
+    })
+}
+
+/// Strip the `then value` clause from a shorthand await block that has an
+/// empty then body: `{#await expr then value}{/await}` → the rewrite span
+/// covers from `blk.start` to the `}` that closes the header (`{#await expr
+/// then value}`), replacing it with `{#await expr}`.
+///
+/// Returns `None` when the span cannot be determined from the source.
+fn try_strip_await_then_clause(
+    source: &str,
+    blk: &rsvelte_core::ast::template::AwaitBlock,
+    options: &FormatOptions,
+) -> Result<Option<(u32, u32, String)>, FormatError> {
+    let (Some(expr_start), Some(expr_end)) = (blk.expression.start(), blk.expression.end()) else {
+        return Ok(None);
+    };
+    let expr_src = source
+        .get(expr_start as usize..expr_end as usize)
+        .unwrap_or("")
+        .trim();
+    if expr_src.is_empty() {
+        return Ok(None);
+    }
+    let fmt_expr = format_inline_expression(expr_src, options)?;
+
+    // Find the `}` that closes the header after the `then value` portion.
+    // `blk.value` is the binding pattern (e.g. `counter`).
+    let Some(v) = &blk.value else {
+        return Ok(None);
+    };
+    let Some(v_end) = v.end() else {
+        return Ok(None);
+    };
+    let header_close = source
+        .get(v_end as usize..)
+        .and_then(|s| s.find('}'))
+        .map(|rel| v_end as usize + rel + 1);
+    let Some(header_close) = header_close else {
+        return Ok(None);
+    };
+
+    let replacement = format!("{{#await {fmt_expr}}}");
+    Ok(Some((blk.start, header_close as u32, replacement)))
 }
 
 /// If the AST expression at `[expr_start, expr_end)` is enclosed by `{`
