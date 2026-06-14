@@ -1312,6 +1312,39 @@ fn render_attribute_value_for_directive(
             Ok(format!("{{{formatted}}}"))
         }
         AttributeValue::Sequence(parts) => {
+            // When the entire value is a single mustache expression with no
+            // surrounding text (e.g. `style:color="{expr}"`), prettier-plugin-svelte
+            // normalises to the bare-mustache form `style:color={expr}`.
+            // Detect: exactly one non-empty ExpressionTag part, all Text parts empty.
+            let sole_expr = parts
+                .iter()
+                .filter(|p| !matches!(p, AttributeValuePart::Text(t) if t.data.is_empty()))
+                .collect::<Vec<_>>();
+            if sole_expr.len() == 1
+                && let Some(AttributeValuePart::ExpressionTag(tag)) = sole_expr.first()
+            {
+                let inner_src = expression_tag_inner(tag, source).trim();
+                if !inner_src.is_empty() {
+                    let indent_cols = attr_depth * options.js.indent_width.value() as usize;
+                    let formatted =
+                        format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+                    let line_width = options.js.line_width.value() as usize;
+                    let formatted = if narrow_value
+                        && !formatted.contains('\n')
+                        && indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width
+                    {
+                        format_attribute_value_expression(
+                            inner_src,
+                            options,
+                            attr_depth,
+                            prefix + 1,
+                        )?
+                    } else {
+                        formatted
+                    };
+                    return Ok(format!("{{{formatted}}}"));
+                }
+            }
             // Directive value body starts after `style:name="`: prefix + the `"`.
             let body = render_attribute_value_sequence(
                 parts,

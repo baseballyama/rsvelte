@@ -123,6 +123,21 @@ fn collect_indent_edits_inner(
             .iter()
             .any(|n| is_indent_provoking(n) && !matches!(n, TemplateNode::ExpressionTag(_)));
 
+        // prettier-plugin-svelte's `forceBreakContent`: when any child is a
+        // block-display HTML element AND there are multiple non-whitespace
+        // children, all children must be on their own lines. This mirrors
+        // prettier's `childDocs.push(breakParent)` triggered by `isBlockElement`.
+        let non_ws_count = fragment
+            .nodes
+            .iter()
+            .filter(|n| !matches!(n, TemplateNode::Text(t) if is_whitespace_only(t.data.as_str())))
+            .count();
+        let has_block_html_child = fragment
+            .nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str())));
+        let force_break_content = non_ws_count > 1 && has_block_html_child;
+
         for (i, node) in fragment.nodes.iter().enumerate() {
             let TemplateNode::Text(t) = node else {
                 continue;
@@ -134,13 +149,15 @@ fn collect_indent_edits_inner(
                     // In a broken fragment, whitespace-only text between two
                     // indent-provoking siblings (e.g. `{a} {b}`) becomes a
                     // newline so each mustache lands on its own line — UNLESS
-                    // the next node is a RegularElement (inline HTML), in
-                    // which case the prose stays on one line (e.g.
-                    // `{field} <input />` or `{a} <br />`).
+                    // the next node is a non-block RegularElement (inline HTML),
+                    // in which case the prose stays on one line (e.g.
+                    // `{field} <input />` or `{a} <br />`). When force_break_content
+                    // is active all children break regardless.
                     //
                     // The "broken" criterion differs by context:
                     // - Element children (not block body): broken whenever the
-                    //   fragment has any whitespace-text-with-newline sibling.
+                    //   fragment has any whitespace-text-with-newline sibling,
+                    //   or when force_break_content is active (any block HTML child).
                     // - Block bodies (`{#if}` / `{#snippet}` / etc.): broken
                     //   only when there is a non-ExpressionTag indent-provoking
                     //   sibling (ConstTag, HtmlTag, Comment, elements, …).
@@ -150,13 +167,38 @@ fn collect_indent_edits_inner(
                     // Leading/trailing inline whitespace at the document root
                     // is insignificant and is removed.
                     let prev_provoking = i > 0 && is_indent_provoking(&fragment.nodes[i - 1]);
-                    let next_not_regular = i < last
-                        && !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
+                    // A space between two provoking nodes breaks to a newline
+                    // when the fragment is broken — UNLESS the next node is a
+                    // non-block RegularElement (inline HTML) whose prose stays
+                    // glued to the preceding text. When force_break_content is
+                    // active and the next node is a block-display HTML element,
+                    // override the inline-element guard and force a newline.
+                    let next_is_block_html = i < last
+                        && matches!(&fragment.nodes[i + 1],
+                            TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+                    let prev_is_block_html = i > 0
+                        && matches!(&fragment.nodes[i - 1],
+                            TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+                    // When either adjacent sibling is a block HTML element, the
+                    // space must become a newline regardless of the inline-element
+                    // guard (`next_not_regular`).
+                    let next_not_regular = next_is_block_html
+                        || prev_is_block_html
+                        || i >= last
+                        || !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
                     let next_provoking = i < last && is_indent_provoking(&fragment.nodes[i + 1]);
+                    // For element-children contexts (not block bodies), the fragment
+                    // is "broken" — meaning spaces between block-level nodes become
+                    // newlines — when any whitespace-text child has a newline OR
+                    // when force_break_content is active and either adjacent sibling
+                    // is a block HTML element. The second criterion ensures that
+                    // `<Component />   <div>` collapses the spaces to a newline
+                    // even when the source has no explicit newline in the fragment.
                     let effectively_broken = if is_block_body {
                         has_non_expression_block_child
                     } else {
                         fragment_is_broken
+                            || (force_break_content && (next_is_block_html || prev_is_block_html))
                     };
                     let replacement = if effectively_broken
                         && prev_provoking
@@ -247,10 +289,14 @@ fn collect_indent_edits_inner(
             }
         }
 
-        // An HTML comment always sits on its own line. When it abuts a sibling
-        // node directly (no whitespace text node between them, e.g.
-        // `<!-- c --><h1>`), insert a line break so the comment and its
-        // neighbour land on separate lines (prettier / oxfmt behaviour).
+        // When two adjacent non-text siblings require a line break between them
+        // (no whitespace text node separating them in the source), insert one:
+        // - An HTML comment always sits on its own line.
+        // - A block-display HTML element (`<div>`, `<p>`, `<hr>`, …) always sits
+        //   on its own line and forces the sibling onto its own line too.
+        // This mirrors prettier's `softline` added around block children and the
+        // `breakParent` from `forceBreakContent` (which activates those softlines
+        // as hardlines when any block element is present).
         for w in fragment.nodes.windows(2) {
             let (a, b) = (&w[0], &w[1]);
             if matches!(a, TemplateNode::Text(_)) || matches!(b, TemplateNode::Text(_)) {
@@ -258,7 +304,9 @@ fn collect_indent_edits_inner(
             }
             let is_comment =
                 matches!(a, TemplateNode::Comment(_)) || matches!(b, TemplateNode::Comment(_));
-            if !is_comment {
+            let a_is_block = matches!(a, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+            let b_is_block = matches!(b, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+            if !is_comment && !a_is_block && !b_is_block {
                 continue;
             }
             let boundary = crate::collapse::template_node_span(a).1;
@@ -589,4 +637,51 @@ fn indent_for_level(level: usize, opts: &JsFormatOptions) -> String {
     } else {
         " ".repeat(level * opts.indent_width.value() as usize)
     }
+}
+
+/// Block-display HTML elements as defined by prettier-plugin-svelte's
+/// `blockElements` array. These are the elements whose presence in a
+/// fragment triggers `forceBreakContent` — when any child is one of these,
+/// all siblings are rendered on their own lines (prettier's `breakParent`).
+///
+/// Note: this list matches prettier-plugin-svelte exactly (not the
+/// CSS display defaults used by the collapse pass — those are a superset
+/// that also include inline-block elements like `<button>`).
+fn is_prettier_block_element(tag: &str) -> bool {
+    matches!(
+        tag,
+        "address"
+            | "article"
+            | "aside"
+            | "blockquote"
+            | "details"
+            | "dialog"
+            | "dd"
+            | "div"
+            | "dl"
+            | "dt"
+            | "fieldset"
+            | "figcaption"
+            | "figure"
+            | "footer"
+            | "form"
+            | "h1"
+            | "h2"
+            | "h3"
+            | "h4"
+            | "h5"
+            | "h6"
+            | "header"
+            | "hgroup"
+            | "hr"
+            | "li"
+            | "main"
+            | "nav"
+            | "ol"
+            | "p"
+            | "pre"
+            | "section"
+            | "table"
+            | "ul"
+    )
 }
