@@ -2315,7 +2315,37 @@ fn handle_regular_element(
     // children by the closing-tag overwrite.
     opener_segs.push(Seg::Lit("});".to_string()));
     opener_segs.extend(class_style_suffix_segs);
-    opener_segs.push(Seg::Lit(format!("{}{}", directive_suffix, bind_suffix)));
+    // Order the `bind:` assignments and transition/animate suffixes by their
+    // source-attribute position — official appends them in attribute order, so
+    // `bind:this={x} out:fade` emits the bind first while `out:fade bind:this`
+    // emits the transition first.
+    let first_bind_pos = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::BindDirective(b) => Some(b.start),
+            _ => None,
+        })
+        .min();
+    let first_directive_pos = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::TransitionDirective(t) => Some(t.start),
+            Attribute::AnimateDirective(an) => Some(an.start),
+            _ => None,
+        })
+        .min();
+    let bind_first = match (first_bind_pos, first_directive_pos) {
+        (Some(b), Some(d)) => b < d,
+        _ => false,
+    };
+    let combined_suffix = if bind_first {
+        format!("{}{}", bind_suffix, directive_suffix)
+    } else {
+        format!("{}{}", directive_suffix, bind_suffix)
+    };
+    opener_segs.push(Seg::Lit(combined_suffix));
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
