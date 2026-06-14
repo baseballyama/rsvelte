@@ -1620,18 +1620,24 @@ fn handle_await_block(
                 // must be wrapped in a `try {` so the later `} catch(...) {`
                 // is balanced. Mirrors upstream `handleAwait` emitting
                 // `try { ` whenever `error || !catch.skip`.
+                // `const $$_value = ` and the `{ const VALUE = $$_value; ` inner
+                // block are emitted ONLY when there's a `{:then value}` binding
+                // (mirrors official `handleAwait`, which gates both on
+                // `awaitBlock.value`). A bare `{:then}` is just `await (…);` with
+                // the then-body inline.
                 str.prepend_right(
                     expr_start,
-                    if has_catch {
-                        "try { const $$_value = await ("
-                    } else {
-                        "const $$_value = await ("
+                    match (has_catch, value_text.is_empty()) {
+                        (true, false) => "try { const $$_value = await (",
+                        (true, true) => "try { await (",
+                        (false, false) => "const $$_value = await (",
+                        (false, true) => "await (",
                     },
                 );
                 let suffix = if !value_text.is_empty() {
                     format!(");{{ const {} = $$_value; ", value_text)
                 } else {
-                    ");{ ".to_string()
+                    ");".to_string()
                 };
                 str.append_left(expr_end, &suffix);
                 if prev_end < then_start {
@@ -1679,21 +1685,24 @@ fn handle_await_block(
                     then_start
                 };
 
+                // Close the `try` (always) plus the value block (only when a
+                // `{:then value}` binding opened one), then open the catch.
+                let close_before_catch = if value_text.is_empty() { "}" } else { "}}" };
                 if !error_text.is_empty() {
                     str.overwrite(
                         then_end,
                         catch_start,
                         &format!(
-                            "}}}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                            error_text
+                            "{} catch($$_e) {{ const {} = __sveltets_2_any();",
+                            close_before_catch, error_text
                         ),
                     );
                 } else {
-                    // Variable-less `{:catch}` — close the value block + `try`
-                    // (two `}`) and open the catch. Always emit the `($$_e)`
-                    // binding so the braces stay balanced and the shape matches
-                    // the with-variable case; upstream does the same.
-                    str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
+                    str.overwrite(
+                        then_end,
+                        catch_start,
+                        &format!("{} catch($$_e) {{ ", close_before_catch),
+                    );
                 }
 
                 process_fragment_inplace(catch, source, options, str, counter, depth);
@@ -1708,14 +1717,16 @@ fn handle_await_block(
                     str.overwrite(catch_end, block.end, "}}");
                 }
             } else {
-                // No catch: close then scope + await block
+                // No catch: close the value block (if any) + the outer await
+                // block. A bare `{:then}` opened only the outer block.
                 let then_end = if !then.nodes.is_empty() {
                     then.nodes.last().unwrap().end()
                 } else {
                     then_start
                 };
                 if then_end < block.end {
-                    str.overwrite(then_end, block.end, "}}");
+                    let close = if value_text.is_empty() { "}" } else { "}}" };
+                    str.overwrite(then_end, block.end, close);
                 }
             }
         } else {
