@@ -255,6 +255,12 @@ impl ExportedNames {
     pub fn has(&self, name: &str) -> bool {
         self.names.contains_key(name)
     }
+    /// True if `local` is the *local* (source-declared) name of any export.
+    /// Unlike [`has`], this matches through aliases: `export { v1 as a1 }`
+    /// is keyed by `a1`, but its local name is `v1`.
+    pub fn has_local(&self, local: &str) -> bool {
+        self.names.values().any(|info| info.local_name == local)
+    }
     pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
         self.names.get(name)
     }
@@ -1003,7 +1009,10 @@ pub fn process_instance_script(
                     // Check if any declarator in this statement is exported
                     let any_exported = var_decl.declarations.iter().any(|d| {
                         if let Some(name) = binding_pattern_simple_name(&d.id) {
-                            exported_names.has(&name)
+                            // Match through aliases: `export { v1 as a1 }` keys
+                            // the entry by `a1`, so `has(v1)` is false — check
+                            // the local name too.
+                            exported_names.has(&name) || exported_names.has_local(&name)
                         } else {
                             false
                         }
@@ -1017,6 +1026,35 @@ pub fn process_instance_script(
                                 .map(|p| decl_end_rel + p as u32)
                                 .unwrap_or(decl_end_rel);
                             str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
+                        }
+                        // Mirror official `propTypeAssertToUserDefined`, which is
+                        // invoked on the *whole* declaration list when any of its
+                        // bindings is exported by reference and wraps EVERY
+                        // widening-eligible declarator — including siblings that
+                        // are not themselves exported. The exported declarators
+                        // are already wrapped in the export-specifier handling
+                        // (Case 2), so here we only cover the non-exported
+                        // siblings to avoid double-wrapping.
+                        for d in var_decl.declarations.iter() {
+                            let Some(name) = binding_pattern_simple_name(&d.id) else {
+                                continue;
+                            };
+                            if exported_names.has(&name) || exported_names.has_local(&name) {
+                                continue;
+                            }
+                            // Match handleTypeAssertion's widening condition:
+                            // no initializer, OR a boolean-literal initializer
+                            // (TS narrows `let x = false` to `false`), OR a type
+                            // annotation.
+                            let widen = d.init.is_none()
+                                || matches!(d.init, Some(oxc::Expression::BooleanLiteral(_)))
+                                || d.type_annotation.is_some();
+                            if widen {
+                                let inject = format!(
+                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                );
+                                str.append_left(d.span.end + offset, &inject);
+                            }
                         }
                     }
                 }
