@@ -5,7 +5,9 @@ name: corpus-compat
 # sveltejs/svelte.dev (pinned by the submodules/svelte.dev gitlink) with BOTH the
 # official Svelte compiler and rsvelte, for client (CSR) and server (SSR)
 # targets, normalizes both output trees with oxfmt, and requires the results
-# to be byte-identical. See scripts/compat-corpus/README.md.
+# to be byte-identical. The same corpus also drives a svelte2tsx TSX
+# output-parity check (official svelte2tsx from submodules/language-tools vs
+# rsvelte's port). See scripts/compat-corpus/README.md.
 #
 # Expected outputs are regenerated from the pinned upstreams on every run, so
 # bumping either submodule (auto-update-svelte.yml for the compiler,
@@ -22,6 +24,7 @@ on:
       - 'compat/corpus/**'
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
+      - 'submodules/language-tools'
       - '.gitmodules'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -33,6 +36,7 @@ on:
       - 'compat/corpus/**'
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
+      - 'submodules/language-tools'
       - '.gitmodules'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -55,8 +59,8 @@ jobs:
         with:
           submodules: false
 
-      - name: Checkout svelte + svelte.dev submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
+      - name: Checkout svelte + svelte.dev + language-tools submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -91,6 +95,28 @@ jobs:
           cd submodules/svelte
           pnpm install --frozen-lockfile
 
+      - name: Resolve language-tools submodule SHA
+        id: lt-sha
+        run: echo "sha=$(git submodule status submodules/language-tools | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache official svelte2tsx build
+        id: s2t-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            submodules/language-tools/node_modules
+            submodules/language-tools/packages/svelte2tsx/index.js
+            submodules/language-tools/packages/svelte2tsx/index.mjs
+            submodules/language-tools/packages/svelte2tsx/index.d.ts
+          key: corpus-s2t-build-v1-${{ runner.os }}-${{ steps.lt-sha.outputs.sha }}-${{ hashFiles('submodules/language-tools/pnpm-lock.yaml') }}
+
+      - name: Build official svelte2tsx
+        if: steps.s2t-cache.outputs.cache-hit != 'true'
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter svelte2tsx build
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
@@ -109,6 +135,12 @@ jobs:
       - name: Verify (oxfmt-normalized outputs must be identical)
         run: node scripts/compat-corpus/verify.mjs
 
+      - name: Convert corpus to TSX (official svelte2tsx + rsvelte)
+        run: node scripts/compat-corpus/svelte2tsx-compile.mjs
+
+      - name: Verify svelte2tsx (oxfmt-normalized TSX must be identical)
+        run: node scripts/compat-corpus/svelte2tsx-verify.mjs
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -116,6 +148,7 @@ jobs:
           name: corpus-report
           path: |
             compat/corpus/report.json
+            compat/corpus/report-s2t.json
             compat/corpus/manifest.json
           if-no-files-found: ignore
           retention-days: 14

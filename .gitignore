@@ -115,6 +115,9 @@ artifacts/
 compat/corpus/sources/
 compat/corpus/expected/
 compat/corpus/actual/
+compat/corpus/expected-s2t/
+compat/corpus/actual-s2t/
 compat/corpus/manifest.json
 compat/corpus/report.json
+compat/corpus/report-s2t.json
 compat/corpus/.oxfmt-ignore-nothing
