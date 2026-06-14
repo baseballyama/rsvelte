@@ -130,6 +130,9 @@ struct PossibleExport {
     has_type_annotation: bool,
     decl_end: u32,
     type_annotation_text: Option<String>,
+    /// Leading JSDoc `/** @type {…} */` on the declaration, for
+    /// `export { x as y }` (the doc lives on the `let x` declaration).
+    doc: Option<String>,
 }
 
 impl ExportedNames {
@@ -847,6 +850,10 @@ pub fn process_instance_script(
                                     has_type_annotation: declarator.type_annotation.is_some(),
                                     decl_end: declarator.span.end,
                                     type_annotation_text: ta_text,
+                                    doc: leading_jsdoc_comment(
+                                        raw_content,
+                                        var_decl.span.start as usize,
+                                    ),
                                 },
                             );
                         }
@@ -958,6 +965,10 @@ pub fn process_instance_script(
                                                     .is_some(),
                                                 decl_end: declarator.span.end,
                                                 type_annotation_text: ta_text,
+                                                doc: leading_jsdoc_comment(
+                                                    raw_content,
+                                                    var_decl.span.start as usize,
+                                                ),
                                             },
                                         );
                                     }
@@ -2758,9 +2769,10 @@ fn handle_export_named_decl(
             let is_let = possible.map(|p| p.is_let).unwrap_or(false);
             let has_init = possible.map(|p| p.has_init).unwrap_or(true);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
+            let doc = possible.and_then(|p| p.doc.clone());
             let is_prop = is_instance && is_let;
             exported_names.add_full(
-                exported,
+                exported.clone(),
                 local.clone(),
                 has_init,
                 type_ann,
@@ -2768,6 +2780,11 @@ fn handle_export_named_decl(
                 is_let,
                 true,
             );
+            // The JSDoc lives on the `let x` declaration; carry it onto the
+            // export so it round-trips into the legacy props return.
+            if let Some(doc) = doc {
+                exported_names.set_doc(&exported, doc);
+            }
             // Inject __sveltets_2_any for exported variables that either:
             // 1. Have no initializer (export { x } where x has no default)
             // 2. Have a type annotation (export { x } where x: Type = value)
