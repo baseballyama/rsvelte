@@ -807,25 +807,27 @@ fn process_node_inplace(
 /// (replaced with empty). Whitespace characters are kept as-is.
 /// If the result is empty but the original text had content, at least 1
 /// space is preserved (to prevent hover artifacts in the language server).
-fn handle_text(text: &Text, source: &str, str: &mut MagicString) {
+fn handle_text(text: &Text, _source: &str, str: &mut MagicString) {
     if text.start >= text.end {
         return;
     }
-    let raw = &source[text.start as usize..text.end as usize];
-    // Match JS reference (`htmlxtojsx_v2/nodes/Text.ts`) which inspects
-    // `node.data` — the parsed-and-trimmed inner text — not the raw range.
-    // Svelte's parser strips leading/trailing whitespace from text data, so
-    // for `\n    x\n` we should look at just `x` when deciding whether the
-    // fallback ` ` replacement applies. Our `Text.data` keeps surrounding
-    // whitespace, so trim it here.
-    let data_trim = text.data.trim_matches(|c: char| c.is_whitespace());
-    let mut replacement: String = data_trim.chars().filter(|c| c.is_whitespace()).collect();
-    if replacement.is_empty() && !data_trim.is_empty() {
+    // Mirror JS reference (`htmlxtojsx_v2/nodes/Text.ts`) exactly: it inspects
+    // `node.data` — the *decoded* inner text (HTML entities resolved, e.g.
+    // `&nbsp;` → U+00A0) — and emits `node.data.replace(/\S/g, '')`, i.e. it
+    // strips every non-whitespace character and keeps the whitespace as-is.
+    // If nothing survives but the data was non-empty, a single space is kept
+    // (so hovering over text doesn't surface the containing tag's info).
+    //
+    // Using `node.data` rather than the raw source range is essential: the raw
+    // range for `&nbsp;` is the literal `&nbsp;`, which is invalid JS and made
+    // oxfmt reject the whole output. The decoded U+00A0 is a JS whitespace
+    // character, so it formats away cleanly like any other whitespace.
+    if text.data.is_empty() {
+        return;
+    }
+    let mut replacement: String = text.data.chars().filter(|c| c.is_whitespace()).collect();
+    if replacement.is_empty() {
         replacement = " ".to_string();
-    } else if data_trim.is_empty() {
-        // Pure whitespace text — keep the original whitespace structure so
-        // surrounding indentation is preserved.
-        replacement = raw.to_string();
     }
     str.overwrite(text.start, text.end, &replacement);
 }
