@@ -256,7 +256,7 @@ impl ExportedNames {
         self.names.contains_key(name)
     }
     /// True if `local` is the *local* (source-declared) name of any export.
-    /// Unlike [`has`], this matches through aliases: `export { v1 as a1 }`
+    /// Unlike `has`, this matches through aliases: `export { v1 as a1 }`
     /// is keyed by `a1`, but its local name is `v1`.
     pub fn has_local(&self, local: &str) -> bool {
         self.names.values().any(|info| info.local_name == local)
