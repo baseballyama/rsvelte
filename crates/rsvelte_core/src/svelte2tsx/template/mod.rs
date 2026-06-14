@@ -404,18 +404,45 @@ fn emit_segmented_overwrite(
     }
 }
 
+/// Sanitize a component name for use in variable names.
+///
+/// Mirrors `sanitizePropName` in `htmlxtojsx_v2/utils/node-utils.ts`:
+/// each character that is NOT `[0-9A-Za-z$_]` is replaced with `_`.
+/// Applied BEFORE reversing, so `Foo.Bar` → `Foo_Bar` → reversed `raB_ooF`.
+fn sanitize_prop_name(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '$' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
 /// Generate a reversed component constructor variable name.
-/// Component → $$_tnenopmoC0C (always ends with 'C' for Constructor)
-fn reversed_component_name(name: &str, index: u32) -> String {
-    let reversed: String = name.chars().rev().collect();
-    format!("$$_{}{}C", reversed, index)
+///
+/// Mirrors upstream `InlineComponent.ts`:
+///   `this._name = '$$_' + Array.from(sanitizePropName(name)).reverse().join('') + depth`
+///   `const constructorName = this._name + 'C'`
+///
+/// The `depth` (ancestor element/component count, NOT including blocks/root)
+/// replaces the old per-name counter so two `<A/>` at the same level both
+/// get index 0 — `$$_A0C` — matching the official tool.
+fn reversed_component_name(name: &str, depth: u32) -> String {
+    let sanitized = sanitize_prop_name(name);
+    let reversed: String = sanitized.chars().rev().collect();
+    format!("$$_{}{}C", reversed, depth)
 }
 
 /// Generate a reversed component instance variable name.
-/// Component → $$_tnenopmoC0 (no suffix)
-fn reversed_component_instance_name(name: &str, index: u32) -> String {
-    let reversed: String = name.chars().rev().collect();
-    format!("$$_{}{}", reversed, index)
+///
+/// Like `reversed_component_name` but without the trailing `C` suffix.
+fn reversed_component_instance_name(name: &str, depth: u32) -> String {
+    let sanitized = sanitize_prop_name(name);
+    let reversed: String = sanitized.chars().rev().collect();
+    format!("$$_{}{}", reversed, depth)
 }
 
 /// Counter for generating unique variable names.
@@ -430,6 +457,7 @@ impl Counter {
             counters: std::collections::HashMap::new(),
         }
     }
+    #[allow(dead_code)]
     fn next(&mut self) -> u32 {
         self.next_for("")
     }
@@ -459,7 +487,8 @@ pub fn process_template_inplace(
     str: &mut MagicString,
 ) {
     let mut counter = Counter::new();
-    process_fragment_inplace(fragment, source, _options, str, &mut counter);
+    // depth 0 = root fragment; elements and components increment it for their children
+    process_fragment_inplace(fragment, source, _options, str, &mut counter, 0);
 
     // Blank out any trailing whitespace-only content after the last template node.
     // This prevents stray newlines from the source appearing between the template
@@ -681,15 +710,20 @@ fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString
 }
 
 /// Process a fragment's child nodes in-place.
+///
+/// `depth` is the current nesting depth: how many ancestor element / component
+/// nodes surround this fragment.  Blocks (if/each/await/key/snippet) do NOT
+/// increment the depth; only `RegularElement` and component nodes do.
 fn process_fragment_inplace(
     fragment: &Fragment,
     source: &str,
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     for node in &fragment.nodes {
-        process_node_inplace(node, source, options, str, counter);
+        process_node_inplace(node, source, options, str, counter, depth);
     }
 }
 
@@ -700,6 +734,7 @@ fn process_node_inplace(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     match node {
         TemplateNode::Text(text) => handle_text(text, source, str),
@@ -711,26 +746,29 @@ fn process_node_inplace(
         TemplateNode::DebugTag(tag) => handle_debug_tag(tag, source, str),
         TemplateNode::RenderTag(tag) => handle_render_tag(tag, source, str),
         TemplateNode::AttachTag(tag) => handle_attach_tag(tag, str),
-        TemplateNode::IfBlock(block) => handle_if_block(block, source, options, str, counter),
-        TemplateNode::EachBlock(block) => handle_each_block(block, source, options, str, counter),
-        TemplateNode::AwaitBlock(block) => handle_await_block(block, source, options, str, counter),
-        TemplateNode::KeyBlock(block) => handle_key_block(block, source, options, str, counter),
+        // Control-flow blocks do NOT increment depth (mirrors official computeDepth which
+        // only counts ancestor Element/InlineComponent nodes, not block nodes or root).
+        TemplateNode::IfBlock(block) => handle_if_block(block, source, options, str, counter, depth),
+        TemplateNode::EachBlock(block) => handle_each_block(block, source, options, str, counter, depth),
+        TemplateNode::AwaitBlock(block) => handle_await_block(block, source, options, str, counter, depth),
+        TemplateNode::KeyBlock(block) => handle_key_block(block, source, options, str, counter, depth),
         TemplateNode::SnippetBlock(block) => {
-            handle_snippet_block(block, source, options, str, counter)
+            handle_snippet_block(block, source, options, str, counter, depth)
         }
+        // Elements and components DO increment depth for their children.
         TemplateNode::RegularElement(el) => {
-            handle_regular_element(el, source, options, str, counter)
+            handle_regular_element(el, source, options, str, counter, depth)
         }
-        TemplateNode::Component(comp) => handle_component(comp, source, options, str, counter),
+        TemplateNode::Component(comp) => handle_component(comp, source, options, str, counter, depth),
         TemplateNode::SvelteComponent(comp) => {
-            handle_svelte_component(comp, source, options, str, counter)
+            handle_svelte_component(comp, source, options, str, counter, depth)
         }
         TemplateNode::SvelteElement(el) => {
-            handle_svelte_dynamic_element(el, source, options, str, counter)
+            handle_svelte_dynamic_element(el, source, options, str, counter, depth)
         }
-        TemplateNode::TitleElement(el) => handle_title_element(el, source, options, str, counter),
-        TemplateNode::SlotElement(el) => handle_slot_element(el, source, options, str, counter),
-        TemplateNode::SvelteSelf(el) => handle_svelte_self(el, source, options, str, counter),
+        TemplateNode::TitleElement(el) => handle_title_element(el, source, options, str, counter, depth),
+        TemplateNode::SlotElement(el) => handle_slot_element(el, source, options, str, counter, depth),
+        TemplateNode::SvelteSelf(el) => handle_svelte_self(el, source, options, str, counter, depth),
         TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
@@ -738,7 +776,7 @@ fn process_node_inplace(
         | TemplateNode::SvelteBoundary(el)
         | TemplateNode::SvelteHead(el)
         | TemplateNode::SvelteWindow(el) => {
-            handle_svelte_special_element(el, source, options, str, counter)
+            handle_svelte_special_element(el, source, options, str, counter, depth)
         }
     }
 }
@@ -985,6 +1023,7 @@ fn handle_if_block(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if block.start >= block.end {
         return;
@@ -1047,8 +1086,8 @@ fn handle_if_block(
         str.append_left(consequent_start, "{");
     }
 
-    // Process children
-    process_fragment_inplace(&block.consequent, source, options, str, counter);
+    // Process children (blocks don't increment depth)
+    process_fragment_inplace(&block.consequent, source, options, str, counter, depth);
 
     // Handle alternate
     if let Some(ref alternate) = block.alternate {
@@ -1070,7 +1109,7 @@ fn handle_if_block(
             // owns the `} else if (EXPR){` rewrite (see branch above).
             // Process the elseif block (which will handle its own
             // `} else if(...) {` rewrite).
-            process_fragment_inplace(alternate, source, options, str, counter);
+            process_fragment_inplace(alternate, source, options, str, counter, depth);
 
             // No closing `}` needed since the inner if block handles `{/if}`
         } else {
@@ -1085,7 +1124,7 @@ fn handle_if_block(
             str.overwrite(consequent_end, alternate_start, "} else {");
 
             // Process alternate children
-            process_fragment_inplace(alternate, source, options, str, counter);
+            process_fragment_inplace(alternate, source, options, str, counter, depth);
 
             // Overwrite `{/if}` with `}`
             let alternate_end = if !alternate.nodes.is_empty() {
@@ -1151,6 +1190,7 @@ fn handle_each_block(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if block.start >= block.end {
         return;
@@ -1305,8 +1345,8 @@ fn handle_each_block(
     // `{let}` declaration tags and elements that reference them.
     hoist_snippet_blocks(&block.body, source, str);
 
-    // Process body children
-    process_fragment_inplace(&block.body, source, options, str, counter);
+    // Process body children (each blocks don't increment depth)
+    process_fragment_inplace(&block.body, source, options, str, counter, depth);
 
     // Handle fallback ({:else}...{/each})
     let body_end = if !block.body.nodes.is_empty() {
@@ -1326,7 +1366,7 @@ fn handle_each_block(
         str.overwrite(body_end, fallback_start, "}");
 
         // Process fallback
-        process_fragment_inplace(fallback, source, options, str, counter);
+        process_fragment_inplace(fallback, source, options, str, counter, depth);
 
         let fallback_end = if !fallback.nodes.is_empty() {
             fallback.nodes.last().unwrap().end()
@@ -1361,6 +1401,7 @@ fn handle_await_block(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if block.start >= block.end {
         return;
@@ -1448,12 +1489,12 @@ fn handle_await_block(
                 if prev_end < then_start {
                     str.overwrite(prev_end, then_start, "");
                 }
-                process_fragment_inplace(pending, source, options, str, counter);
+                process_fragment_inplace(pending, source, options, str, counter, depth);
             } else {
                 // Parser couldn't span the expression — fall back to
                 // the original monolithic bake.
                 str.overwrite(block.start, pending_start, "   { ");
-                process_fragment_inplace(pending, source, options, str, counter);
+                process_fragment_inplace(pending, source, options, str, counter, depth);
                 // `try { ` wrapper when a catch/error is present (see above).
                 let try_prefix = if has_catch { "try { " } else { "" };
                 if !value_text.is_empty() {
@@ -1474,7 +1515,7 @@ fn handle_await_block(
                 }
             }
 
-            process_fragment_inplace(then, source, options, str, counter);
+            process_fragment_inplace(then, source, options, str, counter, depth);
 
             // Handle catch after then
             if let Some(ref catch) = block.catch {
@@ -1507,7 +1548,7 @@ fn handle_await_block(
                     str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
                 }
 
-                process_fragment_inplace(catch, source, options, str, counter);
+                process_fragment_inplace(catch, source, options, str, counter, depth);
 
                 let catch_end = if !catch.nodes.is_empty() {
                     catch.nodes.last().unwrap().end()
@@ -1547,7 +1588,7 @@ fn handle_await_block(
             // Opening `{ ` — consume the `{#await PROMISE}` opener (PROMISE is
             // re-emitted as `await(...)` after the pending body).
             str.overwrite(block.start, pending_start, "   { ");
-            process_fragment_inplace(pending, source, options, str, counter);
+            process_fragment_inplace(pending, source, options, str, counter, depth);
 
             if let Some(ref catch) = block.catch {
                 let catch_start = if !catch.nodes.is_empty() {
@@ -1568,7 +1609,7 @@ fn handle_await_block(
                 } else {
                     str.append_left(pending_end, &header);
                 }
-                process_fragment_inplace(catch, source, options, str, counter);
+                process_fragment_inplace(catch, source, options, str, counter, depth);
                 let catch_end = if !catch.nodes.is_empty() {
                     catch.nodes.last().unwrap().end()
                 } else {
@@ -1632,7 +1673,7 @@ fn handle_await_block(
             );
         }
 
-        process_fragment_inplace(then, source, options, str, counter);
+        process_fragment_inplace(then, source, options, str, counter, depth);
 
         let then_end = if !then.nodes.is_empty() {
             then.nodes.last().unwrap().end()
@@ -1666,7 +1707,7 @@ fn handle_await_block(
                 str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
             }
 
-            process_fragment_inplace(catch, source, options, str, counter);
+            process_fragment_inplace(catch, source, options, str, counter, depth);
 
             let catch_end = if !catch.nodes.is_empty() {
                 catch.nodes.last().unwrap().end()
@@ -1724,7 +1765,7 @@ fn handle_await_block(
             );
         }
 
-        process_fragment_inplace(catch, source, options, str, counter);
+        process_fragment_inplace(catch, source, options, str, counter, depth);
 
         let catch_end = if !catch.nodes.is_empty() {
             catch.nodes.last().unwrap().end()
@@ -1748,6 +1789,7 @@ fn handle_key_block(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if block.start >= block.end {
         return;
@@ -1775,7 +1817,7 @@ fn handle_key_block(
     }
 
     // Process children
-    process_fragment_inplace(&block.fragment, source, options, str, counter);
+    process_fragment_inplace(&block.fragment, source, options, str, counter, depth);
 
     let content_end = if !block.fragment.nodes.is_empty() {
         block.fragment.nodes.last().unwrap().end()
@@ -1802,8 +1844,9 @@ fn handle_snippet_block(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
-    handle_snippet_block_inner(block, source, options, str, counter, false);
+    handle_snippet_block_inner(block, source, options, str, counter, false, depth);
 }
 
 /// Transform a `{#snippet name(params)}` block that is a direct child of a
@@ -1821,8 +1864,9 @@ fn handle_snippet_block_as_component_prop(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
-    handle_snippet_block_inner(block, source, options, str, counter, true);
+    handle_snippet_block_inner(block, source, options, str, counter, true, depth);
 }
 
 fn handle_snippet_block_inner(
@@ -1832,6 +1876,7 @@ fn handle_snippet_block_inner(
     str: &mut MagicString,
     counter: &mut Counter,
     as_component_prop: bool,
+    depth: u32,
 ) {
     if block.start >= block.end {
         return;
@@ -1905,7 +1950,7 @@ fn handle_snippet_block_inner(
     if has_body_nodes {
         str.overwrite(block.start, body_start, &header);
         // Process body
-        process_fragment_inplace(&block.body, source, options, str, counter);
+        process_fragment_inplace(&block.body, source, options, str, counter, depth);
 
         let body_end = block.body.nodes.last().unwrap().end();
         if body_end < block.end {
@@ -1940,6 +1985,7 @@ fn handle_regular_element(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if el.start >= el.end {
         return;
@@ -2071,8 +2117,9 @@ fn handle_regular_element(
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
-    // Process children
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    // Process children at depth+1: this element is now an ancestor.
+    // Mirrors official computeDepth which counts all ancestor element/component nodes.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     // Find and overwrite the closing tag.
     // HTML void elements (`<input>`, `<br>`, …) and source-level self-closing
@@ -2116,13 +2163,17 @@ fn handle_component(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if comp.start >= comp.end {
         return;
     }
 
-    let idx = counter.next_for(&comp.name);
-    let ctor_var = reversed_component_name(&comp.name, idx);
+    // Use depth (ancestor element/component count) as the variable index, matching
+    // the official `computeDepth()` in `htmlxtojsx_v2/nodes/InlineComponent.ts`.
+    // Two sibling `<A/>` at the same depth both get `$$_A<depth>C`, which is correct —
+    // the official tool reuses the same name for components at the same depth.
+    let ctor_var = reversed_component_name(&comp.name, depth);
 
     // Find the end of the opening tag
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
@@ -2221,7 +2272,7 @@ fn handle_component(
     }
 
     // Build the replacement for the opening tag.
-    let inst_var = reversed_component_instance_name(&comp.name, idx);
+    let inst_var = reversed_component_instance_name(&comp.name, depth);
     // Component-side `bind:` suffix: type-widener + `$$bindings` marker.
     // Mirrors the JS reference's component branch in
     // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`:
@@ -2307,6 +2358,7 @@ fn handle_component(
             options,
             str,
             counter,
+            depth + 1,
         );
     } else if use_snippet_props {
         // Process children, turning each direct `{#snippet}` child into an
@@ -2330,7 +2382,9 @@ fn handle_component(
                     continue;
                 }
                 snippet_names.push(get_expression_text(&s.expression, source).to_string());
-                handle_snippet_block_as_component_prop(s, source, options, str, counter);
+                // This snippet is a child of the component, so its body is at depth+1
+                // (the component is now an ancestor), consistent with the simple-children path.
+                handle_snippet_block_as_component_prop(s, source, options, str, counter, depth + 1);
                 if s.start == anchor {
                     anchor = s.end;
                 } else {
@@ -2338,7 +2392,8 @@ fn handle_component(
                 }
                 last_snippet_end = Some(s.end);
             } else {
-                process_node_inplace(node, source, options, str, counter);
+                // Children of a component are at depth+1 (this component is the ancestor)
+                process_node_inplace(node, source, options, str, counter, depth + 1);
             }
         }
         // After closing the `new Component({ props: { … } })` statement,
@@ -2370,8 +2425,8 @@ fn handle_component(
             }
         }
     } else {
-        // Simple children processing (no slot scoping needed)
-        process_fragment_inplace(&comp.fragment, source, options, str, counter);
+        // Simple children processing: this component is now an ancestor → depth+1.
+        process_fragment_inplace(&comp.fragment, source, options, str, counter, depth + 1);
     }
 
     // For components with `let:` but NO children (in either bracketed
@@ -2480,6 +2535,7 @@ fn process_component_children_with_slots(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     let has_lets = !let_directives.is_empty();
 
@@ -2541,21 +2597,21 @@ fn process_component_children_with_slots(
             // dedicated handlers below); they're nested inside the
             // outer default block.
 
-            // Process the named slot child
+            // Process the named slot child (children of the parent component are at depth+1)
             match node {
                 TemplateNode::RegularElement(el) => {
-                    handle_named_slot_element(el, inst_var, source, options, str, counter);
+                    handle_named_slot_element(el, inst_var, source, options, str, counter, depth);
                 }
                 TemplateNode::Component(child_comp) => {
                     handle_named_slot_component(
-                        child_comp, inst_var, source, options, str, counter,
+                        child_comp, inst_var, source, options, str, counter, depth,
                     );
                 }
                 TemplateNode::SvelteFragment(el) => {
-                    handle_named_slot_svelte_fragment(el, inst_var, source, options, str, counter);
+                    handle_named_slot_svelte_fragment(el, inst_var, source, options, str, counter, depth);
                 }
                 _ => {
-                    process_node_inplace(node, source, options, str, counter);
+                    process_node_inplace(node, source, options, str, counter, depth);
                 }
             }
 
@@ -2614,7 +2670,7 @@ fn process_component_children_with_slots(
             } else {
                 false
             };
-            process_node_inplace(node, source, options, str, counter);
+            process_node_inplace(node, source, options, str, counter, depth);
             if fragment_block_open {
                 str.append_left(node.end(), "}");
             }
@@ -2647,6 +2703,7 @@ fn handle_named_slot_element(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
     let let_directives = get_let_directives(&el.attributes);
@@ -2672,7 +2729,8 @@ fn handle_named_slot_element(
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    // This named-slot element is a RegularElement — its children are at depth+1.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     let closing_tag_start = find_closing_tag_start(source, el.end);
     if closing_tag_start < el.end {
@@ -2695,6 +2753,7 @@ fn handle_named_slot_svelte_fragment(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     let slot_name = get_slot_attr_value(&el.attributes, source).unwrap_or_default();
     let let_directives = get_let_directives(&el.attributes);
@@ -2747,7 +2806,7 @@ fn handle_named_slot_svelte_fragment(
     }
 
     str.overwrite(el.start, opening_tag_end, &opener);
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth);
     str.overwrite(closing_tag_start, el.end, " }}");
 }
 
@@ -2759,6 +2818,7 @@ fn handle_named_slot_component(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     let slot_name = get_slot_attr_value(&comp.attributes, source).unwrap_or_default();
     let let_directives = get_let_directives(&comp.attributes);
@@ -2774,7 +2834,7 @@ fn handle_named_slot_component(
     str.append_left(comp.start, &block_open);
 
     // Process the component normally (but without the slot/let: attributes affecting it)
-    handle_component(comp, source, options, str, counter);
+    handle_component(comp, source, options, str, counter, depth);
 
     // Close the named slot block
     str.append_left(comp.end, "}");
@@ -2861,6 +2921,7 @@ fn handle_svelte_component(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if comp.start >= comp.end {
         return;
@@ -2869,7 +2930,6 @@ fn handle_svelte_component(
     let expr_text = get_expression_text(&comp.expression, source);
     // Use "svelte:component" as the name for variable naming, with ':' replaced by '_'
     let scomp_name = "svelte:component".replace(':', "_");
-    let idx = counter.next_for(&scomp_name);
 
     let opening_tag_end = find_opening_tag_end(source, comp.start, comp.end);
 
@@ -2910,8 +2970,8 @@ fn handle_svelte_component(
         }
     }
 
-    let ctor_var = reversed_component_name(&scomp_name, idx);
-    let inst_var = reversed_component_instance_name(&scomp_name, idx);
+    let ctor_var = reversed_component_name(&scomp_name, depth);
+    let inst_var = reversed_component_instance_name(&scomp_name, depth);
     // Need an instance variable when there are `on:` events OR `let:`
     // directives — both rely on `inst.$on(...)` / `inst.$$slot_def`.
     let needs_inst = has_events || has_lets_scomp;
@@ -2946,7 +3006,8 @@ fn handle_svelte_component(
 
     str.overwrite(comp.start, opening_tag_end, &opener);
 
-    process_fragment_inplace(&comp.fragment, source, options, str, counter);
+    // Children of svelte:component are at depth+1 (this component is now an ancestor).
+    process_fragment_inplace(&comp.fragment, source, options, str, counter, depth + 1);
 
     let closing_tag_start = find_closing_tag_start(source, comp.end);
     let closing_text = if has_lets_scomp { "}}" } else { "}" };
@@ -2964,6 +3025,7 @@ fn handle_svelte_dynamic_element(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if el.start >= el.end {
         return;
@@ -3028,7 +3090,8 @@ fn handle_svelte_dynamic_element(
         );
         str.overwrite(el.start, opening_tag_end, &opener);
 
-        process_fragment_inplace(&el.fragment, source, options, str, counter);
+        // svelte:element is an element node → children at depth+1.
+        process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
@@ -3046,6 +3109,7 @@ fn handle_title_element(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if el.start >= el.end {
         return;
@@ -3060,7 +3124,8 @@ fn handle_title_element(
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    // title is an element → children at depth+1.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     let closing_tag_start = find_closing_tag_start(source, el.end);
     if closing_tag_start < el.end {
@@ -3082,6 +3147,7 @@ fn handle_slot_element(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if el.start >= el.end {
         return;
@@ -3114,8 +3180,8 @@ fn handle_slot_element(
     };
     str.overwrite(el.start, opening_tag_end, &opener);
 
-    // Process fallback children
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    // Process fallback children: slot is an element → children at depth+1.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     // Handle closing tag
     let closing_tag_start = find_closing_tag_start(source, el.end);
@@ -3171,6 +3237,7 @@ fn handle_svelte_self(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if el.start >= el.end {
         return;
@@ -3226,9 +3293,10 @@ fn handle_svelte_self(
     };
 
     let needs_inst_var = has_on_directives || !let_directives.is_empty();
+    // Use depth as the instance variable index, mirroring official InlineComponent.ts
+    // `this._name = '$$_svelteself' + this.computeDepth()`.
     let var_name = if needs_inst_var {
-        let idx = counter.next_for("svelteself");
-        Some(format!("$$_svelteself{}", idx))
+        Some(format!("$$_svelteself{}", depth))
     } else {
         None
     };
@@ -3284,7 +3352,8 @@ fn handle_svelte_self(
     }
 
     str.overwrite(el.start, opening_tag_end, &opener);
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    // svelte:self is a component → children at depth+1.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
     let trailing = if has_lets { "}}" } else { "}" };
     str.overwrite(closing_tag_start, el.end, trailing);
 }
@@ -3296,6 +3365,7 @@ fn handle_svelte_special_element(
     options: &Svelte2TsxOptions,
     str: &mut MagicString,
     counter: &mut Counter,
+    depth: u32,
 ) {
     if el.start >= el.end {
         return;
@@ -3321,7 +3391,9 @@ fn handle_svelte_special_element(
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
-    process_fragment_inplace(&el.fragment, source, options, str, counter);
+    // Special svelte elements (svelte:head, svelte:body, etc.) are element nodes
+    // → children at depth+1, consistent with RegularElement treatment.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     let closing_tag_start = find_closing_tag_start(source, el.end);
     if closing_tag_start < el.end {
@@ -4861,9 +4933,19 @@ mod tests {
 
     #[test]
     fn test_reversed_component_name() {
+        // Basic cases: depth (not per-name counter) is the suffix.
         assert_eq!(reversed_component_name("Component", 0), "$$_tnenopmoC0C");
+        // depth=1 → `$$_ooF1C` (same as before, index was already depth in these examples)
         assert_eq!(reversed_component_name("Foo", 1), "$$_ooF1C");
         assert_eq!(reversed_component_name("Button", 0), "$$_nottuB0C");
+        // sanitizePropName: '.' is not [0-9A-Za-z$_], replaced with '_' before reversing.
+        // "Foo.Bar" → sanitized "Foo_Bar" → reversed "raB_ooF" → "$$_raB_ooF0C"
+        assert_eq!(reversed_component_name("Foo.Bar", 0), "$$_raB_ooF0C");
+        // Namespaced component: "Namespace:Comp" → "Namespace_Comp" → "pmoC_ecapsmaN" → "$$_pmoC_ecapsmaN0C"
+        assert_eq!(
+            reversed_component_name("Namespace:Comp", 0),
+            "$$_pmoC_ecapsmaN0C"
+        );
     }
 
     #[test]
@@ -4873,6 +4955,20 @@ mod tests {
             "$$_tnenopmoC0"
         );
         assert_eq!(reversed_component_instance_name("Button", 0), "$$_nottuB0");
+        // sanitizePropName applied before reversing for instance names too.
+        assert_eq!(reversed_component_instance_name("Foo.Bar", 0), "$$_raB_ooF0");
+    }
+
+    #[test]
+    fn test_sanitize_prop_name() {
+        // Valid chars pass through unchanged.
+        assert_eq!(sanitize_prop_name("Component"), "Component");
+        assert_eq!(sanitize_prop_name("Foo_Bar"), "Foo_Bar");
+        assert_eq!(sanitize_prop_name("$foo"), "$foo");
+        // Invalid chars are replaced with '_'.
+        assert_eq!(sanitize_prop_name("Foo.Bar"), "Foo_Bar");
+        assert_eq!(sanitize_prop_name("svelte:self"), "svelte_self");
+        assert_eq!(sanitize_prop_name("a-b-c"), "a_b_c");
     }
 
     #[test]
