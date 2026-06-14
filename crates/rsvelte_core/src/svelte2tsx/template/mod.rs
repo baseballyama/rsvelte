@@ -3698,23 +3698,61 @@ fn handle_svelte_special_element(
                 );
             }
         }
+        // `use:` / `transition:` / `animate:` directives on a special element
+        // (e.g. `<svelte:body use:tooltip={…}>`) become the same V4-style
+        // action/transition emission as on a regular element: an
+        // `const $$action_N = __sveltets_2_ensureAction(…);` prefix, a
+        // `__sveltets_2_union($$action_N)` second argument to `createElement`,
+        // and transition/animate suffixes. The action's `mapElementTag` uses the
+        // mapped tag name (`svelte:body` → `body`, per official Element.ts).
+        let action_tag = if el.name == "svelte:body" {
+            "body"
+        } else {
+            el.name.as_str()
+        };
+        let (directive_prefix, directive_suffix, action_count) =
+            build_directive_prefix_suffix(&el.attributes, source, action_tag);
+        let actions_arg = if action_count > 0 {
+            let mut args = String::from(", __sveltets_2_union(");
+            for i in 0..action_count {
+                if i > 0 {
+                    args.push(',');
+                }
+                let _ = write!(args, "$$action_{}", i);
+            }
+            args.push(')');
+            args
+        } else {
+            String::new()
+        };
+
         // Default path: all children (including any snippets) are processed
-        // as standalone declarations inside the block.
-        let opener = format!(
-            " {{ svelteHTML.createElement(\"{}\", {{{}}});{}",
-            el.name, attrs_str, bind_suffix
-        );
+        // as standalone declarations inside the block. When `directive_prefix`
+        // is present it opens an extra outer block scope (for the action
+        // declarations), closed by a matching extra `}` after the children.
+        let opener = if directive_prefix.is_empty() {
+            format!(
+                " {{ svelteHTML.createElement(\"{}\", {{{}}});{}{}",
+                el.name, attrs_str, bind_suffix, directive_suffix
+            )
+        } else {
+            format!(
+                " {{{}{{ svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
+                directive_prefix, el.name, actions_arg, attrs_str, bind_suffix, directive_suffix
+            )
+        };
         str.overwrite(el.start, opening_tag_end, &opener);
 
         // Special svelte elements (svelte:head, svelte:body, etc.) are element
         // nodes → children at depth+1, consistent with RegularElement treatment.
         process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
+        let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, " }");
+            str.overwrite(closing_tag_start, el.end, &format!(" }}{}", extra_close));
         } else {
-            str.append_left(el.end, "}");
+            str.append_left(el.end, &format!("}}{}", extra_close));
         }
     }
 }
