@@ -964,8 +964,34 @@ fn try_collapse(
     // (`<Message kind="info"\n  >text</Message\n>`), so use the inline predicate
     // here, not the component-inclusive `trims_edge`.
     if !trims_edge_whitespace(tag) && !had_lead && !had_trail {
-        if open.contains('\n') || !open.ends_with('>') {
+        if !open.ends_with('>') {
             return None;
+        }
+        if open.contains('\n') {
+            // Multi-line open tag (attributes wrapped): the open tag was produced
+            // by `render_multi_line` with `hug_open=true`, so the `>` is already
+            // glued to the last attribute line.  Check whether the last attribute
+            // line + `>` + content + `</tag` fits within the print width.
+            //
+            // We find the last line of the open tag by locating the last `\n` in
+            // `open`; that line starts right after the `\n`.
+            let last_line_start = open.rfind('\n').map_or(0, |i| i + 1);
+            let last_open_line = &open[last_line_start..]; // includes trailing `>`
+            let last_line_width = last_open_line.width() + collapsed.width() + 2 + tag.width();
+            if last_line_width <= line_width {
+                // Fits: keep the `>` glued to the last attribute line.
+                let result = format!("{open}{collapsed}</{tag}\n{indent}>");
+                return (result != whole).then_some((start, end, result));
+            }
+            // Doesn't fit: move `>` to a new line at the attribute indent
+            // so the content starts on an indented line: `  >content</tag\n>`.
+            let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
+            if hug_width > line_width {
+                return None;
+            }
+            let open_no_bracket = &open[..open.len() - 1];
+            let hug = format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{indent}>");
+            return (hug != whole).then_some((start, end, hug));
         }
         // Same-line hug: `<a href="…">text</a\n>` — content stays on the open
         // tag's line. Try this first; only fall through to the inner-indent form
