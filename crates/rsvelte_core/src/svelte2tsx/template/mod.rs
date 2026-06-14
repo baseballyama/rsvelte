@@ -1049,12 +1049,25 @@ fn handle_if_block(
 
     let test_text = get_expression_text(&block.test, source);
 
-    // Find the start of the consequent content
+    // Find the start of the consequent content. When the consequent is empty
+    // (`{#if x}{:else …}` / `{#if x}{/if}`), the body still opens right after
+    // the `}` that closes the `{#if EXPR}` (or `{:else if EXPR}`) tag — this
+    // mirrors official `handleIf`, which always places the `){` body opener at
+    // `indexOf('}', expressionEnd) + 1`. Using `block.end` here (the position
+    // after `{/if}`) made the header overwrite swallow the entire `{:else …}`
+    // / `{/if}` tail, corrupting the output.
     let consequent_start = if !block.consequent.nodes.is_empty() {
         block.consequent.nodes[0].start()
     } else {
-        // No children - find the `>` or `}` after the test
-        block.end
+        let test_end = get_expression_range(&block.test)
+            .map(|(_, e)| e)
+            .unwrap_or(block.start);
+        let bytes = source.as_bytes();
+        let mut p = test_end as usize;
+        while p < bytes.len() && bytes[p] != b'}' {
+            p += 1;
+        }
+        ((p + 1).min(bytes.len())) as u32
     };
 
     // Mirror `htmlxtojsx_v2/nodes/IfElseBlock.ts::handleIf`: an IfBlock that
@@ -1131,11 +1144,29 @@ fn handle_if_block(
 
             // No closing `}` needed since the inner if block handles `{/if}`
         } else {
-            // Find where the consequent content ends
+            // Find where the consequent content ends. For an empty consequent
+            // this is the body-open position (right after `{#if EXPR}`), NOT
+            // `block.start` — otherwise the `} else {` overwrite would clobber
+            // the `if(EXPR){` header we just emitted.
             let consequent_end = if !block.consequent.nodes.is_empty() {
                 block.consequent.nodes.last().unwrap().end()
             } else {
-                block.start
+                consequent_start
+            };
+
+            // For an empty `{:else}` body, the else block opens right after the
+            // `}` that closes the `{:else}` tag — NOT at `block.end` (after
+            // `{/if}`), which would make the `} else {` overwrite swallow the
+            // `{/if}` and leave the else body unclosed.
+            let alternate_start = if !alternate.nodes.is_empty() {
+                alternate_start
+            } else {
+                let bytes = source.as_bytes();
+                let mut p = consequent_end as usize;
+                while p < bytes.len() && bytes[p] != b'}' {
+                    p += 1;
+                }
+                ((p + 1).min(bytes.len())) as u32
             };
 
             // Overwrite {:else} with `} else {`
