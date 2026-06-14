@@ -1,16 +1,19 @@
 //! `svelte/no-at-debug-tags` — disallow `{@debug}` tags (debugging leftovers).
-//! Port of the eslint-plugin-svelte rule; autofixable by removing the tag.
+//! Port of the eslint-plugin-svelte rule. Upstream is **not** autofixable
+//! (`meta.fixable` unset); it offers a *suggestion* (`hasSuggestions: true`)
+//! that removes the tag, so we mirror that exactly — `--fix` leaves the tag in
+//! place and the editor offers "Remove `{@debug}` from the source".
 
 use rsvelte_core::ast::template::DebugTag;
 
 use crate::context::LintContext;
-use crate::diagnostic::{Fix, TextEdit};
+use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-at-debug-tags",
     category: RuleCategory::Style,
-    fixable: Fixable::Code,
+    fixable: Fixable::Suggestion,
     default_severity: Severity::Warn,
     conditions: RuleConditions {
         runes_only: false,
@@ -30,18 +33,23 @@ impl Rule for NoAtDebugTags {
     }
 
     fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {
-        ctx.report_with_fix(
+        // Upstream `suggest: [{ messageId: 'suggestRemove', fix: fixer.remove(node) }]`.
+        let remove = "Remove `{@debug}` from the source";
+        ctx.report_with_suggestions(
             tag.start,
             tag.end,
             "Unexpected `{@debug}`.",
-            Fix {
-                message: "Remove `{@debug}` from the source".to_string(),
-                edits: vec![TextEdit {
-                    start: tag.start,
-                    end: tag.end,
-                    new_text: String::new(),
-                }],
-            },
+            vec![Suggestion {
+                desc: remove.to_string(),
+                fix: Fix {
+                    message: remove.to_string(),
+                    edits: vec![TextEdit {
+                        start: tag.start,
+                        end: tag.end,
+                        new_text: String::new(),
+                    }],
+                },
+            }],
         );
     }
 }

@@ -7,7 +7,7 @@ use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
-use crate::diagnostic::TextEdit;
+use crate::diagnostic::{LintDiagnostic, TextEdit};
 use crate::engine::{run_native_rules, run_script_rules};
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
@@ -69,6 +69,33 @@ pub fn lint_source(
             .unwrap_or((0, 0))
     });
     diagnostics
+}
+
+/// Like [`lint_source`] but returns the raw native + script + scope rule
+/// [`LintDiagnostic`]s (byte spans, carrying their `fix` and `suggestions`)
+/// before conversion to the output diagnostic. The validator/compiler wrap is
+/// omitted — only the ported plugin rules emit `svelte/*` codes — and
+/// suppression directives are applied. Used by the compat oracle to assert
+/// suggestion + fix parity, which the line/column output type cannot express.
+pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<LintDiagnostic> {
+    let line_index = LineIndex::new(source);
+
+    let mut diags = match crate::engine::classify_source(&file.to_string_lossy()) {
+        crate::engine::SourceKind::Module { ts } => {
+            crate::engine::run_script_rules_module(source, ts, config)
+        }
+        crate::engine::SourceKind::Svelte => {
+            let mut d = run_native_rules(source, config);
+            d.extend(run_script_rules(source, config));
+            d.extend(crate::scope::scope_diagnostics(source, config));
+            d
+        }
+    };
+
+    let suppressions = Suppressions::collect(source);
+    diags.retain(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)));
+    diags.sort_by_key(|d| (line_index.line(d.start), d.start));
+    diags
 }
 
 /// Result of an autofix pass.
@@ -238,24 +265,32 @@ mod tests {
     }
 
     #[test]
-    fn fix_removes_debug_tag() {
+    fn no_at_debug_tags_is_not_autofixed() {
+        // Upstream offers `{@debug}` removal only as a *suggestion*
+        // (`hasSuggestions`), never as a `--fix` autofix, so `fix_source` must
+        // leave the tag untouched.
         let res = fix_source("<p>{@debug foo}</p>", &LintConfig::recommended());
-        assert_eq!(res.applied, 1);
-        assert_eq!(res.output, "<p></p>");
+        assert_eq!(res.applied, 0);
+        assert_eq!(res.output, "<p>{@debug foo}</p>");
     }
 
     #[test]
     fn fix_skips_suppressed_findings() {
-        let src = "<!-- eslint-disable-next-line svelte/no-at-debug-tags -->\n{@debug foo}";
-        let res = fix_source(src, &LintConfig::recommended());
+        // `no-useless-mustaches` is a genuine autofix rule; suppressing it on
+        // the mustache's line must stop the fix from applying.
+        let cfg =
+            LintConfig::recommended().with_override("svelte/no-useless-mustaches", Severity::Warn);
+        let src = "<!-- eslint-disable-next-line svelte/no-useless-mustaches -->\n<p>{'foo'}</p>";
+        let res = fix_source(src, &cfg);
         assert_eq!(res.applied, 0);
         assert_eq!(res.output, src);
     }
 
     #[test]
     fn fix_is_noop_when_rule_disabled() {
-        let cfg = LintConfig::recommended().with_override("svelte/no-at-debug-tags", Severity::Off);
-        let res = fix_source("{@debug foo}", &cfg);
+        let cfg =
+            LintConfig::recommended().with_override("svelte/no-useless-mustaches", Severity::Off);
+        let res = fix_source("<p>{'foo'}</p>", &cfg);
         assert_eq!(res.applied, 0);
     }
 

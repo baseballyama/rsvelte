@@ -9,7 +9,7 @@
 use serde_json::Value;
 
 use crate::config::LintConfig;
-use crate::diagnostic::{Fix, LintDiagnostic};
+use crate::diagnostic::{Fix, LintDiagnostic, Suggestion};
 use crate::rule::{RuleMeta, Severity};
 
 /// Per-file lint context shared across all rules during the single AST walk.
@@ -92,7 +92,7 @@ impl<'a> LintContext<'a> {
 
     /// Report a finding spanning `[start, end)` (UTF-8 byte offsets).
     pub fn report(&mut self, start: u32, end: u32, message: impl Into<String>) {
-        self.push(start, end, message.into(), None, None);
+        self.push(start, end, message.into(), None, None, Vec::new());
     }
 
     /// Report with an attached `help:` note.
@@ -103,12 +103,32 @@ impl<'a> LintContext<'a> {
         message: impl Into<String>,
         help: impl Into<String>,
     ) {
-        self.push(start, end, message.into(), Some(help.into()), None);
+        self.push(
+            start,
+            end,
+            message.into(),
+            Some(help.into()),
+            None,
+            Vec::new(),
+        );
     }
 
     /// Report with an autofix.
     pub fn report_with_fix(&mut self, start: u32, end: u32, message: impl Into<String>, fix: Fix) {
-        self.push(start, end, message.into(), None, Some(fix));
+        self.push(start, end, message.into(), None, Some(fix), Vec::new());
+    }
+
+    /// Report with editor suggestions (code actions never applied by `--fix`).
+    /// Mirrors ESLint's `suggest`: the finding itself has no autofix, but offers
+    /// one or more named suggestions.
+    pub fn report_with_suggestions(
+        &mut self,
+        start: u32,
+        end: u32,
+        message: impl Into<String>,
+        suggestions: Vec<Suggestion>,
+    ) {
+        self.push(start, end, message.into(), None, None, suggestions);
     }
 
     fn push(
@@ -118,6 +138,7 @@ impl<'a> LintContext<'a> {
         message: String,
         help: Option<String>,
         fix: Option<Fix>,
+        suggestions: Vec<Suggestion>,
     ) {
         self.diagnostics.push(LintDiagnostic {
             rule: self.cur_rule.to_string(),
@@ -127,6 +148,7 @@ impl<'a> LintContext<'a> {
             end,
             help,
             fix,
+            suggestions,
         });
     }
 

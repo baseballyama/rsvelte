@@ -22,8 +22,11 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
+use rsvelte_lint::line_index::LineIndex;
 use rsvelte_lint::registry::registered_rule_metas;
-use rsvelte_lint::{Fixable, LintConfig, Severity, fix_source, lint_source};
+use rsvelte_lint::{
+    Fixable, LintConfig, LintDiagnostic, Severity, fix_source, lint_source, lint_source_raw,
+};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -105,11 +108,25 @@ struct ExpectedError {
     message: String,
     line: u32,
     column: u32,
-    // Present in the fixtures but not asserted here (suggestions parity is a
-    // follow-up); accepted so deserialization succeeds.
+    /// Editor suggestions (ESLint `suggest`). `None` ⇒ the finding offers no
+    /// suggestions; the actual diagnostic must then carry none either. Upstream
+    /// compares only `{ desc, output }` (dropping `messageId`), so we do too.
+    #[serde(default)]
+    suggestions: Option<Vec<ExpectedSuggestion>>,
+}
+
+/// One expected suggestion: its description and the full source after applying
+/// just that suggestion's edits (upstream's `output`).
+#[derive(Debug, Deserialize)]
+struct ExpectedSuggestion {
+    desc: String,
+    output: String,
+    // `messageId` is present in the fixtures but excluded from upstream's
+    // comparison; accepted so deserialization succeeds.
     #[serde(default)]
     #[allow(dead_code)]
-    suggestions: Option<serde_yaml::Value>,
+    #[serde(rename = "messageId")]
+    message_id: Option<String>,
 }
 
 fn fixture_root() -> Option<PathBuf> {
@@ -266,6 +283,57 @@ fn actual_tuple(d: &Diagnostic) -> (u32, u32, String) {
     (line, col + 1, d.message.clone())
 }
 
+/// Raw rule diagnostics for `code` (carrying their fixes + suggestions), used
+/// for the suggestion-parity comparison the line/column output type can't
+/// express.
+fn raw_findings_for(
+    source: &str,
+    file: &Path,
+    code: &str,
+    options: &Option<Value>,
+) -> Vec<LintDiagnostic> {
+    let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
+    if let Some(opts) = options {
+        cfg = cfg.with_options(code, opts.clone());
+    }
+    let name = file
+        .file_name()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("Fixture.svelte"));
+    lint_source_raw(source, &name, &cfg)
+        .into_iter()
+        .filter(|d| d.rule == code)
+        .collect()
+}
+
+/// A full comparable record: `(line, column-1-based, message, suggestions)`,
+/// where each suggestion is `(desc, source-after-applying-it)` — exactly the
+/// `{ desc, output }` pair upstream's RuleTester compares.
+type FullRecord = (u32, u32, String, Vec<(String, String)>);
+
+fn actual_record(d: &LintDiagnostic, li: &LineIndex, source: &str) -> FullRecord {
+    let (line, col) = li.position(d.start);
+    let suggestions = d
+        .suggestions
+        .iter()
+        .map(|s| (s.desc.clone(), s.fix.apply(source)))
+        .collect();
+    (line, col + 1, d.message.clone(), suggestions)
+}
+
+fn expected_record(e: &ExpectedError) -> FullRecord {
+    let suggestions = e
+        .suggestions
+        .as_ref()
+        .map(|v| {
+            v.iter()
+                .map(|s| (s.desc.clone(), s.output.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+    (e.line, e.column, e.message.clone(), suggestions)
+}
+
 #[test]
 fn oracle_strict_parity() {
     let Some(root) = fixture_root() else {
@@ -340,20 +408,21 @@ fn oracle_strict_parity() {
             };
             checked += 1;
 
-            let mut exp: Vec<(u32, u32, String)> = expected
+            // Compare the full record set — (line, column, message, suggestions)
+            // — so message/position *and* every offered suggestion's
+            // description + applied output match upstream exactly.
+            let li = LineIndex::new(&src);
+            let opts = load_options(&input);
+            let mut exp: Vec<FullRecord> = expected.iter().map(expected_record).collect();
+            let mut act: Vec<FullRecord> = raw_findings_for(&src, &input, code, &opts)
                 .iter()
-                .map(|e| (e.line, e.column, e.message.clone()))
+                .map(|d| actual_record(d, &li, &src))
                 .collect();
-            let mut act: Vec<(u32, u32, String)> =
-                findings_for(&src, &input, code, &load_options(&input))
-                    .iter()
-                    .map(actual_tuple)
-                    .collect();
             exp.sort();
             act.sort();
             if exp != act {
                 failures.push(format!(
-                    "[mismatch] {}\n    expected {:?}\n    actual   {:?}",
+                    "[mismatch] {}\n    expected {:#?}\n    actual   {:#?}",
                     input.display(),
                     exp,
                     act
@@ -396,8 +465,7 @@ fn oracle_strict_parity() {
 
     // Coverage report (informational): upstream rules with a fixture dir that
     // no registered rule covers yet — the remaining porting backlog.
-    let registered: std::collections::HashSet<&str> =
-        under_test.iter().map(|r| r.dir).collect();
+    let registered: std::collections::HashSet<&str> = under_test.iter().map(|r| r.dir).collect();
     let mut unported: Vec<String> = std::fs::read_dir(&root)
         .into_iter()
         .flatten()

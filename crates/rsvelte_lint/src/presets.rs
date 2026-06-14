@@ -103,7 +103,11 @@ mod tests {
         let metas = registered_rule_metas();
         let mut seen = std::collections::HashSet::new();
         for m in &metas {
-            assert!(seen.insert(m.name), "duplicate rule id registered: {}", m.name);
+            assert!(
+                seen.insert(m.name),
+                "duplicate rule id registered: {}",
+                m.name
+            );
         }
     }
 }

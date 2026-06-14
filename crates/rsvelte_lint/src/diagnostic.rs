@@ -28,6 +28,19 @@ pub struct Fix {
     pub edits: Vec<TextEdit>,
 }
 
+/// A suggestion: an editor-offered code action that is **never** auto-applied
+/// by `--fix` (mirrors ESLint's `suggest` / `meta.hasSuggestions`). Each carries
+/// a human-readable description and the edits that apply it. eslint-plugin-svelte
+/// fixtures store these as `{ desc, output }`, where `output` is the source after
+/// applying this one suggestion's [`Fix`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Suggestion {
+    /// The user-facing description (ESLint's resolved `desc`).
+    pub desc: String,
+    /// The edits this suggestion would apply.
+    pub fix: Fix,
+}
+
 impl Fix {
     /// Apply the edits to `source`, producing the fixed string. Edits are
     /// applied right-to-left so earlier offsets stay valid.
@@ -61,6 +74,8 @@ pub struct LintDiagnostic {
     pub end: u32,
     pub help: Option<String>,
     pub fix: Option<Fix>,
+    /// Editor-offered suggestions (never auto-applied). Empty for most findings.
+    pub suggestions: Vec<Suggestion>,
 }
 
 #[cfg(feature = "native")]

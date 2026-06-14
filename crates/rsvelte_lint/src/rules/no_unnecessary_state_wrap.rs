@@ -17,13 +17,14 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 
 use crate::context::LintContext;
+use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-unnecessary-state-wrap",
     category: RuleCategory::Correctness,
-    fixable: Fixable::No,
+    fixable: Fixable::Suggestion,
     default_severity: Severity::Warn,
     conditions: RuleConditions {
         runes_only: true,
@@ -156,7 +157,10 @@ impl ScriptRule for NoUnnecessaryStateWrap {
         // Each `$state(...)` must sit in a `const/let x = $state(...)` declarator
         // (VariableDeclarator with an Identifier id); associate the wrap with that
         // binding so the allow-reassign skip can apply.
-        let mut valid_reports: Vec<(u32, String)> = Vec::new();
+        // (report-position start, class-name, $state-call start, $state-call
+        // end, arg start, arg end). The suggestion replaces the whole
+        // `$state(...)` call with the inner argument's source text.
+        let mut valid_reports: Vec<(u32, String, u32, u32, u32, u32)> = Vec::new();
         walk_js(program, |node, _| {
             if node_type(node) != Some("VariableDeclarator") {
                 return;
@@ -179,6 +183,10 @@ impl ScriptRule for NoUnnecessaryStateWrap {
             let Some(args) = init.get("arguments").and_then(Value::as_array) else {
                 return;
             };
+            // The `$state(...)` call node itself — the suggestion replaces it.
+            let (Some(state_start), Some(state_end)) = (node_start(init), node_end(init)) else {
+                return;
+            };
             for arg in args {
                 let Some(name) = ctor_callee_name(arg) else {
                     continue;
@@ -190,17 +198,29 @@ impl ScriptRule for NoUnnecessaryStateWrap {
                 } else {
                     continue;
                 };
-                if let Some(s) = node_start(arg) {
-                    valid_reports.push((s, class_name));
+                if let (Some(s), Some(ae)) = (node_start(arg), node_end(arg)) {
+                    valid_reports.push((s, class_name, state_start, state_end, s, ae));
                 }
             }
         });
 
-        for (start, class_name) in valid_reports {
-            ctx.report(
+        for (start, class_name, state_start, state_end, arg_start, arg_end) in valid_reports {
+            let arg_text = ctx.slice(arg_start, arg_end).to_string();
+            ctx.report_with_suggestions(
                 start,
                 start,
                 format!("{class_name} is already reactive, $state wrapping is unnecessary."),
+                vec![Suggestion {
+                    desc: "Remove unnecessary $state wrapping".to_string(),
+                    fix: Fix {
+                        message: "Remove unnecessary $state wrapping".to_string(),
+                        edits: vec![TextEdit {
+                            start: state_start,
+                            end: state_end,
+                            new_text: arg_text,
+                        }],
+                    },
+                }],
             );
         }
     }
