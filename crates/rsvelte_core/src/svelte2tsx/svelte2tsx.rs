@@ -4220,6 +4220,24 @@ fn js_node_references_rune_global(
             js_node_references_rune_global(arena.get_js_node(*right), arena)
         }
 
+        // VariableDeclaration / VariableDeclarator: recurse into each
+        // declarator's initializer — e.g. `const state = $state({…})` inside an
+        // event-handler arrow body (`onsubmit={e => { const s = $state(…) }}`).
+        JsNode::VariableDeclaration { declarations, .. } => {
+            let decls = arena.get_js_children(*declarations);
+            decls
+                .iter()
+                .any(|d| js_node_references_rune_global(d, arena))
+        }
+        JsNode::VariableDeclarator { init, .. } => init
+            .map(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
+            .unwrap_or(false),
+
+        // ReturnStatement / IfStatement bodies can also host rune calls.
+        JsNode::ReturnStatement { argument, .. } => argument
+            .map(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
+            .unwrap_or(false),
+
         // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
         // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.
         // These are legitimate store/object references, not rune invocations.

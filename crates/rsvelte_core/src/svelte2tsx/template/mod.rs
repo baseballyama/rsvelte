@@ -2026,7 +2026,9 @@ fn handle_snippet_block_inner(
     str: &mut MagicString,
     counter: &mut Counter,
     as_component_prop: bool,
-    depth: u32,
+    // Snippet bodies always start at depth 0 (official resets `element` on
+    // entry), so the inherited depth is intentionally unused.
+    _depth: u32,
 ) {
     if block.start >= block.end {
         return;

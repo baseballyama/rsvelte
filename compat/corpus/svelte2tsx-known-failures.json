@@ -280,7 +280,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-spread/Button.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippets-as-slots/child.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/state-in-template/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/state-reuse/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-array-holes/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/store-async-first-value/main.svelte",
