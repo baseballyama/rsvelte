@@ -148,6 +148,11 @@ fn collect_node_edits(
             // add a level per branch. Mirrors `crate::indent`.
             let mut current: &rsvelte_core::ast::template::IfBlock = blk;
             loop {
+                // Normalize leading whitespace before the test expression, e.g.
+                // `{#if   cond}` → `{#if cond}`.
+                if let Some(start) = current.test.start() {
+                    normalize_leading_ws_before_expr(source, start, edits);
+                }
                 push_bare_expression(source, &current.test, options, edits)?;
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
@@ -168,6 +173,11 @@ fn collect_node_edits(
             }
         }
         TemplateNode::EachBlock(blk) => {
+            // Normalize leading whitespace before the iterable expression, e.g.
+            // `{#each  items as x}` → `{#each items as x}`.
+            if let Some(start) = blk.expression.start() {
+                normalize_leading_ws_before_expr(source, start, edits);
+            }
             push_bare_expression(source, &blk.expression, options, edits)?;
             if let Some(ctx) = &blk.context {
                 push_pattern_at_span(source, ctx, options, edits)?;
@@ -236,6 +246,10 @@ fn collect_node_edits(
                     collect_template_edits(source, frag, child_depth, options, edits)?;
                 }
             } else {
+                // Normalize leading whitespace: `{#await  expr}` → `{#await expr}`.
+                if let Some(start) = blk.expression.start() {
+                    normalize_leading_ws_before_expr(source, start, edits);
+                }
                 push_bare_expression(source, &blk.expression, options, edits)?;
                 if let Some(v) = &blk.value {
                     push_pattern_at_span(source, v, options, edits)?;
@@ -263,6 +277,10 @@ fn collect_node_edits(
             }
         }
         TemplateNode::KeyBlock(blk) => {
+            // Normalize leading whitespace: `{#key  expr}` → `{#key expr}`.
+            if let Some(start) = blk.expression.start() {
+                normalize_leading_ws_before_expr(source, start, edits);
+            }
             push_bare_expression(source, &blk.expression, options, edits)?;
             // Trim `{#key expr }` → `{#key expr}`.
             if let Some(end) = blk.expression.end() {
@@ -991,6 +1009,37 @@ fn trim_trailing_ws_before_close_brace(
         .sum::<usize>();
     if ws_len > 0 && rest[ws_len..].starts_with('}') {
         edits.push((after, after + ws_len as u32, String::new()));
+    }
+}
+
+/// Normalize leading horizontal whitespace immediately before a block-header
+/// expression to exactly one space. Applies only when there are 2+ spaces/tabs
+/// between the keyword end and the expression start, e.g.:
+///   `{#if   cond}` → `{#if cond}`
+///   `{#each  items as x}` → `{#each items as x}`
+/// Does nothing when a newline precedes the expression (multi-line headers).
+fn normalize_leading_ws_before_expr(
+    source: &str,
+    expr_start: u32,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    let before = match source.get(..expr_start as usize) {
+        Some(s) => s,
+        None => return,
+    };
+    // Walk backward over horizontal whitespace only (space / tab).
+    let ws_start = before
+        .bytes()
+        .enumerate()
+        .rev()
+        .take_while(|(_, b)| *b == b' ' || *b == b'\t')
+        .last()
+        .map_or(before.len(), |(i, _)| i);
+    let ws_len = expr_start as usize - ws_start;
+    // Only emit an edit when there are extra spaces (> 1) — a single space is
+    // already correct and emitting a no-op edit can disturb overlap detection.
+    if ws_len > 1 {
+        edits.push((ws_start as u32, expr_start, " ".to_string()));
     }
 }
 
