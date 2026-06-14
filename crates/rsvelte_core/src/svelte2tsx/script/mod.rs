@@ -298,7 +298,14 @@ impl ExportedNames {
                 .map(|(en, info)| format!("{}: {}", en, info.local_name))
                 .collect();
             if entries.is_empty() {
-                return "/** @type {Record<string, never>} */ ({})".to_string();
+                // Reference: addComponentExport.ts `props()` function —
+                // runes mode with no props: TS uses `{} as Record<string, never>`,
+                // JS uses `/** @type {Record<string, never>} */ ({})`.
+                return if is_ts {
+                    "{} as Record<string, never>".to_string()
+                } else {
+                    "/** @type {Record<string, never>} */ ({})".to_string()
+                };
             }
             return format!("{{{}}}", entries.join(" , "));
         }
@@ -308,7 +315,14 @@ impl ExportedNames {
             .map(|(en, info)| format!("{}: {}", en, info.local_name))
             .collect();
         if entries.is_empty() {
-            "/** @type {Record<string, never>} */ ({})".to_string()
+            // Reference: ExportedNames.ts createPropsStr —
+            // non-runes mode with no props: TS uses `{} as Record<string, never>`,
+            // JS uses `/** @type {Record<string, never>} */ ({})`.
+            if is_ts {
+                "{} as Record<string, never>".to_string()
+            } else {
+                "/** @type {Record<string, never>} */ ({})".to_string()
+            }
         } else {
             let base = format!("{{{}}}", entries.join(" , "));
             if is_ts {
@@ -756,10 +770,36 @@ pub fn process_instance_script(
                     if let Some(ref id) = func.id {
                         declared_names.insert(id.name.to_string());
                     }
+                    // Detect rune calls nested inside the function body.
+                    // The official svelte2tsx `checkGlobalsForRunes` walks the
+                    // entire TypeScript AST (including function bodies) and flags
+                    // any undeclared `$state`/`$derived`/`$effect` reference.
+                    // Mirror that here by recursively scanning the body.
+                    // Reference: ExportedNames.ts `checkGlobalsForRunes`.
+                    if let Some(ref body) = func.body {
+                        if detect_rune_in_nested_body(&body.statements, &declared_names) {
+                            exported_names.set_uses_runes(true);
+                        }
+                    }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
                     if let Some(ref id) = class.id {
                         declared_names.insert(id.name.to_string());
+                    }
+                    // Detect rune calls nested inside class method bodies.
+                    if class.body.body.iter().any(|member| match member {
+                        oxc::ClassElement::MethodDefinition(method) => {
+                            method.value.body.as_ref().is_some_and(|body| {
+                                detect_rune_in_nested_body(&body.statements, &declared_names)
+                            })
+                        }
+                        oxc::ClassElement::PropertyDefinition(prop) => prop
+                            .value
+                            .as_ref()
+                            .is_some_and(|e| detect_rune_in_expr(e, &declared_names)),
+                        _ => false,
+                    }) {
+                        exported_names.set_uses_runes(true);
                     }
                 }
                 // Track instance-script namespace and enum names so the
@@ -2667,7 +2707,14 @@ fn detect_runes_call(
     declared_names: &HashSet<String>,
 ) {
     if let Some(ref init) = declarator.init {
-        if detect_rune_global_call_expr(init, declared_names) {
+        // `detect_rune_in_expr` subsumes `detect_rune_global_call_expr`: it
+        // fast-paths to the top-level check first, then recurses into nested
+        // function/arrow bodies. This catches patterns like:
+        //   `const action = (node) => { $effect(() => { … }); }`
+        // which the original top-level-only check missed.
+        // Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the
+        // entire TS AST (not just top-level statements).
+        if detect_rune_in_expr(init, declared_names) {
             exported_names.set_uses_runes(true);
         }
     }
@@ -2728,8 +2775,210 @@ fn detect_runes_expr_stmt(
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
-    if detect_rune_global_call_expr(&expr_stmt.expression, declared_names) {
+    // Use the recursive walker so runes nested in arrow/function bodies are also
+    // detected (e.g. `setTimeout(() => { $effect(() => {}) })`).
+    // `detect_rune_in_expr` fast-paths to `detect_rune_global_call_expr` first.
+    if detect_rune_in_expr(&expr_stmt.expression, declared_names) {
         exported_names.set_uses_runes(true);
+    }
+}
+
+/// Detect whether any rune global call (`$state`, `$derived`, `$effect` including
+/// member variants such as `$state.raw`, `$effect.pre`) appears anywhere inside
+/// a function, class, or arrow-function body — even when not at the top level.
+///
+/// The official svelte2tsx `checkGlobalsForRunes` works by collecting every
+/// undeclared identifier referenced anywhere in the script (via the TypeScript
+/// compiler's symbol walk) and then testing whether any of `$state`/`$derived`/
+/// `$effect` appears. This mirrors that behaviour for the OXC AST by recursively
+/// walking statements and expressions inside nested bodies.
+///
+/// Reference: ExportedNames.ts `checkGlobalsForRunes` + `ImplicitStoreValues.getGlobals()`
+///   `this.hasRunesGlobals = isSvelte5Plus && globals.some(g => runes.includes(g))`
+fn detect_rune_in_nested_body(stmts: &[oxc::Statement], declared_names: &HashSet<String>) -> bool {
+    for stmt in stmts {
+        if detect_rune_in_stmt(stmt, declared_names) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Walk a single statement (and any nested sub-statements / expressions)
+/// looking for an undeclared `$state`/`$derived`/`$effect` reference.
+fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) -> bool {
+    match stmt {
+        oxc::Statement::ExpressionStatement(es) => {
+            detect_rune_in_expr(&es.expression, declared_names)
+        }
+        oxc::Statement::VariableDeclaration(var_decl) => var_decl.declarations.iter().any(|d| {
+            d.init
+                .as_ref()
+                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+        }),
+        oxc::Statement::ReturnStatement(ret) => ret
+            .argument
+            .as_ref()
+            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Statement::BlockStatement(block) => {
+            detect_rune_in_nested_body(&block.body, declared_names)
+        }
+        oxc::Statement::IfStatement(if_stmt) => {
+            detect_rune_in_expr(&if_stmt.test, declared_names)
+                || detect_rune_in_stmt(&if_stmt.consequent, declared_names)
+                || if_stmt
+                    .alternate
+                    .as_ref()
+                    .is_some_and(|s| detect_rune_in_stmt(s, declared_names))
+        }
+        oxc::Statement::WhileStatement(while_stmt) => {
+            detect_rune_in_expr(&while_stmt.test, declared_names)
+                || detect_rune_in_stmt(&while_stmt.body, declared_names)
+        }
+        oxc::Statement::ForStatement(for_stmt) => {
+            for_stmt.init.as_ref().is_some_and(|init| match init {
+                oxc::ForStatementInit::VariableDeclaration(vd) => vd.declarations.iter().any(|d| {
+                    d.init
+                        .as_ref()
+                        .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                }),
+                // ForStatementInit inherits Expression variants; use to_expression()
+                // for all non-VariableDeclaration arms.
+                _ => {
+                    if let Some(e) = init.as_expression() {
+                        detect_rune_in_expr(e, declared_names)
+                    } else {
+                        false
+                    }
+                }
+            }) || for_stmt
+                .test
+                .as_ref()
+                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || for_stmt
+                    .update
+                    .as_ref()
+                    .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || detect_rune_in_stmt(&for_stmt.body, declared_names)
+        }
+        oxc::Statement::LabeledStatement(labeled) => {
+            detect_rune_in_stmt(&labeled.body, declared_names)
+        }
+        oxc::Statement::FunctionDeclaration(func) => func
+            .body
+            .as_ref()
+            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        _ => false,
+    }
+}
+
+/// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
+/// (including member variants) anywhere inside the given expression tree.
+fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
+    // Fast-path: check if this expression itself is a rune call.
+    if detect_rune_global_call_expr(expr, declared_names) {
+        return true;
+    }
+    match expr {
+        oxc::Expression::CallExpression(call) => {
+            // The callee might not be a rune but the arguments could contain rune calls.
+            detect_rune_in_expr(&call.callee, declared_names)
+                || call.arguments.iter().any(|arg| match arg {
+                    oxc::Argument::SpreadElement(spread) => {
+                        detect_rune_in_expr(&spread.argument, declared_names)
+                    }
+                    // Argument inherits Expression variants via `@inherit Expression`;
+                    // use to_expression() (panics for SpreadElement, already handled above).
+                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+                })
+        }
+        oxc::Expression::ArrowFunctionExpression(arrow) => {
+            // ArrowFunctionExpression.body is Box<FunctionBody> (a struct, not an enum).
+            // When `arrow.expression == true`, the body has one statement wrapping the
+            // expression; either way, recursing into `.statements` is safe and correct.
+            detect_rune_in_nested_body(&arrow.body.statements, declared_names)
+        }
+        oxc::Expression::FunctionExpression(func) => func
+            .body
+            .as_ref()
+            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::Expression::ClassExpression(class) => {
+            class.body.body.iter().any(|member| match member {
+                oxc::ClassElement::MethodDefinition(method) => {
+                    method.value.body.as_ref().is_some_and(|body| {
+                        detect_rune_in_nested_body(&body.statements, declared_names)
+                    })
+                }
+                oxc::ClassElement::PropertyDefinition(prop) => prop
+                    .value
+                    .as_ref()
+                    .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+                _ => false,
+            })
+        }
+        oxc::Expression::AssignmentExpression(assign) => {
+            detect_rune_in_expr(&assign.right, declared_names)
+        }
+        oxc::Expression::BinaryExpression(bin) => {
+            detect_rune_in_expr(&bin.left, declared_names)
+                || detect_rune_in_expr(&bin.right, declared_names)
+        }
+        oxc::Expression::LogicalExpression(log) => {
+            detect_rune_in_expr(&log.left, declared_names)
+                || detect_rune_in_expr(&log.right, declared_names)
+        }
+        oxc::Expression::ConditionalExpression(cond) => {
+            detect_rune_in_expr(&cond.test, declared_names)
+                || detect_rune_in_expr(&cond.consequent, declared_names)
+                || detect_rune_in_expr(&cond.alternate, declared_names)
+        }
+        oxc::Expression::SequenceExpression(seq) => seq
+            .expressions
+            .iter()
+            .any(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::ObjectExpression(obj) => obj.properties.iter().any(|prop| match prop {
+            oxc::ObjectPropertyKind::ObjectProperty(p) => {
+                detect_rune_in_expr(&p.value, declared_names)
+            }
+            oxc::ObjectPropertyKind::SpreadProperty(spread) => {
+                detect_rune_in_expr(&spread.argument, declared_names)
+            }
+        }),
+        oxc::Expression::ArrayExpression(arr) => arr.elements.iter().any(|el| match el {
+            oxc::ArrayExpressionElement::SpreadElement(spread) => {
+                detect_rune_in_expr(&spread.argument, declared_names)
+            }
+            oxc::ArrayExpressionElement::Elision(_) => false,
+            // ArrayExpressionElement inherits Expression variants via `@inherit Expression`;
+            // use to_expression() for all non-SpreadElement, non-Elision arms.
+            _ => detect_rune_in_expr(el.to_expression(), declared_names),
+        }),
+        oxc::Expression::StaticMemberExpression(mem) => {
+            detect_rune_in_expr(&mem.object, declared_names)
+        }
+        oxc::Expression::ComputedMemberExpression(mem) => {
+            detect_rune_in_expr(&mem.object, declared_names)
+                || detect_rune_in_expr(&mem.expression, declared_names)
+        }
+        oxc::Expression::UnaryExpression(unary) => {
+            detect_rune_in_expr(&unary.argument, declared_names)
+        }
+        oxc::Expression::AwaitExpression(aw) => detect_rune_in_expr(&aw.argument, declared_names),
+        oxc::Expression::YieldExpression(y) => y
+            .argument
+            .as_ref()
+            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::ParenthesizedExpression(paren) => {
+            detect_rune_in_expr(&paren.expression, declared_names)
+        }
+        oxc::Expression::TSAsExpression(ts_as) => {
+            detect_rune_in_expr(&ts_as.expression, declared_names)
+        }
+        oxc::Expression::TSNonNullExpression(nn) => {
+            detect_rune_in_expr(&nn.expression, declared_names)
+        }
+        // Identifier, literals, template literals without expressions, etc. → no rune
+        _ => false,
     }
 }
 
@@ -4141,6 +4390,92 @@ mod tests {
         assert!(
             result.code.contains("Record<string, never>"),
             "Output should contain empty record type when there are no props"
+        );
+    }
+
+    // -- Bug 1: empty-props TS vs JS cast (addComponentExport.ts `props()`) --
+
+    /// For a TS file with no props, the return statement must use the TS `as`
+    /// cast form: `{} as Record<string, never>`.
+    /// Reference: ExportedNames.ts `createPropsStr` runes-mode branch:
+    ///   `return this.isTsFile ? '{} as Record<string, never>' : '/** @type ... */ ({})'`
+    #[test]
+    fn test_empty_props_ts_file_uses_as_cast() {
+        let source = "<script lang=\"ts\">\nconst internal: number = 5;\n</script>";
+        let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Default::default()
+        };
+        let result = svelte2tsx(source, opts).expect("svelte2tsx should not fail");
+        assert!(
+            result.code.contains("{} as Record<string, never>"),
+            "TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("/** @type {Record<string, never>} */"),
+            "TS file must NOT use JSDoc cast for empty props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// For a JS file with no props, the JSDoc cast form must be used:
+    /// `/** @type {Record<string, never>} */ ({})`.
+    /// Reference: same ExportedNames.ts branch, JS (non-TS) path.
+    #[test]
+    fn test_empty_props_js_file_uses_jsdoc() {
+        let source = "<script>\nconst internal = 5;\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("/** @type {Record<string, never>} */"),
+            "JS file with no props must use JSDoc cast, got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("{} as Record<string, never>"),
+            "JS file must NOT use TS `as` cast for empty props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Runes-mode TS file with no props must also emit `{} as Record<string, never>`.
+    /// Reference: ExportedNames.ts `createPropsStr` runes branch (same isTsFile check).
+    #[test]
+    fn test_empty_props_runes_ts_file_uses_as_cast() {
+        let source = "<script lang=\"ts\">\nlet { count } = $props();\n</script>";
+        // This has ONE prop, test with a runes component that has NO exported props in TS.
+        // Use a plain $props() with no destructuring (whole-object form).
+        let source_no_props = "<script lang=\"ts\">\nlet x = $state(0);\n</script>";
+        let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Default::default()
+        };
+        let result = svelte2tsx(source_no_props, opts).expect("svelte2tsx should not fail");
+        assert!(
+            result.code.contains("{} as Record<string, never>"),
+            "Runes-mode TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
+            result.code
+        );
+    }
+
+    // -- Bug 2: nested $effect (inside function body) triggers runes mode --
+
+    /// A JS component with `$effect` called INSIDE a function body (not top-level)
+    /// should still be detected as runes mode and emit `__sveltets_$$bindings("")`.
+    /// Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the entire AST.
+    #[test]
+    fn test_runes_effect_in_function_body() {
+        let source = "<script>\nfunction myaction(node) {\n    $effect(() => {\n        // setup\n    });\n}\n</script>\n<div use:myaction>...</div>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("__sveltets_$$bindings"),
+            "Component with $effect inside function body should be runes mode (emit __sveltets_$$bindings), got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("bindings: \"\""),
+            "Runes mode must not emit `bindings: \"\"`, got:\n{}",
+            result.code
         );
     }
 

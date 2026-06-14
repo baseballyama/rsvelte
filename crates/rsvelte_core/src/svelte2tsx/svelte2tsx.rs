@@ -302,6 +302,46 @@ pub fn svelte2tsx(
                         ..expr.expression.end().unwrap_or(0) as usize];
                     attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
                 }
+                // String / mixed attribute, e.g. `<svelte:options customElement="my-el">`
+                // or `namespace="svg"`. Mirror the element-attribute Sequence path
+                // (template/mod.rs::format_attribute_node_segments): a lone expression
+                // stays a bare expression, everything else becomes a template literal.
+                // Reference: language-tools .../htmlxtojsx_v2/nodes/Attribute.ts.
+                crate::ast::template::AttributeValue::Sequence(parts) => {
+                    use crate::ast::template::AttributeValuePart;
+                    if parts.len() == 1
+                        && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+                    {
+                        has_expression_attr = true;
+                        let expr_text = &source[expr.expression.start().unwrap_or(0) as usize
+                            ..expr.expression.end().unwrap_or(0) as usize];
+                        attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
+                    } else {
+                        let mut value = String::from("`");
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    value.push_str(
+                                        &text
+                                            .raw
+                                            .replace('\\', "\\\\")
+                                            .replace('`', "\\`")
+                                            .replace('$', "\\$"),
+                                    );
+                                }
+                                AttributeValuePart::ExpressionTag(expr) => {
+                                    has_expression_attr = true;
+                                    let expr_text = &source[expr.expression.start().unwrap_or(0)
+                                        as usize
+                                        ..expr.expression.end().unwrap_or(0) as usize];
+                                    value.push_str(&format!("${{{}}}", expr_text));
+                                }
+                            }
+                        }
+                        value.push('`');
+                        attrs_parts.push(format!("\"{}\":{},", node.name, value));
+                    }
+                }
                 _ => {}
             }
         }
