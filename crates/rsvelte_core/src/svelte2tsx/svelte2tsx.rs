@@ -243,6 +243,101 @@ fn blank_style_content(source: &str) -> String {
     String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
 }
 
+/// Validate that every `{@debug …}` argument is a plain identifier, returning a
+/// template error otherwise — mirrors svelte's parse-time check (rsvelte's lives
+/// in the analyze DebugTag visitor, which svelte2tsx doesn't run).
+fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::{Fragment, TemplateNode as N};
+
+    fn arg_is_identifier(expr: &crate::ast::js::Expression, source: &str) -> bool {
+        match expr.node_type() {
+            Some("Identifier") => true,
+            Some(_) => false,
+            // Lazy/unresolved expression: accept only a bare identifier token.
+            None => match (expr.start(), expr.end()) {
+                (Some(s), Some(e))
+                    if (s as usize) < (e as usize) && (e as usize) <= source.len() =>
+                {
+                    let t = source[s as usize..e as usize].trim();
+                    let mut chars = t.chars();
+                    match chars.next() {
+                        Some(c0) if c0.is_alphabetic() || c0 == '_' || c0 == '$' => {
+                            chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                        }
+                        _ => false,
+                    }
+                }
+                _ => false,
+            },
+        }
+    }
+
+    fn check_fragment(frag: &Fragment, source: &str) -> Result<(), Svelte2TsxError> {
+        for node in &frag.nodes {
+            check_node(node, source)?;
+        }
+        Ok(())
+    }
+
+    fn check_node(node: &N, source: &str) -> Result<(), Svelte2TsxError> {
+        match node {
+            N::DebugTag(tag) => {
+                for id in &tag.identifiers {
+                    if !arg_is_identifier(id, source) {
+                        return Err(Svelte2TsxError::Template(
+                            "{@debug ...} arguments must be identifiers, not arbitrary expressions"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
+            N::RegularElement(e) => check_fragment(&e.fragment, source)?,
+            N::Component(c) => check_fragment(&c.fragment, source)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, source)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, source)?,
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, source)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, source)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, source)?,
+            N::IfBlock(b) => {
+                check_fragment(&b.consequent, source)?;
+                if let Some(alt) = &b.alternate {
+                    check_fragment(alt, source)?;
+                }
+            }
+            N::EachBlock(b) => {
+                check_fragment(&b.body, source)?;
+                if let Some(fb) = &b.fallback {
+                    check_fragment(fb, source)?;
+                }
+            }
+            N::KeyBlock(b) => check_fragment(&b.fragment, source)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, source)?,
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    check_fragment(f, source)?;
+                }
+                if let Some(f) = &b.then {
+                    check_fragment(f, source)?;
+                }
+                if let Some(f) = &b.catch {
+                    check_fragment(f, source)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    check_fragment(&ast.fragment, source)
+}
+
 pub fn svelte2tsx(
     source: &str,
     options: Svelte2TsxOptions,
@@ -266,6 +361,12 @@ pub fn svelte2tsx(
         defer_script_parse: false,
     };
     let ast = phase1_parse::parse(&parse_source, parse_options)?;
+
+    // svelte rejects `{@debug expr}` whose arguments are not plain identifiers
+    // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does
+    // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
+    // replicate it here to preserve error-parity with official svelte2tsx.
+    validate_debug_tag_arguments(&ast, source)?;
 
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);

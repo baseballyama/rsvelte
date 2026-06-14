@@ -1,7 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/06-snippet.md/17.svelte",
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/11-@debug.md/2.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/12-bind.md/3.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/12-bind.md/6.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/12-bind.md/8.svelte",
@@ -70,7 +69,6 @@
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchResults.svelte",
 	"svelte/documentation/docs/03-template-syntax/06-snippet.md/17.svelte",
-	"svelte/documentation/docs/03-template-syntax/11-@debug.md/2.svelte",
 	"svelte/documentation/docs/03-template-syntax/12-bind.md/3.svelte",
 	"svelte/documentation/docs/03-template-syntax/12-bind.md/6.svelte",
 	"svelte/documentation/docs/03-template-syntax/12-bind.md/8.svelte",
@@ -517,7 +515,6 @@
 	"svelte/packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/contenteditable-dynamic/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/debug-invalid-args/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte",
