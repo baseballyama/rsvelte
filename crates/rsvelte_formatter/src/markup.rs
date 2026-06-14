@@ -250,7 +250,15 @@ fn collect_node_open_tag_edits(
                     edits.push((close_start, close_end, String::new()));
                 }
             } else {
-                push_close_tag(source, s.end, s.name.as_str(), wrapped, depth, options, edits);
+                push_close_tag(
+                    source,
+                    s.end,
+                    s.name.as_str(),
+                    wrapped,
+                    depth,
+                    options,
+                    edits,
+                );
             }
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
