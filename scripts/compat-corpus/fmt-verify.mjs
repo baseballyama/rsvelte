@@ -65,6 +65,13 @@ if (!fs.existsSync(META_PATH)) {
 const meta = JSON.parse(fs.readFileSync(META_PATH, 'utf8'));
 const included = meta.included ?? [];
 
+// Guard against a silently-empty gate: if the oracle produced almost nothing
+// (e.g. corpus not collected, or oxfmt rejected everything) the byte compare
+// below would pass vacuously. The real corpus has thousands of components.
+if (included.length < 1000) {
+	fail(`only ${included.length} components in the parity set — the corpus looks incomplete; re-run collect.mjs + fmt.mjs`);
+}
+
 const failures = [];
 let matched = 0;
 for (const id of included) {

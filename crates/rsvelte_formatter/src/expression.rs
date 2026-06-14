@@ -436,7 +436,7 @@ fn try_collapse_await_header(
     } else if blk.catch.is_some() && blk.error.is_some() {
         ("catch", blk.error.as_ref())
     } else {
-        // No collapasable binding — fall back.
+        // No collapsible binding — fall back.
         return Ok(None);
     };
 

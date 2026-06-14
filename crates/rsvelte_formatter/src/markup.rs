@@ -1220,10 +1220,7 @@ fn render_attribute_node(
             let AttributeValuePart::ExpressionTag(tag) = &parts[0] else {
                 unreachable!()
             };
-            let inner_src = source
-                .get(tag.start as usize + 1..tag.end as usize - 1)
-                .unwrap_or("")
-                .trim();
+            let inner_src = expression_tag_inner(tag, source).trim();
             render_single_expression_value(
                 node,
                 inner_src,
@@ -1321,10 +1318,7 @@ fn render_attribute_value_sequence(
                 out.push_str(t.raw.as_str());
             }
             AttributeValuePart::ExpressionTag(tag) => {
-                let inner_src = source
-                    .get(tag.start as usize + 1..tag.end as usize - 1)
-                    .unwrap_or("")
-                    .trim();
+                let inner_src = expression_tag_inner(tag, source).trim();
                 if inner_src.is_empty() {
                     out.push_str("{}");
                 } else {

@@ -17,8 +17,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CORPUS = path.join(ROOT, 'compat/corpus');
-const ORACLE = path.join(CORPUS, 'fmt/oracle');
-const ACTUAL = path.join(CORPUS, 'fmt/actual');
 
 const args = process.argv.slice(2);
 const SHOW = args.includes('--show') ? args[args.indexOf('--show') + 1] : undefined;
