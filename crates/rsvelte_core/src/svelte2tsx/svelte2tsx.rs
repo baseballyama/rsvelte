@@ -338,6 +338,109 @@ fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2T
     check_fragment(&ast.fragment, source)
 }
 
+/// Validate `<svelte:window/body/document/head/options>` placement and
+/// uniqueness, mirroring svelte's PARSE-time `svelte_meta_duplicate` /
+/// `svelte_meta_invalid_placement` checks (1-parse/state/element.js). rsvelte's
+/// compiler defers these to phase-2 analysis, which svelte2tsx skips — but
+/// official svelte2tsx parses with svelte and so rejects these at parse. Each
+/// of these five "root-only meta tags" must appear at most once and only as a
+/// direct child of the component root (not inside any element or block).
+fn validate_meta_element_placement(ast: &Root) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::{Fragment, TemplateNode as N};
+    use std::collections::HashSet;
+
+    fn meta_name(node: &N) -> Option<&str> {
+        match node {
+            N::SvelteWindow(e)
+            | N::SvelteBody(e)
+            | N::SvelteDocument(e)
+            | N::SvelteHead(e)
+            | N::SvelteOptions(e) => Some(e.name.as_str()),
+            _ => None,
+        }
+    }
+
+    fn check_fragment(
+        frag: &Fragment,
+        at_root: bool,
+        seen: &mut HashSet<String>,
+    ) -> Result<(), Svelte2TsxError> {
+        for node in &frag.nodes {
+            check_node(node, at_root, seen)?;
+        }
+        Ok(())
+    }
+
+    fn check_node(
+        node: &N,
+        at_root: bool,
+        seen: &mut HashSet<String>,
+    ) -> Result<(), Svelte2TsxError> {
+        if let Some(name) = meta_name(node) {
+            if !at_root {
+                return Err(Svelte2TsxError::Template(format!(
+                    "`<{}>` tags cannot be inside elements or blocks",
+                    name
+                )));
+            }
+            if !seen.insert(name.to_string()) {
+                return Err(Svelte2TsxError::Template(format!(
+                    "A component can only have one `<{}>` element",
+                    name
+                )));
+            }
+        }
+        // Recurse into children — anything nested below this node is no longer
+        // at root level.
+        match node {
+            N::RegularElement(e) => check_fragment(&e.fragment, false, seen)?,
+            N::Component(c) => check_fragment(&c.fragment, false, seen)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, false, seen)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, false, seen)?,
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, false, seen)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, false, seen)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, false, seen)?,
+            N::IfBlock(b) => {
+                check_fragment(&b.consequent, false, seen)?;
+                if let Some(alt) = &b.alternate {
+                    check_fragment(alt, false, seen)?;
+                }
+            }
+            N::EachBlock(b) => {
+                check_fragment(&b.body, false, seen)?;
+                if let Some(fb) = &b.fallback {
+                    check_fragment(fb, false, seen)?;
+                }
+            }
+            N::KeyBlock(b) => check_fragment(&b.fragment, false, seen)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, false, seen)?,
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    check_fragment(f, false, seen)?;
+                }
+                if let Some(f) = &b.then {
+                    check_fragment(f, false, seen)?;
+                }
+                if let Some(f) = &b.catch {
+                    check_fragment(f, false, seen)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    let mut seen = HashSet::new();
+    check_fragment(&ast.fragment, true, &mut seen)
+}
+
 pub fn svelte2tsx(
     source: &str,
     options: Svelte2TsxOptions,
@@ -367,6 +470,7 @@ pub fn svelte2tsx(
     // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
     // replicate it here to preserve error-parity with official svelte2tsx.
     validate_debug_tag_arguments(&ast, source)?;
+    validate_meta_element_placement(&ast)?;
 
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);
