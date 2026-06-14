@@ -3529,11 +3529,29 @@ fn handle_svelte_special_element(
             str.append_left(el.end, "}");
         }
     } else {
+        // `bind:` directives on a special element (e.g. `<svelte:window
+        // bind:scrollY={y}>`) keep their `"bind:name":expr` prop AND get a
+        // generic type-widener appended after the createElement call:
+        // `/*Ωignore*/() => expr = __sveltets_2_any(null);/*Ωignore*/`. These are
+        // not real DOM element bindings, so the one-way `.prop` form is never
+        // used. Mirrors upstream Binding.ts (generic branch).
+        let mut bind_suffix = String::new();
+        for attr in &el.attributes {
+            if let Attribute::BindDirective(bind) = attr
+                && bind.name != "this"
+            {
+                let expr_text = get_expression_text(&bind.expression, source);
+                let _ = write!(
+                    bind_suffix,
+                    "/*\u{03A9}ignore_start\u{03A9}*/() => {expr_text} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/"
+                );
+            }
+        }
         // Default path: all children (including any snippets) are processed
         // as standalone declarations inside the block.
         let opener = format!(
-            " {{ svelteHTML.createElement(\"{}\", {{{}}});",
-            el.name, attrs_str
+            " {{ svelteHTML.createElement(\"{}\", {{{}}});{}",
+            el.name, attrs_str, bind_suffix
         );
         str.overwrite(el.start, opening_tag_end, &opener);
 
