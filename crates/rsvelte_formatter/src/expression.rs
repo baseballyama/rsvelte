@@ -1433,7 +1433,6 @@ fn light_normalize_pattern(src: &str) -> String {
         {
             // Emit the `[` and copy until the matching `]`.
             out.push('[');
-            last_non_ws = b'[';
             i += 1;
             let mut depth: u32 = 1;
             while i < bytes.len() && depth > 0 {
@@ -1489,12 +1488,10 @@ fn light_normalize_pattern(src: &str) -> String {
             b'[' => {
                 bracket_depth += 1;
                 out.push('[');
-                last_non_ws = b'[';
             }
             b']' => {
                 bracket_depth = bracket_depth.saturating_sub(1);
                 out.push(']');
-                last_non_ws = b']';
             }
             b',' | b':' => {
                 if out.ends_with(' ') {
