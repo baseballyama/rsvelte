@@ -1553,6 +1553,20 @@ fn try_fill_mixed(
         .iter()
         .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
     if !has_text_word && !flat.contains('\n') {
+        // For block-display elements that are ALREADY on one source line but have
+        // leading/trailing SPACE (not newline) boundary whitespace, collapse to
+        // one line and strip the boundary whitespace — prettier's block element
+        // trimming behavior.
+        // E.g. `<p> {@html raw1} {@html raw2} </p>` → `<p>{@html raw1} {@html raw2}</p>`.
+        // Multi-line source (boundary whitespace is newline + indent) is left alone —
+        // the indent pass owns those elements.
+        if is_block_display(tag) && (had_lead || had_trail) && !raw.contains('\n') {
+            let element_one_line = column + open.width() + flat.width() + close.width();
+            if element_one_line <= line_width {
+                let one_line = format!("{open}{flat}{close}");
+                return (one_line != whole).then_some((start, end, one_line));
+            }
+        }
         return None;
     }
 
@@ -1561,6 +1575,19 @@ fn try_fill_mixed(
         // A block element whose flat element line overflows puts its content on
         // its own line; an inline element would instead hug, so leave those.
         if element_one_line <= line_width || !is_block_display(tag) {
+            // Even when the element fits on one line, if it's a block-display
+            // element with leading/trailing space boundary whitespace (but NOT
+            // newline-separated — that's indented multi-line content), collapse
+            // to the space-trimmed one-line form.
+            // E.g. `<p> {a} {b} : {c} : </p>` → `<p>{a} {b} : {c} :</p>`.
+            if is_block_display(tag)
+                && (had_lead || had_trail)
+                && !raw.contains('\n')
+                && element_one_line <= line_width
+            {
+                let one_line = format!("{open}{flat}{close}");
+                return (one_line != whole).then_some((start, end, one_line));
+            }
             return None;
         }
     }
