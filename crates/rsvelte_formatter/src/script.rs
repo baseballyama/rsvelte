@@ -178,13 +178,17 @@ pub(crate) fn format_nested_script(
     )))
 }
 
-/// Normalize whitespace in a `<script …>` / `<style …>` opening tag: collapse
-/// runs of whitespace (outside attribute-value quotes) to a single space and
-/// drop space before the closing `>` (`<script  module>` → `<script module>`).
+/// Normalize a `<script …>` / `<style …>` opening tag:
+/// - Collapse runs of whitespace (outside attribute-value quotes) to a single
+///   space and drop space before the closing `>`.
+/// - Normalize attribute value quotes to double-quotes: single-quoted values
+///   become double-quoted, and unquoted values receive double-quotes.
+///   (`<script context=module>` → `<script context="module">`,
+///    `<script lang='ts'>` → `<script lang="ts">`)
 /// Returns the edit only when it changes something.
 pub(crate) fn format_open_tag(source: &str, start: u32, end: u32) -> Option<(u32, u32, String)> {
     let block = source.get(start as usize..end as usize)?;
-    let tag_end_rel = block.find('>')? + 1;
+    let tag_end_rel = find_open_tag_end(block)? + 1;
     let tag = &block[..tag_end_rel];
     let normalized = normalize_open_tag(tag);
     if normalized == tag {
@@ -193,35 +197,120 @@ pub(crate) fn format_open_tag(source: &str, start: u32, end: u32) -> Option<(u32
     Some((start, start + tag_end_rel as u32, normalized))
 }
 
+/// Normalize whitespace and quote styles in a `<script …>` / `<style …>` open
+/// tag. All attribute values are emitted with double-quotes.
 fn normalize_open_tag(tag: &str) -> String {
-    let mut out = String::with_capacity(tag.len());
-    let mut quote: Option<char> = None;
+    let mut out = String::with_capacity(tag.len() + 4);
+    let bytes = tag.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
     let mut pending_space = false;
-    for c in tag.chars() {
-        if let Some(q) = quote {
-            out.push(c);
-            if c == q {
-                quote = None;
-            }
+
+    // Emit everything up to and including the tag name (e.g. `<script`).
+    // The tag name runs until the first whitespace or `>`.
+    while i < len && !bytes[i].is_ascii_whitespace() && bytes[i] != b'>' {
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+
+    // Parse attributes.
+    loop {
+        // Skip whitespace between attributes.
+        let ws_start = i;
+        while i < len && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i > ws_start {
+            pending_space = true;
+        }
+
+        if i >= len {
+            break;
+        }
+        let b = bytes[i];
+        if b == b'>' {
+            // Closing `>` — no space before it.
+            out.push('>');
+            break;
+        }
+
+        // Attribute name.
+        if pending_space {
+            out.push(' ');
+            pending_space = false;
+        }
+
+        let name_start = i;
+        while i < len && bytes[i] != b'=' && !bytes[i].is_ascii_whitespace() && bytes[i] != b'>' {
+            i += 1;
+        }
+        let name = &tag[name_start..i];
+        out.push_str(name);
+
+        if i >= len || bytes[i] != b'=' {
+            // Boolean attribute (no `=`).
             continue;
         }
-        if c == '"' || c == '\'' {
-            if pending_space {
-                out.push(' ');
-                pending_space = false;
+        // Consume `=`.
+        out.push('=');
+        i += 1;
+
+        if i >= len {
+            break;
+        }
+
+        match bytes[i] {
+            b'"' => {
+                // Already double-quoted — copy verbatim including closing `"`.
+                out.push('"');
+                i += 1;
+                while i < len && bytes[i] != b'"' {
+                    out.push(bytes[i] as char);
+                    i += 1;
+                }
+                out.push('"');
+                if i < len {
+                    i += 1; // consume closing `"`
+                }
             }
-            out.push(c);
-            quote = Some(c);
-        } else if c.is_whitespace() {
-            pending_space = true;
-        } else {
-            if pending_space && c != '>' {
-                out.push(' ');
+            b'\'' => {
+                // Single-quoted → convert to double-quoted, escaping any `"`.
+                out.push('"');
+                i += 1;
+                while i < len && bytes[i] != b'\'' {
+                    if bytes[i] == b'"' {
+                        out.push_str("&quot;");
+                    } else {
+                        out.push(bytes[i] as char);
+                    }
+                    i += 1;
+                }
+                out.push('"');
+                if i < len {
+                    i += 1; // consume closing `'`
+                }
             }
-            pending_space = false;
-            out.push(c);
+            _ => {
+                // Unquoted value — collect until whitespace or `>`, then wrap.
+                let val_start = i;
+                while i < len && !bytes[i].is_ascii_whitespace() && bytes[i] != b'>' {
+                    i += 1;
+                }
+                let val = &tag[val_start..i];
+                out.push('"');
+                // Escape any `"` inside the value (rare but possible).
+                for c in val.chars() {
+                    if c == '"' {
+                        out.push_str("&quot;");
+                    } else {
+                        out.push(c);
+                    }
+                }
+                out.push('"');
+            }
         }
     }
+
     out
 }
 
