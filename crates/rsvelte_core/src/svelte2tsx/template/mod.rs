@@ -912,7 +912,7 @@ fn handle_comment(comment: &Comment, str: &mut MagicString) {
 ///
 /// Overwrites `{` with empty and `}` with `;` so the expression is preserved
 /// as a statement: `{count}` → `count;`
-fn handle_expression_tag(expr: &ExpressionTag, _source: &str, str: &mut MagicString) {
+fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString) {
     if expr.start >= expr.end {
         return;
     }
@@ -922,8 +922,30 @@ fn handle_expression_tag(expr: &ExpressionTag, _source: &str, str: &mut MagicStr
         if expr.start < expr_start {
             str.overwrite(expr.start, expr_start, "");
         }
-        // Overwrite the closing `}` (everything after the expression) with `;`
-        if expr_end < expr.end {
+        // The parser narrows the expression span past a trailing TS postfix —
+        // `name as string`, `x satisfies T`, `x!`. Those must be PRESERVED
+        // (official keeps them), unlike wrapping parens (`(foo)`) which the
+        // narrowing strips symmetrically and which must stay stripped. So if the
+        // text between `expr_end` and the closing `}` is a TS postfix, keep it
+        // (overwrite only the `}`); otherwise overwrite from `expr_end` (which
+        // drops a trailing `)` to match the stripped leading `(`).
+        let close = {
+            let bytes = source.as_bytes();
+            let mut c = expr.end as usize;
+            while c > expr_end as usize && bytes[c - 1] != b'}' {
+                c -= 1;
+            }
+            c
+        };
+        let tail = source
+            .get(expr_end as usize..close.saturating_sub(1))
+            .unwrap_or("")
+            .trim_start();
+        let is_ts_postfix =
+            tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!');
+        if is_ts_postfix && close > expr_end as usize {
+            str.overwrite((close - 1) as u32, expr.end, ";");
+        } else if expr_end < expr.end {
             str.overwrite(expr_end, expr.end, ";");
         }
     } else {
