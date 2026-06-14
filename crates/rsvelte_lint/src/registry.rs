@@ -71,6 +71,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(
             crate::rules::no_spaces_around_equal_signs_in_attribute::NoSpacesAroundEqualSignsInAttribute,
         ),
+        Box::new(crate::rules::spaced_html_comment::SpacedHtmlComment),
+        Box::new(crate::rules::shorthand_attribute::ShorthandAttribute),
+        Box::new(crate::rules::shorthand_directive::ShorthandDirective),
     ]
 }
 

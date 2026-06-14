@@ -50,5 +50,8 @@ pub mod require_each_key;
 pub mod require_store_callbacks_use_set_param;
 pub mod require_store_reactive_access;
 pub mod require_stores_init;
+pub mod shorthand_attribute;
+pub mod shorthand_directive;
+pub mod spaced_html_comment;
 pub mod store_refs;
 pub mod valid_each_key;
