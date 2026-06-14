@@ -3894,6 +3894,20 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 if bind.name == "this" {
                     continue;
                 }
+                // Mirror official Binding.ts: a *shorthand* component binding
+                // (`bind:value`, no `={…}`) becomes a shorthand object property
+                // — just the bound expression (`value`), not `value:value`. The
+                // shorthand test is whether the expression starts immediately
+                // after `bind:`. Explicit `bind:foo={expr}` stays `foo:expr,`.
+                let expr_range = get_expression_range(&bind.expression);
+                let is_shorthand = get_set_binding_ranges(&bind.expression, source).is_none()
+                    && expr_range.is_some_and(|(s, _)| s == bind.start + "bind:".len() as u32);
+                if is_shorthand {
+                    let (s, e) = expr_range.unwrap();
+                    segs_push_src(&mut inner, s, e);
+                    segs_push_lit(&mut inner, ",");
+                    continue;
+                }
                 // Component-side bind:foo={expr} → foo:expr, (no quotes,
                 // no `bind:` prefix). Mirrors the JS reference.
                 segs_push_lit(&mut inner, &format!("{}:", bind.name));
