@@ -92,6 +92,47 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     // wrapper element) aren't hoisted into `root.css`, so format them here.
     style::collect_nested_style_edits(source, &root.fragment, options, &mut edits)?;
 
+    // Snapshot the top-level section spans (options / module / instance script /
+    // style) and remap them through the pending edits, so the reorder post-pass
+    // can run on the formatted output WITHOUT re-parsing it. An edit never
+    // straddles a top-level element boundary, so a boundary's new offset is its
+    // original offset plus the net length change of every edit ending at or
+    // before it. Only collect spans when reordering could change something
+    // (more than one top-level unit); otherwise the pass is skipped entirely.
+    let mut sections: Vec<(u8, u32, u32)> = Vec::new();
+    if let Some(o) = &root.options {
+        sections.push((sort_order::P_OPTIONS, o.start, o.end));
+    }
+    if let Some(m) = &root.module {
+        sections.push((sort_order::P_MODULE, m.start, m.end));
+    }
+    if let Some(i) = &root.instance {
+        sections.push((sort_order::P_INSTANCE, i.start, i.end));
+    }
+    if let Some(c) = &root.css {
+        sections.push((sort_order::P_STYLE, c.start, c.end));
+    }
+    let has_markup = root.fragment.nodes.iter().any(|n| {
+        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
+    });
+    let reorder_spans: Vec<(u8, usize, usize)> =
+        if sections.len() > 1 || (sections.len() == 1 && has_markup) {
+            let remap = |pos: u32| -> usize {
+                let delta: isize = edits
+                    .iter()
+                    .filter(|(_, end, _)| *end <= pos)
+                    .map(|(start, end, repl)| repl.len() as isize - (*end - *start) as isize)
+                    .sum();
+                (pos as isize + delta) as usize
+            };
+            sections
+                .iter()
+                .map(|&(p, s, e)| (p, remap(s), remap(e)))
+                .collect()
+        } else {
+            Vec::new()
+        };
+
     // Apply edits from the back so earlier offsets remain valid.
     edits.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
     let mut out = source.to_string();
@@ -99,31 +140,17 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         out.replace_range(start as usize..end as usize, &new_text);
     }
 
-    // Post-pass: collapse pure-text elements onto one line when they fit.
-    out = collapse::collapse_pure_text_elements(&out, options)?;
-
     // Post-pass: reorder top-level sections into prettier's canonical order
     // (options → module script → instance script → markup → styles) and
-    // normalize the blank lines between top-level units. This re-parses the
-    // output, so skip it (using the already-parsed `root`) whenever there is
-    // nothing it could change: a file with no sections, or a single section and
-    // no markup, has only one top-level unit. Section order is preserved by
-    // formatting, so the original root is a sound predicate.
-    let section_count = [
-        root.options.is_some(),
-        root.module.is_some(),
-        root.instance.is_some(),
-        root.css.is_some(),
-    ]
-    .into_iter()
-    .filter(|&p| p)
-    .count();
-    let has_markup = root.fragment.nodes.iter().any(|n| {
-        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
-    });
-    if section_count > 1 || (section_count == 1 && has_markup) {
-        out = sort_order::reorder_sections(&out);
+    // normalize the blank lines between top-level units. Runs before collapse;
+    // the two are orthogonal — collapse only touches inline elements inside the
+    // markup fragment, never the section order.
+    if !reorder_spans.is_empty() {
+        out = sort_order::reorder_sections(&out, reorder_spans);
     }
+
+    // Post-pass: collapse pure-text elements onto one line when they fit.
+    out = collapse::collapse_pure_text_elements(&out, options)?;
 
     // Start the file at content: prettier / oxfmt strip leading blank lines and
     // indentation before the first node (e.g. a markdown code block that begins

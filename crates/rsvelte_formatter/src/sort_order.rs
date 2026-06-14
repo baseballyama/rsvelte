@@ -31,14 +31,13 @@
 //! intervening blank line — the blank line only appears before the comment,
 //! separating it from the previous unit.
 
-use rsvelte_core::{ParseOptions, parse};
-
-/// Canonical priority of each section. Markup is priority 3.
-const P_OPTIONS: u8 = 0;
-const P_MODULE: u8 = 1;
-const P_INSTANCE: u8 = 2;
+/// Canonical priority of each section. Markup is priority 3. The caller
+/// (`lib.rs`) tags each section span with one of these.
+pub(crate) const P_OPTIONS: u8 = 0;
+pub(crate) const P_MODULE: u8 = 1;
+pub(crate) const P_INSTANCE: u8 = 2;
 const P_MARKUP: u8 = 3;
-const P_STYLE: u8 = 4;
+pub(crate) const P_STYLE: u8 = 4;
 
 /// A top-level unit in source order: a section (with any attached leading
 /// comment) or a markup run.
@@ -47,28 +46,14 @@ struct Unit {
     text: String,
 }
 
-/// Reassemble `out`'s top-level sections in canonical order with exactly one
-/// blank line between each top-level unit. Returns `out` unchanged when it
-/// cannot be re-parsed.
-pub(crate) fn reorder_sections(out: &str) -> String {
-    let Ok(root) = parse(out, ParseOptions::default()) else {
-        return out.to_string();
-    };
-
-    // Anchored (non-markup) sections, sorted by source position.
-    let mut sections: Vec<(u8, usize, usize)> = Vec::new();
-    if let Some(o) = &root.options {
-        sections.push((P_OPTIONS, o.start as usize, o.end as usize));
-    }
-    if let Some(m) = &root.module {
-        sections.push((P_MODULE, m.start as usize, m.end as usize));
-    }
-    if let Some(i) = &root.instance {
-        sections.push((P_INSTANCE, i.start as usize, i.end as usize));
-    }
-    if let Some(c) = &root.css {
-        sections.push((P_STYLE, c.start as usize, c.end as usize));
-    }
+/// Reassemble the top-level sections of `out` in canonical order with exactly
+/// one blank line between each top-level unit.
+///
+/// `sections` is the list of `(priority, start, end)` byte spans of the
+/// non-markup sections (options / module / instance script / style) **in `out`'s
+/// coordinates** — the caller remaps them from the parsed source through the
+/// applied edits, so this pass never re-parses. Markup is everything else.
+pub(crate) fn reorder_sections(out: &str, mut sections: Vec<(u8, usize, usize)>) -> String {
     if sections.is_empty() {
         return out.to_string();
     }
