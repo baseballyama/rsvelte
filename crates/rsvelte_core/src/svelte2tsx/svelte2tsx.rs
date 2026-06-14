@@ -3619,12 +3619,15 @@ fn attr_has_await(
     use crate::ast::template::Attribute;
     use crate::ast::template::AttributeValue;
     use crate::ast::template::AttributeValuePart;
-    // Only plain AttributeNode can carry await in its value; directives,
-    // SpreadAttribute, etc., don't have ExpressionTag values.
-    let Attribute::Attribute(attr_node) = attr else {
-        return false;
-    };
-    match &attr_node.value {
+
+    // Mirror official's template walk, which sets `isRunes` on ANY top-level
+    // `AwaitExpression` regardless of which attribute/directive it lives in
+    // (e.g. `class:x={await y}`, `style:c={await z}`, `use:a={await b}`,
+    // `bind:v={await w}`). Previously only plain attributes were checked, so
+    // an await confined to a directive failed to flip runes mode and the
+    // `bindings:` field was emitted in legacy (`""`) instead of runes
+    // (`__sveltets_$$bindings('')`) form.
+    let value_has_await = |value: &AttributeValue| match value {
         AttributeValue::Expression(expr_tag) => {
             expression_is_await(&expr_tag.expression, source, arena)
         }
@@ -3636,6 +3639,24 @@ fn attr_has_await(
             }
         }),
         AttributeValue::True(_) => false,
+    };
+    let opt_expr_has_await = |expr: &Option<crate::ast::js::Expression>| {
+        expr.as_ref()
+            .is_some_and(|e| expression_is_await(e, source, arena))
+    };
+
+    match attr {
+        Attribute::Attribute(attr_node) => value_has_await(&attr_node.value),
+        Attribute::SpreadAttribute(s) => expression_is_await(&s.expression, source, arena),
+        Attribute::AttachTag(t) => expression_is_await(&t.expression, source, arena),
+        Attribute::ClassDirective(d) => expression_is_await(&d.expression, source, arena),
+        Attribute::BindDirective(d) => expression_is_await(&d.expression, source, arena),
+        Attribute::StyleDirective(d) => value_has_await(&d.value),
+        Attribute::OnDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::TransitionDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::AnimateDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::UseDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::LetDirective(_) => false,
     }
 }
 
