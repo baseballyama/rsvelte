@@ -3681,11 +3681,29 @@ fn template_node_has_rune_global(
         TemplateNode::RenderTag(tag) => {
             expression_references_rune_global(&tag.expression, source, arena)
         }
+        // AttachTag ({@attach expr}) — the expression may contain nested
+        // rune calls, e.g. `{@attach $effect(() => { ... })}`.
+        // Reference: official svelte2tsx collects `@attach` expression globals
+        // via `implicitStoreValues` just like any other template expression.
+        TemplateNode::AttachTag(tag) => {
+            expression_references_rune_global(&tag.expression, source, arena)
+        }
         _ => false,
     }
 }
 
-/// Check if an attribute value contains a rune-global reference in any ExpressionTag part.
+/// Check if an attribute (of any kind) contains a rune-global reference.
+///
+/// Covers all `Attribute` variants:
+/// - `Attribute` (plain attribute with expression/sequence value)
+/// - `SpreadAttribute` (spread expression)
+/// - `AttachTag` (`{@attach expr}` used inside element attribute position)
+/// - All directives: `bind:`, `on:`, `class:`, `style:`, `transition:`,
+///   `animate:`, `use:`, `let:` — each may carry an expression value.
+///
+/// Reference: official svelte2tsx passes ALL template expressions through
+/// `implicitStoreValues` (which collects globals), not just plain attributes.
+/// Mirrors the comprehensive directive coverage in `attr_has_await`.
 fn attr_has_rune_global(
     attr: &crate::ast::template::Attribute,
     source: &str,
@@ -3695,21 +3713,86 @@ fn attr_has_rune_global(
     use crate::ast::template::AttributeValue;
     use crate::ast::template::AttributeValuePart;
 
-    let Attribute::Attribute(attr_node) = attr else {
-        return false;
-    };
-    match &attr_node.value {
-        AttributeValue::Expression(expr_tag) => {
-            expression_references_rune_global(&expr_tag.expression, source, arena)
-        }
-        AttributeValue::Sequence(parts) => parts.iter().any(|part| {
-            if let AttributeValuePart::ExpressionTag(tag) = part {
-                expression_references_rune_global(&tag.expression, source, arena)
-            } else {
-                false
+    match attr {
+        // Plain attribute: check expression / sequence values.
+        Attribute::Attribute(attr_node) => match &attr_node.value {
+            AttributeValue::Expression(expr_tag) => {
+                expression_references_rune_global(&expr_tag.expression, source, arena)
             }
-        }),
-        AttributeValue::True(_) => false,
+            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let AttributeValuePart::ExpressionTag(tag) = part {
+                    expression_references_rune_global(&tag.expression, source, arena)
+                } else {
+                    false
+                }
+            }),
+            AttributeValue::True(_) => false,
+        },
+
+        // Spread attribute: `{...expr}` — check the spread expression.
+        Attribute::SpreadAttribute(spread) => {
+            expression_references_rune_global(&spread.expression, source, arena)
+        }
+
+        // AttachTag in attribute position: `{@attach expr}`.
+        Attribute::AttachTag(attach) => {
+            expression_references_rune_global(&attach.expression, source, arena)
+        }
+
+        // bind:name={expr} — expression is always present.
+        Attribute::BindDirective(bind) => {
+            expression_references_rune_global(&bind.expression, source, arena)
+        }
+
+        // on:event={handler} — expression is Optional<Expression>.
+        Attribute::OnDirective(on) => on
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // class:name={expr} — expression is always present.
+        Attribute::ClassDirective(class) => {
+            expression_references_rune_global(&class.expression, source, arena)
+        }
+
+        // style:property={value} — value is AttributeValue (same shape as plain attr).
+        Attribute::StyleDirective(style) => match &style.value {
+            AttributeValue::Expression(expr_tag) => {
+                expression_references_rune_global(&expr_tag.expression, source, arena)
+            }
+            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let AttributeValuePart::ExpressionTag(tag) = part {
+                    expression_references_rune_global(&tag.expression, source, arena)
+                } else {
+                    false
+                }
+            }),
+            AttributeValue::True(_) => false,
+        },
+
+        // transition:name={params} / in: / out: — expression is Optional.
+        Attribute::TransitionDirective(t) => t
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // animate:name={params} — expression is Optional.
+        Attribute::AnimateDirective(a) => a
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // use:action={params} — expression is Optional.
+        Attribute::UseDirective(u) => u
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // let:item — rarely carries a rune call, but check for completeness.
+        Attribute::LetDirective(l) => l
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
     }
 }
 
@@ -3788,22 +3871,29 @@ fn js_callee_is_rune_global(
 }
 
 /// Walk a `JsNode` (typed AST node stored in the parse arena) looking for a
-/// `$state`/`$derived`/`$effect` rune call anywhere in the expression.
+/// `$state`/`$derived`/`$effect` rune call anywhere in the expression tree.
 ///
 /// A RUNE CALL means the global is used as a call callee or as the object of a
 /// member-expression that is itself used as a call callee.  A bare `$state`
 /// identifier that is just a store auto-subscription (`{$state}`) does NOT match.
 ///
 /// Handles patterns like:
-///   - `$state(x)`              → CallExpression callee = Identifier "$state"
-///   - `$state.eager(x)`        → CallExpression callee = MemberExpression { object = Identifier "$state" }
-///   - `$effect.pre(() => …)`   → same
-///   - `foo($state(x))`         → arguments contain a rune CallExpression
-///   - `a === '/' ? $state(x) : null` → ConditionalExpression branches
+///   - `$state(x)`                     → CallExpression callee = Identifier "$state"
+///   - `$state.eager(x)`               → CallExpression callee = MemberExpression { object = Identifier "$state" }
+///   - `$effect.pre(() => …)`          → same
+///   - `foo($state(x))`                → arguments contain a rune CallExpression
+///   - `a === '/' ? $state(x) : null`  → ConditionalExpression branches
+///   - `() => $effect(() => {})`       → ArrowFunctionExpression body
+///   - `{@attach $effect(() => {})}`   → ArrowFunctionExpression body in AttachTag
+///   - `[..., $state(x)]`              → ArrayExpression element
+///   - `{ k: $derived(v) }`            → ObjectExpression property value
 ///
 /// Does NOT match:
 ///   - `{$state}` (bare store auto-subscription; no call)
 ///   - `$state + 1` (store ref in arithmetic; no call)
+///
+/// Reference: official `implicitStoreValues` collects ALL undeclared globals,
+/// including those inside nested function bodies passed to directives.
 fn js_node_references_rune_global(
     node: &crate::ast::typed_expr::JsNode,
     arena: &crate::ast::arena::ParseArena,
@@ -3848,6 +3938,85 @@ fn js_node_references_rune_global(
                 || js_node_references_rune_global(arena.get_js_node(*right), arena)
         }
 
+        // ArrowFunctionExpression: recurse into the body.
+        // Covers `{@attach $effect(() => { ... })}` and
+        // `use:action={() => $state(x)}` patterns.
+        // The body is a JsNodeId pointing to either a BlockStatement or an
+        // expression (when `expression: true`).
+        JsNode::ArrowFunctionExpression { body, .. } => {
+            let body_node = arena.get_js_node(*body);
+            js_node_references_rune_global(body_node, arena)
+        }
+
+        // FunctionExpression: recurse into the body (a BlockStatement or None).
+        // E.g. `use:action={function() { $effect(() => {}); }}`.
+        JsNode::FunctionExpression { body, .. } => body
+            .map(|b| {
+                let body_node = arena.get_js_node(b);
+                js_node_references_rune_global(body_node, arena)
+            })
+            .unwrap_or(false),
+
+        // BlockStatement: recurse into each statement.
+        // Reached from FunctionExpression / ArrowFunctionExpression bodies.
+        JsNode::BlockStatement { body, .. } => {
+            let stmts = arena.get_js_children(*body);
+            stmts
+                .iter()
+                .any(|s| js_node_references_rune_global(s, arena))
+        }
+
+        // ExpressionStatement: unwrap to the inner expression.
+        JsNode::ExpressionStatement { expression, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*expression), arena)
+        }
+
+        // ObjectExpression: recurse into property values.
+        // E.g. `use:action={{ key: $state(x) }}`.
+        JsNode::ObjectExpression { properties, .. } => {
+            let props = arena.get_js_children(*properties);
+            props.iter().any(|p| {
+                if let JsNode::Property { value, .. } = p {
+                    js_node_references_rune_global(arena.get_js_node(*value), arena)
+                } else {
+                    false
+                }
+            })
+        }
+
+        // ArrayExpression: recurse into elements (elements are inline, not arena-indexed).
+        // E.g. `{[$state(a), $derived(b)]}`.
+        JsNode::ArrayExpression { elements, .. } => elements.iter().any(|elem| {
+            elem.as_ref()
+                .is_some_and(|e| js_node_references_rune_global(e, arena))
+        }),
+
+        // SequenceExpression: recurse into each sub-expression.
+        // E.g. `{(doSomething(), $state(x))}`.
+        JsNode::SequenceExpression { expressions, .. } => {
+            let exprs = arena.get_js_children(*expressions);
+            exprs
+                .iter()
+                .any(|e| js_node_references_rune_global(e, arena))
+        }
+
+        // AwaitExpression: recurse into the argument.
+        // Rare in template context but possible.
+        JsNode::AwaitExpression { argument, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*argument), arena)
+        }
+
+        // UnaryExpression: recurse into argument (e.g. `!$state(x)`).
+        JsNode::UnaryExpression { argument, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*argument), arena)
+        }
+
+        // AssignmentExpression: check right-hand side.
+        // E.g. `x = $state(0)` inside a function body.
+        JsNode::AssignmentExpression { right, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*right), arena)
+        }
+
         // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
         // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.
         // These are legitimate store/object references, not rune invocations.
@@ -3886,8 +4055,18 @@ fn json_callee_is_rune_global(callee: &serde_json::Value) -> bool {
 /// Only matches when a rune global is actually invoked (called), not when it
 /// appears as a bare store auto-subscription reference like `{$state}`.
 /// Recurse up to a bounded depth to avoid unbounded recursion.
+///
+/// Extended (mirrors `js_node_references_rune_global`) to recurse into:
+/// - ArrowFunctionExpression / FunctionExpression bodies
+/// - BlockStatement statements
+/// - ExpressionStatement inner expression
+/// - ObjectExpression property values
+/// - ArrayExpression elements
+/// - SequenceExpression sub-expressions
+/// - AwaitExpression / UnaryExpression arguments
+/// - AssignmentExpression right-hand side
 fn json_references_rune_global(v: &serde_json::Value, depth: u8) -> bool {
-    if depth > 16 {
+    if depth > 20 {
         return false;
     }
     let ty = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -3914,6 +4093,61 @@ fn json_references_rune_global(v: &serde_json::Value, depth: u8) -> bool {
                 || v.get("right")
                     .is_some_and(|c| json_references_rune_global(c, depth + 1))
         }
+        // Arrow/function bodies: recurse into `body`.
+        "ArrowFunctionExpression" | "FunctionExpression" => v
+            .get("body")
+            .is_some_and(|b| json_references_rune_global(b, depth + 1)),
+        // BlockStatement: recurse into each statement in `body`.
+        "BlockStatement" => v
+            .get("body")
+            .and_then(|b| b.as_array())
+            .is_some_and(|stmts| {
+                stmts
+                    .iter()
+                    .any(|s| json_references_rune_global(s, depth + 1))
+            }),
+        // ExpressionStatement: unwrap to expression field.
+        "ExpressionStatement" => v
+            .get("expression")
+            .is_some_and(|e| json_references_rune_global(e, depth + 1)),
+        // ObjectExpression: recurse into property values.
+        "ObjectExpression" => v
+            .get("properties")
+            .and_then(|p| p.as_array())
+            .is_some_and(|props| {
+                props.iter().any(|prop| {
+                    prop.get("value")
+                        .is_some_and(|val| json_references_rune_global(val, depth + 1))
+                })
+            }),
+        // ArrayExpression: recurse into elements (may contain nulls for elisions).
+        "ArrayExpression" => v
+            .get("elements")
+            .and_then(|e| e.as_array())
+            .is_some_and(|elems| {
+                elems
+                    .iter()
+                    .filter(|e| !e.is_null())
+                    .any(|e| json_references_rune_global(e, depth + 1))
+            }),
+        // SequenceExpression: recurse into each sub-expression.
+        "SequenceExpression" => {
+            v.get("expressions")
+                .and_then(|e| e.as_array())
+                .is_some_and(|exprs| {
+                    exprs
+                        .iter()
+                        .any(|e| json_references_rune_global(e, depth + 1))
+                })
+        }
+        // AwaitExpression / UnaryExpression: recurse into argument.
+        "AwaitExpression" | "UnaryExpression" => v
+            .get("argument")
+            .is_some_and(|a| json_references_rune_global(a, depth + 1)),
+        // AssignmentExpression: check right-hand side.
+        "AssignmentExpression" => v
+            .get("right")
+            .is_some_and(|r| json_references_rune_global(r, depth + 1)),
         // Bare "Identifier" (`{$state}` store ref), "MemberExpression" without call, etc.
         // → NOT a rune invocation.
         _ => false,
@@ -4354,6 +4588,36 @@ mod tests {
         assert!(
             code.contains("__sveltets_2_fn_component"),
             "$effect.pre() in template expression must be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `{@attach $effect(() => {})}` — rune global nested inside an arrow function
+    /// body of an AttachTag expression → must be runes mode (fn_component).
+    ///
+    /// Ground truth: official svelte2tsx collects `$effect` as an undeclared global
+    /// via `implicitStoreValues` even when it appears inside a nested function body
+    /// passed to `{@attach ...}`.
+    #[test]
+    fn test_runes_effect_nested_in_attach_tag() {
+        let code = run_svelte2tsx_v5("<div {@attach $effect(() => {})}></div>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$effect() nested in {{@attach}} must be runes mode; got:\n{code}"
+        );
+        assert!(
+            !code.contains("__sveltets_2_isomorphic_component"),
+            "$effect() in {{@attach}} must NOT be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// `use:action={() => $state(0)}` — rune global inside arrow function body
+    /// of a `use:` directive → must be runes mode.
+    #[test]
+    fn test_runes_state_nested_in_use_directive() {
+        let code = run_svelte2tsx_v5("<div use:action={() => $state(0)}></div>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$state() nested in use: directive must be runes mode; got:\n{code}"
         );
     }
 
