@@ -32,6 +32,7 @@ pub mod no_reactive_literals;
 pub mod no_reactive_reassign;
 pub mod no_restricted_html_elements;
 pub mod no_shorthand_style_property_overrides;
+pub mod no_spaces_around_equal_signs_in_attribute;
 pub mod no_store_async;
 pub mod no_svelte_internal;
 pub mod no_target_blank;
