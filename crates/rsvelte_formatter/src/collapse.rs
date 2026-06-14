@@ -639,6 +639,14 @@ fn collect(
                     line_width,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_break_block_multiline_content(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                ) {
+                    edits.push(edit);
                 } else {
                     collect(out, &elem.fragment, line_width, options, edits);
                 }
@@ -1563,6 +1571,96 @@ fn try_break_block_overflow(
     }
     // Content must be fully inline (no newlines).
     if content.contains('\n') {
+        return None;
+    }
+
+    // Derive element indent from the text before `start` on the same line.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+
+    let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
+    (broken != whole).then_some((start, end, broken))
+}
+
+/// Break a block-display element whose content is multi-line but the content
+/// is still "glued" to the open and/or close tag (i.e., no newline immediately
+/// after `>` or before `</tag>`). This happens when an ExpressionTag or child
+/// element had its content reformatted to span multiple lines AFTER the indent
+/// pass already ran — so the element's outer `>content</tag>` boundary was
+/// never re-laid out.
+///
+/// Example:
+///   `<p>{x1 +\n    x2 + ... x32}</p>`
+/// becomes:
+///   `<p>\n  {x1 +\n    x2 + ... x32}\n</p>`
+///
+/// Only fires when:
+/// - The element is block-display.
+/// - The whole element is multi-line.
+/// - The open tag is single-line (no newline before `>`).
+/// - The content starts on the same line as `>` (no `\n` right after `>`).
+/// - The close tag is on the same line as the last content character.
+fn try_break_block_multiline_content(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+) -> Option<(u32, u32, String)> {
+    if !is_block_display(tag) {
+        return None;
+    }
+
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+
+    // Only act on elements that already have newlines (multi-line content).
+    if !whole.contains('\n') {
+        return None;
+    }
+
+    // Need at least one non-whitespace child.
+    let first_child = fragment
+        .nodes
+        .iter()
+        .find(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+    let last_child = fragment
+        .nodes
+        .iter()
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+
+    let first_start = node_start(first_child) as usize;
+    let last_end = node_end(last_child) as usize;
+
+    // open tag = element start up to first meaningful child.
+    let open = out.get(s..first_start)?;
+    // close tag = last meaningful child end to element end.
+    let close = out.get(last_end..e)?;
+    // content = everything from first to last meaningful child (inclusive).
+    let content = out.get(first_start..last_end)?;
+
+    if open.is_empty() || close.is_empty() || content.is_empty() {
+        return None;
+    }
+    // Open tag must be single-line and end with `>`.
+    if open.contains('\n') || !open.ends_with('>') {
+        return None;
+    }
+    // Content must be multi-line (otherwise try_break_block_overflow handles it).
+    if !content.contains('\n') {
+        return None;
+    }
+    // The content must start on the SAME line as `>` (otherwise it's already broken).
+    // Check: the char immediately after `>` is NOT a newline.
+    if out.as_bytes().get(first_start) == Some(&b'\n') {
+        return None;
+    }
+    // The close tag must start on the SAME line as the last content char.
+    if out.as_bytes().get(last_end) == Some(&b'\n') {
         return None;
     }
 

@@ -1339,80 +1339,11 @@ pub(crate) fn format_pattern_source(
     // oxc_formatter regardless of `line_width` / `expand`. A multi-line
     // pattern can't safely sit inside a Svelte block header
     // (`{#each as ...}` re-reads the header as a single line), so
-    // collapse the OXC multi-line output onto one line by joining trimmed
-    // non-empty lines, handling trailing commas before closing brackets/braces.
+    // fall back to a light source-normalization for those.
     if candidate.contains('\n') {
-        return Ok(collapse_multiline_pattern(&candidate));
+        return Ok(light_normalize_pattern(pattern_source));
     }
     Ok(candidate)
-}
-
-/// Collapse an OXC-formatted multi-line destructuring pattern onto one line.
-///
-/// OXC may produce:
-/// ```
-/// {
-///   0: first,
-///   [length - 1]: last,
-/// }
-/// ```
-/// We join each trimmed token line, re-inserting a single space after each
-/// comma. Trailing commas before `}` / `]` are stripped (OXC adds them in
-/// multi-line mode; prettier does not in single-line).
-fn collapse_multiline_pattern(src: &str) -> String {
-    let mut out = String::with_capacity(src.len());
-    let mut prev_was_open = false;
-    for line in src.lines() {
-        let t = line.trim();
-        if t.is_empty() {
-            continue;
-        }
-        // Strip trailing comma from lines that close a bracket/brace on the next token.
-        // We detect this if the trimmed line ends with `,` and the *next* non-empty
-        // trimmed line starts with `}` or `]`. For simplicity: strip trailing comma
-        // from any line whose content, after trimming, ends with `,` when the
-        // next non-empty line starts with `}` or `]`. We do a two-pass approach:
-        // collect all trimmed non-empty tokens first.
-        let _ = prev_was_open;
-        out.push_str(t);
-        out.push(' ');
-        prev_was_open = t.ends_with('{') || t.ends_with('[');
-    }
-    // Now we have tokens separated by spaces. Post-process to fix up:
-    //   - Remove spaces BEFORE `}` and `]` and `)`.
-    //   - Remove trailing comma before `}` / `]`.
-    //   - Remove trailing space.
-    // Use a different approach: collect tokens line by line and join properly.
-    drop(out);
-
-    let tokens: Vec<&str> = src
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect();
-    let mut result = String::with_capacity(src.len());
-    for (i, tok) in tokens.iter().enumerate() {
-        let next = tokens.get(i + 1).copied().unwrap_or("");
-        // Strip a trailing comma if the next line is just `}` or `]` or `]:`
-        let effective = if tok.ends_with(',') && (next.starts_with('}') || next.starts_with(']')) {
-            &tok[..tok.len() - 1]
-        } else {
-            tok
-        };
-        // If this token starts with `}` or `]`, remove any trailing space we added.
-        if effective.starts_with('}') || effective.starts_with(']') {
-            // Remove the trailing space from the last push.
-            if result.ends_with(' ') {
-                result.pop();
-            }
-        }
-        result.push_str(effective);
-        // After the token, add a space unless we're at the end.
-        if i + 1 < tokens.len() {
-            result.push(' ');
-        }
-    }
-    result
 }
 
 /// Conservative whitespace-only normalization used when the JS formatter
@@ -1426,9 +1357,21 @@ fn collapse_multiline_pattern(src: &str) -> String {
 /// Template-literal `${…}` expressions are passed through verbatim (no inner
 /// spaces inserted) to match `oxfmt`'s behaviour: `` [`leng${th}`] `` stays
 /// `` [`leng${th}`] ``, not `` [`leng${ th }`] ``.
+///
+/// Computed object keys `[expr]` are passed through verbatim, preserving
+/// the original source whitespace and string-quote style.
 fn light_normalize_pattern(src: &str) -> String {
     let bytes = src.as_bytes();
     let mut out = String::with_capacity(src.len());
+    // Track brace/bracket nesting to detect computed keys.
+    // `brace_depth` counts `{` / `}` (object pattern levels).
+    // `bracket_depth` counts `[` / `]` (array pattern levels).
+    // A `[` that immediately follows `,` / `{` / ` ` (i.e., property position
+    // in an object pattern) is a computed key and should be passed verbatim.
+    let mut brace_depth: u32 = 0;
+    let mut bracket_depth: u32 = 0;
+    // Last non-whitespace byte emitted to `out`, used to detect computed keys.
+    let mut last_non_ws: u8 = 0;
     let mut i = 0;
     while i < bytes.len() {
         let b = bytes[i];
@@ -1482,12 +1425,50 @@ fn light_normalize_pattern(src: &str) -> String {
             continue;
         }
 
+        // A `[` that appears in property position inside an object pattern
+        // (i.e., after `{` or `,`) is a *computed key*. Its content should be
+        // passed through verbatim to preserve the original whitespace and
+        // string-quote style (e.g. `split('')` must not become `split("")`).
+        if b == b'[' && brace_depth > 0 && bracket_depth == 0 && matches!(last_non_ws, b'{' | b',')
+        {
+            // Emit the `[` and copy until the matching `]`.
+            out.push('[');
+            last_non_ws = b'[';
+            i += 1;
+            let mut depth: u32 = 1;
+            while i < bytes.len() && depth > 0 {
+                match bytes[i] {
+                    b'[' => {
+                        depth += 1;
+                        out.push('[');
+                    }
+                    b']' => {
+                        depth -= 1;
+                        out.push(']');
+                    }
+                    b'\\' => {
+                        out.push('\\');
+                        i += 1;
+                        if i < bytes.len() {
+                            out.push(bytes[i] as char);
+                        }
+                    }
+                    other => out.push(other as char),
+                }
+                i += 1;
+            }
+            last_non_ws = b']';
+            continue;
+        }
+
         match b {
             b' ' | b'\t' | b'\n' | b'\r' => {
                 // Drop existing whitespace; the rules below re-insert it.
             }
             b'{' => {
+                brace_depth += 1;
                 out.push('{');
+                last_non_ws = b'{';
                 // Peek past whitespace to see whether the brace is empty.
                 let mut j = i + 1;
                 while j < bytes.len() && matches!(bytes[j], b' ' | b'\t' | b'\n' | b'\r') {
@@ -1498,16 +1479,29 @@ fn light_normalize_pattern(src: &str) -> String {
                 }
             }
             b'}' => {
+                brace_depth = brace_depth.saturating_sub(1);
                 if !out.ends_with('{') && !out.ends_with(' ') {
                     out.push(' ');
                 }
                 out.push('}');
+                last_non_ws = b'}';
+            }
+            b'[' => {
+                bracket_depth += 1;
+                out.push('[');
+                last_non_ws = b'[';
+            }
+            b']' => {
+                bracket_depth = bracket_depth.saturating_sub(1);
+                out.push(']');
+                last_non_ws = b']';
             }
             b',' | b':' => {
                 if out.ends_with(' ') {
                     out.pop();
                 }
                 out.push(b as char);
+                last_non_ws = b;
                 // Lookahead for next non-whitespace.
                 let mut j = i + 1;
                 while j < bytes.len() && matches!(bytes[j], b' ' | b'\t' | b'\n' | b'\r') {
@@ -1517,7 +1511,10 @@ fn light_normalize_pattern(src: &str) -> String {
                     out.push(' ');
                 }
             }
-            other => out.push(other as char),
+            other => {
+                out.push(other as char);
+                last_non_ws = other;
+            }
         }
         i += 1;
     }
