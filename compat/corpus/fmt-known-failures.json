@@ -55,7 +55,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-dont-rebase-new-batch-4/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/declaration-tag-multiple-declarators/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/declaration-tags/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/each-updates-11/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-template/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/multiple-head/main.svelte",

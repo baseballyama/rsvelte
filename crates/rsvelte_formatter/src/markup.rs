@@ -1269,12 +1269,32 @@ fn render_single_expression_value(
     // left at the indent-only width: its continuation lines sit at the attribute
     // indent with full width, so narrowing by the prefix would wrongly over-wrap.
     let prefix = visual_width(node.name.as_str()) + 2;
+    let indent_width = options.js.indent_width.value() as usize;
     let extra = if narrow_value && is_shallow_value(inner_src) {
         prefix
     } else {
         0
     };
     let formatted = format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
+    // For arrow-function values (`onclick={() => ...}`), `is_shallow_value`
+    // returns false so `extra=0` above leaves the value unnarrowed.  But when
+    // the full line (indent + `name={` + value + `}`) overflows the print
+    // width, re-format with `prefix - indent_width` as `extra_lead` so the
+    // arrow breaks and its body line gets exactly one indent level of room —
+    // mirroring the directive path in `render_directive_value_narrow`.
+    let formatted = if narrow_value && !is_shallow_value(inner_src) && !formatted.contains('\n') {
+        let indent_cols = attr_depth * indent_width;
+        let line_width = options.js.line_width.value() as usize;
+        // `{` and `}` each count as 1 char
+        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+            let arrow_extra = prefix.saturating_sub(indent_width);
+            format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
+        } else {
+            formatted
+        }
+    } else {
+        formatted
+    };
     // Svelte attribute shorthand: `name={name}` → `{name}`.
     // Only apply shorthand when the attribute name is a valid JS identifier
     // (starts with a letter, `_`, or `$`; remainder is alphanumeric / `_` / `$`).
