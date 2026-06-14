@@ -93,6 +93,14 @@ Both sides receive the identical options — `{ filename: <id>, isTsFile, mode:
 'ts', namespace: 'html', version: '5' }`, where `isTsFile` is detected from a
 `<script lang="ts">` tag so the two tools agree on TS-vs-JSDoc cast style.
 
+**Crucially**, official svelte2tsx parses with whatever `svelte/compiler` it
+resolves at runtime, so the build step pins its `svelte` dev-dep to the exact
+version `submodules/svelte` provides (the one rsvelte mirrors) — otherwise the
+default v4 dev-dependency rejects Svelte-5 syntax (`{@render}`, `{#each …}`
+without `as`, `<script module>`) and every Svelte-5 component is spuriously an
+error-mismatch. `svelte2tsx-compile.mjs` asserts the resolved svelte major
+matches the submodule before running and fails loudly otherwise.
+
 Unlike the compiler check there is **no AST-structural fallback**: svelte2tsx
 embeds functional comments — `///<reference>` directives and `/*Ωignore_*Ω*/`
 markers the language server relies on — so comment and exact-token parity is
