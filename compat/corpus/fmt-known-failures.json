@@ -16,7 +16,6 @@
 	"svelte/packages/svelte/tests/migrate/samples/css-ignore/output.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/is-not-where-has/output.svelte",
-	"svelte/packages/svelte/tests/migrate/samples/remove-blocks-whitespace/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/slot-non-identifier/output.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/slot-usages/output.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/attribute-unquoted/input.svelte",
