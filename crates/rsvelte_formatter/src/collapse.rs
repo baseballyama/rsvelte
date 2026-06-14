@@ -929,9 +929,11 @@ fn trims_edge_whitespace(tag: &str) -> bool {
 /// whitespace-sensitive, so their child boundary whitespace is dropped (no edge
 /// space) — unlike unknown lowercase custom elements (`<my-widget>`).
 fn is_component_tag(tag: &str) -> bool {
-    tag.starts_with("svelte:")
-        || tag.contains('.')
-        || tag.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+    // A `svelte:*` special element, or a name whose first segment is capitalized:
+    // a plain component (`Button`) or a member-access component (`Foo.Bar`) both
+    // start with an uppercase letter. A lowercase dotted name (`foo.bar`) is not a
+    // component, so don't match on `.` alone.
+    tag.starts_with("svelte:") || tag.chars().next().is_some_and(|c| c.is_ascii_uppercase())
 }
 
 /// If `node` is a huggable display:inline element — single line, simple text

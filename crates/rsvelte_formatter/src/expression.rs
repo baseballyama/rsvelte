@@ -169,6 +169,21 @@ fn collect_node_edits(
             }
             if let Some(key) = &blk.key {
                 push_brace_wrapped_expression(source, key, options, edits)?;
+                // Ensure a space before the key's opening `(` when context ends
+                // immediately adjacent to it (e.g. `as $state(key)` → `as $state (key)`).
+                // prettier-plugin-svelte always emits a space before the key parens.
+                if let Some(ctx) = &blk.context {
+                    if let (Some(ctx_end), Some(key_start)) = (ctx.end(), key.start()) {
+                        let between = source
+                            .get(ctx_end as usize..key_start as usize)
+                            .unwrap_or("");
+                        // `between` is the text from context end to the key expr start.
+                        // If it starts with `(` (no preceding space), insert one.
+                        if between.starts_with('(') {
+                            edits.push((ctx_end, ctx_end, " ".to_string()));
+                        }
+                    }
+                }
             }
             collect_template_edits(source, &blk.body, child_depth, options, edits)?;
             if let Some(fb) = &blk.fallback {
@@ -974,9 +989,19 @@ fn format_snippet_header_source(
     }
 
     let indent_width = options.js.indent_width.value() as usize;
-    // `{#snippet ` is 10 columns; the header then sits at `depth` indent.
-    let lead = depth * indent_width + "{#snippet ".len();
-    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
+    // The final snippet line looks like:
+    //   `{depth_indent}{#snippet name<…>(params)}`
+    // totalling `depth*indent + 10 + header_len + 1` columns.  The oxc-formatted
+    // wrapper is `function name<…>(params) {}`, where `function ` (9) and ` {}` (3)
+    // surround the header_len chars.  So oxc must not break when
+    //   9 + header_len + 3  <=  narrowed
+    //   header_len  <=  narrowed - 12
+    // We want all headers that fit in the output to pass, i.e.
+    //   header_len  <=  line_width - depth*indent - 11
+    // Combining: narrowed - 12  >=  line_width - depth*indent - 11
+    //            narrowed       >=  line_width - depth*indent + 1
+    let base = (options.js.line_width.value() as usize).saturating_sub(depth * indent_width);
+    let narrowed = base.saturating_add(1);
 
     let mut js = options.js.clone();
     js.line_width =

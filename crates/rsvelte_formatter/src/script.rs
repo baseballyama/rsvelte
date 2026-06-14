@@ -262,12 +262,16 @@ fn normalize_open_tag(tag: &str) -> String {
         match bytes[i] {
             b'"' => {
                 // Already double-quoted — copy verbatim including closing `"`.
+                // Slice the value as `&str` (the `"` delimiters are ASCII, so the
+                // bounds are valid UTF-8 boundaries) rather than pushing bytes as
+                // chars, which would mojibake multi-byte values.
                 out.push('"');
                 i += 1;
+                let val_start = i;
                 while i < len && bytes[i] != b'"' {
-                    out.push(bytes[i] as char);
                     i += 1;
                 }
+                out.push_str(&tag[val_start..i]);
                 out.push('"');
                 if i < len {
                     i += 1; // consume closing `"`
@@ -277,13 +281,16 @@ fn normalize_open_tag(tag: &str) -> String {
                 // Single-quoted → convert to double-quoted, escaping any `"`.
                 out.push('"');
                 i += 1;
+                let val_start = i;
                 while i < len && bytes[i] != b'\'' {
-                    if bytes[i] == b'"' {
+                    i += 1;
+                }
+                for c in tag[val_start..i].chars() {
+                    if c == '"' {
                         out.push_str("&quot;");
                     } else {
-                        out.push(bytes[i] as char);
+                        out.push(c);
                     }
-                    i += 1;
                 }
                 out.push('"');
                 if i < len {
