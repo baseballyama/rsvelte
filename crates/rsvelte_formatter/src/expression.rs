@@ -148,6 +148,9 @@ fn collect_node_edits(
             // add a level per branch. Mirrors `crate::indent`.
             let mut current: &rsvelte_core::ast::template::IfBlock = blk;
             loop {
+                // Normalize extra whitespace between `{` and `#`/`:` in the
+                // block opener: `{     #if cond}` → `{#if cond}`.
+                normalize_block_opener_ws(source, current.start, edits);
                 // Normalize leading whitespace before the test expression, e.g.
                 // `{#if   cond}` → `{#if cond}`.
                 if let Some(start) = current.test.start() {
@@ -175,6 +178,8 @@ fn collect_node_edits(
             }
         }
         TemplateNode::EachBlock(blk) => {
+            // Normalize extra whitespace between `{` and `#` in the opener.
+            normalize_block_opener_ws(source, blk.start, edits);
             // Normalize leading whitespace before the iterable expression, e.g.
             // `{#each  items as x}` → `{#each items as x}`.
             if let Some(start) = blk.expression.start() {
@@ -232,6 +237,8 @@ fn collect_node_edits(
             }
         }
         TemplateNode::AwaitBlock(blk) => {
+            // Normalize extra whitespace between `{` and `#` in the opener.
+            normalize_block_opener_ws(source, blk.start, edits);
             // When the pending block is empty (whitespace-only) and there is a
             // `{:then value}` or `{:catch error}` separator, prettier-plugin-svelte
             // collapses the two headers into one:
@@ -273,15 +280,45 @@ fn collect_node_edits(
                 if let Some(start) = blk.expression.start() {
                     normalize_leading_ws_before_expr(source, start, edits);
                 }
-                push_bare_expression(source, &blk.expression, options, edits)?;
-                if let Some(v) = &blk.value {
-                    push_pattern_at_span(source, v, options, edits)?;
-                    // Trim `{#await expr then value }` → `{#await expr then value}`.
-                    if let Some(v_end) = v.end() {
-                        trim_trailing_ws_before_close_brace(source, v_end, edits);
+                let expr_end = push_bare_expression(source, &blk.expression, options, edits)?;
+                // `blk.value` is the binding from `{#await expr then binding}` (header
+                // inline) when pending is None, or from `{:then binding}` (separator)
+                // when pending is Some.  Only treat it as a header binding in the first
+                // case; in the second case we always trim the header expression trailing
+                // whitespace and handle the separator binding separately below.
+                if blk.pending.is_none() {
+                    if let Some(v) = &blk.value {
+                        push_pattern_at_span(source, v, options, edits)?;
+                        // Trim `{#await expr then value }` → `{#await expr then value}`.
+                        if let Some(v_end) = v.end() {
+                            trim_trailing_ws_before_close_brace(source, v_end, edits);
+                        }
+                    } else {
+                        // No `then` clause in the header — trim trailing whitespace
+                        // before the `}`: `{#await []    }` → `{#await []}`.
+                        trim_trailing_ws_before_close_brace(source, expr_end, edits);
+                    }
+                } else {
+                    // 3-part form: header is `{#await expr}`, trim its trailing ws.
+                    trim_trailing_ws_before_close_brace(source, expr_end, edits);
+                    // The `:then binding` is handled below via `blk.value`.
+                    if let Some(v) = &blk.value {
+                        // Normalize `{   :then i}` → `{:then i}`.
+                        if let Some(v_start) = v.start() {
+                            normalize_separator_opener_before(source, v_start, edits);
+                        }
+                        push_pattern_at_span(source, v, options, edits)?;
+                        // Trim `{:then i   }` → `{:then i}`.
+                        if let Some(v_end) = v.end() {
+                            trim_trailing_ws_before_close_brace(source, v_end, edits);
+                        }
                     }
                 }
                 if let Some(e) = &blk.error {
+                    // Normalize `{   :catch e}` → `{:catch e}`.
+                    if let Some(e_start) = e.start() {
+                        normalize_separator_opener_before(source, e_start, edits);
+                    }
                     push_pattern_at_span(source, e, options, edits)?;
                     // Trim `{:catch error }` → `{:catch error}`.
                     if let Some(e_end) = e.end() {
@@ -300,6 +337,8 @@ fn collect_node_edits(
             }
         }
         TemplateNode::KeyBlock(blk) => {
+            // Normalize extra whitespace between `{` and `#` in the opener.
+            normalize_block_opener_ws(source, blk.start, edits);
             // Normalize leading whitespace: `{#key  expr}` → `{#key expr}`.
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
@@ -310,6 +349,8 @@ fn collect_node_edits(
             collect_template_edits(source, &blk.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
+            // Normalize extra whitespace between `{` and `#` in the opener.
+            normalize_block_opener_ws(source, blk.start, edits);
             if blk.parameters.is_empty() {
                 // No params — just normalize the name (`{#snippet foo()}`).
                 push_bare_expression(source, &blk.expression, options, edits)?;
@@ -1229,6 +1270,53 @@ fn trim_trailing_ws_before_close_brace(
 ///   `{#if   cond}` → `{#if cond}`
 ///   `{#each  items as x}` → `{#each items as x}`
 /// Does nothing when a newline precedes the expression (multi-line headers).
+/// Normalize extra whitespace between the `{` opener and the `#`/`:` keyword
+/// prefix of a block tag:  `{     #if cond}` → `{#if cond}`.
+///
+/// `block_start` is the position of the `{` character. The function scans
+/// forward, skipping spaces/tabs, until it finds `#` or `:`. If any
+/// whitespace was skipped, it emits an edit that removes it (replacing the
+/// `{  #` span with `{#`, etc.).
+/// Given the position of a binding/pattern in a separator token (`{:then binding}`,
+/// `{:catch error}`, `{:else if cond}`), walk backward in `source` to find the
+/// `{` that opens the separator and call `normalize_block_opener_ws` on it.
+/// Handles extra whitespace like `{   :then binding}` → `{:then binding}`.
+fn normalize_separator_opener_before(
+    source: &str,
+    binding_start: u32,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    // Walk backward from binding_start to find the `{` of the separator.
+    let before = match source.get(..binding_start as usize) {
+        Some(s) => s,
+        None => return,
+    };
+    // The structure is `{  :then ` or `{  :catch ` — find the last `{` before binding_start.
+    if let Some(brace_pos) = before.rfind('{') {
+        normalize_block_opener_ws(source, brace_pos as u32, edits);
+    }
+}
+
+fn normalize_block_opener_ws(source: &str, block_start: u32, edits: &mut Vec<(u32, u32, String)>) {
+    let bytes = source.as_bytes();
+    let start = block_start as usize;
+    // Verify the position points to `{`.
+    if bytes.get(start) != Some(&b'{') {
+        return;
+    }
+    // Skip any whitespace between `{` and the keyword prefix (`#` or `:`).
+    let mut i = start + 1;
+    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t') {
+        i += 1;
+    }
+    // Only emit an edit when there was extra whitespace.
+    let ws_len = i - (start + 1);
+    if ws_len > 0 && matches!(bytes.get(i), Some(&b'#') | Some(&b':')) {
+        // Replace `{<spaces>` with `{` by removing the spaces.
+        edits.push(((start + 1) as u32, i as u32, String::new()));
+    }
+}
+
 fn normalize_leading_ws_before_expr(
     source: &str,
     expr_start: u32,

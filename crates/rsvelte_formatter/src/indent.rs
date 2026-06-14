@@ -309,6 +309,14 @@ fn collect_indent_edits_inner(
             if !is_comment && !a_is_block && !b_is_block {
                 continue;
             }
+            // Adjacent comments that are already inline (no newline in the fragment's
+            // whitespace text nodes) stay on the same line — prettier preserves the
+            // inline layout. Only break them when the surrounding fragment is already
+            // broken (has whitespace-with-newline text nodes). Block-display elements
+            // (`<div>`, `<p>`, etc.) are always broken regardless.
+            if is_comment && !a_is_block && !b_is_block && !fragment_is_broken {
+                continue;
+            }
             let boundary = crate::collapse::template_node_span(a).1;
             if boundary == crate::collapse::template_node_span(b).0 {
                 edits.push((boundary, boundary, format!("\n{child_indent}")));
