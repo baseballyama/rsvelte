@@ -1301,12 +1301,66 @@ pub(crate) fn format_pattern_source(
 /// always carry one inner space when non-empty; brackets (`[` / `]`)
 /// and parens carry none; commas and colons are followed by exactly
 /// one space.
+///
+/// Template-literal `${…}` expressions are passed through verbatim (no inner
+/// spaces inserted) to match `oxfmt`'s behaviour: `` [`leng${th}`] `` stays
+/// `` [`leng${th}`] ``, not `` [`leng${ th }`] ``.
 fn light_normalize_pattern(src: &str) -> String {
     let bytes = src.as_bytes();
     let mut out = String::with_capacity(src.len());
     let mut i = 0;
     while i < bytes.len() {
         let b = bytes[i];
+
+        // When inside a template literal string, pass chars through verbatim
+        // until the matching close backtick (tracking `${…}` nesting).
+        if b == b'`' {
+            out.push('`');
+            i += 1;
+            let mut depth: u32 = 0; // nesting level of `${…}` expressions
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'`' if depth == 0 => {
+                        out.push('`');
+                        i += 1;
+                        break; // end of this template literal
+                    }
+                    b'\\' => {
+                        // Escape sequence — emit both chars verbatim.
+                        out.push('\\');
+                        i += 1;
+                        if i < bytes.len() {
+                            out.push(bytes[i] as char);
+                            i += 1;
+                        }
+                    }
+                    b'$' if i + 1 < bytes.len() && bytes[i + 1] == b'{' => {
+                        // Template expression `${…}` — emit both chars and
+                        // recurse into the expression verbatim, tracking braces.
+                        out.push('$');
+                        out.push('{');
+                        i += 2;
+                        depth += 1;
+                    }
+                    b'{' if depth > 0 => {
+                        out.push('{');
+                        i += 1;
+                        depth += 1;
+                    }
+                    b'}' if depth > 0 => {
+                        out.push('}');
+                        i += 1;
+                        depth -= 1;
+                    }
+                    other => {
+                        out.push(other as char);
+                        i += 1;
+                    }
+                }
+            }
+            continue;
+        }
+
         match b {
             b' ' | b'\t' | b'\n' | b'\r' => {
                 // Drop existing whitespace; the rules below re-insert it.
