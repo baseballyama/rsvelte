@@ -94,25 +94,73 @@ fn single_pass(
 ) -> Option<String> {
     MODULE_PRIVATE_CLASS_ASSIGN_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
+
+        // Parse directly.  If that fails (e.g. the content is a block of class
+        // method definitions extracted without their enclosing `class` keyword),
+        // retry by wrapping in a synthetic class so OXC can recognise the
+        // method signatures.  Span offsets are adjusted back to the original
+        // source after collection.
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
             .with_options(ParseOptions {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
             })
             .parse();
-        if !parser_ret.errors.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
+
+        const CLASS_PREFIX: &str = "class _Dummy_ {\n";
+        let (parse_str_owned, span_offset): (Option<String>, u32) = if !parser_ret.errors.is_empty()
+        {
+            let wrapped = format!("{}{}\n}}", CLASS_PREFIX, source);
+            (Some(wrapped), CLASS_PREFIX.len() as u32)
+        } else {
+            (None, 0u32)
+        };
+
+        let parse_str: &str = match &parse_str_owned {
+            Some(s) => s.as_str(),
+            None => source,
+        };
+
+        let program_to_visit = if parse_str_owned.is_some() {
+            let ret = Parser::new(&allocator, parse_str, SourceType::mjs())
+                .with_options(ParseOptions {
+                    allow_return_outside_function: true,
+                    ..ParseOptions::default()
+                })
+                .parse();
+            if !ret.errors.is_empty() {
+                *cell.borrow_mut() = allocator;
+                return None;
+            }
+            Some(ret)
+        } else {
+            None
+        };
+
+        let program_ref = match &program_to_visit {
+            Some(ret) => &ret.program,
+            None => &parser_ret.program,
+        };
 
         let mut collector = PrivateClassAssignCollector {
-            source,
+            source: parse_str,
             state_qualified,
             other_qualified,
             replacements: Vec::new(),
         };
-        collector.visit_program(&parser_ret.program);
+        collector.visit_program(program_ref);
         let mut replacements = collector.replacements;
+
+        // Adjust span offsets back to the original un-wrapped source.
+        if span_offset > 0 {
+            for (start, end, _) in &mut replacements {
+                *start = start.saturating_sub(span_offset);
+                *end = end.saturating_sub(span_offset);
+            }
+            // Drop any replacement that fell outside the original source range.
+            let src_len = source.len() as u32;
+            replacements.retain(|(_, e, _)| *e <= src_len);
+        }
 
         if replacements.is_empty() {
             *cell.borrow_mut() = allocator;
@@ -452,5 +500,54 @@ mod tests {
         let src = "return this.#count = 5;";
         let out = transform_private_class_assign_ast(src, &ssv(&["this.#count"]), &[]).unwrap();
         assert_eq!(out, "return $.set(this.#count, 5);");
+    }
+
+    #[test]
+    fn class_method_body_with_filter_lambda() {
+        // Multi-line assignment inside a class method body.
+        // The source is NOT valid as a standalone module (it's a method definition),
+        // so Fix #2 (class wrapper) must kick in.
+        let src = "remove(item) {\n  this.#files = this.#files.filter((f) => {\n    if (f === item) return false;\n    return true;\n  });\n}";
+        let out = transform_private_class_assign_ast(src, &ssv(&["this.#files"]), &[]).unwrap();
+        // The assignment should be rewritten; no stray ) should appear
+        assert!(
+            out.contains("$.set(this.#files,"),
+            "expected $.set rewrite, got: {}",
+            out
+        );
+        assert!(
+            !out.contains("return false);"),
+            "stray ) detected in: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn multiple_method_bodies_with_filter_lambda() {
+        // Multiple method definitions in a single source block, one of which
+        // has a multi-line filter lambda.  The entire block fails to parse as a
+        // module, so Fix #2 (class wrapper) must kick in.
+        let src = concat!(
+            "get files() {\n  return this.#files;\n}\n",
+            "remove(item) {\n",
+            "  this.#files = this.#files.filter((f) => {\n",
+            "    if (f === item) return false;\n",
+            "    if (f.name.startsWith(item.name + \"/\")) return false;\n",
+            "    return true;\n",
+            "  });\n",
+            "}\n",
+            "add(item) {\n  this.#files = this.#files.concat(item);\n}\n",
+        );
+        let out = transform_private_class_assign_ast(src, &ssv(&["this.#files"]), &[]).unwrap();
+        assert!(
+            out.contains("$.set(this.#files,"),
+            "expected $.set rewrite, got:\n{}",
+            out
+        );
+        assert!(
+            !out.contains("return false);"),
+            "stray ) detected in:\n{}",
+            out
+        );
     }
 }

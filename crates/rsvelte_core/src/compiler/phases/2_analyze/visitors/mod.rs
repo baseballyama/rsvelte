@@ -653,7 +653,14 @@ pub fn analyze_template(
     analysis: &mut ComponentAnalysis,
     parse_arena: &ParseArena,
 ) -> Result<(), AnalysisError> {
+    // Read the instance scope index before borrowing `analysis` into the context,
+    // so we can initialize context.scope to the correct starting scope.
+    // The scope builder visits the template while current_scope = instance_scope_index,
+    // so template-root declarations land in that scope; the visitor must mirror it to
+    // ensure lexical scope-chain lookups (e.g. render-tag binding resolution) are correct.
+    let instance_scope_index = analysis.root.instance_scope_index;
     let mut context = VisitorContext::new(analysis, parse_arena);
+    context.scope = instance_scope_index;
     fragment::analyze(&mut ast.fragment, &mut context)?;
 
     // Build sibling relationships for CSS sibling combinator detection

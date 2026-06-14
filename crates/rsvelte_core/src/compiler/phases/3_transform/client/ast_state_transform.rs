@@ -1613,10 +1613,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
 
         // Case 4: bare store-sub / prop-source identifier — already callable.
+        // Pass the bare identifier name directly (not the walked version which would be `name()`),
+        // because store-sub / prop-source vars are already getter functions.
+        // This mirrors upstream's `b.thunk(test())` → `unthunk(() => test())` → `test` collapsing.
         if let Some(Expression::Identifier(ident)) = arg_expr_opt {
             let name = ident.name.as_str();
             if self.store_sub_vars.contains(name) || self.prop_source_vars.contains(name) {
-                let replacement = format!("$.derived({})", walked_for_emit);
+                let replacement = format!("$.derived({})", name);
                 let replacement = self.maybe_tag_declarator(var_name, replacement);
                 self.add_replacement(call.span.start, call.span.end, replacement);
                 return true;

@@ -1648,8 +1648,16 @@ fn apply_transforms_to_statement_with_shadowed(
         }),
 
         JsStatement::Block(block) => {
-            let transformed_body: Vec<JsStatement> =
-                block.body.iter().map(transform_stmt).collect();
+            // Create a new scope with block-local variable declarations so that
+            // locally-declared names (e.g. `const children = ...`) shadow outer
+            // transforms and are not rewritten to `$$props.children`.
+            let mut block_scope = local_scope.clone();
+            register_block_local_vars(&block.body, &context.arena, &mut block_scope);
+            let transformed_body: Vec<JsStatement> = block
+                .body
+                .iter()
+                .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
+                .collect();
             JsStatement::Block(JsBlockStatement {
                 body: transformed_body,
             })
@@ -3497,6 +3505,34 @@ pub(crate) fn get_literal_value(
     {
         let expr_type = expr.node_type()?;
 
+        // Upstream `build_template_chunk` memoizes the expression FIRST
+        // (`memoizer.add` replaces any `has_call` / `has_await` chunk with an
+        // opaque `$N` identifier) and only THEN runs `scope.evaluate` on the
+        // result. An opaque identifier never evaluates to a known constant, so a
+        // chunk that contains a (non-pure) call is ALWAYS kept reactive — even
+        // when its branches would otherwise fold to a literal (e.g.
+        // `duration ? format(duration) : '--:--'` with `duration === 0`). Mirror
+        // that ordering here by refusing to fold any expression whose
+        // `has_call` flag is set, so the chunk falls through to memoization.
+        // This subsumes the per-`Math.*` state-arg guard below.
+        if matches!(
+            expr_type,
+            "CallExpression"
+                | "BinaryExpression"
+                | "LogicalExpression"
+                | "ConditionalExpression"
+                | "UnaryExpression"
+                | "TemplateLiteral"
+                | "MemberExpression"
+                | "SequenceExpression"
+                | "ChainExpression"
+        ) {
+            let jv = expr.as_json();
+            if has_call_json(jv, context) {
+                return None;
+            }
+        }
+
         match expr_type {
             "Literal" => {
                 let node = expr.as_node();
@@ -3512,7 +3548,7 @@ pub(crate) fn get_literal_value(
                         }
                         LiteralValue::Bool(b_val) => Some(Some(b_val.to_string())),
                         LiteralValue::Null => Some(None),
-                        LiteralValue::Regex(_) => None,
+                        LiteralValue::Regex(r) => Some(Some(format!("/{}/{}", r.pattern, r.flags))),
                     },
                     crate::ast::typed_expr::JsNode::Raw(val) => {
                         if let Some(value) = val.get("value") {
@@ -3531,6 +3567,19 @@ pub(crate) fn get_literal_value(
                             } else {
                                 None
                             }
+                        } else if val.get("regex").is_some() {
+                            // Raw JSON regex node: {"type":"Literal","regex":{"pattern":"...","flags":"..."}}
+                            let pattern = val
+                                .get("regex")
+                                .and_then(|r| r.get("pattern"))
+                                .and_then(|p| p.as_str())
+                                .unwrap_or("");
+                            let flags = val
+                                .get("regex")
+                                .and_then(|r| r.get("flags"))
+                                .and_then(|f| f.as_str())
+                                .unwrap_or("");
+                            Some(Some(format!("/{}/{}", pattern, flags)))
                         } else {
                             None
                         }
@@ -3639,6 +3688,20 @@ pub(crate) fn get_literal_value(
                             && let Ok(parsed) = serde_json::from_str::<serde_json::Value>(init)
                             && parsed.get("type").and_then(|t| t.as_str()) == Some("Literal")
                         {
+                            // Regex literal: value is null but "regex" field is present.
+                            if parsed.get("regex").is_some() {
+                                let pattern = parsed
+                                    .get("regex")
+                                    .and_then(|r| r.get("pattern"))
+                                    .and_then(|p| p.as_str())
+                                    .unwrap_or("");
+                                let flags = parsed
+                                    .get("regex")
+                                    .and_then(|r| r.get("flags"))
+                                    .and_then(|f| f.as_str())
+                                    .unwrap_or("");
+                                return Some(Some(format!("/{}/{}", pattern, flags)));
+                            }
                             return match parsed.get("value") {
                                 Some(v) if v.is_string() => {
                                     Some(Some(v.as_str().unwrap().to_string()))
@@ -3686,6 +3749,21 @@ pub(crate) fn get_literal_value(
                                 return Some(Some(result));
                             }
                         }
+                        // Fix D: binding.initial for declaration tags is stored as a full AST
+                        // JSON node (e.g. CallExpression, BinaryExpression). Parse it and
+                        // recursively evaluate — mirrors upstream scope.js `evaluate()` which
+                        // recurses into `binding.initial`. Skip Derived bindings: their
+                        // runtime value is `$.get(binding)`, not the compile-time init.
+                        {
+                            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                            if !matches!(binding.kind, BindingKind::Derived)
+                                && init.contains("\"type\":")
+                                && let Ok(parsed_expr) =
+                                    serde_json::from_str::<crate::ast::js::Expression>(init)
+                            {
+                                return get_literal_value(&parsed_expr, context);
+                            }
+                        }
                         None
                     }
                 }
@@ -3726,6 +3804,26 @@ pub(crate) fn get_literal_value(
             }
             _ => None,
         }
+    }
+}
+
+/// Format an `f64` the way JS `String(n)` would for a known constant fold:
+/// `NaN`, `Infinity`, `-Infinity`, an integer with no decimal point, or the
+/// shortest float representation. Mirrors the value upstream's `scope.evaluate`
+/// stringifies into the template quasi when folding an arithmetic chunk.
+fn format_js_number(n: f64) -> String {
+    if n.is_nan() {
+        "NaN".to_string()
+    } else if n.is_infinite() {
+        if n > 0.0 {
+            "Infinity".to_string()
+        } else {
+            "-Infinity".to_string()
+        }
+    } else if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
+        format!("{}", n as i64)
+    } else {
+        n.to_string()
     }
 }
 
@@ -3781,6 +3879,13 @@ fn get_literal_value_complex(
                 if obj_type == "Identifier" && obj_name == "Math" {
                     let args = obj.get("arguments").and_then(|a| a.as_array())?;
 
+                    // NOTE: a `Math.*(…)` whose argument references a runtime-reactive
+                    // State/RawState binding has already been rejected by the top-level
+                    // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
+                    // adds every binding reference to `expression.dependencies`, so a
+                    // pure-callee call with such an argument still gets `has_call = true`).
+                    // Only genuinely-constant argument folds reach this point.
+
                     // Evaluate all arguments
                     let mut arg_values: Vec<f64> = Vec::new();
                     for arg in args {
@@ -3812,6 +3917,38 @@ fn get_literal_value_complex(
                     }
                     return Some(Some(result.to_string()));
                 }
+
+                // Fix C: $state.raw(arg) — MemberExpression callee with object=$state, property=raw
+                if obj_type == "Identifier" && obj_name == "$state" && prop_name == "raw" {
+                    let args = obj.get("arguments").and_then(|a| a.as_array());
+                    if let Some(args) = args
+                        && let Some(first_arg) = args.first()
+                        && let Ok(arg_expr) =
+                            serde_json::from_value::<Expression>(first_arg.clone())
+                    {
+                        return get_literal_value(&arg_expr, context);
+                    }
+                    return Some(None); // no arg → undefined
+                }
+            }
+
+            // Fix C: $state(arg) / $derived(arg) — Identifier callee
+            // Mirrors upstream scope.js lines 465-481: recurse into the single argument.
+            let callee = obj.get("callee").and_then(|v| v.as_object())?;
+            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+            if callee_type == "Identifier" {
+                let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                if matches!(rune_name, "$state" | "$derived") {
+                    let args = obj.get("arguments").and_then(|a| a.as_array());
+                    if let Some(args) = args
+                        && let Some(first_arg) = args.first()
+                        && let Ok(arg_expr) =
+                            serde_json::from_value::<Expression>(first_arg.clone())
+                    {
+                        return get_literal_value(&arg_expr, context);
+                    }
+                    return Some(None); // no arg → undefined
+                }
             }
             None
         }
@@ -3837,46 +3974,17 @@ fn get_literal_value_complex(
                     ">" => Some(format!("{}", l > r)),
                     "<=" => Some(format!("{}", l <= r)),
                     ">=" => Some(format!("{}", l >= r)),
-                    "+" => {
-                        let res = l + r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
+                    "+" => Some(format_js_number(l + r)),
+                    "-" => Some(format_js_number(l - r)),
+                    "*" => Some(format_js_number(l * r)),
+                    "/" => {
+                        // JS division never throws: `0/0` → NaN, `x/0` → ±Infinity.
+                        // Mirror upstream `binary['/'](a, b)` (plain JS `/`), which
+                        // returns a *known* number (NaN/Infinity) so the chunk folds
+                        // to that literal string instead of staying reactive.
+                        Some(format_js_number(l / r))
                     }
-                    "-" => {
-                        let res = l - r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
-                    "*" => {
-                        let res = l * r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
-                    "/" if r != 0.0 => {
-                        let res = l / r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
-                    "%" if r != 0.0 => {
-                        let res = l % r;
-                        if res.fract() == 0.0 {
-                            Some(format!("{}", res as i64))
-                        } else {
-                            Some(res.to_string())
-                        }
-                    }
+                    "%" => Some(format_js_number(l % r)),
                     _ => None,
                 };
                 return result.map(Some);
@@ -3890,6 +3998,15 @@ fn get_literal_value_complex(
                     "+" => return Some(Some(format!("{}{}", l, r))),
                     _ => {}
                 }
+            }
+
+            // JavaScript coercion: arithmetic on non-numeric operands yields NaN.
+            // e.g. 'ab' / 2 → NaN, 'ab' * x → NaN (mirrors JS spec).
+            if let (Some(l), Some(r)) = (&left_val, &right_val)
+                && (l.parse::<f64>().is_err() || r.parse::<f64>().is_err())
+                && matches!(operator, "/" | "*" | "-" | "**" | "%")
+            {
+                return Some(Some("NaN".to_string()));
             }
 
             None
@@ -5192,6 +5309,57 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
     }
 }
 
+/// Returns true if the JSON expression tree contains any Identifier that resolves to
+/// a `State` or `RawState` binding.
+///
+/// Used by `get_literal_value_complex` and `has_call_json` to prevent compile-time
+/// folding of calls like `Math.round(y)` where `y = $state(0)`.  Although the binding
+/// has a known literal initial value, it is runtime-reactive (e.g. updated via
+/// `bind:scrollY={y}`).  Upstream avoids the fold because Phase-2 adds every binding
+/// to `expression.dependencies`, so `dependencies.size > 0` → `has_call = true`.
+fn arg_contains_state_or_raw_state_binding(
+    json_value: &serde_json::Value,
+    context: &ComponentContext,
+) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                return context.state.get_binding(name).is_some_and(|b| {
+                    matches!(
+                        b.kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::State
+                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::RawState
+                    )
+                });
+            }
+            false
+        }
+        _ => {
+            // Recursively walk all JSON children.
+            for (_key, val) in obj {
+                if val.is_object() && arg_contains_state_or_raw_state_binding(val, context) {
+                    return true;
+                }
+                if let Some(arr) = val.as_array() {
+                    for item in arr {
+                        if arg_contains_state_or_raw_state_binding(item, context) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+    }
+}
+
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
 /// Returns true for calls that have reactive dependencies, matching the official Svelte compiler
 /// behavior from CallExpression.js:
@@ -5223,7 +5391,13 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
                 return true;
             }
             // Even for pure callees, reactive dependencies in arguments make has_call true.
+            // This includes State/RawState bindings even when their initial is a known literal,
+            // because they are runtime-reactive (can change via bindings/effects at runtime).
+            // Corresponds to upstream's `context.state.expression.dependencies.size > 0` check:
+            // Phase-2 adds every binding reference to `dependencies`, so a pure call whose
+            // argument is a $state variable still gets has_call=true upstream.
             has_reactive_state_json(json_value, context)
+                || arg_contains_state_or_raw_state_binding(json_value, context)
         }
         "MemberExpression" => {
             if let Some(object) = obj.get("object")
@@ -5813,15 +5987,58 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         }
 
         "ConditionalExpression" => {
-            // All three parts must be known
-            if let (Some(test), Some(consequent), Some(alternate)) =
+            // Port of upstream scope.js ConditionalExpression case (lines 374-393):
+            //
+            // If the test evaluates to a known constant, prune to only the taken
+            // branch — e.g. `pin ? pin.replace(…) : 'enter your pin'` where
+            // `pin = $state('')` (non-state-source, known `""`) folds to the
+            // alternate `'enter your pin'`, which is known.
+            //
+            // If the test is unknown, the result is known only when BOTH branches
+            // evaluate to the SAME single known value (upstream: values.size === 1).
+            // e.g. `der1 ? "1" : "0"` → two different values → not known.
+            let (Some(test), Some(consequent), Some(alternate)) =
                 (obj.get("test"), obj.get("consequent"), obj.get("alternate"))
-            {
-                is_expression_known_json(test, context)
-                    && is_expression_known_json(consequent, context)
-                    && is_expression_known_json(alternate, context)
-            } else {
-                false
+            else {
+                return false;
+            };
+            // Try to fold the test to a constant via get_literal_value.
+            use crate::ast::js::Expression;
+            let test_known = serde_json::from_value::<Expression>(test.clone())
+                .ok()
+                .and_then(|test_expr| get_literal_value(&test_expr, context));
+            match test_known {
+                Some(test_val) => {
+                    // Test is a known constant — only the taken branch needs to be known.
+                    let truthy = match test_val.as_deref() {
+                        None => false, // null / undefined
+                        Some("") | Some("false") | Some("0") => false,
+                        Some(s) => s
+                            .parse::<f64>()
+                            .map(|n| n != 0.0 && !n.is_nan())
+                            .unwrap_or(true),
+                    };
+                    if truthy {
+                        is_expression_known_json(consequent, context)
+                    } else {
+                        is_expression_known_json(alternate, context)
+                    }
+                }
+                None => {
+                    // Test is unknown — result is known only if both branches yield the
+                    // SAME single compile-time value (mirrors upstream values.size === 1
+                    // after adding both branches' values to the set).
+                    let c_val = serde_json::from_value::<Expression>(consequent.clone())
+                        .ok()
+                        .and_then(|e| get_literal_value(&e, context));
+                    let a_val = serde_json::from_value::<Expression>(alternate.clone())
+                        .ok()
+                        .and_then(|e| get_literal_value(&e, context));
+                    match (c_val, a_val) {
+                        (Some(c), Some(a)) => c == a,
+                        _ => false,
+                    }
+                }
             }
         }
 
@@ -5837,8 +6054,50 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         }
 
         // Function calls are generally NOT known (can't evaluate at compile time)
-        // except for some pure global functions
-        "CallExpression" => false,
+        // except for rune calls $state / $state.raw / $derived whose argument IS known.
+        // Mirrors upstream scope.js lines 465-507.
+        "CallExpression" => {
+            let callee = obj.get("callee").and_then(|v| v.as_object());
+            if let Some(callee) = callee {
+                let callee_type = callee.get("type").and_then(|t| t.as_str());
+                // $state(arg) / $derived(arg)
+                if callee_type == Some("Identifier") {
+                    let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    if matches!(rune_name, "$state" | "$derived") {
+                        if let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
+                            && let Some(first_arg) = args.first()
+                        {
+                            return is_expression_known_json(first_arg, context);
+                        }
+                        return true; // no arg → undefined (known)
+                    }
+                }
+                // $state.raw(arg)
+                if callee_type == Some("MemberExpression") {
+                    let obj_name = callee
+                        .get("object")
+                        .and_then(|o| o.as_object())
+                        .and_then(|o| o.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("");
+                    let prop_name = callee
+                        .get("property")
+                        .and_then(|p| p.as_object())
+                        .and_then(|p| p.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("");
+                    if obj_name == "$state" && prop_name == "raw" {
+                        if let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
+                            && let Some(first_arg) = args.first()
+                        {
+                            return is_expression_known_json(first_arg, context);
+                        }
+                        return true; // no arg → undefined (known)
+                    }
+                }
+            }
+            false
+        }
 
         // Arrow/function expressions are "known" (they evaluate to a function)
         "ArrowFunctionExpression" | "FunctionExpression" => true,

@@ -943,12 +943,22 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
     // The snippet body is its own template scope.
     let saved_path = std::mem::take(&mut context.path);
 
+    // Bump template_nesting_level so that snippets nested INSIDE this snippet body
+    // are not treated as component-root snippets. The fragment visitor uses
+    // `context.state.template_nesting_level` (not a hardcoded 0) when is_root_fragment=true,
+    // so bumping here before the call ensures the inner fragment state inherits level >= 1.
+    // Mirrors upstream's `context.path.length === 1` check: a snippet body's direct
+    // children live at path-length 2+, so nested snippets must NOT land at level 0.
+    let saved_nesting = context.state.template_nesting_level;
+    context.state.template_nesting_level += 1;
+
     // Snippet body needs is_root_fragment=true to get $.next() when text-first
     let block = fragment_visitor(frag, context, true);
 
-    // Restore the parent path and namespace
+    // Restore the parent path, namespace, and nesting level
     context.path = saved_path;
     context.state.metadata.namespace = saved_namespace;
+    context.state.template_nesting_level = saved_nesting;
 
     block.body
 }

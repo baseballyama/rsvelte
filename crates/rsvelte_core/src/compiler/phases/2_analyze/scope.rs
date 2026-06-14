@@ -103,6 +103,28 @@ impl ScopeRoot {
         None
     }
 
+    /// Check if `potential_ancestor` is the same scope as, or an ancestor of, `descendant`.
+    ///
+    /// Walks up the parent chain from `descendant` to see if `potential_ancestor` is encountered.
+    /// Used to validate that a binding found via `get_binding` was actually declared in a scope
+    /// that is lexically visible from the lookup site — the root scope (index 0) is intentionally
+    /// polluted with all child-scope declarations for backward compatibility, so a raw
+    /// `get_binding` result may point to a binding declared in a descendant scope.
+    pub fn is_scope_ancestor_of(&self, potential_ancestor: usize, descendant: usize) -> bool {
+        let mut current = Some(descendant);
+        while let Some(idx) = current {
+            if idx == potential_ancestor {
+                return true;
+            }
+            if let Some(scope) = self.all_scopes.get(idx) {
+                current = scope.parent;
+            } else {
+                break;
+            }
+        }
+        false
+    }
+
     /// Look up a binding by name, searching all scopes.
     /// This is a fallback method when we don't know the current scope.
     /// It searches all scopes and returns the first match found.

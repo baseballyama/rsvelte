@@ -165,11 +165,16 @@ function astSignature(code) {
 	// compared, so `{ a: b }` still differs). esrap collapses `key: key` to the
 	// shorthand form; rsvelte's text-based instance/module transforms emit the
 	// source verbatim. Absorbed here, like quote style and source positions.
-	return JSON.stringify(ast, (key, value) =>
-		key === 'start' || key === 'end' || key === 'loc' || key === 'range' || key === 'shorthand'
-			? undefined
-			: value
-	);
+	return JSON.stringify(ast, (key, value) => {
+		if (key === 'start' || key === 'end' || key === 'loc' || key === 'range' || key === 'shorthand') {
+			return undefined;
+		}
+		// acorn parses a `123n` literal's `value` into a native BigInt, which
+		// JSON.stringify cannot serialize. Stringify it so the signature is
+		// comparable (both sides convert identically; bigint `raw` is also kept,
+		// so spelling differences still register).
+		return typeof value === 'bigint' ? `${value}n` : value;
+	});
 }
 
 function stripStringRaw(node) {

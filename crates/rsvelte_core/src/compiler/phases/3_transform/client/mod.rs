@@ -530,6 +530,13 @@ fn transform_client_with_visitors(
     let _fragment_start = super::profile::timer_start();
     let template_body = fragment(&ast.fragment, &mut context, true);
     super::profile::record_template_fragment(super::profile::timer_elapsed(_fragment_start));
+
+    // Propagate any error that was recorded during template traversal (e.g. "Not implemented:
+    // LetDirective" from visit_svelte_element when a SvelteElement carries a let: directive).
+    if let Some(msg) = context.state.pending_error.take() {
+        return Err(TransformError::CodeGen(msg));
+    }
+
     let _assembly_start = super::profile::timer_start();
 
     // Collect results from state
@@ -2958,6 +2965,70 @@ pub(crate) fn transform_module_script_runes(
         }
     }
 
+    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
+    // Mirrors the same logic in rune_transforms.rs for instance scripts.
+    if !dev {
+        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+            let trace_start = pos + b"$inspect.trace(".len();
+            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
+                let mut end = trace_start + content_end + 1;
+                while end < result.len()
+                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
+                {
+                    end += 1;
+                }
+                let mut start = pos;
+                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                    start -= 1;
+                }
+                result = format!("{}{}", &result[..start], &result[end..]);
+            } else {
+                break;
+            }
+        }
+    }
+
+    // In non-dev mode, remove $inspect(...) and $inspect(...).with(...) calls from
+    // module scripts. Mirrors CallExpression.js `transform_inspect_rune`: `if (!dev)
+    // return b.empty`. The component-instance path handles this in rune_transforms.rs;
+    // module scripts use this dedicated loop.
+    if !dev {
+        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+            let inspect_start = pos + b"$inspect(".len();
+            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
+                let after_call = &result[inspect_start + content_end + 1..];
+                let total_call_len = if after_call.trim_start().starts_with(".with(") {
+                    let with_offset = memmem::find(after_call.as_bytes(), b".with(").unwrap();
+                    let with_content_start =
+                        inspect_start + content_end + 1 + with_offset + b".with(".len();
+                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
+                        with_content_start + with_end + 1 - pos
+                    } else {
+                        inspect_start + content_end + 1 - pos
+                    }
+                } else {
+                    inspect_start + content_end + 1 - pos
+                };
+                // Remove leading whitespace on the same line
+                let mut start = pos;
+                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                    start -= 1;
+                }
+                // Consume optional trailing semicolon then newline
+                let mut end = pos + total_call_len;
+                while end < result.len() && result.as_bytes()[end] == b';' {
+                    end += 1;
+                }
+                if end < result.len() && result.as_bytes()[end] == b'\n' {
+                    end += 1;
+                }
+                result = format!("{}{}", &result[..start], &result[end..]);
+            } else {
+                break;
+            }
+        }
+    }
+
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
     let module_state_vars_with_const = extract_local_reactive_vars(&result);
@@ -3279,14 +3350,24 @@ pub(crate) fn transform_module_script_runes(
     // In module scripts, declarations and assignments coexist, so we need to
     // process non-declaration lines separately.
     if !reactive_module_state_vars.is_empty() {
-        // Collect derived vars (these should NOT get proxy flag in $.set())
+        // Collect no-proxy vars (these should NOT get proxy flag in $.set())
         // The official Svelte compiler skips the proxy flag for derived, raw_state,
         // prop, bindable_prop, and store_sub bindings (AssignmentExpression.js L136-141).
-        let derived_vars: Vec<String> = module_state_vars_with_const
+        // This includes: $derived vars (is_state=false) AND $state.raw vars (BindingKind::RawState).
+        let mut derived_vars: Vec<String> = module_state_vars_with_const
             .iter()
             .filter(|(_, _, is_state)| !is_state) // is_state=false means $derived
             .map(|(name, _, _)| name.clone())
             .collect();
+        // Also add $state.raw vars from bindings — they never use the proxy flag.
+        for (name, &binding_idx) in &analysis.root.scope.declarations {
+            if let Some(b) = analysis.root.bindings.get(binding_idx)
+                && matches!(b.kind, BindingKind::RawState)
+                && !derived_vars.contains(name)
+            {
+                derived_vars.push(name.clone());
+            }
+        }
 
         // Whole-script AST pass for assignment transforms. The
         // three helpers (simple / compound / update) visit
@@ -3453,10 +3534,19 @@ fn transform_destructured_state_assignments(
                     let rhs = rhs.trim().trim_end_matches(';').trim();
                     let inner = &pattern[1..pattern.len() - 1]; // strip [ ]
                     let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+                    // By the time this runs, the rune pipeline has already wrapped
+                    // state reads, so an LHS target `a` appears as `$.get(a)`.
+                    // Unwrap that to recover the underlying state-var name.
+                    let unwrap_get = |p: &str| -> String {
+                        p.strip_prefix("$.get(")
+                            .and_then(|s| s.strip_suffix(')'))
+                            .map(|s| s.trim().to_string())
+                            .unwrap_or_else(|| p.to_string())
+                    };
                     // Check if any parts are reactive state vars
                     let has_state_var = parts
                         .iter()
-                        .any(|p| reactive_state_vars.iter().any(|v| v == p));
+                        .any(|p| reactive_state_vars.iter().any(|v| *v == unwrap_get(p)));
                     if has_state_var {
                         // Build the IIFE
                         let indent: String =
@@ -3470,10 +3560,11 @@ fn transform_destructured_state_assignments(
                         ));
                         body_lines.push(String::new()); // blank line after var
                         for (idx, part) in parts.iter().enumerate() {
-                            if reactive_state_vars.iter().any(|v| v == *part) {
+                            let name = unwrap_get(part);
+                            if reactive_state_vars.contains(&name) {
                                 body_lines.push(format!(
                                     "{}$.set({}, $$array[{}], true);",
-                                    inner_indent, part, idx
+                                    inner_indent, name, idx
                                 ));
                             } else {
                                 body_lines
@@ -4374,12 +4465,38 @@ fn transform_instance_script_for_visitors(
 
         // Handle legacy export let declarations (and `export var`, which keeps
         // its `var` keyword while the initializer becomes `$.prop(...)`).
+        // The first line may be a block-comment line (e.g. `/**` or `/*...*/
+        // export let`), so we also check the statement text after stripping
+        // any leading block comments.
+        let effective_export_kw_line = {
+            let mut s = first_line_trimmed;
+            while s.starts_with("/*") {
+                if let Some(end) = s.find("*/") {
+                    s = s[end + 2..].trim_start();
+                } else {
+                    // Unclosed block comment — scan across accumulated lines
+                    let full = statement.as_str();
+                    let mut t: &str = full.trim();
+                    while t.starts_with("/*") {
+                        if let Some(e) = t.find("*/") {
+                            t = t[e + 2..].trim_start();
+                        } else {
+                            t = "";
+                            break;
+                        }
+                    }
+                    s = t;
+                    break;
+                }
+            }
+            s
+        };
         if has_legacy_export_let
-            && (first_line_trimmed.starts_with("export let ")
-                || first_line_trimmed.starts_with("export var "))
+            && (effective_export_kw_line.starts_with("export let ")
+                || effective_export_kw_line.starts_with("export var "))
         {
             // Check if this is a destructured export let pattern
-            let after_export_let = first_line_trimmed[11..].trim();
+            let after_export_let = effective_export_kw_line[11..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
                 // Destructured export let: flatten using extract_paths pattern
                 if let Some(flattened) = transform_destructured_export_let(&statement, analysis) {
@@ -4681,6 +4798,7 @@ fn transform_instance_script_for_visitors(
                 store_sub_vars.to_vec()
             };
 
+            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
             let transformed = transform_store_assignments_client(
                 &transformed,
                 &effective_store_sub_vars,
@@ -4688,7 +4806,6 @@ fn transform_instance_script_for_visitors(
                 state_vars,
                 non_reactive_state_vars,
             );
-            let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
             transform_store_reads_client(&transformed, &effective_store_sub_vars)
         } else {
             transformed
@@ -5164,12 +5281,69 @@ fn transform_instance_script_for_visitors(
 ///
 /// Transforms `=> (expr)` to `=> expr` when `expr` is not an object literal `{...}`.
 /// This matches the official Svelte compiler behavior where esrap strips redundant parens.
+///
+/// All non-ASCII (multibyte UTF-8) content is preserved verbatim via range slicing —
+/// bytes are only used for ASCII pattern detection, never for character-by-character copying.
 fn strip_unnecessary_arrow_body_parens(code: &str) -> String {
     let bytes = code.as_bytes();
     let mut result = String::with_capacity(code.len());
     let mut i = 0;
 
     while i < bytes.len() {
+        // Skip string/template literals: their content must not be modified.
+        // Arrow patterns inside template literal raw segments are string values, not JS code.
+        // Use range slicing (&code[start..end]) so multibyte UTF-8 chars are copied intact.
+        if bytes[i] == b'\'' || bytes[i] == b'"' {
+            let quote = bytes[i];
+            let lit_start = i;
+            i += 1; // skip opening quote
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2; // skip escaped char (always ASCII in escape sequences)
+                } else if bytes[i] == quote {
+                    i += 1; // include closing quote
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+            result.push_str(&code[lit_start..i]);
+            continue;
+        }
+        // Skip template literals completely (raw segments and ${} interpolations alike).
+        // Arrow patterns inside a template literal are raw string data — not JS code — so
+        // paren-stripping must not touch them.  ${} interpolations inside the template
+        // are not processed by this pass either; they receive the correct generated form
+        // from the upstream code-gen and do not need paren-stripping.
+        if bytes[i] == b'`' {
+            let lit_start = i;
+            i += 1; // skip opening backtick
+            let mut tpl_depth: u32 = 0; // nesting depth of ${} interpolations
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2; // skip escaped char
+                    continue;
+                }
+                if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    tpl_depth += 1;
+                    i += 2;
+                    continue;
+                }
+                if bytes[i] == b'}' && tpl_depth > 0 {
+                    tpl_depth -= 1;
+                    i += 1;
+                    continue;
+                }
+                if bytes[i] == b'`' && tpl_depth == 0 {
+                    i += 1; // include closing backtick
+                    break;
+                }
+                i += 1;
+            }
+            result.push_str(&code[lit_start..i]);
+            continue;
+        }
+
         // Look for "=> (" or "=>(" patterns (with or without space)
         let (matched, paren_start, match_len) = if i + 4 <= bytes.len()
             && bytes[i] == b'='
@@ -5226,8 +5400,12 @@ fn strip_unnecessary_arrow_body_parens(code: &str) -> String {
                 }
             }
         }
-        result.push(bytes[i] as char);
-        i += 1;
+        // Copy one byte (always ASCII at this point: multibyte chars are handled by the
+        // string/template-literal branches above, and the pattern characters => ( are ASCII).
+        // However, to be safe against any non-ASCII byte reaching here, use a char-aware copy.
+        let ch_len = code[i..].chars().next().map_or(1, |c| c.len_utf8());
+        result.push_str(&code[i..i + ch_len]);
+        i += ch_len;
     }
     result
 }

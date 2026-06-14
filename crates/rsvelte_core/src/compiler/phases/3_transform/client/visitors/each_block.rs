@@ -1387,15 +1387,19 @@ fn _extract_destructured_paths(
                             if let (Some(key_obj), Some(value)) = (key, value) {
                                 let key_type = key_obj.get("type").and_then(|t| t.as_str());
 
-                                // Build the property access expression
-                                // If computed or key is not Identifier, use bracket notation
-                                let (prop_expr, deferred_key) = if computed {
+                                // Build the property access expression (read) and
+                                // update expression (write LHS) separately.
+                                // They differ when the object is a $.derived() array like
+                                // $$array_1: reading uses $.get($$array_1) but the setter
+                                // LHS must use $$array_1 directly.
+                                let (prop_expr, prop_update_expr, deferred_key) = if computed {
                                     // For computed keys, use format_json_expr_for_key as a
                                     // best-effort initial value, but also store the raw JSON
                                     // for later re-conversion with proper transforms
                                     let key_expr_str = format_json_expr_for_key(key_obj);
                                     (
                                         format!("{}[{}]", expression, key_expr_str),
+                                        format!("{}[{}]", _update_expression, key_expr_str),
                                         Some((
                                             expression.to_string(),
                                             serde_json::Value::Object(key_obj.clone()),
@@ -1403,13 +1407,21 @@ fn _extract_destructured_paths(
                                     )
                                 } else if key_type != Some("Identifier") {
                                     let key_expr_str = format_json_expr_for_key(key_obj);
-                                    (format!("{}[{}]", expression, key_expr_str), None)
+                                    (
+                                        format!("{}[{}]", expression, key_expr_str),
+                                        format!("{}[{}]", _update_expression, key_expr_str),
+                                        None,
+                                    )
                                 } else {
                                     let key_name = key_obj
                                         .get("name")
                                         .and_then(|n| n.as_str())
                                         .unwrap_or("unknown");
-                                    (format!("{}.{}", expression, key_name), None)
+                                    (
+                                        format!("{}.{}", expression, key_name),
+                                        format!("{}.{}", _update_expression, key_name),
+                                        None,
+                                    )
                                 };
 
                                 if let Some(value_obj) = value.as_object() {
@@ -1419,7 +1431,7 @@ fn _extract_destructured_paths(
                                         inserts,
                                         value_obj,
                                         &prop_expr,
-                                        &prop_expr,
+                                        &prop_update_expr,
                                         has_default_value,
                                         array_name_gen,
                                     );
@@ -1477,8 +1489,12 @@ fn _extract_destructured_paths(
                     let elem_type = elem_obj.get("type").and_then(|v| v.as_str());
 
                     if elem_type == Some("RestElement") {
-                        // RestElement: ...rest => $.get($$array).slice(i)
+                        // RestElement read expression: $.get($$array).slice(i)
+                        // RestElement update expression (setter LHS): $$array.slice(i)
+                        // $$array is a $.derived() local — it must NOT be wrapped in
+                        // $.get() on the assignment LHS, only on reads.
                         let rest_expression = format!("$.get({}).slice({})", array_id, i);
+                        let rest_update_expression = format!("{}.slice({})", array_id, i);
 
                         if let Some(arg) = elem_obj.get("argument").and_then(|a| a.as_object()) {
                             let arg_type = arg.get("type").and_then(|t| t.as_str());
@@ -1490,7 +1506,7 @@ fn _extract_destructured_paths(
                                 paths.push(DestructuredPath {
                                     name: name.to_string(),
                                     expression: rest_expression.clone(),
-                                    update_expression: rest_expression,
+                                    update_expression: rest_update_expression,
                                     has_default_value,
                                     default_value: None,
                                     computed_key_base: None,
@@ -1502,22 +1518,26 @@ fn _extract_destructured_paths(
                                     inserts,
                                     arg,
                                     &rest_expression,
-                                    &rest_expression,
+                                    &rest_update_expression,
                                     has_default_value,
                                     array_name_gen,
                                 );
                             }
                         }
                     } else {
-                        // Regular element: $.get($$array)[i]
+                        // Regular element read expression: $.get($$array)[i]
+                        // Regular element update expression (setter LHS): $$array[i]
+                        // $$array is a $.derived() local — it must NOT be wrapped in
+                        // $.get() on the assignment LHS, only on reads.
                         let array_expression = format!("$.get({})[{}]", array_id, i);
+                        let array_update_expression = format!("{}[{}]", array_id, i);
 
                         _extract_destructured_paths(
                             paths,
                             inserts,
                             elem_obj,
                             &array_expression,
-                            &array_expression,
+                            &array_update_expression,
                             has_default_value,
                             array_name_gen,
                         );

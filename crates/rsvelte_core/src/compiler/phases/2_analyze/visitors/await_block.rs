@@ -162,8 +162,14 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         .push(super::FragmentOwnerType::AwaitBlock);
 
     // Analyze the pending block (shown while awaiting)
+    // Pending block has its own scope (mirrors upstream: Fragment always creates child scope)
     if let Some(ref mut pending) = block.pending {
+        let old_scope = context.scope;
+        if let Some(&pending_scope) = context.analysis.root.template_scope_map.get(&block.start) {
+            context.scope = pending_scope;
+        }
         fragment::analyze(pending, context)?;
+        context.scope = old_scope;
     }
 
     // Analyze the then block (shown on success, creates scope for value)

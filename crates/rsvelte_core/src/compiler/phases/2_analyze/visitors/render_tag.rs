@@ -36,7 +36,12 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
         .get("callee")
         .ok_or_else(errors::render_tag_invalid_expression)?;
 
-    // Check if the callee is an Identifier and look up its binding
+    // Check if the callee is an Identifier and look up its binding via the
+    // lexical scope chain starting at the current template scope.
+    // Mirrors upstream's `context.state.scope.get(callee.name)` which walks the
+    // scope chain from the render site's own scope, not the merged root scope.
+    // Using root.scope.declarations (flat global map) would wrongly "find"
+    // an out-of-scope inner snippet and mark it as non-dynamic.
     let callee_type = callee_json.get("type").and_then(|t| t.as_str());
     let callee_name = callee_json.get("name").and_then(|n| n.as_str());
     let binding = if callee_type == Some("Identifier") {
@@ -44,10 +49,23 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
             context
                 .analysis
                 .root
-                .scope
-                .declarations
-                .get(name)
-                .map(|&idx| &context.analysis.root.bindings[idx])
+                .get_binding(name, context.scope)
+                .filter(|&idx| {
+                    // The scope builder merges all child-scope declarations into
+                    // all_scopes[0] for backward compatibility.  A raw get_binding walk
+                    // therefore finds bindings declared in *descendant* scopes (e.g. `y`
+                    // declared inside snippet x's body) when the lookup starts from an
+                    // ancestor scope (e.g. the enclosing <div>).  Filter those out:
+                    // only accept a binding if its declared scope is an ancestor of (or
+                    // equal to) the current render-site scope — mirroring upstream
+                    // `scope.get(name)` which traverses `parent` links, never children.
+                    let declared_scope = context.analysis.root.bindings[idx].scope_index;
+                    context
+                        .analysis
+                        .root
+                        .is_scope_ancestor_of(declared_scope, context.scope)
+                })
+                .map(|idx| &context.analysis.root.bindings[idx])
         } else {
             None
         }

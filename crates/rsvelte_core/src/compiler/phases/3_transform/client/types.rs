@@ -722,10 +722,17 @@ impl<'a> ComponentContext<'a> {
             ),
         );
 
-        // Handle LetDirectives by wrapping in ExpressionStatements
+        // Handle LetDirectives: the official Svelte compiler throws "Not implemented: LetDirective"
+        // when esrap tries to serialize a LetDirective node that was left in the JS AST after
+        // `context.visit(attribute)` on a SvelteElement (SvelteElement.js line 67 calls
+        // `context.visit(attribute)` without providing `let_directives` in state, so the
+        // LetDirective.js visitor returns undefined and the raw AST node flows into esrap).
+        // We match this behaviour by recording a pending error on the state; the root transform
+        // (transform_client_with_visitors) checks it after the fragment visit and returns
+        // Err(TransformError::CodeGen("Not implemented: LetDirective")).
         let mut statements = Vec::new();
-        for _let_dir in &let_directives {
-            // TODO: Implement LetDirective handling
+        if !let_directives.is_empty() {
+            self.state.pending_error = Some("Not implemented: LetDirective".to_string());
         }
 
         // Dev mode: add validation calls (matches official SvelteElement.js lines 120-125)
@@ -2110,6 +2117,11 @@ pub struct ComponentClientTransformState<'a> {
     /// This mirrors the official Svelte compiler's `binding.blocker` mechanism.
     /// Uses `Rc<RefCell<...>>` for shared ownership across nested fragment states.
     pub const_blocker_map: Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, JsExpr>>>,
+
+    /// Pending transform error set during template traversal (e.g. "Not implemented: LetDirective").
+    /// Checked after the root fragment visit; if Some, `transform_client_with_visitors` returns
+    /// `Err(TransformError::CodeGen(...))` so the corpus sees an error entry for the client target.
+    pub pending_error: Option<String>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -2258,6 +2270,7 @@ impl<'a> ComponentClientTransformState<'a> {
             is_standalone: false,
             const_blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
             templates: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
+            pending_error: None,
         }
     }
 

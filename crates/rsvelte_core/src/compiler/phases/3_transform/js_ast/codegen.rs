@@ -682,7 +682,25 @@ impl<'a> JsCodegen<'a> {
         self.output.push_str("while (");
         self.emit_expression(self.arena.get_expr(while_stmt.test));
         self.output.push_str(") ");
-        self.emit_statement_as_block(self.arena.get_stmt(while_stmt.body));
+        // Like esrap, emit the body as-is without forcing braces.
+        // A BlockStatement body will naturally emit with { ... };
+        // a bare single-statement body stays bare (matching upstream behaviour).
+        self.emit_loop_body(self.arena.get_stmt(while_stmt.body));
+    }
+
+    /// Emit a loop body (while/for), mirroring how esrap emits while/for bodies:
+    /// block bodies are emitted inline, non-block bodies are emitted bare.
+    fn emit_loop_body(&mut self, stmt: &JsStatement) {
+        match stmt {
+            JsStatement::Block(block) => self.emit_block_inline(block),
+            _ => {
+                self.emit_statement_inner(stmt);
+                if self.needs_semicolon {
+                    self.output.push(';');
+                    self.needs_semicolon = false;
+                }
+            }
+        }
     }
 
     fn emit_do_while_statement(&mut self, do_while: &JsDoWhileStatement) {

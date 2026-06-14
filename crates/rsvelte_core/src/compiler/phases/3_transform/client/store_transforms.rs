@@ -231,15 +231,7 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
                 continue;
             }
 
-            // Check if it's followed by `)` immediately (i.e., `$name()` - already a getter call)
             let paren_pos = abs_pos + store_sub.len(); // position of `(`
-            let after_paren = paren_pos + 1;
-            if after_paren < result.len() && result.as_bytes()[after_paren] == b')' {
-                // This is `$name()` - already a getter call, skip
-                new_result.push_str(&result[search_start..paren_pos]);
-                search_start = paren_pos;
-                continue;
-            }
 
             // Check if this is inside a function parameter declaration
             // e.g., `function bar($state, $effect)` - skip these.

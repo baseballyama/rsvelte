@@ -2111,39 +2111,109 @@ fn extract_reactive_rhs_identifiers(stmt: &str) -> Vec<String> {
     // An identifier is an object property key if it is immediately followed by `:` (after
     // optional whitespace), as in `{ details: null }`. We must NOT treat it as a dependency.
     // Exception: `? x : y` (ternary colon) should still be treated as a reference.
+    //
+    // Template literals (backtick strings) require special handling: `${expr}` interpolations
+    // must be traversed so that identifiers inside them (e.g. `sum` in `` `${sum}` ``) are
+    // correctly extracted as dependencies. Plain string content between interpolations is skipped.
     let mut idents = Vec::new();
     let chars: Vec<char> = after_dollar.chars().collect();
     let len = chars.len();
     let mut i = 0;
-    let mut in_string = false;
-    let mut string_char = ' ';
+
+    // Scanning state machine. We use an explicit stack to handle nested template literals
+    // and `${...}` expression blocks correctly.
+    //
+    // States:
+    //  - in_plain_string: inside a `'...'` or `"..."` literal (skip until closing quote)
+    //  - in_template: inside a `` `...` `` template literal but *outside* any `${...}` (skip text)
+    //  - template_expr_depth: depth of `${...}` nesting inside template literals; > 0 means we
+    //    are inside an expression interpolation and should extract identifiers normally
+    //
+    // To handle nested template literals (`` `outer ${`inner ${x}`}` ``), we push/pop a stack
+    // that records whether we were in a template context when entering a `${...}` block.
+
+    let mut in_plain_string = false;
+    let mut plain_string_char = ' ';
+    // Stack of brace-depths at which `${` was opened inside a template literal.
+    // Each entry is the brace_depth value *before* the `{` of `${` was counted.
+    // When `brace_depth` falls back to that value (i.e. we see the matching `}`),
+    // we return to template-text scanning.
+    let mut template_interp_stack: Vec<i32> = Vec::new();
+    let mut in_template_text = false; // true when inside `` `...` `` outside `${...}`
     // Track brace depth to know when we are inside an object literal `{...}`.
     // Property keys only appear at the top level of `{...}` blocks.
     let mut brace_depth: i32 = 0;
 
     while i < len {
         let c = chars[i];
-        if c == '\'' || c == '"' || c == '`' {
-            if !in_string {
-                in_string = true;
-                string_char = c;
-            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
-                in_string = false;
+
+        // --- Plain string handling ('...' or "...") ---
+        if in_plain_string {
+            if c == '\\' {
+                i += 2; // skip escaped character
+                continue;
+            }
+            if c == plain_string_char {
+                in_plain_string = false;
             }
             i += 1;
             continue;
         }
-        if in_string {
+
+        // --- Template literal TEXT part (between `` ` `` and `${`, or between `}` and next `${` or `` ` ``) ---
+        if in_template_text {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == '`' {
+                // End of this template literal
+                in_template_text = false;
+                i += 1;
+                continue;
+            }
+            if c == '$' && chars.get(i + 1).copied() == Some('{') {
+                // Start of `${...}` expression — record current brace_depth before bumping
+                template_interp_stack.push(brace_depth);
+                in_template_text = false;
+                i += 2; // skip `${`
+                brace_depth += 1; // count the `{` so nested `{` objects are tracked
+                continue;
+            }
+            // Regular template text — skip
             i += 1;
             continue;
         }
 
+        // --- Normal expression scanning ---
         match c {
+            '\'' | '"' => {
+                in_plain_string = true;
+                plain_string_char = c;
+                i += 1;
+            }
+            '`' => {
+                // Start of a template literal — switch to template-text mode
+                in_template_text = true;
+                i += 1;
+            }
             '{' => {
                 brace_depth += 1;
                 i += 1;
             }
             '}' => {
+                // If the current `}` closes the innermost template interpolation `${...}`,
+                // pop the stack and return to template-text scanning.
+                if template_interp_stack
+                    .last()
+                    .is_some_and(|&saved_depth| brace_depth == saved_depth + 1)
+                {
+                    template_interp_stack.pop();
+                    in_template_text = true; // back to template text scanning
+                    brace_depth -= 1;
+                    i += 1;
+                    continue;
+                }
                 brace_depth -= 1;
                 i += 1;
             }

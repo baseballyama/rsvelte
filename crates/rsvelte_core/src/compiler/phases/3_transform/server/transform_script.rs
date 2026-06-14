@@ -2826,6 +2826,42 @@ fn is_after_ident_char(bytes: &[u8], i: usize) -> bool {
     c.is_ascii_alphanumeric() || c == b'_' || c == b'$' || c == b'#'
 }
 
+/// Given the index of an opening `(` in `bytes`, return the index of its
+/// matching `)`. Skips `'…'` / `"…"` string literals so a `)` inside a string
+/// argument doesn't break depth tracking. Returns `None` if unbalanced.
+fn matching_paren_close(bytes: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = open;
+    let mut string: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = string {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => string = Some(c),
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Decide whether the identifier at `bytes[start..end]` is a *read* of a
 /// derived binding (so it should be rewritten to `name()`).
 fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
@@ -2883,8 +2919,45 @@ fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
         .find(|&i| !bytes[i].is_ascii_whitespace())
         .map(|i| bytes[i]);
     match next_non_ws {
-        // Already a call: `foo(` — leave it.
-        Some(b'(') => false,
+        // `foo(...)`. Two cases:
+        // - `foo()` (empty call) is already a getter invocation (or text a prior
+        //   pass already wrapped); leave it so we never double-wrap to `foo()()`.
+        // - `foo(arg)` means the derived's VALUE is itself a function being
+        //   invoked, so the read still needs wrapping: `foo(arg)` -> `foo()(arg)`.
+        //   Mirrors upstream Identifier.js wrapping every derived ref with
+        //   b.call so the parent CallExpression's callee becomes `foo()`.
+        Some(b'(') => {
+            let paren_idx = (end..bytes.len()).find(|&i| bytes[i] == b'(');
+            match paren_idx {
+                Some(pi) => {
+                    let after = (pi + 1..bytes.len())
+                        .find(|&i| !bytes[i].is_ascii_whitespace())
+                        .map(|i| bytes[i]);
+                    if after == Some(b')') {
+                        // Empty call `foo()` — already a getter call; leave it.
+                        return false;
+                    }
+                    // `foo(args)`. Exclude method/accessor declarations like
+                    // `set y($$value) { ... }`: if the matching `)` of the arg
+                    // list is followed by `{`, it's a parameter list of a member
+                    // definition, not a call of the derived's function value.
+                    // Comment-agnostic, unlike a get/set keyword scan.
+                    let close = matching_paren_close(bytes, pi);
+                    if let Some(ci) = close {
+                        let next = (ci + 1..bytes.len())
+                            .find(|&i| !bytes[i].is_ascii_whitespace())
+                            .map(|i| bytes[i]);
+                        if next == Some(b'{') {
+                            return false;
+                        }
+                    }
+                    // Genuine call of the derived's function value:
+                    // `foo(arg)` -> `foo()(arg)` (mirrors upstream Identifier.js).
+                    true
+                }
+                None => false,
+            }
+        }
         // Property shorthand or object key: `{ foo: ... }` / `{ foo,` /
         // `{ foo }`. Detect by scanning back to the nearest `{` and ensuring
         // it's not a block context (e.g. `({ foo: ... })` in a return).
@@ -3162,9 +3235,21 @@ fn compute_shadow_ranges(
                     }
                     match cc {
                         b'(' => depth_paren += 1,
-                        b')' => depth_paren -= 1,
+                        b')' => {
+                            depth_paren -= 1;
+                            // If we've exited the enclosing `for (` / `while (`
+                            // / `if (` paren, the declarator is done.
+                            if depth_paren < 0 {
+                                break;
+                            }
+                        }
                         b'[' => depth_bracket += 1,
-                        b']' => depth_bracket -= 1,
+                        b']' => {
+                            depth_bracket -= 1;
+                            if depth_bracket < 0 {
+                                break;
+                            }
+                        }
                         b'{' => depth_brace_inline += 1,
                         b'}' => {
                             if depth_brace_inline == 0 {
@@ -3193,7 +3278,11 @@ fn compute_shadow_ranges(
                     j += 1;
                 }
                 let decl_text = &script[decl_start..j];
-                for (rel_start, n) in extract_declarator_names_with_pos(decl_text) {
+                // Truncate to LHS pattern only (stops at `of`/`in` keywords
+                // so that `for (const key of Object.keys(a))` doesn't
+                // accidentally register `a` as a shadowing declaration).
+                let pattern_text = declarator_pattern_only(decl_text);
+                for (rel_start, n) in extract_declarator_names_with_pos(pattern_text) {
                     let abs_start = decl_start + rel_start;
                     // Skip the derived's own declaration — references to
                     // the derived inside the enclosing block should still
@@ -3360,25 +3449,32 @@ fn compute_shadow_ranges(
                     false
                 } else {
                     let prev_ident = &script[p..prev_end];
-                    !matches!(
-                        prev_ident,
-                        "if" | "for"
-                            | "while"
-                            | "switch"
-                            | "catch"
-                            | "with"
-                            | "do"
-                            | "return"
-                            | "typeof"
-                            | "void"
-                            | "delete"
-                            | "new"
-                            | "in"
-                            | "of"
-                            | "await"
-                            | "yield"
-                            | "throw"
-                    )
+                    // If the identifier is preceded by `.`, it's a property
+                    // access call like `Object.keys(params) { ... }` — the
+                    // `{` is a `for`/control-flow body, not a function body.
+                    // Method calls can never open a new parameter scope, so
+                    // treat them the same as control-flow keywords.
+                    let preceded_by_dot = p > 0 && bytes[p - 1] == b'.';
+                    !preceded_by_dot
+                        && !matches!(
+                            prev_ident,
+                            "if" | "for"
+                                | "while"
+                                | "switch"
+                                | "catch"
+                                | "with"
+                                | "do"
+                                | "return"
+                                | "typeof"
+                                | "void"
+                                | "delete"
+                                | "new"
+                                | "in"
+                                | "of"
+                                | "await"
+                                | "yield"
+                                | "throw"
+                        )
                 }
             };
             if is_arrow || is_fn_like_body {
@@ -3455,6 +3551,92 @@ fn compute_shadow_ranges(
         i += 1;
     }
     ranges
+}
+
+/// Truncate a declarator text to only the LHS binding pattern, stopping at a
+/// top-level `of` / `in` keyword (for-of / for-in) at depth 0.  This prevents
+/// identifiers that appear in the iterable expression (`for (const key of
+/// Object.keys(a))`) from being treated as declared names.
+fn declarator_pattern_only(decl: &str) -> &str {
+    let bytes = decl.as_bytes();
+    let len = bytes.len();
+    let mut i = 0usize;
+    let mut depth_paren = 0i32;
+    let mut depth_bracket = 0i32;
+    let mut depth_brace = 0i32;
+    while i < len {
+        let b = bytes[i];
+        match b {
+            b'"' | b'\'' => {
+                let q = b;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            b'(' => depth_paren += 1,
+            b')' => depth_paren -= 1,
+            b'[' => depth_bracket += 1,
+            b']' => depth_bracket -= 1,
+            b'{' => depth_brace += 1,
+            b'}' => depth_brace -= 1,
+            _ => {}
+        }
+        // At depth 0, check for `of` or `in` keyword boundaries.
+        if depth_paren == 0 && depth_bracket == 0 && depth_brace == 0 {
+            // Must be preceded by a non-identifier char (word boundary).
+            let preceded_by_ident = i > 0 && {
+                let pb = bytes[i - 1];
+                pb.is_ascii_alphanumeric() || pb == b'_' || pb == b'$'
+            };
+            if !preceded_by_ident {
+                // Check for `of ` or `in ` (keyword + whitespace/end).
+                let rest = &bytes[i..];
+                let kw_len = if rest.starts_with(b"of") || rest.starts_with(b"in") {
+                    Some(2)
+                } else {
+                    None
+                };
+                if let Some(kl) = kw_len {
+                    // Ensure what follows is not an identifier char (word boundary).
+                    let after = i + kl;
+                    let followed_by_ident = after < len && {
+                        let ab = bytes[after];
+                        ab.is_ascii_alphanumeric() || ab == b'_' || ab == b'$'
+                    };
+                    if !followed_by_ident {
+                        return &decl[..i];
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    decl
 }
 
 /// Same as `extract_declarator_names` but also returns the byte offset of
@@ -4853,15 +5035,38 @@ fn line_ends_with_continuation(trimmed: &str) -> bool {
         && !trimmed.ends_with("--")
 }
 
-/// Count bracket depth change for a line (positive = more opens, negative = more closes).
-/// Update `depth` for the curly-brace nesting of a class member body as `line`
-/// is consumed. `{`/`}` that sit inside parentheses/brackets (e.g. a `{}`
-/// default-parameter value in `getTimeline(opts = {}) {`) or inside string /
-/// template literals are ignored, so an object-literal default parameter does
-/// not prematurely close the method block. Returns `true` if `depth` reached 0
-/// on this line (the member body closed). (issue #648)
-fn update_member_brace_depth(line: &str, depth: &mut i32) -> bool {
-    let mut paren: i32 = 0;
+/// Update brace-depth for a class member body as `line` is consumed.
+///
+/// `depth` tracks curly-brace nesting for the method body; `paren` is a
+/// persistent paren-nesting counter carried across lines; `param_brace` tracks
+/// curly braces that were opened *inside* parens (e.g. the `{` of a destructure
+/// parameter `constructor({ a, b }) {`). Together they correctly handle the
+/// multi-line-param case:
+///
+/// ```text
+/// constructor({          // paren=1, { at paren>0 → param_brace=1
+///   svelte_version,      // no change
+/// }) {                   // ) → paren=0, then } at paren=0 but param_brace=1
+///                        //   → this } closes a param-level brace, not the body
+///                        //   → param_brace=0; then { at paren=0, param_brace=0
+///                        //   → body opens → depth=1
+///   this.x = 1;
+/// }                      // depth 1→0 → closed=true
+/// ```
+///
+/// Without the `param_brace` counter the `)` in `}) {` moves `paren` from 1 to 0,
+/// then the `}` (at `paren=0`) is wrongly counted as closing the body (depth −1),
+/// and the body-opening `{` merely brings depth back to 0 — leaving the scanner
+/// stuck at depth=0 forever and swallowing all subsequent class methods.
+///
+/// Returns `true` if `depth` reached 0 on this line (the member body closed).
+/// (issue #648 + multi-line-param fix)
+fn update_member_brace_depth(
+    line: &str,
+    depth: &mut i32,
+    paren: &mut i32,
+    param_brace: &mut i32,
+) -> bool {
     let mut in_str = false;
     let mut str_ch = ' ';
     let mut closed = false;
@@ -4877,13 +5082,22 @@ fn update_member_brace_depth(line: &str, depth: &mut i32) -> bool {
                 in_str = true;
                 str_ch = ch;
             }
-            '(' | '[' => paren += 1,
-            ')' | ']' => paren -= 1,
-            '{' if paren == 0 => *depth += 1,
-            '}' if paren == 0 => {
-                *depth -= 1;
-                if *depth == 0 {
-                    closed = true;
+            '(' | '[' => *paren += 1,
+            ')' | ']' => *paren -= 1,
+            '{' if *paren > 0 => *param_brace += 1,
+            '}' if *paren > 0 => *param_brace -= 1,
+            '{' if *paren == 0 => *depth += 1,
+            '}' if *paren == 0 => {
+                if *param_brace > 0 {
+                    // This `}` closes a brace that was opened inside a param list
+                    // (e.g. the `{...}` destructure in `constructor({a,b}) {`).
+                    // It balances against `param_brace`, NOT the method body.
+                    *param_brace -= 1;
+                } else {
+                    *depth -= 1;
+                    if *depth == 0 {
+                        closed = true;
+                    }
                 }
             }
             _ => {}
@@ -5057,6 +5271,16 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
 
     let mut in_block = false;
     let mut block_depth = 0;
+    // Persistent paren-nesting counter for the current in-block scan. Carried
+    // across lines so that multi-line parameter lists (e.g. `constructor({\n…\n}) {`)
+    // are handled correctly: the `{` that opens the method body sits after the `)` that
+    // closes the params, and the paren tracker must be at 0 at that point.
+    let mut block_paren = 0i32;
+    // Persistent "brace opened inside paren" counter. Tracks `{`/`}` at paren>0 so
+    // that `}` from a destructure parameter (which appears at paren=0 after `)` closes
+    // the param list) is recognised as a param-brace close rather than a body-brace
+    // close. See `update_member_brace_depth` for a detailed explanation.
+    let mut block_param_brace = 0i32;
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_is_arrow_fn = false;
 
@@ -5067,6 +5291,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut derived_field_name = String::new();
     let mut derived_field_is_private = false;
     let mut derived_field_is_by = false;
+
+    // For multiline plain (non-rune) field initializers: accumulate lines until
+    // the bracket depth returns to 0. E.g. `bundler = new Bundler({\n  ...\n})`
+    // where the `{` is inside the initializer and spans multiple lines.
+    let mut in_plain_field = false;
+    let mut plain_field_lines: Vec<String> = Vec::new();
+    let mut plain_field_depth: i32 = 0;
 
     let all_lines: Vec<&str> = class_body.lines().collect();
 
@@ -5164,10 +5395,42 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
+        // Continue accumulating a multiline plain (non-rune) field initializer.
+        // Once the bracket depth returns to 0 the full field text is pushed as a
+        // single Field member so the emitter can write it verbatim.
+        if in_plain_field {
+            plain_field_lines.push(line.to_string());
+            for c in trimmed.chars() {
+                match c {
+                    '(' | '{' | '[' => plain_field_depth += 1,
+                    ')' | '}' | ']' => plain_field_depth -= 1,
+                    _ => {}
+                }
+            }
+            if plain_field_depth <= 0 {
+                in_plain_field = false;
+                // Emit the full multi-line field as a single Field entry whose
+                // text is the source lines joined. The emitter handles it
+                // specially when it sees newlines inside the Field value.
+                let field_text = plain_field_lines.join("\n");
+                members.push(ClassMember::Field(field_text));
+                plain_field_lines.clear();
+                plain_field_depth = 0;
+            }
+            continue;
+        }
+
         if in_block {
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 if block_is_arrow_fn {
                     members.push(ClassMember::ArrowFn(block_lines.clone()));
                 } else {
@@ -5198,10 +5461,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;
+            block_paren = 0;
+            block_param_brace = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 members.push(ClassMember::Method(block_lines.clone()));
                 block_lines.clear();
             }
@@ -5219,10 +5491,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             in_block = true;
             block_is_arrow_fn = true;
             block_depth = 0;
+            block_paren = 0;
+            block_param_brace = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 members.push(ClassMember::ArrowFn(block_lines.clone()));
                 block_lines.clear();
             }
@@ -5252,10 +5533,19 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             in_block = true;
             block_is_arrow_fn = false;
             block_depth = 0;
+            block_paren = 0;
+            block_param_brace = 0;
             block_lines.clear();
             block_lines.push(line.to_string());
-            if update_member_brace_depth(trimmed, &mut block_depth) {
+            if update_member_brace_depth(
+                trimmed,
+                &mut block_depth,
+                &mut block_paren,
+                &mut block_param_brace,
+            ) {
                 in_block = false;
+                block_paren = 0;
+                block_param_brace = 0;
                 members.push(ClassMember::Method(block_lines.clone()));
                 block_lines.clear();
             }
@@ -5363,7 +5653,27 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        members.push(ClassMember::Field(trimmed.to_string()));
+        // Detect multi-line plain (non-rune) field initializers.
+        // If the trimmed line has unbalanced brackets/parens it spans multiple
+        // lines (e.g. `bundler = new Bundler({\n  ...\n})`). Accumulate until
+        // the depth returns to 0 so the full initializer is emitted verbatim
+        // instead of just the first line with a spurious `;` appended.
+        let mut field_bracket_depth: i32 = 0;
+        for c in trimmed.chars() {
+            match c {
+                '(' | '{' | '[' => field_bracket_depth += 1,
+                ')' | '}' | ']' => field_bracket_depth -= 1,
+                _ => {}
+            }
+        }
+        if field_bracket_depth > 0 {
+            in_plain_field = true;
+            plain_field_lines.clear();
+            plain_field_lines.push(line.to_string());
+            plain_field_depth = field_bracket_depth;
+        } else {
+            members.push(ClassMember::Field(trimmed.to_string()));
+        }
     }
 
     // Scan constructor members for $derived/$state assignments
@@ -6809,16 +7119,64 @@ fn flatten_destructured_let_ssr(
     let mut declarations = Vec::new();
     declarations.push(format!("tmp = {}", rhs));
 
-    flatten_destructured_let_ssr_inner(pattern, "tmp", reexported_props, &mut declarations)?;
+    // Upstream (server VariableDeclaration.js): when a destructuring pattern's
+    // bindings include ANY bindable_prop, EVERY leaf of that pattern is emitted
+    // as `$.fallback($$props['<alias ?? name>'], () => <path>, true)` — even
+    // leaves that are not themselves exported. Mirror that by computing once
+    // whether this pattern contains a reexported prop, then forcing the fallback
+    // form for all leaves when it does.
+    let mut leaf_names = Vec::new();
+    collect_destructure_leaf_names(pattern, &mut leaf_names);
+    let force_fallback = leaf_names
+        .iter()
+        .any(|n| reexported_props.iter().any(|(local, _)| local == n));
+
+    flatten_destructured_let_ssr_inner(
+        pattern,
+        "tmp",
+        reexported_props,
+        force_fallback,
+        &mut declarations,
+    )?;
 
     // Join as a single comma-separated let declaration to match the official compiler output
     Some(format!("let {};", declarations.join(", ")))
+}
+
+/// Collect the leaf binding names of a destructuring pattern string
+/// (`{ a, b: { c }, d = 1 }` → `[a, c, d]`), mirroring the traversal in
+/// `flatten_destructured_let_ssr_inner`.
+fn collect_destructure_leaf_names(pattern: &str, out: &mut Vec<String>) {
+    let pattern = pattern.trim();
+    if !(pattern.starts_with('{') && pattern.ends_with('}')) {
+        return;
+    }
+    let inner = &pattern[1..pattern.len() - 1];
+    for prop in split_by_comma_respecting_nesting(inner) {
+        let prop = prop.trim();
+        if prop.is_empty() {
+            continue;
+        }
+        if let Some(colon_pos) = find_colon_at_depth_0(prop) {
+            let value_pattern = prop[colon_pos + 1..].trim();
+            if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
+                collect_destructure_leaf_names(value_pattern, out);
+            } else {
+                let (name, _) = split_name_default(value_pattern);
+                out.push(name.to_string());
+            }
+        } else {
+            let (name, _) = split_name_default(prop);
+            out.push(name.to_string());
+        }
+    }
 }
 
 fn flatten_destructured_let_ssr_inner(
     pattern: &str,
     base_path: &str,
     reexported_props: &[(String, String)],
+    force_fallback: bool,
     declarations: &mut Vec<String>,
 ) -> Option<()> {
     let pattern = pattern.trim();
@@ -6843,62 +7201,31 @@ fn flatten_destructured_let_ssr_inner(
                         value_pattern,
                         &new_path,
                         reexported_props,
+                        force_fallback,
                         declarations,
                     )?;
                 } else {
                     let (binding_name, default_value) = split_name_default(value_pattern);
-                    let is_reexported = reexported_props
-                        .iter()
-                        .find(|(local, _)| local == binding_name);
-
-                    if let Some((_, prop_name)) = is_reexported {
-                        if let Some(default_val) = default_value {
-                            declarations.push(format!(
-                                "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
-                                binding_name, prop_name, new_path, default_val
-                            ));
-                        } else {
-                            declarations.push(format!(
-                                "{} = $.fallback($$props['{}'], () => {}, true)",
-                                binding_name, prop_name, new_path
-                            ));
-                        }
-                    } else if let Some(default_val) = default_value {
-                        declarations.push(format!(
-                            "{} = {} ?? {}",
-                            binding_name, new_path, default_val
-                        ));
-                    } else {
-                        declarations.push(format!("{} = {}", binding_name, new_path));
-                    }
+                    push_leaf_declaration(
+                        binding_name,
+                        &new_path,
+                        default_value,
+                        reexported_props,
+                        force_fallback,
+                        declarations,
+                    );
                 }
             } else {
                 let (binding_name, default_value) = split_name_default(prop);
                 let new_path = format!("{}.{}", base_path, binding_name);
-                let is_reexported = reexported_props
-                    .iter()
-                    .find(|(local, _)| local == binding_name);
-
-                if let Some((_, prop_name)) = is_reexported {
-                    if let Some(default_val) = default_value {
-                        declarations.push(format!(
-                            "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
-                            binding_name, prop_name, new_path, default_val
-                        ));
-                    } else {
-                        declarations.push(format!(
-                            "{} = $.fallback($$props['{}'], () => {}, true)",
-                            binding_name, prop_name, new_path
-                        ));
-                    }
-                } else if let Some(default_val) = default_value {
-                    declarations.push(format!(
-                        "{} = {} ?? {}",
-                        binding_name, new_path, default_val
-                    ));
-                } else {
-                    declarations.push(format!("{} = {}", binding_name, new_path));
-                }
+                push_leaf_declaration(
+                    binding_name,
+                    &new_path,
+                    default_value,
+                    reexported_props,
+                    force_fallback,
+                    declarations,
+                );
             }
         }
     } else {
@@ -6906,6 +7233,68 @@ fn flatten_destructured_let_ssr_inner(
     }
 
     Some(())
+}
+
+/// Emit a single destructure-leaf declaration for the SSR flattener.
+///
+/// - A reexported leaf always uses its prop alias as the `$$props` key.
+/// - When `force_fallback` is set (the enclosing pattern contains a bindable
+///   prop), a non-reexported leaf is ALSO wrapped in `$.fallback`, keyed by its
+///   own name — mirroring upstream's per-pattern `has_props` branch which
+///   fallback-wraps every leaf. Otherwise a non-reexported leaf is a plain
+///   `name = path` / `name = path ?? default`.
+fn push_leaf_declaration(
+    binding_name: &str,
+    new_path: &str,
+    default_value: Option<&str>,
+    reexported_props: &[(String, String)],
+    force_fallback: bool,
+    declarations: &mut Vec<String>,
+) {
+    let prop_key = reexported_props
+        .iter()
+        .find(|(local, _)| local == binding_name)
+        .map(|(_, alias)| alias.as_str());
+
+    match prop_key {
+        Some(prop_name) => {
+            if let Some(default_val) = default_value {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                    binding_name, prop_name, new_path, default_val
+                ));
+            } else {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => {}, true)",
+                    binding_name, prop_name, new_path
+                ));
+            }
+        }
+        None if force_fallback => {
+            // Non-reexported leaf inside a prop-bearing pattern: keyed by own name.
+            if let Some(default_val) = default_value {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                    binding_name, binding_name, new_path, default_val
+                ));
+            } else {
+                declarations.push(format!(
+                    "{} = $.fallback($$props['{}'], () => {}, true)",
+                    binding_name, binding_name, new_path
+                ));
+            }
+        }
+        None => {
+            if let Some(default_val) = default_value {
+                declarations.push(format!(
+                    "{} = {} ?? {}",
+                    binding_name, new_path, default_val
+                ));
+            } else {
+                declarations.push(format!("{} = {}", binding_name, new_path));
+            }
+        }
+    }
 }
 
 fn split_name_default(s: &str) -> (&str, Option<&str>) {

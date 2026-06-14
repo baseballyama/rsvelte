@@ -3276,14 +3276,22 @@ pub fn walk_js_expression_node(
             let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
             walk_js_expression_node(arena.get_js_node(*body), context, &mut inner_metadata)?;
 
-            // Propagate references and dependencies
+            // Propagate references and has_state, but NOT dependencies.
+            //
+            // Upstream's `visit_function` (2-analyze/visitors/shared/function.js)
+            // enters function bodies with `context.next({ ..., expression: null })`,
+            // so identifiers referenced *inside* a nested function never get added
+            // to the enclosing expression's `dependencies` (Identifier.js only adds
+            // when `context.state.expression` is non-null). Propagating
+            // `inner_metadata.dependencies` here over-collects — in particular it
+            // pulls in a callback parameter that *shadows* an each-block item
+            // (e.g. `items.filter((item) => …)`), which wrongly flips
+            // EACH_ITEM_REACTIVE on. References and has_state are still propagated
+            // to preserve existing reactivity behaviour for captured outer state.
             if !context.analysis.runes {
                 for ref_idx in &inner_metadata.references {
                     metadata.references.insert(*ref_idx);
                 }
-            }
-            for dep_idx in &inner_metadata.dependencies {
-                metadata.dependencies.insert(*dep_idx);
             }
             if inner_metadata.has_state() {
                 metadata.set_has_state(true);

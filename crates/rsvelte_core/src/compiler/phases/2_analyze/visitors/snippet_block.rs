@@ -52,11 +52,24 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/SnippetBlock.js L26
     let old_parent_element = context.parent_element.take();
 
+    // Switch context.scope to the snippet body's scope for the duration of body
+    // analysis. This ensures that render tags inside the snippet body use lexical
+    // scope-chain lookup starting at the snippet's own scope, not the outer scope.
+    // Without this, {@render y()} inside snippet x would look up `y` from the
+    // outer component scope (finding the hoisted `y` binding) instead of the
+    // snippet-local `y` — mirroring upstream's `context.next({ ...context.state })`
+    // which zimmerframe drives into the snippet body carrying the correct scope.
+    let old_scope = context.scope;
+    if let Some(&snippet_scope_idx) = context.analysis.root.template_scope_map.get(&block.start) {
+        context.scope = snippet_scope_idx;
+    }
+
     // Analyze the body
     fragment::analyze(&mut block.body, context)?;
 
-    // Restore parent_element
+    // Restore parent_element and scope
     context.parent_element = old_parent_element;
+    context.scope = old_scope;
 
     // Pop fragment owner type
     context.fragment_owner_stack.pop();

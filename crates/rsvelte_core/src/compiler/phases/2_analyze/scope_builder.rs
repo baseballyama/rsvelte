@@ -4762,12 +4762,19 @@ impl<'a> ScopeBuilder<'a> {
 
         // Visit the consequent in its own scope
         let old_scope = self.push_scope();
+        // Register this scope in template_scope_map so that declaration-tag
+        // bindings inside the consequent are visible to the server evaluator.
+        self.template_scope_map
+            .insert(block.start, self.current_scope);
         self.visit_fragment(&block.consequent);
         self.pop_scope(old_scope);
 
         // Visit alternate if present, also in its own scope
         if let Some(ref alternate) = block.alternate {
             let old_scope = self.push_scope();
+            // Use block.end as a unique key for the alternate scope.
+            self.template_scope_map
+                .insert(block.end, self.current_scope);
             self.visit_fragment(alternate);
             self.pop_scope(old_scope);
         }
@@ -4775,9 +4782,14 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit an await block.
     fn visit_await_block(&mut self, block: &AwaitBlock) {
-        // Pending doesn't create a scope
+        // Pending creates a child scope (mirrors upstream: Fragment visitor always creates child scope)
         if let Some(ref pending) = block.pending {
+            let old_scope = self.push_scope();
+            // Map block.start to the pending scope so Phase 2 analysis can switch to it
+            self.template_scope_map
+                .insert(block.start, self.current_scope);
             self.visit_fragment(pending);
+            self.pop_scope(old_scope);
         }
 
         // Then creates a scope for the value
@@ -4825,6 +4837,10 @@ impl<'a> ScopeBuilder<'a> {
         // This ensures that {@const} declarations inside {#key} blocks are isolated
         // from sibling scopes (e.g., {#each} blocks at the same level).
         let old_scope = self.push_scope();
+        // Register this scope so declaration-tag bindings inside {#key} blocks
+        // are visible to the server evaluator's template-scope lookup.
+        self.template_scope_map
+            .insert(block.start, self.current_scope);
         self.visit_fragment(&block.fragment);
         self.pop_scope(old_scope);
     }
