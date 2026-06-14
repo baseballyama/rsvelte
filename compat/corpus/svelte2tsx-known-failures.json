@@ -1,7 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/07-misc/06-v4-migration-guide.md/6.svelte",
-	"svelte.dev/apps/svelte.dev/content/examples/07-stores/03-derived-stores/+assets/App.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/docs/special-elements/+page.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/llms-small.txt/content-sveltekit.md/23.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/search/+page.svelte",

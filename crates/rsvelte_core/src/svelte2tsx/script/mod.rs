@@ -4347,8 +4347,14 @@ fn inject_store_subscriptions_with_program(
 
     collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
 
-    import_store_names.sort();
-    import_store_names.dedup();
+    // Order the store-subscription declarations by first `$store` use in source
+    // (official emits them in walk order), not alphabetically. Dedup preserving
+    // that order.
+    import_store_names.sort_by_key(|n| source.find(&format!("${}", n)).unwrap_or(usize::MAX));
+    {
+        let mut seen = std::collections::HashSet::new();
+        import_store_names.retain(|n| seen.insert(n.clone()));
+    }
     if !import_store_names.is_empty() {
         let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
         let store_decls = create_store_declarations(&name_refs);
