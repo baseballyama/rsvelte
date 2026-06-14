@@ -3,6 +3,9 @@
 //! [`registry`](crate::registry).
 
 pub mod button_has_type;
+pub mod first_attribute_linebreak;
+pub mod html_closing_bracket_spacing;
+pub mod html_quotes;
 pub mod known_css_properties;
 pub mod max_lines_per_block;
 pub mod no_add_event_listener;

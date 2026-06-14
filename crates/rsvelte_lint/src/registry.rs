@@ -74,6 +74,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::spaced_html_comment::SpacedHtmlComment),
         Box::new(crate::rules::shorthand_attribute::ShorthandAttribute),
         Box::new(crate::rules::shorthand_directive::ShorthandDirective),
+        Box::new(crate::rules::html_quotes::HtmlQuotes),
+        Box::new(crate::rules::first_attribute_linebreak::FirstAttributeLinebreak),
+        Box::new(crate::rules::html_closing_bracket_spacing::HtmlClosingBracketSpacing),
     ]
 }
 
