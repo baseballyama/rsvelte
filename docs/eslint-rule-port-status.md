@@ -60,3 +60,37 @@ gated Wave-3 spike, not the syntactic/scope engine:
 ### Large / complex
 - `indent` — one of the largest ESLint layout rules; a faithful byte-exact port
   is a substantial standalone effort.
+
+## Known minor divergences
+
+These are inputs not covered by the upstream oracle fixtures where the port
+diverges from upstream in a benign or hard-to-fix way.
+
+- **mustache-spacing**: nested `{:else}` branches are located by a raw source
+  scan, which can mismatch when an inner `{#if}` / `{:else}` is nested inside
+  an outer `{:else}` body. The `{:then}` / `{:catch}` "has expression"
+  detection does not skip comments between the tag and the expression.
+
+- **max-attributes-per-line** / **html-closing-bracket-new-line**: attributes
+  are grouped by their *start* line; upstream groups by the group-leader's
+  *end* line, so a multi-line attribute value whose following attribute starts
+  on that end-line is grouped differently (leads to under-reporting). Affects
+  only rare multi-line attribute values.
+
+- **infinite-reactive-loop**: local-shadow detection ignores declaration
+  position within a block (contrived TDZ/redeclaration patterns); microtask
+  boundary node identity uses the node start offset (collapses when two nodes
+  share a start byte); `$store` tracking is a heuristic over top-level names.
+
+- **prefer-style-directive**: CSS property names and value escape sequences are
+  handled by a byte scan rather than a full CSS parser; diverges on non-ASCII
+  property names and escaped CSS values.
+
+- **derived-has-same-inputs-outputs**: rename-conflict detection treats
+  member-property-key identifiers as references (conservatively withholds the
+  suggestion); does not see `let`/`const` inside `if`/`for`/`try` bodies or
+  object-destructuring binds.
+
+- **no-unused-class-name**: the `allowedClassNames` option only honours the
+  `i` (case-insensitive) regex flag; the `m` (multiline) and `s` (dotAll)
+  flags are silently ignored.

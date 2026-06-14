@@ -17,7 +17,10 @@
 //! Port of `eslint-plugin-svelte/src/rules/first-attribute-linebreak.ts`.
 //! Upstream: `meta.fixable = 'whitespace'`, `type: 'layout'`.
 
-use rsvelte_core::ast::template::{Attribute, Component, RegularElement};
+use rsvelte_core::ast::template::{
+    Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement,
+};
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
@@ -180,5 +183,21 @@ impl Rule for FirstAttributeLinebreak {
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
         self.check_tag(ctx, c.start, c.name.as_str(), &c.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        self.check_tag(ctx, el.start, "slot", &el.attributes);
+    }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        self.check_tag(ctx, el.start, el.name.as_str(), &el.attributes);
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        self.check_tag(ctx, el.start, "svelte:component", &el.attributes);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        self.check_tag(ctx, el.start, "svelte:element", &el.attributes);
     }
 }

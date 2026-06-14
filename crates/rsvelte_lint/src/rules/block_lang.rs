@@ -218,6 +218,7 @@ fn build_replace_script_lang_suggestions(
             }
         } else {
             // No existing lang attr — insert.
+            // `<script` is 7 bytes; insert after the tag name, before ` lang`.
             let insert_at = script.start + 7;
             Suggestion {
                 desc: format!("Add lang attribute to a <script> block with the value \"{lang}\"."),
@@ -285,6 +286,7 @@ fn build_replace_style_lang_suggestions(
                 },
             }
         } else {
+            // `<style` is 6 bytes; insert after the tag name, before ` lang`.
             let insert_at = css.start + 6;
             Suggestion {
                 desc: format!("Add lang attribute to a <style> block with the value \"{lang}\"."),

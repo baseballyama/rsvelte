@@ -50,7 +50,7 @@ impl Fix {
         let mut out = source.to_string();
         for e in edits {
             let (s, en) = (e.start as usize, e.end as usize);
-            if s <= en && en <= out.len() {
+            if s <= en && en <= out.len() && out.is_char_boundary(s) && out.is_char_boundary(en) {
                 out.replace_range(s..en, &e.new_text);
             }
         }

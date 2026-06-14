@@ -169,8 +169,17 @@ impl HtmlClosingBracketNewLine {
             return;
         };
         // bracket_end points right after `>`. The `>` is at bracket_end - 1.
+        if bracket_end == 0 {
+            return;
+        }
         let gt_pos = bracket_end - 1;
+        if gt_pos as usize >= src.len() || src[gt_pos as usize] != b'>' {
+            return;
+        }
         // Position of `/` for self-closing, or `>` otherwise.
+        if is_self_closing && gt_pos == 0 {
+            return;
+        }
         let bracket_start = if is_self_closing { gt_pos - 1 } else { gt_pos };
 
         // The "between" zone: whitespace between the last token and `/>` or `>`.
@@ -248,8 +257,11 @@ impl HtmlClosingBracketNewLine {
         let src = ctx.source().as_bytes();
 
         // el_end points past the `>` so `>` is at el_end - 1.
+        if el_end == 0 {
+            return;
+        }
         let gt_pos = el_end - 1;
-        if src[gt_pos as usize] != b'>' {
+        if gt_pos as usize >= src.len() || src[gt_pos as usize] != b'>' {
             return;
         }
 

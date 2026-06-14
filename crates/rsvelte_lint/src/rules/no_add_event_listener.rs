@@ -65,6 +65,8 @@ static META: RuleMeta = RuleMeta {
 struct Report {
     /// Start of the full `CallExpression` node — used as the diagnostic span.
     call_start: u32,
+    /// End of the full `CallExpression` node — used as the diagnostic span end.
+    call_end: u32,
     /// Start of the callee node — first byte to replace with `"on"`.
     callee_start: u32,
     /// End of the callee node — last byte to replace; also the start of the
@@ -100,9 +102,13 @@ impl ScriptRule for NoAddEventListener {
             let Some(call_start) = node_start(node) else {
                 return;
             };
+            let Some(call_end) = node_end(node) else {
+                return;
+            };
 
             reports.push(Report {
                 call_start,
+                call_end,
                 callee_start: entry.0,
                 callee_end: entry.1,
                 obj_span: entry.2,
@@ -146,7 +152,7 @@ impl ScriptRule for NoAddEventListener {
                 Vec::new()
             };
 
-            ctx.report_with_suggestions(r.call_start, r.call_start, MESSAGE, suggestions);
+            ctx.report_with_suggestions(r.call_start, r.call_end, MESSAGE, suggestions);
         }
     }
 }

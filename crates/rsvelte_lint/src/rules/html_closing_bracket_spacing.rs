@@ -15,7 +15,10 @@
 //! Port of `eslint-plugin-svelte/src/rules/html-closing-bracket-spacing.ts`.
 //! Upstream: `meta.fixable = 'whitespace'`, `type: 'layout'`.
 
-use rsvelte_core::ast::template::{Attribute, RegularElement};
+use rsvelte_core::ast::template::{
+    Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement,
+};
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
@@ -151,12 +154,16 @@ impl HtmlClosingBracketSpacing {
     }
 }
 
-impl Rule for HtmlClosingBracketSpacing {
-    fn meta(&self) -> &'static RuleMeta {
-        &META
-    }
-
-    fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
+impl HtmlClosingBracketSpacing {
+    /// Shared implementation for any element-like node.
+    fn check_element_like(
+        &self,
+        ctx: &mut LintContext,
+        el_start: u32,
+        el_end: u32,
+        el_name_len: usize,
+        attributes: &[Attribute],
+    ) {
         let src = ctx.source().as_bytes();
 
         // --- locate the start-tag closing `>` / `/>` ---
@@ -164,8 +171,8 @@ impl Rule for HtmlClosingBracketSpacing {
         // there are no attributes) for the first `>`. After the attribute list
         // only whitespace, an optional `/`, and the `>` remain, so a raw scan is
         // safe (no `>` inside attribute values can fool us).
-        let name_end = el.start + 1 + el.name.as_str().len() as u32;
-        let scan_from = el.attributes.last().map(attr_end).unwrap_or(name_end);
+        let name_end = el_start + 1 + el_name_len as u32;
+        let scan_from = attributes.last().map(attr_end).unwrap_or(name_end);
         let mut i = scan_from as usize;
         let mut start_gt: Option<u32> = None;
         while i < src.len() {
@@ -189,10 +196,64 @@ impl Rule for HtmlClosingBracketSpacing {
 
         // --- end tag (only when one exists) ---
         // A separate end tag exists iff the start tag does not span the whole
-        // element. `el.end` is the byte after the element's final `>`.
-        if start_tag_end < el.end {
+        // element. `el_end` is the byte after the element's final `>`.
+        if start_tag_end < el_end {
             let end_mode = mode_of(ctx, "endTag", Mode::Never);
-            self.check_tag(ctx, end_mode, el.end);
+            self.check_tag(ctx, end_mode, el_end);
         }
+    }
+}
+
+impl Rule for HtmlClosingBracketSpacing {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
+        self.check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            el.name.as_str().len(),
+            &el.attributes,
+        );
+    }
+
+    fn check_component(&self, ctx: &mut LintContext, c: &Component) {
+        self.check_element_like(ctx, c.start, c.end, c.name.as_str().len(), &c.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        self.check_element_like(ctx, el.start, el.end, "slot".len(), &el.attributes);
+    }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        self.check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            el.name.as_str().len(),
+            &el.attributes,
+        );
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        self.check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            "svelte:component".len(),
+            &el.attributes,
+        );
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        self.check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            "svelte:element".len(),
+            &el.attributes,
+        );
     }
 }

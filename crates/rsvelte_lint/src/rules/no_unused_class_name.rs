@@ -83,11 +83,18 @@ fn collect_template_classes(fragment: &Fragment, out: &mut Vec<TemplateClass>) {
 fn collect_node_classes(node: &TemplateNode, out: &mut Vec<TemplateClass>) {
     match node {
         TemplateNode::RegularElement(el) => {
+            // Plain HTML elements: collect class names (upstream `node.kind === 'html'`).
+            collect_attrs_classes(&el.attributes, el.start, el.end, out);
+            collect_template_classes(&el.fragment, out);
+        }
+        TemplateNode::SlotElement(el) => {
+            // `<slot>` is also a plain HTML element — collect class names.
             collect_attrs_classes(&el.attributes, el.start, el.end, out);
             collect_template_classes(&el.fragment, out);
         }
         TemplateNode::Component(c) => {
-            collect_attrs_classes(&c.attributes, c.start, c.end, out);
+            // Components: upstream gates on `node.kind === 'html'` so Component
+            // class attributes are NOT collected (avoid false positives).
             collect_template_classes(&c.fragment, out);
         }
         TemplateNode::IfBlock(b) => {
@@ -130,11 +137,12 @@ fn collect_node_classes(node: &TemplateNode, out: &mut Vec<TemplateClass>) {
             collect_template_classes(&el.fragment, out);
         }
         TemplateNode::SvelteComponent(c) => {
-            collect_attrs_classes(&c.attributes, c.start, c.end, out);
+            // `<svelte:component>`: upstream gates on `node.kind === 'html'` so
+            // class attrs here are NOT collected (avoid false positives).
             collect_template_classes(&c.fragment, out);
         }
         TemplateNode::SvelteElement(e) => {
-            collect_attrs_classes(&e.attributes, e.start, e.end, out);
+            // `<svelte:element>` (dynamic): same upstream gate — not collected.
             collect_template_classes(&e.fragment, out);
         }
         TemplateNode::TitleElement(t) => {

@@ -129,6 +129,24 @@ fn collect_refs_inner(node: &Value, target_name: &str, refs: &mut Vec<(u32, u32)
                 collect_refs_inner(init, target_name, refs, false);
             }
         }
+        Some("Property") => {
+            // For a non-computed Property, the key Identifier is not a reference
+            // (it's a literal key name). Only descend into the value.
+            // Mirrors upstream scope analysis which excludes property keys.
+            let computed = node
+                .get("computed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if computed {
+                // Computed key can be a reference: recurse into all children.
+                collect_refs_in_children(node, target_name, refs);
+            } else {
+                // Non-computed: skip the key, only recurse into value.
+                if let Some(value) = node.get("value") {
+                    collect_refs_inner(value, target_name, refs, false);
+                }
+            }
+        }
         Some("Identifier") => {
             if node.get("name").and_then(Value::as_str) == Some(target_name)
                 && let (Some(s), Some(e)) = (node_start(node), node_end(node))

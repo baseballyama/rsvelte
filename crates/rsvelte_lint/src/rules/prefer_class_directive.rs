@@ -286,11 +286,14 @@ fn starts_with_non_word(parts: &[AttributeValuePart], check_index: usize) -> boo
     true // end of attribute → non-word boundary
 }
 
-/// Whether `s` is a valid CSS class name (only word chars and dashes).
+/// Whether `s` is a valid CSS class name (only ASCII word chars and dashes).
+/// Upstream uses `/^[\w-]*$/u` which matches only ASCII word characters
+/// (`[a-zA-Z0-9_-]`), so non-ASCII chars like `é` must not produce
+/// `class:héllo` directives.
 fn is_valid_class_name(s: &str) -> bool {
     !s.is_empty()
         && s.chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Process a `class` attribute value that is an `Expression` (single mustache,

@@ -84,17 +84,18 @@ fn attr_name(src: &str, a: &Attribute) -> String {
     }
     match a {
         // For spread attributes `{...x}`, upstream uses the full text.
-        Attribute::SpreadAttribute(_) => src[start..end].to_string(),
+        Attribute::SpreadAttribute(_) => src.get(start..end).unwrap_or("").to_string(),
         // For all other attributes, the name is derived from the key.
         // Upstream slices `attribute.key.range` for named attributes.
         // For our purposes we can derive the key text as the source up to the
         // first `=`, `{`, or whitespace.
         _ => {
-            let key_end = src[start..end]
+            let slice = src.get(start..end).unwrap_or("");
+            let key_end = slice
                 .find(|c: char| c == '=' || c == '{' || c.is_ascii_whitespace())
                 .map(|off| start + off)
                 .unwrap_or(end);
-            src[start..key_end].to_string()
+            src.get(start..key_end).unwrap_or("").to_string()
         }
     }
 }

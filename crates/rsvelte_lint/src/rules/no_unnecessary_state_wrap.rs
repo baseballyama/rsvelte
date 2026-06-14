@@ -204,11 +204,11 @@ impl ScriptRule for NoUnnecessaryStateWrap {
             }
         });
 
-        for (start, class_name, state_start, state_end, arg_start, arg_end) in valid_reports {
+        for (_start, class_name, state_start, state_end, arg_start, arg_end) in valid_reports {
             let arg_text = ctx.slice(arg_start, arg_end).to_string();
             ctx.report_with_suggestions(
-                start,
-                start,
+                arg_start,
+                arg_end,
                 format!("{class_name} is already reactive, $state wrapping is unnecessary."),
                 vec![Suggestion {
                     desc: "Remove unnecessary $state wrapping".to_string(),

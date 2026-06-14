@@ -148,7 +148,12 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     // where `lastPos` starts at `Number.NEGATIVE_INFINITY` (no prior end).
     let mut selected: Vec<TextEdit> = Vec::new();
     let mut last_end: Option<u32> = None; // None = NEGATIVE_INFINITY (no prior fix)
+    let mut applied: usize = 0; // count of fix-groups actually applied
     for fix_edits in fixes {
+        // Skip fix-groups that have no edits at all.
+        if fix_edits.is_empty() {
+            continue;
+        }
         let fix_start = fix_edits.iter().map(|e| e.start).min().unwrap_or(u32::MAX);
         let fix_end = fix_edits.iter().map(|e| e.end).max().unwrap_or(0);
         // Conflict: lastPos >= start (ESLint semantics).
@@ -156,10 +161,10 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
         if !conflict {
             last_end = Some(fix_end.max(last_end.unwrap_or(0)));
             selected.extend(fix_edits);
+            applied += 1; // count per non-conflicting fix-group
         }
     }
 
-    let applied = selected.len();
     if applied == 0 {
         return FixResult {
             output: source.to_string(),
@@ -172,7 +177,11 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let mut output = source.to_string();
     for e in selected {
         let (s, en) = (e.start as usize, e.end as usize);
-        if s <= en && en <= output.len() {
+        if s <= en
+            && en <= output.len()
+            && output.is_char_boundary(s)
+            && output.is_char_boundary(en)
+        {
             output.replace_range(s..en, &e.new_text);
         }
     }
