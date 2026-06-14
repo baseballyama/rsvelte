@@ -22,165 +22,35 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
-use rsvelte_lint::{LintConfig, Severity, fix_source, lint_source};
+use rsvelte_lint::registry::registered_rule_metas;
+use rsvelte_lint::{Fixable, LintConfig, Severity, fix_source, lint_source};
 use serde::Deserialize;
 use serde_json::Value;
 
-/// (fixture rule dir, our rule code, fixable). `fixable` enables the
-/// `*-output.svelte` autofix comparison.
-const RULES: &[(&str, &str, bool)] = &[
-    ("no-at-html-tags", "svelte/no-at-html-tags", false),
-    ("require-each-key", "svelte/require-each-key", false),
-    ("no-at-debug-tags", "svelte/no-at-debug-tags", false),
-    (
-        "no-dupe-else-if-blocks",
-        "svelte/no-dupe-else-if-blocks",
-        false,
-    ),
-    (
-        "no-dupe-style-properties",
-        "svelte/no-dupe-style-properties",
-        false,
-    ),
-    (
-        "no-object-in-text-mustaches",
-        "svelte/no-object-in-text-mustaches",
-        false,
-    ),
-    ("button-has-type", "svelte/button-has-type", false),
-    (
-        "no-restricted-html-elements",
-        "svelte/no-restricted-html-elements",
-        false,
-    ),
-    (
-        "no-raw-special-elements",
-        "svelte/no-raw-special-elements",
-        true,
-    ),
-    (
-        "no-useless-children-snippet",
-        "svelte/no-useless-children-snippet",
-        false,
-    ),
-    ("valid-each-key", "svelte/valid-each-key", false),
-    (
-        "no-dupe-on-directives",
-        "svelte/no-dupe-on-directives",
-        false,
-    ),
-    (
-        "no-dupe-use-directives",
-        "svelte/no-dupe-use-directives",
-        false,
-    ),
-    (
-        "no-not-function-handler",
-        "svelte/no-not-function-handler",
-        false,
-    ),
-    ("no-svelte-internal", "svelte/no-svelte-internal", false),
-    ("no-inspect", "svelte/no-inspect", false),
-    ("no-useless-mustaches", "svelte/no-useless-mustaches", true),
-    (
-        "no-inner-declarations",
-        "svelte/no-inner-declarations",
-        false,
-    ),
-    (
-        "prefer-svelte-reactivity",
-        "svelte/prefer-svelte-reactivity",
-        false,
-    ),
-    ("no-store-async", "svelte/no-store-async", false),
-    ("no-target-blank", "svelte/no-target-blank", false),
-    (
-        "no-add-event-listener",
-        "svelte/no-add-event-listener",
-        false,
-    ),
-    (
-        "prefer-derived-over-derived-by",
-        "svelte/prefer-derived-over-derived-by",
-        true,
-    ),
-    ("prefer-const", "svelte/prefer-const", true),
-    ("no-reactive-literals", "svelte/no-reactive-literals", false),
-    (
-        "no-reactive-functions",
-        "svelte/no-reactive-functions",
-        false,
-    ),
-    (
-        "no-extra-reactive-curlies",
-        "svelte/no-extra-reactive-curlies",
-        false,
-    ),
-    ("no-goto-without-base", "svelte/no-goto-without-base", false),
-    ("no-inline-styles", "svelte/no-inline-styles", false),
-    (
-        "no-immutable-reactive-statements",
-        "svelte/no-immutable-reactive-statements",
-        false,
-    ),
-    ("no-dom-manipulating", "svelte/no-dom-manipulating", false),
-    ("no-reactive-reassign", "svelte/no-reactive-reassign", false),
-    (
-        "prefer-destructured-store-props",
-        "svelte/prefer-destructured-store-props",
-        false,
-    ),
-    (
-        "require-store-reactive-access",
-        "svelte/require-store-reactive-access",
-        true,
-    ),
-    ("max-lines-per-block", "svelte/max-lines-per-block", false),
-    (
-        "no-navigation-without-base",
-        "svelte/no-navigation-without-base",
-        false,
-    ),
-    (
-        "prefer-writable-derived",
-        "svelte/prefer-writable-derived",
-        false,
-    ),
-    (
-        "no-unnecessary-state-wrap",
-        "svelte/no-unnecessary-state-wrap",
-        false,
-    ),
-    (
-        "no-ignored-unsubscribe",
-        "svelte/no-ignored-unsubscribe",
-        false,
-    ),
-    ("require-stores-init", "svelte/require-stores-init", false),
-    (
-        "require-store-callbacks-use-set-param",
-        "svelte/require-store-callbacks-use-set-param",
-        false,
-    ),
-    ("no-at-const-tags", "svelte/no-at-const-tags", false),
-    ("no-dynamic-slot-name", "svelte/no-dynamic-slot-name", false),
-    (
-        "no-shorthand-style-property-overrides",
-        "svelte/no-shorthand-style-property-overrides",
-        false,
-    ),
-    (
-        "no-top-level-browser-globals",
-        "svelte/no-top-level-browser-globals",
-        false,
-    ),
-    (
-        "no-unknown-style-directive-property",
-        "svelte/no-unknown-style-directive-property",
-        false,
-    ),
-    ("no-nested-style-tag", "svelte/no-nested-style-tag", false),
-];
+/// One rule under test, derived from the live registry: its rule id, the
+/// upstream fixture directory (the id with the `svelte/` prefix stripped), and
+/// whether it emits an autofix (`Fixable::Code`) — gating the
+/// `*-output.svelte` byte-parity comparison.
+struct RuleUnderTest {
+    code: &'static str,
+    dir: &'static str,
+    fixable: bool,
+}
+
+/// Build the rules-under-test list from the registered rule metas, so adding a
+/// rule to either registry automatically subjects it to upstream-fixture
+/// parity — no hand-maintained list. Mirrors upstream `loadTestCases`, which
+/// derives `fixable` from `plugin.rules[name].meta.fixable != null`.
+fn rules_under_test() -> Vec<RuleUnderTest> {
+    registered_rule_metas()
+        .into_iter()
+        .map(|m| RuleUnderTest {
+            code: m.name,
+            dir: m.name.strip_prefix("svelte/").unwrap_or(m.name),
+            fixable: m.fixable == Fixable::Code,
+        })
+        .collect()
+}
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
@@ -406,7 +276,22 @@ fn oracle_strict_parity() {
     let mut checked = 0usize;
     let mut failures: Vec<String> = Vec::new();
 
-    for (dir, code, fixable) in RULES {
+    let under_test = rules_under_test();
+
+    // Coverage: every registered rule must map to an upstream fixture directory.
+    // A registered rule with no fixtures is almost certainly a typo'd id or a
+    // rule that doesn't exist upstream — fail loudly rather than silently pass.
+    for rut in &under_test {
+        if !root.join(rut.dir).exists() {
+            failures.push(format!(
+                "[no fixtures] registered rule `{}` has no upstream fixture dir `{}/`",
+                rut.code, rut.dir
+            ));
+        }
+    }
+
+    for rut in &under_test {
+        let RuleUnderTest { dir, code, fixable } = *rut;
         let rule_dir = root.join(dir);
         if !rule_dir.exists() {
             continue;
@@ -477,13 +362,13 @@ fn oracle_strict_parity() {
             }
 
             // Autofix parity (when the rule is fixable and an output exists).
-            if *fixable
+            if fixable
                 && let Some(opath) = output_path(&input)
                 && let Ok(expected_out) = std::fs::read_to_string(&opath)
             {
-                let mut cfg = LintConfig::empty().with_override(*code, Severity::Error);
+                let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
                 if let Some(opts) = load_options(&input) {
-                    cfg = cfg.with_options(*code, opts);
+                    cfg = cfg.with_options(code, opts);
                 }
                 let fixed = fix_source(&src, &cfg).output;
                 if fixed != expected_out {
@@ -508,8 +393,28 @@ fn oracle_strict_parity() {
         failures.len(),
         failures.join("\n\n")
     );
+
+    // Coverage report (informational): upstream rules with a fixture dir that
+    // no registered rule covers yet — the remaining porting backlog.
+    let registered: std::collections::HashSet<&str> =
+        under_test.iter().map(|r| r.dir).collect();
+    let mut unported: Vec<String> = std::fs::read_dir(&root)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .filter(|name| !registered.contains(name.as_str()))
+        .collect();
+    unported.sort();
+
     eprintln!(
-        "oracle: strict parity over {checked} fixtures across {} rules",
-        RULES.len()
+        "oracle: strict parity over {checked} fixtures across {} registered rules",
+        under_test.len()
+    );
+    eprintln!(
+        "oracle: {} upstream rules not yet ported: {}",
+        unported.len(),
+        unported.join(", ")
     );
 }

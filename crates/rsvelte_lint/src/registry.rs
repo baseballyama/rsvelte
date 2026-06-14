@@ -4,7 +4,7 @@
 //! of day-one coverage comes from the validator wrap
 //! ([`validator`](crate::validator)), not from these.
 
-use crate::rule::Rule;
+use crate::rule::{Rule, RuleMeta};
 use crate::rules::{
     button_has_type::ButtonHasType, no_at_debug_tags::NoAtDebugTags, no_at_html_tags::NoAtHtmlTags,
     no_dupe_else_if_blocks::NoDupeElseIfBlocks, no_dupe_on_directives::NoDupeOnDirectives,
@@ -17,6 +17,21 @@ use crate::rules::{
     no_useless_mustaches::NoUselessMustaches, require_each_key::RequireEachKey,
     valid_each_key::ValidEachKey,
 };
+
+/// Every registered rule's `&'static RuleMeta`, across both the template-AST
+/// rule set ([`all_rules`]) and the script-AST rule set ([`all_script_rules`]).
+///
+/// This is the single source of truth for "which rules ship" — `--list-rules`,
+/// the ESLint-disable config, and the compat oracle all derive their rule
+/// universe from it, so a rule added to either registry is automatically
+/// surfaced everywhere (and subjected to upstream-fixture parity).
+pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
+    all_rules()
+        .iter()
+        .map(|r| r.meta())
+        .chain(all_script_rules().iter().map(|r| r.meta()))
+        .collect()
+}
 
 /// Construct the full set of native rules.
 pub fn all_rules() -> Vec<Box<dyn Rule>> {
