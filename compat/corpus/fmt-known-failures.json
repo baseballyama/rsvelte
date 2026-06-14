@@ -57,7 +57,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructured-object-literal-rest/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-text/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/fragment-trailing-whitespace/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/keyed-each-bind-read-index/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/raw-anchor-first-child/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/raw-anchor-last-child/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/reactive-import-statement/main.svelte",

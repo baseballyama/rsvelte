@@ -186,19 +186,26 @@ fn collect_node_edits(
             }
             if let Some(key) = &blk.key {
                 push_brace_wrapped_expression(source, key, options, edits)?;
-                // Ensure a space before the key's opening `(` when context ends
-                // immediately adjacent to it (e.g. `as $state(key)` → `as $state (key)`).
-                // prettier-plugin-svelte always emits a space before the key parens.
-                if let Some(ctx) = &blk.context
-                    && let (Some(ctx_end), Some(key_start)) = (ctx.end(), key.start())
-                {
-                    let between = source
-                        .get(ctx_end as usize..key_start as usize)
-                        .unwrap_or("");
-                    // `between` is the text from context end to the key expr start.
-                    // If it starts with `(` (no preceding space), insert one.
-                    if between.starts_with('(') {
-                        edits.push((ctx_end, ctx_end, " ".to_string()));
+                // Ensure a space before the key's opening `(`.
+                // prettier-plugin-svelte always emits a space before the key
+                // parens regardless of what appears between the context binding
+                // and the paren (e.g. `, idx`).
+                // Find the `(` immediately before `key.start()` and insert a
+                // space before it if the preceding character is not whitespace.
+                if let Some(key_start) = key.start() {
+                    // The `(` should be the character immediately before the
+                    // key expression start.
+                    let before_key = source.get(..key_start as usize).unwrap_or("");
+                    // Walk backward skipping the key itself to find the `(`.
+                    // In practice `(` is at key_start - 1 but guard with scan.
+                    if let Some(paren_pos) = before_key.rfind('(') {
+                        // Only act when the char before `(` is NOT whitespace
+                        // (meaning there's no space yet).
+                        let before_paren = before_key.get(..paren_pos).unwrap_or("");
+                        let last_char = before_paren.chars().next_back();
+                        if !matches!(last_char, None | Some(' ') | Some('\t')) {
+                            edits.push((paren_pos as u32, paren_pos as u32, " ".to_string()));
+                        }
                     }
                 }
                 // Trim trailing whitespace after the key's closing `)` before the
