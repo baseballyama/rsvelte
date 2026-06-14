@@ -149,6 +149,11 @@ fn collect_node_edits(
             let mut current: &rsvelte_core::ast::template::IfBlock = blk;
             loop {
                 push_bare_expression(source, &current.test, options, edits)?;
+                // Trim trailing whitespace before the header `}` — e.g.
+                // `{#if cond }` → `{#if cond}`.
+                if let Some(end) = current.test.end() {
+                    trim_trailing_ws_before_close_brace(source, end, edits);
+                }
                 collect_template_edits(source, &current.consequent, child_depth, options, edits)?;
                 match &current.alternate {
                     Some(alt) => match crate::indent::else_if_branch(alt) {
@@ -184,6 +189,23 @@ fn collect_node_edits(
                         edits.push((ctx_end, ctx_end, " ".to_string()));
                     }
                 }
+                // Trim trailing whitespace after the key's closing `)` before the
+                // header `}` — e.g. `{#each arr as x (k) }` → `{#each arr as x (k)}`.
+                if let Some(key_end) = key.end() {
+                    // The key is wrapped in `(key)` in source; skip past the `)`.
+                    let after_key = source
+                        .get(key_end as usize..)
+                        .and_then(|s| s.find(')').map(|i| key_end + i as u32 + 1));
+                    if let Some(after_paren) = after_key {
+                        trim_trailing_ws_before_close_brace(source, after_paren, edits);
+                    }
+                }
+            } else if let Some(ctx) = &blk.context {
+                // No key — trim trailing whitespace between context and the
+                // header `}` (e.g. `{#each arr as x }` → `{#each arr as x}`).
+                if let Some(ctx_end) = ctx.end() {
+                    trim_trailing_ws_before_close_brace(source, ctx_end, edits);
+                }
             }
             collect_template_edits(source, &blk.body, child_depth, options, edits)?;
             if let Some(fb) = &blk.fallback {
@@ -217,9 +239,17 @@ fn collect_node_edits(
                 push_bare_expression(source, &blk.expression, options, edits)?;
                 if let Some(v) = &blk.value {
                     push_pattern_at_span(source, v, options, edits)?;
+                    // Trim `{#await expr then value }` → `{#await expr then value}`.
+                    if let Some(v_end) = v.end() {
+                        trim_trailing_ws_before_close_brace(source, v_end, edits);
+                    }
                 }
                 if let Some(e) = &blk.error {
                     push_pattern_at_span(source, e, options, edits)?;
+                    // Trim `{:catch error }` → `{:catch error}`.
+                    if let Some(e_end) = e.end() {
+                        trim_trailing_ws_before_close_brace(source, e_end, edits);
+                    }
                 }
                 if let Some(frag) = &blk.pending {
                     collect_template_edits(source, frag, child_depth, options, edits)?;
@@ -234,6 +264,10 @@ fn collect_node_edits(
         }
         TemplateNode::KeyBlock(blk) => {
             push_bare_expression(source, &blk.expression, options, edits)?;
+            // Trim `{#key expr }` → `{#key expr}`.
+            if let Some(end) = blk.expression.end() {
+                trim_trailing_ws_before_close_brace(source, end, edits);
+            }
             collect_template_edits(source, &blk.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
@@ -928,6 +962,36 @@ fn push_pattern_at_span(
     let formatted = format_pattern_source(slice, options)?;
     edits.push((start, end, formatted));
     Ok(())
+}
+
+/// After formatting an expression or pattern whose source span ends at
+/// `after`, emit a deletion edit for any horizontal whitespace (spaces /
+/// tabs) that sits between `after` and the next `}` in the source.
+///
+/// This trims trailing whitespace from Svelte block headers — e.g.
+/// `{#if cond }` → `{#if cond}`, `{#each arr as x }` → `{#each arr as x}`.
+/// Only triggers when the very next non-whitespace character is `}` so it
+/// cannot accidentally remove meaningful whitespace before ` as `, ` then`,
+/// `(key)`, etc.
+fn trim_trailing_ws_before_close_brace(
+    source: &str,
+    after: u32,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    let rest = match source.get(after as usize..) {
+        Some(r) => r,
+        None => return,
+    };
+    // Only horizontal whitespace — a newline means a multi-line header and we
+    // leave those alone.
+    let ws_len = rest
+        .chars()
+        .take_while(|c| *c == ' ' || *c == '\t')
+        .map(char::len_utf8)
+        .sum::<usize>();
+    if ws_len > 0 && rest[ws_len..].starts_with('}') {
+        edits.push((after, after + ws_len as u32, String::new()));
+    }
 }
 
 /// Emit one edit replacing a `{#snippet}` header's `name<…>(params)` with a
