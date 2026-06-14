@@ -1276,10 +1276,22 @@ fn render_single_expression_value(
     };
     let formatted = format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
     // Svelte attribute shorthand: `name={name}` → `{name}`.
-    if formatted == node.name.as_str() {
+    // Only apply shorthand when the attribute name is a valid JS identifier
+    // (starts with a letter, `_`, or `$`; remainder is alphanumeric / `_` / `$`).
+    // Names like `0` or `my-attr` are not valid identifiers and must keep the
+    // full `name={expr}` form to avoid producing invalid Svelte syntax.
+    let name = node.name.as_str();
+    let is_valid_js_identifier = name
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+    if is_valid_js_identifier && formatted == name {
         Ok(format!("{{{formatted}}}"))
     } else {
-        Ok(format!("{}={{{formatted}}}", node.name))
+        Ok(format!("{}={{{formatted}}}", name))
     }
 }
 
