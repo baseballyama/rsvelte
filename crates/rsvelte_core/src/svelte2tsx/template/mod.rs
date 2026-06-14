@@ -3453,7 +3453,10 @@ fn handle_svelte_dynamic_element(
     } else {
         String::new()
     };
-    let has_directives = !directive_prefix.is_empty() || !directive_suffix.is_empty();
+    // Only the action `directive_prefix` (the `const $$action_N = …;`
+    // declarations) needs an extra inner block scope; a transition/animate-only
+    // suffix is just appended after the createElement, no extra braces.
+    let needs_inner_block = !directive_prefix.is_empty();
 
     // Check if this is a self-closing element (no separate closing tag).
     // Also covers HTML void elements like `<input>`, `<br>`, `<img>` which have
@@ -3478,8 +3481,8 @@ fn handle_svelte_dynamic_element(
     };
     // With directives an extra inner block scope wraps the createElement so the
     // action declarations (in `directive_prefix`) are in scope: ` {<prefix>{ … }}`.
-    let inner_open = if has_directives { "{" } else { "" };
-    let inner_close = if has_directives { "}" } else { "" };
+    let inner_open = if needs_inner_block { "{" } else { "" };
+    let inner_close = if needs_inner_block { "}" } else { "" };
     // ` svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
     // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
     // when directives add an extra scope).
