@@ -22,9 +22,14 @@
 //! (options / scripts / style) is that section's leading comment and moves with
 //! it; a run containing any markup is itself markup.
 //!
-//! The pass is deliberately surgical: when the top-level units are already in
-//! canonical (non-decreasing priority) order the input is returned
-//! byte-for-byte unchanged, so it only ever fixes genuinely misordered files.
+//! prettier-plugin-svelte / oxfmt always insert exactly one blank line between
+//! adjacent top-level units (sections + markup runs). This pass normalises those
+//! gaps even when the sections are already in canonical order.
+//!
+//! Exception: a comment that immediately precedes a section (no blank line
+//! between the `-->` and the opening tag in the source) is kept without an
+//! intervening blank line — the blank line only appears before the comment,
+//! separating it from the previous unit.
 
 use rsvelte_core::{ParseOptions, parse};
 
@@ -42,8 +47,9 @@ struct Unit {
     text: String,
 }
 
-/// Reassemble `out`'s top-level sections in canonical order. Returns `out`
-/// unchanged when it is already canonical (or cannot be re-parsed).
+/// Reassemble `out`'s top-level sections in canonical order with exactly one
+/// blank line between each top-level unit. Returns `out` unchanged when it
+/// cannot be re-parsed.
 pub(crate) fn reorder_sections(out: &str) -> String {
     let Ok(root) = parse(out, ParseOptions::default()) else {
         return out.to_string();
@@ -75,8 +81,25 @@ pub(crate) fn reorder_sections(out: &str) -> String {
     for &(priority, start, end) in &sections {
         let gap = &out[cursor..start];
         let gap_trim = gap.trim();
-        let leading = if !gap_trim.is_empty() && is_comment_only(gap) {
-            gap_trim
+        if !gap_trim.is_empty() && is_comment_only(gap) {
+            // The gap is a comment-only block — it becomes the leading comment
+            // of this section.  Preserve the separator between the comment and
+            // the section as it appears in the source: a blank line (`\n\n`)
+            // if the source had one, a single newline otherwise.
+            let after_comment_offset = gap.rfind("-->").map_or(0, |i| i + 3);
+            let after_comment = &gap[after_comment_offset..];
+            let separator = if after_comment.contains("\n\n")
+                || after_comment.contains("\r\n\r\n")
+            {
+                "\n\n"
+            } else {
+                "\n"
+            };
+            let section_text = out[start..end].trim();
+            units.push(Unit {
+                priority,
+                text: format!("{gap_trim}{separator}{section_text}"),
+            });
         } else {
             if !gap_trim.is_empty() {
                 units.push(Unit {
@@ -84,15 +107,12 @@ pub(crate) fn reorder_sections(out: &str) -> String {
                     text: gap_trim.to_string(),
                 });
             }
-            ""
-        };
-        let section = out[start..end].trim();
-        let text = if leading.is_empty() {
-            section.to_string()
-        } else {
-            format!("{leading}\n{section}")
-        };
-        units.push(Unit { priority, text });
+            let section_text = out[start..end].trim();
+            units.push(Unit {
+                priority,
+                text: section_text.to_string(),
+            });
+        }
         cursor = cursor.max(end);
     }
     if cursor < out.len() {
@@ -105,14 +125,19 @@ pub(crate) fn reorder_sections(out: &str) -> String {
         }
     }
 
-    // Already canonical → leave the input untouched (preserves its whitespace).
-    if units.windows(2).all(|w| w[0].priority <= w[1].priority) {
-        return out.to_string();
+    // Check whether the file is already in canonical (non-decreasing priority)
+    // order.
+    let is_canonical = units.windows(2).all(|w| w[0].priority <= w[1].priority);
+
+    if !is_canonical {
+        // `slice::sort_by_key` is stable, so equal-priority units (e.g. two
+        // markup runs that a section split) keep their source order.
+        units.sort_by_key(|u| u.priority);
     }
 
-    // `slice::sort_by_key` is stable, so equal-priority units (e.g. two markup
-    // runs that a section split) keep their source order.
-    units.sort_by_key(|u| u.priority);
+    // Reassemble with exactly one blank line between every pair of adjacent
+    // units. prettier / oxfmt always insert one blank line between top-level
+    // sections (options / scripts / markup / style).
     let mut result = units
         .into_iter()
         .map(|u| u.text)
