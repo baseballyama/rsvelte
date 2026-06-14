@@ -703,6 +703,14 @@ fn try_collapse(
     let had_trail = raw.ends_with([' ', '\t', '\n', '\r']);
     let collapsed = raw.split_whitespace().collect::<Vec<_>>().join(" ");
 
+    // Components (`<Button>`, `<Foo.Bar>`, `<svelte:*>`) and block-display
+    // elements are NOT whitespace-sensitive: boundary whitespace between the tag
+    // and text is dropped entirely (`<Button> hi </Button>` → `<Button>hi</Button>`).
+    // Known inline elements and unknown custom elements (`<span>`, `<my-widget>`)
+    // keep a single edge space (the CSS whitespace model). Mirrors
+    // prettier-plugin-svelte's inline-vs-block child whitespace handling.
+    let trims_edge = trims_edge_whitespace(tag) || is_component_tag(tag);
+
     // Empty element (whitespace-only body): collapse to `<tag></tag>` — the
     // close tag glues directly to the `>`, dropping the body whitespace. This
     // holds even when the open tag wrapped across lines (`<svelte:boundary\n
@@ -717,7 +725,7 @@ fn try_collapse(
     let mut one_line = String::with_capacity(whole.len());
     one_line.push_str(open);
     if !collapsed.is_empty() {
-        let edge = !trims_edge_whitespace(tag); // inline-ish keeps an edge space
+        let edge = !trims_edge; // inline-ish keeps an edge space
         if edge && had_lead {
             one_line.push(' ');
         }
@@ -761,6 +769,10 @@ fn try_collapse(
     // does NOT start/end with whitespace). When the content is separated from
     // the tags by whitespace (`<button>\n  click me\n</button>`), prettier
     // block-breaks instead, so fall through to the block-break path below.
+    // Hug eligibility is about whitespace-injection when the open tag wraps, not
+    // about the one-line edge space: components hug like inline elements
+    // (`<Message kind="info"\n  >text</Message\n>`), so use the inline predicate
+    // here, not the component-inclusive `trims_edge`.
     if !trims_edge_whitespace(tag) && !had_lead && !had_trail {
         if open.contains('\n') || !open.ends_with('>') {
             return None;
@@ -909,6 +921,17 @@ fn is_whitespace_preserving(tag: &str) -> bool {
 /// Everything else (inline, inline-block, table-cell, …) keeps one edge space.
 fn trims_edge_whitespace(tag: &str) -> bool {
     is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary" | "svelte:element")
+}
+
+/// Whether `tag` names a Svelte component (or component-like element) rather
+/// than a plain HTML element: a capitalized name (`Button`), a member access
+/// (`Foo.Bar`), or a `svelte:*` special element. prettier treats these as not
+/// whitespace-sensitive, so their child boundary whitespace is dropped (no edge
+/// space) — unlike unknown lowercase custom elements (`<my-widget>`).
+fn is_component_tag(tag: &str) -> bool {
+    tag.starts_with("svelte:")
+        || tag.contains('.')
+        || tag.chars().next().is_some_and(|c| c.is_ascii_uppercase())
 }
 
 /// If `node` is a huggable display:inline element — single line, simple text
