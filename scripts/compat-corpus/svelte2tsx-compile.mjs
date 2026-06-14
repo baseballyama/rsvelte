@@ -43,19 +43,28 @@ const SVELTE_PKG = path.join(ROOT, 'submodules/svelte/packages/svelte/package.js
 // without `as`, etc., and every Svelte-5 component is spuriously flagged as an
 // error-mismatch. Resolve svelte from svelte2tsx's own location and assert the
 // majors agree, failing loudly rather than silently producing a bogus oracle.
-function assertSvelteMajorMatches() {
+function assertSvelteVersionMatches() {
 	const submoduleVersion = JSON.parse(fs.readFileSync(SVELTE_PKG, 'utf8')).version;
 	const required = createRequire(OFFICIAL);
 	const resolvedVersion = required('svelte/compiler').VERSION;
-	const major = (v) => String(v).split('.')[0];
-	if (major(resolvedVersion) !== major(submoduleVersion)) {
+	const minor = (v) => String(v).split('.').slice(0, 2).join('.'); // major.minor
+	// A different major OR minor changes which syntax svelte2tsx accepts and the
+	// shape of the parsed AST, so the oracle would be wrong — fail loudly. A
+	// patch-only difference rarely affects svelte2tsx output, so warn but allow.
+	if (minor(resolvedVersion) !== minor(submoduleVersion)) {
 		console.error(
 			`[s2t-compile] svelte version mismatch: official svelte2tsx resolves svelte@${resolvedVersion}, ` +
 				`but rsvelte mirrors svelte@${submoduleVersion}. The oracle would parse with the wrong svelte ` +
-				`major. Pin svelte2tsx's svelte to the submodule version, e.g.:\n` +
+				`version. Pin svelte2tsx's svelte to the submodule version:\n` +
 				`  (cd submodules/language-tools && pnpm --filter svelte2tsx add -D svelte@${submoduleVersion})`
 		);
 		process.exit(1);
+	}
+	if (resolvedVersion !== submoduleVersion) {
+		console.warn(
+			`[s2t-compile] note: official svelte2tsx resolves svelte@${resolvedVersion}, rsvelte mirrors ` +
+				`svelte@${submoduleVersion} (patch difference; proceeding).`
+		);
 	}
 	return { resolvedVersion, submoduleVersion };
 }
@@ -143,7 +152,7 @@ if (!fs.existsSync(OFFICIAL)) {
 	console.error('  build: (cd submodules/language-tools && pnpm install --frozen-lockfile && pnpm --filter svelte2tsx build)');
 	process.exit(1);
 }
-const { resolvedVersion, submoduleVersion } = assertSvelteMajorMatches();
+const { resolvedVersion, submoduleVersion } = assertSvelteVersionMatches();
 console.log(`[s2t-compile] official svelte2tsx parses with svelte@${resolvedVersion} (rsvelte mirrors svelte@${submoduleVersion})`);
 
 if (!FILTER) {

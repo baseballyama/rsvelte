@@ -776,10 +776,10 @@ pub fn process_instance_script(
                     // any undeclared `$state`/`$derived`/`$effect` reference.
                     // Mirror that here by recursively scanning the body.
                     // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                    if let Some(ref body) = func.body {
-                        if detect_rune_in_nested_body(&body.statements, &declared_names) {
-                            exported_names.set_uses_runes(true);
-                        }
+                    if let Some(ref body) = func.body
+                        && detect_rune_in_nested_body(&body.statements, &declared_names)
+                    {
+                        exported_names.set_uses_runes(true);
                     }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
@@ -4442,9 +4442,7 @@ mod tests {
     /// Reference: ExportedNames.ts `createPropsStr` runes branch (same isTsFile check).
     #[test]
     fn test_empty_props_runes_ts_file_uses_as_cast() {
-        let source = "<script lang=\"ts\">\nlet { count } = $props();\n</script>";
-        // This has ONE prop, test with a runes component that has NO exported props in TS.
-        // Use a plain $props() with no destructuring (whole-object form).
+        // A runes component (uses $state) with no exported props in a TS file.
         let source_no_props = "<script lang=\"ts\">\nlet x = $state(0);\n</script>";
         let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
             is_ts_file: true,

@@ -92,7 +92,7 @@ function firstDiffLine(a, b) {
 	return null;
 }
 
-const counts = { match: 0, 'error-parity': 0, 'ts-mismatch': 0, 'error-mismatch': 0 };
+const counts = { match: 0, 'error-parity': 0, 'ts-mismatch': 0, 'error-mismatch': 0, missing: 0 };
 const failures = [];
 
 for (const { id } of manifest) {
@@ -100,11 +100,23 @@ for (const { id } of manifest) {
 	const actDir = path.join(ACTUAL, id);
 	const expErr = readIf(path.join(expDir, 'error.json'));
 	const actErr = readIf(path.join(actDir, 'error.json'));
+	const expTsx = readIf(path.join(expDir, 'index.tsx'));
+	const actTsx = readIf(path.join(actDir, 'index.tsx'));
 
 	let verdict = 'match';
 	const details = [];
 
-	if (expErr && actErr) {
+	// Every compiled entry writes EITHER index.tsx OR error.json on each side.
+	// If a side has neither, the compile step never produced it (e.g. a crashed
+	// shard) — flag it instead of letting two absent outputs compare as equal.
+	if ((expErr == null && expTsx == null) || (actErr == null && actTsx == null)) {
+		verdict = 'missing';
+		details.push({
+			kind: 'missing-output',
+			expected: expErr == null && expTsx == null ? 'absent' : 'present',
+			actual: actErr == null && actTsx == null ? 'absent' : 'present',
+		});
+	} else if (expErr && actErr) {
 		verdict = 'error-parity';
 	} else if (expErr || actErr) {
 		verdict = 'error-mismatch';
@@ -114,10 +126,8 @@ for (const { id } of manifest) {
 			actual: actErr ? 'error' : 'compiles',
 		});
 	} else {
-		const expRaw = readIf(path.join(expDir, 'index.tsx')) ?? '';
-		const actRaw = readIf(path.join(actDir, 'index.tsx')) ?? '';
-		const expTs = stripBlankLines(expRaw);
-		const actTs = stripBlankLines(actRaw);
+		const expTs = stripBlankLines(expTsx ?? '');
+		const actTs = stripBlankLines(actTsx ?? '');
 		if (expTs !== actTs) {
 			verdict = 'ts-mismatch';
 			details.push({ kind: 'ts', ...firstDiffLine(expTs, actTs) });

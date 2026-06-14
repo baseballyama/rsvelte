@@ -331,10 +331,13 @@ pub fn svelte2tsx(
                                 }
                                 AttributeValuePart::ExpressionTag(expr) => {
                                     has_expression_attr = true;
-                                    let expr_text = &source[expr.expression.start().unwrap_or(0)
-                                        as usize
-                                        ..expr.expression.end().unwrap_or(0) as usize];
-                                    value.push_str(&format!("${{{}}}", expr_text));
+                                    if let (Some(s), Some(e)) =
+                                        (expr.expression.start(), expr.expression.end())
+                                    {
+                                        value.push_str("${");
+                                        value.push_str(&source[s as usize..e as usize]);
+                                        value.push('}');
+                                    }
                                 }
                             }
                         }
@@ -827,8 +830,9 @@ pub fn svelte2tsx(
 
                 // Add semicolon to the last import if it doesn't have one
                 if i == imports.len() - 1 {
-                    let last_char = import_text_clean.as_bytes()[import_text_clean.len() - 1];
-                    if last_char != b';' {
+                    // `.last()` avoids a `len() - 1` underflow when the cleaned
+                    // import text is empty (zero-length span edge case).
+                    if import_text_clean.as_bytes().last() != Some(&b';') {
                         import_text.push_str(";\n");
                     } else {
                         import_text.push('\n');
@@ -3878,7 +3882,7 @@ mod tests {
         // (the trailing comma makes it an object property value).
         assert!(
             code.contains("return __sveltets_2_any(0)},"),
-            "snippet body must end with `return __sveltets_2_any(0)},`; got:\n{code}"
+            "snippet body must end with `return __sveltets_2_any(0)}},`; got:\n{code}"
         );
         // The non-snippet <p>child</p> element must still appear (emitted AFTER `});`).
         assert!(
