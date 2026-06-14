@@ -729,6 +729,17 @@ pub(crate) fn format_directive_value(
     options: &FormatOptions,
     attr_depth: usize,
 ) -> Result<Option<String>, FormatError> {
+    format_directive_value_extra(source, expr, value_end, options, attr_depth, 0)
+}
+
+pub(crate) fn format_directive_value_extra(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+    attr_depth: usize,
+    extra: usize,
+) -> Result<Option<String>, FormatError> {
     let Some(inner) = directive_brace_inner(source, expr, value_end) else {
         return Ok(None);
     };
@@ -737,7 +748,7 @@ pub(crate) fn format_directive_value(
         return Ok(None);
     }
     Ok(Some(format_attribute_value_expression(
-        inner, options, attr_depth, 0,
+        inner, options, attr_depth, extra,
     )?))
 }
 
@@ -1507,6 +1518,31 @@ fn light_normalize_pattern(src: &str) -> String {
                 if j < bytes.len() && !matches!(bytes[j], b'}' | b']' | b')') {
                     out.push(' ');
                 }
+            }
+            b'=' => {
+                // Default value assignment in destructuring pattern: `{ a = val }`.
+                // Distinguish from compound/comparison operators by checking next char.
+                // We emit spaces around `=` (but not `==`, `===`, `=>`, `!=`, `>=`, `<=`).
+                let next = bytes.get(i + 1).copied().unwrap_or(0);
+                if matches!(next, b'=' | b'>') {
+                    // `==` / `===` / `=>` — emit as-is; no space manipulation.
+                    out.push('=');
+                } else {
+                    // Plain `=` default value: ensure ` = ` spacing.
+                    if !out.ends_with(' ') {
+                        out.push(' ');
+                    }
+                    out.push('=');
+                    // Lookahead for next non-whitespace.
+                    let mut j = i + 1;
+                    while j < bytes.len() && matches!(bytes[j], b' ' | b'\t' | b'\n' | b'\r') {
+                        j += 1;
+                    }
+                    if j < bytes.len() {
+                        out.push(' ');
+                    }
+                }
+                last_non_ws = b'=';
             }
             other => {
                 out.push(other as char);

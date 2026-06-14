@@ -84,6 +84,5 @@
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/textarea-value-children/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte"
+	"svelte/packages/svelte/tests/validator/samples/textarea-value-children/input.svelte"
 ]

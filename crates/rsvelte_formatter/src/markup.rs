@@ -1065,14 +1065,24 @@ fn render_attribute(
         Attribute::OnDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
+                // prefix = "on:" + name + modifiers + "=" (the `{` is counted separately)
+                let prefix = 3 + visual_width(d.name.as_str()) + visual_width(&modifiers) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
                 Ok(format!("on:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("on:{}{modifiers}", d.name))
             }
         }
         Attribute::TransitionDirective(d) => {
-            let prefix = if d.intro && d.outro {
+            let pfx_kw = if d.intro && d.outro {
                 "transition"
             } else if d.intro {
                 "in"
@@ -1081,15 +1091,38 @@ fn render_attribute(
             };
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
-                Ok(format!("{prefix}:{}{modifiers}={{{inner}}}", d.name))
+                let prefix = visual_width(pfx_kw)
+                    + 1
+                    + visual_width(d.name.as_str())
+                    + visual_width(&modifiers)
+                    + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
+                Ok(format!("{pfx_kw}:{}{modifiers}={{{inner}}}", d.name))
             } else {
-                Ok(format!("{prefix}:{}{modifiers}", d.name))
+                Ok(format!("{pfx_kw}:{}{modifiers}", d.name))
             }
         }
         Attribute::AnimateDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
+                // "animate:" + name + "="
+                let prefix = 8 + visual_width(d.name.as_str()) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
                 Ok(format!("animate:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("animate:{}", d.name))
@@ -1097,7 +1130,17 @@ fn render_attribute(
         }
         Attribute::UseDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
+                // "use:" + name + "="
+                let prefix = 4 + visual_width(d.name.as_str()) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
                 Ok(format!("use:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("use:{}", d.name))
@@ -1483,6 +1526,47 @@ fn render_directive_value(
         return Ok(s);
     }
     Ok(format_expression_at(source, expr, options, attr_depth)?.unwrap_or_default())
+}
+
+/// Like `render_directive_value` but re-narrows single-line values that would
+/// overflow the line when preceded by `prefix` characters at the attribute
+/// indent column. Only re-narrows when `narrow_value` is true (i.e. the open
+/// tag has already been broken to multi-line). Unlike plain attribute values,
+/// directive values include arrow-function handlers (`on:click={(e) => ...}`)
+/// which prettier also re-narrows, so we do not apply the `is_shallow_value`
+/// guard that the plain-attribute path uses.
+fn render_directive_value_narrow(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+    attr_depth: usize,
+    narrow_value: bool,
+    prefix: usize,
+) -> Result<String, FormatError> {
+    let formatted = render_directive_value(source, expr, value_end, options, attr_depth)?;
+    if narrow_value && !formatted.contains('\n') {
+        let indent_cols = attr_depth * options.js.indent_width.value() as usize;
+        let line_width = options.js.line_width.value() as usize;
+        // `{` + formatted + `}` = 1 brace on each side
+        let overflows = indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width;
+        let extra = if overflows {
+            crate::expression::format_directive_value_extra(
+                source,
+                expr,
+                value_end,
+                options,
+                attr_depth,
+                prefix + 1,
+            )?
+        } else {
+            None
+        };
+        if let Some(s) = extra {
+            return Ok(s);
+        }
+    }
+    Ok(formatted)
 }
 
 fn format_expression_at(
