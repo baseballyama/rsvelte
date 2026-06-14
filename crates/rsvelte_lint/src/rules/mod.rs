@@ -4,6 +4,7 @@
 
 pub mod block_lang;
 pub mod button_has_type;
+pub mod consistent_selector_style;
 pub mod derived_has_same_inputs_outputs;
 pub mod first_attribute_linebreak;
 pub mod html_closing_bracket_new_line;
@@ -50,6 +51,7 @@ pub mod no_top_level_browser_globals;
 pub mod no_trailing_spaces;
 pub mod no_unknown_style_directive_property;
 pub mod no_unnecessary_state_wrap;
+pub mod no_unused_class_name;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
 pub mod prefer_class_directive;

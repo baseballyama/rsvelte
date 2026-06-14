@@ -87,6 +87,8 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::prefer_style_directive::PreferStyleDirective),
         Box::new(crate::rules::require_optimized_style_attribute::RequireOptimizedStyleAttribute),
         Box::new(crate::rules::block_lang::BlockLang),
+        Box::new(crate::rules::no_unused_class_name::NoUnusedClassName),
+        Box::new(crate::rules::consistent_selector_style::ConsistentSelectorStyle),
     ]
 }
 
