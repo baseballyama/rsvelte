@@ -1586,7 +1586,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_ast",
  "oxc_data_structures",
- "oxc_index 5.0.0",
+ "oxc_index",
  "oxc_semantic",
  "oxc_sourcemap",
  "oxc_span",
@@ -1677,21 +1677,12 @@ dependencies = [
 
 [[package]]
 name = "oxc_index"
-version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb3e6120999627ec9703025eab7c9f410ebb7e95557632a8902ca48210416c2b"
-dependencies = [
- "rayon",
- "serde",
-]
-
-[[package]]
-name = "oxc_index"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "191884bee6c3744909a51acc7d78d4ae370d817b25875b10642f632327b6296e"
 dependencies = [
  "nonmax",
+ "rayon",
  "serde",
 ]
 
@@ -1756,7 +1747,7 @@ dependencies = [
  "oxc_ast_visit",
  "oxc_diagnostics",
  "oxc_ecmascript",
- "oxc_index 5.0.0",
+ "oxc_index",
  "oxc_span",
  "oxc_str",
  "oxc_syntax",
@@ -1816,7 +1807,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_ast_macros",
  "oxc_estree",
- "oxc_index 5.0.0",
+ "oxc_index",
  "oxc_span",
  "oxc_str",
  "phf",
@@ -2445,12 +2436,12 @@ dependencies = [
 
 [[package]]
 name = "string_wizard"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3baeb89e3c96ae464a728a07da81b22f912312330afbe845f4b9c681f7796a33"
+checksum = "e3329e20c442a41a696da22dd806277d00c1918921c5866a144e70d8e891afc7"
 dependencies = [
  "memchr",
- "oxc_index 4.1.0",
+ "oxc_index",
  "oxc_sourcemap",
  "regex",
  "rustc-hash",
