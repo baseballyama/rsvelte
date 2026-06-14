@@ -377,7 +377,6 @@
 	"svelte/packages/svelte/tests/runtime-browser/samples/binding-width-height-initialize/main.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/component-slot-binding-dimensions/main.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/head-scripts/main.svelte",
-	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-important/main.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-precedence/main.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-update-with-spread/main.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/mount-in-iframe/main.svelte",

@@ -4217,6 +4217,37 @@ fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source:
                             segs_push_lit(&mut out, get_expression_text(&expr.expression, source));
                         }
                     }
+                    // Mirrors upstream StyleDirective.ts: a single text value
+                    // `style:xx="red"` becomes a quoted string `"red"` (NOT a
+                    // template literal), a single expression `style:xx={yy}`
+                    // stays the bare expression `yy`, and only a multi-part
+                    // value `style:xx="a{b}"` becomes a template `` `a${b}` ``.
+                    AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
+                        AttributeValuePart::Text(text) => {
+                            // Use the source's original quote char (oxfmt
+                            // normalises it anyway) so embedded quotes survive.
+                            let quote = match source
+                                .as_bytes()
+                                .get(text.start.saturating_sub(1) as usize)
+                            {
+                                Some(b'\'') => "'",
+                                _ => "\"",
+                            };
+                            segs_push_lit(&mut out, quote);
+                            segs_push_src(&mut out, text.start, text.end);
+                            segs_push_lit(&mut out, quote);
+                        }
+                        AttributeValuePart::ExpressionTag(expr) => {
+                            if let Some((s, e)) = get_expression_range(&expr.expression) {
+                                segs_push_src(&mut out, s, e);
+                            } else {
+                                segs_push_lit(
+                                    &mut out,
+                                    get_expression_text(&expr.expression, source),
+                                );
+                            }
+                        }
+                    },
                     AttributeValue::Sequence(parts) => {
                         // `style:xx="a{b}"` → a template string `` `a${b}` ``.
                         segs_push_lit(&mut out, "`");
