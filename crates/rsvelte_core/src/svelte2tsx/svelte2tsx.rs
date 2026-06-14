@@ -1896,7 +1896,12 @@ pub fn svelte2tsx(
         }
         SvelteVersion::V5 => {
             let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
-            if exported_names.is_runes_mode() {
+            // `__sveltets_2_fn_component` is only used for a runes component with
+            // NO slots and NO events; a runes component that forwards events
+            // (`on:click`) or has slots falls through to the isomorphic-component
+            // path, exactly like a legacy component (mirrors official
+            // addComponentExport: `isRunesMode() && !usesSlots && !hasEvents`).
+            if exported_names.is_runes_mode() && events.is_empty() && !has_slot_elements {
                 if !use_ts_syntax {
                     // JS files with emitJsDoc: use `export const` and JSDoc typedef.
                     // Reference: addComponentExport.ts `addSimpleComponentExport`,
