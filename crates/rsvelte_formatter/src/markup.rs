@@ -617,8 +617,10 @@ fn push_open_tag(
     // overflows the print width but the open tag alone fits, prettier still wraps
     // the attributes. This matches the group-model where the outer element group
     // breaking forces the inner attr-group to break too.
-    let force_wrap_block =
-        !rendered_attrs.is_empty() && fits_one_line && element_overflows && is_block_element(tag_name);
+    let force_wrap_block = !rendered_attrs.is_empty()
+        && fits_one_line
+        && element_overflows
+        && is_block_element(tag_name);
 
     let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two || force_wrap_block;
 
