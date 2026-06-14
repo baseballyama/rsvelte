@@ -63,7 +63,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/props-alias-weird/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/svg-attribute-case/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/svg-element-attribute-serialize/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-const1/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",

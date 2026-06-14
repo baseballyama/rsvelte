@@ -631,10 +631,26 @@ fn push_open_tag(
     // one line) needs this; one-line tags keep the inline rendering above.
     let rendered_attrs = if wrapped && !shape_two {
         let mut items2: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
-        if let Some(expr) = this_expression
-            && let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
-        {
-            items2.push((element_start, format!("this={{{formatted}}}")));
+        if let Some(expr) = this_expression {
+            let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
+                return Ok(false);
+            };
+            // Preserve `this="string"` form in the wrapped pass just as in the
+            // one-line pass: detect a quote before the expression span.
+            let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
+            let this_attr2 = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
+                let raw = source
+                    .get(expr_start as usize..expr_end as usize)
+                    .unwrap_or("")
+                    .trim();
+                format!("this=\"{raw}\"")
+            } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
+            {
+                format!("this={{{formatted}}}")
+            } else {
+                return Ok(false);
+            };
+            items2.push((element_start, this_attr2));
         }
         for attr in attributes {
             let (attr_start, _) = attribute_span(attr);
@@ -876,14 +892,11 @@ fn render_multi_line(
         }
     }
     if hug_open && !self_closing {
-        // Whitespace-sensitive inline content: prettier-plugin-svelte puts the
-        // `>` on a new line at the attribute indent level (`  >text`) so the
-        // content immediately follows without extra whitespace before or after
-        // the `>`.  The previous `out.push('>')` approach ("glue to last attr")
-        // was wrong — the `>` must be separated from the attribute by a newline
-        // so that it lands on its own line prefix before the inline text (#798).
-        out.push('\n');
-        out.push_str(&inner_indent);
+        // Whitespace-sensitive inline content: glue the `>` to the last
+        // attribute line so no significant whitespace is injected before the
+        // content (#798). The collapse pass (`try_hug_mixed`) later decides
+        // whether to keep it glued or move it to a new indented line, depending
+        // on whether the resulting line would overflow the print width.
         out.push('>');
     } else {
         out.push('\n');
@@ -1556,14 +1569,23 @@ fn render_directive_value_narrow(
         // `{` + formatted + `}` = 1 brace on each side
         if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
             // For shallow (non-block) values use `prefix + 1` (the `{` counts
-            // against the first-line budget). For arrow-function values the
-            // continuation lines sit at `attr_depth + 1` indent so we use
-            // just `prefix` (omitting the `{`) to avoid over-narrowing their
-            // bodies and breaking nested object/array arguments.
+            // against the first-line budget and the value has no multi-line
+            // continuation, so narrowing by the full prefix + brace is safe).
+            //
+            // For arrow-function values the body sits on the next line at
+            // `+indent_width` relative to the expression, which the final
+            // re-indent pass lifts to `attr_indent + indent_width` in the
+            // template. The effective available width for the body is
+            // `line_width - (attr_indent + indent_width)`, which is
+            // `line_width - attr_indent - prefix + (prefix - indent_width)`.
+            // Using `extra_lead = prefix - indent_width` (instead of `prefix`)
+            // leaves the body exactly one indent level of room, preventing
+            // over-narrow breakage of nested object / array arguments.
+            let indent_width = options.js.indent_width.value() as usize;
             let extra_lead = if is_shallow_value(&formatted) {
                 prefix + 1
             } else {
-                prefix
+                prefix.saturating_sub(indent_width)
             };
             if let Some(s) = crate::expression::format_directive_value_extra(
                 source, expr, value_end, options, attr_depth, extra_lead,
