@@ -4058,10 +4058,14 @@ fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -
         AttributeValue::Expression(expr) => {
             // Expression value: `name={expr}` → `"name":expr,`
             let expr_text = get_expression_text(&expr.expression, source);
-            // Check for shorthand: `{propB}` where name equals expression text.
+            // Shorthand iff the source was written `{name}`. The parser sets the
+            // value ExpressionTag's start to `node.start + 1` (right after `{`)
+            // for shorthand; an explicit `name={expr}` puts it past `name=`.
+            // Mirrors official's `AttributeShorthand` type check — explicit
+            // `name={name}` must stay `"name":name`, not collapse to `name`.
             // Shorthand names are plain identifiers so they cannot start with
             // `data-` or `--`; skip wrapping for them.
-            if name.as_str() == expr_text {
+            if expr.start == node.start + 1 {
                 Some(format!("{},", name))
             } else {
                 let inner = format!("\"{}\":{}", name, expr_text);
@@ -4254,7 +4258,10 @@ fn format_attribute_node_segments(
         AttributeValue::Expression(expr) => {
             let expr_range = get_expression_range(&expr.expression);
             let expr_text = get_expression_text(&expr.expression, source);
-            let is_shorthand = name.as_str() == expr_text;
+            // Shorthand iff written `{name}`: the value ExpressionTag starts at
+            // `node.start + 1` (right after `{`). Explicit `name={name}` keeps
+            // the full `"name":name` form (mirrors `AttributeShorthand`).
+            let is_shorthand = expr.start == node.start + 1;
 
             // Shorthand identifiers can't start with `data-` or `--` — no wrap.
             if let Some((s, e)) = expr_range {
