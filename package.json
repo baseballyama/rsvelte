@@ -46,7 +46,10 @@
 		"corpus:collect": "node scripts/compat-corpus/collect.mjs",
 		"corpus:compile": "node scripts/compat-corpus/compile.mjs",
 		"corpus:verify": "node scripts/compat-corpus/verify.mjs",
+		"corpus:fmt": "node scripts/compat-corpus/fmt.mjs",
+		"corpus:fmt-verify": "node scripts/compat-corpus/fmt-verify.mjs",
 		"corpus": "pnpm run corpus:sync && pnpm run corpus:collect && pnpm run corpus:compile && pnpm run corpus:verify",
+		"corpus:fmt-parity": "pnpm run corpus:collect && pnpm run corpus:fmt && pnpm run corpus:fmt-verify",
 		"changeset": "changeset",
 		"version-packages": "changeset version && pnpm run sync-version",
 		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && changeset publish"

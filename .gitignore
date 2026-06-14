@@ -118,3 +118,6 @@ compat/corpus/actual/
 compat/corpus/manifest.json
 compat/corpus/report.json
 compat/corpus/.oxfmt-ignore-nothing
+# fmt-parity stage (generated; the fmt-known-failures.json ratchet is checked in)
+compat/corpus/fmt/
+compat/corpus/fmt-report.json

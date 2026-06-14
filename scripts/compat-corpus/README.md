@@ -80,12 +80,53 @@ node scripts/compat-corpus/cluster.mjs              # group failures by diff sig
 node scripts/compat-corpus/cluster.mjs --show 'JS client: E:…'   # list ids in a cluster
 ```
 
+## Formatter parity (`fmt.mjs` / `fmt-verify.mjs`)
+
+A second, independent track verifies that **rsvelte-fmt** formats every
+`.svelte` component in the corpus byte-for-byte like the
+**oxfmt(`svelte: true`)** oracle — `prettier-plugin-svelte` for the Svelte
+structure plus the oxc engine for embedded JS/CSS, which is exactly
+rsvelte-fmt's own layering, so a surviving diff isolates rsvelte's
+Svelte-structure formatting (the JS/CSS layer is identical on both sides by
+construction). Unlike the compile track this is a **hard byte gate** — a
+formatter must match exactly, so there is no AST-equivalence fallback.
+
+```bash
+cargo build --release -p rsvelte_fmt           # the binary fmt.mjs drives
+pnpm run corpus:fmt-parity                      # collect + fmt + fmt-verify
+```
+
+Stages:
+
+1. `fmt.mjs` — builds two trees over the manifest's `component` entries:
+   - `compat/corpus/fmt/oracle/<id>` — oxfmt(`svelte: true`). Depends only on
+     the pins + oxfmt version + oracle config, so it is **cached** (`fmt/meta.json`)
+     and skipped on re-runs unless those change or `--force` is passed. Entries
+     oxfmt rejects (or whose embedded code it can't parse) are excluded — they
+     aren't valid, formattable Svelte.
+   - `compat/corpus/fmt/actual/<id>` — rsvelte-fmt (`--stdin`, column-aware
+     `<style>` narrowing). Rebuilt every iteration; restrict to a subset with
+     `--actual --only <ids-file>` for tight burn-down.
+2. `fmt-verify.mjs` — byte-compares, writes `fmt-report.json`, ratchets against
+   `compat/corpus/fmt-known-failures.json` (checked in; may only shrink). Exits
+   non-zero only on a **regression** (a divergence not in the baseline).
+
+Burn-down helpers:
+
+```bash
+node scripts/compat-corpus/fmt-one.mjs <corpus-id>          # live oracle vs rsvelte-fmt diff
+node scripts/compat-corpus/fmt-cluster.mjs                  # group failures by diff signature
+node scripts/compat-corpus/fmt-cluster.mjs --show '<sig>'   # list ids in a cluster
+node scripts/compat-corpus/fmt-verify.mjs --update-baseline # shrink the ratchet after a fix
+```
+
 ## CI / automation
 
-- `.github/workflows/corpus-compat.yml` — runs the pipeline on PRs/pushes
-  touching the compiler, the pipeline, or either pin. Expected outputs are
-  regenerated from the pinned upstreams on every run, so bumping a pin
-  automatically refreshes the corpus *and* its expectations.
+- `.github/workflows/corpus-compat.yml` — runs both tracks (`corpus` and
+  `fmt-parity` jobs) on PRs/pushes touching the compiler, the pipeline, the
+  oracle config, or either pin. Expected outputs are regenerated from the pinned
+  upstreams on every run, so bumping a pin automatically refreshes the corpus
+  *and* its expectations; the fmt oracle is cached by pin + oxfmt + config.
 - svelte.dev bumps arrive via the existing `auto-update-submodules.yml`
   weekly PR (shared with the fmt parity corpus); the svelte side via
   `auto-update-svelte.yml`. Both trigger corpus-compat through its
