@@ -899,10 +899,14 @@ pub fn process_instance_script(
                     // any undeclared `$state`/`$derived`/`$effect` reference.
                     // Mirror that here by recursively scanning the body.
                     // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                    if let Some(ref body) = func.body
-                        && detect_rune_in_nested_body(&body.statements, &declared_names)
-                    {
-                        exported_names.set_uses_runes(true);
+                    if let Some(ref body) = func.body {
+                        // Add the function's params to the scope so a rune name
+                        // shadowed by a param (`function bar($derived){ … }`) is
+                        // treated as that param, not a rune.
+                        let scope = scope_with_params(&declared_names, &func.params);
+                        if detect_rune_in_nested_body(&body.statements, &scope) {
+                            exported_names.set_uses_runes(true);
+                        }
                     }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
@@ -3029,10 +3033,12 @@ fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet
                 oxc::Expression::Identifier(id)
                     if matches!(id.name.as_str(), "$state" | "$derived" | "$effect") =>
                 {
-                    // Exclude store subscriptions: if `state` is declared (imported),
-                    // `$state` is a store auto-sub, not a rune.
+                    // Not a rune if either the store base (`$state` is a
+                    // store-sub of a declared `state`) OR the full `$state`
+                    // identifier itself is declared (e.g. shadowed by a param
+                    // named `$derived`).
                     let base = &id.name[1..]; // "$state" -> "state"
-                    !declared_names.contains(base)
+                    !declared_names.contains(base) && !declared_names.contains(id.name.as_str())
                 }
                 // Member call: $state.raw(...), $effect.pre(...), etc.
                 // The object identifier must be $state/$derived/$effect.
@@ -3042,6 +3048,7 @@ fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet
                     {
                         let base = &obj.name[1..];
                         !declared_names.contains(base)
+                            && !declared_names.contains(obj.name.as_str())
                     } else {
                         false
                     }
@@ -3176,16 +3183,35 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
                 .is_some_and(|e| detect_rune_in_expr(e, declared_names))
                 || detect_rune_in_nested_body(&c.consequent, declared_names)
         }),
-        oxc::Statement::FunctionDeclaration(func) => func
-            .body
-            .as_ref()
-            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::Statement::FunctionDeclaration(func) => func.body.as_ref().is_some_and(|body| {
+            let scope = scope_with_params(declared_names, &func.params);
+            detect_rune_in_nested_body(&body.statements, &scope)
+        }),
         _ => false,
     }
 }
 
 /// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
 /// (including member variants) anywhere inside the given expression tree.
+/// Clone `base` and add a function's parameter names, so a `$state`/`$derived`/
+/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived(x) }`)
+/// is treated as a store-sub / call of the param, not a rune. Mirrors official's
+/// scope-aware global resolution.
+fn scope_with_params(base: &HashSet<String>, params: &oxc::FormalParameters) -> HashSet<String> {
+    let mut s = base.clone();
+    let mut tmp: Vec<String> = Vec::new();
+    for p in params.items.iter() {
+        collect_binding_names(&p.pattern, &mut tmp);
+    }
+    if let Some(rest) = &params.rest {
+        collect_binding_names(&rest.rest.argument, &mut tmp);
+    }
+    for n in tmp {
+        s.insert(n);
+    }
+    s
+}
+
 fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
     // Fast-path: check if this expression itself is a rune call.
     if detect_rune_global_call_expr(expr, declared_names) {
@@ -3205,20 +3231,19 @@ fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>)
                 })
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
-            // ArrowFunctionExpression.body is Box<FunctionBody> (a struct, not an enum).
-            // When `arrow.expression == true`, the body has one statement wrapping the
-            // expression; either way, recursing into `.statements` is safe and correct.
-            detect_rune_in_nested_body(&arrow.body.statements, declared_names)
+            let scope = scope_with_params(declared_names, &arrow.params);
+            detect_rune_in_nested_body(&arrow.body.statements, &scope)
         }
-        oxc::Expression::FunctionExpression(func) => func
-            .body
-            .as_ref()
-            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
+            let scope = scope_with_params(declared_names, &func.params);
+            detect_rune_in_nested_body(&body.statements, &scope)
+        }),
         oxc::Expression::ClassExpression(class) => {
             class.body.body.iter().any(|member| match member {
                 oxc::ClassElement::MethodDefinition(method) => {
                     method.value.body.as_ref().is_some_and(|body| {
-                        detect_rune_in_nested_body(&body.statements, declared_names)
+                        let scope = scope_with_params(declared_names, &method.value.params);
+                        detect_rune_in_nested_body(&body.statements, &scope)
                     })
                 }
                 oxc::ClassElement::PropertyDefinition(prop) => prop
