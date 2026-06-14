@@ -268,7 +268,10 @@ fn collect_indent_edits_inner(
         }
     }
 
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         recurse_into_children(source, node, child_depth, options, edits)?;
     }
 

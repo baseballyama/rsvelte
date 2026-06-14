@@ -19,6 +19,7 @@ mod expression;
 mod indent;
 mod markup;
 mod options;
+mod prettier_ignore;
 mod reindent;
 mod script;
 mod sort_order;

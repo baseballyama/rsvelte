@@ -153,18 +153,14 @@
 	"svelte/packages/svelte/tests/validator/samples/a11y-role-has-required-aria-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/a11y-role-supports-aria-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/animation-each-with-whitespace/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/attribute-quoted/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/binding-await-catch/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/empty-block/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/if-block-whitespace-runes/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/non-empty-block-dev/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/snippet-whitespace-ok/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/textarea-value-children/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte"
 ]
