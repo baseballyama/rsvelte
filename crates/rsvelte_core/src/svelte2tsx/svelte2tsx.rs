@@ -3449,9 +3449,11 @@ fn template_node_has_await(
         // itself is an AwaitExpression (e.g. `{@html await t}`) trigger runes mode.
         TemplateNode::HtmlTag(tag) => expression_is_await(&tag.expression, source, arena),
         TemplateNode::RenderTag(tag) => expression_is_await(&tag.expression, source, arena),
-        // Text, Comment, ConstTag, DeclarationTag, DebugTag, AttachTag — the primary
-        // trigger is ExpressionTag; these are less common. The fast-path `contains_word`
-        // check at the top of detect_await_in_template guards the common case.
+        // `{@const x = await …}` — a top-level await in a const-tag declaration
+        // makes the component async (e.g. inside `<svelte:boundary>`).
+        TemplateNode::ConstTag(ct) => expression_is_await(&ct.declaration, source, arena),
+        // Text, Comment, DeclarationTag, DebugTag, AttachTag — the primary
+        // trigger is ExpressionTag; these are less common.
         _ => false,
     }
 }
