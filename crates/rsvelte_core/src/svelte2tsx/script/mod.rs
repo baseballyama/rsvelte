@@ -270,6 +270,17 @@ impl ExportedNames {
     pub fn has_local(&self, local: &str) -> bool {
         self.names.values().any(|info| info.local_name == local)
     }
+    /// Mirror official `hasNoProps()`: runes mode → no `$props` type/comment;
+    /// legacy → no exports.
+    pub fn has_no_props(&self) -> bool {
+        if self.is_runes_mode() {
+            self.props_type_text.is_none()
+                && !self.has_component_props_typedef
+                && self.props_jsdoc_type.is_none()
+        } else {
+            self.names.is_empty()
+        }
+    }
     /// Attach the leading JSDoc comment to an exported name (by export key).
     pub fn set_doc(&mut self, name: &str, doc: String) {
         if let Some(info) = self.names.get_mut(name) {

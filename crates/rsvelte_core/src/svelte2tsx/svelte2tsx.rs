@@ -2057,10 +2057,20 @@ pub fn svelte2tsx(
                 } else {
                     String::new()
                 };
+                // When the component has no props (and can't take arbitrary
+                // props via $$props/$$restProps), official drops the
+                // `ReturnType<…['props']> &` prefix, leaving just the
+                // events/slots members. Mirrors `createPropsStr`'s
+                // `!canHaveAnyProp && hasNoProps()` branch.
+                let props_prefix = if exported_names.has_no_props() && !uses_dollar_props {
+                    String::new()
+                } else {
+                    format!("ReturnType<__sveltets_Render<{}>['props']> & ", gn)
+                };
                 let _ = writeln!(
                     closing,
-                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
-                    gp, gn, gn, slots_children_suffix, gn
+                    "    <{}>(internal: unknown, props: {}{{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
+                    gp, props_prefix, gn, slots_children_suffix, gn
                 );
                 let _ = writeln!(
                     closing,
