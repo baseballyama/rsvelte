@@ -52,8 +52,6 @@
 	"svelte/packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte",
 	"svelte/packages/svelte/tests/parser-modern/samples/generic-snippets/input.svelte",
 	"svelte/packages/svelte/tests/parser-modern/samples/loose-valid-each-as/input.svelte",
-	"svelte/packages/svelte/tests/preprocess/samples/partial-names/input.svelte",
-	"svelte/packages/svelte/tests/preprocess/samples/partial-names/output.svelte",
 	"svelte/packages/svelte/tests/print/samples/block-element-separation/input.svelte",
 	"svelte/packages/svelte/tests/print/samples/block/input.svelte",
 	"svelte/packages/svelte/tests/print/samples/comment/output.svelte",

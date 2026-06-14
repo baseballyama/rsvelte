@@ -134,6 +134,26 @@ pub(crate) fn reorder_sections(out: &str) -> String {
         units.sort_by_key(|u| u.priority);
     }
 
+    // Merge consecutive markup units: when two markup runs end up adjacent after
+    // sorting (e.g. `<script-foo>` and `<style-foo>` both land between `<script>`
+    // and `<style>`), prettier / oxfmt renders them as a single markup block with
+    // a single newline between them, not a blank line.
+    let units = {
+        let mut merged: Vec<Unit> = Vec::with_capacity(units.len());
+        for unit in units {
+            if unit.priority == P_MARKUP
+                && merged.last().is_some_and(|last| last.priority == P_MARKUP)
+            {
+                let last = merged.last_mut().expect("checked above");
+                last.text.push('\n');
+                last.text.push_str(&unit.text);
+            } else {
+                merged.push(unit);
+            }
+        }
+        merged
+    };
+
     // Reassemble with exactly one blank line between every pair of adjacent
     // units. prettier / oxfmt always insert one blank line between top-level
     // sections (options / scripts / markup / style).
