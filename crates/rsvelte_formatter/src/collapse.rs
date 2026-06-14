@@ -1366,9 +1366,54 @@ fn try_break_content_tag_block(
     let open = out.get(s..cs)?;
     let close = out.get(ce..e)?;
     let span = out.get(cs..ce)?; // the content tag, e.g. `{@html …}`
-    if open.contains('\n') || span.contains('\n') || span.len() <= kw_lead + kw_trail {
+    if span.contains('\n') || span.len() <= kw_lead + kw_trail {
         return None;
     }
+
+    // When the open tag is multi-line (attributes wrapped), the content tag
+    // should break to its own indented line — prettier puts `>` on its own
+    // line at the element's indent level, then the content at child indent,
+    // then the close tag at the element's indent. This handles:
+    //   <p
+    //     transition:foo
+    //   >{thing}</p>  →  <p\n    transition:foo\n  >\n    {thing}\n  </p>
+    if open.contains('\n') {
+        if !open.ends_with('>') {
+            return None;
+        }
+        // Determine the element's indent by finding the line start of `start`.
+        let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+        let indent = out.get(line_start..s)?;
+        if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+            return None;
+        }
+        let inner_indent = format!("{indent}  ");
+        // The last line of `open` ends with `>`, e.g. `    >`.
+        // Check if the content fits glued onto the `>` line.
+        let open_last_line = open.rsplit('\n').next().unwrap_or(open);
+        let glued_width = open_last_line.width() + span.width() + close.width();
+        if glued_width <= line_width {
+            return None; // fits on the `>` line — leave as-is
+        }
+        // Break: remove the trailing `>` from the open, put `>` on a new line,
+        // then the content, then close.
+        let open_without_gt = open[..open.len() - 1].trim_end_matches([' ', '\t']);
+        let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
+        let width = line_width.saturating_sub(inner_indent.width() + kw_lead + kw_trail);
+        let wrapped = crate::expression::reformat_content_at_width(
+            inner,
+            options,
+            width,
+            inner_indent.width(),
+        )
+        .ok()?;
+        let kw_prefix = &span[..kw_lead];
+        let new_tag = format!("{kw_prefix}{wrapped}}}");
+        let broken =
+            format!("{open_without_gt}\n{indent}>\n{inner_indent}{new_tag}\n{indent}{close}");
+        return (broken != whole).then_some((start, end, broken));
+    }
+
     let column = current_column(out, start);
     if column + open.width() + span.width() + close.width() <= line_width {
         return None; // fits on one line

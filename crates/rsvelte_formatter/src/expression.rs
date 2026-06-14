@@ -153,12 +153,14 @@ fn collect_node_edits(
                 if let Some(start) = current.test.start() {
                     normalize_leading_ws_before_expr(source, start, edits);
                 }
-                push_bare_expression(source, &current.test, options, edits)?;
+                // push_bare_expression also strips any unnecessary source-level
+                // outer parens (`{#if (b)}` → `{#if b}`) and returns the
+                // effective end of the edit (which may be past the AST expression
+                // end when parens were consumed).
+                let effective_end = push_bare_expression(source, &current.test, options, edits)?;
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
-                if let Some(end) = current.test.end() {
-                    trim_trailing_ws_before_close_brace(source, end, edits);
-                }
+                trim_trailing_ws_before_close_brace(source, effective_end, edits);
                 collect_template_edits(source, &current.consequent, child_depth, options, edits)?;
                 match &current.alternate {
                     Some(alt) => match crate::indent::else_if_branch(alt) {
@@ -281,11 +283,9 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            push_bare_expression(source, &blk.expression, options, edits)?;
+            let effective_end = push_bare_expression(source, &blk.expression, options, edits)?;
             // Trim `{#key expr }` → `{#key expr}`.
-            if let Some(end) = blk.expression.end() {
-                trim_trailing_ws_before_close_brace(source, end, edits);
-            }
+            trim_trailing_ws_before_close_brace(source, effective_end, edits);
             collect_template_edits(source, &blk.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
@@ -431,25 +431,107 @@ fn push_brace_wrapped_expression(
 /// keyword (`#if` / `#each` / ...) rather than the expression itself. The
 /// expression is forced onto a single line: prettier-plugin-svelte keeps a
 /// block tag's expression inline regardless of width.
+///
+/// Also strips any unnecessary outer parentheses that the source wraps around
+/// the expression (e.g. `{#if (b)}` → `{#if b}`, `{#each (c) as x}` →
+/// `{#each c as x}`). Returns the effective end position of the edit (which
+/// may be past the original expression end if source parens were consumed).
 fn push_bare_expression(
     source: &str,
     expr: &Expression,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
-) -> Result<(), FormatError> {
+) -> Result<u32, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
-        return Ok(());
+        return Ok(expr.end().unwrap_or(0));
     };
     let slice = source
         .get(start as usize..end as usize)
         .ok_or_else(|| FormatError::Parse("expression span out of bounds".into()))?
         .trim();
     if slice.is_empty() {
-        return Ok(());
+        return Ok(end);
     }
     let formatted = format_inline_expression(slice, options)?;
-    edits.push((start, end, formatted));
-    Ok(())
+
+    // prettier-plugin-svelte strips unnecessary outer parens from block-header
+    // expressions: `{#if (b)}` → `{#if b}`, `{#each (c) as x}` → `{#each c as x}`.
+    // The Svelte AST stores the inner expression span (just `b` / `c`), so the
+    // parens are in the source *outside* the span. Walk outward and include them
+    // in the edit so they are replaced together with the inner expression.
+    let (edit_start, edit_end) = widen_to_source_parens(source, start, end).unwrap_or((start, end));
+
+    edits.push((edit_start, edit_end, formatted));
+    Ok(edit_end)
+}
+
+/// If the source has `(` immediately before `inner_start` (possibly with
+/// leading whitespace after a preceding keyword) and `)` immediately after
+/// `inner_end` (possibly with trailing whitespace), returns the span
+/// `(paren_open, paren_close_excl)` that includes those outer parens.
+/// Handles multiple levels (e.g. `((b))` → widened twice).
+///
+/// Only considers horizontal whitespace (space/tab) between the paren and the
+/// expression — a newline means the paren is on a different line from the
+/// expression, which we leave alone.
+fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<(u32, u32)> {
+    let mut widened = false;
+    loop {
+        // Look backward from `start` for `(` through horizontal whitespace only.
+        let before = source.get(..start as usize)?;
+        let chars_before: Vec<(usize, char)> = before.char_indices().collect();
+        // Walk backward, skipping spaces/tabs; stop at anything else.
+        let mut paren_pos: Option<u32> = None;
+        for &(pos, ch) in chars_before.iter().rev() {
+            match ch {
+                ' ' | '\t' => continue,
+                '(' => {
+                    paren_pos = Some(pos as u32);
+                    break;
+                }
+                _ => break,
+            }
+        }
+        let paren_open = match paren_pos {
+            Some(p) => p,
+            None => break,
+        };
+
+        // Look forward from `end` for `)` through horizontal whitespace only.
+        let after = source.get(end as usize..)?;
+        let mut close_offset: Option<usize> = None;
+        for (i, ch) in after.char_indices() {
+            match ch {
+                ' ' | '\t' => continue,
+                ')' => {
+                    close_offset = Some(i + ch.len_utf8());
+                    break;
+                }
+                _ => break,
+            }
+        }
+        let paren_close_excl = match close_offset {
+            Some(off) => end + off as u32,
+            None => break,
+        };
+
+        // Only widen when the paren immediately follows a keyword boundary
+        // (the char before `paren_open` must be a space/tab or the start of
+        // the string — we don't want to eat call-expression parens like
+        // `f(b)` or index parens `arr[f(b)]`).
+        // Check the char right before paren_open.
+        let before_paren = source.get(..paren_open as usize).unwrap_or("");
+        let last_char_before_paren = before_paren.chars().next_back();
+        match last_char_before_paren {
+            None | Some(' ') | Some('\t') | Some('\n') | Some('\r') => {}
+            _ => break, // paren is part of a call / grouping in a larger expr
+        }
+
+        start = paren_open;
+        end = paren_close_excl;
+        widened = true;
+    }
+    if widened { Some((start, end)) } else { None }
 }
 
 /// Returns `true` when the pending fragment of an `{#await}` block is **present**
