@@ -2236,7 +2236,17 @@ fn handle_component(
     //   comes from a value (e.g. Storybook's `const { Story } = defineMeta(…)`)
     //   does not pick up its contextual `Snippet<[Args]>` type and the snippet
     //   parameter falls back to implicit `any` (#796).
-    let needs_instance = has_events || has_lets || children_have_named_slots || use_snippet_props;
+    // `bind:this` / `bind:foo` on a component reference the instance variable
+    // (`expr = $$_inst;` / `$$_inst.$$bindings = 'foo';`), so the instance const
+    // must be emitted — mirrors upstream `addNameConstDeclaration` for bound
+    // components. Without this a `bind:this`-only component dropped both the
+    // `const $$_inst = new …` and the binding assignment.
+    let has_bindings = comp
+        .attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::BindDirective(_)));
+    let needs_instance =
+        has_events || has_lets || children_have_named_slots || use_snippet_props || has_bindings;
 
     // Check if Svelte 5 children prop is needed
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
