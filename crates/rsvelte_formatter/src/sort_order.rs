@@ -88,8 +88,7 @@ pub(crate) fn reorder_sections(out: &str) -> String {
             // if the source had one, a single newline otherwise.
             let after_comment_offset = gap.rfind("-->").map_or(0, |i| i + 3);
             let after_comment = &gap[after_comment_offset..];
-            let separator = if after_comment.contains("\n\n")
-                || after_comment.contains("\r\n\r\n")
+            let separator = if after_comment.contains("\n\n") || after_comment.contains("\r\n\r\n")
             {
                 "\n\n"
             } else {

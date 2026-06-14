@@ -102,9 +102,27 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     out = collapse::collapse_pure_text_elements(&out, options)?;
 
     // Post-pass: reorder top-level sections into prettier's canonical order
-    // (options → module script → instance script → markup → styles). No-op when
-    // the file is already canonical.
-    out = sort_order::reorder_sections(&out);
+    // (options → module script → instance script → markup → styles) and
+    // normalize the blank lines between top-level units. This re-parses the
+    // output, so skip it (using the already-parsed `root`) whenever there is
+    // nothing it could change: a file with no sections, or a single section and
+    // no markup, has only one top-level unit. Section order is preserved by
+    // formatting, so the original root is a sound predicate.
+    let section_count = [
+        root.options.is_some(),
+        root.module.is_some(),
+        root.instance.is_some(),
+        root.css.is_some(),
+    ]
+    .into_iter()
+    .filter(|&p| p)
+    .count();
+    let has_markup = root.fragment.nodes.iter().any(|n| {
+        !matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if t.data.trim().is_empty())
+    });
+    if section_count > 1 || (section_count == 1 && has_markup) {
+        out = sort_order::reorder_sections(&out);
+    }
 
     // Start the file at content: prettier / oxfmt strip leading blank lines and
     // indentation before the first node (e.g. a markdown code block that begins

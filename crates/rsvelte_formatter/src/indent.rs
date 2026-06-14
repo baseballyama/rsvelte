@@ -118,9 +118,10 @@ fn collect_indent_edits_inner(
         // Used for block bodies: only split inline spaces when such a sibling
         // is present. Without one (fragment is only ExpressionTags + ws),
         // the space is prose-sensitive and stays on one line.
-        let has_non_expression_block_child = fragment.nodes.iter().any(|n| {
-            is_indent_provoking(n) && !matches!(n, TemplateNode::ExpressionTag(_))
-        });
+        let has_non_expression_block_child = fragment
+            .nodes
+            .iter()
+            .any(|n| is_indent_provoking(n) && !matches!(n, TemplateNode::ExpressionTag(_)));
 
         for (i, node) in fragment.nodes.iter().enumerate() {
             let TemplateNode::Text(t) = node else {
@@ -149,34 +150,31 @@ fn collect_indent_edits_inner(
                     // Leading/trailing inline whitespace at the document root
                     // is insignificant and is removed.
                     let prev_provoking = i > 0 && is_indent_provoking(&fragment.nodes[i - 1]);
-                    let next_not_regular =
-                        i < last
-                            && !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
-                    let next_provoking =
-                        i < last && is_indent_provoking(&fragment.nodes[i + 1]);
+                    let next_not_regular = i < last
+                        && !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
+                    let next_provoking = i < last && is_indent_provoking(&fragment.nodes[i + 1]);
                     let effectively_broken = if is_block_body {
                         has_non_expression_block_child
                     } else {
                         fragment_is_broken
                     };
-                    let replacement =
-                        if effectively_broken
-                            && prev_provoking
-                            && next_provoking
-                            && next_not_regular
-                        {
-                            // Between two block-level nodes in an already-broken
-                            // fragment: convert the space to a line-break.
-                            if i == last {
-                                format!("\n{parent_indent}")
-                            } else {
-                                format!("\n{child_indent}")
-                            }
-                        } else if child_depth == 0 && (i == 0 || i == last) {
-                            String::new()
+                    let replacement = if effectively_broken
+                        && prev_provoking
+                        && next_provoking
+                        && next_not_regular
+                    {
+                        // Between two block-level nodes in an already-broken
+                        // fragment: convert the space to a line-break.
+                        if i == last {
+                            format!("\n{parent_indent}")
                         } else {
-                            " ".to_string()
-                        };
+                            format!("\n{child_indent}")
+                        }
+                    } else if child_depth == 0 && (i == 0 || i == last) {
+                        String::new()
+                    } else {
+                        " ".to_string()
+                    };
                     if t.data.as_str() != replacement {
                         edits.push((t.start, t.end, replacement));
                     }
@@ -372,37 +370,33 @@ fn recurse_into_children(
         TemplateNode::EachBlock(blk) => {
             collect_indent_edits_inner(source, &blk.body, next_depth, true, true, options, edits)?;
             if let Some(fb) = &blk.fallback {
-                collect_indent_edits_inner(
-                    source, fb, next_depth, true, true, options, edits,
-                )?;
+                collect_indent_edits_inner(source, fb, next_depth, true, true, options, edits)?;
             }
         }
         TemplateNode::AwaitBlock(blk) => {
             if let Some(frag) = &blk.pending {
-                collect_indent_edits_inner(
-                    source, frag, next_depth, true, true, options, edits,
-                )?;
+                collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
             if let Some(frag) = &blk.then {
-                collect_indent_edits_inner(
-                    source, frag, next_depth, true, true, options, edits,
-                )?;
+                collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
             if let Some(frag) = &blk.catch {
-                collect_indent_edits_inner(
-                    source, frag, next_depth, true, true, options, edits,
-                )?;
+                collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
             collect_indent_edits_inner(
-                source, &blk.fragment, next_depth, true, true, options, edits,
+                source,
+                &blk.fragment,
+                next_depth,
+                true,
+                true,
+                options,
+                edits,
             )?;
         }
         TemplateNode::SnippetBlock(blk) => {
-            collect_indent_edits_inner(
-                source, &blk.body, next_depth, true, true, options, edits,
-            )?;
+            collect_indent_edits_inner(source, &blk.body, next_depth, true, true, options, edits)?;
         }
         _ => {}
     }

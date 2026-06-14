@@ -201,8 +201,7 @@ fn collect_node_open_tag_edits(
         | TemplateNode::SvelteFragment(s)
         | TemplateNode::SvelteBoundary(s)
         | TemplateNode::SvelteOptions(s)
-        | TemplateNode::SvelteSelf(s)
-        | TemplateNode::SvelteWindow(s) => {
+        | TemplateNode::SvelteSelf(s) => {
             let wrapped = push_open_tag(
                 source,
                 s.start,
@@ -223,6 +222,36 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             );
+            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
+        }
+        // prettier-plugin-svelte always emits `<svelte:window />` as self-closing
+        // (even when the source uses the paired `<svelte:window></svelte:window>` form).
+        // When empty, delete the close tag too; when non-empty (a compiler error),
+        // fall through to the normal paired rendering.
+        TemplateNode::SvelteWindow(s) => {
+            let empty = is_empty_fragment(&s.fragment);
+            let wrapped = push_open_tag(
+                source,
+                s.start,
+                s.name.as_str(),
+                &s.attributes,
+                None,
+                depth,
+                empty,
+                options,
+                edits,
+            )?;
+            if empty {
+                // Delete the close tag (replace it with nothing) so that the
+                // self-closing `/>` open tag isn't followed by `</svelte:window>`.
+                if let Some((close_start, close_end)) =
+                    find_close_tag_span(source, s.end, s.name.as_str())
+                {
+                    edits.push((close_start, close_end, String::new()));
+                }
+            } else {
+                push_close_tag(source, s.end, s.name.as_str(), wrapped, depth, options, edits);
+            }
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
@@ -437,7 +466,12 @@ fn push_open_tag(
     // Void HTML elements (`<input>`, `<br>`, `<hr>`, …) have no closing tag;
     // prettier-plugin-svelte normalizes them to the self-closing ` />` form
     // even when the source omits the slash.
-    let self_closing = is_self_closing(source, open_tag_end) || is_void_element(tag_name);
+    // `<svelte:window>` is also emitted as self-closing when it has no
+    // children (the common case). When it does have children (a compiler error,
+    // but the formatter still processes it), it keeps the non-self-closing form.
+    let self_closing = is_self_closing(source, open_tag_end)
+        || is_void_element(tag_name)
+        || (tag_name == "svelte:window" && empty_element);
 
     // When the open tag wraps, the closing `>` normally lands on its own line at
     // the outer indent. But if the element's content is whitespace-sensitive
@@ -1151,7 +1185,14 @@ fn render_attribute_node(
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
             let inner_src = expression_tag_inner(tag, source).trim();
-            render_single_expression_value(node, inner_src, source, options, attr_depth, narrow_value)
+            render_single_expression_value(
+                node,
+                inner_src,
+                source,
+                options,
+                attr_depth,
+                narrow_value,
+            )
         }
         // prettier-plugin-svelte strips the quotes around a value that is a
         // single mustache and nothing else: `attr="{expr}"` → `attr={expr}`
@@ -1161,12 +1202,21 @@ fn render_attribute_node(
         AttributeValue::Sequence(parts)
             if matches!(parts.as_slice(), [AttributeValuePart::ExpressionTag(_)]) =>
         {
-            let AttributeValuePart::ExpressionTag(tag) = &parts[0] else { unreachable!() };
+            let AttributeValuePart::ExpressionTag(tag) = &parts[0] else {
+                unreachable!()
+            };
             let inner_src = source
                 .get(tag.start as usize + 1..tag.end as usize - 1)
                 .unwrap_or("")
                 .trim();
-            render_single_expression_value(node, inner_src, source, options, attr_depth, narrow_value)
+            render_single_expression_value(
+                node,
+                inner_src,
+                source,
+                options,
+                attr_depth,
+                narrow_value,
+            )
         }
         AttributeValue::Sequence(parts) => {
             // Columns before the value body on the first line: `name="`.
