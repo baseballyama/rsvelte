@@ -745,8 +745,41 @@ fn collect_slot_prop_entries(
                         props.push(format!("{}:{}", node.name, resolve(expr_text)));
                         continue;
                     }
-                    // String literal value - not common for slots
-                    props.push(format!("{}:{}", node.name, resolve(&node.name)));
+                    // Static string value (`<slot value="Hi" />`) → the quoted
+                    // string literal (`value: "Hi"`). Mixed text+expression →
+                    // a template literal. Mirrors official Element/Attribute
+                    // handling for slot props.
+                    let has_expr = parts
+                        .iter()
+                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                    if !has_expr {
+                        let text: String = parts
+                            .iter()
+                            .filter_map(|p| match p {
+                                AttributeValuePart::Text(t) => Some(t.raw.as_str()),
+                                _ => None,
+                            })
+                            .collect();
+                        let escaped = text.replace('\\', "\\\\").replace('"', "\\\"");
+                        props.push(format!("{}:\"{}\"", node.name, escaped));
+                    } else {
+                        let mut lit = String::new();
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(t) => {
+                                    lit.push_str(&t.raw.replace('`', "\\`").replace('$', "\\$"));
+                                }
+                                AttributeValuePart::ExpressionTag(e) => {
+                                    let _ = write!(
+                                        lit,
+                                        "${{{}}}",
+                                        resolve(get_expression_text(&e.expression, source))
+                                    );
+                                }
+                            }
+                        }
+                        props.push(format!("{}:`{}`", node.name, lit));
+                    }
                 }
             }
         }
