@@ -67,7 +67,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/Component.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/class-state-derived-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/derived-unowned-12/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/derived-unowned-8/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-derived-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/props-alias/Counter.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte",

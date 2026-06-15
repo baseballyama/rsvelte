@@ -4175,6 +4175,16 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             i = end;
             continue;
         }
+        // A core rune used as a member call — `$state.raw(…)`, `$derived.by(…)`,
+        // `$effect.pre(…)` — is a rune, not a store auto-subscription, so it must
+        // not contribute a `let $derived = __sveltets_2_store_get(derived)` when a
+        // binding named `derived` exists. (A bare `$state` / `$state(…)` can still
+        // be a store sub of a `state` binding, so only the `.`-member form is
+        // excluded here.)
+        if matches!(full, "$state" | "$derived" | "$effect") && bytes.get(end) == Some(&b'.') {
+            i = end;
+            continue;
+        }
         stores.insert(source[next..end].to_string());
         i = end;
     }
