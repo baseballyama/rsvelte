@@ -67,7 +67,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-binding-this/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-class-directive/Link.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escape-template-literals/main.svelte",

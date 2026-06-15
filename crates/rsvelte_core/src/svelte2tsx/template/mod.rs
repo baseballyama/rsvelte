@@ -3452,6 +3452,10 @@ fn handle_svelte_component(
         return;
     }
 
+    // This component's children own their own slot scope: clear any inherited
+    // slot context (restored at the end for following siblings).
+    let saved_outer_slot = counter.slot_inst.take();
+
     let expr_text = get_expression_text(&comp.expression, source);
     // Use "svelte:component" as the name for variable naming, with ':' replaced by '_'
     let scomp_name = "svelte:component".replace(':', "_");
@@ -3530,8 +3534,15 @@ fn handle_svelte_component(
         out
     };
     // Need an instance variable when there are `on:` events, `let:` directives,
-    // or `bind:` directives.
-    let needs_inst = has_events || has_lets_scomp || has_binds;
+    // `bind:` directives, or children that reference the instance's slot defs
+    // (named-slot children anywhere in blocks, or default-slot `let:` receivers).
+    let children_have_named_slots = has_named_slot_children(&comp.fragment, source);
+    let children_have_default_slot_lets = has_default_slot_let_children(&comp.fragment, source);
+    let needs_inst = has_events
+        || has_lets_scomp
+        || has_binds
+        || children_have_named_slots
+        || children_have_default_slot_lets;
     let mut opener = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
@@ -3563,8 +3574,12 @@ fn handle_svelte_component(
 
     str.overwrite(comp.start, opening_tag_end, &opener);
 
-    // Children of svelte:component are at depth+1 (this component is now an ancestor).
+    // Children of svelte:component are at depth+1 (this component is now an
+    // ancestor). Mark the slot context so `slot="x"` children (incl. those
+    // nested in control-flow blocks) lower to `inst.$$slot_def["x"]`.
+    let prev_slot = counter.slot_inst.replace(inst_var.clone());
     process_fragment_inplace(&comp.fragment, source, options, str, counter, depth + 1);
+    counter.slot_inst = prev_slot;
 
     let closing_tag_start = find_closing_tag_start(source, comp.end);
     let closing_text = if has_lets_scomp { "}}" } else { "}" };
@@ -3573,6 +3588,9 @@ fn handle_svelte_component(
     } else {
         str.append_left(comp.end, closing_text);
     }
+
+    // Restore the slot context for following siblings.
+    counter.slot_inst = saved_outer_slot;
 }
 
 /// Handle `<svelte:element this={tag}>`.
