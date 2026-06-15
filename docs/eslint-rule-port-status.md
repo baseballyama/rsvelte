@@ -45,6 +45,34 @@ gated Wave-3 spike, not the syntactic/scope engine:
   `require-event-dispatcher-types`, `experimental-require-slot-types`,
   `experimental-require-strict-events`.
 
+`valid-compile` is ported as an opt-in meta-rule
+(`crate::rules::valid_compile`, wired into `runner::lint_source`): it compiles
+the component (warnings-only) and surfaces each compiler warning under the single
+id `svelte/valid-compile` with the `"{message}({code})"` shape, honouring
+`ignoreWarnings`, the always-ignored `missing-declaration`, and the
+`<style global>` `css_unused_selector` filter (`isGlobalStyleNode`). Off by
+default because the validator wrap already surfaces every warning under its own
+(finer-grained) code. The warning-kind fixtures (a11y, `css_unused_selector`,
+svelte-ignore scoping) are parity-verified by the oracle plus
+`crates/rsvelte_lint/tests/valid_compile.rs`.
+
+The following `valid-compile` fixtures remain skipped in the oracle, each
+blocked on something outside the rule port:
+- `svelte-config-onwarn` / `-custom-warn` / `-warning-filter` /
+  `-experimental-async` — JS config callbacks (`onwarn`/`warningFilter`) and
+  `_config.cjs` execution; no JS runtime in a native linter.
+- `experimental-async-disabled`, `ts/enum01` — compile-*error* fixtures whose
+  position can't be matched: rsvelte's `AnalysisError` variants carry no source
+  span (report at the default position).
+- `invalid-svelte-ignore03` — rsvelte_core doesn't emit `block_empty` for an
+  empty `{#await}` *pending* block.
+- `custom_element_props_identifier`, `valid-custom-element-with-props-identifier`,
+  `svelte-options-custom-element` — rsvelte_core divergences (the
+  `custom_element_props_identifier` warning has no precise span, and
+  `<svelte:options customElement>` over-emits `options_missing_custom_element`).
+- `babel/*` — Babel-only JS syntax (function-bind `::`) the rsvelte JS parser
+  rejects; upstream uses a Babel parser via fixture config.
+
 ### Blocked on an `rsvelte_core` capability
 - `no-unused-svelte-ignore` — needs a compile mode that surfaces warnings
   *without* applying `<!-- svelte-ignore -->` suppression, plus which ignore
@@ -52,13 +80,9 @@ gated Wave-3 spike, not the syntactic/scope engine:
 - `valid-style-parse` — needs a non-fatal CSS parse path (invalid `<style>`
   should yield a `Root` carrying a recorded error instead of a hard parse
   failure), an `unknown-lang` marker on the stylesheet, and a CWD-relative path
-  in `LintContext`.
-- `valid-compile` — surfaces the compiler's own warnings, but parity needs
-  several `rsvelte_core` gaps closed: running fixture `onwarn`/`warningFilter`
-  JS callbacks (no JS runtime), spans on `AnalysisError` variants currently
-  emitted at `(0,0)` (e.g. `experimental_async`), a `block_empty` warning for
-  empty `{#await}` pending blocks, TS-enum handling in the parse path, and a
-  span for `custom_element_props_identifier_rest`.
+  in `LintContext`. Even then, two of the four invalid fixtures expect PostCSS's
+  exact error text/position (`…:4:11: Unknown word .div-class/35`), which
+  rsvelte's own hand-written CSS parser cannot reproduce byte-for-byte.
 
 ### Large / complex
 - `indent` — one of the largest ESLint layout rules; a faithful byte-exact port

@@ -18,7 +18,7 @@ use std::path::Path;
 use crate::config::LintConfig;
 use crate::rule::Severity;
 
-fn to_dsev(s: Severity) -> DiagnosticSeverity {
+pub(crate) fn to_dsev(s: Severity) -> DiagnosticSeverity {
     match s {
         Severity::Error => DiagnosticSeverity::Error,
         // `Off` is filtered before this is called; map defensively.
@@ -26,7 +26,7 @@ fn to_dsev(s: Severity) -> DiagnosticSeverity {
     }
 }
 
-fn range_from(
+pub(crate) fn range_from(
     start: Option<&rsvelte_core::compiler::Position>,
     end: Option<&rsvelte_core::compiler::Position>,
 ) -> Option<Range> {
@@ -95,6 +95,13 @@ pub fn validator_diagnostics(
             }]
         }
     }
+}
+
+/// Extract `(code, message, range)` from a hard compile error for the
+/// `valid-compile` rule. Analysis errors (`ValidationWithCode`) carry no span
+/// today, so the range is `None` (callers fall back to the default position).
+pub(crate) fn compile_error_parts(e: &CompileError) -> (String, String, Option<Range>) {
+    (compile_error_code(e), format!("{e}"), None)
 }
 
 /// Best-effort extraction of a stable code from a hard compile error so it can

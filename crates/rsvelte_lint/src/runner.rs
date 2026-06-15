@@ -57,6 +57,13 @@ pub fn lint_source(
             for d in crate::scope::scope_diagnostics(source, config) {
                 diags.push(d.to_output(file, &line_index));
             }
+
+            // 2c. valid-compile (opt-in): surface compiler warnings/errors under
+            // the single `svelte/valid-compile` id. Off by default, so this is a
+            // no-op (and skips the extra compile) unless the rule is enabled.
+            diags.extend(crate::rules::valid_compile::valid_compile_diagnostics(
+                source, file, options, config,
+            ));
             diags
         }
     };

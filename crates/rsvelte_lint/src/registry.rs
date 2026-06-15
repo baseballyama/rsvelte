@@ -39,7 +39,11 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
 /// [`all_rules`] / [`all_script_rules`]). Currently just `comment-directive`,
 /// whose unused-directive reporting is wired into [`crate::runner::lint_source`].
 pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
-    std::iter::once(&crate::rules::comment_directive::META)
+    [
+        &crate::rules::comment_directive::META,
+        &crate::rules::valid_compile::META,
+    ]
+    .into_iter()
 }
 
 /// Construct the full set of native rules.

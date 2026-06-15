@@ -73,5 +73,6 @@ pub mod shorthand_directive;
 pub mod sort_attributes;
 pub mod spaced_html_comment;
 pub mod store_refs;
+pub mod valid_compile;
 pub mod valid_each_key;
 pub mod valid_prop_names_in_kit_pages;
