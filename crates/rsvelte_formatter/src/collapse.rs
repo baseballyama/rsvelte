@@ -463,7 +463,11 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         0,
     );
     if !flat.contains('\n') && indent_cols + flat.width() <= line_width {
-        return None; // fits flat — leave as-is
+        // Fits on one line — collapse to the flat form. The input run may itself
+        // be multi-line (e.g. root-level prose written one word per line), and
+        // prettier reflows prose that fits onto a single line, so we must emit the
+        // flat text rather than leaving the broken input untouched.
+        return (flat != whole).then_some((s as u32, e as u32, flat));
     }
     let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
     (printed != whole).then_some((s as u32, e as u32, printed))
