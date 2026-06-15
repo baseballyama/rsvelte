@@ -61,14 +61,47 @@ pub fn lint_source(
         }
     };
 
-    // 3. Suppression directives (eslint-disable* + svelte-ignore).
+    // 3. comment-directive meta-rule: compute unused-directive reports from the
+    //    full pre-suppression finding set. Emitted *after* suppression so the
+    //    directives don't suppress their own reports (upstream's position-based
+    //    filter keeps them; our line-based suppression would not).
+    let cd = &crate::rules::comment_directive::META;
+    let cd_severity = config.resolve_code(cd.name, cd.default_severity);
+    let cd_reports: Vec<LintDiagnostic> = if cd_severity != crate::rule::Severity::Off
+        && crate::rules::comment_directive::report_unused_enabled(config.options_for(cd.name))
+    {
+        let findings: Vec<(u32, u32, String)> = diagnostics
+            .iter()
+            .filter_map(|d| {
+                let code = d.code.clone()?;
+                let range = d.range?;
+                Some((range.start.line, range.start.column, code))
+            })
+            .collect();
+        crate::rules::comment_directive::unused_directive_diagnostics(
+            source,
+            &line_index,
+            &findings,
+            cd_severity,
+        )
+    } else {
+        Vec::new()
+    };
+
+    // 4. Suppression directives (eslint-disable* + svelte-ignore).
     let suppressions = Suppressions::collect(source);
     diagnostics.retain(|d| match (&d.code, &d.range) {
         (Some(code), Some(range)) => !suppressions.is_suppressed(code, range.start.line),
         _ => true,
     });
 
-    // 4. Stable order: by line, then column.
+    // 4a. Append the unused-directive reports (not subject to the line-based
+    //     suppression above).
+    for d in cd_reports {
+        diagnostics.push(d.to_output(file, &line_index));
+    }
+
+    // 5. Stable order: by line, then column.
     diagnostics.sort_by_key(|d| {
         d.range
             .map(|r| (r.start.line, r.start.column))

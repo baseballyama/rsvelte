@@ -24,6 +24,16 @@ require-optimized-style-attribute, block-lang, valid-prop-names-in-kit-pages,
 no-export-load-in-svelte-module-in-kit-pages, no-unused-class-name,
 consistent-selector-style, infinite-reactive-loop.
 
+`comment-directive` (the meta-rule) is ported as a post-walk phase in
+`crate::runner::lint_source`: the `reportUnusedDisableDirectives` reporting is a
+faithful port of upstream's `CommentDirectives.filterMessages` (block-enable
+pre-pass + per-message enable/disable resolution + self-suppression of the
+rule's own reports). It has no upstream fixture directory (upstream tests it
+inline), so it's exempt from the oracle's fixture-coverage check
+(`NO_FIXTURE_RULES`) and verified by `crates/rsvelte_lint/tests/comment_directive.rs`
+(porting upstream's `reportUnusedDisableDirectives` cases with the Svelte rules
+rsvelte implements) plus `comment_directive` unit tests.
+
 ## Deferred (with reason)
 
 These are intentionally not yet ported; each needs work outside "add a rule".
@@ -49,13 +59,6 @@ gated Wave-3 spike, not the syntactic/scope engine:
   emitted at `(0,0)` (e.g. `experimental_async`), a `block_empty` warning for
   empty `{#await}` pending blocks, TS-enum handling in the parse path, and a
   span for `custom_element_props_identifier_rest`.
-
-### Architectural — meta-rule
-- `comment-directive` — processes `eslint-disable`/`enable` directives and
-  reports *unused* ones; needs a post-walk hook with access to every other
-  rule's emitted diagnostics. rsvelte already applies suppression separately
-  (`suppression.rs`); reporting unused directives would need the aggregate
-  diagnostic set, which the per-node/`check_root` model doesn't expose.
 
 ### Large / complex
 - `indent` — one of the largest ESLint layout rules; a faithful byte-exact port

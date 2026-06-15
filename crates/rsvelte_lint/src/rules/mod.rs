@@ -4,6 +4,7 @@
 
 pub mod block_lang;
 pub mod button_has_type;
+pub mod comment_directive;
 pub mod consistent_selector_style;
 pub mod derived_has_same_inputs_outputs;
 pub mod first_attribute_linebreak;

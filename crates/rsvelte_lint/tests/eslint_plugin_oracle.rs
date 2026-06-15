@@ -47,6 +47,7 @@ struct RuleUnderTest {
 fn rules_under_test() -> Vec<RuleUnderTest> {
     registered_rule_metas()
         .into_iter()
+        .filter(|m| !NO_FIXTURE_RULES.contains(&m.name))
         .map(|m| RuleUnderTest {
             code: m.name,
             dir: m.name.strip_prefix("svelte/").unwrap_or(m.name),
@@ -54,6 +55,17 @@ fn rules_under_test() -> Vec<RuleUnderTest> {
         })
         .collect()
 }
+
+/// Registered rules with no `tests/fixtures/rules/<rule>/` directory upstream
+/// because their tests are written inline (not fixture-driven). These are
+/// exercised by dedicated Rust tests instead, so the fixture-coverage check
+/// would otherwise flag them as "no fixtures".
+const NO_FIXTURE_RULES: &[&str] = &[
+    // `comment-directive` is a meta-rule (no per-node hook); upstream tests it
+    // inline in `tests/src/rules/comment-directive.ts`. Covered by
+    // `crate::rules::comment_directive` unit tests + `tests/comment_directive.rs`.
+    "svelte/comment-directive",
+];
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[

@@ -30,7 +30,16 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
         .iter()
         .map(|r| r.meta())
         .chain(all_script_rules().iter().map(|r| r.meta()))
+        .chain(meta_rule_metas())
         .collect()
+}
+
+/// Metas for *meta-rules* — rules that operate on the aggregated diagnostic set
+/// after the walk rather than via a per-node [`Rule`] hook (so they live outside
+/// [`all_rules`] / [`all_script_rules`]). Currently just `comment-directive`,
+/// whose unused-directive reporting is wired into [`crate::runner::lint_source`].
+pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
+    std::iter::once(&crate::rules::comment_directive::META)
 }
 
 /// Construct the full set of native rules.
