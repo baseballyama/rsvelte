@@ -457,6 +457,20 @@ struct Counter {
     /// scope). Threaded via `&mut Counter` so the 30+ existing
     /// `process_*_inplace` call sites need no signature change.
     slot_inst: Option<String>,
+    /// Set just before `handle_named_slot_component` calls `handle_component`:
+    /// a component that is a named-slot child has its component-name reference
+    /// (`Inner;`) emitted by the caller *outside* the component's own block
+    /// (between the component-block close and the named-slot-block close). So
+    /// `handle_component` closes its block with a bare `}` (no name) and the
+    /// caller emits ` Name}`. Mirrors official `endTransformation` ordering
+    /// `['}'(slotLet), name, '}']`. Consumed once at the top of `handle_component`.
+    named_slot_component_close: bool,
+    /// Set just before `handle_named_slot_component` calls `handle_component`:
+    /// a component that is a named-slot child (`<C slot="x" let:y>`) has its
+    /// `let:` directives consumed by the parent's `$$slot_def["x"]` destructure,
+    /// so `handle_component` must NOT re-emit them as the component's own
+    /// default-slot let block. Consumed once at the top of `handle_component`.
+    suppress_component_lets: bool,
 }
 
 impl Counter {
@@ -464,6 +478,8 @@ impl Counter {
         Self {
             counters: std::collections::HashMap::new(),
             slot_inst: None,
+            named_slot_component_close: false,
+            suppress_component_lets: false,
         }
     }
     #[allow(dead_code)]
@@ -2524,6 +2540,10 @@ fn handle_component(
     // Restored at the end for following siblings.
     let saved_outer_slot = counter.slot_inst.take();
 
+    // When processed as a named-slot child, suppress the component-name
+    // reference at the close (the caller emits it outside this component's block).
+    let named_slot_close = std::mem::take(&mut counter.named_slot_component_close);
+
     // Use depth (ancestor element/component count) as the variable index, matching
     // the official `computeDepth()` in `htmlxtojsx_v2/nodes/InlineComponent.ts`.
     // Two sibling `<A/>` at the same depth both get `$$_A<depth>C`, which is correct —
@@ -2536,7 +2556,15 @@ fn handle_component(
     // Collect on: directives and let: directives
     let on_directives = get_on_directives(&comp.attributes);
     let has_events = !on_directives.is_empty();
-    let let_directives = get_let_directives(&comp.attributes);
+    // When this component is itself a named-slot child, its `let:` directives are
+    // consumed by the parent's `$$slot_def["x"]` destructure, so don't re-emit
+    // them here as the component's own default-slot let block.
+    let suppress_lets = std::mem::take(&mut counter.suppress_component_lets);
+    let let_directives = if suppress_lets {
+        Vec::new()
+    } else {
+        get_let_directives(&comp.attributes)
+    };
     let has_lets = !let_directives.is_empty();
 
     // Check if component has meaningful children
@@ -2834,7 +2862,13 @@ fn handle_component(
             // bindings have a scope.
             str.append_left(closing_tag_start, &inline_block);
         }
-        str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
+        if named_slot_close {
+            // Close just this component's block; the named-slot caller emits
+            // the component-name reference + the named-slot-block close after.
+            str.overwrite(closing_tag_start, comp.end, " }");
+        } else {
+            str.overwrite(closing_tag_start, comp.end, &format!(" {}}}", comp.name));
+        }
     } else if needs_inline_block {
         str.append_left(comp.end, &format!("{}{}}}", inline_block, comp.name));
     } else {
@@ -3358,11 +3392,23 @@ fn handle_named_slot_component(
     // Insert the block opener before the component
     str.append_left(comp.start, &block_open);
 
-    // Process the component normally (but without the slot/let: attributes affecting it)
+    // Process the component normally. Suppress its component-name reference at
+    // the close so we can emit it *outside* the component's own block (matching
+    // official `endTransformation` order: component-block `}`, then `Name`, then
+    // the named-slot-block `}`).
+    counter.named_slot_component_close = true;
+    counter.suppress_component_lets = true;
     handle_component(comp, source, options, str, counter, depth);
 
-    // Close the named slot block
-    str.append_left(comp.end, "}");
+    // Emit the component-name reference (non-self-closing only — official maps
+    // `</Name>` to `Name`; self-closing components have no name reference) and
+    // close the named-slot block.
+    let closing_tag_start = find_closing_tag_start(source, comp.end);
+    if closing_tag_start < comp.end {
+        str.append_left(comp.end, &format!(" {}}}", comp.name));
+    } else {
+        str.append_left(comp.end, "}");
+    }
 }
 
 /// Build attribute string for a named slot element, excluding `slot` and `let:` directives.
