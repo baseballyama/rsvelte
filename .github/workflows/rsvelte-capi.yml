@@ -39,25 +39,54 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The default `release` profile uses `lto = "fat"` + `codegen-units = 1` — a
+  # whole-program optimization pass that runs on every build and cannot be
+  # cached, so even with the oxc dependency graph restored from cache each capi
+  # build re-LTOs the entire program (the bulk of the 9–22 min per-OS times).
+  # capi's job is ABI correctness (header drift, envelope/option/module tests,
+  # real `cc`/FFI linkage), none of which depends on optimization level, so turn
+  # LTO off and split codegen for CI. This mirrors the `compatibility-report`
+  # job's `CARGO_PROFILE_RELEASE_LTO=off`. The published release artifacts (the
+  # `Release` workflow) keep full fat-LTO.
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
 
 jobs:
+  # Windows is dropped from the PR matrix: even with LTO off, a warm Windows
+  # release build of the oxc graph + capi runs ~5.4 min (Windows link/codegen is
+  # the slowest target), over the PR feedback budget. ubuntu + macos cover the
+  # ABI on every PR (cargo tests + real C linkage), and the full three-OS matrix
+  # still runs on push to `main` and on demand, so a Windows-specific ABI
+  # regression is caught before the next release. Mirrors CI dropping macOS from
+  # its PR test matrix.
+  set-matrix:
+    name: Set capi matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      include: ${{ steps.m.outputs.include }}
+    steps:
+      - id: m
+        shell: bash
+        run: |
+          ubuntu='{"os":"ubuntu-latest","lib":"librsvelte_capi.so","exe_ext":""}'
+          macos='{"os":"macos-latest","lib":"librsvelte_capi.dylib","exe_ext":""}'
+          windows='{"os":"windows-latest","lib":"rsvelte_capi.dll","exe_ext":".exe"}'
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "include=[$ubuntu,$macos]" >> "$GITHUB_OUTPUT"
+          else
+            echo "include=[$ubuntu,$macos,$windows]" >> "$GITHUB_OUTPUT"
+          fi
+
   capi:
     name: capi (${{ matrix.os }})
+    needs: set-matrix
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            lib: librsvelte_capi.so
-            exe_ext: ""
-          - os: macos-latest
-            lib: librsvelte_capi.dylib
-            exe_ext: ""
-          - os: windows-latest
-            lib: rsvelte_capi.dll
-            exe_ext: ".exe"
+        include: ${{ fromJSON(needs.set-matrix.outputs.include) }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -142,18 +171,25 @@ jobs:
           if errorlevel 1 exit /b 1
           target\release\c_smoke.exe
 
+      # The polyglot FFI smokes below (Go / Python / Ruby / PHP / Java) each
+      # pull in a language toolchain — collectively ~2-3 min of setup. The C
+      # ABI itself is already gated on every PR across all three OS by the
+      # `cargo test` step above (envelope / options / header / module / memory)
+      # plus the C smoke (real `cc` linkage). So to keep PR feedback fast, the
+      # cross-language smokes run only on push to `main` and on manual dispatch;
+      # they confirm the ABI stays callable from each FFI host before a release.
       # ---------------- Go ----------------
       # cgo on Windows needs MinGW/gcc on PATH, which the default
       # runner doesn't have — skip Windows here; the Rust cargo tests
       # cover the Windows ABI surface.
       - name: Set up Go
-        if: runner.os != 'Windows'
+        if: github.event_name != 'pull_request' && runner.os != 'Windows'
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: '1.26'
 
       - name: Go smoke
-        if: runner.os != 'Windows'
+        if: github.event_name != 'pull_request' && runner.os != 'Windows'
         shell: bash
         run: |
           cd crates/rsvelte_capi/examples/go
@@ -161,21 +197,25 @@ jobs:
 
       # ---------------- Python ----------------
       - name: Set up Python
+        if: github.event_name != 'pull_request'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.14'
 
       - name: Python smoke
+        if: github.event_name != 'pull_request'
         shell: bash
         run: python3 crates/rsvelte_capi/examples/python/smoke.py
 
       # ---------------- Ruby ----------------
       - name: Set up Ruby
+        if: github.event_name != 'pull_request'
         uses: ruby/setup-ruby@89f90524b88a01fe6e0b732220432cc6142926af # v1.313.0
         with:
           ruby-version: '4.0.5'
 
       - name: Ruby smoke
+        if: github.event_name != 'pull_request'
         shell: bash
         run: ruby crates/rsvelte_capi/examples/ruby/smoke.rb
 
@@ -184,12 +224,12 @@ jobs:
       # but currently not run in CI: mlugg/setup-zig@v1's mirror set
       # repeatedly returns 404/503 for both 0.16.0 and 0.15.1, and
       # ziglang.org/builds itself answered 404 in the same run. The
-      # cargo tests + 6 other language smokes already cover the C ABI
-      # surface on every PR; Zig will rejoin once setup-zig stabilises.
+      # cargo tests + the other language smokes already cover the C ABI
+      # surface; Zig will rejoin once setup-zig stabilises.
 
       # ---------------- PHP ----------------
       - name: Set up PHP
-        if: runner.os != 'Windows'
+        if: github.event_name != 'pull_request' && runner.os != 'Windows'
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.3'
@@ -197,18 +237,20 @@ jobs:
           ini-values: ffi.enable=true
 
       - name: PHP smoke
-        if: runner.os != 'Windows'
+        if: github.event_name != 'pull_request' && runner.os != 'Windows'
         shell: bash
         run: php -d ffi.enable=true crates/rsvelte_capi/examples/php/smoke.php
 
       # ---------------- Java FFM (JDK 22+) ----------------
       - name: Set up JDK 22
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: temurin
           java-version: '22'
 
       - name: Java FFM smoke
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           java --enable-native-access=ALL-UNNAMED \

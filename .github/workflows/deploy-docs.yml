@@ -21,7 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          submodules: recursive
+          submodules: false
+
+      # Only the `svelte` submodule is needed now that fixtures / the
+      # compatibility report no longer run here: rsvelte_core's build.rs reads
+      # submodules/svelte/packages/svelte/package.json to embed the version
+      # string into the NAPI cdylib. The other submodules (language-tools,
+      # typescript-go — ~534 MB combined, plus the SSH-only vite-plugin-svelte
+      # remote) are never touched by the WASM / NAPI / playground build, so a
+      # shallow svelte-only init keeps checkout fast (mirrors rsvelte-capi.yml).
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -37,59 +47,16 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
-      - name: Resolve Svelte submodule SHA
-        id: svelte-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache fixtures
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          # Mirrors the cache used by CI (`.github/workflows/ci.yml`) so that
-          # the deploy job reuses generated fixtures when the Svelte submodule
-          # SHA is unchanged. Keep the key version (`v2`) in sync with CI.
-          path: fixtures
-          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
-
-      - name: Cache Svelte compiler build
-        # See the matching step in `.github/workflows/ci.yml`.
-        id: svelte-build-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            submodules/svelte/node_modules
-            submodules/svelte/packages/svelte/node_modules
-            submodules/svelte/packages/svelte/compiler/index.js
-            submodules/svelte/packages/svelte/types
-            submodules/svelte/packages/svelte/*.d.ts
-            submodules/svelte/packages/svelte/scripts/_bundle.js
-          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
-
-      - name: Build Svelte compiler
-        # `generate-fixtures` and `compatibility-report` both import directly
-        # from the Svelte submodule; its workspace deps (acorn, magic-string,
-        # …) must be installed first.
-        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
-        run: |
-          cd submodules/svelte
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Generate fixtures
-        run: pnpm run generate-fixtures
-        timeout-minutes: 15
-
-      - name: Generate compatibility report
-        # Writes `fixtures/{svelte-short-commit}/compatibility-report.json`,
-        # which `scripts/dev/update-docs.mjs` then converts into
-        # `apps/playground/static/test-results.json` for the progress dashboard.
-        run: pnpm run compatibility-report
-        timeout-minutes: 30
-        env:
-          RUST_MIN_STACK: '33554432'
-
-      - name: Update docs test-results.json
-        run: node scripts/dev/update-docs.mjs
+      # NOTE: the docs dashboard's `apps/playground/static/test-results.json`
+      # is the *committed* file — it is NOT regenerated here. Regenerating it
+      # meant running the full `compatibility-report` harness (~4 min, plus
+      # fixture generation + a Svelte-compiler build) on every Pages publish,
+      # purely to refresh a JSON that the dedicated `Compatibility Report` CI
+      # job already produces on the same push to `main`. Deploying docs only
+      # needs to *build* the site, so the report is decoupled: refresh the
+      # dashboard data locally with `pnpm run test-and-update` and commit
+      # `apps/playground/static/test-results.json` (same flow as the
+      # benchmark JSON below).
 
       # NOTE: apps/playground/static/benchmark-results.json is *not* regenerated on
       # every deploy — running the JS-vs-Rust benchmark added ~30 minutes
