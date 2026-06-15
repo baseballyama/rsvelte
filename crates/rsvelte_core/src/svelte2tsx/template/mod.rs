@@ -3864,6 +3864,20 @@ fn handle_svelte_self(
         }
     }
 
+    // `<svelte:self>` is an InlineComponent in official svelte2tsx, so the
+    // implicit-children rule applies: in Svelte 5, default-slot content
+    // (non-named-slot children) adds a synthetic `children` prop. Mirrors
+    // `handleImplicitChildren` (gated on `options.svelte5Plus`). Inserted at the
+    // front of the props, before any real attributes.
+    if matches!(options.version, SvelteVersion::V5)
+        && has_component_slot_children(&el.fragment, source)
+    {
+        prop_parts.insert(
+            0,
+            "children:() => { return __sveltets_2_any(0); },".to_string(),
+        );
+    }
+
     let props_inner = if prop_parts.is_empty() {
         " ".to_string()
     } else {

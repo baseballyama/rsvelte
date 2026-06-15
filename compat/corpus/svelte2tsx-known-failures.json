@@ -37,8 +37,6 @@
 	"svelte/packages/svelte/tests/migrate/samples/slot-usages/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/output.svelte",
-	"svelte/packages/svelte/tests/migrate/samples/svelte-self-name-conflict/input.svelte",
-	"svelte/packages/svelte/tests/migrate/samples/svelte-self/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte",
