@@ -449,12 +449,21 @@ fn reversed_component_instance_name(name: &str, depth: u32) -> String {
 /// Uses per-name counters so each unique component/element name gets its own counter.
 struct Counter {
     counters: std::collections::HashMap<String, u32>,
+    /// When set (to a component instance var), a `slot="name"` element/component
+    /// encountered while processing that component's children — at any depth
+    /// inside `{#each}`/`{#if}`/etc. control-flow blocks — is lowered to the
+    /// named-slot `$$slot_def[...]` form referencing this instance var. Cleared
+    /// when descending into a nested element/component (which owns its own slot
+    /// scope). Threaded via `&mut Counter` so the 30+ existing
+    /// `process_*_inplace` call sites need no signature change.
+    slot_inst: Option<String>,
 }
 
 impl Counter {
     fn new() -> Self {
         Self {
             counters: std::collections::HashMap::new(),
+            slot_inst: None,
         }
     }
     #[allow(dead_code)]
@@ -2278,6 +2287,21 @@ fn handle_regular_element(
         return;
     }
 
+    // Named-slot routing: when processing a component's children (possibly deep
+    // inside `{#each}`/`{#if}`/etc. control-flow blocks), an element targeting a
+    // named slot is lowered to the `$$slot_def[...]` form referencing the
+    // enclosing component instance. Take the context first so this element's OWN
+    // children do NOT inherit it (a nested element owns its own slot scope);
+    // restore it afterwards for the following siblings.
+    let saved_slot = counter.slot_inst.take();
+    if let Some(ref inst) = saved_slot
+        && get_slot_attr_value(&el.attributes, source).is_some()
+    {
+        handle_named_slot_element(el, inst, source, options, str, counter, depth);
+        counter.slot_inst = saved_slot;
+        return;
+    }
+
     // Find the end of the opening tag (after the `>`)
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
@@ -2466,6 +2490,9 @@ fn handle_regular_element(
             str.append_left(el.end, &format!("}}{}", extra_close));
         }
     }
+    // Restore the slot context for following siblings (this element's own
+    // children were processed with it cleared, via the `take()` above).
+    counter.slot_inst = saved_slot;
 }
 
 /// Handle a Svelte component: `<Component ...>`.
@@ -2487,6 +2514,13 @@ fn handle_component(
     if comp.start >= comp.end {
         return;
     }
+
+    // This component's children get their own slot scope (official sets `parent`
+    // to the nearest enclosing component): clear any inherited slot context so a
+    // `slot="…"` inside this component's body routes to THIS component (set up
+    // again by `process_component_children_with_slots` below), not an outer one.
+    // Restored at the end for following siblings.
+    let saved_outer_slot = counter.slot_inst.take();
 
     // Use depth (ancestor element/component count) as the variable index, matching
     // the official `computeDepth()` in `htmlxtojsx_v2/nodes/InlineComponent.ts`.
@@ -2791,6 +2825,34 @@ fn handle_component(
     } else {
         str.append_left(comp.end, "}");
     }
+    // Restore the slot context for following siblings.
+    counter.slot_inst = saved_outer_slot;
+}
+
+/// True if `attributes` contains a `slot` attribute whose value is anything
+/// other than the static string `"default"` — i.e. a *non-default* slot target.
+///
+/// Mirrors official `handleImplicitChildren`'s skip condition:
+/// `a.name === 'slot' && a.value[0]?.data !== 'default'`. A dynamic
+/// `slot={foo}` (no static `.data`) counts as non-default, as does any static
+/// `slot="name"` except `slot="default"`.
+fn has_non_default_slot_attr(attributes: &[Attribute], _source: &str) -> bool {
+    for attr in attributes {
+        if let Attribute::Attribute(node) = attr
+            && node.name == "slot"
+        {
+            // Read the static text data of the first value part, if any.
+            let value0_data: Option<String> = match &node.value {
+                AttributeValue::Sequence(parts) => match parts.first() {
+                    Some(AttributeValuePart::Text(text)) => Some(text.raw.to_string()),
+                    _ => None,
+                },
+                _ => None,
+            };
+            return value0_data.as_deref() != Some("default");
+        }
+    }
+    false
 }
 
 /// Check if a component's fragment has meaningful children for slot purposes.
@@ -2817,22 +2879,21 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
             // `handleImplicitChildren`, which skips `SnippetBlock` / `Comment`
             // and only fakes a `children` prop for a real default-slot child.
             TemplateNode::SnippetBlock(_) | TemplateNode::Comment(_) => {}
-            // Named-slot children (`<el slot="name">`, `<svelte:fragment
-            // slot="name">`, etc.) populate their named slot, NOT the default
-            // `children` prop, so they must not trigger the synthetic
-            // `children`. Only default-slot content (no `slot=` attribute)
-            // counts. Mirrors upstream `handleImplicitChildren`.
+            // Non-default-slot children (`<el slot="name">`, `slot={dynamic}`,
+            // `<svelte:fragment slot="name">`, etc.) populate their slot, NOT
+            // the default `children` prop, so they must not trigger the
+            // synthetic `children`. Only default-slot content (no `slot=`, or
+            // `slot="default"`) counts. Mirrors upstream `handleImplicitChildren`
+            // which skips any child whose `slot` value isn't `"default"`.
             TemplateNode::RegularElement(el)
-                if get_slot_attr_value(&el.attributes, source).is_some() => {}
-            TemplateNode::Component(c) if get_slot_attr_value(&c.attributes, source).is_some() => {}
-            TemplateNode::SvelteFragment(f)
-                if get_slot_attr_value(&f.attributes, source).is_some() => {}
-            TemplateNode::SvelteElement(e)
-                if get_slot_attr_value(&e.attributes, source).is_some() => {}
-            TemplateNode::SvelteSelf(s) if get_slot_attr_value(&s.attributes, source).is_some() => {
+                if has_non_default_slot_attr(&el.attributes, source) => {}
+            TemplateNode::Component(c) if has_non_default_slot_attr(&c.attributes, source) => {}
+            TemplateNode::SvelteFragment(f) if has_non_default_slot_attr(&f.attributes, source) => {
             }
+            TemplateNode::SvelteElement(e) if has_non_default_slot_attr(&e.attributes, source) => {}
+            TemplateNode::SvelteSelf(s) if has_non_default_slot_attr(&s.attributes, source) => {}
             TemplateNode::SvelteComponent(sc)
-                if get_slot_attr_value(&sc.attributes, source).is_some() => {}
+                if has_non_default_slot_attr(&sc.attributes, source) => {}
             _ => return true,
         }
     }
@@ -2859,6 +2920,50 @@ fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
             TemplateNode::SvelteFragment(el)
                 if get_slot_attr_value(&el.attributes, source).is_some() =>
             {
+                return true;
+            }
+            // Control-flow blocks are transparent to slot distribution: a
+            // `<div slot="foo">` nested inside `{#if}` / `{#each}` / `{#await}`
+            // / `{#key}` still targets the component's named slot (official
+            // svelte2tsx keeps `parent` pointing at the enclosing component
+            // across blocks). Recurse into their fragments — but NOT into
+            // nested elements/components (which own their own slot scope) or
+            // `{#snippet}` bodies (snippet props, not slots).
+            TemplateNode::IfBlock(block)
+                if has_named_slot_children(&block.consequent, source)
+                    || block
+                        .alternate
+                        .as_ref()
+                        .is_some_and(|alt| has_named_slot_children(alt, source)) =>
+            {
+                return true;
+            }
+            TemplateNode::EachBlock(block)
+                if has_named_slot_children(&block.body, source)
+                    || block
+                        .fallback
+                        .as_ref()
+                        .is_some_and(|fb| has_named_slot_children(fb, source)) =>
+            {
+                return true;
+            }
+            TemplateNode::AwaitBlock(block)
+                if block
+                    .pending
+                    .as_ref()
+                    .is_some_and(|p| has_named_slot_children(p, source))
+                    || block
+                        .then
+                        .as_ref()
+                        .is_some_and(|t| has_named_slot_children(t, source))
+                    || block
+                        .catch
+                        .as_ref()
+                        .is_some_and(|c| has_named_slot_children(c, source)) =>
+            {
+                return true;
+            }
+            TemplateNode::KeyBlock(block) if has_named_slot_children(&block.fragment, source) => {
                 return true;
             }
             _ => {}
@@ -3017,7 +3122,14 @@ fn process_component_children_with_slots(
             } else {
                 false
             };
+            // Mark the component slot context so a `slot="…"` element nested
+            // inside this default-slot child's control-flow blocks (`{#if}` /
+            // `{#each}` / …) is lowered to the named-slot form referencing this
+            // component instance. A nested element/component clears it (each
+            // owns its own slot scope) via `handle_regular_element`'s `take()`.
+            let prev_slot = counter.slot_inst.replace(inst_var.to_string());
             process_node_inplace(node, source, options, str, counter, depth);
+            counter.slot_inst = prev_slot;
             if fragment_block_open {
                 str.append_left(node.end(), "}");
             }
@@ -5609,9 +5721,16 @@ fn has_meaningful_children(fragment: &Fragment) -> bool {
     false
 }
 
-/// Get the `slot` attribute value from a regular element's attributes.
-/// Returns None if no `slot` attribute is present.
-fn get_slot_attr_value(attributes: &[Attribute], source: &str) -> Option<String> {
+/// Get the static `slot="name"` attribute value from an element's attributes.
+/// Returns None if no `slot` attribute is present, or if its value is a dynamic
+/// expression (`slot={foo}`).
+///
+/// Official svelte2tsx only treats a `slot` attribute as a named-slot marker
+/// when its value is static `Text` (`attributeValueIsOfType(attr.value, 'Text')`
+/// in `htmlxtojsx_v2/nodes/Attribute.ts`). A dynamic `slot={foo}` is emitted as
+/// an ordinary attribute (`{ slot: foo }`) and does NOT trigger the
+/// `$$slot_def[...]` lowering or the component-instance const.
+fn get_slot_attr_value(attributes: &[Attribute], _source: &str) -> Option<String> {
     for attr in attributes {
         if let Attribute::Attribute(node) = attr
             && node.name == "slot"
@@ -5628,9 +5747,8 @@ fn get_slot_attr_value(attributes: &[Attribute], source: &str) -> Option<String>
                         return Some(name);
                     }
                 }
-                AttributeValue::Expression(expr) => {
-                    return Some(get_expression_text(&expr.expression, source).to_string());
-                }
+                // Dynamic `slot={foo}` is a regular attribute, not a named slot.
+                AttributeValue::Expression(_) => {}
                 _ => {}
             }
         }
