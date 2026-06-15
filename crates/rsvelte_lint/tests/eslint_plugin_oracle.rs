@@ -67,6 +67,13 @@ const NO_FIXTURE_RULES: &[&str] = &[
     "svelte/comment-directive",
 ];
 
+/// Meta-rules whose findings come from the whole-component compile / source-scan
+/// path (`lint_source` output diagnostics) rather than the raw native/script
+/// rule path, and which never carry editor suggestions.
+fn is_meta_rule(code: &str) -> bool {
+    matches!(code, "svelte/valid-compile" | "svelte/valid-style-parse")
+}
+
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
     // `require-store-reactive-access` TS fixtures: store detection by TYPE (a
@@ -143,6 +150,14 @@ const SKIP: &[&str] = &[
     "valid-compile/invalid/custom_element_props_identifier",
     "valid-compile/valid/valid-custom-element-with-props-identifier",
     "valid-compile/valid/svelte-options-custom-element",
+    // `valid-style-parse` CSS parse-error fixtures: the upstream message embeds
+    // PostCSS's own error text/position (`…:4:11: Unknown word .div-class/35`),
+    // which rsvelte's hand-written CSS parser can't reproduce byte-for-byte
+    // (and a `lang="scss"` body needs a real SCSS preprocessor). The
+    // `unknown-lang` and valid fixtures are covered. rsvelte still surfaces an
+    // invalid `<style>` as a hard `parse-error` via the validator wrap.
+    "valid-style-parse/invalid/invalid-css01",
+    "valid-style-parse/invalid/invalid-scss01",
 ];
 
 /// One expected error from a `*-errors.yaml` file.
@@ -467,10 +482,11 @@ fn oracle_strict_parity() {
             let li = LineIndex::new(&src);
             let opts = load_options(&input);
             let mut exp: Vec<FullRecord> = expected.iter().map(expected_record).collect();
-            // `valid-compile` is a meta-rule emitted via the compiler-warning path
-            // (output diagnostics), not the raw native/script rule path, and it
-            // never carries editor suggestions — source it from `findings_for`.
-            let mut act: Vec<FullRecord> = if code == "svelte/valid-compile" {
+            // Meta-rules (`valid-compile`, `valid-style-parse`) are emitted via the
+            // compiler/source-scan path (output diagnostics), not the raw
+            // native/script rule path, and never carry editor suggestions — source
+            // them from `findings_for`.
+            let mut act: Vec<FullRecord> = if is_meta_rule(code) {
                 findings_for(&src, &input, code, &opts)
                     .iter()
                     .map(output_record)

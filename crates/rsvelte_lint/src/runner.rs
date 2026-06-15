@@ -64,6 +64,15 @@ pub fn lint_source(
             diags.extend(crate::rules::valid_compile::valid_compile_diagnostics(
                 source, file, options, config,
             ));
+
+            // 2d. valid-style-parse: report `<style>` blocks with an unsupported
+            // `lang`. A source scan, so it runs even when the (invalid) style
+            // body would otherwise abort the main parse.
+            diags.extend(
+                crate::rules::valid_style_parse::valid_style_parse_diagnostics(
+                    source, file, config,
+                ),
+            );
             diags
         }
     };

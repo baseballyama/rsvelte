@@ -73,16 +73,23 @@ blocked on something outside the rule port:
 - `babel/*` — Babel-only JS syntax (function-bind `::`) the rsvelte JS parser
   rejects; upstream uses a Babel parser via fixture config.
 
+`valid-style-parse` is ported for its **unknown-lang** half
+(`crate::rules::valid_style_parse`, a `<style>` source-scan meta-path in
+`runner::lint_source`): a `<style lang="…">` whose language isn't a recognised
+CSS/preprocessor lang is reported `Found unsupported style element language "…"`
+at the opening tag. It runs as a source scan (not a `check_root` rule) so it
+still fires when the unsupported-lang body would abort the main parse. The
+unknown-lang and valid fixtures are parity-verified by the oracle plus
+`crates/rsvelte_lint/tests/valid_style_parse.rs`. The two CSS parse-error
+fixtures (`invalid-css01`, `invalid-scss01`) are skipped: their messages embed
+PostCSS's own error text/position which rsvelte's hand-written CSS parser can't
+reproduce (and `lang="scss"` needs a real SCSS preprocessor) — but rsvelte still
+surfaces an invalid `<style>` as a hard `parse-error` via the validator wrap.
+
 ### Blocked on an `rsvelte_core` capability
 - `no-unused-svelte-ignore` — needs a compile mode that surfaces warnings
   *without* applying `<!-- svelte-ignore -->` suppression, plus which ignore
   codes were consumed (today `emit_warning` silently drops suppressed ones).
-- `valid-style-parse` — needs a non-fatal CSS parse path (invalid `<style>`
-  should yield a `Root` carrying a recorded error instead of a hard parse
-  failure), an `unknown-lang` marker on the stylesheet, and a CWD-relative path
-  in `LintContext`. Even then, two of the four invalid fixtures expect PostCSS's
-  exact error text/position (`…:4:11: Unknown word .div-class/35`), which
-  rsvelte's own hand-written CSS parser cannot reproduce byte-for-byte.
 
 ### Large / complex
 - `indent` — one of the largest ESLint layout rules; a faithful byte-exact port
