@@ -8,19 +8,24 @@
 //! flags one whose body is `ExpressionStatement > AssignmentExpression` with a
 //! right-hand side that is a literal, an empty array, or an empty object.
 //!
-//! The upstream fix is offered only as a *suggestion* (not an autofix), so this
-//! rule reports without an attached fix.
+//! The upstream fix is offered only as a *suggestion* (not an autofix): it
+//! moves the literal out of the reactive statement into a plain assignment —
+//! `insertTextBefore(parent, "let " + text(assignment))` + `remove(parent)`,
+//! which collapses to replacing the whole `$: …;` labeled statement with
+//! `let <assignment-text>` (note: no trailing `;`, mirroring upstream byte for
+//! byte).
 
 use serde_json::Value;
 
 use crate::context::LintContext;
+use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-reactive-literals",
     category: RuleCategory::Correctness,
-    fixable: Fixable::No,
+    fixable: Fixable::Suggestion,
     default_severity: Severity::Warn,
     conditions: RuleConditions {
         runes_only: false,
@@ -33,6 +38,7 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str =
     "Do not assign literal values inside reactive statements unless absolutely necessary.";
+const SUGGEST_DESC: &str = "Move the literal out of the reactive statement into an assignment";
 
 /// Whether the assignment right-hand side is a literal / empty array / empty
 /// object — the three shapes upstream matches.
@@ -60,7 +66,10 @@ impl ScriptRule for NoReactiveLiterals {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
-        let mut reports: Vec<(u32, u32)> = Vec::new();
+        // (labeled-statement start, labeled-statement end, assignment start,
+        // assignment end). The suggestion replaces [labeled.start, labeled.end)
+        // with `let <assignment-text>`.
+        let mut reports: Vec<(u32, u32, u32, u32)> = Vec::new();
         walk_js(program, |node, _| {
             if node_type(node) != Some("LabeledStatement") {
                 return;
@@ -94,14 +103,34 @@ impl ScriptRule for NoReactiveLiterals {
                 return;
             }
             // Report at the whole reactive statement (the `$:`).
-            if let (Some(s), Some(e)) = (node_start(node), node.get("end").and_then(Value::as_u64))
-            {
-                reports.push((s, e as u32));
+            if let (Some(s), Some(e), Some(es), Some(ee)) = (
+                node_start(node),
+                node_end(node),
+                node_start(expr),
+                node_end(expr),
+            ) {
+                reports.push((s, e, es, ee));
             }
         });
 
-        for (start, end) in reports {
-            ctx.report(start, end, MESSAGE);
+        for (start, end, expr_start, expr_end) in reports {
+            let assignment = ctx.slice(expr_start, expr_end).to_string();
+            ctx.report_with_suggestions(
+                start,
+                end,
+                MESSAGE,
+                vec![Suggestion {
+                    desc: SUGGEST_DESC.to_string(),
+                    fix: Fix {
+                        message: SUGGEST_DESC.to_string(),
+                        edits: vec![TextEdit {
+                            start,
+                            end,
+                            new_text: format!("let {assignment}"),
+                        }],
+                    },
+                }],
+            );
         }
     }
 }

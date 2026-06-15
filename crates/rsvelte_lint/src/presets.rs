@@ -6,7 +6,7 @@ use std::fmt::Write as _;
 
 use serde_json::{Map, Value, json};
 
-use crate::registry::all_rules;
+use crate::registry::registered_rule_metas;
 use crate::rule::{Fixable, RuleCategory, Severity};
 
 /// A flat-config snippet that turns every native-owned `svelte/*` rule **off**
@@ -14,8 +14,8 @@ use crate::rule::{Fixable, RuleCategory, Severity};
 /// double-report. Emitted by `--print-eslint-config`.
 pub fn eslint_disable_config() -> String {
     let mut rules = Map::new();
-    for r in all_rules() {
-        rules.insert(r.meta().name.to_string(), json!("off"));
+    for m in registered_rule_metas() {
+        rules.insert(m.name.to_string(), json!("off"));
     }
     let doc = json!([{
         "name": "rsvelte-lint/disable-overlapping",
@@ -27,8 +27,9 @@ pub fn eslint_disable_config() -> String {
 /// A human-readable listing of the native rules and their metadata.
 pub fn list_rules() -> String {
     let mut out = String::new();
-    for r in all_rules() {
-        let m = r.meta();
+    let mut metas = registered_rule_metas();
+    metas.sort_by_key(|m| m.name);
+    for m in metas {
         let _ = writeln!(
             out,
             "{}  [{}{}{}]\n    {}",
@@ -86,8 +87,27 @@ mod tests {
     #[test]
     fn list_includes_every_rule() {
         let listing = list_rules();
-        for r in all_rules() {
-            assert!(listing.contains(r.meta().name), "missing {}", r.meta().name);
+        let cfg = eslint_disable_config();
+        let v: Value = serde_json::from_str(&cfg).unwrap();
+        let rules = &v[0]["rules"];
+        // Every registered rule — template-AST *and* script-AST — must appear
+        // in both the human listing and the ESLint-disable config.
+        for m in registered_rule_metas() {
+            assert!(listing.contains(m.name), "list-rules missing {}", m.name);
+            assert_eq!(rules[m.name], "off", "disable-config missing {}", m.name);
+        }
+    }
+
+    #[test]
+    fn rule_names_are_unique() {
+        let metas = registered_rule_metas();
+        let mut seen = std::collections::HashSet::new();
+        for m in &metas {
+            assert!(
+                seen.insert(m.name),
+                "duplicate rule id registered: {}",
+                m.name
+            );
         }
     }
 }

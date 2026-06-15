@@ -272,16 +272,16 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
                 let consistent = op == Some("!") || op == Some("typeof");
                 checker.verify(node.get("argument"), consistent, true);
             }
-            Some("AssignmentExpression") => {
-                if node.get("operator").and_then(Value::as_str) != Some("=") {
-                    if let Some(left) = node.get("left") {
-                        let lt = node_type(left);
-                        if lt != Some("ObjectPattern") && lt != Some("ArrayPattern") {
-                            checker.verify(Some(left), false, true);
-                        }
+            Some("AssignmentExpression")
+                if node.get("operator").and_then(Value::as_str) != Some("=") =>
+            {
+                if let Some(left) = node.get("left") {
+                    let lt = node_type(left);
+                    if lt != Some("ObjectPattern") && lt != Some("ArrayPattern") {
+                        checker.verify(Some(left), false, true);
                     }
-                    checker.verify(node.get("right"), false, true);
                 }
+                checker.verify(node.get("right"), false, true);
             }
             Some("BinaryExpression") => {
                 let consistent = is_eq_op(node.get("operator").and_then(Value::as_str));
@@ -306,10 +306,10 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
             Some("SwitchStatement") => {
                 checker.verify(node.get("discriminant"), false, true);
             }
-            Some("CallExpression") | Some("NewExpression") => {
-                if node.get("callee").map(node_type) != Some(Some("Super")) {
-                    checker.verify(node.get("callee"), false, true);
-                }
+            Some("CallExpression") | Some("NewExpression")
+                if node.get("callee").map(node_type) != Some(Some("Super")) =>
+            {
+                checker.verify(node.get("callee"), false, true);
             }
             Some("TemplateLiteral") => {
                 if let Some(exprs) = node.get("expressions").and_then(Value::as_array) {
@@ -358,10 +358,8 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
                 checker.verify_directive_name(node, false, true);
             }
             // `style:color` shorthand — the name is the store (not fixable).
-            Some("StyleDirective") => {
-                if node.get("value").and_then(Value::as_bool) == Some(true) {
-                    checker.verify_directive_name(node, false, false);
-                }
+            Some("StyleDirective") if node.get("value").and_then(Value::as_bool) == Some(true) => {
+                checker.verify_directive_name(node, false, false);
             }
             // `<svelte:component this={store}>` / `<svelte:element this={store}>`.
             Some("SvelteComponent") => {

@@ -7,12 +7,13 @@ use rsvelte_core::CompileOptions;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
-use crate::diagnostic::TextEdit;
+use crate::diagnostic::{LintDiagnostic, TextEdit};
 use crate::engine::{run_native_rules, run_script_rules};
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
 
-/// Lint a single source string. `file` is used only for diagnostic paths.
+/// Lint a single source string. `file` is used for diagnostic paths and
+/// filename-gated rules (e.g. SvelteKit route file detection).
 pub fn lint_source(
     source: &str,
     file: &Path,
@@ -20,6 +21,11 @@ pub fn lint_source(
     config: &LintConfig,
 ) -> Vec<Diagnostic> {
     let line_index = LineIndex::new(source);
+    let filename = file
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default()
+        .into_owned();
 
     let mut diagnostics = match crate::engine::classify_source(&file.to_string_lossy()) {
         // A standalone JS/TS module file (`*.svelte.js` / `*.svelte.ts` / `*.js`
@@ -27,7 +33,7 @@ pub fn lint_source(
         // run, over the whole-file module program.
         crate::engine::SourceKind::Module { ts } => {
             let mut diags = Vec::new();
-            for d in crate::engine::run_script_rules_module(source, ts, config) {
+            for d in crate::engine::run_script_rules_module(source, &filename, ts, config) {
                 diags.push(d.to_output(file, &line_index));
             }
             diags
@@ -37,12 +43,12 @@ pub fn lint_source(
             let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
 
             // 2. Native rule engine — single shared DFS over the template AST.
-            for d in run_native_rules(source, config) {
+            for d in run_native_rules(source, &filename, config) {
                 diags.push(d.to_output(file, &line_index));
             }
 
             // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
-            for d in run_script_rules(source, config) {
+            for d in run_script_rules(source, &filename, config) {
                 diags.push(d.to_output(file, &line_index));
             }
 
@@ -71,6 +77,38 @@ pub fn lint_source(
     diagnostics
 }
 
+/// Like [`lint_source`] but returns the raw native + script + scope rule
+/// [`LintDiagnostic`]s (byte spans, carrying their `fix` and `suggestions`)
+/// before conversion to the output diagnostic. The validator/compiler wrap is
+/// omitted — only the ported plugin rules emit `svelte/*` codes — and
+/// suppression directives are applied. Used by the compat oracle to assert
+/// suggestion + fix parity, which the line/column output type cannot express.
+pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<LintDiagnostic> {
+    let line_index = LineIndex::new(source);
+    let filename = file
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default()
+        .into_owned();
+
+    let mut diags = match crate::engine::classify_source(&file.to_string_lossy()) {
+        crate::engine::SourceKind::Module { ts } => {
+            crate::engine::run_script_rules_module(source, &filename, ts, config)
+        }
+        crate::engine::SourceKind::Svelte => {
+            let mut d = run_native_rules(source, &filename, config);
+            d.extend(run_script_rules(source, &filename, config));
+            d.extend(crate::scope::scope_diagnostics(source, config));
+            d
+        }
+    };
+
+    let suppressions = Suppressions::collect(source);
+    diags.retain(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)));
+    diags.sort_by_key(|d| (line_index.line(d.start), d.start));
+    diags
+}
+
 /// Result of an autofix pass.
 pub struct FixResult {
     /// The fixed source (== input when nothing applied).
@@ -86,29 +124,47 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
 
-    // Gather candidate edits from non-suppressed fixable findings — from both
+    // Gather candidate fixes from non-suppressed fixable findings — from both
     // the template-walk rules and the script-AST rules (e.g. the autofix of
     // `$derived.by(() => x)` → `$derived(x)`).
-    let mut edits: Vec<TextEdit> = run_native_rules(source, config)
+    // Each fix is kept as a unit (Vec<TextEdit>) to mirror ESLint's per-diagnostic
+    // atomic conflict resolution: if the merged range of a fix conflicts with the
+    // already-consumed range, the ENTIRE fix is dropped.
+    let mut fixes: Vec<Vec<TextEdit>> = run_native_rules(source, "", config)
         .into_iter()
-        .chain(run_script_rules(source, config))
+        .chain(run_script_rules(source, "", config))
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
         .filter_map(|d| d.fix)
-        .flat_map(|f| f.edits)
+        .map(|f| f.edits)
         .collect();
 
-    // Earliest-first; greedily drop edits that overlap an already-selected one.
-    edits.sort_by_key(|e| (e.start, e.end));
-    let mut selected: Vec<TextEdit> = Vec::with_capacity(edits.len());
-    let mut last_end = 0u32;
-    for e in edits {
-        if e.start >= last_end {
-            last_end = e.end;
-            selected.push(e);
+    // Sort fixes by the minimum start offset of their edits (mirrors ESLint's
+    // `compareMessagesByFixRange` which sorts by `fix.range[0]`).
+    fixes.sort_by_key(|edits| edits.iter().map(|e| e.start).min().unwrap_or(u32::MAX));
+
+    // Greedily select fixes using ESLint's conflict rule: a fix is rejected when
+    // its merged-range start <= `last_end` (i.e. `last_end >= fix_start`).
+    // Mirrors ESLint's `source-code-fixer.js`: `if (lastPos >= start) { conflict }`,
+    // where `lastPos` starts at `Number.NEGATIVE_INFINITY` (no prior end).
+    let mut selected: Vec<TextEdit> = Vec::new();
+    let mut last_end: Option<u32> = None; // None = NEGATIVE_INFINITY (no prior fix)
+    let mut applied: usize = 0; // count of fix-groups actually applied
+    for fix_edits in fixes {
+        // Skip fix-groups that have no edits at all.
+        if fix_edits.is_empty() {
+            continue;
+        }
+        let fix_start = fix_edits.iter().map(|e| e.start).min().unwrap_or(u32::MAX);
+        let fix_end = fix_edits.iter().map(|e| e.end).max().unwrap_or(0);
+        // Conflict: lastPos >= start (ESLint semantics).
+        let conflict = last_end.is_some_and(|le| le >= fix_start);
+        if !conflict {
+            last_end = Some(fix_end.max(last_end.unwrap_or(0)));
+            selected.extend(fix_edits);
+            applied += 1; // count per non-conflicting fix-group
         }
     }
 
-    let applied = selected.len();
     if applied == 0 {
         return FixResult {
             output: source.to_string(),
@@ -121,7 +177,11 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let mut output = source.to_string();
     for e in selected {
         let (s, en) = (e.start as usize, e.end as usize);
-        if s <= en && en <= output.len() {
+        if s <= en
+            && en <= output.len()
+            && output.is_char_boundary(s)
+            && output.is_char_boundary(en)
+        {
             output.replace_range(s..en, &e.new_text);
         }
     }
@@ -238,24 +298,32 @@ mod tests {
     }
 
     #[test]
-    fn fix_removes_debug_tag() {
+    fn no_at_debug_tags_is_not_autofixed() {
+        // Upstream offers `{@debug}` removal only as a *suggestion*
+        // (`hasSuggestions`), never as a `--fix` autofix, so `fix_source` must
+        // leave the tag untouched.
         let res = fix_source("<p>{@debug foo}</p>", &LintConfig::recommended());
-        assert_eq!(res.applied, 1);
-        assert_eq!(res.output, "<p></p>");
+        assert_eq!(res.applied, 0);
+        assert_eq!(res.output, "<p>{@debug foo}</p>");
     }
 
     #[test]
     fn fix_skips_suppressed_findings() {
-        let src = "<!-- eslint-disable-next-line svelte/no-at-debug-tags -->\n{@debug foo}";
-        let res = fix_source(src, &LintConfig::recommended());
+        // `no-useless-mustaches` is a genuine autofix rule; suppressing it on
+        // the mustache's line must stop the fix from applying.
+        let cfg =
+            LintConfig::recommended().with_override("svelte/no-useless-mustaches", Severity::Warn);
+        let src = "<!-- eslint-disable-next-line svelte/no-useless-mustaches -->\n<p>{'foo'}</p>";
+        let res = fix_source(src, &cfg);
         assert_eq!(res.applied, 0);
         assert_eq!(res.output, src);
     }
 
     #[test]
     fn fix_is_noop_when_rule_disabled() {
-        let cfg = LintConfig::recommended().with_override("svelte/no-at-debug-tags", Severity::Off);
-        let res = fix_source("{@debug foo}", &cfg);
+        let cfg =
+            LintConfig::recommended().with_override("svelte/no-useless-mustaches", Severity::Off);
+        let res = fix_source("<p>{'foo'}</p>", &cfg);
         assert_eq!(res.applied, 0);
     }
 
