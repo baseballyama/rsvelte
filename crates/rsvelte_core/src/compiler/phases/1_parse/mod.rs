@@ -91,6 +91,13 @@ pub struct ParseOptions {
     /// When true, script blocks store raw content and parse lazily in the analysis phase.
     /// Set to false for tests that compare parse output directly.
     pub defer_script_parse: bool,
+    /// Force TypeScript parsing for every `<script>` and template expression,
+    /// regardless of a `lang="ts"` attribute. The compiler never sets this (a
+    /// plain `<script>` is JS by Svelte semantics), but the *formatter* uses it
+    /// as a fallback: oxfmt / prettier-plugin-svelte parse Svelte `<script>` as
+    /// TS by default, so a plain `<script>` containing TS (e.g. `import type`,
+    /// `typeof X<any>`) must be parsed as TS to format identically.
+    pub force_typescript: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).

@@ -39,7 +39,25 @@ use rsvelte_core::{ParseOptions, parse};
 /// On success returns the formatted source. On failure returns the parse
 /// or formatting error, leaving the source untouched.
 pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatError> {
-    let root = parse(source, ParseOptions::default()).map_err(FormatError::from_parse)?;
+    // A plain `<script>` (no `lang="ts"`) may still contain TypeScript: oxfmt /
+    // prettier-plugin-svelte parse Svelte `<script>` as TS by default, so e.g.
+    // `import type { X }` or `let c: typeof C<any>` are valid input there. Try a
+    // normal (JS) parse first; only when that fails retry forcing TS, so the vast
+    // majority of components (valid JS, or already `lang="ts"`) are untouched and
+    // cannot regress — only previously-erroring TS-in-plain-`<script>` files gain
+    // formatting. The TS retry sets `is_typescript` on the scripts, so the
+    // dialect detection below threads TS through every template expression too.
+    let root = match parse(source, ParseOptions::default()) {
+        Ok(root) => root,
+        Err(_) => parse(
+            source,
+            ParseOptions {
+                force_typescript: true,
+                ..ParseOptions::default()
+            },
+        )
+        .map_err(FormatError::from_parse)?,
+    };
 
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
 

@@ -31,7 +31,15 @@ pub(crate) fn collapse_pure_text_elements(
     // markup that rsvelte's (Svelte-faithful) parser rejects but the oxfmt oracle
     // accepts, e.g. stripping the parens off `{(/regex/).test(x)}` to a `{/…}`
     // expression that looks like a block close.
-    let Ok(root) = parse(out, ParseOptions::default()) else {
+    // Re-parse the formatted output in the same dialect the document was formatted
+    // in. A TS document (incl. one that reached TS via the formatter's force-TS
+    // fallback) emits TS, so a JS-only re-parse would fail and silently skip
+    // collapse; forcing TS here keeps collapse working for those files.
+    let parse_opts = ParseOptions {
+        force_typescript: options.typescript,
+        ..ParseOptions::default()
+    };
+    let Ok(root) = parse(out, parse_opts) else {
         return Ok(out.to_string());
     };
     let line_width = options.js.line_width.value() as usize;
@@ -48,7 +56,7 @@ pub(crate) fn collapse_pure_text_elements(
     let mut tree = root;
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
-        let Ok(t) = parse(&result, ParseOptions::default()) else {
+        let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
         tree = t;
@@ -67,7 +75,7 @@ pub(crate) fn collapse_pure_text_elements(
     collect_fill_mixed_only(&result, &tree.fragment, line_width, options, &mut edits1b);
     if !edits1b.is_empty() {
         result = apply_edits(&result, edits1b);
-        let Ok(t) = parse(&result, ParseOptions::default()) else {
+        let Ok(t) = parse(&result, parse_opts) else {
             return Ok(result);
         };
         tree = t;
@@ -91,7 +99,7 @@ pub(crate) fn collapse_pure_text_elements(
     // This pass only ever touches `<pre>`/`<textarea>`, so skip its re-parse
     // entirely unless one is present in the output.
     if (result.contains("<pre") || result.contains("<textarea"))
-        && let Ok(root3) = parse(&result, ParseOptions::default())
+        && let Ok(root3) = parse(&result, parse_opts)
     {
         let mut edits3: Vec<(u32, u32, String)> = Vec::new();
         collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
