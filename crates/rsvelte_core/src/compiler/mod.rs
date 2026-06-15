@@ -527,6 +527,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         loose: false,
         skip_expression_loc: true,
         defer_script_parse: true,
+        force_typescript: false,
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 

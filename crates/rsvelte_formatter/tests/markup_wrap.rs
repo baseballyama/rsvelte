@@ -94,11 +94,17 @@ fn directive_with_modifiers_wraps_as_one_attr() {
         "<button class=\"primary\" on:click|preventDefault={handleClickWithLongName}>x</button>",
         40,
     );
-    // The directive stays on one line; the element has inline text (`x`) so the
-    // open `>` hugs the last attribute and the close `>` breaks (#798).
+    // The directive stays on one line. When every attribute wraps, the open tag
+    // is in break mode, so its `>` goes on its own indented line before the inline
+    // text (`>x`), and the close `>` breaks too — matching the oracle at width 40:
+    //   <button
+    //     class="primary"
+    //     on:click|preventDefault={handleClickWithLongName}
+    //     >x</button
+    //   >
     assert!(
-        out.contains("\n  on:click|preventDefault={handleClickWithLongName}>x</button\n>"),
-        "expected directive on one line + hugged tag:\n{out}"
+        out.contains("\n  on:click|preventDefault={handleClickWithLongName}\n  >x</button\n>"),
+        "expected directive on one line + broken tag:\n{out}"
     );
 }
 

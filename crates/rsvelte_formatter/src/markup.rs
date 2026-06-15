@@ -48,7 +48,10 @@ pub(crate) fn collect_open_tag_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    for node in &fragment.nodes {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
         collect_node_open_tag_edits(source, node, depth, options, edits)?;
     }
     Ok(())
@@ -201,8 +204,7 @@ fn collect_node_open_tag_edits(
         | TemplateNode::SvelteFragment(s)
         | TemplateNode::SvelteBoundary(s)
         | TemplateNode::SvelteOptions(s)
-        | TemplateNode::SvelteSelf(s)
-        | TemplateNode::SvelteWindow(s) => {
+        | TemplateNode::SvelteSelf(s) => {
             let wrapped = push_open_tag(
                 source,
                 s.start,
@@ -223,6 +225,44 @@ fn collect_node_open_tag_edits(
                 options,
                 edits,
             );
+            collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
+        }
+        // prettier-plugin-svelte always emits `<svelte:window />` as self-closing
+        // (even when the source uses the paired `<svelte:window></svelte:window>` form).
+        // When empty, delete the close tag too; when non-empty (a compiler error),
+        // fall through to the normal paired rendering.
+        TemplateNode::SvelteWindow(s) => {
+            let empty = is_empty_fragment(&s.fragment);
+            let wrapped = push_open_tag(
+                source,
+                s.start,
+                s.name.as_str(),
+                &s.attributes,
+                None,
+                depth,
+                empty,
+                options,
+                edits,
+            )?;
+            if empty {
+                // Delete the close tag (replace it with nothing) so that the
+                // self-closing `/>` open tag isn't followed by `</svelte:window>`.
+                if let Some((close_start, close_end)) =
+                    find_close_tag_span(source, s.end, s.name.as_str())
+                {
+                    edits.push((close_start, close_end, String::new()));
+                }
+            } else {
+                push_close_tag(
+                    source,
+                    s.end,
+                    s.name.as_str(),
+                    wrapped,
+                    depth,
+                    options,
+                    edits,
+                );
+            }
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
@@ -437,7 +477,12 @@ fn push_open_tag(
     // Void HTML elements (`<input>`, `<br>`, `<hr>`, …) have no closing tag;
     // prettier-plugin-svelte normalizes them to the self-closing ` />` form
     // even when the source omits the slash.
-    let self_closing = is_self_closing(source, open_tag_end) || is_void_element(tag_name);
+    // `<svelte:window>` is also emitted as self-closing when it has no
+    // children (the common case). When it does have children (a compiler error,
+    // but the formatter still processes it), it keeps the non-self-closing form.
+    let self_closing = is_self_closing(source, open_tag_end)
+        || is_void_element(tag_name)
+        || (tag_name == "svelte:window" && empty_element);
 
     // When the open tag wraps, the closing `>` normally lands on its own line at
     // the outer indent. But if the element's content is whitespace-sensitive
@@ -472,11 +517,30 @@ fn push_open_tag(
     // by that lead (#795).
     let attr_depth = depth + 1;
 
-    if let Some(expr) = this_expression
-        && let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
-    {
-        // `this={X}` is emitted first regardless of source position.
-        items.push((element_start, format!("this={{{formatted}}}")));
+    if let Some(expr) = this_expression {
+        let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
+            return Ok(false);
+        };
+        // Detect `this="string"` — the byte before the expression start is a
+        // quote, meaning the attribute was written as a plain string value rather
+        // than `this={expr}`. Preserve the string form (`this="value"`) rather
+        // than converting to the brace form, which would turn `this="div"` into
+        // `this={div}` (an identifier reference, not a string literal).
+        let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
+        let this_attr = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
+            // String attribute: keep as `this="value"`.
+            let raw = source
+                .get(expr_start as usize..expr_end as usize)
+                .unwrap_or("")
+                .trim();
+            format!("this=\"{raw}\"")
+        } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)? {
+            format!("this={{{formatted}}}")
+        } else {
+            return Ok(false);
+        };
+        // `this={X}` / `this="X"` is emitted first regardless of source position.
+        items.push((element_start, this_attr));
     }
 
     for attr in attributes {
@@ -539,12 +603,26 @@ fn push_open_tag(
         0
     };
     let element_overflows = close_width > 0 && open_one_line_width + close_width > line_width;
+    // shape_two keeps attributes on one line and only breaks the `>` onto the
+    // next line. This matches prettier's group model for components / svelte:*
+    // special elements (the inner attr-group stays flat). For plain HTML block
+    // elements, prettier instead wraps the attributes (full multi-line shape),
+    // so shape_two is suppressed for them — they get the full `wrapped` path.
     let shape_two = !rendered_attrs.is_empty()
         && fits_one_line
         && element_overflows
-        && one_liner.ends_with('>');
+        && one_liner.ends_with('>')
+        && !is_block_element(tag_name);
+    // For HTML block elements (div, p, section, …), when the full empty element
+    // overflows the print width but the open tag alone fits, prettier still wraps
+    // the attributes. This matches the group-model where the outer element group
+    // breaking forces the inner attr-group to break too.
+    let force_wrap_block = !rendered_attrs.is_empty()
+        && fits_one_line
+        && element_overflows
+        && is_block_element(tag_name);
 
-    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two;
+    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two || force_wrap_block;
 
     // Second pass: once we know the open tag wraps (attributes each on their own
     // line at `attr_depth`), re-render the attributes narrowing each value
@@ -553,10 +631,26 @@ fn push_open_tag(
     // one line) needs this; one-line tags keep the inline rendering above.
     let rendered_attrs = if wrapped && !shape_two {
         let mut items2: Vec<(u32, String)> = Vec::with_capacity(attributes.len() + 1);
-        if let Some(expr) = this_expression
-            && let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
-        {
-            items2.push((element_start, format!("this={{{formatted}}}")));
+        if let Some(expr) = this_expression {
+            let (Some(expr_start), Some(expr_end)) = (expr.start(), expr.end()) else {
+                return Ok(false);
+            };
+            // Preserve `this="string"` form in the wrapped pass just as in the
+            // one-line pass: detect a quote before the expression span.
+            let prev_byte = source.as_bytes().get(expr_start as usize - 1).copied();
+            let this_attr2 = if matches!(prev_byte, Some(b'"') | Some(b'\'')) {
+                let raw = source
+                    .get(expr_start as usize..expr_end as usize)
+                    .unwrap_or("")
+                    .trim();
+                format!("this=\"{raw}\"")
+            } else if let Some(formatted) = format_expression_at(source, expr, options, attr_depth)?
+            {
+                format!("this={{{formatted}}}")
+            } else {
+                return Ok(false);
+            };
+            items2.push((element_start, this_attr2));
         }
         for attr in attributes {
             let (attr_start, _) = attribute_span(attr);
@@ -799,8 +893,10 @@ fn render_multi_line(
     }
     if hug_open && !self_closing {
         // Whitespace-sensitive inline content: glue the `>` to the last
-        // attribute line (`}}>text`) so no significant whitespace is injected
-        // before the content (#798).
+        // attribute line so no significant whitespace is injected before the
+        // content (#798). The collapse pass (`try_hug_mixed`) later decides
+        // whether to keep it glued or move it to a new indented line, depending
+        // on whether the resulting line would overflow the print width.
         out.push('>');
     } else {
         out.push('\n');
@@ -987,14 +1083,24 @@ fn render_attribute(
         Attribute::OnDirective(d) => {
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
+                // prefix = "on:" + name + modifiers + "=" (the `{` is counted separately)
+                let prefix = 3 + visual_width(d.name.as_str()) + visual_width(&modifiers) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
                 Ok(format!("on:{}{modifiers}={{{inner}}}", d.name))
             } else {
                 Ok(format!("on:{}{modifiers}", d.name))
             }
         }
         Attribute::TransitionDirective(d) => {
-            let prefix = if d.intro && d.outro {
+            let pfx_kw = if d.intro && d.outro {
                 "transition"
             } else if d.intro {
                 "in"
@@ -1003,15 +1109,38 @@ fn render_attribute(
             };
             let modifiers = render_modifiers(&d.modifiers);
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
-                Ok(format!("{prefix}:{}{modifiers}={{{inner}}}", d.name))
+                let prefix = visual_width(pfx_kw)
+                    + 1
+                    + visual_width(d.name.as_str())
+                    + visual_width(&modifiers)
+                    + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
+                Ok(format!("{pfx_kw}:{}{modifiers}={{{inner}}}", d.name))
             } else {
-                Ok(format!("{prefix}:{}{modifiers}", d.name))
+                Ok(format!("{pfx_kw}:{}{modifiers}", d.name))
             }
         }
         Attribute::AnimateDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
+                // "animate:" + name + "="
+                let prefix = 8 + visual_width(d.name.as_str()) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
                 Ok(format!("animate:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("animate:{}", d.name))
@@ -1019,7 +1148,17 @@ fn render_attribute(
         }
         Attribute::UseDirective(d) => {
             if let Some(expr) = &d.expression {
-                let inner = render_directive_value(source, expr, d.end, options, attr_depth)?;
+                // "use:" + name + "="
+                let prefix = 4 + visual_width(d.name.as_str()) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
                 Ok(format!("use:{}={{{inner}}}", d.name))
             } else {
                 Ok(format!("use:{}", d.name))
@@ -1040,7 +1179,11 @@ fn render_attribute(
                 narrow_value,
                 prefix,
             )?;
-            if value.is_empty() {
+            // Shorthand: `style:color={color}` → `style:color` when the
+            // expression is a simple identifier matching the directive name,
+            // mirroring prettier-plugin-svelte's shorthand collapsing.
+            let shorthand_value = format!("{{{}}}", d.name);
+            if value.is_empty() || (modifiers.is_empty() && value == shorthand_value) {
                 Ok(format!("style:{}{modifiers}", d.name))
             } else {
                 Ok(format!("style:{}{modifiers}={value}", d.name))
@@ -1105,6 +1248,73 @@ fn is_shallow_value(src: &str) -> bool {
     !(t.starts_with('{') || t.starts_with('[') || t.starts_with("function"))
 }
 
+/// Render an attribute whose value is a single `{expr}` mustache (whether the
+/// source wrote it bare `attr={expr}` or quoted `attr="{expr}"` — prettier
+/// renders both unquoted). Applies the `name={name}` → `{name}` shorthand.
+fn render_single_expression_value(
+    node: &AttributeNode,
+    inner_src: &str,
+    _source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    narrow_value: bool,
+) -> Result<String, FormatError> {
+    if inner_src.is_empty() {
+        return Ok(format!("{}={{}}", node.name));
+    }
+    // When the open tag wraps, a SHALLOW value (a ternary / binary / logical
+    // chain — no block body) is narrowed by the `name={` prefix so it breaks at
+    // its top level where prettier does, even when it already spans multiple
+    // lines. A value with a block body (an arrow handler / object / array) is
+    // left at the indent-only width: its continuation lines sit at the attribute
+    // indent with full width, so narrowing by the prefix would wrongly over-wrap.
+    let prefix = visual_width(node.name.as_str()) + 2;
+    let indent_width = options.js.indent_width.value() as usize;
+    let extra = if narrow_value && is_shallow_value(inner_src) {
+        prefix
+    } else {
+        0
+    };
+    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
+    // For arrow-function values (`onclick={() => ...}`), `is_shallow_value`
+    // returns false so `extra=0` above leaves the value unnarrowed.  But when
+    // the full line (indent + `name={` + value + `}`) overflows the print
+    // width, re-format with `prefix - indent_width` as `extra_lead` so the
+    // arrow breaks and its body line gets exactly one indent level of room —
+    // mirroring the directive path in `render_directive_value_narrow`.
+    let formatted = if narrow_value && !is_shallow_value(inner_src) && !formatted.contains('\n') {
+        let indent_cols = attr_depth * indent_width;
+        let line_width = options.js.line_width.value() as usize;
+        // `{` and `}` each count as 1 char
+        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+            let arrow_extra = prefix.saturating_sub(indent_width);
+            format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
+        } else {
+            formatted
+        }
+    } else {
+        formatted
+    };
+    // Svelte attribute shorthand: `name={name}` → `{name}`.
+    // Only apply shorthand when the attribute name is a valid JS identifier
+    // (starts with a letter, `_`, or `$`; remainder is alphanumeric / `_` / `$`).
+    // Names like `0` or `my-attr` are not valid identifiers and must keep the
+    // full `name={expr}` form to avoid producing invalid Svelte syntax.
+    let name = node.name.as_str();
+    let is_valid_js_identifier = name
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+    if is_valid_js_identifier && formatted == name {
+        Ok(format!("{{{formatted}}}"))
+    } else {
+        Ok(format!("{}={{{formatted}}}", name))
+    }
+}
+
 fn render_attribute_node(
     node: &AttributeNode,
     source: &str,
@@ -1116,30 +1326,35 @@ fn render_attribute_node(
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
             let inner_src = expression_tag_inner(tag, source).trim();
-            if inner_src.is_empty() {
-                return Ok(format!("{}={{}}", node.name));
-            }
-            // When the open tag wraps, a SHALLOW value (a ternary / binary /
-            // logical chain — no block body) is narrowed by the `name={` prefix
-            // so it breaks at its top level where prettier does, even when it
-            // already spans multiple lines. A value with a block body (an arrow
-            // handler / object / array) is left at the indent-only width: its
-            // continuation lines sit at the attribute indent with full width, so
-            // narrowing by the prefix would wrongly over-wrap them.
-            let prefix = visual_width(node.name.as_str()) + 2;
-            let extra = if narrow_value && is_shallow_value(inner_src) {
-                prefix
-            } else {
-                0
+            render_single_expression_value(
+                node,
+                inner_src,
+                source,
+                options,
+                attr_depth,
+                narrow_value,
+            )
+        }
+        // prettier-plugin-svelte strips the quotes around a value that is a
+        // single mustache and nothing else: `attr="{expr}"` → `attr={expr}`
+        // (which then shorthands to `{attr}` when the expression is exactly the
+        // attribute name). A value with surrounding text (`"a {x}"`) or multiple
+        // interpolations (`"{a}{b}"`) keeps its quotes — handled below.
+        AttributeValue::Sequence(parts)
+            if matches!(parts.as_slice(), [AttributeValuePart::ExpressionTag(_)]) =>
+        {
+            let AttributeValuePart::ExpressionTag(tag) = &parts[0] else {
+                unreachable!()
             };
-            let formatted =
-                format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
-            // Svelte attribute shorthand: `name={name}` → `{name}`.
-            if formatted == node.name.as_str() {
-                Ok(format!("{{{formatted}}}"))
-            } else {
-                Ok(format!("{}={{{formatted}}}", node.name))
-            }
+            let inner_src = expression_tag_inner(tag, source).trim();
+            render_single_expression_value(
+                node,
+                inner_src,
+                source,
+                options,
+                attr_depth,
+                narrow_value,
+            )
         }
         AttributeValue::Sequence(parts) => {
             // Columns before the value body on the first line: `name="`.
@@ -1190,6 +1405,39 @@ fn render_attribute_value_for_directive(
             Ok(format!("{{{formatted}}}"))
         }
         AttributeValue::Sequence(parts) => {
+            // When the entire value is a single mustache expression with no
+            // surrounding text (e.g. `style:color="{expr}"`), prettier-plugin-svelte
+            // normalises to the bare-mustache form `style:color={expr}`.
+            // Detect: exactly one non-empty ExpressionTag part, all Text parts empty.
+            let sole_expr = parts
+                .iter()
+                .filter(|p| !matches!(p, AttributeValuePart::Text(t) if t.data.is_empty()))
+                .collect::<Vec<_>>();
+            if sole_expr.len() == 1
+                && let Some(AttributeValuePart::ExpressionTag(tag)) = sole_expr.first()
+            {
+                let inner_src = expression_tag_inner(tag, source).trim();
+                if !inner_src.is_empty() {
+                    let indent_cols = attr_depth * options.js.indent_width.value() as usize;
+                    let formatted =
+                        format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+                    let line_width = options.js.line_width.value() as usize;
+                    let formatted = if narrow_value
+                        && !formatted.contains('\n')
+                        && indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width
+                    {
+                        format_attribute_value_expression(
+                            inner_src,
+                            options,
+                            attr_depth,
+                            prefix + 1,
+                        )?
+                    } else {
+                        formatted
+                    };
+                    return Ok(format!("{{{formatted}}}"));
+                }
+            }
             // Directive value body starts after `style:name="`: prefix + the `"`.
             let body = render_attribute_value_sequence(
                 parts,
@@ -1229,10 +1477,7 @@ fn render_attribute_value_sequence(
                 out.push_str(t.raw.as_str());
             }
             AttributeValuePart::ExpressionTag(tag) => {
-                let inner_src = source
-                    .get(tag.start as usize + 1..tag.end as usize - 1)
-                    .unwrap_or("")
-                    .trim();
+                let inner_src = expression_tag_inner(tag, source).trim();
                 if inner_src.is_empty() {
                     out.push_str("{}");
                 } else {
@@ -1331,6 +1576,57 @@ fn render_directive_value(
         return Ok(s);
     }
     Ok(format_expression_at(source, expr, options, attr_depth)?.unwrap_or_default())
+}
+
+/// Like `render_directive_value` but re-narrows single-line values that would
+/// overflow the line when preceded by `prefix` characters at the attribute
+/// indent column. Only re-narrows when `narrow_value` is true (i.e. the open
+/// tag has already been broken to multi-line). Unlike plain attribute values,
+/// directive values include arrow-function handlers (`on:click={(e) => ...}`)
+/// which prettier also re-narrows, so we do not apply the `is_shallow_value`
+/// guard that the plain-attribute path uses.
+fn render_directive_value_narrow(
+    source: &str,
+    expr: &Expression,
+    value_end: u32,
+    options: &FormatOptions,
+    attr_depth: usize,
+    narrow_value: bool,
+    prefix: usize,
+) -> Result<String, FormatError> {
+    let formatted = render_directive_value(source, expr, value_end, options, attr_depth)?;
+    if narrow_value && !formatted.contains('\n') {
+        let indent_cols = attr_depth * options.js.indent_width.value() as usize;
+        let line_width = options.js.line_width.value() as usize;
+        // `{` + formatted + `}` = 1 brace on each side
+        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+            // For shallow (non-block) values use `prefix + 1` (the `{` counts
+            // against the first-line budget and the value has no multi-line
+            // continuation, so narrowing by the full prefix + brace is safe).
+            //
+            // For arrow-function values the body sits on the next line at
+            // `+indent_width` relative to the expression, which the final
+            // re-indent pass lifts to `attr_indent + indent_width` in the
+            // template. The effective available width for the body is
+            // `line_width - (attr_indent + indent_width)`, which is
+            // `line_width - attr_indent - prefix + (prefix - indent_width)`.
+            // Using `extra_lead = prefix - indent_width` (instead of `prefix`)
+            // leaves the body exactly one indent level of room, preventing
+            // over-narrow breakage of nested object / array arguments.
+            let indent_width = options.js.indent_width.value() as usize;
+            let extra_lead = if is_shallow_value(&formatted) {
+                prefix + 1
+            } else {
+                prefix.saturating_sub(indent_width)
+            };
+            if let Some(s) = crate::expression::format_directive_value_extra(
+                source, expr, value_end, options, attr_depth, extra_lead,
+            )? {
+                return Ok(s);
+            }
+        }
+    }
+    Ok(formatted)
 }
 
 fn format_expression_at(

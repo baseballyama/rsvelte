@@ -172,8 +172,9 @@ impl<'a> Parser<'a> {
         };
 
         // Detect TypeScript mode by looking for lang="ts" in script tags
-        // Corresponds to the TypeScript detection logic in JavaScript Parser constructor
-        let ts = Self::detect_typescript_mode(source);
+        // Corresponds to the TypeScript detection logic in JavaScript Parser constructor.
+        // `force_typescript` (formatter-only) makes a plain `<script>` parse as TS too.
+        let ts = options.force_typescript || Self::detect_typescript_mode(source);
 
         // Pre-allocate with small capacity since most files use few meta tags
         let stack = vec![StackEntry::Root];
@@ -224,7 +225,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.ts = Self::detect_typescript_mode(source);
+        self.ts = options.force_typescript || Self::detect_typescript_mode(source);
         self.in_root_script_or_style = false;
         self.instance_script = None;
         self.module_script = None;

@@ -13,6 +13,11 @@ name: corpus-compat
 # bumping either submodule (auto-update-svelte.yml for the compiler,
 # auto-update-submodules.yml for svelte.dev) automatically refreshes both
 # the test corpus and its expectations.
+#
+# The fmt-parity job additionally formats every .svelte component with both
+# rsvelte-fmt and the oxfmt(`svelte: true`) oracle (prettier-plugin-svelte for
+# the structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
+# requires byte-identical output, ratcheted by compat/corpus/fmt-known-failures.json.
 
 on:
   workflow_dispatch:
@@ -21,6 +26,8 @@ on:
     paths:
       - 'crates/**'
       - 'scripts/compat-corpus/**'
+      - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
+      - 'pnpm-lock.yaml'
       - 'compat/corpus/**'
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
@@ -33,6 +40,8 @@ on:
     paths:
       - 'crates/**'
       - 'scripts/compat-corpus/**'
+      - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
+      - 'pnpm-lock.yaml'
       - 'compat/corpus/**'
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
@@ -162,5 +171,73 @@ jobs:
             compat/corpus/report.json
             compat/corpus/report-s2t.json
             compat/corpus/manifest.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  fmt-parity:
+    name: Formatter parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout svelte + svelte.dev submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Install root dependencies (oxfmt)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build rsvelte-fmt
+        run: cargo build --release -p rsvelte_fmt
+
+      - name: Collect corpus
+        run: node scripts/compat-corpus/collect.mjs
+
+      - name: Resolve corpus pins
+        id: pins
+        run: |
+          echo "svelte=$(git -C submodules/svelte rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "svelte_dev=$(git -C submodules/svelte.dev rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # The oracle depends only on the pins + oxfmt version + oracle config, so
+      # cache it: only the first run per pin pays the ~6k oxfmt invocations.
+      - name: Cache fmt oracle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            compat/corpus/fmt/oracle
+            compat/corpus/fmt/meta.json
+          key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.svelte }}-${{ steps.pins.outputs.svelte_dev }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml') }}
+
+      - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
+        run: node scripts/compat-corpus/fmt.mjs
+
+      - name: Verify formatter parity (ratchet, byte-identical)
+        run: node scripts/compat-corpus/fmt-verify.mjs
+
+      - name: Upload fmt report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-fmt-report
+          path: |
+            compat/corpus/fmt-report.json
+            compat/corpus/fmt/meta.json
           if-no-files-found: ignore
           retention-days: 14
