@@ -2967,6 +2967,12 @@ fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
             {
                 return true;
             }
+            // `<svelte:element this={tag} slot="name">` targets a named slot.
+            TemplateNode::SvelteElement(el)
+                if get_slot_attr_value(&el.attributes, source).is_some() =>
+            {
+                return true;
+            }
             // Control-flow blocks are transparent to slot distribution: a
             // `<div slot="foo">` nested inside `{#if}` / `{#each}` / `{#await}`
             // / `{#key}` still targets the component's named slot (official
@@ -3582,6 +3588,25 @@ fn handle_svelte_dynamic_element(
         return;
     }
 
+    // Named-slot routing: `<svelte:element … slot="x">` inside a component's
+    // children targets the parent component's named slot. Wrap the whole
+    // `createElement(...)` in a `$$slot_def["x"]` block and drop the `slot`
+    // attribute. Take the context so the element's own children don't inherit
+    // it; restore it for following siblings.
+    let saved_slot = counter.slot_inst.take();
+    let named_slot: Option<(String, String)> = saved_slot.as_ref().and_then(|inst| {
+        get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
+    });
+    if let Some((ref inst, ref target_slot)) = named_slot {
+        let lets = get_let_directives(&el.attributes);
+        let let_destructure = build_let_destructure_string(&lets, source);
+        let block_open = format!(
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+            let_destructure, inst, target_slot
+        );
+        str.prepend_left(el.start, &block_open);
+    }
+
     let raw_tag_text = get_expression_text(&el.tag, source);
     // If the `this` attribute value is a plain string literal (this="tag"),
     // the parser stores just the text without quotes. We need to wrap it
@@ -3602,7 +3627,13 @@ fn handle_svelte_dynamic_element(
         raw_tag_text.to_string()
     };
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let attrs_str = build_attributes_string(&el.attributes, source);
+    // In a named-slot context the `slot` attribute is consumed by the wrapper
+    // block, so build the attributes without it.
+    let attrs_str = if named_slot.is_some() {
+        build_named_slot_element_attrs(&el.attributes, source)
+    } else {
+        build_attributes_string(&el.attributes, source)
+    };
 
     // `use:` / `transition:` / `animate:` directives, same V4 emission as on a
     // regular element. The action's `mapElementTag` uses the literal element
@@ -3692,6 +3723,12 @@ fn handle_svelte_dynamic_element(
             str.append_left(el.end, &close);
         }
     }
+
+    // Close the named-slot `$$slot_def[...]` wrapper block; restore context.
+    if named_slot.is_some() {
+        str.append_left(el.end, "}");
+    }
+    counter.slot_inst = saved_slot;
 }
 
 /// Handle `<title>` element.

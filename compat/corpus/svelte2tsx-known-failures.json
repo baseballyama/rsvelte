@@ -70,7 +70,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-binding-this/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-class-directive/Link.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escape-template-literals/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-shorthand-dynamic-component/main.svelte",
