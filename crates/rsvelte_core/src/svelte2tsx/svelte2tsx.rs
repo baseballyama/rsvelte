@@ -2400,8 +2400,13 @@ fn extract_component_documentation(fragment: &crate::ast::template::Fragment) ->
                 // Extract the documentation text after @component
                 let after_tag = data.strip_prefix("@component").unwrap();
 
-                // If the text after @component starts with a newline, it's multiline
-                let is_multiline = after_tag.contains('\n');
+                // Official trims the whole doc *before* deciding single- vs
+                // multi-line (`componentDocumentation = data.replace('@component',
+                // '').trim()`, then `if (!doc.includes('\n'))`). So a comment
+                // whose only newlines surround a single line of text (e.g.
+                // `<!--@component\nText\n-->`) is emitted as a single-line
+                // `/** Text */`. Check the trimmed content for newlines.
+                let is_multiline = after_tag.trim().contains('\n');
 
                 if is_multiline {
                     // Collect all lines after @component
