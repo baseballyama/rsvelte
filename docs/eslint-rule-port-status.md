@@ -120,8 +120,21 @@ surfaces an invalid `<style>` as a hard `parse-error` via the validator wrap.
   codes were consumed (today `emit_warning` silently drops suppressed ones).
 
 ### Large / complex
-- `indent` — one of the largest ESLint layout rules; a faithful byte-exact port
-  is a substantial standalone effort.
+- `indent` — **partially ported** (`rules/indent.rs`). The upstream engine is a
+  ~3,443-line token-offset machine; rsvelte ports the **template-structural**
+  half as a `check_root` rule that builds a per-line expected-indent map from the
+  template AST (blocks `{#if}`/`{:else}`/`{#each}`/`{#await … then … catch}`/
+  `{#key}`/`{#snippet}`, tags `{@debug}`/`{@html}`/`{@render}`, attribute
+  continuation lines, and `<script>` body via the `indentScript` option),
+  reporting + autofixing (`Fixable::Code`) to byte-exact parity. It passes the
+  template fixtures (incl. the substantial `valid/test01` for both error and
+  fix), and skips — with documented reasons in the oracle — every fixture that
+  needs the JS/TS **token/AST** offset model (all `script-*`, `ts/`, `ts-v5/`,
+  `switch-case/`, `import-declaration01`, `const-tag01`, `declaration-tag`), the
+  unimplemented `alignAttributesVertically` option, `pug` templates, and
+  `each01` (a separate `rsvelte_core` parse gap on `{#each … as { … }, i}`
+  object-destructuring-with-index — verified `actual []`). A complete port still
+  needs the espree-compatible JS/TS token stream described below.
 
 ## Review follow-ups (intentionally deferred)
 

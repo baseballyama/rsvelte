@@ -14,6 +14,7 @@ pub mod html_closing_bracket_new_line;
 pub mod html_closing_bracket_spacing;
 pub mod html_quotes;
 pub mod html_self_closing;
+pub mod indent;
 pub mod infinite_reactive_loop;
 pub mod known_css_properties;
 pub mod max_attributes_per_line;
