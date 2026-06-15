@@ -65,13 +65,29 @@ fixtures that rely on that type allowance** are skipped in the oracle; ~70 of 80
 fixtures (including all invalid `ResolvedPathname` cases, which the no-types path
 reports identically) pass.
 
-Two rules remain genuinely blocked on TypeScript **type queries** (tsgo/corsa) —
-the design doc's gated Wave-3 spike. tsgo returns only diagnostics, not a
-type-query API, and this repo has **no checker at all** (no `tsgo` binary, no
-`corsa` dep, the `typescript-go` submodule is empty), so these need new
-type-backend *and* CI infrastructure, not just rule code:
-- `no-unused-props` (~95% type-dependent — recursive `getPropertiesOfType` etc.),
-- `require-event-prefix` (~85% — `$props()` member type introspection).
+✅ `require-event-prefix` (`rules/require_event_prefix.rs`) ports the
+**local-type** cases via a source scan. Upstream uses the TS checker
+(`getTypeAtLocation` on the `$props()` binding → `getProperties()`), and rsvelte's
+lint ESTree *erases* TS interface/type-alias bodies (only annotations survive) —
+so this scans the `<script>` source to resolve the `$props()` type annotation to
+its local `interface`/`type`/inline-literal body, classifies each member as
+function-typed (method sig / arrow-type property) and async (`Promise<…>` return),
+and reports non-`on`-prefixed non-async function members at the member-name
+position. All 7 upstream fixtures (local interfaces / inline type-literals) pass
+byte-exact. Imported/aliased Props types (which need cross-file type resolution)
+remain out of scope.
+
+One rule remains genuinely blocked on a TypeScript **type-query** / object-graph
+(tsgo/corsa) — the design doc's gated Wave-3 spike. tsgo returns only
+diagnostics, not a type-query API; this repo has **no checker at all** (no `tsgo`
+binary, no `corsa` dep, empty `typescript-go` submodule); and rsvelte's lint
+ESTree erases TS type declarations, so even a source scan can't reach the
+imported/nested/base-type cases the fixtures exercise:
+- `no-unused-props` (~95% type-dependent — recursive `getPropertiesOfType` /
+  `getBaseTypes` / index signatures / cross-file imported types). Its local-flat
+  subset is source-scannable, but the bulk of its 48 invalid + 70 valid fixtures
+  exercise imported/nested/base types that need the full TypeChecker graph (per
+  design doc §B/§D, delegated to `@typescript-eslint` in Node).
 
 `valid-compile` is ported as an opt-in meta-rule
 (`crate::rules::valid_compile`, wired into `runner::lint_source`): it compiles

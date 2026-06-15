@@ -46,6 +46,7 @@ pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
         &crate::rules::experimental_require_slot_types::META,
         &crate::rules::experimental_require_strict_events::META,
         &crate::rules::require_event_dispatcher_types::META,
+        &crate::rules::require_event_prefix::META,
     ]
     .into_iter()
 }

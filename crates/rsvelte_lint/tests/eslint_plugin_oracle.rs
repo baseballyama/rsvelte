@@ -78,6 +78,7 @@ fn is_meta_rule(code: &str) -> bool {
             | "svelte/experimental-require-slot-types"
             | "svelte/experimental-require-strict-events"
             | "svelte/require-event-dispatcher-types"
+            | "svelte/require-event-prefix"
     )
 }
 
