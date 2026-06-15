@@ -9,6 +9,20 @@ members = [
     "crates/rsvelte_lint",
 ]
 
+# Optimize *dependencies* (oxc parser/codegen, regex, etc.) even in debug/test
+# builds, while leaving our own workspace crates at opt-level 0 for fast
+# incremental compiles. The integration-test suites are pure rsvelte-compile
+# CPU work that bottlenecks entirely in the oxc dependency graph; at opt-level 0
+# the heaviest fixtures (`test_runtime_legacy`, `test_runtime_runes`, the
+# `compile_module` thread-safety stress test) dominated `cargo nextest` wall
+# time. `package."*"` applies only to dependencies, not workspace members, and
+# rust-cache stores the compiled dep artifacts — so on warm CI the extra
+# optimization is already cached and only the (still-unoptimized) workspace
+# crates recompile. Net effect: test *execution* drops sharply with no change
+# to warm compile time and zero impact on test coverage.
+[profile.dev.package."*"]
+opt-level = 3
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

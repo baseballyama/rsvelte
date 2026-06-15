@@ -129,6 +129,18 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
+        # Split the suite across 2 runners with nextest's test partitioning.
+        # The execution floor is set by a few single `#[test]` functions that
+        # each fan out over 1000+ fixtures internally (runtime-legacy / runes,
+        # the compile_module thread-safety stress test) — together ~2 min of
+        # wall time that no caching removes. nextest assigns whole test binaries
+        # to shards (`--partition count:N/2`), so the two heavy `runtime`
+        # binaries land on different runners and run concurrently instead of
+        # back-to-back. Every shard compiles the workspace and runs ALL of its
+        # assigned tests — coverage is unchanged, only per-runner wall-clock is
+        # halved. The `Tests` gate job below joins the shards into one required
+        # status check.
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -269,7 +281,9 @@ jobs:
         # test is `#[ignore]`d (reporting-only, re-runs the whole suite) and is
         # covered by the dedicated `compatibility-report` job below, so it stays
         # out of this run. nextest does not run doctests; this workspace has none.
-        run: cargo nextest run --profile ci
+        # `--partition count:<shard>/2` runs only this shard's slice of the
+        # tests (see the `shard` matrix above).
+        run: cargo nextest run --profile ci --partition count:${{ matrix.shard }}/2
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
@@ -304,10 +318,31 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-failures-${{ matrix.os }}
+          name: test-failures-${{ matrix.os }}-shard${{ matrix.shard }}
           path: ci-artifacts
           if-no-files-found: ignore
           retention-days: 14
+
+  # Single required status check that fans the sharded `Test` matrix back in:
+  # branch protection can require `Tests` instead of every `Test (os, shard)`
+  # leg, so adding/removing shards never needs a protection-rule change. Fails
+  # if any shard failed or was cancelled.
+  tests:
+    name: Tests
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Verify all test shards passed
+        shell: bash
+        run: |
+          result="${{ needs.test.result }}"
+          echo "Aggregated test matrix result: $result"
+          if [[ "$result" != "success" ]]; then
+            echo "::error::One or more Test shards did not succeed (result: $result)."
+            exit 1
+          fi
 
   compatibility-report:
     name: Compatibility Report
