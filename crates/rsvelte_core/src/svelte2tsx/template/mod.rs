@@ -2534,11 +2534,21 @@ fn handle_regular_element(
     // props brace, then `)` + `;`). The outer block `{` is closed after the
     // children by the closing-tag overwrite.
     opener_segs.push(Seg::Lit("});".to_string()));
-    opener_segs.extend(class_style_suffix_segs);
-    // Order the `bind:` assignments and transition/animate suffixes by their
-    // source-attribute position — official appends them in attribute order, so
-    // `bind:this={x} out:fade` emits the bind first while `out:fade bind:this`
-    // emits the transition first.
+    // The post-`createElement` suffix statements — `class:`/`style:` (segmented),
+    // transition/animate (`directive_suffix`), and `bind:` (`bind_suffix`) — are
+    // emitted in SOURCE-ATTRIBUTE ORDER. Official walks the attributes in order
+    // and each handler `appendToStartEnd`s, so e.g. `<div transition:x class:y>`
+    // emits the transition before the class statement. Order each group by its
+    // first source position and concatenate.
+    let first_class_style_pos = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::ClassDirective(c) => Some(c.start),
+            Attribute::StyleDirective(s) => Some(s.start),
+            _ => None,
+        })
+        .min();
     let first_bind_pos = el
         .attributes
         .iter()
@@ -2556,16 +2566,29 @@ fn handle_regular_element(
             _ => None,
         })
         .min();
-    let bind_first = match (first_bind_pos, first_directive_pos) {
-        (Some(b), Some(d)) => b < d,
-        _ => false,
-    };
-    let combined_suffix = if bind_first {
-        format!("{}{}", bind_suffix, directive_suffix)
-    } else {
-        format!("{}{}", directive_suffix, bind_suffix)
-    };
-    opener_segs.push(Seg::Lit(combined_suffix));
+    let mut suffix_pieces: Vec<(u32, Vec<Seg>)> = Vec::new();
+    if !segs_is_empty(&class_style_suffix_segs) {
+        suffix_pieces.push((
+            first_class_style_pos.unwrap_or(u32::MAX),
+            class_style_suffix_segs,
+        ));
+    }
+    if !directive_suffix.is_empty() {
+        suffix_pieces.push((
+            first_directive_pos.unwrap_or(u32::MAX),
+            vec![Seg::Lit(directive_suffix)],
+        ));
+    }
+    if !bind_suffix.is_empty() {
+        suffix_pieces.push((
+            first_bind_pos.unwrap_or(u32::MAX),
+            vec![Seg::Lit(bind_suffix)],
+        ));
+    }
+    suffix_pieces.sort_by_key(|(pos, _)| *pos);
+    for (_, segs) in suffix_pieces {
+        opener_segs.extend(segs);
+    }
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
