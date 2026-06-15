@@ -52,14 +52,26 @@ cross-cutting (template + script) source-scan meta-paths in
   version-skipped by the oracle; they're parity-verified by
   `crates/rsvelte_lint/tests/experimental_and_dispatcher.rs` instead.
 
-The remaining three genuinely require TypeScript **type queries** (tsgo/corsa),
-which the design doc scopes to the gated Wave-3 spike — and tsgo today returns
-only diagnostics, not a type-query API, so this needs new type-backend
-infrastructure, not just rule code:
+✅ `no-navigation-without-resolve` (`rules/no_navigation_without_resolve.rs`,
+modeled on the sibling `no_navigation_without_base`) ports the **syntactic**
+engine: `goto`/`pushState`/`replaceState` (from `$app/navigation`, named or
+`* as ns`) and `<a href>` links that aren't wrapped in `resolve()`/`asset()`
+(from `$app/paths`), with the `ignoreGoto`/`ignoreLinks`/`ignorePushState`/
+`ignoreReplaceState` options, the absolute/empty/fragment/nullish allowances,
+`rel="external"` exemption, and variable/conditional resolution. Upstream's
+`expressionIsAllowedType` (the `$app/types` `ResolvedPathname` type check) is
+treated as always-false since there's no TS checker — so only the **10 valid
+fixtures that rely on that type allowance** are skipped in the oracle; ~70 of 80
+fixtures (including all invalid `ResolvedPathname` cases, which the no-types path
+reports identically) pass.
+
+Two rules remain genuinely blocked on TypeScript **type queries** (tsgo/corsa) —
+the design doc's gated Wave-3 spike. tsgo returns only diagnostics, not a
+type-query API, and this repo has **no checker at all** (no `tsgo` binary, no
+`corsa` dep, the `typescript-go` submodule is empty), so these need new
+type-backend *and* CI infrastructure, not just rule code:
 - `no-unused-props` (~95% type-dependent — recursive `getPropertiesOfType` etc.),
-- `require-event-prefix` (~85% — `$props()` member type introspection),
-- `no-navigation-without-resolve` (~30% — `ResolvedPathname` assignability; the
-  syntactic majority is portable, the type check is not).
+- `require-event-prefix` (~85% — `$props()` member type introspection).
 
 `valid-compile` is ported as an opt-in meta-rule
 (`crate::rules::valid_compile`, wired into `runner::lint_source`): it compiles

@@ -165,6 +165,23 @@ const SKIP: &[&str] = &[
     // invalid `<style>` as a hard `parse-error` via the validator wrap.
     "valid-style-parse/invalid/invalid-css01",
     "valid-style-parse/invalid/invalid-scss01",
+    // `no-navigation-without-resolve` fixtures that require the TypeScript type
+    // checker (`tsTools`) to determine whether an identifier is typed as
+    // `ResolvedPathname`, `null`, or `undefined` from `$app/types`. Without TS
+    // support these valid cases produce false positives — the rule is
+    // `type_aware: false`, so we skip the TS-type-dependent fixtures.
+    "no-navigation-without-resolve/valid/goto-resolved-pathname01",
+    "no-navigation-without-resolve/valid/goto-resolved-pathname02",
+    "no-navigation-without-resolve/valid/pushState-resolved-pathname01",
+    "no-navigation-without-resolve/valid/pushState-resolved-pathname02",
+    "no-navigation-without-resolve/valid/replaceState-resolved-pathname01",
+    "no-navigation-without-resolve/valid/replaceState-resolved-pathname02",
+    "no-navigation-without-resolve/valid/link-resolved-pathname01",
+    "no-navigation-without-resolve/valid/link-resolved-pathname02",
+    "no-navigation-without-resolve/valid/link-nullish-resolved-pathname",
+    // `link-nullish02`: TypeScript-typed props (`one: undefined`, `two: null`,
+    // `href: null`) — without TS the rule can't detect these are nullish.
+    "no-navigation-without-resolve/valid/link-nullish02",
 ];
 
 /// One expected error from a `*-errors.yaml` file.
