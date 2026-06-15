@@ -79,6 +79,7 @@ fn is_meta_rule(code: &str) -> bool {
             | "svelte/experimental-require-strict-events"
             | "svelte/require-event-dispatcher-types"
             | "svelte/require-event-prefix"
+            | "svelte/no-unused-props"
     )
 }
 
@@ -229,6 +230,30 @@ const SKIP: &[&str] = &[
     // is reported as wrong because the JS expression body is opaque to the
     // template walker.
     "indent/valid/declaration-tag",
+    // ── svelte/no-unused-props skips ───────────────────────────────────────
+    // Requires TypeScript type checker (extends, intersections, generics,
+    // imported types, index signatures, nested property checking, custom
+    // config options).
+    "no-unused-props/invalid/extends-unused",
+    "no-unused-props/invalid/generic-props-unused",
+    "no-unused-props/invalid/ignore-external-type",
+    "no-unused-props/invalid/ignore-property-patterns-custom",
+    "no-unused-props/invalid/ignored-type-patterns-custom",
+    "no-unused-props/invalid/imported-type-check",
+    "no-unused-props/invalid/imported-type-unused",
+    "no-unused-props/invalid/index-signature-no-rest",
+    "no-unused-props/invalid/intersection-unused",
+    "no-unused-props/invalid/multiple-extends-unused",
+    "no-unused-props/invalid/nested-unused",
+    "no-unused-props/invalid/parent-interface-unused",
+    "no-unused-props/invalid/unused-index-signature",
+    "no-unused-props/invalid/custom-config-combination",
+    // Valid fixtures that would produce false positives without custom options.
+    "no-unused-props/valid/ignore-property-patterns-default",
+    "no-unused-props/valid/ignore-property-patterns-custom",
+    "no-unused-props/valid/custom-config-combination",
+    "no-unused-props/valid/ignored-type-patterns-custom",
+    "no-unused-props/valid/ignored-type-patterns-custom2",
 ];
 
 /// One expected error from a `*-errors.yaml` file.

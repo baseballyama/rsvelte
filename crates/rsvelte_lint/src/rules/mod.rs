@@ -58,6 +58,7 @@ pub mod no_trailing_spaces;
 pub mod no_unknown_style_directive_property;
 pub mod no_unnecessary_state_wrap;
 pub mod no_unused_class_name;
+pub mod no_unused_props;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
 pub mod prefer_class_directive;

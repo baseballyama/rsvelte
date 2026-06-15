@@ -77,17 +77,23 @@ position. All 7 upstream fixtures (local interfaces / inline type-literals) pass
 byte-exact. Imported/aliased Props types (which need cross-file type resolution)
 remain out of scope.
 
-One rule remains genuinely blocked on a TypeScript **type-query** / object-graph
-(tsgo/corsa) — the design doc's gated Wave-3 spike. tsgo returns only
-diagnostics, not a type-query API; this repo has **no checker at all** (no `tsgo`
-binary, no `corsa` dep, empty `typescript-go` submodule); and rsvelte's lint
-ESTree erases TS type declarations, so even a source scan can't reach the
-imported/nested/base-type cases the fixtures exercise:
-- `no-unused-props` (~95% type-dependent — recursive `getPropertiesOfType` /
-  `getBaseTypes` / index signatures / cross-file imported types). Its local-flat
-  subset is source-scannable, but the bulk of its 48 invalid + 70 valid fixtures
-  exercise imported/nested/base types that need the full TypeChecker graph (per
-  design doc §B/§D, delegated to `@typescript-eslint` in Node).
+✅ `no-unused-props` (`rules/no_unused_props.rs`) ports the **local-flat** subset
+via a source scan: resolve the `$props()` type to a local `interface`/`type`/
+inline-literal body, enumerate members, and report unused ones — for the
+destructure form a member absent from the pattern is unused; for the whole-object
+form (`const props: Props = $props()`) a member never accessed as
+`props.x`/`props['x']` is unused. Passes 6 invalid + 51 valid fixtures byte-exact.
+Every fixture needing the TypeChecker — `extends`/intersections/generics,
+imported types, index signatures, nested-property checking, and the
+`ignore*Patterns`/`checkImportedTypes` options (14 invalid + 5 valid) — is
+skipped with a documented reason. Known limitations: usage detection is a
+substring scan (`props.x`), not scope-precise (errs toward under-reporting); the
+destructure form treats "present in the pattern" as used; the `ignore*Patterns`
+options are unimplemented (those fixtures skipped). These are out of reach
+without the full TS TypeChecker object graph (per design doc §B/§D, delegated to
+`@typescript-eslint` in Node), which this repo has no backend for (no `tsgo`
+binary, no `corsa` dep, empty `typescript-go` submodule; rsvelte's lint ESTree
+also erases TS type declarations).
 
 `valid-compile` is ported as an opt-in meta-rule
 (`crate::rules::valid_compile`, wired into `runner::lint_source`): it compiles

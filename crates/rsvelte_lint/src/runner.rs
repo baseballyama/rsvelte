@@ -87,6 +87,9 @@ pub fn lint_source(
             diags.extend(crate::rules::require_event_prefix::diagnostics(
                 source, file, config,
             ));
+            diags.extend(crate::rules::no_unused_props::diagnostics(
+                source, file, config,
+            ));
             diags
         }
     };
