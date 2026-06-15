@@ -129,17 +129,17 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
-        # Split the suite across 2 runners with nextest's test partitioning.
-        # The execution floor is set by a few single `#[test]` functions that
-        # each fan out over 1000+ fixtures internally (runtime-legacy / runes,
-        # the compile_module thread-safety stress test) — together ~2 min of
-        # wall time that no caching removes. nextest assigns whole test binaries
-        # to shards (`--partition count:N/2`), so the two heavy `runtime`
-        # binaries land on different runners and run concurrently instead of
-        # back-to-back. Every shard compiles the workspace and runs ALL of its
-        # assigned tests — coverage is unchanged, only per-runner wall-clock is
-        # halved. The `Tests` gate job below joins the shards into one required
-        # status check.
+        # This job runs the *fast bulk* of the suite, split across 2 runners with
+        # nextest's count partitioning. The three heaviest single `#[test]`
+        # functions — each fans out over 1000+ fixtures internally — are excluded
+        # here (see the `Run tests` filter) and run in their own dedicated jobs
+        # (`test-runtime`, `test-thread-safety`) that compile only their one test
+        # binary, so their ~150 s execution floor doesn't sit behind this job's
+        # full ~2 min workspace build. count-partitioning is weight-blind, so
+        # keeping the heavy tests out is what makes these shards balanced. Every
+        # test still runs (here or in a dedicated job) with full iteration counts
+        # — coverage is unchanged. The `Tests` gate job joins them into one
+        # required status check.
         shard: [1, 2]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -281,9 +281,14 @@ jobs:
         # test is `#[ignore]`d (reporting-only, re-runs the whole suite) and is
         # covered by the dedicated `compatibility-report` job below, so it stays
         # out of this run. nextest does not run doctests; this workspace has none.
-        # `--partition count:<shard>/2` runs only this shard's slice of the
-        # tests (see the `shard` matrix above).
-        run: cargo nextest run --profile ci --partition count:${{ matrix.shard }}/2
+        #
+        # The three heavy fan-out tests are excluded and run in `test-runtime` /
+        # `test-thread-safety`. `--partition count:<shard>/2` then splits the
+        # remaining (uniform-weight) tests evenly across the 2 shards.
+        run: >-
+          cargo nextest run --profile ci
+          -E 'not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test(/compile_module_is_thread_safe_under_reuse/))'
+          --partition count:${{ matrix.shard }}/2
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
@@ -323,24 +328,162 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # Single required status check that fans the sharded `Test` matrix back in:
-  # branch protection can require `Tests` instead of every `Test (os, shard)`
-  # leg, so adding/removing shards never needs a protection-rule change. Fails
-  # if any shard failed or was cancelled.
+  # The two heaviest single `#[test]` functions run here, isolated from the
+  # `test` shards. Each fans out over 1000+ fixtures internally and takes ~2.5 min
+  # to run, so behind the `test` job's full ~2 min workspace build they'd push a
+  # shard past the 5 min budget. Running them with a `--test <binary>` selection
+  # compiles only their one integration-test binary (deps restored from the
+  # shared `test` cache, so no oxc rebuild), so their ~70 s build + ~2.5 min run
+  # fits comfortably. They run on Linux only — both exercise OS-agnostic compiler
+  # logic that the `test` shards already cover on every OS. Coverage and
+  # iteration counts are identical to running them inline.
+  test-runtime:
+    name: Test runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        shell: bash
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache fixtures
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: fixtures
+          key: fixtures-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('.gitmodules') }}
+
+      - name: Cache Svelte compiler build
+        id: svelte-build-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+            submodules/svelte/packages/svelte/compiler/index.js
+            submodules/svelte/packages/svelte/types
+            submodules/svelte/packages/svelte/*.d.ts
+            submodules/svelte/packages/svelte/scripts/_bundle.js
+          key: svelte-build-v2-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
+      - name: Build Svelte compiler
+        if: steps.svelte-build-cache.outputs.cache-hit != 'true'
+        run: |
+          cd submodules/svelte
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Generate fixtures
+        run: pnpm run generate-fixtures
+        timeout-minutes: 15
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # Share the `test` job's dependency cache (same lockfile, same default
+          # features) so the oxc graph is restored, not rebuilt. Read-only: this
+          # job only builds the `runtime` test binary, so it must not overwrite
+          # the full-suite cache the `test` shards populate.
+          shared-key: test
+          save-if: 'false'
+
+      - name: Run runtime suites (legacy + runes)
+        # `--test runtime` builds only crates/rsvelte_core/tests/runtime.rs, so
+        # the ~70 s build covers just rsvelte_core + this one binary instead of
+        # all ~178 integration-test binaries. The `-E` filter then runs only the
+        # two heavy fan-out tests; the binary's lighter tests (hydration, browser,
+        # fixture listings) already run in the `test` shards.
+        run: >-
+          cargo nextest run --profile ci -p rsvelte_core --test runtime
+          -E 'test(/test_runtime_legacy/) | test(/test_runtime_runes/)'
+        timeout-minutes: 20
+        env:
+          RUST_MIN_STACK: '33554432'
+
+  test-thread-safety:
+    name: Test thread-safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      # The thread-safety stress test compiles vendored `tests/fixtures_runed/`
+      # modules — no generated fixtures, Svelte build, or Node toolchain needed.
+      # Only the `svelte` submodule's package.json is read by rsvelte_core's
+      # build.rs for the version string, so a shallow svelte-only init suffices.
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # Share (read-only) the `test` job's warm dependency cache.
+          shared-key: test
+          save-if: 'false'
+
+      - name: Run compile_module thread-safety stress test
+        # `--test compile_module_thread_safety` builds only that one binary.
+        run: cargo nextest run --profile ci -p rsvelte_core --test compile_module_thread_safety
+        timeout-minutes: 15
+        env:
+          RUST_MIN_STACK: '33554432'
+
+  # Single required status check that fans the sharded `Test` matrix and the two
+  # dedicated heavy-test jobs back into one signal: branch protection can require
+  # `Tests` instead of every `Test (os, shard)` / `Test runtime` /
+  # `Test thread-safety` leg, so changing the split never needs a protection-rule
+  # change. Fails if any of them failed or was cancelled.
   tests:
     name: Tests
-    needs: test
+    needs: [test, test-runtime, test-thread-safety]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Verify all test shards passed
+      - name: Verify all test jobs passed
         shell: bash
+        env:
+          BULK: ${{ needs.test.result }}
+          RUNTIME: ${{ needs.test-runtime.result }}
+          THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
         run: |
-          result="${{ needs.test.result }}"
-          echo "Aggregated test matrix result: $result"
-          if [[ "$result" != "success" ]]; then
-            echo "::error::One or more Test shards did not succeed (result: $result)."
+          echo "test (shards): $BULK"
+          echo "test-runtime: $RUNTIME"
+          echo "test-thread-safety: $THREAD_SAFETY"
+          if [[ "$BULK" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" ]]; then
+            echo "::error::One or more test jobs did not succeed."
             exit 1
           fi
 
