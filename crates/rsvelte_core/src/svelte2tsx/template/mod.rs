@@ -2892,6 +2892,10 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
             // `handleImplicitChildren`, which skips `SnippetBlock` / `Comment`
             // and only fakes a `children` prop for a real default-slot child.
             TemplateNode::SnippetBlock(_) | TemplateNode::Comment(_) => {}
+            // A `<slot>` child never contributes default-slot content — official
+            // `handleImplicitChildren` skips every `child.type === 'Slot'`
+            // unconditionally (it forwards a slot, it isn't slotted content).
+            TemplateNode::SlotElement(_) => {}
             // Non-default-slot children (`<el slot="name">`, `slot={dynamic}`,
             // `<svelte:fragment slot="name">`, etc.) populate their slot, NOT
             // the default `children` prop, so they must not trigger the
@@ -2952,6 +2956,13 @@ fn has_named_slot_children(fragment: &Fragment, source: &str) -> bool {
             // for distributing children into a named slot — it shows up here
             // as `SvelteFragment`. Treat it like the others.
             TemplateNode::SvelteFragment(el)
+                if get_slot_attr_value(&el.attributes, source).is_some() =>
+            {
+                return true;
+            }
+            // `<slot slot="name">` forwards a `<slot>` into the parent
+            // component's named slot.
+            TemplateNode::SlotElement(el)
                 if get_slot_attr_value(&el.attributes, source).is_some() =>
             {
                 return true;
@@ -3734,6 +3745,25 @@ fn handle_slot_element(
         return;
     }
 
+    // Named-slot forwarding: `<slot slot="x">` inside a component's children
+    // distributes into the parent component's named slot `x`. Wrap the whole
+    // `__sveltets_createSlot(...)` in a `$$slot_def["x"]` destructure block
+    // referencing the enclosing component instance. Take the context so the
+    // slot's own fallback children don't inherit it; restore it for siblings.
+    let saved_slot = counter.slot_inst.take();
+    let named_slot: Option<(String, String)> = saved_slot.as_ref().and_then(|inst| {
+        get_slot_attr_value(&el.attributes, source).map(|name| (inst.clone(), name))
+    });
+    if let Some((ref inst, ref target_slot)) = named_slot {
+        let lets = get_let_directives(&el.attributes);
+        let let_destructure = build_let_destructure_string(&lets, source);
+        let block_open = format!(
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
+            let_destructure, inst, target_slot
+        );
+        str.prepend_left(el.start, &block_open);
+    }
+
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
     // Extract the slot name from attributes (default: "default")
@@ -3806,6 +3836,13 @@ fn handle_slot_element(
             str.append_left(el.end, "}");
         }
     }
+
+    // Close the named-slot `$$slot_def[...]` wrapper block, then restore the
+    // slot context for following siblings.
+    if named_slot.is_some() {
+        str.append_left(el.end, "}");
+    }
+    counter.slot_inst = saved_slot;
 }
 
 /// Handle `<svelte:self>` element.
@@ -5683,8 +5720,11 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
-                // Skip the `name` attribute - it determines the slot name, not a prop
-                if node.name == "name" {
+                // Skip the `name` attribute - it determines the slot name, not a prop.
+                // Skip `slot` too — on a `<slot slot="x">` forward it targets the
+                // enclosing component's named slot (consumed by the
+                // `$$slot_def["x"]` wrapper), it is not a slot prop.
+                if node.name == "name" || node.name == "slot" {
                     continue;
                 }
                 // Slot props are neither DOM-element props nor component props;
