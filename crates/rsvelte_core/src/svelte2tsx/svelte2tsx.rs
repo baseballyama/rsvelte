@@ -200,18 +200,298 @@ impl Svelte2TsxError {
 /// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
 /// println!("{}", result.code);
 /// ```
+/// Replace the content of every `<style …>…</style>` with spaces (newlines and
+/// carriage returns preserved) so the parser never CSS-parses it. Works at the
+/// BYTE level so the result is exactly the same length as `source` — every AST
+/// offset still indexes the original source. Case-insensitive on the tag name.
+fn blank_style_content(source: &str) -> String {
+    let mut bytes = source.as_bytes().to_vec();
+    let lower = source.to_ascii_lowercase();
+    let lb = lower.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = lower[search..].find("<style") {
+        let tag_start = search + rel;
+        // Must be the `<style` element, not e.g. `<styled`.
+        let after = lb.get(tag_start + 6).copied();
+        if !matches!(
+            after,
+            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+        ) {
+            search = tag_start + 6;
+            continue;
+        }
+        let Some(gt_rel) = lower[tag_start..].find('>') else {
+            break;
+        };
+        let content_start = tag_start + gt_rel + 1;
+        // Self-closing `<style/>` → no content to blank.
+        if content_start >= 2 && lb[content_start - 2] == b'/' {
+            search = content_start;
+            continue;
+        }
+        let Some(close_rel) = lower[content_start..].find("</style") else {
+            break;
+        };
+        let content_end = content_start + close_rel;
+        for b in &mut bytes[content_start..content_end] {
+            if *b != b'\n' && *b != b'\r' {
+                *b = b' ';
+            }
+        }
+        search = content_end;
+    }
+    String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
+}
+
+/// Validate that every `{@debug …}` argument is a plain identifier, returning a
+/// template error otherwise — mirrors svelte's parse-time check (rsvelte's lives
+/// in the analyze DebugTag visitor, which svelte2tsx doesn't run).
+fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::{Fragment, TemplateNode as N};
+
+    fn arg_is_identifier(expr: &crate::ast::js::Expression, source: &str) -> bool {
+        match expr.node_type() {
+            Some("Identifier") => true,
+            Some(_) => false,
+            // Lazy/unresolved expression: accept only a bare identifier token.
+            None => match (expr.start(), expr.end()) {
+                (Some(s), Some(e))
+                    if (s as usize) < (e as usize) && (e as usize) <= source.len() =>
+                {
+                    let t = source[s as usize..e as usize].trim();
+                    let mut chars = t.chars();
+                    match chars.next() {
+                        Some(c0) if c0.is_alphabetic() || c0 == '_' || c0 == '$' => {
+                            chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                        }
+                        _ => false,
+                    }
+                }
+                _ => false,
+            },
+        }
+    }
+
+    fn check_fragment(frag: &Fragment, source: &str) -> Result<(), Svelte2TsxError> {
+        for node in &frag.nodes {
+            check_node(node, source)?;
+        }
+        Ok(())
+    }
+
+    fn check_node(node: &N, source: &str) -> Result<(), Svelte2TsxError> {
+        match node {
+            N::DebugTag(tag) => {
+                for id in &tag.identifiers {
+                    if !arg_is_identifier(id, source) {
+                        return Err(Svelte2TsxError::Template(
+                            "{@debug ...} arguments must be identifiers, not arbitrary expressions"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
+            N::RegularElement(e) => check_fragment(&e.fragment, source)?,
+            N::Component(c) => check_fragment(&c.fragment, source)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, source)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, source)?,
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, source)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, source)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, source)?,
+            N::IfBlock(b) => {
+                check_fragment(&b.consequent, source)?;
+                if let Some(alt) = &b.alternate {
+                    check_fragment(alt, source)?;
+                }
+            }
+            N::EachBlock(b) => {
+                check_fragment(&b.body, source)?;
+                if let Some(fb) = &b.fallback {
+                    check_fragment(fb, source)?;
+                }
+            }
+            N::KeyBlock(b) => check_fragment(&b.fragment, source)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, source)?,
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    check_fragment(f, source)?;
+                }
+                if let Some(f) = &b.then {
+                    check_fragment(f, source)?;
+                }
+                if let Some(f) = &b.catch {
+                    check_fragment(f, source)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    check_fragment(&ast.fragment, source)
+}
+
+/// Validate `<svelte:window/body/document/head/options>` placement and
+/// uniqueness, mirroring svelte's PARSE-time `svelte_meta_duplicate` /
+/// `svelte_meta_invalid_placement` checks (1-parse/state/element.js). rsvelte's
+/// compiler defers these to phase-2 analysis, which svelte2tsx skips — but
+/// official svelte2tsx parses with svelte and so rejects these at parse. Each
+/// of these five "root-only meta tags" must appear at most once and only as a
+/// direct child of the component root (not inside any element or block).
+fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::{Fragment, TemplateNode as N};
+    use std::collections::HashSet;
+
+    // `<svelte:element>` requires a `this` attribute with a value. svelte's
+    // parser stores it as the element's `tag` expression; a missing / valueless
+    // `this` leaves an empty span. Official svelte2tsx rejects it.
+    fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression, source: &str) -> bool {
+        match (tag.start(), tag.end()) {
+            (Some(s), Some(e)) if (s as usize) < (e as usize) && (e as usize) <= source.len() => {
+                source[s as usize..e as usize].trim().is_empty()
+            }
+            _ => true,
+        }
+    }
+
+    fn meta_name(node: &N) -> Option<&str> {
+        match node {
+            N::SvelteWindow(e)
+            | N::SvelteBody(e)
+            | N::SvelteDocument(e)
+            | N::SvelteHead(e)
+            | N::SvelteOptions(e) => Some(e.name.as_str()),
+            _ => None,
+        }
+    }
+
+    fn check_fragment(
+        frag: &Fragment,
+        at_root: bool,
+        seen: &mut HashSet<String>,
+        source: &str,
+    ) -> Result<(), Svelte2TsxError> {
+        for node in &frag.nodes {
+            check_node(node, at_root, seen, source)?;
+        }
+        Ok(())
+    }
+
+    fn check_node(
+        node: &N,
+        at_root: bool,
+        seen: &mut HashSet<String>,
+        source: &str,
+    ) -> Result<(), Svelte2TsxError> {
+        if let N::SvelteElement(e) = node
+            && dynamic_element_tag_is_empty(&e.tag, source)
+        {
+            return Err(Svelte2TsxError::Template(
+                "`<svelte:element>` must have a 'this' attribute with a value".to_string(),
+            ));
+        }
+        if let Some(name) = meta_name(node) {
+            if !at_root {
+                return Err(Svelte2TsxError::Template(format!(
+                    "`<{}>` tags cannot be inside elements or blocks",
+                    name
+                )));
+            }
+            if !seen.insert(name.to_string()) {
+                return Err(Svelte2TsxError::Template(format!(
+                    "A component can only have one `<{}>` element",
+                    name
+                )));
+            }
+        }
+        // Recurse into children — anything nested below this node is no longer
+        // at root level.
+        match node {
+            N::RegularElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::Component(c) => check_fragment(&c.fragment, false, seen, source)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, false, seen, source)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::IfBlock(b) => {
+                check_fragment(&b.consequent, false, seen, source)?;
+                if let Some(alt) = &b.alternate {
+                    check_fragment(alt, false, seen, source)?;
+                }
+            }
+            N::EachBlock(b) => {
+                check_fragment(&b.body, false, seen, source)?;
+                if let Some(fb) = &b.fallback {
+                    check_fragment(fb, false, seen, source)?;
+                }
+            }
+            N::KeyBlock(b) => check_fragment(&b.fragment, false, seen, source)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, false, seen, source)?,
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    check_fragment(f, false, seen, source)?;
+                }
+                if let Some(f) = &b.then {
+                    check_fragment(f, false, seen, source)?;
+                }
+                if let Some(f) = &b.catch {
+                    check_fragment(f, false, seen, source)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    let mut seen = HashSet::new();
+    check_fragment(&ast.fragment, true, &mut seen, source)
+}
+
 pub fn svelte2tsx(
     source: &str,
     options: Svelte2TsxOptions,
 ) -> Result<Svelte2TsxResult, Svelte2TsxError> {
-    // Step 1: Parse the Svelte source using the existing parser
+    // Step 1: Parse the Svelte source using the existing parser.
+    //
+    // Blank out `<style>` CONTENT before parsing (equal-length, newlines kept,
+    // so every AST offset still lines up with the original `source`). svelte2tsx
+    // does the same (utils/htmlxparser.ts: "Svelte tries to parse style/script
+    // tags which doesn't play well with typescript, so we blank them out") — the
+    // CSS is irrelevant to the TSX output (it's dropped anyway), and parsing it
+    // would surface CSS-only errors (e.g. doc placeholders like `div { ... }`)
+    // that the official tool never sees, breaking error-parity. The `<script>`
+    // is NOT blanked — rsvelte needs it (it processes the instance script from
+    // the parsed AST, unlike svelte2tsx which re-parses scripts separately).
+    let parse_source = blank_style_content(source);
     let parse_options = ParseOptions {
         modern: true,
         loose: false,
         skip_expression_loc: false,
         defer_script_parse: false,
     };
-    let ast = phase1_parse::parse(source, parse_options)?;
+    let ast = phase1_parse::parse(&parse_source, parse_options)?;
+
+    // svelte rejects `{@debug expr}` whose arguments are not plain identifiers
+    // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does
+    // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
+    // replicate it here to preserve error-parity with official svelte2tsx.
+    validate_debug_tag_arguments(&ast, source)?;
+    validate_meta_element_placement(&ast, source)?;
 
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);
@@ -270,8 +550,42 @@ pub fn svelte2tsx(
         );
     }
 
-    // Step 7.5: Early slot detection (before script tag overwrites)
-    let has_slot_elements = source.contains("<slot") || source.contains("<slot>");
+    // Step 7.4: Detect `{await expr}` in template expression tags.
+    // Await-in-template forces runes mode (async template expressions are
+    // Svelte 5 runes-only).
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+    //   `isRunes` doc: "True if uses runes or top level await or await in template expressions"
+    if detect_await_in_template(&ast, source) {
+        exported_names.set_uses_runes(true);
+    }
+
+    // Step 7.45: Detect `$state`/`$derived`/`$effect` rune-globals in TEMPLATE expressions.
+    //
+    // Official rule (index.ts): `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
+    // — `implicitStoreValues` collects ALL accessed undeclared globals across the entire
+    // component INCLUDING template expressions.  `checkGlobalsForRunes` (ExportedNames.ts
+    // ~line 878–881) sets `hasRunesGlobals = isSvelte5Plus && globals.some(g =>
+    // ['$state','$derived','$effect'].includes(g))`.
+    //
+    // A component with NO `<script>` but with e.g. `aria-current={$state.eager(pathname) === '/'
+    // ? 'page' : null}` is therefore RUNES (because `$state` is an undeclared global
+    // referenced in the template).  rsvelte's instance-script scanner never runs for
+    // template-only components, so we need to walk the template AST here.
+    //
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/index.ts
+    //   `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+    //   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
+    if detect_rune_global_in_template(&ast, source) {
+        exported_names.set_uses_runes(true);
+    }
+
+    // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
+    // naive `source.contains("<slot")` matches `<slot>` inside string literals
+    // such as a custom element's `shadowRoot.innerHTML = '…<slot>…'`, which are
+    // not real template slots). Official emits the `__sveltets_createSlot`
+    // helper / treats the component as slotted only for real `<slot>` elements.
+    let has_slot_elements = fragment_has_slot_element(&ast.fragment);
 
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
@@ -293,7 +607,49 @@ pub fn svelte2tsx(
                         ..expr.expression.end().unwrap_or(0) as usize];
                     attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
                 }
-                _ => {}
+                // String / mixed attribute, e.g. `<svelte:options customElement="my-el">`
+                // or `namespace="svg"`. Mirror the element-attribute Sequence path
+                // (template/mod.rs::format_attribute_node_segments): a lone expression
+                // stays a bare expression, everything else becomes a template literal.
+                // Reference: language-tools .../htmlxtojsx_v2/nodes/Attribute.ts.
+                crate::ast::template::AttributeValue::Sequence(parts) => {
+                    use crate::ast::template::AttributeValuePart;
+                    if parts.len() == 1
+                        && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+                    {
+                        has_expression_attr = true;
+                        let expr_text = &source[expr.expression.start().unwrap_or(0) as usize
+                            ..expr.expression.end().unwrap_or(0) as usize];
+                        attrs_parts.push(format!("\"{}\":{},", node.name, expr_text));
+                    } else {
+                        let mut value = String::from("`");
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    value.push_str(
+                                        &text
+                                            .raw
+                                            .replace('\\', "\\\\")
+                                            .replace('`', "\\`")
+                                            .replace('$', "\\$"),
+                                    );
+                                }
+                                AttributeValuePart::ExpressionTag(expr) => {
+                                    has_expression_attr = true;
+                                    if let (Some(s), Some(e)) =
+                                        (expr.expression.start(), expr.expression.end())
+                                    {
+                                        value.push_str("${");
+                                        value.push_str(&source[s as usize..e as usize]);
+                                        value.push('}');
+                                    }
+                                }
+                            }
+                        }
+                        value.push('`');
+                        attrs_parts.push(format!("\"{}\":{},", node.name, value));
+                    }
+                }
             }
         }
         let attrs_str = if attrs_parts.is_empty() {
@@ -555,6 +911,14 @@ pub fn svelte2tsx(
     let has_instance_script = ast.instance.is_some();
     let has_module_script = ast.module.is_some();
 
+    // Tracks whether the instance script contains a top-level `await`
+    // (i.e. an await expression that is not inside any function or arrow body).
+    // Set inside the `if has_instance_script` block below; consulted by the
+    // export-assembly section further down.
+    // Reference: createRenderFunction.ts (async keyword on $$render) and
+    //            addComponentExport.ts (`renderCall` / `awaitDeclaration`).
+    let mut has_top_level_await = false;
+
     // Determine the target position for the instance script.
     // If there's a module script, the instance script goes after it.
     let mut instance_script_target: u32 = 0;
@@ -632,9 +996,16 @@ pub fn svelte2tsx(
         let content_start = instance.content_offset;
         let content_end = find_script_close_tag_start(source, script_end);
 
-        // Detect top-level `await` in the script content
+        // Detect top-level `await` in the script content.
+        // Top-level await in the instance script forces runes mode — async
+        // components are Svelte 5 runes-only.
+        // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+        //   `isRunes = true when component has TOP-LEVEL AWAIT in the instance script`
         let raw_content = &source[content_start as usize..content_end as usize];
-        let has_top_level_await = detect_top_level_await(raw_content);
+        has_top_level_await = detect_top_level_await(raw_content);
+        if has_top_level_await {
+            exported_names.set_uses_runes(true);
+        }
         let async_prefix = if has_top_level_await { "async " } else { "" };
 
         // Detect `generics` attribute on the script tag
@@ -764,8 +1135,9 @@ pub fn svelte2tsx(
 
                 // Add semicolon to the last import if it doesn't have one
                 if i == imports.len() - 1 {
-                    let last_char = import_text_clean.as_bytes()[import_text_clean.len() - 1];
-                    if last_char != b';' {
+                    // `.last()` avoids a `len() - 1` underflow when the cleaned
+                    // import text is empty (zero-length span edge case).
+                    if import_text_clean.as_bytes().last() != Some(&b';') {
                         import_text.push_str(";\n");
                     } else {
                         import_text.push('\n');
@@ -1211,28 +1583,14 @@ pub fn svelte2tsx(
             }
         }
 
-        // Blank out trailing whitespace after </script> that is not part
-        // of any template content. Must be done BEFORE moves, since the
-        // overwrite walks the linked list.
-        if (script_end as usize) < source.len() {
-            let bytes = source.as_bytes();
-            let mut trailing_end = script_end;
-            while (trailing_end as usize) < bytes.len() {
-                let b = bytes[trailing_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    trailing_end += 1;
-                } else {
-                    break;
-                }
-            }
-            let has_template_node_after_script = ast.fragment.nodes.iter().any(|node| {
-                let ns = node_start_pos(node);
-                ns >= script_end && ns < trailing_end
-            });
-            if !has_template_node_after_script && trailing_end > script_end {
-                str.overwrite(script_end, trailing_end, "");
-            }
-        }
+        // NOTE: the trailing whitespace after `</script>` is intentionally
+        // left in place. Official svelte2tsx's `createRenderFunction` overwrites
+        // only `</script>` itself and then `str.append('};')` + the return
+        // string at the very end, leaving the source's trailing newline between
+        // `async () => {` and the closing `};`. For a template-less component
+        // that yields `async () => {\n};`; blanking the newline here produced
+        // `async () => {};`, which diverged for the await-error fixtures whose
+        // output oxfmt cannot reformat (so only blank-line stripping applies).
     }
 
     // Phase 3: Move scripts to their target positions (after all overwrites)
@@ -1356,12 +1714,10 @@ pub fn svelte2tsx(
 
     // Append the closing of async wrapper, return statement, and component export
     let use_partial_with_any = uses_dollar_props || uses_dollar_rest_props;
-    let props_str = if use_partial_with_any {
-        // When $$props or $$restProps is used, props is just an empty object
-        "{}".to_string()
-    } else {
-        exported_names.create_props_str(options.is_ts_file)
-    };
+    // `$$props`/`$$restProps` only flattens the props type to `{}` when there
+    // are NO explicitly-declared props; named `export let`s are still listed
+    // (mirrors official `createPropsStr(uses$$propsOr$$restProps)`).
+    let props_str = exported_names.create_props_str(options.is_ts_file, use_partial_with_any);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     // Determine effective accessors setting: from options OR <svelte:options accessors>
     let effective_accessors = options.accessors
@@ -1402,6 +1758,11 @@ pub fn svelte2tsx(
         format!("{{{}}}", slot_parts.join(", "))
     };
 
+    // Scan the whole component (instance script + template handlers) for
+    // `dispatch("name", …)` call sites of any untyped `createEventDispatcher()`
+    // so they surface in the events return.
+    events.collect_dispatched_events(source);
+
     // Build events string from template info and component events
     let events_str = {
         let mut event_parts = Vec::new();
@@ -1441,26 +1802,57 @@ pub fn svelte2tsx(
         closing.push('\n');
     }
 
-    // Helper: build the prop_def string for the component export.
-    // When $$props or $$restProps is used, use __sveltets_2_partial_with_any.
+    // Build the renderCall / awaitDeclaration pair used throughout the
+    // component export section below.
+    //
+    // Reference: `addComponentExport.ts` – `addSimpleComponentExport`:
+    //   const renderCall = hasTopLevelAwait ? `$${renderName}` : `${renderName}()`;
+    //   const awaitDeclaration = hasTopLevelAwait
+    //       ? surroundWithIgnoreComments(`const $${renderName} = await ${renderName}();`) + '\n'
+    //       : '';
+    //
+    // The rsvelte equivalent uses the same ignore markers (Ω = U+03A9).
+    let render_call: &str = if has_top_level_await {
+        "$$$render"
+    } else {
+        "$$render()"
+    };
+    let await_declaration: &str = if has_top_level_await {
+        "/*\u{03A9}ignore_start\u{03A9}*/ const $$$render = await $$render(); /*\u{03A9}ignore_end\u{03A9}*/\n"
+    } else {
+        ""
+    };
+
+    // Helper: build the prop_def string for the component export. Mirrors the
+    // official `props(isTsFile, canHaveAnyProp, …)` in addComponentExport.ts:
+    //   - runes mode:        renderStr (no partial)
+    //   - TS file:           canHaveAnyProp ? __sveltets_2_with_any(renderStr) : renderStr
+    //   - JS file (legacy):  __sveltets_2_partial[_with_any]([optional], renderStr)
+    // where renderStr = `__sveltets_2_with_any_event($$render())` (non-async) or
+    //                   `__sveltets_2_with_any_event($$$render)` (async) and
+    // canHaveAnyProp = uses $$props / $$restProps (`use_partial_with_any`).
+    // `__sveltets_2_partial` is therefore ONLY emitted for legacy JS components.
     let build_prop_def = |exported_names: &ExportedNames| -> String {
-        if use_partial_with_any {
-            "__sveltets_2_partial_with_any(__sveltets_2_with_any_event($$render()))".to_string()
+        let render_str = format!("__sveltets_2_with_any_event({render_call})");
+        if exported_names.is_runes_mode() {
+            render_str
+        } else if options.is_ts_file {
+            if use_partial_with_any {
+                format!("__sveltets_2_with_any({render_str})")
+            } else {
+                render_str
+            }
         } else {
             let optional_props = exported_names.create_optional_props_array(options.is_ts_file);
-            if optional_props.is_empty() {
-                if options.is_ts_file && !exported_names.is_empty() {
-                    // For TS files with `as {...}` type assertions on props,
-                    // don't wrap with __sveltets_2_partial
-                    "__sveltets_2_with_any_event($$render())".to_string()
-                } else {
-                    "__sveltets_2_partial(__sveltets_2_with_any_event($$render()))".to_string()
-                }
+            let partial = if use_partial_with_any {
+                "__sveltets_2_partial_with_any"
             } else {
-                format!(
-                    "__sveltets_2_partial([{}], __sveltets_2_with_any_event($$render()))",
-                    optional_props.join(",")
-                )
+                "__sveltets_2_partial"
+            };
+            if optional_props.is_empty() {
+                format!("{partial}({render_str})")
+            } else {
+                format!("{partial}([{}], {render_str})", optional_props.join(","))
             }
         }
     };
@@ -1508,13 +1900,28 @@ pub fn svelte2tsx(
         }
         SvelteVersion::V5 => {
             let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
-            if exported_names.is_runes_mode() {
+            // `__sveltets_2_fn_component` is only used for a runes component with
+            // NO slots and NO events; a runes component that forwards events
+            // (`on:click`) or has slots falls through to the isomorphic-component
+            // path, exactly like a legacy component (mirrors official
+            // addComponentExport: `isRunesMode() && !usesSlots && !hasEvents`).
+            // "No events" must also account for forwarded element/component
+            // events (`<div on:click>` / `<Inner on:bar/>`), which live in
+            // `template_info.element_events`, not `events`.
+            let has_any_events = !events.is_empty() || !template_info.element_events.is_empty();
+            if exported_names.is_runes_mode() && !has_any_events && !has_slot_elements {
                 if !use_ts_syntax {
-                    // JS files with emitJsDoc: use `export const` and JSDoc typedef
+                    // JS files with emitJsDoc: use `export const` and JSDoc typedef.
+                    // Reference: addComponentExport.ts `addSimpleComponentExport`,
+                    // isSvelte5 + isRunesMode + useTypeScriptSyntax=false branch.
+                    // `awaitDeclaration` is emitted first when the component has a
+                    // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
+                    // in that case, `$$render()` otherwise.
+                    closing.push_str(await_declaration);
                     let _ = writeln!(
                         closing,
-                        "export const {} = __sveltets_2_fn_component($$render());",
-                        safe_name
+                        "export const {} = __sveltets_2_fn_component({});",
+                        safe_name, render_call
                     );
                     let _ = writeln!(
                         closing,
@@ -1557,12 +1964,20 @@ pub fn svelte2tsx(
                         &raw_bindings,
                         &exports_return,
                         has_slot_elements,
+                        !events.is_empty(),
                     );
                 } else {
+                    // Runes mode, TS syntax, no generics — the most common path.
+                    // Reference: addComponentExport.ts `addSimpleComponentExport`,
+                    // isSvelte5 + isRunesMode + useTypeScriptSyntax=true branch.
+                    // `awaitDeclaration` is emitted first when the component has a
+                    // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
+                    // in that case, `$$render()` otherwise.
+                    closing.push_str(await_declaration);
                     let _ = writeln!(
                         closing,
-                        "const {} = __sveltets_2_fn_component($$render());",
-                        safe_name
+                        "const {} = __sveltets_2_fn_component({});",
+                        safe_name, render_call
                     );
                     let _ = writeln!(
                         closing,
@@ -1646,10 +2061,20 @@ pub fn svelte2tsx(
                 } else {
                     String::new()
                 };
+                // When the component has no props (and can't take arbitrary
+                // props via $$props/$$restProps), official drops the
+                // `ReturnType<…['props']> &` prefix, leaving just the
+                // events/slots members. Mirrors `createPropsStr`'s
+                // `!canHaveAnyProp && hasNoProps()` branch.
+                let props_prefix = if exported_names.has_no_props() && !uses_dollar_props {
+                    String::new()
+                } else {
+                    format!("ReturnType<__sveltets_Render<{}>['props']> & ", gn)
+                };
                 let _ = writeln!(
                     closing,
-                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
-                    gp, gn, gn, slots_children_suffix, gn
+                    "    <{}>(internal: unknown, props: {}{{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
+                    gp, props_prefix, gn, slots_children_suffix, gn
                 );
                 let _ = writeln!(
                     closing,
@@ -1675,6 +2100,12 @@ pub fn svelte2tsx(
                     safe_name
                 );
             } else {
+                // Legacy V5 non-runes non-generics: isomorphic_component path.
+                // Reference: addComponentExport.ts `addSimpleComponentExport`,
+                // isSvelte5 + !isRunesMode + !has_generics branch.
+                // `awaitDeclaration` is emitted first; `render_call` is threaded
+                // through `build_prop_def` → `__sveltets_2_with_any_event(renderCall)`.
+                closing.push_str(await_declaration);
                 let prop_def = build_prop_def(&exported_names);
                 let has_non_empty_slots = !template_info.slots.is_empty();
                 let component_fn = if has_non_empty_slots {
@@ -1761,6 +2192,7 @@ fn emit_runes_generics_component(
     raw_bindings: &str,
     exports_return: &str,
     has_slot_elements: bool,
+    has_events: bool,
 ) {
     let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
     let _ = writeln!(
@@ -1791,14 +2223,25 @@ fn emit_runes_generics_component(
         closing,
         "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
-    let slots_children_suffix = if has_slot_elements {
-        format!(", $$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>, children?: any")
-    } else {
-        String::new()
-    };
+    // Mirror official addComponentExport: `$$events?` is only included when the
+    // component has events (or, in legacy mode, always — but this is the runes
+    // path, so just `has_events`). `$$slots?`/`children?` only when slotted.
+    let mut events_slots_parts: Vec<String> = Vec::new();
+    if has_events {
+        events_slots_parts.push(format!(
+            "$$events?: ReturnType<__sveltets_Render<{gn}>['events']>"
+        ));
+    }
+    if has_slot_elements {
+        events_slots_parts.push(format!(
+            "$$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>"
+        ));
+        events_slots_parts.push("children?: any".to_string());
+    }
+    let events_slots_inner = events_slots_parts.join(", ");
     let _ = writeln!(
         closing,
-        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
+        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{{events_slots_inner}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
     let _ = writeln!(
         closing,
@@ -1961,8 +2404,13 @@ fn extract_component_documentation(fragment: &crate::ast::template::Fragment) ->
                 // Extract the documentation text after @component
                 let after_tag = data.strip_prefix("@component").unwrap();
 
-                // If the text after @component starts with a newline, it's multiline
-                let is_multiline = after_tag.contains('\n');
+                // Official trims the whole doc *before* deciding single- vs
+                // multi-line (`componentDocumentation = data.replace('@component',
+                // '').trim()`, then `if (!doc.includes('\n'))`). So a comment
+                // whose only newlines surround a single line of text (e.g.
+                // `<!--@component\nText\n-->`) is emitted as a single-line
+                // `/** Text */`. Check the trimmed content for newlines.
+                let is_multiline = after_tag.trim().contains('\n');
 
                 if is_multiline {
                     // Collect all lines after @component
@@ -2776,21 +3224,36 @@ fn detect_top_level_await(content: &str) -> bool {
     let parser = OxcParser::new(&allocator, content, source_type);
     let result = parser.parse();
 
-    // Look for top-level variable declarations with await in their init,
-    // or top-level expression statements with await.
+    // Mirror upstream `processInstanceScriptContent.ts` which sets
+    // `hasTopLevelAwait = true` whenever an AwaitExpression is visited at the
+    // root scope (i.e. not inside any Block / FunctionLike node).
+    //
+    // We do not have the upstream's full AST-walker machinery, but we can
+    // replicate the effect for the cases that actually occur in Svelte
+    // components:
+    //
+    //   • `VariableDeclaration` at module top-level whose initialiser
+    //     *contains* an AwaitExpression (e.g. `let x = $derived(await f())`
+    //     or `const user = await getUser()`).
+    //   • `ExpressionStatement` at module top-level whose expression
+    //     *contains* an AwaitExpression (e.g. `y = await promise`).
+    //
+    // For both, we use a deep recursive scan that stops at function
+    // boundaries (`FunctionExpression` / `ArrowFunctionExpression`) — those
+    // introduce a new scope and their inner `await` is NOT top-level.
     for stmt in result.program.body.iter() {
         match stmt {
             oxc::Statement::VariableDeclaration(decl) => {
                 for declarator in decl.declarations.iter() {
                     if let Some(ref init) = declarator.init
-                        && contains_await_expression(init)
+                        && expr_contains_await_deep(init)
                     {
                         return true;
                     }
                 }
             }
             oxc::Statement::ExpressionStatement(expr)
-                if contains_await_expression(&expr.expression) =>
+                if expr_contains_await_deep(&expr.expression) =>
             {
                 return true;
             }
@@ -2800,9 +3263,98 @@ fn detect_top_level_await(content: &str) -> bool {
     false
 }
 
-/// Check if an expression is or contains an AwaitExpression (shallow check).
-fn contains_await_expression(expr: &oxc_ast::ast::Expression) -> bool {
-    matches!(expr, oxc_ast::ast::Expression::AwaitExpression(_))
+/// Deep check: returns `true` if `expr` is, or transitively contains (outside
+/// any function boundary), an `AwaitExpression`.
+///
+/// Mirrors the upstream TypeScript walker's `scope === rootScope` predicate:
+/// we recurse into all expression sub-nodes but stop when entering a
+/// `FunctionExpression` or `ArrowFunctionExpression` (a new async scope
+/// whose internal `await` is not "top-level" for the Svelte component).
+///
+/// Reference: `processInstanceScriptContent.ts` lines 246-349
+///   `if (ts.isBlock(node) || ts.isFunctionLike(node)) pushScope();`
+///   `if (isSvelte5Plus && ts.isAwaitExpression(node) && scope === rootScope)`
+fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::{Argument, Expression as E};
+
+    match expr {
+        // Base case: this expression is an await.
+        E::AwaitExpression(_) => true,
+
+        // Function boundaries: do NOT recurse — their inner awaits are in a
+        // new scope and are not "top-level" from the component's perspective.
+        E::ArrowFunctionExpression(_) | E::FunctionExpression(_) => false,
+
+        // Parenthesised expression: transparent wrapper.
+        E::ParenthesizedExpression(p) => expr_contains_await_deep(&p.expression),
+
+        // Assignment: `x = await y` or `x = f(await y)` — check the RHS.
+        // (LHS is a pattern/identifier and cannot contain await directly.)
+        E::AssignmentExpression(a) => expr_contains_await_deep(&a.right),
+
+        // Binary / logical: check both sides.
+        E::BinaryExpression(b) => {
+            expr_contains_await_deep(&b.left) || expr_contains_await_deep(&b.right)
+        }
+        E::LogicalExpression(l) => {
+            expr_contains_await_deep(&l.left) || expr_contains_await_deep(&l.right)
+        }
+
+        // Conditional: test ? consequent : alternate.
+        E::ConditionalExpression(c) => {
+            expr_contains_await_deep(&c.test)
+                || expr_contains_await_deep(&c.consequent)
+                || expr_contains_await_deep(&c.alternate)
+        }
+
+        // Unary / yield: single argument.
+        E::UnaryExpression(u) => expr_contains_await_deep(&u.argument),
+        E::YieldExpression(y) => y
+            .argument
+            .as_ref()
+            .is_some_and(|a| expr_contains_await_deep(a)),
+
+        // Sequence: any expression in the list.
+        E::SequenceExpression(s) => s.expressions.iter().any(expr_contains_await_deep),
+
+        // Call expression: callee + arguments.  This is the key case for
+        // `$derived(await x)` — the callee is `$derived` and the argument
+        // is an AwaitExpression.
+        //
+        // `Argument` inherits `Expression` variants via `@inherit Expression`;
+        // `to_expression()` panics for `SpreadElement` (handled first in the
+        // match), and returns the inner `&Expression` for all other variants.
+        E::CallExpression(call) => {
+            expr_contains_await_deep(&call.callee)
+                || call.arguments.iter().any(|arg| match arg {
+                    Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
+                    _ => expr_contains_await_deep(arg.to_expression()),
+                })
+        }
+
+        // `new Foo(await x)`.
+        E::NewExpression(n) => n.arguments.iter().any(|arg| match arg {
+            Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
+            _ => expr_contains_await_deep(arg.to_expression()),
+        }),
+
+        // Member expressions: `obj[await key]` or `obj.prop`.
+        E::ComputedMemberExpression(c) => {
+            expr_contains_await_deep(&c.object) || expr_contains_await_deep(&c.expression)
+        }
+        E::StaticMemberExpression(s) => expr_contains_await_deep(&s.object),
+        E::PrivateFieldExpression(p) => expr_contains_await_deep(&p.object),
+
+        // Template literals: `${await x}`.
+        E::TemplateLiteral(tl) => tl.expressions.iter().any(expr_contains_await_deep),
+        E::TaggedTemplateExpression(tt) => {
+            expr_contains_await_deep(&tt.tag)
+                || tt.quasi.expressions.iter().any(expr_contains_await_deep)
+        }
+
+        // Everything else (literals, identifiers, `this`, …) cannot contain await.
+        _ => false,
+    }
 }
 
 // =============================================================================
@@ -2856,44 +3408,199 @@ fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
     None
 }
 
+/// Port of `classNameFromFilename` from
+/// `submodules/language-tools/packages/svelte2tsx/src/svelte2tsx/addComponentExport.ts`.
+///
+/// Algorithm:
+/// 1. Take the final path segment (after the last `/`), then everything before the
+///    first `.` — this is `withoutExtensions`.
+/// 2. Keep only `[A-Za-z_\d-]` characters — `withoutInvalidCharacters`.
+/// 3. Find the index of the first ASCII letter (`firstValidCharIdx`).
+/// 4. `withoutLeadingInvalidCharacters = withoutInvalidCharacters.substr(firstValidCharIdx)`.
+///    JS `substr(-1)` (when no letter is found, idx = -1) returns the **last character**
+///    of the string.
+/// 5. `inPascalCase = scule_pascal_case(withoutLeadingInvalidCharacters)`.
+/// 6. If no letter was found (`firstValidCharIdx == -1`), prepend `"A"`.
 fn derive_component_name(filename: &str) -> String {
-    // Extract the file stem (without directory and extension)
-    let stem = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-    let stem = stem.strip_suffix(".svelte").unwrap_or(stem);
-    // Strip leading `+` (SvelteKit convention: +page.svelte -> Page)
-    let stem = stem.strip_prefix('+').unwrap_or(stem);
+    // Step 1: basename up to first dot  (mirrors `path.parse(filename).name?.split('.')[0]`)
+    let basename = filename.rsplit('/').next().unwrap_or(filename);
+    let basename = basename.rsplit('\\').next().unwrap_or(basename);
+    let without_extensions = basename.split('.').next().unwrap_or("");
 
-    // Replace invalid identifier characters with underscores
-    let mut name = String::with_capacity(stem.len());
-    for (i, ch) in stem.chars().enumerate() {
-        if ch.is_alphanumeric() || ch == '_' {
-            name.push(ch);
-        } else if ch == '-' || ch == '.' {
-            name.push('_');
-        } else if i == 0 {
-            name.push('_');
-        } else {
-            name.push('_');
+    // Step 2: keep only [A-Za-z_\d-]
+    let without_invalid: String = without_extensions
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+        .collect();
+
+    // Step 3: find first ASCII letter
+    let first_valid_char_idx: Option<usize> = without_invalid
+        .chars()
+        .position(|c| c.is_ascii_alphabetic());
+
+    // Step 4: JS substr(firstValidCharIdx)
+    //   - When idx == -1 (no letter), JS substr(-1) returns the LAST character.
+    //   - When idx >= 0, take from that index onward.
+    let without_leading: &str = match first_valid_char_idx {
+        Some(idx) => {
+            // idx is a char-position; since all chars are ASCII, byte == char index.
+            &without_invalid[idx..]
+        }
+        None => {
+            // No ASCII letter: mimic JS substr(-1) → last character of the string.
+            // If the string is empty, this yields "" (empty slice).
+            if without_invalid.is_empty() {
+                ""
+            } else {
+                let last_char_byte = without_invalid
+                    .char_indices()
+                    .last()
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                &without_invalid[last_char_byte..]
+            }
+        }
+    };
+
+    // Step 5: apply scule pascalCase
+    let in_pascal_case = scule_pascal_case(without_leading);
+
+    // Step 6: prepend "A" when no letter was present
+    if first_valid_char_idx.is_none() {
+        format!("A{}", in_pascal_case)
+    } else {
+        in_pascal_case
+    }
+}
+
+/// Port of scule's `pascalCase` (no-normalize variant used by svelte2tsx).
+///
+/// `pascalCase(str) = splitByCase(str).map(upperFirst).join("")`
+///
+/// Reference: `node_modules/scule/dist/index.mjs` (used by svelte2tsx).
+fn scule_pascal_case(s: &str) -> String {
+    split_by_case(s)
+        .into_iter()
+        .map(|part| upper_first(&part))
+        .collect()
+}
+
+/// Uppercase only the first character of a string (scule `upperFirst`).
+fn upper_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => {
+            let mut result = String::with_capacity(s.len());
+            for c in first.to_uppercase() {
+                result.push(c);
+            }
+            result.extend(chars);
+            result
         }
     }
-
-    // Ensure the name starts with a letter or underscore
-    if name.is_empty() {
-        return "Component".to_string();
-    }
-    if name.chars().next().unwrap().is_ascii_digit() {
-        name.insert(0, '_');
-    }
-
-    // Capitalize the first letter (matches JS svelte2tsx behavior)
-    let mut chars = name.chars();
-    if let Some(first) = chars.next() {
-        let capitalized: String = first.to_uppercase().chain(chars).collect();
-        return capitalized;
-    }
-
-    name
 }
+
+/// Port of scule's `splitByCase` with default splitters `["-", "_", "/", "."]`.
+///
+/// Three-state `isUppercase`:
+///   - digit  → `None`      (never triggers a split)
+///   - upper  → `Some(true)`
+///   - lower  → `Some(false)`
+///
+/// Splits occur:
+///   - On a splitter character (push current buffer, reset).
+///   - On a lower→UPPER transition (camelCase boundary).
+///   - On a UPPER→lower transition when buffer length > 1 (e.g. "ABCWidget" → ["ABC","Widget"]).
+///
+/// `previousSplitter` starts as `None` (not-false), so the transition checks are
+/// skipped for the very first character.
+fn split_by_case(s: &str) -> Vec<String> {
+    const SPLITTERS: [char; 4] = ['-', '_', '/', '.'];
+
+    let mut parts: Vec<String> = Vec::new();
+    let mut buff = String::new();
+    // Three-state: None = unset (first char), Some(true) = was splitter, Some(false) = not splitter
+    let mut previous_splitter: Option<bool> = None;
+    let mut previous_upper: Option<bool> = None; // None = digit/unset, Some(true/false)
+
+    for ch in s.chars() {
+        let is_splitter = SPLITTERS.contains(&ch);
+
+        if is_splitter {
+            parts.push(buff.clone());
+            buff.clear();
+            previous_upper = None;
+            previous_splitter = Some(true);
+            continue;
+        }
+
+        // isUppercase: digit → None, else compare with lowercase
+        let is_upper: Option<bool> = if ch.is_ascii_digit() {
+            None
+        } else if ch.is_uppercase() {
+            Some(true)
+        } else {
+            Some(false)
+        };
+
+        // Transition checks only when previousSplitter === false (not a splitter and not unset)
+        if previous_splitter == Some(false) {
+            // lower → UPPER: start a new part
+            if previous_upper == Some(false) && is_upper == Some(true) {
+                parts.push(buff.clone());
+                buff.clear();
+                buff.push(ch);
+                previous_upper = is_upper;
+                previous_splitter = Some(false);
+                continue;
+            }
+            // UPPER → lower when buff.len() > 1: split off all-but-last char of buffer
+            if previous_upper == Some(true) && is_upper == Some(false) && buff.len() > 1 {
+                let last_char = buff.chars().last().unwrap();
+                let split_point = buff.len() - last_char.len_utf8();
+                parts.push(buff[..split_point].to_string());
+                buff = format!("{}{}", last_char, ch);
+                previous_upper = is_upper;
+                previous_splitter = Some(false);
+                continue;
+            }
+        }
+
+        buff.push(ch);
+        previous_upper = is_upper;
+        previous_splitter = Some(false);
+    }
+
+    parts.push(buff);
+    parts
+}
+
+#[cfg(test)]
+mod scule_tests {
+    use super::*;
+
+    #[test]
+    fn test_split_by_case_basics() {
+        assert_eq!(split_by_case("my-component"), vec!["my", "component"]);
+        // "ABCWidget": UPPER→lower fires on 'i' after buff="ABCW" → ["ABC","Widget"]
+        assert_eq!(split_by_case("ABCWidget"), vec!["ABC", "Widget"]);
+        // "XMLHttp": UPPER→lower fires on 't' after buff="XMLH" → ["XML","Http"]
+        assert_eq!(split_by_case("XMLHttp"), vec!["XML", "Http"]);
+        assert_eq!(split_by_case("a1b2"), vec!["a1b2"]);
+    }
+}
+
+// NOTE on runes detection: svelte2tsx deliberately uses its OWN runes heuristic
+// (the `detect_*`/`ExportedNames::is_runes_mode` machinery) rather than the
+// compiler's authoritative `ComponentAnalysis::runes` flag. The two genuinely
+// DIVERGE: the compiler treats `$host` / `$inspect` / `$bindable` (and certain
+// shadowing/scope cases) as runes — semantically correct — but official
+// `svelte2tsx`'s `hasRunesGlobals` only counts `$state` / `$derived` / `$effect`
+// (plus `$props` / explicit / top-level await). Since this port targets
+// byte-parity with official `svelte2tsx`, it must mirror svelte2tsx's narrower
+// definition; wiring in the compiler flag was measured to REGRESS the corpus
+// (it over-detects runes for ~24 `$host`-only / shadowed-derived components).
 
 /// Detect whether the component uses Svelte 5 runes mode.
 ///
@@ -2911,18 +3618,1030 @@ fn detect_runes_mode(ast: &Root) -> bool {
     false
 }
 
+/// Detect `await` expressions inside template expression tags, e.g. `{await t}`.
+///
+/// This walks the template fragment AST looking for `ExpressionTag` nodes whose
+/// expression is (or begins with) an `AwaitExpression`. Await-in-template forces
+/// runes mode — async template expressions are Svelte 5 runes-only.
+///
+/// NOTE: `{#await ...}` block syntax is NOT detected here — only bare `await`
+/// inside `{...}` expression tags counts.
+///
+/// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+///   `isRunes = true when component has AWAIT INSIDE A TEMPLATE EXPRESSION`
+///   ("True if uses runes or top level await or await in template expressions")
+fn detect_await_in_template(ast: &Root, source: &str) -> bool {
+    // Fast path: if the source doesn't contain `await` as a word, bail immediately.
+    if !contains_word(source.as_bytes(), b"await") {
+        return false;
+    }
+
+    fragment_has_template_await(&ast.fragment, source, &ast.arena)
+}
+
+/// Recursively walk a template fragment checking for `{await ...}` ExpressionTags.
+fn fragment_has_template_await(
+    fragment: &crate::ast::template::Fragment,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    for node in &fragment.nodes {
+        if template_node_has_await(node, source, arena) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check a single template node for `{await ...}` patterns, recursing into children.
+/// True if the template fragment contains a real `<slot>` element anywhere
+/// (recursing through elements, components, control-flow blocks, and snippets).
+/// AST-based replacement for a naive `source.contains("<slot")` scan.
+fn fragment_has_slot_element(fragment: &crate::ast::template::Fragment) -> bool {
+    fragment.nodes.iter().any(node_has_slot_element)
+}
+
+fn node_has_slot_element(node: &crate::ast::template::TemplateNode) -> bool {
+    use crate::ast::template::TemplateNode as N;
+    match node {
+        N::SlotElement(_) => true,
+        N::RegularElement(e) => fragment_has_slot_element(&e.fragment),
+        N::Component(c) => fragment_has_slot_element(&c.fragment),
+        N::SvelteComponent(c) => fragment_has_slot_element(&c.fragment),
+        N::SvelteElement(e) => fragment_has_slot_element(&e.fragment),
+        N::TitleElement(e) => fragment_has_slot_element(&e.fragment),
+        N::SvelteHead(e)
+        | N::SvelteFragment(e)
+        | N::SvelteBody(e)
+        | N::SvelteWindow(e)
+        | N::SvelteDocument(e)
+        | N::SvelteBoundary(e)
+        | N::SvelteOptions(e)
+        | N::SvelteSelf(e) => fragment_has_slot_element(&e.fragment),
+        N::IfBlock(b) => {
+            fragment_has_slot_element(&b.consequent)
+                || b.alternate.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        N::EachBlock(b) => {
+            fragment_has_slot_element(&b.body)
+                || b.fallback.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        N::KeyBlock(b) => fragment_has_slot_element(&b.fragment),
+        N::SnippetBlock(b) => fragment_has_slot_element(&b.body),
+        N::AwaitBlock(b) => {
+            b.pending.as_ref().is_some_and(fragment_has_slot_element)
+                || b.then.as_ref().is_some_and(fragment_has_slot_element)
+                || b.catch.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        _ => false,
+    }
+}
+
+fn template_node_has_await(
+    node: &crate::ast::template::TemplateNode,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    match node {
+        // The key check: ExpressionTag with an AwaitExpression.
+        TemplateNode::ExpressionTag(tag) => expression_is_await(&tag.expression, source, arena),
+        // Recurse into element children and attributes
+        TemplateNode::RegularElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::Component(comp) => {
+            comp.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&comp.fragment, source, arena)
+        }
+        TemplateNode::IfBlock(block) => {
+            // Also check the `{#if await cond}` test expression — mirrors 2_analyze
+            // which walks `block.test` for has_await.
+            expression_is_await(&block.test, source, arena)
+                || fragment_has_template_await(&block.consequent, source, arena)
+                || block
+                    .alternate
+                    .as_ref()
+                    .map(|alt| fragment_has_template_await(alt, source, arena))
+                    .unwrap_or(false)
+        }
+        TemplateNode::EachBlock(block) => {
+            expression_is_await(&block.expression, source, arena)
+                || fragment_has_template_await(&block.body, source, arena)
+                || block
+                    .fallback
+                    .as_ref()
+                    .map(|fb| fragment_has_template_await(fb, source, arena))
+                    .unwrap_or(false)
+        }
+        TemplateNode::KeyBlock(block) => {
+            expression_is_await(&block.expression, source, arena)
+                || fragment_has_template_await(&block.fragment, source, arena)
+        }
+        // SnippetBlock: official svelte2tsx's `isRunes` sets true for an
+        // AwaitExpression whose ancestor path has no function-expression node —
+        // a SnippetBlock is NOT such a node, so an `await` inside a snippet body
+        // (e.g. `{#snippet}{@const x = await …}{/snippet}`) DOES force runes.
+        // (This is svelte2tsx-specific; the compiler's 2_analyze skips snippets,
+        // but this detector mirrors svelte2tsx, not the compiler.)
+        TemplateNode::SnippetBlock(block) => {
+            fragment_has_template_await(&block.body, source, arena)
+        }
+        // AwaitBlock ({#await expr}) — the `expression` could itself contain an
+        // await (e.g. `{#await await promise}`). Also recurse into the pending /
+        // then / catch sub-fragments since they can contain nested {await ...}
+        // ExpressionTags. Mirrors 2_analyze AwaitBlock fragment_check_features walk.
+        TemplateNode::AwaitBlock(block) => {
+            expression_is_await(&block.expression, source, arena)
+                || block
+                    .pending
+                    .as_ref()
+                    .map(|f| fragment_has_template_await(f, source, arena))
+                    .unwrap_or(false)
+                || block
+                    .then
+                    .as_ref()
+                    .map(|f| fragment_has_template_await(f, source, arena))
+                    .unwrap_or(false)
+                || block
+                    .catch
+                    .as_ref()
+                    .map(|f| fragment_has_template_await(f, source, arena))
+                    .unwrap_or(false)
+        }
+        // SvelteHead, SvelteFragment, SvelteBody, SvelteWindow, SvelteDocument,
+        // SvelteBoundary, SvelteOptions, SvelteSelf — all use the SvelteElement struct.
+        TemplateNode::SvelteHead(elem)
+        | TemplateNode::SvelteFragment(elem)
+        | TemplateNode::SvelteBody(elem)
+        | TemplateNode::SvelteWindow(elem)
+        | TemplateNode::SvelteDocument(elem)
+        | TemplateNode::SvelteBoundary(elem)
+        | TemplateNode::SvelteOptions(elem)
+        | TemplateNode::SvelteSelf(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::SvelteComponent(comp) => {
+            comp.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&comp.fragment, source, arena)
+        }
+        TemplateNode::SvelteElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::TitleElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        TemplateNode::SlotElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_await(attr, source, arena))
+                || fragment_has_template_await(&elem.fragment, source, arena)
+        }
+        // HtmlTag ({@html expr}) and RenderTag ({@render expr}) — if the expression
+        // itself is an AwaitExpression (e.g. `{@html await t}`) trigger runes mode.
+        TemplateNode::HtmlTag(tag) => expression_is_await(&tag.expression, source, arena),
+        TemplateNode::RenderTag(tag) => expression_is_await(&tag.expression, source, arena),
+        // `{@const x = await …}` — a top-level await in a const-tag declaration
+        // makes the component async (e.g. inside `<svelte:boundary>`).
+        TemplateNode::ConstTag(ct) => expression_is_await(&ct.declaration, source, arena),
+        // Text, Comment, DeclarationTag, DebugTag, AttachTag — the primary
+        // trigger is ExpressionTag; these are less common.
+        _ => false,
+    }
+}
+
+/// Check if an attribute value contains an await expression in any ExpressionTag part.
+fn attr_has_await(
+    attr: &crate::ast::template::Attribute,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::template::Attribute;
+    use crate::ast::template::AttributeValue;
+    use crate::ast::template::AttributeValuePart;
+
+    // Mirror official's template walk, which sets `isRunes` on ANY top-level
+    // `AwaitExpression` regardless of which attribute/directive it lives in
+    // (e.g. `class:x={await y}`, `style:c={await z}`, `use:a={await b}`,
+    // `bind:v={await w}`). Previously only plain attributes were checked, so
+    // an await confined to a directive failed to flip runes mode and the
+    // `bindings:` field was emitted in legacy (`""`) instead of runes
+    // (`__sveltets_$$bindings('')`) form.
+    let value_has_await = |value: &AttributeValue| match value {
+        AttributeValue::Expression(expr_tag) => {
+            expression_is_await(&expr_tag.expression, source, arena)
+        }
+        AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+            if let AttributeValuePart::ExpressionTag(tag) = part {
+                expression_is_await(&tag.expression, source, arena)
+            } else {
+                false
+            }
+        }),
+        AttributeValue::True(_) => false,
+    };
+    let opt_expr_has_await = |expr: &Option<crate::ast::js::Expression>| {
+        expr.as_ref()
+            .is_some_and(|e| expression_is_await(e, source, arena))
+    };
+
+    match attr {
+        Attribute::Attribute(attr_node) => value_has_await(&attr_node.value),
+        Attribute::SpreadAttribute(s) => expression_is_await(&s.expression, source, arena),
+        Attribute::AttachTag(t) => expression_is_await(&t.expression, source, arena),
+        Attribute::ClassDirective(d) => expression_is_await(&d.expression, source, arena),
+        Attribute::BindDirective(d) => expression_is_await(&d.expression, source, arena),
+        Attribute::StyleDirective(d) => value_has_await(&d.value),
+        Attribute::OnDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::TransitionDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::AnimateDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::UseDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::LetDirective(_) => false,
+    }
+}
+
+/// Check if an Expression node is (or begins with) an AwaitExpression.
+///
+/// For `Typed` expressions, checks the top-level JsNode variant.
+/// For `Lazy` expressions (source spans), checks the source text.
+/// For `Value` (JSON) expressions, checks the JSON `type` field.
+fn expression_is_await(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+    _arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::js::Expression;
+    use crate::ast::typed_expr::JsNode;
+
+    // A top-level `await` ANYWHERE inside the expression makes the component
+    // async (→ runes), not only when the whole expression IS an await — e.g.
+    // `{(await user).name}`, `{foo(await x)}`, `{cond ? await a : b}`. Fast-path
+    // the direct `{await x}` form, then scan the expression's source span for
+    // `await` as a word, which covers every nesting depth. (A literal "await"
+    // string is a rare false positive; svelte itself treats such components as
+    // async too once a template `await` is present.)
+    let direct = match expr {
+        Expression::Typed(te) => matches!(&te.node, JsNode::AwaitExpression { .. }),
+        Expression::Value(v) => v.get("type").and_then(|t| t.as_str()) == Some("AwaitExpression"),
+        Expression::Lazy { .. } => false,
+    };
+    if direct {
+        return true;
+    }
+    // Non-direct: a `await` nested in e.g. `(await user).name` / `foo(await x)`
+    // still makes the component async — BUT an `await` inside a nested function
+    // (`() => await x`) is a different scope and must NOT count (mirrors the
+    // upstream `scope === rootScope` rule). Approximate the function-boundary
+    // check on the source span: count the `await` only when the expression
+    // contains no function boundary (`=>` / `function`), which keeps the common
+    // member/call/conditional cases without over-triggering on callbacks.
+    if let (Some(s), Some(e)) = (expr.start(), expr.end()) {
+        let (s, e) = (s as usize, e as usize);
+        if s < e && e <= source.len() {
+            let span = &source.as_bytes()[s..e];
+            return contains_word(span, b"await")
+                && !span.windows(2).any(|w| w == b"=>")
+                && !contains_word(span, b"function");
+        }
+    }
+    false
+}
+
+// =============================================================================
+// Rune-global-in-template detection
+//
+// Mirrors the official `checkGlobalsForRunes` pass which treats every undeclared
+// `$state` / `$derived` / `$effect` identifier anywhere in the component (script
+// OR template) as evidence of runes mode.  The instance-script scanner handles
+// the `<script>` side; these helpers cover the template side so that components
+// with NO `<script>` but with e.g. `{$state.eager(x)}` are correctly classified.
+//
+// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/index.ts
+//   `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
+// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+//   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
+// =============================================================================
+
+/// Detect any `$state`/`$derived`/`$effect` rune-global reference inside the
+/// template fragment.
+///
+/// Fast-path: returns `false` immediately when none of the three magic words
+/// appear as a word boundary in the raw source.  The AST walk is only done when
+/// a quick substring match succeeds.
+fn detect_rune_global_in_template(ast: &Root, source: &str) -> bool {
+    // Fast path: if neither $state, $derived, nor $effect appears in the source
+    // as a word start, bail immediately.  These identifiers always start with `$`
+    // so a simple substring check is conservative (won't false-positive on
+    // e.g. `some_$state_like_string` since we still walk the AST after this).
+    if !source.contains("$state") && !source.contains("$derived") && !source.contains("$effect") {
+        return false;
+    }
+
+    fragment_has_template_rune_global(&ast.fragment, source, &ast.arena)
+}
+
+/// Recursively walk a template fragment checking for rune-global references.
+fn fragment_has_template_rune_global(
+    fragment: &crate::ast::template::Fragment,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    for node in &fragment.nodes {
+        if template_node_has_rune_global(node, source, arena) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check a single template node for rune-global references, recursing into children.
+fn template_node_has_rune_global(
+    node: &crate::ast::template::TemplateNode,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    match node {
+        // The primary check: ExpressionTag { expr } — check if the expression
+        // references a $state/$derived/$effect global.
+        TemplateNode::ExpressionTag(tag) => {
+            expression_references_rune_global(&tag.expression, source, arena)
+        }
+        // Recurse into element children and attributes
+        TemplateNode::RegularElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&elem.fragment, source, arena)
+        }
+        TemplateNode::Component(comp) => {
+            comp.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&comp.fragment, source, arena)
+        }
+        TemplateNode::IfBlock(block) => {
+            expression_references_rune_global(&block.test, source, arena)
+                || fragment_has_template_rune_global(&block.consequent, source, arena)
+                || block
+                    .alternate
+                    .as_ref()
+                    .map(|alt| fragment_has_template_rune_global(alt, source, arena))
+                    .unwrap_or(false)
+        }
+        TemplateNode::EachBlock(block) => {
+            expression_references_rune_global(&block.expression, source, arena)
+                || fragment_has_template_rune_global(&block.body, source, arena)
+                || block
+                    .fallback
+                    .as_ref()
+                    .map(|fb| fragment_has_template_rune_global(fb, source, arena))
+                    .unwrap_or(false)
+        }
+        TemplateNode::KeyBlock(block) => {
+            expression_references_rune_global(&block.expression, source, arena)
+                || fragment_has_template_rune_global(&block.fragment, source, arena)
+        }
+        // SnippetBlock: official's global collection (checkGlobalsForRunes via
+        // implicitStoreValues) walks the whole component including snippet
+        // bodies, so a rune call inside a snippet (`{#snippet}{@const x =
+        // $derived(…)}{/snippet}`) forces runes mode. Recurse into the body.
+        TemplateNode::SnippetBlock(block) => {
+            fragment_has_template_rune_global(&block.body, source, arena)
+        }
+        TemplateNode::AwaitBlock(block) => {
+            expression_references_rune_global(&block.expression, source, arena)
+                || block
+                    .pending
+                    .as_ref()
+                    .map(|f| fragment_has_template_rune_global(f, source, arena))
+                    .unwrap_or(false)
+                || block
+                    .then
+                    .as_ref()
+                    .map(|f| fragment_has_template_rune_global(f, source, arena))
+                    .unwrap_or(false)
+                || block
+                    .catch
+                    .as_ref()
+                    .map(|f| fragment_has_template_rune_global(f, source, arena))
+                    .unwrap_or(false)
+        }
+        // SvelteHead, SvelteFragment, SvelteBody, SvelteWindow, SvelteDocument,
+        // SvelteBoundary, SvelteOptions, SvelteSelf — all use the SvelteElement struct.
+        TemplateNode::SvelteHead(elem)
+        | TemplateNode::SvelteFragment(elem)
+        | TemplateNode::SvelteBody(elem)
+        | TemplateNode::SvelteWindow(elem)
+        | TemplateNode::SvelteDocument(elem)
+        | TemplateNode::SvelteBoundary(elem)
+        | TemplateNode::SvelteOptions(elem)
+        | TemplateNode::SvelteSelf(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&elem.fragment, source, arena)
+        }
+        TemplateNode::SvelteComponent(comp) => {
+            comp.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&comp.fragment, source, arena)
+        }
+        TemplateNode::SvelteElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&elem.fragment, source, arena)
+        }
+        TemplateNode::TitleElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&elem.fragment, source, arena)
+        }
+        TemplateNode::SlotElement(elem) => {
+            elem.attributes
+                .iter()
+                .any(|attr| attr_has_rune_global(attr, source, arena))
+                || fragment_has_template_rune_global(&elem.fragment, source, arena)
+        }
+        // HtmlTag ({@html expr}) and RenderTag ({@render expr})
+        TemplateNode::HtmlTag(tag) => {
+            expression_references_rune_global(&tag.expression, source, arena)
+        }
+        TemplateNode::RenderTag(tag) => {
+            expression_references_rune_global(&tag.expression, source, arena)
+        }
+        // AttachTag ({@attach expr}) — the expression may contain nested
+        // rune calls, e.g. `{@attach $effect(() => { ... })}`.
+        // Reference: official svelte2tsx collects `@attach` expression globals
+        // via `implicitStoreValues` just like any other template expression.
+        TemplateNode::AttachTag(tag) => {
+            expression_references_rune_global(&tag.expression, source, arena)
+        }
+        // `{@const x = $derived(…)}` and `{let x = $state(0), …}` carry rune
+        // calls in their declaration; official collects their globals like any
+        // other template expression, so a runes-only component with no script
+        // (only template declaration tags) still enters runes mode. The
+        // declaration is a `VariableDeclaration` (which the typed/JSON rune
+        // walkers don't descend into), so scan the tag's source slice directly.
+        TemplateNode::ConstTag(tag) => {
+            let (s, e) = (tag.start as usize, tag.end as usize);
+            s < e && e <= source.len() && lazy_slice_references_rune_global(&source[s..e])
+        }
+        TemplateNode::DeclarationTag(tag) => {
+            let (s, e) = (tag.start as usize, tag.end as usize);
+            s < e && e <= source.len() && lazy_slice_references_rune_global(&source[s..e])
+        }
+        _ => false,
+    }
+}
+
+/// Check if an attribute (of any kind) contains a rune-global reference.
+///
+/// Covers all `Attribute` variants:
+/// - `Attribute` (plain attribute with expression/sequence value)
+/// - `SpreadAttribute` (spread expression)
+/// - `AttachTag` (`{@attach expr}` used inside element attribute position)
+/// - All directives: `bind:`, `on:`, `class:`, `style:`, `transition:`,
+///   `animate:`, `use:`, `let:` — each may carry an expression value.
+///
+/// Reference: official svelte2tsx passes ALL template expressions through
+/// `implicitStoreValues` (which collects globals), not just plain attributes.
+/// Mirrors the comprehensive directive coverage in `attr_has_await`.
+fn attr_has_rune_global(
+    attr: &crate::ast::template::Attribute,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::template::Attribute;
+    use crate::ast::template::AttributeValue;
+    use crate::ast::template::AttributeValuePart;
+
+    match attr {
+        // Plain attribute: check expression / sequence values.
+        Attribute::Attribute(attr_node) => match &attr_node.value {
+            AttributeValue::Expression(expr_tag) => {
+                expression_references_rune_global(&expr_tag.expression, source, arena)
+            }
+            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let AttributeValuePart::ExpressionTag(tag) = part {
+                    expression_references_rune_global(&tag.expression, source, arena)
+                } else {
+                    false
+                }
+            }),
+            AttributeValue::True(_) => false,
+        },
+
+        // Spread attribute: `{...expr}` — check the spread expression.
+        Attribute::SpreadAttribute(spread) => {
+            expression_references_rune_global(&spread.expression, source, arena)
+        }
+
+        // AttachTag in attribute position: `{@attach expr}`.
+        Attribute::AttachTag(attach) => {
+            expression_references_rune_global(&attach.expression, source, arena)
+        }
+
+        // bind:name={expr} — expression is always present.
+        Attribute::BindDirective(bind) => {
+            expression_references_rune_global(&bind.expression, source, arena)
+        }
+
+        // on:event={handler} — expression is Optional<Expression>.
+        Attribute::OnDirective(on) => on
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // class:name={expr} — expression is always present.
+        Attribute::ClassDirective(class) => {
+            expression_references_rune_global(&class.expression, source, arena)
+        }
+
+        // style:property={value} — value is AttributeValue (same shape as plain attr).
+        Attribute::StyleDirective(style) => match &style.value {
+            AttributeValue::Expression(expr_tag) => {
+                expression_references_rune_global(&expr_tag.expression, source, arena)
+            }
+            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let AttributeValuePart::ExpressionTag(tag) = part {
+                    expression_references_rune_global(&tag.expression, source, arena)
+                } else {
+                    false
+                }
+            }),
+            AttributeValue::True(_) => false,
+        },
+
+        // transition:name={params} / in: / out: — expression is Optional.
+        Attribute::TransitionDirective(t) => t
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // animate:name={params} — expression is Optional.
+        Attribute::AnimateDirective(a) => a
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // use:action={params} — expression is Optional.
+        Attribute::UseDirective(u) => u
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+
+        // let:item — rarely carries a rune call, but check for completeness.
+        Attribute::LetDirective(l) => l
+            .expression
+            .as_ref()
+            .is_some_and(|e| expression_references_rune_global(e, source, arena)),
+    }
+}
+
+/// Returns `true` if `name` is one of the three rune-global identifiers.
+#[inline]
+fn is_rune_global_name(name: &str) -> bool {
+    matches!(name, "$state" | "$derived" | "$effect")
+}
+
+/// Check whether an Expression node references a `$state`/`$derived`/`$effect` global.
+///
+/// For `Typed` expressions, walks the JsNode tree stored in the parse arena.
+/// For `Lazy` expressions (raw source spans), scans the source text.
+/// For `Value` (JSON) expressions, inspects the JSON AST.
+///
+/// The walk is deliberately shallow-but-sufficient: it recurses into the callee
+/// of a CallExpression and the object of a MemberExpression (the two patterns
+/// that can reference a rune global — `$state(x)` and `$state.eager(x)`) but
+/// does NOT recurse into every sub-expression.  Template expressions that use
+/// rune globals almost always have the global as the outermost callee or
+/// member-expression object, so this covers all real-world cases while keeping
+/// the implementation simple and fast.
+///
+/// Reference: ExportedNames.ts `checkGlobalsForRunes` which sets
+///   `hasRunesGlobals` when any of `$state`/`$derived`/`$effect` appear as an
+///   undeclared identifier anywhere in the component globals set.
+fn expression_references_rune_global(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Typed(te) => js_node_references_rune_global(&te.node, arena),
+        Expression::Value(v) => json_references_rune_global(v, 0),
+        Expression::Lazy { start, end, .. } => {
+            // Raw source slice — scan for `$state`, `$derived`, `$effect` as
+            // identifier-like occurrences.  We already know the full source
+            // contains one of these strings (fast-path in
+            // `detect_rune_global_in_template`), so this walk is uncommon.
+            let s = *start as usize;
+            let e = *end as usize;
+            if s < e && e <= source.len() {
+                let slice = &source[s..e];
+                lazy_slice_references_rune_global(slice)
+            } else {
+                false
+            }
+        }
+    }
+}
+
+/// Check whether a callee `JsNode` directly IS a rune-global call target.
+///
+/// A callee is a rune-global target when it is:
+///   - An `Identifier` named `$state`/`$derived`/`$effect`  (direct call: `$state(x)`)
+///   - A `MemberExpression` whose object is such an identifier  (`$state.eager(x)`)
+///
+/// This intentionally does NOT recurse further — if the callee is something more
+/// complex, it is not a rune call pattern.
+#[inline]
+fn js_callee_is_rune_global(
+    callee: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::typed_expr::JsNode;
+    match callee {
+        JsNode::Identifier { name, .. } => is_rune_global_name(name.as_str()),
+        JsNode::MemberExpression { object, .. } => {
+            let obj = arena.get_js_node(*object);
+            matches!(obj, JsNode::Identifier { name, .. } if is_rune_global_name(name.as_str()))
+        }
+        _ => false,
+    }
+}
+
+/// Walk a `JsNode` (typed AST node stored in the parse arena) looking for a
+/// `$state`/`$derived`/`$effect` rune call anywhere in the expression tree.
+///
+/// A RUNE CALL means the global is used as a call callee or as the object of a
+/// member-expression that is itself used as a call callee.  A bare `$state`
+/// identifier that is just a store auto-subscription (`{$state}`) does NOT match.
+///
+/// Handles patterns like:
+///   - `$state(x)`                     → CallExpression callee = Identifier "$state"
+///   - `$state.eager(x)`               → CallExpression callee = MemberExpression { object = Identifier "$state" }
+///   - `$effect.pre(() => …)`          → same
+///   - `foo($state(x))`                → arguments contain a rune CallExpression
+///   - `a === '/' ? $state(x) : null`  → ConditionalExpression branches
+///   - `() => $effect(() => {})`       → ArrowFunctionExpression body
+///   - `{@attach $effect(() => {})}`   → ArrowFunctionExpression body in AttachTag
+///   - `[..., $state(x)]`              → ArrayExpression element
+///   - `{ k: $derived(v) }`            → ObjectExpression property value
+///
+/// Does NOT match:
+///   - `{$state}` (bare store auto-subscription; no call)
+///   - `$state + 1` (store ref in arithmetic; no call)
+///
+/// Reference: official `implicitStoreValues` collects ALL undeclared globals,
+/// including those inside nested function bodies passed to directives.
+fn js_node_references_rune_global(
+    node: &crate::ast::typed_expr::JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
+    use crate::ast::typed_expr::JsNode;
+    match node {
+        // CallExpression: the callee must be a rune-global target (direct call
+        // `$state(...)` or member-call `$state.eager(...)`).  Also recurse into
+        // arguments so nested rune calls like `foo($state(x))` are caught.
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            let callee_node = arena.get_js_node(*callee);
+            if js_callee_is_rune_global(callee_node, arena) {
+                return true;
+            }
+            // Recurse into arguments to catch `foo($state(x))`.
+            let args = arena.get_js_children(*arguments);
+            args.iter()
+                .any(|arg| js_node_references_rune_global(arg, arena))
+        }
+
+        // ConditionalExpression: check test, consequent, alternate.
+        // E.g. `$state.eager(x) === '/' ? 'page' : null` — the test is the
+        // BinaryExpression; we recurse into it and then into the call.
+        JsNode::ConditionalExpression {
+            test,
+            consequent,
+            alternate,
+            ..
+        } => {
+            js_node_references_rune_global(arena.get_js_node(*test), arena)
+                || js_node_references_rune_global(arena.get_js_node(*consequent), arena)
+                || js_node_references_rune_global(arena.get_js_node(*alternate), arena)
+        }
+
+        // BinaryExpression / LogicalExpression: check both sides.
+        // E.g. `$state.eager(pathname) === '/'` — the left side is the call.
+        JsNode::BinaryExpression { left, right, .. }
+        | JsNode::LogicalExpression { left, right, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*left), arena)
+                || js_node_references_rune_global(arena.get_js_node(*right), arena)
+        }
+
+        // ArrowFunctionExpression: recurse into the body.
+        // Covers `{@attach $effect(() => { ... })}` and
+        // `use:action={() => $state(x)}` patterns.
+        // The body is a JsNodeId pointing to either a BlockStatement or an
+        // expression (when `expression: true`).
+        JsNode::ArrowFunctionExpression { body, .. } => {
+            let body_node = arena.get_js_node(*body);
+            js_node_references_rune_global(body_node, arena)
+        }
+
+        // FunctionExpression: recurse into the body (a BlockStatement or None).
+        // E.g. `use:action={function() { $effect(() => {}); }}`.
+        JsNode::FunctionExpression { body, .. } => body
+            .map(|b| {
+                let body_node = arena.get_js_node(b);
+                js_node_references_rune_global(body_node, arena)
+            })
+            .unwrap_or(false),
+
+        // BlockStatement: recurse into each statement.
+        // Reached from FunctionExpression / ArrowFunctionExpression bodies.
+        JsNode::BlockStatement { body, .. } => {
+            let stmts = arena.get_js_children(*body);
+            stmts
+                .iter()
+                .any(|s| js_node_references_rune_global(s, arena))
+        }
+
+        // ExpressionStatement: unwrap to the inner expression.
+        JsNode::ExpressionStatement { expression, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*expression), arena)
+        }
+
+        // ObjectExpression: recurse into property values.
+        // E.g. `use:action={{ key: $state(x) }}`.
+        JsNode::ObjectExpression { properties, .. } => {
+            let props = arena.get_js_children(*properties);
+            props.iter().any(|p| {
+                if let JsNode::Property { value, .. } = p {
+                    js_node_references_rune_global(arena.get_js_node(*value), arena)
+                } else {
+                    false
+                }
+            })
+        }
+
+        // ArrayExpression: recurse into elements (elements are inline, not arena-indexed).
+        // E.g. `{[$state(a), $derived(b)]}`.
+        JsNode::ArrayExpression { elements, .. } => elements.iter().any(|elem| {
+            elem.as_ref()
+                .is_some_and(|e| js_node_references_rune_global(e, arena))
+        }),
+
+        // SequenceExpression: recurse into each sub-expression.
+        // E.g. `{(doSomething(), $state(x))}`.
+        JsNode::SequenceExpression { expressions, .. } => {
+            let exprs = arena.get_js_children(*expressions);
+            exprs
+                .iter()
+                .any(|e| js_node_references_rune_global(e, arena))
+        }
+
+        // AwaitExpression: recurse into the argument.
+        // Rare in template context but possible.
+        JsNode::AwaitExpression { argument, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*argument), arena)
+        }
+
+        // UnaryExpression: recurse into argument (e.g. `!$state(x)`).
+        JsNode::UnaryExpression { argument, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*argument), arena)
+        }
+
+        // AssignmentExpression: check right-hand side.
+        // E.g. `x = $state(0)` inside a function body.
+        JsNode::AssignmentExpression { right, .. } => {
+            js_node_references_rune_global(arena.get_js_node(*right), arena)
+        }
+
+        // VariableDeclaration / VariableDeclarator: recurse into each
+        // declarator's initializer — e.g. `const state = $state({…})` inside an
+        // event-handler arrow body (`onsubmit={e => { const s = $state(…) }}`).
+        JsNode::VariableDeclaration { declarations, .. } => {
+            let decls = arena.get_js_children(*declarations);
+            decls
+                .iter()
+                .any(|d| js_node_references_rune_global(d, arena))
+        }
+        JsNode::VariableDeclarator { init, .. } => init
+            .map(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
+            .unwrap_or(false),
+
+        // ReturnStatement / IfStatement bodies can also host rune calls.
+        JsNode::ReturnStatement { argument, .. } => argument
+            .map(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
+            .unwrap_or(false),
+
+        // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
+        // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.
+        // These are legitimate store/object references, not rune invocations.
+        _ => false,
+    }
+}
+
+/// Check whether a JSON callee node directly IS a rune-global call target.
+/// Mirrors `js_callee_is_rune_global` for the `Expression::Value` path.
+fn json_callee_is_rune_global(callee: &serde_json::Value) -> bool {
+    let ty = callee.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    match ty {
+        // Direct call: `$state(x)` — callee is Identifier "$state"
+        "Identifier" => callee
+            .get("name")
+            .and_then(|n| n.as_str())
+            .is_some_and(is_rune_global_name),
+        // Member call: `$state.eager(x)` — callee is MemberExpression { object: Identifier "$state" }
+        "MemberExpression" => callee
+            .get("object")
+            .and_then(|o| {
+                if o.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    o.get("name").and_then(|n| n.as_str())
+                } else {
+                    None
+                }
+            })
+            .is_some_and(is_rune_global_name),
+        _ => false,
+    }
+}
+
+/// Walk a JSON-encoded expression AST looking for a rune-global CALL.
+///
+/// This covers the `Expression::Value` variant (legacy / fallback AST path).
+/// Only matches when a rune global is actually invoked (called), not when it
+/// appears as a bare store auto-subscription reference like `{$state}`.
+/// Recurse up to a bounded depth to avoid unbounded recursion.
+///
+/// Extended (mirrors `js_node_references_rune_global`) to recurse into:
+/// - ArrowFunctionExpression / FunctionExpression bodies
+/// - BlockStatement statements
+/// - ExpressionStatement inner expression
+/// - ObjectExpression property values
+/// - ArrayExpression elements
+/// - SequenceExpression sub-expressions
+/// - AwaitExpression / UnaryExpression arguments
+/// - AssignmentExpression right-hand side
+fn json_references_rune_global(v: &serde_json::Value, depth: u8) -> bool {
+    if depth > 20 {
+        return false;
+    }
+    let ty = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    match ty {
+        // CallExpression: the callee must be a rune-global target.
+        // Also recurse into arguments to catch `foo($state(x))`.
+        "CallExpression" => {
+            v.get("callee").is_some_and(json_callee_is_rune_global)
+                || v.get("arguments")
+                    .and_then(|a| a.as_array())
+                    .is_some_and(|arr| {
+                        arr.iter()
+                            .any(|arg| json_references_rune_global(arg, depth + 1))
+                    })
+        }
+        "ConditionalExpression" => ["test", "consequent", "alternate"].iter().any(|field| {
+            v.get(*field)
+                .is_some_and(|c| json_references_rune_global(c, depth + 1))
+        }),
+        "BinaryExpression" | "LogicalExpression" => {
+            v.get("left")
+                .is_some_and(|c| json_references_rune_global(c, depth + 1))
+                || v.get("right")
+                    .is_some_and(|c| json_references_rune_global(c, depth + 1))
+        }
+        // Arrow/function bodies: recurse into `body`.
+        "ArrowFunctionExpression" | "FunctionExpression" => v
+            .get("body")
+            .is_some_and(|b| json_references_rune_global(b, depth + 1)),
+        // BlockStatement: recurse into each statement in `body`.
+        "BlockStatement" => v
+            .get("body")
+            .and_then(|b| b.as_array())
+            .is_some_and(|stmts| {
+                stmts
+                    .iter()
+                    .any(|s| json_references_rune_global(s, depth + 1))
+            }),
+        // ExpressionStatement: unwrap to expression field.
+        "ExpressionStatement" => v
+            .get("expression")
+            .is_some_and(|e| json_references_rune_global(e, depth + 1)),
+        // ObjectExpression: recurse into property values.
+        "ObjectExpression" => v
+            .get("properties")
+            .and_then(|p| p.as_array())
+            .is_some_and(|props| {
+                props.iter().any(|prop| {
+                    prop.get("value")
+                        .is_some_and(|val| json_references_rune_global(val, depth + 1))
+                })
+            }),
+        // ArrayExpression: recurse into elements (may contain nulls for elisions).
+        "ArrayExpression" => v
+            .get("elements")
+            .and_then(|e| e.as_array())
+            .is_some_and(|elems| {
+                elems
+                    .iter()
+                    .filter(|e| !e.is_null())
+                    .any(|e| json_references_rune_global(e, depth + 1))
+            }),
+        // SequenceExpression: recurse into each sub-expression.
+        "SequenceExpression" => {
+            v.get("expressions")
+                .and_then(|e| e.as_array())
+                .is_some_and(|exprs| {
+                    exprs
+                        .iter()
+                        .any(|e| json_references_rune_global(e, depth + 1))
+                })
+        }
+        // AwaitExpression / UnaryExpression: recurse into argument.
+        "AwaitExpression" | "UnaryExpression" => v
+            .get("argument")
+            .is_some_and(|a| json_references_rune_global(a, depth + 1)),
+        // AssignmentExpression: check right-hand side.
+        "AssignmentExpression" => v
+            .get("right")
+            .is_some_and(|r| json_references_rune_global(r, depth + 1)),
+        // Bare "Identifier" (`{$state}` store ref), "MemberExpression" without call, etc.
+        // → NOT a rune invocation.
+        _ => false,
+    }
+}
+
+/// Scan a raw source slice (from a `Lazy` expression) for a rune-global CALL.
+///
+/// Only triggers when `$state`/`$derived`/`$effect` is immediately followed by
+/// `(` (direct call) or `.` (member call like `$state.eager(…)`).  A bare
+/// `$state` with no following `(` or `.` is a store auto-subscription reference
+/// and must NOT trigger runes mode.
+fn lazy_slice_references_rune_global(slice: &str) -> bool {
+    for candidate in &["$state", "$derived", "$effect"] {
+        let mut search_from = 0;
+        while let Some(rel) = slice[search_from..].find(candidate) {
+            let idx = search_from + rel;
+            let after = idx + candidate.len();
+            if after < slice.len() {
+                let next = slice.as_bytes()[after];
+                // Require `(` (direct call) or `.` (member call).
+                // Also ensure the match is not inside a longer identifier
+                // (e.g. `$state_machine` — `$` is a valid JS identifier char).
+                if next == b'(' || next == b'.' {
+                    return true;
+                }
+            }
+            search_from = idx + 1;
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_derive_component_name() {
+        // Ground-truth cases verified against the official svelte2tsx classNameFromFilename.
         assert_eq!(derive_component_name("App.svelte"), "App");
-        assert_eq!(derive_component_name("my-component.svelte"), "My_component");
-        assert_eq!(derive_component_name("my_component.svelte"), "My_component");
+        assert_eq!(derive_component_name("my-component.svelte"), "MyComponent");
+        assert_eq!(derive_component_name("my_component.svelte"), "MyComponent");
         assert_eq!(derive_component_name("path/to/Input.svelte"), "Input");
-        assert_eq!(derive_component_name("123.svelte"), "_123");
-        assert_eq!(derive_component_name(".svelte"), "Component");
+        assert_eq!(derive_component_name("123.svelte"), "A3");
+        assert_eq!(derive_component_name("1.svelte"), "A1");
+        assert_eq!(derive_component_name("foo.bar.svelte"), "Foo");
+        assert_eq!(derive_component_name("ABCWidget.svelte"), "ABCWidget");
+        assert_eq!(derive_component_name("XMLHttp.svelte"), "XMLHttp");
+        assert_eq!(derive_component_name("a1b2.svelte"), "A1b2");
+        assert_eq!(derive_component_name("_x.svelte"), "X");
+        assert_eq!(derive_component_name("two words.svelte"), "Twowords");
+        assert_eq!(derive_component_name(".svelte"), "A");
     }
 
     #[test]
@@ -3130,6 +4849,429 @@ mod tests {
         assert!(
             result.code.contains("svelteHTML.createElement(\"span\","),
             "Should contain inner span"
+        );
+    }
+
+    // =============================================================================
+    // Runes-mode detection tests
+    //
+    // Ground truth: empirically verified against the official svelte2tsx tool.
+    // RUNES components emit `__sveltets_2_fn_component`.
+    // LEGACY components emit `__sveltets_2_isomorphic_component`.
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+    //   `isRunesMode() { return this.hasRunesGlobals || this.hasPropsRune() || this.isRunes; }`
+    // =============================================================================
+
+    fn run_svelte2tsx_v5(source: &str) -> String {
+        let opts = Svelte2TsxOptions {
+            filename: "Test.svelte".to_string(),
+            ..Default::default()
+        };
+        svelte2tsx(source, opts)
+            .unwrap_or_else(|e| panic!("svelte2tsx failed: {e:?}"))
+            .code
+    }
+
+    // --- RUNES cases (must emit fn_component) ---
+
+    /// `$state(0)` in a variable declaration → hasRunesGlobals ($state is undeclared).
+    #[test]
+    fn test_runes_state_var_decl() {
+        let code = run_svelte2tsx_v5("<script>let x=$state(0)</script>{x}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$state() var-decl should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$props()` usage → hasPropsRune.
+    #[test]
+    fn test_runes_props_rune() {
+        let code = run_svelte2tsx_v5("<script>let {a}=$props()</script>{a}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$props() should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$derived(1)` in a variable declaration → hasRunesGlobals.
+    #[test]
+    fn test_runes_derived_var_decl() {
+        let code = run_svelte2tsx_v5("<script>let x=$derived(1)</script>{x}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$derived() var-decl should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$effect(() => {})` as a standalone ExpressionStatement → hasRunesGlobals.
+    /// This was previously missed (only VariableDeclarations were checked).
+    #[test]
+    fn test_runes_effect_expr_stmt() {
+        let code = run_svelte2tsx_v5("<script>$effect(()=>{})</script>x");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$effect() expr-stmt should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// Top-level `await` in the instance script → isRunes (async components are runes-only).
+    #[test]
+    fn test_runes_top_level_await_script() {
+        let code = run_svelte2tsx_v5("<script>const x=await fetch(1)</script>{x}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "top-level await in script should be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `await` inside a template expression tag → isRunes.
+    #[test]
+    fn test_runes_await_in_template_expr() {
+        let code = run_svelte2tsx_v5("<script>const t=getTime()</script>{await t}");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "await in template expression should be runes mode; got:\n{code}"
+        );
+    }
+
+    // --- LEGACY cases (must emit isomorphic_component) ---
+
+    /// No script at all → legacy.
+    #[test]
+    fn test_legacy_no_script() {
+        let code = run_svelte2tsx_v5("<p>hi</p>");
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "no-script should be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// `export let` props → legacy.
+    #[test]
+    fn test_legacy_export_let() {
+        let code = run_svelte2tsx_v5("<script>export let a</script>{a}");
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "export-let should be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// Plain `let a = 1` (no rune) → legacy.
+    #[test]
+    fn test_legacy_plain_let() {
+        let code = run_svelte2tsx_v5("<script>let a=1</script>{a}");
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "plain let should be legacy mode; got:\n{code}"
+        );
+    }
+
+    // =============================================================================
+    // Rune-global-in-template detection tests
+    //
+    // A component with NO `<script>` but with `$state.eager(x)` / `$derived(...)` /
+    // `$effect(...)` in a template expression must be treated as RUNES because
+    // `implicitStoreValues.getGlobals()` collects those identifiers and
+    // `checkGlobalsForRunes` fires.
+    //
+    // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/index.ts
+    //   `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
+    // =============================================================================
+
+    /// `$state.eager(pathname)` referenced in a template attribute expression and
+    /// NO `<script>` → must be runes mode (fn_component), not legacy.
+    ///
+    /// Ground truth: official svelte2tsx classifies this as RUNES because
+    /// `$state` is an undeclared global collected by `implicitStoreValues`.
+    ///
+    /// Concrete example from corpus: `…/02-$state.md/12.svelte`
+    ///   `<nav><a href="/" aria-current={$state.eager(pathname)==='/'?'page':null}>home</a></nav>`
+    #[test]
+    fn test_runes_state_eager_in_template_attr() {
+        let code = run_svelte2tsx_v5(
+            "<nav><a href=\"/\" aria-current={$state.eager(pathname) === '/' ? 'page' : null}>home</a></nav>",
+        );
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$state.eager() in template attribute must be runes mode; got:\n{code}"
+        );
+        assert!(
+            !code.contains("__sveltets_2_isomorphic_component"),
+            "$state.eager() in template attribute must NOT be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// `$state(x)` as a direct call in a template expression tag → runes.
+    #[test]
+    fn test_runes_state_direct_in_template_expr() {
+        let code = run_svelte2tsx_v5("<p>{$state(0)}</p>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$state() in template expression must be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$derived(a + b)` in a template expression tag and NO `<script>` → runes.
+    #[test]
+    fn test_runes_derived_in_template_expr() {
+        let code = run_svelte2tsx_v5("<p>{$derived(a + b)}</p>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$derived() in template expression must be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `$effect.pre(...)` in a template expression → runes (member-call variant).
+    #[test]
+    fn test_runes_effect_pre_in_template_expr() {
+        let code = run_svelte2tsx_v5("<p>{$effect.pre(() => {})}</p>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$effect.pre() in template expression must be runes mode; got:\n{code}"
+        );
+    }
+
+    /// `{@attach $effect(() => {})}` — rune global nested inside an arrow function
+    /// body of an AttachTag expression → must be runes mode (fn_component).
+    ///
+    /// Ground truth: official svelte2tsx collects `$effect` as an undeclared global
+    /// via `implicitStoreValues` even when it appears inside a nested function body
+    /// passed to `{@attach ...}`.
+    #[test]
+    fn test_runes_effect_nested_in_attach_tag() {
+        let code = run_svelte2tsx_v5("<div {@attach $effect(() => {})}></div>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$effect() nested in {{@attach}} must be runes mode; got:\n{code}"
+        );
+        assert!(
+            !code.contains("__sveltets_2_isomorphic_component"),
+            "$effect() in {{@attach}} must NOT be legacy mode; got:\n{code}"
+        );
+    }
+
+    /// `use:action={() => $state(0)}` — rune global inside arrow function body
+    /// of a `use:` directive → must be runes mode.
+    #[test]
+    fn test_runes_state_nested_in_use_directive() {
+        let code = run_svelte2tsx_v5("<div use:action={() => $state(0)}></div>");
+        assert!(
+            code.contains("__sveltets_2_fn_component"),
+            "$state() nested in use: directive must be runes mode; got:\n{code}"
+        );
+    }
+
+    /// A plain template with NO rune globals must remain legacy.
+    #[test]
+    fn test_legacy_template_no_rune_globals() {
+        // `pathname` is just a regular identifier — not a rune global.
+        let code = run_svelte2tsx_v5(
+            "<nav><a href=\"/\" aria-current={pathname === '/' ? 'page' : null}>home</a></nav>",
+        );
+        assert!(
+            code.contains("__sveltets_2_isomorphic_component"),
+            "template with no rune globals must be legacy mode; got:\n{code}"
+        );
+    }
+
+    // =============================================================================
+    // svelte:boundary snippet-as-implicit-prop tests
+    //
+    // Upstream `SnippetBlock.ts::hoistSnippetBlock` returns early for
+    // `SvelteBoundary`, treating it exactly like `InlineComponent`: direct
+    // `{#snippet}` children become implicit properties of the element's
+    // `createElement` attrs object instead of standalone `const` declarations.
+    // =============================================================================
+
+    /// `{#snippet pending()}` inside `<svelte:boundary>` must be emitted as an
+    /// implicit property of the `createElement` call, not as a standalone `const`.
+    ///
+    /// Ground truth: upstream svelte2tsx output for
+    ///   `<svelte:boundary><p>{await x}</p>{#snippet pending()}<p>loading</p>{/snippet}</svelte:boundary>`
+    /// is:
+    ///   `svelteHTML.createElement("svelte:boundary", { pending: () => { async () => { ... }; return __sveltets_2_any(0); }, });`
+    ///   followed by the non-snippet `<p>` child OUTSIDE the createElement call.
+    #[test]
+    fn test_boundary_pending_snippet_as_implicit_prop() {
+        // The canonical boundary/2.svelte example from the corpus.
+        let source = "<svelte:boundary>\n\t<p>child</p>\n\t{#snippet pending()}\n\t\t<p>loading</p>\n\t{/snippet}\n</svelte:boundary>";
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        let code = &result.code;
+        eprintln!("BOUNDARY SNIPPET OUTPUT:\n{code}");
+
+        // The snippet must appear as an implicit prop INSIDE the createElement attrs.
+        // Note: rsvelte emits `pending:()` (no space); oxfmt normalizes to `pending: ()`.
+        assert!(
+            code.contains("pending:() => {"),
+            "pending snippet must be an implicit attr prop (not a standalone const); got:\n{code}"
+        );
+        // There must be NO standalone `const pending = ...` declaration.
+        assert!(
+            !code.contains("const pending"),
+            "snippet must NOT also appear as a standalone const; got:\n{code}"
+        );
+        // The snippet body must close with return __sveltets_2_any(0)},
+        // (the trailing comma makes it an object property value).
+        assert!(
+            code.contains("return __sveltets_2_any(0)},"),
+            "snippet body must end with `return __sveltets_2_any(0)}},`; got:\n{code}"
+        );
+        // The non-snippet <p>child</p> element must still appear (emitted AFTER `});`).
+        assert!(
+            code.contains("svelteHTML.createElement(\"p\","),
+            "non-snippet child <p> must still be emitted; got:\n{code}"
+        );
+        // Sanity: createElement for the boundary element must be present.
+        assert!(
+            code.contains("svelteHTML.createElement(\"svelte:boundary\","),
+            "boundary createElement call must be present; got:\n{code}"
+        );
+    }
+
+    /// `{#snippet failed(error, reset)}` (with parameters) inside `<svelte:boundary>`.
+    #[test]
+    fn test_boundary_failed_snippet_with_params() {
+        let source = "<svelte:boundary>\n\t<Component />\n\t{#snippet failed(error, reset)}\n\t\t<button onclick={reset}>retry</button>\n\t{/snippet}\n</svelte:boundary>";
+        let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
+        let code = &result.code;
+        eprintln!("BOUNDARY FAILED SNIPPET OUTPUT:\n{code}");
+
+        // Note: rsvelte emits `failed:(error, reset)` (no space); oxfmt normalizes spacing.
+        assert!(
+            code.contains("failed:(error, reset) => {"),
+            "failed snippet with params must be an implicit attr prop; got:\n{code}"
+        );
+        assert!(
+            !code.contains("const failed"),
+            "snippet must NOT appear as a standalone const; got:\n{code}"
+        );
+        // The Component child must still be emitted after the createElement closes.
+        assert!(
+            code.contains("__sveltets_2_ensureComponent(Component)"),
+            "non-snippet Component child must still be emitted; got:\n{code}"
+        );
+    }
+
+    // =============================================================================
+    // Async component (top-level await) tests
+    //
+    // Reference: createRenderFunction.ts (async keyword on $$render) and
+    //            addComponentExport.ts (`renderCall` / `awaitDeclaration`).
+    // =============================================================================
+
+    /// Direct top-level await (`const x = await fetch(1)`) must produce:
+    ///   • `async function $$render() {` (the `async` keyword)
+    ///   • `/*Ωignore_startΩ*/ const $$$render = await $$render(); /*Ωignore_endΩ*/`
+    ///   • `const Foo__SvelteComponent_ = __sveltets_2_fn_component($$$render);`
+    #[test]
+    fn test_async_component_direct_await() {
+        let source = "<script>const x = await fetch('/');</script>{x}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Foo.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("ASYNC DIRECT:\n{code}");
+        assert!(
+            code.contains("async function $$render(") || code.contains(";async function $$render("),
+            "component with direct top-level await must use `async function $$render`; got:\n{code}"
+        );
+        assert!(
+            code.contains("const $$$render = await $$render()"),
+            "component with top-level await must emit `const $$$render = await $$render()` declaration; got:\n{code}"
+        );
+        assert!(
+            code.contains("__sveltets_2_fn_component($$$render)"),
+            "component with top-level await must pass `$$$render` (not `$$render()`) to fn_component; got:\n{code}"
+        );
+        assert!(
+            !code.contains("__sveltets_2_fn_component($$render())"),
+            "fn_component must NOT use `$$render()` when top-level await is present; got:\n{code}"
+        );
+    }
+
+    /// Nested top-level await inside `$derived(await x)` must also be detected.
+    ///
+    /// This tests the deep recursive `expr_contains_await_deep` walk that the old
+    /// shallow `contains_await_expression` missed.  Ground truth: upstream
+    /// `processInstanceScriptContent.ts` sets `hasTopLevelAwait` for any
+    /// AwaitExpression at the root scope, including inside a CallExpression argument.
+    #[test]
+    fn test_async_component_nested_await_in_derived() {
+        let source = "<script>let foo = $derived(await 1);</script>{foo}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Test.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("ASYNC NESTED DERIVED:\n{code}");
+        assert!(
+            code.contains("async function $$render(") || code.contains(";async function $$render("),
+            "$derived(await x) at top level must produce `async function $$render`; got:\n{code}"
+        );
+        assert!(
+            code.contains("const $$$render = await $$render()"),
+            "$derived(await x) must emit awaitDeclaration; got:\n{code}"
+        );
+        assert!(
+            code.contains("__sveltets_2_fn_component($$$render)"),
+            "$derived(await x) must pass `$$$render` to fn_component; got:\n{code}"
+        );
+    }
+
+    /// A normal (non-async) component must keep `function $$render` (no `async`)
+    /// and use `$$render()` (not `$$$render`) in the export.
+    #[test]
+    fn test_non_async_component_no_await_declaration() {
+        let source = "<script>let x = 1;</script>{x}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Normal.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("NON-ASYNC:\n{code}");
+        // The function header should NOT be async for a plain component
+        assert!(
+            !code.contains("async function $$render("),
+            "non-async component must NOT use `async function $$render`; got:\n{code}"
+        );
+        // No awaitDeclaration
+        assert!(
+            !code.contains("$$$render"),
+            "non-async component must NOT emit `$$$render`; got:\n{code}"
+        );
+    }
+
+    /// `await` inside a function body at the top level must NOT trigger async.
+    /// Only awaits at the *component* scope (not inside an inner function) count.
+    #[test]
+    fn test_async_only_in_inner_function_is_not_top_level() {
+        // The `await` is inside `async function c(a) { ... }` — its scope is
+        // NOT the component root scope, so `hasTopLevelAwait` must stay false.
+        let source =
+            "<script>async function c(a) { return await Promise.resolve(a); }</script>{c(1)}";
+        let options = Svelte2TsxOptions {
+            version: SvelteVersion::V5,
+            filename: "Inner.svelte".to_string(),
+            is_ts_file: false,
+            ..Default::default()
+        };
+        let code = svelte2tsx(source, options).unwrap().code;
+        eprintln!("INNER ASYNC:\n{code}");
+        assert!(
+            !code.contains("async function $$render("),
+            "await inside inner async function must NOT make $$render async; got:\n{code}"
+        );
+        assert!(
+            !code.contains("$$$render"),
+            "await inside inner async function must NOT emit $$$render; got:\n{code}"
         );
     }
 }

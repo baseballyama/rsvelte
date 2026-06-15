@@ -6,8 +6,9 @@
 //! only overrides what it cares about.
 
 use rsvelte_core::ast::template::{
-    Attribute, AwaitBlock, Component, ConstTag, DebugTag, EachBlock, ExpressionTag, HtmlTag,
-    IfBlock, RegularElement, Root, SlotElement, SnippetBlock,
+    Attribute, AwaitBlock, Comment, Component, ConstTag, DebugTag, DeclarationTag, EachBlock,
+    ExpressionTag, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, Root, SlotElement,
+    SnippetBlock, SvelteComponentElement, SvelteDynamicElement, SvelteElement,
 };
 
 use crate::context::LintContext;
@@ -110,10 +111,25 @@ pub trait Rule: Send + Sync {
     fn check_snippet(&self, ctx: &mut LintContext, block: &SnippetBlock) {}
     fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {}
     fn check_const_tag(&self, ctx: &mut LintContext, tag: &ConstTag) {}
+    fn check_declaration_tag(&self, ctx: &mut LintContext, tag: &DeclarationTag) {}
+    fn check_render_tag(&self, ctx: &mut LintContext, tag: &RenderTag) {}
+    fn check_key(&self, ctx: &mut LintContext, block: &KeyBlock) {}
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {}
+
+    /// Called for every `svelte:*` special element (`SvelteHead`, `SvelteSelf`,
+    /// `SvelteWindow`, …). The wrapped `SvelteElement` carries the element name
+    /// (e.g. `svelte:head`).
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {}
+    /// Called for `<svelte:component this={...}>`.
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {}
+    /// Called for `<svelte:element this={...}>` (dynamic element).
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {}
 
     /// Called for every attribute/directive on an element or component, after
     /// the element-level hook. Lets attribute-scoped rules avoid re-walking the
     /// attribute list themselves.
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {}
+
+    /// Called for every HTML comment (`<!-- … -->`) in the template.
+    fn check_comment(&self, ctx: &mut LintContext, comment: &Comment) {}
 }

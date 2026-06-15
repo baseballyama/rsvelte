@@ -4,7 +4,7 @@
 //! of day-one coverage comes from the validator wrap
 //! ([`validator`](crate::validator)), not from these.
 
-use crate::rule::Rule;
+use crate::rule::{Rule, RuleMeta};
 use crate::rules::{
     button_has_type::ButtonHasType, no_at_debug_tags::NoAtDebugTags, no_at_html_tags::NoAtHtmlTags,
     no_dupe_else_if_blocks::NoDupeElseIfBlocks, no_dupe_on_directives::NoDupeOnDirectives,
@@ -17,6 +17,21 @@ use crate::rules::{
     no_useless_mustaches::NoUselessMustaches, require_each_key::RequireEachKey,
     valid_each_key::ValidEachKey,
 };
+
+/// Every registered rule's `&'static RuleMeta`, across both the template-AST
+/// rule set ([`all_rules`]) and the script-AST rule set ([`all_script_rules`]).
+///
+/// This is the single source of truth for "which rules ship" — `--list-rules`,
+/// the ESLint-disable config, and the compat oracle all derive their rule
+/// universe from it, so a rule added to either registry is automatically
+/// surfaced everywhere (and subjected to upstream-fixture parity).
+pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
+    all_rules()
+        .iter()
+        .map(|r| r.meta())
+        .chain(all_script_rules().iter().map(|r| r.meta()))
+        .collect()
+}
 
 /// Construct the full set of native rules.
 pub fn all_rules() -> Vec<Box<dyn Rule>> {
@@ -53,6 +68,27 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::require_store_reactive_access::RequireStoreReactiveAccess),
         Box::new(crate::rules::max_lines_per_block::MaxLinesPerBlock),
         Box::new(crate::rules::no_navigation_without_base::NoNavigationWithoutBase),
+        Box::new(
+            crate::rules::no_spaces_around_equal_signs_in_attribute::NoSpacesAroundEqualSignsInAttribute,
+        ),
+        Box::new(crate::rules::spaced_html_comment::SpacedHtmlComment),
+        Box::new(crate::rules::shorthand_attribute::ShorthandAttribute),
+        Box::new(crate::rules::shorthand_directive::ShorthandDirective),
+        Box::new(crate::rules::html_quotes::HtmlQuotes),
+        Box::new(crate::rules::first_attribute_linebreak::FirstAttributeLinebreak),
+        Box::new(crate::rules::html_closing_bracket_spacing::HtmlClosingBracketSpacing),
+        Box::new(crate::rules::html_self_closing::HtmlSelfClosing),
+        Box::new(crate::rules::mustache_spacing::MustacheSpacing),
+        Box::new(crate::rules::no_trailing_spaces::NoTrailingSpaces),
+        Box::new(crate::rules::html_closing_bracket_new_line::HtmlClosingBracketNewLine),
+        Box::new(crate::rules::max_attributes_per_line::MaxAttributesPerLine),
+        Box::new(crate::rules::sort_attributes::SortAttributes),
+        Box::new(crate::rules::prefer_class_directive::PreferClassDirective),
+        Box::new(crate::rules::prefer_style_directive::PreferStyleDirective),
+        Box::new(crate::rules::require_optimized_style_attribute::RequireOptimizedStyleAttribute),
+        Box::new(crate::rules::block_lang::BlockLang),
+        Box::new(crate::rules::no_unused_class_name::NoUnusedClassName),
+        Box::new(crate::rules::consistent_selector_style::ConsistentSelectorStyle),
     ]
 }
 
@@ -98,5 +134,13 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoImmutableReactiveStatements),
         Box::new(NoDomManipulating),
         Box::new(NoReactiveReassign),
+        Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
+        Box::new(
+            crate::rules::valid_prop_names_in_kit_pages::ValidPropNamesInKitPages,
+        ),
+        Box::new(
+            crate::rules::no_export_load_in_svelte_module_in_kit_pages::NoExportLoadInSvelteModuleInKitPages,
+        ),
+        Box::new(crate::rules::infinite_reactive_loop::InfiniteReactiveLoop),
     ]
 }
