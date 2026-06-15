@@ -115,6 +115,21 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
     parser.parse()
 }
 
+/// Parse a Svelte component, parsing `<script>` content as TypeScript even
+/// without `lang="ts"` (template-expression parsing stays lang-respecting). Used
+/// by the svelte2tsx pipeline, which — like official svelte2tsx on
+/// acorn-typescript — always parses scripts TS-aware (so `let x: typeof C<any>`
+/// in a `.svelte` file with no `lang="ts"` doesn't fail) while keeping template
+/// expressions (e.g. snippet parameters) JS-only when there's no `lang="ts"`.
+/// The compiler's `parse` keeps full `lang="ts"` enforcement.
+pub fn parse_script_ts(source: &str, options: ParseOptions) -> ParseResult<Root> {
+    let mut parser = Parser::new(source, options);
+    parser.script_ts = true;
+    // SAFETY: see `parse`.
+    let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
+    parser.parse()
+}
+
 /// Parse with a reusable parser instance for reduced per-file overhead.
 /// The parser is reset between calls, reusing internal allocations.
 pub fn parse_reuse<'a>(

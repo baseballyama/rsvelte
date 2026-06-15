@@ -478,13 +478,19 @@ pub fn svelte2tsx(
     // is NOT blanked — rsvelte needs it (it processes the instance script from
     // the parsed AST, unlike svelte2tsx which re-parses scripts separately).
     let parse_source = blank_style_content(source);
+    // svelte2tsx parses SCRIPT content TS-aware regardless of `lang="ts"` (like
+    // official svelte2tsx on acorn-typescript) — so TS-only script syntax such as
+    // `let x: typeof C<any>` doesn't fail the parse, while genuine script syntax
+    // errors are still reported. Template expressions (snippet params, mustaches)
+    // stay lang-respecting, so a TS-typed snippet param without `lang="ts"` still
+    // errors like official.
     let parse_options = ParseOptions {
         modern: true,
         loose: false,
         skip_expression_loc: false,
         defer_script_parse: false,
     };
-    let ast = phase1_parse::parse(&parse_source, parse_options)?;
+    let ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
 
     // svelte rejects `{@debug expr}` whose arguments are not plain identifiers
     // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does

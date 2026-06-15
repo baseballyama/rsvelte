@@ -214,7 +214,7 @@ impl Parser<'_> {
             }
         }
 
-        let use_typescript = self.ts || is_typescript;
+        let use_typescript = self.ts || self.script_ts || is_typescript;
         let leading_comments = std::mem::take(&mut self.pending_leading_comments);
 
         let script = if self.options.defer_script_parse {

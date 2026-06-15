@@ -1,7 +1,5 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/07-misc/06-v4-migration-guide.md/6.svelte",
-	"svelte.dev/apps/svelte.dev/src/routes/llms-small.txt/content-sveltekit.md/23.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/search/+page.svelte",
 	"svelte.dev/packages/repl/src/lib/Editor/Editor.svelte",
 	"svelte.dev/packages/repl/src/lib/Input/ComponentSelector.svelte",
@@ -9,7 +7,6 @@
 	"svelte.dev/packages/repl/src/lib/Output/CompilerOptions.svelte",
 	"svelte.dev/packages/site-kit/src/lib/nav/Nav.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
-	"svelte/documentation/docs/07-misc/06-v4-migration-guide.md/6.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte",
