@@ -3000,12 +3000,84 @@ fn handle_reactive_statement(
     }
 }
 
+/// The official svelte2tsx `is_rune` quirk: a `$state(...)`/`$derived(...)`/
+/// `$props(...)` call that is the *direct* initializer of a variable
+/// declaration whose binding name (source text) **includes** the rune base
+/// name (`state`/`derived`/`props`) is treated as the canonical rune form and
+/// is therefore NOT counted as a store-access global — so it does not, on its
+/// own, switch the component into runes mode.
+///
+/// Reference: `processInstanceScriptContent.ts` `handleIdentifier`:
+/// ```text
+/// const is_rune =
+///   (text === '$props' || text === '$derived' || text === '$state') &&
+///   ts.isCallExpression(parent) &&
+///   ts.isVariableDeclaration(parent.parent) &&
+///   parent.parent.name.getText().includes(text.slice(1));
+/// ```
+///
+/// Returns the base rune call when the init is the excluded canonical form, so
+/// callers can still scan its *arguments* for nested rune globals (which keep
+/// their own non-VariableDeclaration parent and so are not excluded).
+fn excluded_rune_init<'a>(
+    init: &'a oxc::Expression,
+    id: &oxc::BindingPattern,
+) -> Option<&'a oxc::CallExpression<'a>> {
+    let oxc::Expression::CallExpression(call) = init else {
+        return None;
+    };
+    let oxc::Expression::Identifier(callee) = &call.callee else {
+        return None;
+    };
+    let base = match callee.name.as_str() {
+        "$state" => "state",
+        "$derived" => "derived",
+        "$props" => "props",
+        _ => return None,
+    };
+    if binding_name_contains(id, base) {
+        Some(call)
+    } else {
+        None
+    }
+}
+
+/// True if any identifier bound by `pattern` contains `needle` as a substring.
+/// Mirrors official's `name.getText().includes(base)` for the common simple /
+/// destructuring cases.
+fn binding_name_contains(pattern: &oxc::BindingPattern, needle: &str) -> bool {
+    extract_all_names_from_binding_pattern(pattern)
+        .iter()
+        .any(|n| n.contains(needle))
+}
+
+/// Scan a rune call's arguments for nested rune globals (used when the call
+/// itself is the excluded canonical form but its arguments may still contain
+/// runes, e.g. `let derived1 = $derived($state(0))`).
+fn detect_rune_in_call_args(call: &oxc::CallExpression, declared_names: &HashSet<String>) -> bool {
+    call.arguments.iter().any(|arg| match arg {
+        oxc::Argument::SpreadElement(spread) => {
+            detect_rune_in_expr(&spread.argument, declared_names)
+        }
+        _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+    })
+}
+
 fn detect_runes_call(
     declarator: &oxc::VariableDeclarator,
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
     if let Some(ref init) = declarator.init {
+        // Apply the official `is_rune` exclusion: the canonical
+        // `let stateX = $state(...)` form does not, by itself, trigger runes
+        // mode — but nested runes in the arguments still do.
+        if let Some(call) = excluded_rune_init(init, &declarator.id) {
+            if detect_rune_in_call_args(call, declared_names) {
+                exported_names.set_uses_runes(true);
+            }
+            return;
+        }
         // `detect_rune_in_expr` subsumes `detect_rune_global_call_expr`: it
         // fast-paths to the top-level check first, then recurses into nested
         // function/arrow bodies. This catches patterns like:
@@ -3114,9 +3186,16 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
             detect_rune_in_expr(&es.expression, declared_names)
         }
         oxc::Statement::VariableDeclaration(var_decl) => var_decl.declarations.iter().any(|d| {
-            d.init
-                .as_ref()
-                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+            d.init.as_ref().is_some_and(|e| {
+                // Same `is_rune` exclusion as the top-level pass: the canonical
+                // `let stateX = $state(...)` form is not a runes-globals trigger,
+                // but nested runes in the arguments still are.
+                if let Some(call) = excluded_rune_init(e, &d.id) {
+                    detect_rune_in_call_args(call, declared_names)
+                } else {
+                    detect_rune_in_expr(e, declared_names)
+                }
+            })
         }),
         oxc::Statement::ReturnStatement(ret) => ret
             .argument
