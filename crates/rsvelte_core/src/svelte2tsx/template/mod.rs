@@ -550,8 +550,10 @@ fn collect_info_from_node(
 ) {
     match node {
         TemplateNode::SlotElement(el) => {
-            // Collect slot name and props
-            let slot_name = get_slot_name(&el.attributes, source);
+            // Collect slot name and props. The `slots` *type* key uses
+            // `undefined` for a dynamic name (`<slot name="{foo}">`), unlike the
+            // `__sveltets_createSlot("{foo}", …)` call which keeps the raw text.
+            let slot_name = slot_name_for_type(&el.attributes);
             let slot_props = collect_slot_prop_entries(&el.attributes, source, scope);
             let entry = info.slots.entry(slot_name).or_default();
             for prop in slot_props {
@@ -5724,6 +5726,42 @@ fn count_tag_to_attr_spaces(tag_name: &str, el_start: u32, source: &str) -> usiz
 
 /// Extract the slot name from a `<slot>` element's attributes.
 /// Returns "default" if no `name` attribute is present.
+/// Slot name used as the **type** key in the component's `slots: { … }` return.
+/// A static `name="header"` yields `header`; a missing name yields `default`; a
+/// dynamic `name="{foo}"` (or `name={foo}`) yields the literal `undefined`
+/// (official emits `slots: { undefined: {} }` for a non-static slot name).
+fn slot_name_for_type(attributes: &[Attribute]) -> String {
+    for attr in attributes {
+        if let Attribute::Attribute(node) = attr
+            && node.name == "name"
+        {
+            match &node.value {
+                AttributeValue::Sequence(parts) => {
+                    // Dynamic if any part is an expression tag.
+                    if parts
+                        .iter()
+                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
+                    {
+                        return "undefined".to_string();
+                    }
+                    let mut name = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            name.push_str(&text.raw);
+                        }
+                    }
+                    if !name.is_empty() {
+                        return name;
+                    }
+                }
+                AttributeValue::Expression(_) => return "undefined".to_string(),
+                _ => {}
+            }
+        }
+    }
+    "default".to_string()
+}
+
 fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
     for attr in attributes {
         if let Attribute::Attribute(node) = attr
@@ -5740,6 +5778,23 @@ fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
                     }
                     if !name.is_empty() {
                         return name;
+                    }
+                    // Quoted mustache value, e.g. `name='{foo}'`: official uses
+                    // the raw source text of the value verbatim as the slot-name
+                    // string (`__sveltets_createSlot("{foo}", …)`). Slice from the
+                    // first to the last value part.
+                    if let (Some(first), Some(last)) = (parts.first(), parts.last()) {
+                        let start = match first {
+                            AttributeValuePart::Text(t) => t.start,
+                            AttributeValuePart::ExpressionTag(e) => e.start,
+                        } as usize;
+                        let end = match last {
+                            AttributeValuePart::Text(t) => t.end,
+                            AttributeValuePart::ExpressionTag(e) => e.end,
+                        } as usize;
+                        if start < end && end <= source.len() {
+                            return source[start..end].to_string();
+                        }
                     }
                 }
                 AttributeValue::Expression(expr) => {
