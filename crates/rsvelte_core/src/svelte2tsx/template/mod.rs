@@ -5150,6 +5150,12 @@ fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source:
                     //   `style:x="red"`  → `, " ");`            (single text → " ")
                     //   `style:x={y}`    → `, y);`              (single expr → bare)
                     //   `style:x="a{b}"` → `, ` ${b}`);`        (text→space, expr kept)
+                    // Empty value (`style:--c=""`): official emits the empty
+                    // string `""` (single-Text branch with a zero-length text
+                    // range), not an empty template literal.
+                    AttributeValue::Sequence(parts) if parts.is_empty() => {
+                        segs_push_lit(&mut out, "\"\"");
+                    }
                     AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
                         AttributeValuePart::Text(_) => {
                             segs_push_lit(&mut out, "\" \"");
