@@ -1,7 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/07-misc/06-v4-migration-guide.md/6.svelte",
-	"svelte.dev/apps/svelte.dev/src/routes/docs/special-elements/+page.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/llms-small.txt/content-sveltekit.md/23.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/search/+page.svelte",
 	"svelte.dev/packages/repl/src/lib/Editor/Editor.svelte",
@@ -88,7 +87,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/Component.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/class-state-derived-2/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/custom-element-slot-in-snippet/Component.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/derived-unowned-12/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/derived-unowned-8/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-derived-2/main.svelte",

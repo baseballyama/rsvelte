@@ -580,8 +580,12 @@ pub fn svelte2tsx(
         exported_names.set_uses_runes(true);
     }
 
-    // Step 7.5: Early slot detection (before script tag overwrites)
-    let has_slot_elements = source.contains("<slot") || source.contains("<slot>");
+    // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
+    // naive `source.contains("<slot")` matches `<slot>` inside string literals
+    // such as a custom element's `shadowRoot.innerHTML = '…<slot>…'`, which are
+    // not real template slots). Official emits the `__sveltets_createSlot`
+    // helper / treats the component as slotted only for real `<slot>` elements.
+    let has_slot_elements = fragment_has_slot_element(&ast.fragment);
 
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
@@ -3650,6 +3654,49 @@ fn fragment_has_template_await(
 }
 
 /// Check a single template node for `{await ...}` patterns, recursing into children.
+/// True if the template fragment contains a real `<slot>` element anywhere
+/// (recursing through elements, components, control-flow blocks, and snippets).
+/// AST-based replacement for a naive `source.contains("<slot")` scan.
+fn fragment_has_slot_element(fragment: &crate::ast::template::Fragment) -> bool {
+    fragment.nodes.iter().any(node_has_slot_element)
+}
+
+fn node_has_slot_element(node: &crate::ast::template::TemplateNode) -> bool {
+    use crate::ast::template::TemplateNode as N;
+    match node {
+        N::SlotElement(_) => true,
+        N::RegularElement(e) => fragment_has_slot_element(&e.fragment),
+        N::Component(c) => fragment_has_slot_element(&c.fragment),
+        N::SvelteComponent(c) => fragment_has_slot_element(&c.fragment),
+        N::SvelteElement(e) => fragment_has_slot_element(&e.fragment),
+        N::TitleElement(e) => fragment_has_slot_element(&e.fragment),
+        N::SvelteHead(e)
+        | N::SvelteFragment(e)
+        | N::SvelteBody(e)
+        | N::SvelteWindow(e)
+        | N::SvelteDocument(e)
+        | N::SvelteBoundary(e)
+        | N::SvelteOptions(e)
+        | N::SvelteSelf(e) => fragment_has_slot_element(&e.fragment),
+        N::IfBlock(b) => {
+            fragment_has_slot_element(&b.consequent)
+                || b.alternate.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        N::EachBlock(b) => {
+            fragment_has_slot_element(&b.body)
+                || b.fallback.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        N::KeyBlock(b) => fragment_has_slot_element(&b.fragment),
+        N::SnippetBlock(b) => fragment_has_slot_element(&b.body),
+        N::AwaitBlock(b) => {
+            b.pending.as_ref().is_some_and(fragment_has_slot_element)
+                || b.then.as_ref().is_some_and(fragment_has_slot_element)
+                || b.catch.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        _ => false,
+    }
+}
+
 fn template_node_has_await(
     node: &crate::ast::template::TemplateNode,
     source: &str,
