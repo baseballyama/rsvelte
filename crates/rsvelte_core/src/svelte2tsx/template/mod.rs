@@ -2416,7 +2416,11 @@ fn handle_regular_element(
     // per-character back to the original `.svelte` columns. Element-
     // opener attribute expressions previously baked into a single
     // edited chunk and collapsed to a single source-map segment.
-    let mut attr_segs = build_attribute_segments(&el.attributes, source, &el.name);
+    // `saved_slot` (taken from `counter.slot_inst` above) is Some when this
+    // element is a slot-context child of a component — then `let:` is a slot-let,
+    // not a regular attribute.
+    let mut attr_segs =
+        build_attribute_segments(&el.attributes, source, &el.name, saved_slot.is_some());
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior.
     // The JS MagicString preserves whitespace between tag name and first attribute,
@@ -3785,7 +3789,7 @@ fn handle_svelte_dynamic_element(
     let attrs_str = if named_slot.is_some() {
         build_named_slot_element_attrs(&el.attributes, source)
     } else {
-        build_attributes_string(&el.attributes, source)
+        build_attributes_string(&el.attributes, source, saved_slot.is_some())
     };
 
     // `use:` / `transition:` / `animate:` directives, same V4 emission as on a
@@ -3898,7 +3902,7 @@ fn handle_title_element(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let attrs_str = build_attributes_string(&el.attributes, source);
+    let attrs_str = build_attributes_string(&el.attributes, source, counter.slot_inst.is_some());
 
     let opener = format!(
         " {{ svelteHTML.createElement(\"title\", {{{}}});",
@@ -4208,7 +4212,8 @@ fn handle_svelte_special_element(
     }
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
-    let mut attrs_str = build_attributes_string(&el.attributes, source);
+    let mut attrs_str =
+        build_attributes_string(&el.attributes, source, counter.slot_inst.is_some());
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     if !el.attributes.is_empty() && !attrs_str.is_empty() {
@@ -4383,16 +4388,21 @@ fn handle_svelte_special_element(
 /// Build the attributes string for TSX output.
 ///
 /// Returns the inner content for `{ ... }` in createElement or component props.
-fn build_attributes_string(attributes: &[Attribute], source: &str) -> String {
-    build_attributes_string_with_tag(attributes, source, "")
+fn build_attributes_string(
+    attributes: &[Attribute],
+    source: &str,
+    in_slot_context: bool,
+) -> String {
+    build_attributes_string_with_tag(attributes, source, "", in_slot_context)
 }
 
 fn build_attributes_string_with_tag(
     attributes: &[Attribute],
     source: &str,
     parent_tag: &str,
+    in_slot_context: bool,
 ) -> String {
-    let segs = build_attribute_segments(attributes, source, parent_tag);
+    let segs = build_attribute_segments(attributes, source, parent_tag, in_slot_context);
     segs_to_string(&segs, source)
 }
 
@@ -4405,7 +4415,12 @@ fn build_attributes_string_with_tag(
 /// element-opener overwrite. `bind:` directives stay as literals — their
 /// expression also appears in `build_bind_directive_suffix` where the
 /// column mapping is already exact.
-fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: &str) -> Vec<Seg> {
+fn build_attribute_segments(
+    attributes: &[Attribute],
+    source: &str,
+    parent_tag: &str,
+    in_slot_context: bool,
+) -> Vec<Seg> {
     let mut segs: Vec<Seg> = Vec::new();
     let mut any_pushed = false;
 
@@ -4472,8 +4487,29 @@ fn build_attribute_segments(attributes: &[Attribute], source: &str, parent_tag: 
                 // Emitted by `build_directive_prefix_suffix` outside the
                 // props object. No props contribution here.
             }
-            Attribute::LetDirective(_) => {
-                // No TSX output here.
+            Attribute::LetDirective(let_dir) => {
+                // A `let:` directive on an element that is NOT a slot receiver
+                // (not a direct/through-block child of a component — `slot_inst`
+                // is unset) is a regular, deprecated attribute: `"let:x": true`
+                // (or the expression). In a slot context it is consumed by the
+                // `$$slot_def` destructure, so emit nothing. Mirrors official
+                // `Let.ts` `handleLet`'s else branch.
+                if !in_slot_context {
+                    let mut part: Vec<Seg> = Vec::new();
+                    if let Some(ref expr) = let_dir.expression {
+                        segs_push_lit(&mut part, &format!("\"let:{}\":", let_dir.name));
+                        if let Some((s, e)) = get_expression_range(expr) {
+                            segs_push_src(&mut part, s, e);
+                        } else {
+                            segs_push_lit(&mut part, get_expression_text(expr, source));
+                        }
+                        segs_push_lit(&mut part, ",");
+                    } else {
+                        segs_push_lit(&mut part, &format!("\"let:{}\":true,", let_dir.name));
+                    }
+                    push_with_separator(&mut segs, part);
+                    any_pushed = true;
+                }
             }
             Attribute::AttachTag(attach) => {
                 let part = format_attach_tag_segments(attach, source);
