@@ -4,7 +4,6 @@
 	"svelte.dev/packages/repl/src/lib/Editor/Editor.svelte",
 	"svelte.dev/packages/repl/src/lib/Input/ComponentSelector.svelte",
 	"svelte.dev/packages/repl/src/lib/Message.svelte",
-	"svelte.dev/packages/repl/src/lib/Output/CompilerOptions.svelte",
 	"svelte.dev/packages/site-kit/src/lib/nav/Nav.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte",

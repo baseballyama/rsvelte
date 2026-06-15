@@ -1427,6 +1427,62 @@ fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
 /// Handle an each block: `{#each items as item, i (key)}...{:else}...{/each}`.
 ///
 /// Generates: `for(let item of __sveltets_2_ensureArray(items)){let i = 1;key;...}`
+/// Find the byte offset of the last whitespace-bounded `as` keyword in `s`.
+fn rfind_as_keyword(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut found = None;
+    let mut j = 0usize;
+    while j + 1 < bytes.len() {
+        if bytes[j] == b'a' && bytes[j + 1] == b's' {
+            let before_ok = j == 0 || bytes[j - 1].is_ascii_whitespace();
+            let after_ok = bytes.get(j + 2).is_none_or(|c| c.is_ascii_whitespace());
+            if before_ok && after_ok {
+                found = Some(j);
+            }
+        }
+        j += 1;
+    }
+    found
+}
+
+/// Extend the each-collection expression's end past a trailing TypeScript
+/// postfix (`as const`, `as T`, `satisfies T`, `!`) that `remove_typescript_nodes`
+/// stripped from `block.expression`'s span. The collection is everything in the
+/// source before the each binding's ` as ` keyword (the one immediately preceding
+/// `block.context`); the parser's narrowed `expr_end` drops a trailing postfix,
+/// which official svelte2tsx keeps (e.g. `{#each link.sections! as s}` →
+/// `__sveltets_2_ensureArray(link.sections!)`). Only applies when there is a
+/// context binding (`as X`); index/key-only forms keep the narrowed end.
+fn each_collection_extended_end(block: &EachBlock, source: &str, expr_end: u32) -> u32 {
+    let Some(ctx) = block.context.as_ref() else {
+        return expr_end;
+    };
+    let Some((ctx_start, _)) = get_expression_range(ctx) else {
+        return expr_end;
+    };
+    if ctx_start <= expr_end || ctx_start as usize > source.len() {
+        return expr_end;
+    }
+    let region = &source[expr_end as usize..ctx_start as usize];
+    // The each separator is the LAST whitespace-bounded `as` before the context;
+    // everything before it (after expr_end) is the TS postfix, if any.
+    let Some(as_off) = rfind_as_keyword(region) else {
+        return expr_end;
+    };
+    let postfix = region[..as_off].trim_end();
+    // Only extend for a genuine TS postfix (`as …`, `satisfies …`, `!`). A bare
+    // `)` here is the closing paren of a `(expr)` whose wrapping parens the
+    // parser stripped symmetrically (`{#each (c) as x}`) — that must stay
+    // dropped, like the expression-tag handler. (Mirrors `handle_expression_tag`.)
+    let pf = postfix.trim_start();
+    let is_ts_postfix =
+        pf.starts_with("as ") || pf.starts_with("satisfies ") || pf.starts_with('!');
+    if !is_ts_postfix {
+        return expr_end;
+    }
+    expr_end + postfix.len() as u32
+}
+
 fn handle_each_block(
     block: &EachBlock,
     source: &str,
@@ -1439,7 +1495,14 @@ fn handle_each_block(
         return;
     }
 
-    let expr_text = get_expression_text(&block.expression, source);
+    // Expression range, extended to include a trailing TS postfix the parser
+    // narrowed away (`x!`, `x as const`).
+    let expr_range = get_expression_range(&block.expression)
+        .map(|(s, e)| (s, each_collection_extended_end(block, source, e)));
+    let expr_text = match expr_range {
+        Some((s, e)) => source.get(s as usize..e as usize).unwrap_or(""),
+        None => "",
+    };
     let has_context = block.context.is_some();
     let context_text = block
         .context
@@ -1521,7 +1584,7 @@ fn handle_each_block(
         )
     };
 
-    if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
+    if let Some((expr_start, expr_end)) = expr_range {
         // Try to also preserve the context binding's source range so a
         // diagnostic on a destructuring pattern like `{ name, age }` keeps
         // its exact column. The relocation pattern mirrors the
