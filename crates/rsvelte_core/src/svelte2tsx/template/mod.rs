@@ -588,7 +588,15 @@ fn collect_info_from_node(
                     // Event forwarding: on:click (no handler)
                     let event_name = on.name.to_string();
                     let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                    if !info.element_events.iter().any(|(n, _)| n == &event_name) {
+                    // Dedup by (name, value): the SAME source type for an event
+                    // (e.g. two `<button on:click>`) collapses to one entry, but
+                    // distinct sources for the same name (element + component
+                    // forward) are both kept so they can be `unionType`-combined.
+                    if !info
+                        .element_events
+                        .iter()
+                        .any(|(n, v)| n == &event_name && v == &event_value)
+                    {
                         info.element_events.push((event_name, event_value));
                     }
                 }
@@ -610,7 +618,15 @@ fn collect_info_from_node(
                 {
                     let event_name = on.name.to_string();
                     let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                    if !info.element_events.iter().any(|(n, _)| n == &event_name) {
+                    // Dedup by (name, value): the SAME source type for an event
+                    // (e.g. two `<button on:click>`) collapses to one entry, but
+                    // distinct sources for the same name (element + component
+                    // forward) are both kept so they can be `unionType`-combined.
+                    if !info
+                        .element_events
+                        .iter()
+                        .any(|(n, v)| n == &event_name && v == &event_value)
+                    {
                         info.element_events.push((event_name, event_value));
                     }
                 }
@@ -630,7 +646,15 @@ fn collect_info_from_node(
                         "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({}).$$events_def, '{}')",
                         comp.name, event_name
                     );
-                    if !info.element_events.iter().any(|(n, _)| n == &event_name) {
+                    // Dedup by (name, value): the SAME source type for an event
+                    // (e.g. two `<button on:click>`) collapses to one entry, but
+                    // distinct sources for the same name (element + component
+                    // forward) are both kept so they can be `unionType`-combined.
+                    if !info
+                        .element_events
+                        .iter()
+                        .any(|(n, v)| n == &event_name && v == &event_value)
+                    {
                         info.element_events.push((event_name, event_value));
                     }
                 }

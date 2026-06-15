@@ -1772,9 +1772,31 @@ pub fn svelte2tsx(
     // Build events string from template info and component events
     let events_str = {
         let mut event_parts = Vec::new();
-        // Add element events (forwarded)
+        // Add element events (forwarded). When the same event name is forwarded
+        // from multiple distinct sources — e.g. an element (`<button on:click>` →
+        // `mapElementEvent`) AND a component (`<Button on:click>` →
+        // `bubbleEventDef`) — official combines them with `__sveltets_2_unionType`.
+        // Group by name (preserving order), then emit a single value or a union.
+        let mut grouped: Vec<(String, Vec<String>)> = Vec::new();
         for (name, value) in &template_info.element_events {
-            event_parts.push(format!("'{}':{}", name, value));
+            if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
+                if !entry.1.contains(value) {
+                    entry.1.push(value.clone());
+                }
+            } else {
+                grouped.push((name.clone(), vec![value.clone()]));
+            }
+        }
+        for (name, values) in &grouped {
+            if values.len() == 1 {
+                event_parts.push(format!("'{}':{}", name, values[0]));
+            } else {
+                event_parts.push(format!(
+                    "'{}':__sveltets_2_unionType({})",
+                    name,
+                    values.join(", ")
+                ));
+            }
         }
         // Add custom events from dispatchers (detected during script processing)
         for (name, value) in events.get_event_entries() {
