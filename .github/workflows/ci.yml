@@ -130,11 +130,13 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
         # This job runs the *fast bulk* of the suite, split across 3 runners with
-        # nextest's count partitioning. The three heaviest single `#[test]`
-        # functions — each fans out over 1000+ fixtures internally — are excluded
-        # here (see the `Run tests` filter) and run in their own dedicated jobs
-        # (`test-runtime`, `test-thread-safety`) that compile only their one test
-        # binary, so their ~150 s execution floor doesn't sit behind this job's
+        # nextest's count partitioning. The heaviest single `#[test]` functions —
+        # each fans out over 1000+ fixtures internally (runtime legacy/runes, the
+        # compile_module thread-safety stress test, and the two svelte.dev fmt
+        # corpus parity tests at ~100 s each) — are excluded here (see the
+        # `Run tests` filter) and run in their own dedicated jobs (`test-runtime`,
+        # `test-thread-safety`, `test-fmt-corpus`) that compile only their own
+        # test binary, so their long execution floors don't sit behind this job's
         # full ~2 min workspace build. count-partitioning is weight-blind, so
         # keeping the heavy tests out is what makes these shards balanced. Every
         # test still runs (here or in a dedicated job) with full iteration counts
@@ -282,12 +284,13 @@ jobs:
         # covered by the dedicated `compatibility-report` job below, so it stays
         # out of this run. nextest does not run doctests; this workspace has none.
         #
-        # The three heavy fan-out tests are excluded and run in `test-runtime` /
-        # `test-thread-safety`. `--partition count:<shard>/2` then splits the
-        # remaining (uniform-weight) tests evenly across the 3 shards.
+        # The heavy fan-out tests are excluded and run in their own jobs
+        # (`test-runtime`, `test-thread-safety`, `test-fmt-corpus`).
+        # `--partition count:<shard>/3` then splits the remaining
+        # (uniform-weight) tests evenly across the 3 shards.
         run: >-
           cargo nextest run --profile ci
-          -E 'not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test(/compile_module_is_thread_safe_under_reuse/))'
+          -E 'not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test(/compile_module_is_thread_safe_under_reuse/) | binary(svelte_dev_markdown) | binary(svelte_dev_corpus))'
           --partition count:${{ matrix.shard }}/3
         timeout-minutes: 30
         env:
@@ -460,14 +463,94 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
 
-  # Single required status check that fans the sharded `Test` matrix and the two
+  # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
+  # every .svelte file + markdown code block from svelte.dev and diff against an
+  # oxfmt oracle) are the bulk job's other long pole. Isolate them the same way:
+  # `--test` selects only their two binaries (deps from the shared `test` cache),
+  # and the setup skips the runtime-fixture / Svelte-build steps they don't need.
+  test-fmt-corpus:
+    name: Test fmt corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      # svelte (rsvelte_core build.rs version string) + svelte.dev (the corpus
+      # source files the parity tests read). No Svelte build / generated fixtures.
+      - name: Checkout svelte + svelte.dev submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Install oxfmt for the formatter parity corpus
+        # Isolated install (see the matching step in the `test` job) — provides
+        # the oxfmt oracle binary used to generate and check the corpus.
+        run: |
+          mkdir -p "$RUNNER_TEMP/fmt-oracle"
+          cd "$RUNNER_TEMP/fmt-oracle"
+          npm init -y >/dev/null
+          npm i --ignore-scripts oxfmt@0.53.0 svelte@5.56.2
+          ./node_modules/.bin/oxfmt --version
+
+      - name: Resolve svelte.dev submodule SHA
+        id: svelte-dev-sha
+        shell: bash
+        run: echo "sha=$(git submodule status submodules/svelte.dev | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache formatter parity corpus
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: fixtures/fmt-corpus
+          key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
+
+      - name: Generate formatter parity corpus
+        run: pnpm run generate-fmt-corpus
+        timeout-minutes: 15
+        env:
+          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # Share (read-only) the `test` job's warm dependency cache.
+          shared-key: test
+          save-if: 'false'
+
+      - name: Run svelte.dev formatter-parity corpus tests
+        run: >-
+          cargo nextest run --profile ci
+          -p rsvelte_fmt --test svelte_dev_markdown
+          -p rsvelte_formatter --test svelte_dev_corpus
+        timeout-minutes: 15
+        env:
+          RUST_MIN_STACK: '33554432'
+          FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+
+  # Single required status check that fans the sharded `Test` matrix and the
   # dedicated heavy-test jobs back into one signal: branch protection can require
   # `Tests` instead of every `Test (os, shard)` / `Test runtime` /
-  # `Test thread-safety` leg, so changing the split never needs a protection-rule
-  # change. Fails if any of them failed or was cancelled.
+  # `Test thread-safety` / `Test fmt corpus` leg, so changing the split never
+  # needs a protection-rule change. Fails if any of them failed or was cancelled.
   tests:
     name: Tests
-    needs: [test, test-runtime, test-thread-safety]
+    needs: [test, test-runtime, test-thread-safety, test-fmt-corpus]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -478,11 +561,13 @@ jobs:
           BULK: ${{ needs.test.result }}
           RUNTIME: ${{ needs.test-runtime.result }}
           THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
+          FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
         run: |
           echo "test (shards): $BULK"
           echo "test-runtime: $RUNTIME"
           echo "test-thread-safety: $THREAD_SAFETY"
-          if [[ "$BULK" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" ]]; then
+          echo "test-fmt-corpus: $FMT_CORPUS"
+          if [[ "$BULK" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" ]]; then
             echo "::error::One or more test jobs did not succeed."
             exit 1
           fi
