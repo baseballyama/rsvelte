@@ -82,7 +82,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
-	"svelte/packages/svelte/tests/server-side-rendering/samples/attribute-template-literal-sanitization/main.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/bindings-readonly/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",
 	"svelte/packages/svelte/tests/validator/samples/a11y-role-supports-aria-props/input.svelte",
