@@ -127,69 +127,18 @@ fn style_tags(source: &str) -> Vec<(u32, String)> {
             j += 1;
         }
         let Some(tag_end) = tag_end else { break };
-        let lang = lang_attr(&source[i + 6..tag_end]).unwrap_or_default();
+        // Reuse the shared quote-aware attribute scanner.
+        let lang =
+            crate::svelte_scan::attr_value(&source[i + 6..tag_end], "lang").unwrap_or_default();
         out.push((i as u32, lang));
         i = tag_end + 1;
     }
     out
 }
 
-/// Extract the `lang` attribute value from a start-tag attribute string.
-fn lang_attr(attrs: &str) -> Option<String> {
-    let bytes = attrs.as_bytes();
-    let mut i = 0;
-    while i + 4 <= bytes.len() {
-        // Find a `lang` token at an attribute-name boundary.
-        if &bytes[i..i + 4] == b"lang" {
-            let before_ok = i == 0 || bytes[i - 1].is_ascii_whitespace();
-            let mut k = i + 4;
-            while k < bytes.len() && bytes[k].is_ascii_whitespace() {
-                k += 1;
-            }
-            if before_ok && k < bytes.len() && bytes[k] == b'=' {
-                k += 1;
-                while k < bytes.len() && bytes[k].is_ascii_whitespace() {
-                    k += 1;
-                }
-                if k >= bytes.len() {
-                    return Some(String::new());
-                }
-                let q = bytes[k];
-                if q == b'"' || q == b'\'' {
-                    let start = k + 1;
-                    let mut e = start;
-                    while e < bytes.len() && bytes[e] != q {
-                        e += 1;
-                    }
-                    return Some(attrs[start..e].to_string());
-                }
-                // Unquoted value: run of non-whitespace.
-                let start = k;
-                let mut e = start;
-                while e < bytes.len() && !bytes[e].is_ascii_whitespace() {
-                    e += 1;
-                }
-                return Some(attrs[start..e].to_string());
-            }
-        }
-        i += 1;
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn extracts_lang() {
-        assert_eq!(lang_attr(r#" lang="scss""#).as_deref(), Some("scss"));
-        assert_eq!(lang_attr(r#" lang='less' x"#).as_deref(), Some("less"));
-        assert_eq!(lang_attr(" lang=postcss ").as_deref(), Some("postcss"));
-        assert_eq!(lang_attr(" type=\"text/css\"").as_deref(), None);
-        // `lang` substring of another attr must not match.
-        assert_eq!(lang_attr(" data-lang=\"x\"").as_deref(), None);
-    }
 
     #[test]
     fn finds_style_tags_and_langs() {

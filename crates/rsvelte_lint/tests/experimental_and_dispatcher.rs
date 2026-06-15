@@ -143,6 +143,26 @@ fn dispatcher_reports_missing_type_params() {
 }
 
 #[test]
+fn strict_events_last_script_wins() {
+    // Module script is TS but the (last) instance script is plain JS → upstream
+    // overwrites isTs per visit, so the rule does NOT fire.
+    let src = "<script context=\"module\" lang=\"ts\">\n</script>\n<script>\n</script>";
+    assert!(findings(src, STRICT).is_empty());
+}
+
+#[test]
+fn dispatcher_ignores_comments_and_suffix_imports() {
+    // `createEventDispatcher()` mentioned in a comment must not be reported, and
+    // the real call has type args.
+    let commented = "<script lang=\"ts\">\n\timport { createEventDispatcher } from 'svelte';\n\t// createEventDispatcher() in a comment\n\tconst d = createEventDispatcher<{x: 1}>();\n</script>";
+    assert!(findings(commented, DISPATCH).is_empty());
+
+    // A suffix identifier import must not be treated as createEventDispatcher.
+    let suffix = "<script lang=\"ts\">\n\timport { xcreateEventDispatcher } from 'svelte';\n\tconst d = xcreateEventDispatcher();\n</script>";
+    assert!(findings(suffix, DISPATCH).is_empty());
+}
+
+#[test]
 fn dispatcher_valid_cases() {
     // All calls have type params.
     let typed = "<script lang=\"ts\">\n\timport { createEventDispatcher } from 'svelte';\n\n\tconst d1 = createEventDispatcher<{ one: never; two: number }>();\n\tconst d2 = createEventDispatcher<Record<string, never>>();\n\tconst d3 = createEventDispatcher<any>();\n</script>";

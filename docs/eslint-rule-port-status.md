@@ -123,6 +123,20 @@ surfaces an invalid `<style>` as a hard `parse-error` via the validator wrap.
 - `indent` — one of the largest ESLint layout rules; a faithful byte-exact port
   is a substantial standalone effort.
 
+## Review follow-ups (intentionally deferred)
+
+- **`no-navigation-without-resolve` / `no-navigation-without-base` variable
+  resolution** is a flat top-level `name → init` map, not scope-aware, so an
+  inner-scope binding that shadows an outer one can mis-resolve. Both sibling
+  rules share this simplification; a faithful fix needs real scope analysis.
+- **Shared-infra duplication**: `no_navigation_without_resolve` copies ~150
+  lines of `$app/*` import/var tracking from `no_navigation_without_base`, and
+  `valid_style_parse`/`valid_compile` each scan `<style>` blocks separately.
+  Candidates for extraction into `svelte_scan` (the `lang`/attr scan and
+  `is_ident_byte` were already unified there).
+- **`comment-directive` description separator** recognises only ASCII whitespace
+  around the `--` (upstream's `/\s-{2,}\s/u` also matches Unicode whitespace).
+
 ## Known minor divergences
 
 These are inputs not covered by the upstream oracle fixtures where the port

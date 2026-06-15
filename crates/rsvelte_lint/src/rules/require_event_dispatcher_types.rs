@@ -18,7 +18,7 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{script_blocks, script_is_ts};
+use crate::svelte_scan::{blank_comments, is_ident_byte, script_blocks, script_is_ts};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -41,11 +41,22 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
         return Vec::new();
     }
 
-    let blocks = script_blocks(source);
+    // Blank out comments (preserving byte offsets) so identifiers inside `//`
+    // and `/* */` comments aren't mistaken for imports or calls.
+    let blanked: Vec<(usize, String)> = script_blocks(source)
+        .iter()
+        .map(|b| {
+            (
+                b.content_start,
+                blank_comments(&source[b.content_start..b.content_end]),
+            )
+        })
+        .collect();
+
     // Local names that `createEventDispatcher` is imported under (alias aware).
     let mut locals: Vec<String> = Vec::new();
-    for b in &blocks {
-        collect_dispatcher_locals(&source[b.content_start..b.content_end], &mut locals);
+    for (_, content) in &blanked {
+        collect_dispatcher_locals(content, &mut locals);
     }
     if locals.is_empty() {
         return Vec::new();
@@ -53,10 +64,9 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
 
     let li = LineIndex::new(source);
     let mut out = Vec::new();
-    for b in &blocks {
-        let content = &source[b.content_start..b.content_end];
+    for (content_start, content) in &blanked {
         for off in call_sites_without_type_args(content, &locals) {
-            let abs = (b.content_start + off) as u32;
+            let abs = (content_start + off) as u32;
             out.push(Diagnostic {
                 file: file.to_path_buf(),
                 severity: to_dsev(severity),
@@ -103,27 +113,34 @@ fn dispatcher_local_in_import(import_segment: &str) -> Option<String> {
         return None;
     }
     let needle = "createEventDispatcher";
-    let pos = import_segment.find(needle)?;
-    let after = &import_segment[pos + needle.len()..];
-    // Ensure a name boundary after the imported identifier.
-    if after.as_bytes().first().is_some_and(|&c| is_ident_byte(c)) {
-        return None;
-    }
-    let trimmed = after.trim_start();
-    if let Some(rest) = trimmed.strip_prefix("as") {
-        let rb = rest.as_bytes();
-        if rb.first().is_some_and(|&c| c.is_ascii_whitespace()) {
+    let bytes = import_segment.as_bytes();
+    // Check every occurrence at an identifier boundary (a suffix like
+    // `xcreateEventDispatcher` must not match).
+    for (pos, _) in import_segment.match_indices(needle) {
+        let before_ok = pos == 0 || !is_ident_byte(bytes[pos - 1]);
+        let after = &import_segment[pos + needle.len()..];
+        let after_ok = after.as_bytes().first().is_none_or(|&c| !is_ident_byte(c));
+        if !(before_ok && after_ok) {
+            continue;
+        }
+        let trimmed = after.trim_start();
+        // `as <alias>` — the `as` must be a keyword (followed by whitespace).
+        if let Some(rest) = trimmed.strip_prefix("as")
+            && rest.as_bytes().first().is_some_and(u8::is_ascii_whitespace)
+        {
             let name: String = rest
                 .trim_start()
                 .chars()
                 .take_while(|&c| c == '_' || c == '$' || c.is_ascii_alphanumeric())
                 .collect();
-            if !name.is_empty() {
-                return Some(name);
+            if name.is_empty() {
+                continue; // malformed `as` with no alias — not a usable import
             }
+            return Some(name);
         }
+        return Some(needle.to_string());
     }
-    Some(needle.to_string())
+    None
 }
 
 /// Return the byte offsets (within `content`) of call sites of any `local` name
@@ -158,10 +175,6 @@ fn call_sites_without_type_args(content: &str, locals: &[String]) -> Vec<usize> 
     }
     out.sort_unstable();
     out
-}
-
-fn is_ident_byte(c: u8) -> bool {
-    c == b'_' || c == b'$' || c.is_ascii_alphanumeric()
 }
 
 /// Find the end (exclusive byte offset in `content`) of an import statement that

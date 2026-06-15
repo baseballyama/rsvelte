@@ -97,4 +97,18 @@ fn global_style_suppresses_unused_selector() {
             .any(|(_, m)| m.contains("css_unused_selector")),
         "scoped unused selector should report, got {found_scoped:?}"
     );
+
+    // `<style lang=global>` is NOT a global style — `global` is an attribute
+    // *value* here, not the `global` attribute name; still reported.
+    let lang_global = "<div></div>\n<style lang=global>\n\t.unused { color: red; }\n</style>";
+    let found_lang_global: Vec<_> = lint(lang_global, &cfg)
+        .into_iter()
+        .filter(|(c, _)| c == "svelte/valid-compile")
+        .collect();
+    assert!(
+        found_lang_global
+            .iter()
+            .any(|(_, m)| m.contains("css_unused_selector")),
+        "lang=global is not a global style, got {found_lang_global:?}"
+    );
 }

@@ -140,16 +140,30 @@ pub(crate) fn has_attr(open_tag_attrs: &str, name: &str) -> bool {
     false
 }
 
+/// Whether an opening-tag attribute string declares `lang="ts"`/`"typescript"`.
+pub(crate) fn open_tag_is_ts(open_tag_attrs: &str) -> bool {
+    attr_value(open_tag_attrs, "lang")
+        .map(|l| {
+            let l = l.to_ascii_lowercase();
+            l == "ts" || l == "typescript"
+        })
+        .unwrap_or(false)
+}
+
 /// Whether any `<script>` block declares `lang="ts"` / `lang="typescript"`.
 pub(crate) fn script_is_ts(source: &str) -> bool {
-    script_blocks(source).iter().any(|b| {
-        attr_value(&b.open_tag_attrs, "lang")
-            .map(|l| {
-                let l = l.to_ascii_lowercase();
-                l == "ts" || l == "typescript"
-            })
-            .unwrap_or(false)
-    })
+    script_blocks(source)
+        .iter()
+        .any(|b| open_tag_is_ts(&b.open_tag_attrs))
+}
+
+/// Whether the **last** `<script>` block (in source order) is TS. Mirrors the
+/// upstream rules whose `SvelteScriptElement` handler *overwrites* `isTs` on
+/// every visit, so the last-visited script wins.
+pub(crate) fn last_script_is_ts(source: &str) -> bool {
+    script_blocks(source)
+        .last()
+        .is_some_and(|b| open_tag_is_ts(&b.open_tag_attrs))
 }
 
 /// Whether any `<script>` block declares a TS `interface <name>` or
@@ -187,8 +201,49 @@ fn declares_type_in(content: &str, name: &str) -> bool {
     false
 }
 
-fn is_ident_byte(c: u8) -> bool {
+pub(crate) fn is_ident_byte(c: u8) -> bool {
     c == b'_' || c == b'$' || c.is_ascii_alphanumeric()
+}
+
+/// Replace the contents of `//` line comments and `/* */` block comments in
+/// `content` with spaces, preserving byte length (and newlines) so source
+/// offsets stay valid. Used by source-scan rules to avoid matching identifiers
+/// that appear inside comments. Note: does not blank string-literal contents.
+pub(crate) fn blank_comments(content: &str) -> String {
+    let b = content.as_bytes();
+    let mut out: Vec<u8> = b.to_vec();
+    let mut i = 0;
+    while i + 1 < b.len() {
+        if b[i] == b'/' && b[i + 1] == b'/' {
+            let mut j = i;
+            while j < b.len() && b[j] != b'\n' {
+                out[j] = b' ';
+                j += 1;
+            }
+            i = j;
+        } else if b[i] == b'/' && b[i + 1] == b'*' {
+            let mut j = i;
+            while j < b.len() {
+                let end = b[j] == b'*' && j + 1 < b.len() && b[j + 1] == b'/';
+                if b[j] != b'\n' {
+                    out[j] = b' ';
+                }
+                j += 1;
+                if end {
+                    if j < b.len() && b[j] != b'\n' {
+                        out[j] = b' ';
+                    }
+                    j += 1;
+                    break;
+                }
+            }
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    // `out` only ever replaces ASCII bytes with ASCII spaces, so it stays UTF-8.
+    String::from_utf8(out).unwrap_or_else(|_| content.to_string())
 }
 
 #[cfg(test)]
@@ -225,6 +280,34 @@ mod tests {
         ));
         // Declaration in the template (outside <script>) doesn't count.
         assert!(!script_declares_type("interface $$Slots {}", "$$Slots"));
+    }
+
+    #[test]
+    fn last_script_wins_for_ts() {
+        // Module script TS, instance script plain JS → last (instance) is not TS.
+        let src = "<script context=\"module\" lang=\"ts\">\n</script>\n<script>\n</script>";
+        assert!(
+            script_is_ts(src),
+            "ANY-block check sees the TS module script"
+        );
+        assert!(!last_script_is_ts(src), "last block (instance) is plain JS");
+    }
+
+    #[test]
+    fn blank_comments_preserves_offsets() {
+        let src = "a // cEd() x\nb /* y */ c";
+        let out = blank_comments(src);
+        assert_eq!(out.len(), src.len(), "byte length preserved");
+        // Comment contents blanked; newlines + surrounding code kept.
+        assert!(
+            !out.contains("cEd"),
+            "line-comment identifier blanked: {out:?}"
+        );
+        assert!(!out.contains('/'), "comment slashes blanked: {out:?}");
+        assert!(!out.contains('y'), "block-comment content blanked: {out:?}");
+        assert_eq!(out.matches('\n').count(), 1, "newline preserved");
+        assert!(out.starts_with("a "), "code before comment kept: {out:?}");
+        assert!(out.ends_with(" c"), "code after comment kept: {out:?}");
     }
 
     #[test]

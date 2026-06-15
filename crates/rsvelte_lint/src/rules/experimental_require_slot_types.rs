@@ -13,7 +13,7 @@ use rsvelte_core::svelte_check::diagnostic::{Diagnostic, Position, Range};
 
 use crate::config::LintConfig;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{script_declares_type, script_is_ts};
+use crate::svelte_scan::{last_script_is_ts, script_declares_type};
 use crate::validator::to_dsev;
 
 pub static META: RuleMeta = RuleMeta {
@@ -36,7 +36,8 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
     if severity == Severity::Off {
         return Vec::new();
     }
-    if !(script_is_ts(source) && has_slot(source) && !script_declares_type(source, "$$Slots")) {
+    if !(last_script_is_ts(source) && has_slot(source) && !script_declares_type(source, "$$Slots"))
+    {
         return Vec::new();
     }
     vec![Diagnostic {

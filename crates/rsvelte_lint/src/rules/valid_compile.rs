@@ -183,9 +183,9 @@ fn global_style_ranges(source: &str) -> Vec<((u32, u32), (u32, u32))> {
         }
         let Some(tag_end) = tag_end else { break };
         let start_tag = &source[i + 6..tag_end];
-        let has_global = start_tag
-            .split(|c: char| c.is_whitespace() || c == '=')
-            .any(|t| t == "global");
+        // Match a `global` *attribute name* (upstream `attr.key.name === 'global'`),
+        // not a `global` attribute *value* like `<style lang=global>`.
+        let has_global = crate::svelte_scan::has_attr(start_tag, "global");
         if has_global {
             // Element end: the `</style>` close (or EOF if unterminated).
             let close = source[tag_end..]

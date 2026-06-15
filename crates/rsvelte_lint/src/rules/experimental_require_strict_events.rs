@@ -13,7 +13,7 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use crate::config::LintConfig;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::svelte_scan::{has_attr, script_blocks, script_declares_type, script_is_ts};
+use crate::svelte_scan::{has_attr, open_tag_is_ts, script_blocks, script_declares_type};
 use crate::validator::{range_from_byte, to_dsev};
 
 pub static META: RuleMeta = RuleMeta {
@@ -35,21 +35,20 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
     if severity == Severity::Off {
         return Vec::new();
     }
-    if !script_is_ts(source) {
-        return Vec::new();
-    }
+    // Upstream's `SvelteScriptElement` handler overwrites `isTs`/`hasAttribute`
+    // on every visit, so the *last* `<script>` (in source order) decides both.
+    // `hasDeclaredEvents` is set by any `$$Events` declaration across scripts.
     let blocks = script_blocks(source);
-    let has_strict = blocks
-        .iter()
-        .any(|b| has_attr(&b.open_tag_attrs, "strictEvents"));
-    if has_strict || script_declares_type(source, "$$Events") {
-        return Vec::new();
-    }
-    // Report at the script element (upstream reports `node: scriptNode`, the last
-    // visited `<script>`).
     let Some(last) = blocks.last() else {
         return Vec::new();
     };
+    if !open_tag_is_ts(&last.open_tag_attrs) {
+        return Vec::new();
+    }
+    let has_strict = has_attr(&last.open_tag_attrs, "strictEvents");
+    if has_strict || script_declares_type(source, "$$Events") {
+        return Vec::new();
+    }
     let li = LineIndex::new(source);
     vec![Diagnostic {
         file: file.to_path_buf(),
