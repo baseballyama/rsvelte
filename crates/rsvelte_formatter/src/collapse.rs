@@ -36,13 +36,23 @@ pub(crate) fn collapse_pure_text_elements(
     };
     let line_width = options.js.line_width.value() as usize;
 
+    // `tree` always reflects `result`. Each pass re-parses ONLY after it actually
+    // edits the text — a pass that makes no edits leaves the string (and thus its
+    // AST) unchanged, so the next pass reuses the same tree instead of paying for
+    // a redundant full re-parse. The re-parse is the dominant cost of this whole
+    // post-pass, so skipping the no-op ones keeps the common case to a single
+    // extra parse (or zero, when nothing collapses).
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
     collect(out, &root.fragment, line_width, options, &mut edits);
-    let result = if edits.is_empty() {
-        out.to_string()
-    } else {
-        apply_edits(out, edits)
-    };
+    let mut result = out.to_string();
+    let mut tree = root;
+    if !edits.is_empty() {
+        result = apply_edits(&result, edits);
+        let Ok(t) = parse(&result, ParseOptions::default()) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
 
     // 1.5-th pass: run a targeted `try_fill_mixed` sweep on block elements whose
     // mixed inline children were just collapsed by the first pass. Example: a
@@ -53,47 +63,43 @@ pub(crate) fn collapse_pure_text_elements(
     // fill-mixed sweep can reflow it to `A B\n  <span> C D </span>\n  E F`.
     // This pass intentionally skips try_collapse / try_hug_mixed so it doesn't
     // disturb elements that were already correctly hugged by pass 1.
-    let result = if let Ok(root1b) = parse(&result, ParseOptions::default()) {
-        let mut edits1b: Vec<(u32, u32, String)> = Vec::new();
-        collect_fill_mixed_only(&result, &root1b.fragment, line_width, options, &mut edits1b);
-        if edits1b.is_empty() {
-            result
-        } else {
-            apply_edits(&result, edits1b)
-        }
-    } else {
-        result
-    };
+    let mut edits1b: Vec<(u32, u32, String)> = Vec::new();
+    collect_fill_mixed_only(&result, &tree.fragment, line_width, options, &mut edits1b);
+    if !edits1b.is_empty() {
+        result = apply_edits(&result, edits1b);
+        let Ok(t) = parse(&result, ParseOptions::default()) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
 
     // Second pass: the hug/break edits above may leave a long expression mustache
-    // on an overflowing line (a hugged element's trailing `{a.b().c()}`). Re-parse
-    // and member-chain-break those in place — this can't run in the first pass
+    // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
+    // Member-chain-break those in place — this can't run in the first pass
     // because the hug edit that creates the overflowing line owns the element and
     // suppresses recursion into it.
-    let Ok(root2) = parse(&result, ParseOptions::default()) else {
-        return Ok(result);
-    };
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
-    collect_content_tag_breaks(&result, &root2.fragment, line_width, options, &mut edits2);
-    let result = if edits2.is_empty() {
-        result
-    } else {
-        apply_edits(&result, edits2)
-    };
+    collect_content_tag_breaks(&result, &tree.fragment, line_width, options, &mut edits2);
+    if !edits2.is_empty() {
+        result = apply_edits(&result, edits2);
+    }
 
     // Third pass: `<pre>` / `<textarea>` whose content contains a block. rsvelte
     // otherwise leaves their whole subtree verbatim, but oxfmt formats the block
     // bodies (space-indented) + embedded JS while keeping element-direct
     // whitespace as raw tabs. Re-format those subtrees with that hybrid rule.
-    let Ok(root3) = parse(&result, ParseOptions::default()) else {
-        return Ok(result);
-    };
-    let mut edits3: Vec<(u32, u32, String)> = Vec::new();
-    collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
-    if edits3.is_empty() {
-        return Ok(result);
+    // This pass only ever touches `<pre>`/`<textarea>`, so skip its re-parse
+    // entirely unless one is present in the output.
+    if (result.contains("<pre") || result.contains("<textarea"))
+        && let Ok(root3) = parse(&result, ParseOptions::default())
+    {
+        let mut edits3: Vec<(u32, u32, String)> = Vec::new();
+        collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
+        if !edits3.is_empty() {
+            result = apply_edits(&result, edits3);
+        }
     }
-    Ok(apply_edits(&result, edits3))
+    Ok(result)
 }
 
 /// Whether a fragment (recursively) contains a control-flow block — the trigger
