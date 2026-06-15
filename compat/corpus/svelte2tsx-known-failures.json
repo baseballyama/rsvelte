@@ -30,7 +30,6 @@
 	"svelte/packages/svelte/tests/parser-modern/samples/template-shadowroot/input.svelte",
 	"svelte/packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/inline-style-directive-update-with-spread/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/attribute-dataset-without-value/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/await-then-no-expression/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-multiple/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/class-with-spread-and-bind/main.svelte",

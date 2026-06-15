@@ -4791,13 +4791,14 @@ fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -
     match &node.value {
         AttributeValue::True(_) => {
             // Boolean attribute: `disabled` → `"disabled":true,`
-            // For data-* on elements: boolean means no value → __sveltets_2_any()
+            // For data-* on elements the boolean value is still `true` — official
+            // wraps it as `...__sveltets_2_empty({ "data-foo": true })`. (The
+            // `__sveltets_2_any()` fallback in upstream `Attribute.ts` only applies
+            // when the attribute has no value at all, which never happens for a
+            // boolean attribute.)
             // For --* on components: boolean means no value → ""
             if is_data_attr {
-                Some(format!(
-                    "...__sveltets_2_empty({{\"{}\":__sveltets_2_any()}}),",
-                    name
-                ))
+                Some(format!("...__sveltets_2_empty({{\"{}\":true}}),", name))
             } else if is_css_prop {
                 Some(format!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name))
             } else {
@@ -5024,16 +5025,16 @@ fn format_attribute_node_segments(
     match &node.value {
         AttributeValue::True(_) => {
             // Boolean / valueless attribute.
-            // data-* on elements: no-value → __sveltets_2_any()
+            // data-* on elements: the boolean value is `true` (official wraps it
+            //   as `...__sveltets_2_empty({ "data-foo": true })`; the
+            //   `__sveltets_2_any()` fallback only applies to a genuinely
+            //   value-less attribute, which a boolean attribute is not).
             // --* on components: no-value → ""
             // Others: true
             if is_data_attr {
                 segs_push_lit(
                     &mut out,
-                    &format!(
-                        "...__sveltets_2_empty({{\"{}\":__sveltets_2_any()}}),",
-                        name
-                    ),
+                    &format!("...__sveltets_2_empty({{\"{}\":true}}),", name),
                 );
             } else if is_css_prop {
                 segs_push_lit(
@@ -6322,13 +6323,14 @@ mod tests {
     }
 
     #[test]
-    fn test_data_attr_boolean_on_element_uses_any() {
-        // Boolean `data-foo` (no value) on a DOM element → `__sveltets_2_any()`.
+    fn test_data_attr_boolean_on_element_uses_true() {
+        // Boolean `data-foo` (no value) on a DOM element → `true` (official wraps
+        // it as `...__sveltets_2_empty({ "data-foo": true })`).
         let src = "<p data-foo>hello</p>";
         let out = compile_template(src);
         assert!(
-            out.contains("...__sveltets_2_empty({\"data-foo\":__sveltets_2_any()})"),
-            "boolean data-* should use __sveltets_2_any(), got:\n{out}"
+            out.contains("...__sveltets_2_empty({\"data-foo\":true})"),
+            "boolean data-* should use true, got:\n{out}"
         );
     }
 
