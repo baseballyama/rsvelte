@@ -80,6 +80,51 @@ node scripts/compat-corpus/cluster.mjs              # group failures by diff sig
 node scripts/compat-corpus/cluster.mjs --show 'JS client: E:…'   # list ids in a cluster
 ```
 
+## svelte2tsx parity (same corpus, TSX output)
+
+The same collected sources also drive a **svelte2tsx** output-equality check:
+every *component* entry (`kind === 'component'`; `.svelte.(js|ts)` modules are
+out of scope — svelte2tsx only converts components) is converted to TSX with
+**both** the official `svelte2tsx` (built from the `submodules/language-tools`
+gitlink) and rsvelte's port (the `svelte2tsx` NAPI export), and the two must be
+byte-identical after oxfmt normalization.
+
+Both sides receive the identical options — `{ filename: <id>, isTsFile, mode:
+'ts', namespace: 'html', version: '5' }`, where `isTsFile` is detected from a
+`<script lang="ts">` tag so the two tools agree on TS-vs-JSDoc cast style.
+
+**Crucially**, official svelte2tsx parses with whatever `svelte/compiler` it
+resolves at runtime, so the build step pins its `svelte` dev-dep to the exact
+version `submodules/svelte` provides (the one rsvelte mirrors) — otherwise the
+default v4 dev-dependency rejects Svelte-5 syntax (`{@render}`, `{#each …}`
+without `as`, `<script module>`) and every Svelte-5 component is spuriously an
+error-mismatch. `svelte2tsx-compile.mjs` asserts the resolved svelte major
+matches the submodule before running and fails loudly otherwise.
+
+Unlike the compiler check there is **no AST-structural fallback**: svelte2tsx
+embeds functional comments — `///<reference>` directives and `/*Ωignore_*Ω*/`
+markers the language server relies on — so comment and exact-token parity is
+part of the contract. Normalization is just oxfmt + blank-line stripping.
+
+Pipeline stages (mirroring the compiler ones):
+
+1. `svelte2tsx-compile.mjs` — converts every component into
+   `compat/corpus/{expected-s2t,actual-s2t}/<id>/index.tsx` (or `error.json`
+   on rejection). Worker-sharded; an rsvelte panic is recorded as an error for
+   that entry instead of killing the run.
+2. `svelte2tsx-verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes
+   `report-s2t.json`, and ratchets against
+   `compat/corpus/svelte2tsx-known-failures.json` (checked in; may only shrink).
+3. `svelte2tsx-cluster.mjs` — groups failures by diff signature for burn-down.
+
+```bash
+# build the official svelte2tsx oracle once (after corpus:sync)
+(cd submodules/language-tools && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter svelte2tsx build)
+
+pnpm run corpus:s2t:compile && pnpm run corpus:s2t:verify
+node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-down
+```
+
 ## CI / automation
 
 - `.github/workflows/corpus-compat.yml` — runs the pipeline on PRs/pushes
