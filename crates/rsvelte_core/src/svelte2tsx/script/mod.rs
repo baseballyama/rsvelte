@@ -440,10 +440,16 @@ impl ExportedNames {
                     }
                 })
                 .collect();
-            // In runes mode, include values in the exports object
+            // In runes mode, include values in the exports object — but ONLY for
+            // exports that carry an explicit type annotation. Official's value
+            // call is `createReturnElements(others, false, /*onlyTyped*/ true)`,
+            // which skips any entry without `value.type`. Untyped exports
+            // (`let count = $state(0)`) therefore yield an empty value object,
+            // with the names appearing only in the `as any as { … }` cast.
             let val_str = if self.is_runes_mode() {
                 let val_entries: Vec<String> = others
                     .iter()
+                    .filter(|(_, info)| info.type_annotation.is_some())
                     .map(|(en, info)| format!("{}: {}", en, info.local_name))
                     .collect();
                 val_entries.join(",")
