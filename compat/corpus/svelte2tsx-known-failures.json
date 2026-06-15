@@ -148,7 +148,6 @@
 	"svelte/packages/svelte/tests/validator/samples/slot-attribute-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/static-state-reference/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/transition-on-component/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables-each/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte"
 ]
