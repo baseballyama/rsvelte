@@ -2835,6 +2835,21 @@ fn handle_export_named_decl(
 /// - `$: ({ a } = expr)` (destructure, existing) → `$: ({ a } = __sveltets_2_invalidate(() => expr))`
 /// - `$: { ... }` (block) → `;() => {$: { ... }}`
 /// - `$: expr` (expression) → `;() => {$: expr}`
+/// True if a reactive assignment's LHS qualifies for the
+/// `__sveltets_2_invalidate(() => …)` RHS wrap — i.e. it is a plain Identifier,
+/// an object destructuring target, or an array destructuring target. Mirrors
+/// official `isAssignmentBinaryExpr`'s `isIdentifier(left) ||
+/// isObjectLiteralExpression(left) || isArrayLiteralExpression(left)`. A
+/// member-expression target (`foo.bar`) does NOT qualify.
+fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
+    matches!(
+        target,
+        oxc::AssignmentTarget::AssignmentTargetIdentifier(_)
+            | oxc::AssignmentTarget::ObjectAssignmentTarget(_)
+            | oxc::AssignmentTarget::ArrayAssignmentTarget(_)
+    )
+}
+
 fn handle_reactive_statement(
     labeled: &oxc::LabeledStatement,
     offset: u32,
@@ -2854,8 +2869,24 @@ fn handle_reactive_statement(
                 other => other,
             };
 
-            if let oxc::Expression::AssignmentExpression(assign) = expr {
-                if matches!(assign.operator, oxc::AssignmentOperator::Assign) {
+            // Official only applies the `__sveltets_2_invalidate(() => …)` RHS
+            // wrap when the labeled statement is a plain `=` assignment whose
+            // LHS is an Identifier / object pattern / array pattern
+            // (`isAssignmentBinaryExpr` in `utils/tsAst.ts`). Member-expression
+            // LHS (`$: foo.bar = …`) and compound operators (`$: x *= 2`) do
+            // NOT qualify — those are wrapped whole in `;() => {$: …}` like any
+            // other reactive statement (`handleReactiveStatement`'s else branch).
+            let qualifies_for_invalidate = matches!(
+                expr,
+                oxc::Expression::AssignmentExpression(assign)
+                    if matches!(assign.operator, oxc::AssignmentOperator::Assign)
+                        && is_invalidate_assignment_target(&assign.left)
+            );
+
+            if let oxc::Expression::AssignmentExpression(assign) = expr
+                && qualifies_for_invalidate
+            {
+                {
                     // Get the LHS names
                     let lhs_names = extract_names_from_assignment_target(&assign.left);
 
@@ -2969,7 +3000,10 @@ fn handle_reactive_statement(
                     // else: keep `$:` as-is, RHS is already wrapped
                 }
             } else {
-                // Non-assignment expression: `$: console.log(x)` → `;() => {$: console.log(x)}`
+                // Non-qualifying reactive statement — a non-assignment
+                // expression (`$: console.log(x)`), a member-LHS assignment
+                // (`$: foo.bar = x`), or a compound operator (`$: x *= 2`).
+                // All are wrapped whole: `;() => {$: …}`.
                 let label_colon_end = labeled.label.span.end + 1;
                 let label_colon_abs = label_colon_end + offset;
                 str.overwrite(label_start, label_colon_abs, ";() => {$:");
