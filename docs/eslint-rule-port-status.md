@@ -38,12 +38,28 @@ rsvelte implements) plus `comment_directive` unit tests.
 
 These are intentionally not yet ported; each needs work outside "add a rule".
 
-### Type-aware — gated typed-rule track (design doc §B)
-Require the TypeScript checker (tsgo/corsa), which the design doc scopes to the
-gated Wave-3 spike, not the syntactic/scope engine:
-- `no-unused-props`, `require-event-prefix`, `no-navigation-without-resolve`,
-  `require-event-dispatcher-types`, `experimental-require-slot-types`,
-  `experimental-require-strict-events`.
+### Type-aware family
+
+Three of the six rules upstream files under "type-aware" need **no** type checker
+— they only check for the *presence* of TS syntax — and are ported as
+cross-cutting (template + script) source-scan meta-paths in
+`runner::lint_source`, sharing `crate::svelte_scan`:
+- ✅ `experimental-require-slot-types` (`rules/experimental_require_slot_types.rs`)
+  — oracle-verified.
+- ✅ `experimental-require-strict-events` (`rules/experimental_require_strict_events.rs`).
+- ✅ `require-event-dispatcher-types` (`rules/require_event_dispatcher_types.rs`).
+  The last two target Svelte 3/4 syntax so their upstream fixtures are
+  version-skipped by the oracle; they're parity-verified by
+  `crates/rsvelte_lint/tests/experimental_and_dispatcher.rs` instead.
+
+The remaining three genuinely require TypeScript **type queries** (tsgo/corsa),
+which the design doc scopes to the gated Wave-3 spike — and tsgo today returns
+only diagnostics, not a type-query API, so this needs new type-backend
+infrastructure, not just rule code:
+- `no-unused-props` (~95% type-dependent — recursive `getPropertiesOfType` etc.),
+- `require-event-prefix` (~85% — `$props()` member type introspection),
+- `no-navigation-without-resolve` (~30% — `ResolvedPathname` assignability; the
+  syntactic majority is portable, the type check is not).
 
 `valid-compile` is ported as an opt-in meta-rule
 (`crate::rules::valid_compile`, wired into `runner::lint_source`): it compiles

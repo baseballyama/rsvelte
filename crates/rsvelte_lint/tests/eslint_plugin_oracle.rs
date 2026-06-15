@@ -71,7 +71,14 @@ const NO_FIXTURE_RULES: &[&str] = &[
 /// path (`lint_source` output diagnostics) rather than the raw native/script
 /// rule path, and which never carry editor suggestions.
 fn is_meta_rule(code: &str) -> bool {
-    matches!(code, "svelte/valid-compile" | "svelte/valid-style-parse")
+    matches!(
+        code,
+        "svelte/valid-compile"
+            | "svelte/valid-style-parse"
+            | "svelte/experimental-require-slot-types"
+            | "svelte/experimental-require-strict-events"
+            | "svelte/require-event-dispatcher-types"
+    )
 }
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.

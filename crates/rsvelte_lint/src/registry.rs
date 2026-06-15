@@ -43,6 +43,9 @@ pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
         &crate::rules::comment_directive::META,
         &crate::rules::valid_compile::META,
         &crate::rules::valid_style_parse::META,
+        &crate::rules::experimental_require_slot_types::META,
+        &crate::rules::experimental_require_strict_events::META,
+        &crate::rules::require_event_dispatcher_types::META,
     ]
     .into_iter()
 }

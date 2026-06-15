@@ -73,6 +73,17 @@ pub fn lint_source(
                     source, file, config,
                 ),
             );
+
+            // 2e. Cross-cutting (template + script) source-scan meta-rules.
+            diags.extend(crate::rules::experimental_require_slot_types::diagnostics(
+                source, file, config,
+            ));
+            diags.extend(
+                crate::rules::experimental_require_strict_events::diagnostics(source, file, config),
+            );
+            diags.extend(crate::rules::require_event_dispatcher_types::diagnostics(
+                source, file, config,
+            ));
             diags
         }
     };

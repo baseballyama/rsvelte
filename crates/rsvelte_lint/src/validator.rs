@@ -26,6 +26,28 @@ pub(crate) fn to_dsev(s: Severity) -> DiagnosticSeverity {
     }
 }
 
+/// Build an output [`Range`] from UTF-8 byte offsets via the line index. Used by
+/// the source-scan meta-rules that work in byte offsets rather than compiler
+/// positions.
+pub(crate) fn range_from_byte(
+    li: &crate::line_index::LineIndex,
+    start: u32,
+    end: u32,
+) -> Option<Range> {
+    let (sl, sc) = li.position(start);
+    let (el, ec) = li.position(end);
+    Some(Range {
+        start: Position {
+            line: sl,
+            column: sc,
+        },
+        end: Position {
+            line: el,
+            column: ec,
+        },
+    })
+}
+
 pub(crate) fn range_from(
     start: Option<&rsvelte_core::compiler::Position>,
     end: Option<&rsvelte_core::compiler::Position>,
