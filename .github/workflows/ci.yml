@@ -129,7 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
-        # This job runs the *fast bulk* of the suite, split across 2 runners with
+        # This job runs the *fast bulk* of the suite, split across 3 runners with
         # nextest's count partitioning. The three heaviest single `#[test]`
         # functions — each fans out over 1000+ fixtures internally — are excluded
         # here (see the `Run tests` filter) and run in their own dedicated jobs
@@ -140,7 +140,7 @@ jobs:
         # test still runs (here or in a dedicated job) with full iteration counts
         # — coverage is unchanged. The `Tests` gate job joins them into one
         # required status check.
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -284,11 +284,11 @@ jobs:
         #
         # The three heavy fan-out tests are excluded and run in `test-runtime` /
         # `test-thread-safety`. `--partition count:<shard>/2` then splits the
-        # remaining (uniform-weight) tests evenly across the 2 shards.
+        # remaining (uniform-weight) tests evenly across the 3 shards.
         run: >-
           cargo nextest run --profile ci
           -E 'not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test(/compile_module_is_thread_safe_under_reuse/))'
-          --partition count:${{ matrix.shard }}/2
+          --partition count:${{ matrix.shard }}/3
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
