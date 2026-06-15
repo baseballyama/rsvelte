@@ -45,6 +45,17 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The NAPI build is the whole job's bottleneck (~5 min of the ~6 min total):
+  # the default `release` profile's `lto = "fat"` + `codegen-units = 1` runs an
+  # uncacheable whole-program pass every time, while the actual corpus compile +
+  # verify over 6,400+ entries takes only ~0.2 min. Turning LTO off and splitting
+  # codegen cuts the build sharply; the resulting compiler binary is marginally
+  # slower per file but the run is already negligible, so the net is a large win.
+  # Mirrors the `compatibility-report` job; release artifacts keep fat-LTO.
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+
 jobs:
   corpus:
     name: Corpus compatibility

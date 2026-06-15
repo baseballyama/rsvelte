@@ -39,6 +39,17 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The default `release` profile uses `lto = "fat"` + `codegen-units = 1` — a
+  # whole-program optimization pass that runs on every build and cannot be
+  # cached, so even with the oxc dependency graph restored from cache each capi
+  # build re-LTOs the entire program (the bulk of the 9–22 min per-OS times).
+  # capi's job is ABI correctness (header drift, envelope/option/module tests,
+  # real `cc`/FFI linkage), none of which depends on optimization level, so turn
+  # LTO off and split codegen for CI. This mirrors the `compatibility-report`
+  # job's `CARGO_PROFILE_RELEASE_LTO=off`. The published release artifacts (the
+  # `Release` workflow) keep full fat-LTO.
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
 
 jobs:
   capi:
