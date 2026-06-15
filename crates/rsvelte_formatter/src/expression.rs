@@ -266,8 +266,38 @@ fn collect_node_edits(
             } else {
                 None
             };
-            if let Some((rewrite_start, rewrite_end, replacement)) = collapsed.or(stripped) {
+            // When the block has a non-empty pending body but an empty `then` body
+            // (and no `catch`), strip the empty `{:then value}` separator entirely:
+            //   `{#await expr}\n  <input />\n{:then f}\n{/await}` →
+            //   `{#await expr}\n  <input />\n{/await}`
+            // This matches prettier-plugin-svelte's behaviour.
+            let separator_stripped = if collapsed.is_none()
+                && stripped.is_none()
+                && blk.pending.is_some()
+                && blk.value.is_some()
+                && blk.catch.is_none()
+                && blk.then.as_ref().is_some_and(is_empty_fragment_for_await)
+            {
+                try_strip_await_then_separator(source, blk)?
+            } else {
+                None
+            };
+            // Remember whether the separator-stripped path fired before
+            // the ownership moves into `.or()`.
+            let separator_stripped_fired = separator_stripped.is_some();
+            if let Some((rewrite_start, rewrite_end, replacement)) =
+                collapsed.or(stripped).or(separator_stripped)
+            {
                 edits.push((rewrite_start, rewrite_end, replacement));
+                // When the separator-stripped path fires (pending has content,
+                // `{:then …}` and its empty body are erased), we still need to
+                // recurse into the pending fragment to format its children
+                // (e.g. `<input>` → `<input />`). For the `collapsed` and
+                // `stripped` paths the pending is either empty/whitespace-only
+                // or absent, so no recursion is needed there.
+                if separator_stripped_fired && let Some(frag) = &blk.pending {
+                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                }
                 // Only recurse into the non-pending body fragments.
                 if let Some(frag) = &blk.then {
                     collect_template_edits(source, frag, child_depth, options, edits)?;
@@ -326,7 +356,26 @@ fn collect_node_edits(
                     }
                 }
                 if let Some(frag) = &blk.pending {
-                    collect_template_edits(source, frag, child_depth, options, edits)?;
+                    // When the pending body is whitespace-only and there is no
+                    // `then` / `catch` separator to collapse into, strip the
+                    // whitespace so `{#await promise} {/await}` →
+                    // `{#await promise}{/await}`. We only do this when there is
+                    // nothing else in the block (no then, no catch), matching
+                    // prettier-plugin-svelte's behaviour.
+                    if blk.then.is_none()
+                        && blk.catch.is_none()
+                        && await_pending_is_empty(Some(frag))
+                    {
+                        for node in &frag.nodes {
+                            if let TemplateNode::Text(t) = node
+                                && t.data.trim().is_empty()
+                            {
+                                edits.push((t.start, t.end, String::new()));
+                            }
+                        }
+                    } else {
+                        collect_template_edits(source, frag, child_depth, options, edits)?;
+                    }
                 }
                 if let Some(frag) = &blk.then {
                     collect_template_edits(source, frag, child_depth, options, edits)?;
@@ -565,16 +614,15 @@ fn block_header_expr_needs_parens(expr_source: &str, typescript: bool) -> bool {
         return false;
     };
     // Unwrap a single layer of ParenthesizedExpression (from our `(expr)` wrapper)
-    // and check whether the inner expression is an assignment.
+    // and check whether the inner expression is an assignment. (Sequence
+    // expressions keep their parens via `is_top_sequence` in the shared
+    // expression formatter, so they must NOT be re-wrapped here — that would
+    // double them to `((a, b))`.)
     let inner = match &stmt.expression {
         oxc_ast::ast::Expression::ParenthesizedExpression(p) => &p.expression,
         other => other,
     };
-    matches!(
-        inner,
-        oxc_ast::ast::Expression::AssignmentExpression(_)
-            | oxc_ast::ast::Expression::SequenceExpression(_)
-    )
+    matches!(inner, oxc_ast::ast::Expression::AssignmentExpression(_))
 }
 
 /// If the source has `(` immediately before `inner_start` (possibly with
@@ -780,6 +828,81 @@ fn try_strip_await_then_clause(
 
     let replacement = format!("{{#await {fmt_expr}}}");
     Ok(Some((blk.start, header_close as u32, replacement)))
+}
+
+/// Strip an empty `{:then value}` (or `{:catch error}`) separator from a
+/// 3-part await block whose `then` (or `catch`) body is empty:
+///   `{#await expr}\n  <child />\n{:then f}\n{/await}` →
+/// emits an edit removing the `{:then f}\n` region so the output becomes
+///   `{#await expr}\n  <child />\n{/await}`
+///
+/// The edit span runs from the opening `{` of `{:then …}` up to (but not
+/// including) the opening `{` of `{/await}`.
+///
+/// Returns `None` when the span cannot be determined from the source.
+fn try_strip_await_then_separator(
+    source: &str,
+    blk: &rsvelte_core::ast::template::AwaitBlock,
+) -> Result<Option<(u32, u32, String)>, FormatError> {
+    // We need the binding position to locate `{:then …}` by scanning backward.
+    let binding = if blk.value.is_some() {
+        blk.value.as_ref()
+    } else if blk.error.is_some() {
+        blk.error.as_ref()
+    } else {
+        return Ok(None);
+    };
+    let binding = binding.expect("checked above");
+
+    let Some(bind_start) = binding.start() else {
+        return Ok(None);
+    };
+
+    let bytes = source.as_bytes();
+
+    // Scan backward from the binding start to find the `{` that opens the separator.
+    let mut i = bind_start as usize;
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b' ' | b'\t' | b'\n' | b'\r' => continue,
+            // Skip past the keyword (`then` or `catch`) and the leading `:`
+            // that the separator opener contains.  We stop at `{`.
+            b'n' | b'h' | b'c' | b'a' | b't' | b'e' | b':' => continue,
+            b'{' => break,
+            _ => return Ok(None),
+        }
+    }
+    if bytes.get(i) != Some(&b'{') {
+        return Ok(None);
+    }
+    let separator_open = i as u32;
+
+    // Find the start of `{/await}` by scanning backward from `blk.end`.
+    // `blk.end` points just past `}` of `{/await}`, so the `{` is at
+    // `blk.end - 8` for the 8-byte literal `{/await}`.  We verify by
+    // searching backward for `{` while skipping only non-brace chars.
+    let close_tag = b"{/await}";
+    let end = blk.end as usize;
+    if end < close_tag.len() {
+        return Ok(None);
+    }
+    // Verify the close tag is present.
+    let close_tag_start = end - close_tag.len();
+    if source.as_bytes().get(close_tag_start..end) != Some(close_tag.as_ref()) {
+        // Try with a space: `{/ await}` — not standard but defensive.
+        return Ok(None);
+    }
+    let close_tag_pos = close_tag_start as u32;
+
+    // The edit removes everything from `{` of `{:then …}` up to the `{` of
+    // `{/await}` (non-inclusive), which erases the separator header and its
+    // empty body (typically just a newline).
+    if separator_open >= close_tag_pos {
+        return Ok(None);
+    }
+
+    Ok(Some((separator_open, close_tag_pos, String::new())))
 }
 
 /// If the AST expression at `[expr_start, expr_end)` is enclosed by `{`
@@ -1094,16 +1217,10 @@ fn format_expr_core(
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     // prettier-plugin-svelte keeps exactly ONE set of outer parens around a
-    // top-level sequence (comma) expression in a mustache / attribute value
-    // (e.g. `{((ref = …), '')}`). These callers slice the full brace-enclosed
-    // source, so the parens belong to the replaced span — normalise to exactly
-    // one pair: strip every redundant outer pair, then re-wrap once. (Member
-    // parens like `(a = 1)` inside `((a = 1), "")` are not outer pairs and
-    // survive.) Block headers (`single_line`) slice the expression span
-    // *without* its surrounding source parens, so wrapping here would
-    // double-wrap (`{#if ((a, b))}`); they keep the plain strip, which leaves
-    // the source parens intact. (#799)
-    if is_top_sequence && !single_line {
+    // top-level sequence (comma) expression in both mustache/attribute values
+    // AND block headers (`{#if (a, b)}`). Normalise to exactly one pair by
+    // stripping all redundant outer pairs then re-wrapping once. (#799)
+    if is_top_sequence {
         let mut inner = s.trim();
         loop {
             let stripped = strip_outer_parens(inner).trim();

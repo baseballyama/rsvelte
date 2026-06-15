@@ -21,7 +21,6 @@
 	"svelte/packages/svelte/tests/parser-legacy/samples/attribute-unquoted/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte",
-	"svelte/packages/svelte/tests/parser-legacy/samples/no-error-if-before-closing/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte",

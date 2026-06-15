@@ -496,10 +496,25 @@ fn recurse_into_children(
             let pending_collapsed = crate::expression::await_pending_is_empty(blk.pending.as_ref())
                 && ((blk.then.is_some() && blk.value.is_some())
                     || (blk.catch.is_some() && blk.error.is_some()));
+            // When the pending block has real content but the `then` body is empty
+            // (and there's no catch), the expression pass strips the `{:then …}`
+            // separator entirely. Skip the then-body indent pass so we don't emit
+            // a spurious blank-line edit (`\n\n`) inside the erased region.
+            // Mirror `try_strip_await_then_separator`'s condition exactly.
+            let separator_stripped = !pending_collapsed
+                && blk.pending.is_some()
+                && blk.value.is_some()
+                && blk.catch.is_none()
+                && blk.then.as_ref().is_some_and(|f| {
+                    f.nodes.iter().all(|n| {
+                        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
+                            if t.data.trim().is_empty())
+                    })
+                });
             if !pending_collapsed && let Some(frag) = &blk.pending {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
-            if let Some(frag) = &blk.then {
+            if !separator_stripped && let Some(frag) = &blk.then {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
             if let Some(frag) = &blk.catch {
