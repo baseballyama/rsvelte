@@ -522,7 +522,7 @@ fn push_bare_expression(
     //   `{#key c = 0}` → `{#key (c = 0)}`
     // OXC formats `(a = 0);` as `a = 0;` (statement context strips parens),
     // so we must re-add them when the expression is a top-level assignment.
-    let formatted = if is_top_level_assignment(slice, options.typescript) {
+    let formatted = if block_header_expr_needs_parens(slice, options.typescript) {
         format!("({formatted})")
     } else {
         formatted
@@ -542,10 +542,11 @@ fn push_bare_expression(
 }
 
 /// Returns `true` when `expr_source` (trimmed) is a top-level assignment
-/// expression (includes `=`, `+=`, `-=`, etc.).
-/// Used to decide whether to wrap the formatted result in `()` in block-header
-/// positions where prettier-plugin-svelte always parenthesises assignments.
-fn is_top_level_assignment(expr_source: &str, typescript: bool) -> bool {
+/// expression (`=`, `+=`, …) or a sequence expression (`a, b`). In block-header
+/// positions prettier-plugin-svelte always parenthesises both (`{#if (a = 0)}`,
+/// `{#if (a, b)}`), so the caller re-wraps the formatted result in `()` and the
+/// existing source parens are consumed by `widen_to_source_parens`.
+fn block_header_expr_needs_parens(expr_source: &str, typescript: bool) -> bool {
     let allocator = Allocator::default();
     let source_type = if typescript {
         SourceType::ts()
@@ -569,7 +570,11 @@ fn is_top_level_assignment(expr_source: &str, typescript: bool) -> bool {
         oxc_ast::ast::Expression::ParenthesizedExpression(p) => &p.expression,
         other => other,
     };
-    matches!(inner, oxc_ast::ast::Expression::AssignmentExpression(_))
+    matches!(
+        inner,
+        oxc_ast::ast::Expression::AssignmentExpression(_)
+            | oxc_ast::ast::Expression::SequenceExpression(_)
+    )
 }
 
 /// If the source has `(` immediately before `inner_start` (possibly with
