@@ -1562,6 +1562,8 @@ dependencies = [
  "corsa_runtime",
  "rsvelte_core",
  "rsvelte_lint",
+ "serde",
+ "serde_json",
  "serde_yaml",
 ]
 

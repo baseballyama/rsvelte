@@ -30,6 +30,8 @@ corsa_client = { path = "../../submodules/corsa-bind/src/core/corsa_client" }
 corsa_runtime = { path = "../../submodules/corsa-bind/src/core/corsa_runtime" }
 
 [dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 serde_yaml = "0.9"
 
 [lints]

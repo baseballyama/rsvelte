@@ -14,8 +14,10 @@
 //! Both handle the destructure form (`const { a, b }: Props = $props()`) and
 //! the whole-object form (`const props: Props = $props()`).
 
+use std::collections::HashSet;
 use std::path::Path;
 
+use crate::type_backend::TypeId;
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
@@ -58,11 +60,30 @@ pub fn diagnostics_typed(
     if severity == Severity::Off || !script_is_ts(source) {
         return Vec::new();
     }
+    // Full-fidelity graph walk when the backend exposes the type graph;
+    // otherwise the flat property-list path (a documented degraded mode).
+    if let Some(root) = backend.props_type() {
+        diagnostics_typed_graph(source, file, config, severity, backend, root)
+    } else {
+        diagnostics_typed_flat(source, file, config, severity, backend)
+    }
+}
 
+/// Flat path: declared = the resolved property-name list from `probe_props`.
+/// Used when the backend has no type-graph support; cannot express
+/// `checkImportedTypes` origin, base-type `ignoreTypePatterns`, index
+/// signatures, or recursion into named/imported nested types.
+fn diagnostics_typed_flat(
+    source: &str,
+    file: &Path,
+    config: &LintConfig,
+    severity: Severity,
+    backend: &mut dyn crate::type_backend::TypeBackend,
+) -> Vec<Diagnostic> {
     // Parsed options (see `options_schema`).
     let opts = config.options_for(META.name);
-    let ignore_prop_patterns = compile_patterns(option_str_list(opts, "ignorePropertyPatterns"));
-    let ignore_type_patterns = compile_patterns(option_str_list(opts, "ignoreTypePatterns"));
+    let ignore_prop_patterns = compile_matchers(option_str_list(opts, "ignorePropertyPatterns"));
+    let ignore_type_patterns = compile_matchers(option_str_list(opts, "ignoreTypePatterns"));
     let allow_unused_nested = option_bool(opts, "allowUnusedNestedProperties").unwrap_or(false);
 
     let li = LineIndex::new(source);
@@ -100,12 +121,12 @@ pub fn diagnostics_typed(
             .property_names
             .iter()
             .filter(|name| {
-                if matches_any(&ignore_prop_patterns, name) {
+                if any_match(&ignore_prop_patterns, name) {
                     return false;
                 }
                 if !ignore_type_patterns.is_empty()
                     && let Some(types) = facts.property_type(name)
-                    && types.iter().any(|t| matches_any(&ignore_type_patterns, t))
+                    && types.iter().any(|t| any_match(&ignore_type_patterns, t))
                 {
                     return false;
                 }
@@ -154,7 +175,7 @@ pub fn diagnostics_typed(
                 };
                 let owner = format!("{}.{}", var_name, name);
                 for nested_name in &nested {
-                    if matches_any(&ignore_prop_patterns, nested_name) {
+                    if any_match(&ignore_prop_patterns, nested_name) {
                         continue;
                     }
                     if !whole_object_member_used(source, &owner, nested_name) {
@@ -179,24 +200,518 @@ pub fn diagnostics_typed(
     out
 }
 
-/// Compile a list of ESLint-style string patterns into regexes. A pattern
-/// wrapped in `/…/` is unwrapped to its inner source; otherwise it is used
-/// verbatim. Invalid patterns are dropped.
-fn compile_patterns(pats: Vec<String>) -> Vec<regex::Regex> {
+/// An ESLint `ignore*Patterns` matcher. Mirrors eslint-plugin-svelte's
+/// `toRegExp` exactly: a `"/body/flags"` string becomes a regex; **any other
+/// string is matched by exact equality** (NOT as a regex) — so e.g. `"^foo$"`
+/// matches only the literal property name `^foo$`, never `foo`.
+enum Matcher {
+    Exact(String),
+    Regex(regex::Regex),
+}
+
+fn compile_matchers(pats: Vec<String>) -> Vec<Matcher> {
     pats.into_iter()
-        .filter_map(|p| {
-            let src = if p.len() >= 2 && p.starts_with('/') && p.ends_with('/') {
-                &p[1..p.len() - 1]
-            } else {
-                p.as_str()
-            };
-            regex::Regex::new(src).ok()
+        .map(|p| {
+            // RE_REGEXP_STR = /^\/(.+)\/([A-Za-z]*)$/ — a `/body/flags` string is
+            // a regex; anything else is matched by exact equality.
+            if p.starts_with('/')
+                && let Some(close) = p.rfind('/')
+                && close > 0
+            {
+                let body = &p[1..close];
+                let flags = &p[close + 1..];
+                if !body.is_empty() && flags.chars().all(|c| c.is_ascii_alphabetic()) {
+                    let mut src = String::new();
+                    if flags.contains('i') {
+                        src.push_str("(?i)");
+                    }
+                    if flags.contains('m') {
+                        src.push_str("(?m)");
+                    }
+                    if flags.contains('s') {
+                        src.push_str("(?s)");
+                    }
+                    src.push_str(body);
+                    if let Ok(re) = regex::Regex::new(&src) {
+                        return Matcher::Regex(re);
+                    }
+                }
+            }
+            Matcher::Exact(p)
         })
         .collect()
 }
 
-fn matches_any(patterns: &[regex::Regex], s: &str) -> bool {
-    patterns.iter().any(|re| re.is_match(s))
+fn any_match(matchers: &[Matcher], s: &str) -> bool {
+    matchers.iter().any(|m| match m {
+        Matcher::Exact(e) => e == s,
+        Matcher::Regex(re) => re.is_match(s),
+    })
+}
+
+/// Graph path: a faithful port of upstream's recursive `checkUnusedProperties`.
+/// Walks the props type via the backend's type graph, handling base types
+/// (`extends`), per-property origin (`checkImportedTypes`), `ignore*Patterns`,
+/// nested object props (named/imported included), and index signatures.
+fn diagnostics_typed_graph(
+    source: &str,
+    file: &Path,
+    config: &LintConfig,
+    severity: Severity,
+    backend: &mut dyn crate::type_backend::TypeBackend,
+    root: TypeId,
+) -> Vec<Diagnostic> {
+    let opts = config.options_for(META.name);
+    let ignore_prop = compile_matchers(option_str_list(opts, "ignorePropertyPatterns"));
+    let ignore_type = compile_matchers(option_str_list(opts, "ignoreTypePatterns"));
+    let check_imported = option_bool(opts, "checkImportedTypes").unwrap_or(false);
+    let allow_unused_nested = option_bool(opts, "allowUnusedNestedProperties").unwrap_or(false);
+
+    let li = LineIndex::new(source);
+    let mut out = Vec::new();
+
+    for block in script_blocks(source) {
+        if block.open_tag_attrs.contains("module") {
+            continue;
+        }
+        let content = &source[block.content_start..block.content_end];
+        let blanked = blank_comments(content);
+        let Some(props_info) = find_props_info(content, &blanked, block.content_start) else {
+            continue;
+        };
+
+        // Assemble declared names + member-access usage paths per form.
+        let (declared, raw_paths, raw_spreads, report_abs) = match &props_info.form {
+            PropForm::Destructure {
+                pattern_open_brace_abs,
+                pattern_text,
+                has_rest,
+            } => {
+                if *has_rest {
+                    // A rest element captures every remaining prop.
+                    continue;
+                }
+                let entries = parse_destructure_entries(pattern_text);
+                if entries.is_empty() {
+                    continue;
+                }
+                let declared: HashSet<String> = entries.iter().map(|(o, _)| o.clone()).collect();
+                let mut paths = Vec::new();
+                let mut spreads = Vec::new();
+                // Only count occurrences AFTER the destructure: the local
+                // bindings don't exist before it, so earlier matches of the
+                // same identifier are unrelated (e.g. an `interface Props { my_foo: … }`
+                // field, or the binding itself). Mirrors upstream walking the
+                // variable's references (which exclude its declaration).
+                let pat_hi = *pattern_open_brace_abs + pattern_text.len();
+                for (orig, local) in &entries {
+                    let (p, sp) = member_chains(source, local, Some((0, pat_hi)));
+                    for mut c in p {
+                        let mut full = vec![orig.clone()];
+                        full.append(&mut c);
+                        paths.push(full);
+                    }
+                    for mut c in sp {
+                        let mut full = vec![orig.clone()];
+                        full.append(&mut c);
+                        spreads.push(full);
+                    }
+                }
+                (declared, paths, spreads, *pattern_open_brace_abs as u32)
+            }
+            PropForm::WholeObject {
+                var_name,
+                var_abs_offset,
+            } => {
+                let (mut paths, spreads) = member_chains(source, var_name, None);
+                // Drop empty (whole-object) chains: they come from the
+                // declaration `let props =` / `$props()` itself, and an empty
+                // path is a prefix of every other path — it would otherwise
+                // absorb all member-access paths in `normalize_used_paths`.
+                // (Spreads keep their empty chain — `{...props}` means all-used.)
+                paths.retain(|c| !c.is_empty());
+                (HashSet::new(), paths, spreads, *var_abs_offset as u32)
+            }
+        };
+
+        let used_paths = normalize_used_paths(raw_paths, allow_unused_nested);
+        let used_spread = normalize_used_paths(raw_spreads, allow_unused_nested);
+        // A spread of the whole object (`{...props}`) marks everything used.
+        if used_spread.iter().any(|s| s.is_empty()) {
+            continue;
+        }
+
+        let mut checked = HashSet::new();
+        let mut reported = HashSet::new();
+        walk_unused(
+            backend,
+            root,
+            &[],
+            &WalkOpts {
+                ignore_prop: &ignore_prop,
+                ignore_type: &ignore_type,
+                check_imported,
+                declared: &declared,
+                used_paths: &used_paths,
+                used_spread: &used_spread,
+            },
+            &mut checked,
+            &mut reported,
+            &mut out,
+            report_abs,
+            file,
+            severity,
+            &li,
+        );
+    }
+
+    out
+}
+
+/// Immutable options/usage threaded through [`walk_unused`].
+struct WalkOpts<'a> {
+    ignore_prop: &'a [Matcher],
+    ignore_type: &'a [Matcher],
+    check_imported: bool,
+    declared: &'a HashSet<String>,
+    used_paths: &'a [String],
+    used_spread: &'a [String],
+}
+
+#[allow(clippy::too_many_arguments)]
+fn walk_unused(
+    backend: &mut dyn crate::type_backend::TypeBackend,
+    t: TypeId,
+    parent_path: &[String],
+    opts: &WalkOpts,
+    checked: &mut HashSet<String>,
+    reported: &mut HashSet<String>,
+    out: &mut Vec<Diagnostic>,
+    report_abs: u32,
+    file: &Path,
+    severity: Severity,
+    li: &LineIndex,
+) {
+    let Some(meta) = backend.type_meta(t) else {
+        return;
+    };
+    // Class instance types are skipped wholesale (upstream `isClassType`).
+    if meta.is_class {
+        return;
+    }
+    if checked.contains(&meta.text) {
+        return;
+    }
+    checked.insert(meta.text.clone());
+    // `shouldIgnoreType`: skip the whole type if its text matches a pattern.
+    if any_match(opts.ignore_type, &meta.text) {
+        return;
+    }
+
+    let props = backend.type_props(t);
+    if props.is_empty() && meta.base_type_ids.is_empty() {
+        return;
+    }
+
+    // Recurse into base types (`extends`) at the same path level.
+    for base in &meta.base_type_ids {
+        walk_unused(
+            backend,
+            *base,
+            parent_path,
+            opts,
+            checked,
+            reported,
+            out,
+            report_abs,
+            file,
+            severity,
+            li,
+        );
+    }
+
+    for p in &props {
+        if p.is_builtin {
+            continue;
+        }
+        if !opts.check_imported && !p.is_local {
+            continue;
+        }
+        if any_match(opts.ignore_prop, &p.name) {
+            continue;
+        }
+        let mut cur = parent_path.to_vec();
+        cur.push(p.name.clone());
+        let cur_str = cur.join(".");
+        if reported.contains(&cur_str) {
+            continue;
+        }
+
+        let dot = format!("{cur_str}.");
+        let used_this = opts.used_paths.iter().any(|u| u == &cur_str)
+            || opts
+                .used_spread
+                .iter()
+                .any(|s| s.is_empty() || s == &cur_str || s.starts_with(&dot));
+        let used_below = opts.used_paths.iter().any(|u| u.starts_with(&dot));
+
+        if used_this && !used_below {
+            continue;
+        }
+        let used_in_props = opts.declared.contains(&p.name);
+        if !used_below && !used_in_props {
+            reported.insert(cur_str.clone());
+            let msg = if parent_path.is_empty() {
+                format!("'{}' is an unused Props property.", p.name)
+            } else {
+                format!(
+                    "'{}' in '{}' is an unused property.",
+                    p.name,
+                    parent_path.join(".")
+                )
+            };
+            out.push(Diagnostic {
+                file: file.to_path_buf(),
+                severity: to_dsev(severity),
+                range: range_from_byte(li, report_abs, report_abs),
+                message: msg,
+                code: Some(META.name.to_string()),
+                source: "svelte",
+            });
+            continue;
+        }
+        if used_below || used_in_props {
+            walk_unused(
+                backend, p.type_id, &cur, opts, checked, reported, out, report_abs, file, severity,
+                li,
+            );
+        }
+    }
+
+    // Unused index signature (root level only; `hasRestElement` ⇔ declared empty).
+    if parent_path.is_empty() && meta.has_index_signature && !opts.declared.is_empty() {
+        out.push(Diagnostic {
+            file: file.to_path_buf(),
+            severity: to_dsev(severity),
+            range: range_from_byte(li, report_abs, report_abs),
+            message: "Index signature is unused. Consider using rest operator (...) to capture remaining properties.".to_string(),
+            code: Some(META.name.to_string()),
+            source: "svelte",
+        });
+    }
+}
+
+/// Parse a destructure pattern into `(originalKey, localName)` pairs, skipping a
+/// rest element. Mirrors upstream `getUsedPropertyNamesFromPattern`.
+fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
+    let inner = if pattern.starts_with('{') && pattern.ends_with('}') {
+        &pattern[1..pattern.len() - 1]
+    } else {
+        pattern
+    };
+    let mut entries = Vec::new();
+    for seg in split_top_level(inner, b",") {
+        let seg = seg.trim();
+        if seg.is_empty() || seg.starts_with("...") {
+            continue;
+        }
+        let bytes = seg.as_bytes();
+        // Quoted key: `'key': local`
+        if bytes[0] == b'\'' || bytes[0] == b'"' {
+            let q = bytes[0];
+            let Some(end) = bytes[1..].iter().position(|&c| c == q) else {
+                continue;
+            };
+            let key = seg[1..end + 1].to_string();
+            let rest = seg[end + 2..].trim_start();
+            let local = rest
+                .strip_prefix(':')
+                .map(|r| {
+                    let r = r.trim();
+                    let n = r
+                        .as_bytes()
+                        .iter()
+                        .position(|&c| !is_ident_byte(c))
+                        .unwrap_or(r.len());
+                    r[..n].to_string()
+                })
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| key.clone());
+            entries.push((key, local));
+            continue;
+        }
+        // Plain identifier key, optional `: local` / `= default`.
+        let name_end = bytes
+            .iter()
+            .position(|&c| !is_ident_byte(c))
+            .unwrap_or(bytes.len());
+        if name_end == 0 {
+            continue;
+        }
+        let key = seg[..name_end].to_string();
+        let after = seg[name_end..].trim_start();
+        let local = after
+            .strip_prefix(':')
+            .map(|r| {
+                let r = r.trim();
+                let n = r
+                    .as_bytes()
+                    .iter()
+                    .position(|&c| !is_ident_byte(c))
+                    .unwrap_or(r.len());
+                r[..n].to_string()
+            })
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| key.clone());
+        entries.push((key, local));
+    }
+    entries
+}
+
+/// Collect member-access chains for `var` in `source` (e.g. `var.a.b` →
+/// `["a","b"]`), split into non-spread paths and spread paths (`...var.x`).
+/// Approximate (source scan, not scope-precise) but sufficient for prop usage.
+fn member_chains(
+    source: &str,
+    var: &str,
+    exclude: Option<(usize, usize)>,
+) -> (Vec<Vec<String>>, Vec<Vec<String>>) {
+    let bytes = source.as_bytes();
+    let vb = var.as_bytes();
+    let mut paths = Vec::new();
+    let mut spreads = Vec::new();
+    let mut i = 0;
+    while let Some(rel) = source[i..].find(var) {
+        let start = i + rel;
+        let end = start + vb.len();
+        i = end;
+        // Skip occurrences inside an excluded range (e.g. the binding pattern).
+        if let Some((lo, hi)) = exclude
+            && start >= lo
+            && start < hi
+        {
+            continue;
+        }
+        let before = start.checked_sub(1).map(|b| bytes[b]);
+        let after = bytes.get(end).copied();
+        if before.is_some_and(is_ident_byte) || after.is_some_and(is_ident_byte) {
+            continue; // not a whole-word match
+        }
+        let mut p = start;
+        while p > 0 && (bytes[p - 1] as char).is_whitespace() {
+            p -= 1;
+        }
+        let is_spread = p >= 3 && &source[p - 3..p] == "...";
+        // Skip `obj.var` (member access where `var` is the property), but NOT
+        // the spread `...var` (whose preceding char is also `.`).
+        if !is_spread && p > 0 && bytes[p - 1] == b'.' {
+            continue;
+        }
+        // Empty non-spread chains (a bare/whole reference, e.g. shorthand
+        // `{var}`) are kept: they mark the prop as used *wholly* (no deeper
+        // access), which suppresses recursion into it.
+        let chain = parse_member_chain(source, end);
+        if is_spread {
+            spreads.push(chain);
+        } else {
+            paths.push(chain);
+        }
+    }
+    (paths, spreads)
+}
+
+/// Parse a `.a.b` / `["a"]` / `?.a` member chain starting at byte `pos`.
+fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
+    let bytes = source.as_bytes();
+    let mut chain = Vec::new();
+    loop {
+        while pos < bytes.len() && (bytes[pos] as char).is_whitespace() {
+            pos += 1;
+        }
+        if pos >= bytes.len() {
+            break;
+        }
+        let dot = if bytes[pos] == b'.' {
+            Some(pos + 1)
+        } else if bytes[pos] == b'?' && bytes.get(pos + 1) == Some(&b'.') {
+            Some(pos + 2)
+        } else {
+            None
+        };
+        if let Some(mut q) = dot {
+            while q < bytes.len() && (bytes[q] as char).is_whitespace() {
+                q += 1;
+            }
+            let s = q;
+            while q < bytes.len() && is_ident_byte(bytes[q]) {
+                q += 1;
+            }
+            if q == s {
+                break;
+            }
+            chain.push(source[s..q].to_string());
+            pos = q;
+        } else if bytes[pos] == b'[' {
+            let mut q = pos + 1;
+            while q < bytes.len() && (bytes[q] as char).is_whitespace() {
+                q += 1;
+            }
+            if q < bytes.len() && (bytes[q] == b'\'' || bytes[q] == b'"') {
+                let quote = bytes[q];
+                q += 1;
+                let s = q;
+                while q < bytes.len() && bytes[q] != quote {
+                    q += 1;
+                }
+                if q >= bytes.len() {
+                    break;
+                }
+                let name = source[s..q].to_string();
+                q += 1;
+                while q < bytes.len() && (bytes[q] as char).is_whitespace() {
+                    q += 1;
+                }
+                if q < bytes.len() && bytes[q] == b']' {
+                    chain.push(name);
+                    pos = q + 1;
+                } else {
+                    break;
+                }
+            } else {
+                break; // computed/dynamic index
+            }
+        } else {
+            break;
+        }
+    }
+    chain
+}
+
+/// Dedup prefix-paths (keep the shortest) and join with `.`. With
+/// `allow_unused_nested`, truncate each path to its first segment. Mirrors
+/// upstream `normalizeUsedPaths`.
+fn normalize_used_paths(mut paths: Vec<Vec<String>>, allow_unused_nested: bool) -> Vec<String> {
+    paths.sort_by_key(|p| p.len());
+    let mut normalized: Vec<Vec<String>> = Vec::new();
+    for path in paths {
+        let covered = normalized.iter().any(|p| {
+            p.len() <= path.len() && p.iter().enumerate().all(|(i, part)| part == &path[i])
+        });
+        if covered {
+            continue;
+        }
+        normalized.push(path);
+    }
+    normalized
+        .into_iter()
+        .map(|path| {
+            if allow_unused_nested {
+                path.into_iter().take(1).collect::<Vec<_>>().join(".")
+            } else {
+                path.join(".")
+            }
+        })
+        .collect()
 }
 
 fn option_str_list(opts: Option<&serde_json::Value>, key: &str) -> Vec<String> {
@@ -878,6 +1393,201 @@ mod tests {
             .collect()
     }
 
+    // ---- Graph-path mock (the full recursive walk, corsa-free) -------------
+
+    use crate::type_backend::{PropMeta, TypeId, TypeMeta};
+
+    /// One node in a fake type graph.
+    struct GType {
+        text: &'static str,
+        is_class: bool,
+        has_index: bool,
+        bases: Vec<TypeId>,
+        /// (name, is_local, is_builtin, type_id)
+        props: Vec<(&'static str, bool, bool, TypeId)>,
+    }
+
+    /// A backend serving a fixed type graph, exercising [`diagnostics_typed`]'s
+    /// graph path without `corsa`/`tsgo`.
+    struct MockGraph {
+        types: Vec<GType>,
+    }
+    impl TypeBackend for MockGraph {
+        fn probe_props(&mut self) -> Option<TypeFacts> {
+            None
+        }
+        fn probe_expr(&mut self, _off: u32) -> Option<TypeFacts> {
+            None
+        }
+        fn props_type(&mut self) -> Option<TypeId> {
+            (!self.types.is_empty()).then_some(0)
+        }
+        fn type_meta(&mut self, t: TypeId) -> Option<TypeMeta> {
+            self.types.get(t as usize).map(|g| TypeMeta {
+                text: g.text.to_string(),
+                has_index_signature: g.has_index,
+                is_class: g.is_class,
+                base_type_ids: g.bases.clone(),
+            })
+        }
+        fn type_props(&mut self, t: TypeId) -> Vec<PropMeta> {
+            self.types
+                .get(t as usize)
+                .map(|g| {
+                    g.props
+                        .iter()
+                        .map(|&(name, is_local, is_builtin, type_id)| PropMeta {
+                            name: name.to_string(),
+                            is_local,
+                            is_builtin,
+                            type_id,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        }
+    }
+
+    fn graph_msgs(src: &str, cfg_json: &str, types: Vec<GType>) -> Vec<String> {
+        let cfg = LintConfig::from_json_str(cfg_json).unwrap();
+        let mut backend = MockGraph { types };
+        let mut m: Vec<String> =
+            diagnostics_typed(src, &PathBuf::from("T.svelte"), &cfg, &mut backend)
+                .into_iter()
+                .map(|d| d.message)
+                .collect();
+        m.sort();
+        m
+    }
+
+    /// `interface Props extends BaseProps { age }` with `BaseProps` imported.
+    fn props_with_imported_base() -> Vec<GType> {
+        vec![
+            GType {
+                text: "Props",
+                is_class: false,
+                has_index: false,
+                bases: vec![1],
+                props: vec![("age", true, false, 3)],
+            },
+            GType {
+                text: "BaseProps",
+                is_class: false,
+                has_index: false,
+                bases: vec![],
+                props: vec![
+                    ("name", false, false, 3),
+                    ("imported_unused", false, false, 3),
+                ],
+            },
+            GType {
+                text: "User",
+                is_class: true,
+                has_index: false,
+                bases: vec![],
+                props: vec![("klass_member", false, false, 3)],
+            },
+            GType {
+                text: "string",
+                is_class: false,
+                has_index: false,
+                bases: vec![],
+                props: vec![],
+            },
+        ]
+    }
+
+    #[test]
+    fn graph_skips_unused_imported_prop_by_default() {
+        // check_imported defaults false → imported `imported_unused` is skipped;
+        // age/name are used.
+        let src = "<script lang=\"ts\">\n\tlet { age, name }: Props = $props();\n\tconsole.log(age, name);\n</script>";
+        let cfg = r#"{ "rules": { "svelte/no-unused-props": "warn" } }"#;
+        assert!(graph_msgs(src, cfg, props_with_imported_base()).is_empty());
+    }
+
+    #[test]
+    fn graph_reports_unused_imported_prop_when_enabled() {
+        let src = "<script lang=\"ts\">\n\tlet { age, name }: Props = $props();\n\tconsole.log(age, name);\n</script>";
+        let cfg = r#"{ "rules": { "svelte/no-unused-props": ["warn", { "checkImportedTypes": true }] } }"#;
+        assert_eq!(
+            graph_msgs(src, cfg, props_with_imported_base()),
+            vec!["'imported_unused' is an unused Props property.".to_string()]
+        );
+    }
+
+    #[test]
+    fn graph_nested_unused_and_class_skipped() {
+        // props.user.name used; props.user.location unused → nested report.
+        // props.acct is a class instance → not recursed (no member reports).
+        let types = vec![
+            GType {
+                text: "Props",
+                is_class: false,
+                has_index: false,
+                bases: vec![],
+                props: vec![("user", true, false, 1), ("acct", true, false, 2)],
+            },
+            GType {
+                text: "{ name: string; location: string; }",
+                is_class: false,
+                has_index: false,
+                bases: vec![],
+                props: vec![("name", true, false, 3), ("location", true, false, 3)],
+            },
+            GType {
+                text: "Account",
+                is_class: true,
+                has_index: false,
+                bases: vec![],
+                props: vec![("balance", true, false, 3)],
+            },
+            GType {
+                text: "string",
+                is_class: false,
+                has_index: false,
+                bases: vec![],
+                props: vec![],
+            },
+        ];
+        let src = "<script lang=\"ts\">\n\tlet props: Props = $props();\n\tconsole.log(props.user.name, props.acct);\n</script>";
+        let cfg = r#"{ "rules": { "svelte/no-unused-props": "warn" } }"#;
+        assert_eq!(
+            graph_msgs(src, cfg, types),
+            vec!["'location' in 'user' is an unused property.".to_string()]
+        );
+    }
+
+    #[test]
+    fn graph_index_signature_without_rest() {
+        let types = vec![
+            GType {
+                text: "Props",
+                is_class: false,
+                has_index: true,
+                bases: vec![],
+                props: vec![("a", true, false, 1)],
+            },
+            GType {
+                text: "string",
+                is_class: false,
+                has_index: false,
+                bases: vec![],
+                props: vec![],
+            },
+        ];
+        // Destructure without rest → the index signature is reported unused.
+        let src =
+            "<script lang=\"ts\">\n\tlet { a }: Props = $props();\n\tconsole.log(a);\n</script>";
+        let cfg = r#"{ "rules": { "svelte/no-unused-props": "warn" } }"#;
+        assert_eq!(
+            graph_msgs(src, cfg, types),
+            vec![
+                "Index signature is unused. Consider using rest operator (...) to capture remaining properties.".to_string()
+            ]
+        );
+    }
+
     #[test]
     fn typed_flat_resolves_inherited_props() {
         // Mirrors `extends-unused`: the checker reports id/type/role/name/email;
@@ -927,18 +1637,38 @@ mod tests {
 
     #[test]
     fn typed_ignore_property_patterns() {
+        // `toRegExp` semantics: a `/…/` string is a regex; a plain string is an
+        // EXACT match. So the regex form ignores `skip_me`, the plain form does not.
         let src = "<script lang=\"ts\">\n\tconst { bar }: Props = $props();\n</script>";
-        let cfg = LintConfig::from_json_str(
-            r#"{ "rules": { "svelte/no-unused-props": ["warn", { "ignorePropertyPatterns": ["^skip_"] }] } }"#,
+        let regex_cfg = LintConfig::from_json_str(
+            r#"{ "rules": { "svelte/no-unused-props": ["warn", { "ignorePropertyPatterns": ["/^skip_/"] }] } }"#,
         )
         .unwrap();
         let mut backend = MockProps(facts(&["bar", "skip_me"], &["string", "string"]));
-        let msgs: Vec<String> =
-            diagnostics_typed(src, &PathBuf::from("T.svelte"), &cfg, &mut backend)
+        let regex_msgs: Vec<String> =
+            diagnostics_typed(src, &PathBuf::from("T.svelte"), &regex_cfg, &mut backend)
                 .into_iter()
                 .map(|d| d.message)
                 .collect();
-        // `skip_me` is filtered out; `bar` is used → no findings.
-        assert!(msgs.is_empty(), "got {msgs:?}");
+        assert!(
+            regex_msgs.is_empty(),
+            "regex form should ignore skip_me; got {regex_msgs:?}"
+        );
+
+        // Plain string `"skip_me"` is exact-match → ignores the literal name.
+        let exact_cfg = LintConfig::from_json_str(
+            r#"{ "rules": { "svelte/no-unused-props": ["warn", { "ignorePropertyPatterns": ["skip_me"] }] } }"#,
+        )
+        .unwrap();
+        let mut backend2 = MockProps(facts(&["bar", "skip_me"], &["string", "string"]));
+        let exact_msgs: Vec<String> =
+            diagnostics_typed(src, &PathBuf::from("T.svelte"), &exact_cfg, &mut backend2)
+                .into_iter()
+                .map(|d| d.message)
+                .collect();
+        assert!(
+            exact_msgs.is_empty(),
+            "exact form should ignore skip_me; got {exact_msgs:?}"
+        );
     }
 }

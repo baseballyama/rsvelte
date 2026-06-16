@@ -96,4 +96,66 @@ pub trait TypeBackend {
     /// `<a href={...}>` attribute. Returns `None` when the offset does not map
     /// to a probable expression or the probe failed.
     fn probe_expr(&mut self, svelte_offset: u32) -> Option<TypeFacts>;
+
+    // ---- Type-graph walk (full `no-unused-props` fidelity) ------------------
+    //
+    // The flat `probe_props` only yields a property-name list, which cannot
+    // express per-property declaration origin (`checkImportedTypes`), base-type
+    // structure (`ignoreTypePatterns` on bases), index signatures, or recursion
+    // into named/imported nested types. These three methods expose the type
+    // graph on demand so the rule can mirror upstream's recursive
+    // `checkUnusedProperties` walk. Backends that don't support it return
+    // `None`/empty (the default), and the rule degrades to the flat path.
+
+    /// The component's props type, as an opaque [`TypeId`] the backend can
+    /// resolve. `None` ⇒ no typed props, or this backend has no graph support.
+    fn props_type(&mut self) -> Option<TypeId> {
+        None
+    }
+
+    /// Metadata for a type: its rendered text, whether it carries a (non-`any`)
+    /// index signature, and its base types (`extends`). `None` ⇒ unresolved.
+    fn type_meta(&mut self, _type: TypeId) -> Option<TypeMeta> {
+        None
+    }
+
+    /// The directly-declared properties of a type (not including base-type
+    /// members — those are reached via [`TypeMeta::base_type_ids`]).
+    fn type_props(&mut self, _type: TypeId) -> Vec<PropMeta> {
+        Vec::new()
+    }
+}
+
+/// An opaque, backend-managed handle to a TypeScript type. Stable for the
+/// lifetime of a single backend instance.
+pub type TypeId = u32;
+
+/// Metadata about a type, used by the `no-unused-props` graph walk.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TypeMeta {
+    /// `typeChecker.typeToString(type)` — the visited-set key and the string
+    /// matched by `ignoreTypePatterns` (`shouldIgnoreType`).
+    pub text: String,
+    /// Whether the type has a string/number index signature whose value type is
+    /// not `any` (upstream's `hasIndexSignature`).
+    pub has_index_signature: bool,
+    /// Whether this is a class (instance) type. Upstream's `isClassType` skips
+    /// such types entirely — class members are methods/fields, not props.
+    pub is_class: bool,
+    /// Immediate base types (`getBaseTypes`), each recursed into separately.
+    pub base_type_ids: Vec<TypeId>,
+}
+
+/// A single declared property of a type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PropMeta {
+    pub name: String,
+    /// `isInternalProperty`: every declaration of this property is in the
+    /// component's own file (vs. an imported type). Gates `checkImportedTypes`.
+    pub is_local: bool,
+    /// `isBuiltInProperty`: declared in TypeScript's bundled lib (`lib.*.d.ts`),
+    /// so it is not a user-authored prop.
+    pub is_builtin: bool,
+    /// The property's own type, for recursing into nested object props.
+    pub type_id: TypeId,
 }
