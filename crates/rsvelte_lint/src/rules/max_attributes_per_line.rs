@@ -83,12 +83,21 @@ fn attr_name(src: &str, a: &Attribute) -> String {
         return String::new();
     }
     match a {
-        // For spread attributes `{...x}`, upstream uses the full text.
-        Attribute::SpreadAttribute(_) => src.get(start..end).unwrap_or("").to_string(),
-        // For all other attributes, the name is derived from the key.
-        // Upstream slices `attribute.key.range` for named attributes.
-        // For our purposes we can derive the key text as the source up to the
-        // first `=`, `{`, or whitespace.
+        // For spread attributes `{...x}` / attach tags `{@attach x}`, upstream
+        // uses the full attribute text (the `else` branch of `report`).
+        Attribute::SpreadAttribute(_) | Attribute::AttachTag(_) => {
+            src.get(start..end).unwrap_or("").to_string()
+        }
+        // A plain/shorthand attribute: upstream slices `attribute.key.range`,
+        // i.e. the key identifier. The structured `name` already holds it for
+        // both `class="x"` (→ `class`) and the shorthand `{fileInfo}` (→
+        // `fileInfo`); a text slice would stop at the leading `{` of a shorthand
+        // and yield an empty name.
+        Attribute::Attribute(node) => node.name.to_string(),
+        // Directives (`bind:value`, `on:click`, `class:active`, …): upstream
+        // slices the full `prefix:name` key range. The source up to the first
+        // `=`, `{`, or whitespace reproduces it (directive keys never start with
+        // `{`, so the slice is non-empty).
         _ => {
             let slice = src.get(start..end).unwrap_or("");
             let key_end = slice

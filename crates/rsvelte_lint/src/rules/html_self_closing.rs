@@ -22,8 +22,8 @@
 //! Upstream: `meta.fixable = 'code'`, `type: 'layout'`.
 
 use rsvelte_core::ast::template::{
-    Attribute, Component, RegularElement, SvelteComponentElement, SvelteDynamicElement,
-    SvelteElement, TemplateNode,
+    Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement, TemplateNode,
 };
 
 use crate::context::LintContext;
@@ -491,6 +491,24 @@ impl Rule for HtmlSelfClosing {
             &c.attributes,
             &c.fragment.nodes,
             ElementType::Component,
+            &opts,
+        );
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        // `<slot>` is a plain HTML element to svelte-eslint-parser (name "slot",
+        // not void/svg/math → the "normal" category), so `<slot />` is subject
+        // to the rule like any other non-void element.
+        let opts = Options::resolve(ctx);
+        let ty = html_element_type(el.name.as_str());
+        self.check(
+            ctx,
+            el.start,
+            el.end,
+            el.name.as_str(),
+            &el.attributes,
+            &el.fragment.nodes,
+            ty,
             &opts,
         );
     }

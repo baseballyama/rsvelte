@@ -17,11 +17,31 @@ priority, most user-visible bug). `FN` = oracle reports, rsvelte silent.
 
 ## Snapshot
 
-~749 divergences across 36 rules (after the `prefer-const` export-prop and
-`no-spaces-around-equal-signs` shorthand fixes). The excluded rules (not in the
-parity universe — see `EXCLUDE` in `lint-verify.mjs`) are tracked separately:
-`indent`, `valid-compile`, `valid-style-parse`, type-aware rules, Svelte-3/4-only
-rules, option-required rules.
+~556 divergences across ~34 rules, after the burndown so far:
+`prefer-const` (export-prop, `{@render}`-arg writes, robustness to analysis
+errors + bind/destructuring/redeclaration), `no-spaces-around-equal-signs`
+(shorthand), `consistent-selector-style` (dynamic-class affixes),
+`max-attributes-per-line` (shorthand name), `html-self-closing` (`<slot>`).
+The excluded rules (not in the parity universe — see `EXCLUDE` in
+`lint-verify.mjs`) are tracked separately: `indent`, `valid-compile`,
+`valid-style-parse`, type-aware rules, Svelte-3/4-only rules, option-required
+rules.
+
+Biggest remaining clusters (regenerate with `pnpm run lint-corpus:update`):
+`max-attributes-per-line` (80, mostly the `<svelte:element this={…}>` implicit
+attribute + the newline-in-block parser gap), `mustache-spacing` (72, mostly the
+parser gap), `no-top-level-browser-globals` (66 FP, guard semantics),
+`sort-attributes` (57, inline-config options), `consistent-selector-style` (49,
+SCSS/`lang` blocks), the conditions-gated legacy rules
+(`no-immutable-reactive-statements`, `prefer-svelte-reactivity`,
+`infinite-reactive-loop`), `no-unused-class-name` (18, SCSS), and SvelteKit
+context rules (`no-navigation-without-base`).
+
+These remaining clusters are predominantly structural — they need a compiler
+parser change (newline-split block tags, `{#each}` destructuring), SCSS/`lang`
+preprocessing, inline-config option parsing, the `meta.conditions` gate
+(cluster 1), or reverse-engineering a complex guard rule — rather than a
+self-contained per-rule fix.
 
 ## Root-cause clusters
 
