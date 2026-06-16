@@ -3600,18 +3600,18 @@ fn handle_named_slot_element(
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
-    // Build the let variable expressions (for class: directives referencing let vars)
-    let let_var_exprs = build_let_var_expressions(&let_directives, source);
     // class:/style: directives lower to statements after createElement
-    // (`class:bar` → ` bar;`), same as a regular element.
+    // (`class:bar` → ` bar;`), same as a regular element. The `let:` binding
+    // itself is consumed by the `$$slot_def[…]` destructure above (and any use
+    // in the body emits its own reference), so it is NOT re-emitted here.
     let class_style_suffix = segs_to_string(
         &build_class_style_directive_suffix_segments(&el.attributes, source),
         source,
     );
 
     let opener = format!(
-        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}{}",
-        block_open, el.name, attrs_str, class_style_suffix, let_var_exprs
+        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}",
+        block_open, el.name, attrs_str, class_style_suffix
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -3873,7 +3873,10 @@ fn handle_svelte_component(
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     let let_directives_scomp = get_let_directives(&comp.attributes);
     let has_lets_scomp = !let_directives_scomp.is_empty();
-    if is_svelte5 && has_children && !has_lets_scomp {
+    // Emit the synthetic `children` prop whenever there is default-slot content,
+    // even alongside `let:` directives — matching handle_component (which has no
+    // such guard). The `let:` destructure is emitted independently below.
+    if is_svelte5 && has_children {
         let children_text = "children:() => { return __sveltets_2_any(0); },";
         let trimmed = attrs_str.trim_start();
         if trimmed.is_empty() {

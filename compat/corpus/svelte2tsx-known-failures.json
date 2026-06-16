@@ -4,7 +4,6 @@
 	"svelte/packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/remove-blocks-whitespace/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/shadowed-forwarded-slot/input.svelte",
-	"svelte/packages/svelte/tests/migrate/samples/slot-usages/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/output.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
