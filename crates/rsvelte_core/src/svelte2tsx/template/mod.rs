@@ -1496,6 +1496,11 @@ fn handle_if_block(
         str.append_left(consequent_start, "{");
     }
 
+    // Hoist inner snippets above sibling `{@const}`/`{let}` / elements that
+    // reference them (a `{@const xx = test}` before its `{#snippet test}` in the
+    // same block needs `test` declared first), as in the each-body path.
+    hoist_snippet_blocks(&block.consequent, source, str);
+
     // Process children (blocks don't increment depth)
     process_fragment_inplace(&block.consequent, source, options, str, counter, depth);
 
@@ -1551,6 +1556,8 @@ fn handle_if_block(
             // Overwrite {:else} with `} else {`
             str.overwrite(consequent_end, alternate_start, "} else {");
 
+            // Hoist alternate-branch snippets above sibling declarations too.
+            hoist_snippet_blocks(alternate, source, str);
             // Process alternate children
             process_fragment_inplace(alternate, source, options, str, counter, depth);
 
