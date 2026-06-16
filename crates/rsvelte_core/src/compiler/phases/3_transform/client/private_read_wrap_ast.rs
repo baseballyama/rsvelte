@@ -36,15 +36,15 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_PRIVATE_READ_WRAP_ALLOC: RefCell<Allocator> =
         RefCell::new(Allocator::default());
 }
-
-const MAX_FIXED_POINT_ITERS: usize = 16;
 
 /// AST-based rewrite of `qualified` reads (where `qualified` is
 /// the source-text of a private-field access like `this.#count`)
@@ -57,68 +57,38 @@ pub fn transform_private_read_wrap_ast(source: &str, qualified: &str) -> Option<
     // Fast probe — bail if `qualified` doesn't appear at all.
     memchr::memmem::find(source.as_bytes(), qualified.as_bytes())?;
 
-    let mut current = source.to_string();
-    let mut any_changed = false;
-    for _ in 0..MAX_FIXED_POINT_ITERS {
-        match single_pass(&current, qualified) {
-            Some(next) => {
-                current = next;
-                any_changed = true;
-            }
-            None => break,
-        }
-    }
-
-    if any_changed { Some(current) } else { None }
-}
-
-fn single_pass(source: &str, qualified: &str) -> Option<String> {
-    MODULE_PRIVATE_READ_WRAP_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        // Callers (class method bodies) often pass fragments with
-        // bare `return` statements at the top level — allow it.
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
-            .with_options(ParseOptions {
+    ast_rewrite::fixed_point(source, |src| {
+        ast_rewrite::rewrite_once(
+            &MODULE_PRIVATE_READ_WRAP_ALLOC,
+            src,
+            SourceType::mjs(),
+            ParseOptions {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = PrivateReadWrapCollector {
-            source,
-            qualified,
-            replacements: Vec::new(),
-            skip_spans: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-        let skip = collector.skip_spans;
-        replacements.retain(|(s, e, _)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
+            },
+            true,
+            |program| {
+                let mut collector = PrivateReadWrapCollector {
+                    source: src,
+                    qualified,
+                    replacements: Vec::new(),
+                    skip_spans: Vec::new(),
+                };
+                collector.visit_program(program);
+                let skip = collector.skip_spans;
+                let mut replacements = collector.replacements;
+                replacements
+                    .retain(|(s, e, _)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
+                replacements
+            },
+        )
     })
 }
 
 struct PrivateReadWrapCollector<'a> {
     source: &'a str,
     qualified: &'a str,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
     /// Spans of `PrivateFieldExpression`s that should NOT be
     /// rewritten (assignment LHS, update target, deeper-member
     /// object, $.get/$.set/$.update/$.update_pre argument).

@@ -28,8 +28,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_REST_PROP_MEMBER_ACCESS_ALLOC: RefCell<Allocator> =
@@ -53,47 +55,34 @@ pub fn transform_rest_prop_member_access_ast(
         return None;
     }
 
-    MODULE_REST_PROP_MEMBER_ACCESS_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
+    ast_rewrite::rewrite_once(
+        &MODULE_REST_PROP_MEMBER_ACCESS_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        true,
+        |program| {
+            let mut collector = RestPropCollector {
+                rest_prop_vars,
+                replacements: Vec::new(),
+                skip_member_spans: Vec::new(),
+            };
+            collector.visit_program(program);
+            let mut replacements = collector.replacements;
+            let skip = collector.skip_member_spans;
 
-        let mut collector = RestPropCollector {
-            rest_prop_vars,
-            replacements: Vec::new(),
-            skip_member_spans: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-        let skip = collector.skip_member_spans;
-
-        // Drop replacements for skipped (single-level-LHS) members.
-        replacements.retain(|(s, e, _)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+            // Drop replacements for skipped (single-level-LHS) members.
+            replacements.retain(|(s, e, _)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
+            replacements
+        },
+    )
 }
 
 struct RestPropCollector<'a> {
     rest_prop_vars: &'a [String],
     /// Replacements: (start, end, new_text). The span here is the
     /// `rest_var` identifier's span, NOT the whole member chain.
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
     /// Spans of `rest_var` identifiers whose immediate parent is a
     /// `StaticMemberExpression` that is itself the LHS of an
     /// `AssignmentExpression`. These match the text version's

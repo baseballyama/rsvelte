@@ -56,17 +56,17 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_PRIVATE_FIELD_ASSIGN_ALLOC: RefCell<Allocator> =
         RefCell::new(Allocator::default());
 }
-
-const MAX_FIXED_POINT_ITERS: usize = 16;
 
 /// AST-based rewrite of `q = expr` / `q <op>= expr` where `q` is a
 /// private-field expression whose source text matches one of
@@ -86,77 +86,33 @@ pub fn transform_private_field_assign_ast(
         return None;
     }
 
-    let mut current = source.to_string();
-    let mut any_changed = false;
-    for _ in 0..MAX_FIXED_POINT_ITERS {
-        match single_pass(&current, qualified_names) {
-            Some(next) => {
-                current = next;
-                any_changed = true;
-            }
-            None => break,
-        }
-    }
-
-    if any_changed { Some(current) } else { None }
-}
-
-fn single_pass(source: &str, qualified_names: &[String]) -> Option<String> {
-    MODULE_PRIVATE_FIELD_ASSIGN_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        // Class-method bodies often include bare `return`.
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
-            .with_options(ParseOptions {
+    ast_rewrite::fixed_point(source, |src| {
+        ast_rewrite::rewrite_once(
+            &MODULE_PRIVATE_FIELD_ASSIGN_ALLOC,
+            src,
+            SourceType::mjs(),
+            ParseOptions {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = PrivateFieldAssignCollector {
-            source,
-            qualified_names,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Innermost-only per pass.
-        let spans: Vec<(u32, u32)> = replacements.iter().map(|r| (r.0, r.1)).collect();
-        replacements.retain(|(s, e, _)| {
-            !spans
-                .iter()
-                .any(|(s2, e2)| (*s2 > *s && *e2 <= *e) || (*s2 >= *s && *e2 < *e))
-        });
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
+            },
+            true,
+            |program| {
+                let mut collector = PrivateFieldAssignCollector {
+                    source: src,
+                    qualified_names,
+                    replacements: Vec::new(),
+                };
+                collector.visit_program(program);
+                collector.replacements
+            },
+        )
     })
 }
 
 struct PrivateFieldAssignCollector<'a> {
     source: &'a str,
     qualified_names: &'a [String],
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'ast> Visit<'ast> for PrivateFieldAssignCollector<'a> {

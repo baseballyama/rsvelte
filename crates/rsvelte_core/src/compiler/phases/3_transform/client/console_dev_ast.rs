@@ -26,8 +26,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_CONSOLE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -58,60 +60,32 @@ pub fn transform_console_calls_dev_ast(source: &str, is_ts: bool) -> Option<Stri
     // arguments are themselves leaf (no `console.<method>(` lurking
     // in their source span), then re-parse and repeat. Terminates
     // in O(max nesting depth) passes — typically 1.
-    let mut current: Option<String> = None;
-    loop {
-        let src = current.as_deref().unwrap_or(source);
-        match single_pass(src, is_ts) {
-            None => break,
-            Some(rewritten) => current = Some(rewritten),
-        }
-    }
-    current
-}
-
-fn single_pass(source: &str, is_ts: bool) -> Option<String> {
-    MODULE_CONSOLE_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let source_type = if is_ts {
-            SourceType::ts().with_module(true)
-        } else {
-            SourceType::mjs()
-        };
-        let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = ConsoleCollector {
-            source,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Replacements here are guaranteed non-overlapping (the
-        // collector defers calls whose args still contain another
-        // matching call), so right-to-left splice is correct.
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
+    ast_rewrite::fixed_point(source, |src| {
+        ast_rewrite::rewrite_once(
+            &MODULE_CONSOLE_ALLOC,
+            src,
+            if is_ts {
+                SourceType::ts().with_module(true)
+            } else {
+                SourceType::mjs()
+            },
+            ParseOptions::default(),
+            false,
+            |program| {
+                let mut collector = ConsoleCollector {
+                    source: src,
+                    replacements: Vec::new(),
+                };
+                collector.visit_program(program);
+                collector.replacements
+            },
+        )
     })
 }
 
 struct ConsoleCollector<'src> {
     source: &'src str,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'src> Visit<'a> for ConsoleCollector<'src> {

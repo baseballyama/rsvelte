@@ -20,8 +20,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_SNAPSHOT_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -33,39 +35,26 @@ pub fn transform_state_snapshot_ast(source: &str, is_ts: bool) -> Option<String>
     // Fast probe — most module scripts don't reference $state.snapshot.
     memchr::memmem::find(source.as_bytes(), b"$state.snapshot")?;
 
-    MODULE_SNAPSHOT_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let source_type = if is_ts {
+    ast_rewrite::rewrite_once(
+        &MODULE_SNAPSHOT_ALLOC,
+        source,
+        if is_ts {
             SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
-        };
-        let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = SnapshotCollector { spans: Vec::new() };
-        collector.visit_program(&parser_ret.program);
-        let mut spans = collector.spans;
-
-        if spans.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Each replacement is a callee swap on a distinct call, so
-        // spans don't overlap. Right-to-left splice preserves offsets.
-        spans.sort_by_key(|s| std::cmp::Reverse(s.0));
-        let mut out = source.to_string();
-        for (start, end) in &spans {
-            out.replace_range(*start as usize..*end as usize, "$.snapshot");
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+        },
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = SnapshotCollector { spans: Vec::new() };
+            collector.visit_program(program);
+            collector
+                .spans
+                .into_iter()
+                .map(|(start, end)| (start, end, "$.snapshot".to_string()))
+                .collect::<Vec<Edit>>()
+        },
+    )
 }
 
 struct SnapshotCollector {

@@ -29,8 +29,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_STATE_RAW_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -57,42 +59,27 @@ pub fn transform_state_raw_frozen_ast(
         return None;
     }
 
-    MODULE_STATE_RAW_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let source_type = if is_ts {
+    ast_rewrite::rewrite_once(
+        &MODULE_STATE_RAW_ALLOC,
+        source,
+        if is_ts {
             SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
-        };
-        let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = StateRawFrozenCollector {
-            source,
-            non_reactive_vars,
-            current_var: None,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+        },
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = StateRawFrozenCollector {
+                source,
+                non_reactive_vars,
+                current_var: None,
+                replacements: Vec::new(),
+            };
+            collector.visit_program(program);
+            collector.replacements
+        },
+    )
 }
 
 /// Stateful visitor — `current_var` tracks the binding being
@@ -106,7 +93,7 @@ struct StateRawFrozenCollector<'a, 'src> {
     source: &'src str,
     non_reactive_vars: &'a [String],
     current_var: Option<String>,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'src, 'ast> Visit<'ast> for StateRawFrozenCollector<'a, 'src> {

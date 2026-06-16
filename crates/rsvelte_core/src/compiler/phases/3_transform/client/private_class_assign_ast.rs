@@ -42,14 +42,13 @@ use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
 
+use super::ast_rewrite::{self, Edit};
 use super::expression_utils::expression_needs_proxy;
 
 thread_local! {
     static MODULE_PRIVATE_CLASS_ASSIGN_ALLOC: RefCell<Allocator> =
         RefCell::new(Allocator::default());
 }
-
-const MAX_FIXED_POINT_ITERS: usize = 16;
 
 /// AST-based rewrite of private-field assignments + updates for
 /// class method bodies. `state_qualified` lists `$state` fields
@@ -72,19 +71,9 @@ pub fn transform_private_class_assign_ast(
         return None;
     }
 
-    let mut current = source.to_string();
-    let mut any_changed = false;
-    for _ in 0..MAX_FIXED_POINT_ITERS {
-        match single_pass(&current, state_qualified, other_qualified) {
-            Some(next) => {
-                current = next;
-                any_changed = true;
-            }
-            None => break,
-        }
-    }
-
-    if any_changed { Some(current) } else { None }
+    ast_rewrite::fixed_point(source, |src| {
+        single_pass(src, state_qualified, other_qualified)
+    })
 }
 
 fn single_pass(
@@ -162,31 +151,8 @@ fn single_pass(
             replacements.retain(|(_, e, _)| *e <= src_len);
         }
 
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let spans: Vec<(u32, u32)> = replacements.iter().map(|r| (r.0, r.1)).collect();
-        replacements.retain(|(s, e, _)| {
-            !spans
-                .iter()
-                .any(|(s2, e2)| (*s2 > *s && *e2 <= *e) || (*s2 >= *s && *e2 < *e))
-        });
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
         *cell.borrow_mut() = allocator;
-        Some(out)
+        ast_rewrite::splice(source, replacements, true)
     })
 }
 
@@ -194,7 +160,7 @@ struct PrivateClassAssignCollector<'a> {
     source: &'a str,
     state_qualified: &'a [String],
     other_qualified: &'a [String],
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 #[derive(Clone, Copy)]
