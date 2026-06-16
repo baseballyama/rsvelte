@@ -2960,8 +2960,20 @@ fn handle_component(
         for attr in &comp.attributes {
             if let Attribute::BindDirective(bind) = attr {
                 if bind.name == "this" {
-                    let expr_text = get_expression_text(&bind.expression, source);
-                    let _ = write!(out, "{} = {};", expr_text, inst_var);
+                    // `bind:this={getFn, setFn}` (Svelte 5 function binding) calls
+                    // the setter with the instance: `(setFn)(inst);` (mirrors
+                    // Binding.ts). Plain `bind:this={x}` → `x = inst;`.
+                    if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+                        let _ = write!(
+                            out,
+                            "({})({});",
+                            &source[ss as usize..se as usize],
+                            inst_var
+                        );
+                    } else {
+                        let expr_text = get_expression_text(&bind.expression, source);
+                        let _ = write!(out, "{} = {};", expr_text, inst_var);
+                    }
                     continue;
                 }
                 if get_set_binding_ranges(&bind.expression, source).is_some() {
