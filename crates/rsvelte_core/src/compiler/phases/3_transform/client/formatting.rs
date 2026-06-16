@@ -558,7 +558,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         let source_type = SourceType::mjs();
         let parsed = Parser::new(allocator, js, source_type).parse();
 
-        if !parsed.errors.is_empty() {
+        if !parsed.diagnostics.is_empty() {
             return js.to_string();
         }
 

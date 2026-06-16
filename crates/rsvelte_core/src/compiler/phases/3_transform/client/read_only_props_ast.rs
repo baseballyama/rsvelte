@@ -107,12 +107,12 @@ pub fn transform_read_only_props_ast(
                 ..ParseOptions::default()
             })
             .parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }
         let program: &Program = allocator.alloc(parser_ret.program);
-        let semantic_ret = SemanticBuilder::new().build(program);
+        let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
         let semantic = &semantic_ret.semantic;
 
         let mut collector = ReadOnlyPropsCollector {

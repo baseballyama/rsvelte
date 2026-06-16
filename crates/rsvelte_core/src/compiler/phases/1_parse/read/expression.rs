@@ -1477,7 +1477,7 @@ pub fn parse_destructuring_pattern(
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
 
-            if !result.errors.is_empty() {
+            if !result.diagnostics.is_empty() {
                 return None;
             }
 
@@ -1593,12 +1593,11 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
-            if let Some(first_error) = result.errors.first() {
+            if let Some(first_error) = result.diagnostics.first() {
                 let pos = first_error
                     .labels
-                    .as_ref()
-                    .and_then(|labels| labels.first())
-                    .map(|label| label.offset() + label.len())
+                    .first()
+                    .map(|label| label.offset() as usize + label.len() as usize)
                     .map(|wrapped_end| {
                         // Strip the leading `(` we added and clamp.
                         wrapped_end.saturating_sub(1).min(content.len())
@@ -1654,12 +1653,15 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-        result.errors.first().map(|first_error| {
+        result.diagnostics.first().map(|first_error| {
             let pos = first_error
                 .labels
-                .as_ref()
-                .and_then(|labels| labels.first())
-                .map(|label| label.offset().saturating_sub(1).min(params.len()))
+                .first()
+                .map(|label| {
+                    (label.offset() as usize)
+                        .saturating_sub(1)
+                        .min(params.len())
+                })
                 .unwrap_or(0);
             (first_error.message.to_string(), pos)
         })
@@ -1681,12 +1683,11 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, content, source_type).parse();
-        result.errors.first().map(|first_error| {
+        result.diagnostics.first().map(|first_error| {
             let pos = first_error
                 .labels
-                .as_ref()
-                .and_then(|labels| labels.first())
-                .map(|label| label.offset().min(content.len()))
+                .first()
+                .map(|label| (label.offset() as usize).min(content.len()))
                 .unwrap_or(0);
             (first_error.message.to_string(), pos)
         })
@@ -1718,10 +1719,10 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
             let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-            let first_error = result.errors.first()?;
-            let label = first_error.labels.as_ref()?.first()?;
+            let first_error = result.diagnostics.first()?;
+            let label = first_error.labels.first()?;
             // Map the label's *start* back into `content` (strip the leading `(`).
-            let start = label.offset();
+            let start = label.offset() as usize;
             if start == 0 {
                 return None;
             }
@@ -1800,7 +1801,7 @@ fn parse_expression_with_typescript(
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
-        if result.errors.is_empty()
+        if result.diagnostics.is_empty()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
         {
@@ -2249,7 +2250,7 @@ pub fn parse_typescript_params(
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
-        if result.errors.is_empty()
+        if result.diagnostics.is_empty()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
             && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
@@ -2281,7 +2282,7 @@ pub fn parse_typescript_params(
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
         let cleaned_result = cleaned_parser.parse();
 
-        if cleaned_result.errors.is_empty()
+        if cleaned_result.diagnostics.is_empty()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 cleaned_result.program.body.first()
             && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
@@ -2327,7 +2328,7 @@ pub fn parse_typescript_params(
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();
-                if single_result.errors.is_empty()
+                if single_result.diagnostics.is_empty()
                     && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                         single_result.program.body.first()
                     && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
@@ -6091,12 +6092,11 @@ pub fn parse_program_with_error(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let mut parse_error = result.errors.first().map(|first_error| {
+        let mut parse_error = result.diagnostics.first().map(|first_error| {
             let pos = first_error
                 .labels
-                .as_ref()
-                .and_then(|labels| labels.first())
-                .map(|label| label.offset().min(content.len()))
+                .first()
+                .map(|label| (label.offset() as usize).min(content.len()))
                 .unwrap_or(0)
                 + offset;
             crate::error::ParseError::svelte(
@@ -9775,10 +9775,10 @@ pub fn parse_binding_pattern(
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
-        if !result.errors.is_empty() {
+        if !result.diagnostics.is_empty() {
             let trimmed = content.trim();
             if trimmed.starts_with('{') || trimmed.starts_with('[') {
-                let err = &result.errors[0];
+                let err = &result.diagnostics[0];
                 let msg = format!("{}", err);
                 let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim().to_string();
                 let err_pos = offset;

@@ -111,7 +111,7 @@ fn single_pass(source: &str, qualified_names: &[String]) -> Option<String> {
                 ..ParseOptions::default()
             })
             .parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

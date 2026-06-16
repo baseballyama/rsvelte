@@ -606,7 +606,7 @@ fn block_header_expr_needs_parens(expr_source: &str, typescript: bool) -> bool {
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.errors.is_empty() {
+    if !parser_ret.diagnostics.is_empty() {
         return false;
     }
     let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parser_ret.program.body.first()
@@ -1080,7 +1080,7 @@ pub(crate) fn format_function_binding(
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.errors.is_empty() {
+    if !parser_ret.diagnostics.is_empty() {
         return Ok(None);
     }
     let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parser_ret.program.body.first()
@@ -1188,8 +1188,11 @@ fn format_expr_core(
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.errors.is_empty() {
-        return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
+    if !parser_ret.diagnostics.is_empty() {
+        return Err(FormatError::ScriptParse(format!(
+            "{:?}",
+            parser_ret.diagnostics
+        )));
     }
 
     // Detect a top-level sequence (comma) expression before `program` is
@@ -1518,8 +1521,11 @@ fn format_snippet_header_source(
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.errors.is_empty() {
-        return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
+    if !parser_ret.diagnostics.is_empty() {
+        return Err(FormatError::ScriptParse(format!(
+            "{:?}",
+            parser_ret.diagnostics
+        )));
     }
 
     let indent_width = options.js.indent_width.value() as usize;
@@ -1592,8 +1598,11 @@ pub(crate) fn format_pattern_source(
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.errors.is_empty() {
-        return Err(FormatError::ScriptParse(format!("{:?}", parser_ret.errors)));
+    if !parser_ret.diagnostics.is_empty() {
+        return Err(FormatError::ScriptParse(format!(
+            "{:?}",
+            parser_ret.diagnostics
+        )));
     }
 
     // Build a single-line copy of JsFormatOptions for this pattern only.
