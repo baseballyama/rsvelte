@@ -97,56 +97,61 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-  # macOS is dropped from the PR matrix to keep PR feedback fast — it
-  # consistently runs ~2x slower than Linux for identical work and the
-  # platform-specific failure modes (PATH, line endings, dylib loading)
-  # are already covered by `rsvelte_capi` and the `Release` workflow.
-  # macOS still runs on every push to `main` and on demand via the
-  # `macos-ci` label, so regressions are caught before the next release.
-  set-test-matrix:
-    name: Set Test matrix
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    outputs:
-      os: ${{ steps.matrix.outputs.os }}
-    steps:
-      - id: matrix
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "push" \
-                || "${{ contains(github.event.pull_request.labels.*.name, 'macos-ci') }}" == "true" ]]; then
-            echo 'os=["ubuntu-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
-          else
-            echo 'os=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-          fi
-
   test:
     name: Test
-    needs: set-test-matrix
+    # macOS is dropped from the PR matrix to keep PR feedback fast — it
+    # consistently runs ~2x slower than Linux for identical work and the
+    # platform-specific failure modes (PATH, line endings, dylib loading) are
+    # already covered by `rsvelte_capi` and the `Release` workflow. macOS still
+    # runs on every push to `main` and on demand via the `macos-ci` label, so
+    # regressions are caught before the next release.
+    #
+    # The OS list is computed inline rather than in a separate `set-test-matrix`
+    # job: that job added a full job's queue + startup (~1 min) to the serial
+    # path before any shard could begin. The expression below is evaluated at
+    # workflow-parse time, so the shards start immediately. (On a `push` event
+    # `github.event.pull_request` is null; `contains(null.*.name, …)` is a
+    # well-defined `false`, and the `push` term short-circuits anyway.)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
-        # This job runs the *fast bulk* of the suite, split across 3 runners with
-        # nextest's count partitioning. The heaviest single `#[test]` functions —
-        # each fans out over 1000+ fixtures internally (runtime legacy/runes, the
-        # compile_module thread-safety stress test, and the two svelte.dev fmt
-        # corpus parity tests at ~100 s each) — are excluded here (see the
-        # `Run tests` filter) and run in their own dedicated jobs (`test-runtime`,
-        # `test-thread-safety`, `test-fmt-corpus`) that compile only their own
-        # test binary, so their long execution floors don't sit behind this job's
-        # full ~2 min workspace build. count-partitioning is weight-blind, so
-        # keeping the heavy tests out is what makes these shards balanced. Every
-        # test still runs (here or in a dedicated job) with full iteration counts
-        # — coverage is unchanged. The `Tests` gate job joins them into one
-        # required status check.
+        os: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'macos-ci')) && fromJSON('["ubuntu-latest","macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
+        # This job runs the *fast bulk* of the suite, split across 3 runners.
+        # The test *execution* is trivial (~8 s/shard); the wall time is almost
+        # entirely compiling+linking the ~159 integration-test binaries against
+        # the large `rsvelte_core` rlib. `cargo nextest run` builds *every*
+        # binary regardless of which tests a `-E` filter runs, so the old
+        # count-partition (split the *run*, build everything 3×) left the build
+        # floor — the real bottleneck — paid three times over.
+        #
+        # `scripts/ci/run-test-shard.sh` instead partitions the *binaries* across
+        # shards (cargo target selection from the authoritative `cargo metadata`
+        # list), so each shard compiles only its ~1/3 and the per-shard build
+        # floor drops roughly 3×. The heaviest single `#[test]` functions — each
+        # fans out over 1000+ fixtures internally (runtime legacy/runes, the
+        # compile_module thread-safety stress test, the two svelte.dev fmt corpus
+        # parity tests at ~100 s each) — still run in their own dedicated jobs
+        # (`test-runtime`, `test-thread-safety`, `test-fmt-corpus`). Coverage is
+        # unchanged: every test runs in exactly one shard or dedicated job. The
+        # `Tests` gate job joins them into one required status check.
         shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          submodules: true
+          submodules: false
+
+      # Shallow, selective submodule init instead of `submodules: true`: the
+      # shards only need `svelte` (build.rs version string + generated fixtures),
+      # `language-tools` (svelte2tsx + svelte-check golden tests), and
+      # `eslint-plugin-svelte` (the `eslint_plugin_oracle` fixtures; it soft-skips
+      # when absent, but we keep coverage). The big unused ones — typescript-go
+      # (~534 MB), vize, corsa-bind, and svelte.dev (only the now-removed
+      # fmt-corpus step read it) — are skipped, cutting checkout from ~45 s to
+      # ~15 s on the macOS runners.
+      - name: Checkout needed submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -240,58 +245,30 @@ jobs:
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
-      - name: Install oxfmt + svelte for the formatter parity corpus
-        # Isolated install (NOT the root lockfile) so the corpus oracle deps —
-        # oxfmt (a prebuilt native binding) plus a resolvable svelte for oxfmt's
-        # `svelte: true` (bundled prettier-plugin-svelte) — are available without
-        # pulling the root's esbuild/@parcel/watcher, whose build scripts trip
-        # pnpm's ERR_PNPM_IGNORED_BUILDS gate. Versions pinned to the repo's so
-        # the oracle stays deterministic. Used via OXFMT_BIN / FMT_CORPUS_OXFMT.
-        run: |
-          mkdir -p "$RUNNER_TEMP/fmt-oracle"
-          cd "$RUNNER_TEMP/fmt-oracle"
-          npm init -y >/dev/null
-          npm i --ignore-scripts oxfmt@0.53.0 svelte@5.56.2
-          ./node_modules/.bin/oxfmt --version
-
-      - name: Resolve svelte.dev submodule SHA
-        id: svelte-dev-sha
-        shell: bash
-        run: echo "sha=$(git submodule status submodules/svelte.dev | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
-
-      - name: Cache formatter parity corpus
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          # Oracle outputs keyed on the svelte.dev SHA + the canonical config.
-          path: fixtures/fmt-corpus
-          key: fmt-corpus-v1-${{ runner.os }}-${{ steps.svelte-dev-sha.outputs.sha }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json') }}
-
-      - name: Generate formatter parity corpus
-        run: pnpm run generate-fmt-corpus
-        timeout-minutes: 15
-        env:
-          OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
+      # NOTE: the oxfmt install + svelte.dev formatter-parity corpus generation
+      # (~130 s on a cold macOS runner) used to live here, but the only tests
+      # that consume `fixtures/fmt-corpus` / `FMT_CORPUS_OXFMT` are
+      # `svelte_dev_corpus` / `svelte_dev_markdown` — both excluded from these
+      # shards and run in the dedicated `test-fmt-corpus` job, which generates
+      # the corpus itself. Generating it here was pure overhead (and a frequent
+      # cold-cache stall on the infrequently-run macOS shards), so it's removed.
 
       - name: Run tests
-        # `--all-features` would enable `napi`, which only links cleanly when
-        # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:
-        # error: undefined symbol: napi_*` on Linux. Default features cover
-        # everything we want exercised in CI (native runtime, parallelism).
+        # Default features only: `--all-features` would enable `napi`, which only
+        # links cleanly when loaded from Node.js (`cargo test` would otherwise hit
+        # `rust-lld: error: undefined symbol: napi_*` on Linux). Default features
+        # cover everything we exercise in CI (native runtime, parallelism).
         #
-        # nextest schedules all tests across all binaries in one pool (vs
-        # `cargo test`'s serial per-binary harness). The `generate_compatibility_report`
-        # test is `#[ignore]`d (reporting-only, re-runs the whole suite) and is
-        # covered by the dedicated `compatibility-report` job below, so it stays
-        # out of this run. nextest does not run doctests; this workspace has none.
-        #
-        # The heavy fan-out tests are excluded and run in their own jobs
-        # (`test-runtime`, `test-thread-safety`, `test-fmt-corpus`).
-        # `--partition count:<shard>/3` then splits the remaining
-        # (uniform-weight) tests evenly across the 3 shards.
-        run: >-
-          cargo nextest run --profile ci
-          -E 'not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test(/compile_module_is_thread_safe_under_reuse/) | binary(svelte_dev_markdown) | binary(svelte_dev_corpus))'
-          --partition count:${{ matrix.shard }}/3
+        # The script partitions the integration-test *binaries* across shards so
+        # each compiles only its ~1/3 (the build, not the run, is the cost here —
+        # see the matrix comment and the script header) and applies the
+        # dedicated-job exclusion filter. `--lib` unit tests run in the separate
+        # `test-unit` job; the heavy fan-outs in `test-runtime` /
+        # `test-thread-safety` / `test-fmt-corpus`. `generate_compatibility_report`
+        # is `#[ignore]`d (reporting-only) and covered by the
+        # `compatibility-report` job. nextest runs no doctests; this workspace has
+        # none.
+        run: bash scripts/ci/run-test-shard.sh ${{ matrix.shard }} 3
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
@@ -305,8 +282,6 @@ jobs:
           # error and bails out before emitting the user-source diagnostics
           # the golden test verifies.
           TSGO_BIN: ${{ github.workspace }}/submodules/svelte/node_modules/.bin/tsc
-          # oxfmt launcher for the svelte.dev corpus tests' <style> / CLI paths.
-          FMT_CORPUS_OXFMT: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
       - name: Collect failure artifacts
         if: failure()
@@ -463,6 +438,51 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
 
+  # The `--lib` (`#[cfg(test)]`) unit tests run here, isolated from the `test`
+  # shards (which now build integration-test *binaries* only — see
+  # scripts/ci/run-test-shard.sh). Folding the unit tests onto one shard made it
+  # build that shard's ~52 integration binaries *plus* every crate's unit-test
+  # binary at once, and the extra concurrent links exhausted the runner's memory
+  # (linker SIGBUS). A dedicated `--lib` job keeps the three shards uniform and
+  # links far fewer binaries here. `--bins` is intentionally omitted: no `[[bin]]`
+  # target has a `#[test]`, and `cargo clippy --all-targets` already compile-checks
+  # them. The unit tests are pure logic (no generated fixtures / Node / oxfmt), so
+  # — like test-thread-safety — only a shallow `svelte` submodule (build.rs version
+  # string) is needed.
+  test-unit:
+    name: Test unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # Share (read-only) the `test` job's warm dependency cache.
+          shared-key: test
+          save-if: 'false'
+
+      - name: Run workspace unit tests
+        run: cargo nextest run --profile ci --lib
+        timeout-minutes: 15
+        env:
+          RUST_MIN_STACK: '33554432'
+
   # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
   # every .svelte file + markdown code block from svelte.dev and diff against an
   # oxfmt oracle) are the bulk job's other long pole. Isolate them the same way:
@@ -550,7 +570,7 @@ jobs:
   # needs a protection-rule change. Fails if any of them failed or was cancelled.
   tests:
     name: Tests
-    needs: [test, test-runtime, test-thread-safety, test-fmt-corpus]
+    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -559,15 +579,17 @@ jobs:
         shell: bash
         env:
           BULK: ${{ needs.test.result }}
+          UNIT: ${{ needs.test-unit.result }}
           RUNTIME: ${{ needs.test-runtime.result }}
           THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
           FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
         run: |
           echo "test (shards): $BULK"
+          echo "test-unit: $UNIT"
           echo "test-runtime: $RUNTIME"
           echo "test-thread-safety: $THREAD_SAFETY"
           echo "test-fmt-corpus: $FMT_CORPUS"
-          if [[ "$BULK" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" ]]; then
+          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" ]]; then
             echo "::error::One or more test jobs did not succeed."
             exit 1
           fi
