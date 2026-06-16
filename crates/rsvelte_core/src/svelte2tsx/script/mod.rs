@@ -2784,8 +2784,17 @@ fn handle_export_named_decl(
                             .init
                             .as_ref()
                             .is_some_and(|init| matches!(init, oxc::Expression::BooleanLiteral(_)));
+                        // A JSDoc `/** @type {T} */` on the export is a type too,
+                        // so a `/** @type {number} */ export let x = 1` widens via
+                        // `x = __sveltets_2_any(x)` even with an initializer.
+                        let has_jsdoc_type =
+                            leading_jsdoc_comment(raw_content, export.span.start as usize)
+                                .is_some_and(|d| d.contains("@type"));
                         if is_prop
-                            && (!has_default || has_type_annotation || has_boolean_init)
+                            && (!has_default
+                                || has_type_annotation
+                                || has_boolean_init
+                                || has_jsdoc_type)
                             && let Some(name) = binding_pattern_simple_name(&declarator.id)
                         {
                             let inject = format!(
