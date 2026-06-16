@@ -1989,6 +1989,14 @@ pub fn svelte2tsx(
                     } else {
                         raw_exports.clone()
                     };
+                    // Mirror official `canHaveAnyProp`: only `$$props`/`$$restProps`
+                    // (legacy magic vars) without an explicit `$$Props` type force
+                    // the call-signature `props` to fall back to the full
+                    // `ReturnType<…['props']>` shape. A runes generic with no props
+                    // (e.g. empty `<script generics>`) emits `props: {<events/slots>}`.
+                    let can_have_any_prop = !exported_names.uses_dollar_props_type
+                        && (uses_dollar_props || uses_dollar_rest_props);
+                    let props_has_no_props = exported_names.has_no_props();
                     emit_runes_generics_component(
                         &mut closing,
                         &safe_name,
@@ -1998,6 +2006,7 @@ pub fn svelte2tsx(
                         &exports_return,
                         has_slot_elements,
                         !events.is_empty(),
+                        !can_have_any_prop && props_has_no_props,
                     );
                 } else {
                     // Runes mode, TS syntax, no generics — the most common path.
@@ -2226,6 +2235,7 @@ fn emit_runes_generics_component(
     exports_return: &str,
     has_slot_elements: bool,
     has_events: bool,
+    props_is_empty: bool,
 ) {
     let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
     let _ = writeln!(
@@ -2272,9 +2282,14 @@ fn emit_runes_generics_component(
         events_slots_parts.push("children?: any".to_string());
     }
     let events_slots_inner = events_slots_parts.join(", ");
+    let props_type = if props_is_empty {
+        format!("{{{events_slots_inner}}}")
+    } else {
+        format!("ReturnType<__sveltets_Render<{gn}>['props']> & {{{events_slots_inner}}}")
+    };
     let _ = writeln!(
         closing,
-        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{{events_slots_inner}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
+        "    <{gp}>(internal: unknown, props: {props_type}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
     let _ = writeln!(
         closing,
