@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/rsvelte_capi",
     "crates/rsvelte_core",
+    "crates/rsvelte_esrap",
     "crates/rsvelte_fmt",
     "crates/rsvelte_fmt_wasm",
     "crates/rsvelte_formatter",

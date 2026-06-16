@@ -2143,6 +2143,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_esrap"
+version = "0.7.11"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_parser",
+ "oxc_span",
+ "oxc_syntax",
+]
+
+[[package]]
 name = "rsvelte_fmt"
 version = "0.3.14"
 dependencies = [
