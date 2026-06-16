@@ -1604,6 +1604,21 @@ fn collect_derived_names_from_script(script: &str) -> DerivedNameCollection {
 fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>) -> String {
     let (mut derived_names, derived_var_names, derived_declarators) =
         collect_derived_names_from_script(script);
+    // Prefer the AST-based pass: it resolves reads / shadowing / member-vs-key
+    // / object-shorthand structurally instead of via byte heuristics, removing
+    // the "forgot a position" bug class (mirrors the await→save migration in
+    // #1039). Falls back to the byte scanner below when the script doesn't
+    // parse as a standalone module. Note `derived_names` here excludes
+    // `extra_derived` — those are passed separately (they're unresolved refs in
+    // this slice).
+    if let Some(out) = super::derived_reads_ast::wrap_derived_reads_ast(
+        script,
+        &derived_names,
+        &derived_var_names,
+        extra_derived,
+    ) {
+        return out;
+    }
     // Cross-context deriveds — e.g. a `{let d = $derived(…)}` declaration tag
     // whose `d` is read from a *different* declaration tag — are not declared
     // in this script slice, so seed them in from the component's known derived
