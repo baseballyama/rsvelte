@@ -14,10 +14,14 @@
 //! Each `goto`/`pushState`/`replaceState`/link can be turned off via options.
 
 use std::collections::{HashMap, HashSet};
+// `Path` + the `svelte_check` `Diagnostic` are only used by the native-only
+// `diagnostics_typed` (the type-aware path); the syntactic `Rule` below is wasm-safe.
+#[cfg(feature = "native")]
 use std::path::Path;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::ast::template::Root;
+#[cfg(feature = "native")]
 use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use serde_json::Value;
 
@@ -660,6 +664,7 @@ fn collect_nav_reports(
 /// `backend`, so a `goto`/`pushState`/`replaceState` argument or `<a href>`
 /// value typed as `$app/types` `ResolvedPathname` (or nullish, for links) is
 /// recognized as allowed. Unblocks the `*-resolved-pathname` / nullish fixtures.
+#[cfg(feature = "native")]
 pub fn diagnostics_typed(
     source: &str,
     file: &Path,
