@@ -570,6 +570,10 @@ fn collect_info_from_node(
 ) {
     match node {
         TemplateNode::SlotElement(el) => {
+            // A `<slot slot="x" let:foo {foo}>` forwards: its own `let:` bindings
+            // (against the enclosing component's slot) must be in scope for its
+            // own props (`{foo}`) too.
+            let pushed = push_slotted_child_lets(&el.attributes, enclosing, source, scope);
             // Collect slot name and props. The `slots` *type* key uses
             // `undefined` for a dynamic name (`<slot name="{foo}">`), unlike the
             // `__sveltets_createSlot("{foo}", …)` call which keeps the raw text.
@@ -582,6 +586,9 @@ fn collect_info_from_node(
                 }
             }
             collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            for _ in 0..pushed {
+                scope.pop();
+            }
         }
         TemplateNode::RegularElement(el) => {
             // Collect forwarded events (on:event without handler)
