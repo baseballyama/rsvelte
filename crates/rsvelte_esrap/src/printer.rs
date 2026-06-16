@@ -235,10 +235,170 @@ impl<'opt> Printer<'opt> {
                 ctx.write(";");
             }
             Statement::BlockStatement(b) => self.block(&b.body, ctx),
+            Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
+            Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
+            Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
             Statement::EmptyStatement(_) => {}
             Statement::BreakStatement(_) => ctx.write("break;"),
             Statement::ContinueStatement(_) => ctx.write("continue;"),
             other => self.unsupported(statement_kind(other), ctx),
+        }
+    }
+
+    fn import_declaration(&mut self, node: &ImportDeclaration, ctx: &mut Context) {
+        if node.specifiers.as_ref().is_none_or(|v| v.is_empty()) {
+            ctx.write("import ");
+            ctx.write(self.string_literal(&node.source));
+            ctx.write(";");
+            return;
+        }
+
+        let mut default_spec = None;
+        let mut namespace_spec = None;
+        let mut named = Vec::new();
+        for s in node.specifiers.iter().flatten() {
+            match s {
+                ImportDeclarationSpecifier::ImportDefaultSpecifier(d) => default_spec = Some(d),
+                ImportDeclarationSpecifier::ImportNamespaceSpecifier(n) => namespace_spec = Some(n),
+                ImportDeclarationSpecifier::ImportSpecifier(i) => named.push(i),
+            }
+        }
+
+        ctx.write("import ");
+        if let Some(d) = default_spec {
+            ctx.write(d.local.name.as_str());
+            if namespace_spec.is_some() || !named.is_empty() {
+                ctx.write(", ");
+            }
+        }
+        if let Some(ns) = namespace_spec {
+            ctx.write(format!("* as {}", ns.local.name));
+        }
+        if !named.is_empty() {
+            ctx.write("{");
+            let items: Vec<SeqItem> = named
+                .iter()
+                .map(|s| {
+                    let mut child = ctx.child();
+                    self.import_specifier(s, &mut child);
+                    let multiline = child.multiline;
+                    SeqItem {
+                        ctx: child,
+                        multiline,
+                        obj_or_array: false,
+                    }
+                })
+                .collect();
+            assemble_sequence(items, true, ",", true, ctx);
+            ctx.write("}");
+        }
+        ctx.write(" from ");
+        ctx.write(self.string_literal(&node.source));
+        ctx.write(";");
+    }
+
+    fn import_specifier(&mut self, node: &ImportSpecifier, ctx: &mut Context) {
+        // esrap only emits the `imported as local` form when both sides are
+        // identifiers whose names differ; otherwise just the local binding.
+        let imported = match &node.imported {
+            ModuleExportName::IdentifierName(n) => Some(n.name.as_str()),
+            ModuleExportName::IdentifierReference(n) => Some(n.name.as_str()),
+            ModuleExportName::StringLiteral(_) => None,
+        };
+        if let Some(name) = imported
+            && name != node.local.name.as_str()
+        {
+            ctx.write(name);
+            ctx.write(" as ");
+        }
+        ctx.write(node.local.name.as_str());
+    }
+
+    fn export_named_declaration(&mut self, node: &ExportNamedDeclaration, ctx: &mut Context) {
+        if let Some(decl) = &node.declaration {
+            ctx.write("export ");
+            self.declaration(decl, ctx);
+            return;
+        }
+
+        ctx.write("export {");
+        let items: Vec<SeqItem> = node
+            .specifiers
+            .iter()
+            .map(|s| {
+                let mut child = ctx.child();
+                self.export_specifier(s, &mut child);
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array: false,
+                }
+            })
+            .collect();
+        assemble_sequence(items, true, ",", true, ctx);
+        ctx.write("}");
+        if let Some(source) = &node.source {
+            ctx.write(" from ");
+            ctx.write(self.string_literal(source));
+        }
+        ctx.write(";");
+    }
+
+    fn export_default_declaration(&mut self, node: &ExportDefaultDeclaration, ctx: &mut Context) {
+        ctx.write("export default ");
+        match &node.declaration {
+            ExportDefaultDeclarationKind::FunctionDeclaration(_) => {
+                // No trailing `;` after a function declaration.
+                self.unsupported("FunctionDeclaration", ctx);
+            }
+            ExportDefaultDeclarationKind::ClassDeclaration(_) => {
+                self.unsupported("ClassDeclaration", ctx);
+                ctx.write(";");
+            }
+            other => {
+                if let Some(expr) = other.as_expression() {
+                    self.print_expression(unparen(expr), ctx);
+                } else {
+                    self.unsupported("ExportDefault", ctx);
+                }
+                ctx.write(";");
+            }
+        }
+    }
+
+    fn template_literal(&mut self, node: &TemplateLiteral, ctx: &mut Context) {
+        ctx.write("`");
+        for (i, expr) in node.expressions.iter().enumerate() {
+            let raw = node.quasis[i].value.raw.as_str();
+            ctx.write(format!("{raw}${{"));
+            self.print_expression(unparen(expr), ctx);
+            ctx.write("}");
+        }
+        if let Some(last) = node.quasis.last() {
+            ctx.write(format!("{}`", last.value.raw));
+        }
+    }
+
+    fn export_specifier(&mut self, node: &ExportSpecifier, ctx: &mut Context) {
+        let local = module_export_name_str(&node.local);
+        let exported = module_export_name_str(&node.exported);
+        ctx.write(local);
+        if local != exported {
+            ctx.write(" as ");
+            ctx.write(exported);
+        }
+    }
+
+    /// Print a `Declaration` node (the RHS of `export <decl>` and standalone
+    /// declarations). Only the variable form is wired so far.
+    fn declaration(&mut self, decl: &Declaration, ctx: &mut Context) {
+        match decl {
+            Declaration::VariableDeclaration(d) => {
+                self.variable_declaration(d, ctx);
+                ctx.write(";");
+            }
+            _ => self.unsupported("Declaration", ctx),
         }
     }
 
@@ -320,7 +480,7 @@ impl<'opt> Printer<'opt> {
                     format!("{}n", n.value)
                 })),
             Expression::StringLiteral(s) => ctx.write(self.string_literal(s)),
-            Expression::TemplateLiteral(_) => self.unsupported("TemplateLiteral", ctx),
+            Expression::TemplateLiteral(t) => self.template_literal(t, ctx),
             Expression::BinaryExpression(b) => self.binary_expression(b, ctx),
             Expression::LogicalExpression(l) => self.logical_expression(l, ctx),
             Expression::UnaryExpression(u) => self.unary_expression(u, ctx),
@@ -612,6 +772,80 @@ fn quote(value: &str, style: QuoteStyle) -> String {
     out
 }
 
+/// A pre-rendered element of a comma sequence, plus the layout flags esrap's
+/// `sequence` consults: whether the element itself broke across lines, and
+/// whether it's a property with an object/array value (which suppresses the
+/// blank-line margin between adjacent multiline elements).
+struct SeqItem {
+    ctx: Context,
+    multiline: bool,
+    obj_or_array: bool,
+}
+
+/// Port of esrap's `sequence` (no-comment path): lay pre-rendered `items` out as
+/// a separator-joined list — single line when short, or indented one-per-line
+/// when any item is multiline or the total exceeds 60 columns. `pad` adds the
+/// surrounding spaces of `{ a, b }`.
+fn assemble_sequence(
+    mut items: Vec<SeqItem>,
+    pad: bool,
+    separator: &str,
+    trailing_newline: bool,
+    parent: &mut Context,
+) {
+    let n = items.len();
+    let mut multiline = false;
+    let mut length: i64 = -1;
+    for (i, item) in items.iter_mut().enumerate() {
+        if i < n - 1 {
+            item.ctx.write(separator);
+        }
+        length += item.ctx.measure() as i64 + 1;
+        multiline |= item.multiline;
+    }
+    multiline |= length > 60;
+
+    if multiline {
+        parent.indent();
+        parent.newline();
+    } else if pad && length > 0 {
+        parent.write(" ");
+    }
+
+    let mut prev: Option<(bool, bool)> = None;
+    for item in items {
+        if let Some((prev_multiline, prev_obj)) = prev {
+            if prev_multiline && item.multiline && !(prev_obj && item.obj_or_array) {
+                parent.margin();
+            }
+            if multiline {
+                parent.newline();
+            } else {
+                parent.write(" ");
+            }
+        }
+        prev = Some((item.multiline, item.obj_or_array));
+        parent.append(item.ctx);
+    }
+
+    if multiline {
+        parent.dedent();
+        if trailing_newline {
+            parent.newline();
+        }
+    } else if pad && length > 0 {
+        parent.write(" ");
+    }
+}
+
+fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
+    match name {
+        ModuleExportName::IdentifierName(n) => n.name.as_str(),
+        ModuleExportName::IdentifierReference(n) => n.name.as_str(),
+        ModuleExportName::StringLiteral(s) => s.value.as_str(),
+    }
+}
+
 fn statement_kind(stmt: &Statement) -> &'static str {
     match stmt {
         Statement::FunctionDeclaration(_) => "FunctionDeclaration",
@@ -716,6 +950,38 @@ mod tests {
     #[test]
     fn leading_object_statement_parenthesised() {
         assert_eq!(print_ok("({ a: 1 });"), "({ a: 1 });");
+    }
+
+    #[test]
+    fn imports() {
+        assert_eq!(print_ok("import 'x';"), "import 'x';");
+        assert_eq!(print_ok("import a from 'x';"), "import a from 'x';");
+        assert_eq!(
+            print_ok("import { a, b } from 'x';"),
+            "import { a, b } from 'x';"
+        );
+        assert_eq!(
+            print_ok("import { a as b } from 'x';"),
+            "import { a as b } from 'x';"
+        );
+        assert_eq!(
+            print_ok("import a, { b } from 'x';"),
+            "import a, { b } from 'x';"
+        );
+        assert_eq!(
+            print_ok("import * as ns from 'x';"),
+            "import * as ns from 'x';"
+        );
+    }
+
+    #[test]
+    fn exports() {
+        assert_eq!(print_ok("export { a, b };"), "export { a, b };");
+        assert_eq!(
+            print_ok("export { a as b } from 'x';"),
+            "export { a as b } from 'x';"
+        );
+        assert_eq!(print_ok("export const x = 1;"), "export const x = 1;");
     }
 
     #[test]
