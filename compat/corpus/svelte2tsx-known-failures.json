@@ -51,7 +51,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/store-directive/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/svelte-element-css-hash/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
-	"svelte/packages/svelte/tests/server-side-rendering/samples/bindings-readonly/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",
 	"svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte",

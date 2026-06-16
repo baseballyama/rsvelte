@@ -5860,11 +5860,12 @@ fn build_bind_directive_suffix(
             // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
             let _ = write!(out, "{} = __sveltets_2_any(null);", expr_text);
         } else if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
-            let value = if is_ts_file {
-                format!("null as {}", ty)
-            } else {
-                format!("/** @type {{{}}} */ (null)", ty)
-            };
+            // Official uses `null as Type` whenever `isTsFile || !emitJsDoc`;
+            // `emitJsDoc` defaults to false, so the TS-syntax form is used even
+            // in a plain `<script>` component (the JSDoc form would only appear
+            // under an explicit emitJsDoc run, which the corpus does not use).
+            let _ = is_ts_file;
+            let value = format!("null as {}", ty);
             let _ = write!(
                 out,
                 "{}= /*\u{03A9}ignore_start\u{03A9}*/{}/*\u{03A9}ignore_end\u{03A9}*/;",
