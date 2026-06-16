@@ -726,7 +726,22 @@ fn collect_info_from_node(
                 collect_info_from_fragment(pending, source, info, scope, enclosing);
             }
             if let Some(ref then) = block.then {
+                // `{#await promise then value}` binds `value` to
+                // `__sveltets_2_unwrapPromiseLike(promise)` for slot props in the
+                // then-branch (mirrors official slot scope resolution).
+                let pushed = block
+                    .value
+                    .as_ref()
+                    .and_then(|v| expression_simple_identifier(v, source))
+                    .map(|name| {
+                        let promise = get_expression_text(&block.expression, source);
+                        scope.push((name, format!("__sveltets_2_unwrapPromiseLike({})", promise)));
+                    })
+                    .is_some();
                 collect_info_from_fragment(then, source, info, scope, enclosing);
+                if pushed {
+                    scope.pop();
+                }
             }
             if let Some(ref catch) = block.catch {
                 collect_info_from_fragment(catch, source, info, scope, enclosing);
