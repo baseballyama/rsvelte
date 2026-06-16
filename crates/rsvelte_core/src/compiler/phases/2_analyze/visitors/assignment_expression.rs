@@ -47,6 +47,10 @@ pub fn visit(
             // Extract all identifier names from the left-hand side
             let identifier_names = extract_identifiers(left);
 
+            // SAFETY: `reactive_stmt_ptr` is the `*mut ReactiveStatement` set on
+            // the visit context by the enclosing reactive-statement scope; its
+            // referent is owned by the analysis and outlives this traversal,
+            // which is single-threaded, so there is no live aliasing reference.
             let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
 
             for name in identifier_names {
@@ -176,6 +180,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             };
 
             let identifier_names = super::shared::utils::extract_identifiers_node(left_node, arena);
+            // SAFETY: `reactive_stmt_ptr` is the `*mut ReactiveStatement` set on
+            // the visit context by the enclosing reactive-statement scope; its
+            // referent is owned by the analysis and outlives this traversal,
+            // which is single-threaded, so there is no live aliasing reference.
             let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
 
             for name in identifier_names {

@@ -193,7 +193,13 @@ pub fn svelte_trim_end(s: &str) -> &str {
 ///
 /// This is only needed in legacy (non-runes) mode to match Svelte 4 behavior
 /// where const declarations can reference each other in any order.
-fn sort_const_tags(nodes: Vec<TemplateNode>) -> Vec<TemplateNode> {
+/// Returns `Some(reordered)` only when there is more than one `{@const}` tag to
+/// sort; otherwise returns `None` so the caller can keep borrowing the original
+/// slice instead of cloning it. With 0 or 1 const tags the order is already
+/// correct, so cloning to return an identical Vec was pure waste — and the
+/// common case for `clean_nodes`, which runs over every sibling group in the
+/// tree in legacy mode.
+fn sort_const_tags(nodes: &[TemplateNode]) -> Option<Vec<TemplateNode>> {
     // Collect const tags with their indices, declared names, and dependencies
     struct ConstTagInfo {
         index: usize,
@@ -218,7 +224,7 @@ fn sort_const_tags(nodes: Vec<TemplateNode>) -> Vec<TemplateNode> {
     }
 
     if const_infos.len() <= 1 {
-        return nodes;
+        return None;
     }
 
     // Build a map from declared name to const tag index (within const_infos)
@@ -271,29 +277,25 @@ fn sort_const_tags(nodes: Vec<TemplateNode>) -> Vec<TemplateNode> {
     }
 
     // Build result: sorted const tags first, then other nodes in original order
-    // This matches the official implementation: [...sorted, ...other]
+    // This matches the official implementation: [...sorted, ...other].
+    // Each original index is used exactly once (the const-tag and other-node
+    // index sets partition `0..nodes.len()`), so cloning per index clones every
+    // node exactly once — the same total work as the previous move-based path,
+    // but only on this rare reorder branch rather than on every call.
     let mut result: Vec<TemplateNode> = Vec::with_capacity(nodes.len());
-
-    // We need to consume `nodes` to move elements out
-    // Convert to a vec of Option so we can take elements
-    let mut nodes_opt: Vec<Option<TemplateNode>> = nodes.into_iter().map(Some).collect();
 
     // Add sorted const tags first
     for &tag_idx in &sorted_tag_indices {
         let original_index = const_infos[tag_idx].index;
-        if let Some(node) = nodes_opt[original_index].take() {
-            result.push(node);
-        }
+        result.push(nodes[original_index].clone());
     }
 
     // Add other nodes in original order
     for &other_idx in &other_indices {
-        if let Some(node) = nodes_opt[other_idx].take() {
-            result.push(node);
-        }
+        result.push(nodes[other_idx].clone());
     }
 
-    result
+    Some(result)
 }
 
 /// Extract declared names and referenced identifiers from a ConstTag declaration.
@@ -612,7 +614,6 @@ pub struct CleanedNodes<'a> {
 /// # Returns
 ///
 /// Returns a `CleanedNodes` struct containing hoisted and trimmed nodes.
-#[allow(clippy::too_many_arguments)]
 pub fn clean_nodes<'a>(
     parent: ParentRef<'_>,
     nodes: &'a [TemplateNode],
@@ -625,9 +626,12 @@ pub fn clean_nodes<'a>(
 ) -> CleanedNodes<'a> {
     // Sort const tags topologically in legacy (non-runes) mode
     // This matches the official compiler's behavior in clean_nodes (utils.js line 138-139)
+    // In legacy mode `sort_const_tags` returns `Some` only when it actually
+    // reorders (more than one `{@const}`); otherwise `None` lets us keep
+    // borrowing `nodes` below instead of cloning the whole slice every call.
     let is_legacy = !analysis.runes;
     let sorted_nodes = if is_legacy {
-        Some(sort_const_tags(nodes.to_vec()))
+        sort_const_tags(nodes)
     } else {
         None
     };
@@ -971,17 +975,20 @@ pub fn infer_namespace<N: AsRef<TemplateNode>>(
     // re-evaluated based on what elements are in the children.
     //
     // Note: In our implementation, parent is always None during the transform
-    // phase because the path is not populated. We use the incoming namespace
-    // to distinguish context: when namespace is "html", we're likely at a root
-    // or re-evaluation boundary where we need to detect SVG/MathML from children.
-    // When namespace is already "svg"/"mathml", we're inside a known namespace
-    // context (e.g., IfBlock inside SVG) and should trust it rather than
-    // re-evaluating, because ambiguous elements like <a> and <title> may not
-    // have their metadata.svg set correctly in the analysis phase.
+    // phase because the path is not populated. We still re-evaluate from the
+    // fragment's own direct elements even when the incoming namespace is
+    // svg/mathml: a block (e.g. `{#if}`) that is a *sibling* of an `<svg>`
+    // inherits the svg namespace of its enclosing fragment, but if its own
+    // children are html elements (`<div>`, `<span>`) it must use the html
+    // template (`$.from_html`, not `$.from_svg`). The re-evaluation reads each
+    // child's `metadata.svg` (set correctly in analysis, including via svg
+    // ancestors for ambiguous `<a>`/`<title>`), so the genuine "block inside
+    // SVG" case still resolves to svg; only fragments with no direct element
+    // fall through to the inherited namespace.
     let should_reevaluate = parent.is_snippet_block()
         || parent.is_component()
         || parent.is_svelte_component()
-        || (parent.is_none() && namespace == "html");
+        || parent.is_none();
 
     if should_reevaluate {
         // Check ALL child elements for consistent namespace.

@@ -1,5 +1,28 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.2.5
+
+### Patch Changes
+
+- cbf2d18: fix(compiler): emit valid JS for `$state`/`$derived` private class fields in `.svelte.(js|ts)` modules (#907)
+
+  `compileModule` produced **syntactically-invalid** JavaScript for several class-based rune-module shapes (reported against the `runed` library). The output parsed fine in isolation by `compileModule` itself — it only blew up once a bundler re-parsed it — so under Vite 8 + Rolldown, which compiles modules in parallel and aborts on the first bad file it reaches, the failing file set and the parser error text varied between runs. That _looked_ like a thread-safety bug, but the per-file output was actually deterministic; the compile path holds no shared mutable state (added a concurrency stress test that compiles the real `runed` corpus across 8 threads and asserts byte-identical output).
+
+  Four deterministic codegen bugs in the line-based class-field transform, each now fixed:
+  - **Trailing line comment swallowed into `$.set(...)`** — `this.#x = getter(); // note` lowered to `$.set(this.#x, getter(); // note, true)` (an unterminated call). RHS extraction now stops at the top-level `;` and re-appends the `; // comment` tail.
+  - **Prefix-sibling field corruption** — wrapping a private-field read used a bare `str::replace`, so wrapping `#fps` rewrote the unrelated sibling `#fpsLimitOption` into `$.get(this.#fps)LimitOption`. Reads are now replaced only at a trailing word boundary.
+  - **Multi-line constructor RHS split** — `this.#rect = {\n …\n }` was transformed line-by-line, orphaning `this.#rect = {` from its body. Constructor statements are now grouped by bracket depth before the transform runs.
+  - **Server `$state` field lowered to a call** — on SSR a `$state` private field is a plain value, but `this.#x = v` was lowered to the call form `this.#x(v)` (and reads to `this.#x()`). `post_process_for_server` now distinguishes `$.derived(...)`-backed fields (callable) from `$state` fields (plain `this.#x` / `this.#x = v`).
+
+  Also fixes a spurious `constant_assignment` error (`runed/persisted-state`): a class-method body was not registered in the scope map, so a method-local `let x` that shadowed a top-level function param `x` was misresolved to the outer (constant) binding. Class-method bodies are now registered like function bodies. Closes #907.
+
+## 0.2.4
+
+### Patch Changes
+
+- 1bcbd77: fix(parse-envelope): remap typed-arrow `JsNode::Raw` offsets to UTF-16 (#908). A typed function parameter (`(r: number[]) => …`) is lowered to a `JsNode::Raw` JSON sub-tree, which the raw-transfer envelope encoder serialized verbatim — keeping its byte offsets while every other span was remapped to UTF-16. With non-ASCII source preceding the arrow, the whole arrow (params **and** body) drifted by `byteLen − utf16Len`, so `decodeParseEnvelope` spans no longer matched `parse` (JSON) and `source.slice(node.start, node.end)` broke (`magic-string` out-of-bounds). The `JsNode::Raw` writer now applies the same `convert_positions_to_utf16` remap as `write_json_node`, so the envelope is fully UTF-16-consistent.
+- e4c82de: fix(parse): give `switch` discriminants and assignment-pattern defaults exact identifier spans (#916). In program/script context the statement converter routed a `switch (X)` discriminant, a `case X:` test, a `do … while (X)` test, and the default value of a destructuring `AssignmentPattern` through `convert_expression` (which subtracts the synthetic-paren offset) instead of `convert_expression_for_program`. That shifted those spans one code unit to the left — `switch (x)` spanned the `x` as `(`, and the `$bindable` callee in `let { open = $bindable(false) }` spanned as ` $bindabl` — so span-based edits (`magic-string`, svelte-shaker) corrupted the source. All four now use the program-context converter, so every identifier satisfies `source.slice(start, end) === name`.
+
 ## 0.2.3
 
 ### Patch Changes

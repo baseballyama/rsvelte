@@ -105,6 +105,11 @@ const LEGACY_SKIP_TESTS: &[&str] = &[
     // OXC does not attach comments to AST nodes in ESTree format (leadingComments/trailingComments).
     // The official Svelte compiler uses acorn which provides this functionality.
     "javascript-comments",
+    // Upstream skips this fixture (`_config.js` `skip: true`): the official
+    // compiler now errors with `block_unexpected_close` (the open `<li>`
+    // inside `{#if}` hits close()'s RegularElement case), so the checked-in
+    // output.json is stale. rsvelte mirrors the error.
+    "implicitly-closed-li-block",
 ];
 
 /// Same as `LEGACY_SKIP_TESTS` but for parser-modern fixtures.

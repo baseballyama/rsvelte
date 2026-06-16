@@ -969,6 +969,10 @@ fn process_on_directive(
     // This is handled via build_event_handler which sets needs_props_from_events
 
     // Build base event handler
+    // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
+    // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
+    // `context` is reborrowed mutably by `build_event_handler`. The arena
+    // outlives this borrow and traversal is single-threaded (no aliasing).
     let arena_local = unsafe { &*(&context.arena as *const _) };
     let mut handler = build_event_handler(
         arena_local,
@@ -1066,9 +1070,6 @@ fn process_regular_attribute(
     custom_css_props: &mut Vec<JsObjectMember>,
     memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
-    #[allow(unused_imports)]
-    use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
-
     // Handle custom CSS properties (--var)
     if attr.name.starts_with("--") {
         // Build the attribute value with potential memoization
@@ -1287,7 +1288,6 @@ fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> 
 }
 
 /// Process a bind directive.
-#[allow(clippy::too_many_arguments)]
 fn process_bind_directive(
     bind: &BindDirective,
     context: &mut ComponentContext,
@@ -2182,6 +2182,10 @@ fn visit_slot_children(
     use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
     use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 
+    // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`) with
+    // nodes behind stable `Box`es, so a shared `&JsArena` stays valid while
+    // `context` is reborrowed mutably below. The arena outlives this borrow
+    // and traversal is single-threaded (no aliasing).
     let arena_local2: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena =
         unsafe { &*(&context.arena as *const _) };
 
@@ -2210,6 +2214,12 @@ fn visit_slot_children(
     let saved_init = std::mem::take(&mut context.state.init);
     let saved_update = std::mem::take(&mut context.state.update);
     let saved_after_update = std::mem::take(&mut context.state.after_update);
+    // The slot content is its own fragment: upstream's Fragment visitor clones
+    // the transform map (`transform: { ...state.transform }`), so transforms
+    // registered while visiting slot content (e.g. a slot-level `{@const}`)
+    // must not leak to sibling slots / later components.
+    let saved_transform = context.state.transform.clone();
+    let saved_transform_deep_read = context.state.transform_deep_read.clone();
     let saved_template = context.state.template.clone();
     let saved_node = context.state.node.clone();
     let saved_hoisted = std::mem::take(&mut context.state.hoisted);
@@ -2280,6 +2290,17 @@ fn visit_slot_children(
                 }
             };
 
+            // A single-element slot whose root is a custom element / `<video>`
+            // (visited just above) sets `needs_import_node`; the template must
+            // carry the `USE_IMPORT_NODE` flag (`2`) so cloning upgrades the
+            // custom element — mirrors the top-level single-element fragment
+            // path. This branch previously hardcoded `flags = None`.
+            let flags = if context.state.template.needs_import_node {
+                Some(2u32) // TEMPLATE_USE_IMPORT_NODE
+            } else {
+                None
+            };
+
             // Build the template expression using transform_template
             // which handles dev mode $.add_locations wrapping, lazy id naming
             // and template dedup (Svelte 5.56.0 #18320).
@@ -2288,7 +2309,7 @@ fn visit_slot_children(
                 &mut context.state,
                 "root",
                 namespace,
-                None,
+                flags,
                 None,
             );
 
@@ -2365,8 +2386,10 @@ fn visit_slot_children(
                 ),
             ));
         }
-    } else {
-        // For non-standalone cases, follow Fragment.js pattern:
+    } else if !cleaned.trimmed.is_empty() {
+        // For non-standalone cases, follow Fragment.js pattern (upstream gates
+        // this branch on `trimmed.length > 0` — a slot whose content is ONLY
+        // hoisted nodes like `{@const}` emits no template / fragment / append):
         // 1. Create fragment variable
         // 2. Use process_children with $.first_child(fragment) as initial expression
         // 3. Check if template is single comment -> use $.comment()
@@ -2627,6 +2650,10 @@ fn visit_slot_children(
         ));
     }
 
+    // Restore the transform maps (slot-local transforms end here)
+    context.state.transform = saved_transform;
+    context.state.transform_deep_read = saved_transform_deep_read;
+
     // Add init statements
     let init_stmts = std::mem::replace(&mut context.state.init, saved_init);
     result.extend(init_stmts);
@@ -2843,7 +2870,6 @@ fn build_bind_this_call(
 }
 
 /// Build component with CSS props wrapper.
-#[allow(clippy::too_many_arguments)]
 fn build_with_css_props(
     statements: &mut Vec<JsStatement>,
     context: &mut ComponentContext,

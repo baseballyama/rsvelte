@@ -4,6 +4,7 @@
 //! Drift between committed header and lib.rs is caught separately by
 //! the build script (when RSVELTE_CAPI_CHECK_HEADER=1, in CI).
 
+use std::fmt::Write as _;
 use std::path::PathBuf;
 
 fn header() -> String {
@@ -103,7 +104,7 @@ fn simple_diff(a: &str, b: &str) -> String {
         let la = a.get(i).copied().unwrap_or("<EOF>");
         let lb = b.get(i).copied().unwrap_or("<EOF>");
         if la != lb {
-            out.push_str(&format!("- {la}\n+ {lb}\n"));
+            let _ = writeln!(out, "- {la}\n+ {lb}");
         }
     }
     out

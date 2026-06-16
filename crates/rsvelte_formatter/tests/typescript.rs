@@ -124,6 +124,25 @@ fn non_ts_component_does_not_parse_ts_syntax() {
     );
 }
 
+// ─── #946: `>` inside a `generics` attribute value must not split the body ──
+
+#[test]
+fn script_generics_attr_with_angle_brackets_parses() {
+    // The `generics` attribute value contains a literal `>` (`Record<…>`). A
+    // naive `find('>')` when locating the tag-terminating `>` would start the
+    // body slice mid-attribute, so oxc parsed garbage and reported a spurious
+    // "Unexpected token" — leaving the file unformatted (#946).
+    let src = "<script lang=\"ts\" generics=\"TItem extends Record<string, unknown>\">\n\timport { onMount } from \"svelte\";\n\tconst x = 1;\n</script>\n";
+    let out = format(src, &FormatOptions::default()).expect("format should succeed");
+    assert!(out.contains("import { onMount }"), "body preserved:\n{out}");
+    assert!(out.contains("const x = 1;"), "body preserved:\n{out}");
+    // The open tag (with its generics attribute) survives unchanged.
+    assert!(
+        out.contains("generics=\"TItem extends Record<string, unknown>\""),
+        "generics attribute preserved:\n{out}"
+    );
+}
+
 // ─── #761: <script> body long type-argument wrapping matches oxfmt ──────────
 
 #[test]
@@ -159,5 +178,54 @@ fn script_long_type_alias_wraps_like_oxfmt() {
         .expect("fmt"),
         out,
         "must be idempotent"
+    );
+}
+
+// ─── Plain `<script>` (no lang="ts") containing TS — formatter parses as TS ──
+//
+// oxfmt / prettier-plugin-svelte parse Svelte `<script>` as TS by default, so a
+// plain `<script>` containing TS-only syntax is valid, formattable input there.
+// rsvelte-fmt mirrors this via a JS-first / TS-fallback parse: a normal JS parse
+// is tried first (so valid-JS components never change dialect), and only on
+// failure is the source re-parsed forcing TS. Regression for the corpus
+// `v4-migration-guide` / `content-sveltekit` entries.
+
+#[test]
+fn plain_script_with_typeof_generic_formats_as_ts() {
+    // `typeof X<any>` is TS-only; a JS parse fails, the TS fallback succeeds.
+    let src = "<script>\n\tlet component: typeof SvelteComponent<any>;\n</script>\n";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains("let component: typeof SvelteComponent<any>;"),
+        "plain <script> TS should round-trip:\n{out}"
+    );
+    // Idempotent.
+    assert_eq!(
+        format(&out, &FormatOptions::default()).expect("fmt"),
+        out,
+        "must be idempotent"
+    );
+}
+
+#[test]
+fn plain_script_with_import_type_formats_as_ts() {
+    // `import type { … }` is TS-only.
+    let src = "<script>\n\timport type { PageProps } from './$types';\n\tlet x = 1;\n</script>\n";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains("import type { PageProps } from \"./$types\";"),
+        "import type should round-trip via TS fallback:\n{out}"
+    );
+}
+
+#[test]
+fn plain_script_valid_js_is_untouched_by_fallback() {
+    // A valid-JS plain <script> must parse on the JS path (no fallback), so a
+    // bare `<T>` that would be a TS cast stays a comparison-free formatting.
+    let src = "<script>\n\tlet a = 1;\n\tlet b = a + 2;\n</script>\n";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains("let a = 1;") && out.contains("let b = a + 2;"),
+        "{out}"
     );
 }

@@ -1,5 +1,28 @@
 # @rsvelte/fmt
 
+## 0.3.13
+
+### Patch Changes
+
+- 359c84d: perf(fmt): hand inline `<style>` blocks to oxfmt as a directory, not N explicit paths (#707)
+
+  On a cold run (cache miss — first run, or CI without a persisted cache) the batched inline-`<style>` pass staged every extracted CSS body into a temp dir and invoked `oxfmt s0.css s1.css … sN.css` with one explicit path per block. A multi-hundred-entry argv defeats oxfmt's parallel directory walk (and at scale risks `ARG_MAX`), making the cold path slower than it needs to be.
+
+  `rsvelte-fmt` now passes the staging directory itself (`oxfmt <dir>`) and reads the results back by their known `s{i}` names. The staging dir holds only our files and is cleared before each batch, so the walk formats exactly the set we read back. Output is byte-identical — same `oxfmt`, same forced `-c` config — and warm runs are unchanged (still served from the `<style>` cache). The two oxfmt subprocesses (non-`.svelte` delegation and the CSS batch) already overlap via `rayon::join`.
+
+## 0.3.12
+
+### Patch Changes
+
+- d5db8ae: fix(fmt): reach byte-for-byte parity with the `oxfmt(svelte: true)` oracle across the entire svelte.dev corpus (1103/1103). Markup-layout fixes: fill fragment-level inline prose runs (pure text and one-line inline elements) that overflow; hug a block's single inline-element body (`{#each …}<span>…</span>{/each}`); wrap an overflowing content mustache inside `<pre>`/`<textarea>`; member-chain-break a hugged element's overflowing trailing mustache; glue a hugged inline child to a wrapped open tag's last attribute; format `<pre>`/`<textarea>` block content (space-indented bodies + embedded JS, element-direct whitespace kept as tabs) and hug pure-text components. Correctness fixes: preserve raw entities in attribute values (no longer decode `&quot;` → `"`, which corrupted the markup); make the collapse re-parse best-effort instead of fatal; fall back to the TypeScript parser for a `<script>` without `lang="ts"` that uses TS-only syntax.
+- d5db8ae: test(fmt): add the svelte.dev formatter parity corpus. A new test suite formats every `.svelte` file and every ` ```svelte ` markdown code block from the `svelte.dev` repo (added as a submodule) and asserts byte-for-byte equality with an `oxfmt(svelte: true)` oracle — `prettier-plugin-svelte` for the Svelte structure plus the oxc engine for embedded JS/CSS, the same layering rsvelte-fmt uses — so diffs isolate rsvelte's Svelte-structure formatting. A third stage runs the `rsvelte-fmt` CLI on whole markdown files vs a direct-oxfmt oracle to guard `.md` delegation. Oracle outputs are precomputed by `pnpm run generate-fmt-corpus` (gitignored, CI-cached by svelte.dev SHA); the suites track progress against committed baselines (`tests/fmt_corpus_baseline.txt`, `tests/fmt_corpus_markdown_baseline.txt`) and fail only on new regressions. Initial: Stage 1+2 726/1148, Stage 3 638/638.
+
+## 0.3.11
+
+### Patch Changes
+
+- 4ce4926: fix(fmt): locate the `<script>` opening-tag terminator with a quote-aware scan so a `>` inside an attribute value no longer corrupts body extraction. A `<script lang="ts" generics="T extends Record<string, unknown>">` has a literal `>` inside the `generics` attribute value; the naive `block.find('>')` in `body_span` matched that one first and started the body slice mid-attribute, so oxc parsed garbage and reported a spurious `Unexpected token` — leaving the whole file unformatted. `find_open_tag_end` now skips any `>` that appears inside single- or double-quoted attribute values, terminating the open tag at the real unquoted `>`. Closes #946.
+
 ## 0.3.10
 
 ### Patch Changes

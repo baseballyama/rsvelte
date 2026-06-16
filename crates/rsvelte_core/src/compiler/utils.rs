@@ -2,6 +2,25 @@
 //!
 //! Corresponds to Svelte's `utils.js`.
 
+/// Slice a fixed-size look-back window ending at `end`, clamped to a UTF-8
+/// char boundary so it can never panic.
+///
+/// Returns `source[lo..end]`, where `lo` is the first char boundary at or after
+/// `end.saturating_sub(window)`. A plain `&source[end - window..end]` panics
+/// with a non-char-boundary slice error when a multibyte character straddles
+/// `end - window` — which a `.svelte` source can contain anywhere. Callers use
+/// these windows to feed ASCII-only scans (e.g. a regex for `{:then`), so a
+/// shorter window on multibyte input is equivalent: the ASCII pattern can't
+/// span a multibyte byte. `end` must already be a char boundary (callers pass
+/// AST token positions); it is clamped to `source.len()` defensively.
+pub fn char_boundary_lookback(source: &str, end: usize, window: usize) -> &str {
+    let end = end.min(source.len());
+    let lo = (end.saturating_sub(window)..end)
+        .find(|&i| source.is_char_boundary(i))
+        .unwrap_or(end);
+    &source[lo..end]
+}
+
 /// List of Element events that will be delegated.
 ///
 /// Corresponds to `DELEGATED_EVENTS` in utils.js.

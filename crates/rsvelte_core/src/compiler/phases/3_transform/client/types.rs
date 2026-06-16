@@ -18,6 +18,7 @@ use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::{Cell, RefCell};
+use std::fmt::Write as _;
 use std::rc::Rc;
 
 /// Component transformation context.
@@ -721,10 +722,17 @@ impl<'a> ComponentContext<'a> {
             ),
         );
 
-        // Handle LetDirectives by wrapping in ExpressionStatements
+        // Handle LetDirectives: the official Svelte compiler throws "Not implemented: LetDirective"
+        // when esrap tries to serialize a LetDirective node that was left in the JS AST after
+        // `context.visit(attribute)` on a SvelteElement (SvelteElement.js line 67 calls
+        // `context.visit(attribute)` without providing `let_directives` in state, so the
+        // LetDirective.js visitor returns undefined and the raw AST node flows into esrap).
+        // We match this behaviour by recording a pending error on the state; the root transform
+        // (transform_client_with_visitors) checks it after the fragment visit and returns
+        // Err(TransformError::CodeGen("Not implemented: LetDirective")).
         let mut statements = Vec::new();
-        for _let_dir in &let_directives {
-            // TODO: Implement LetDirective handling
+        if !let_directives.is_empty() {
+            self.state.pending_error = Some("Not implemented: LetDirective".to_string());
         }
 
         // Dev mode: add validation calls (matches official SvelteElement.js lines 120-125)
@@ -1057,6 +1065,11 @@ impl<'a> ComponentContext<'a> {
                     // Use the memoizer callback: if expression has_call or has_await,
                     // memoize it and replace with $.get($N)
                     let memo_idx_start = memo_entries.len();
+                    // SAFETY: `JsArena` allocates via interior mutability
+                    // (`UnsafeCell`) with nodes behind stable `Box`es, so a
+                    // shared `&JsArena` stays valid while `self` is reborrowed
+                    // mutably in the closure. The arena outlives this borrow and
+                    // traversal is single-threaded, so there is no aliasing.
                     let arena_ref = unsafe { &*(&self.arena as *const _) };
                     let result = build_attribute_value(&attr.value, self, |value, metadata| {
                         let has_call = metadata.has_call();
@@ -1128,11 +1141,11 @@ impl<'a> ComponentContext<'a> {
             };
             let block = visit_fragment_impl(&inner_fragment, self, false);
 
-            if block.body.is_empty() {
-                b::null()
-            } else {
-                b::arrow_block(vec![b::id_pattern("$$anchor")], block.body)
-            }
+            // Upstream emits the fallback arrow whenever `node.fragment.nodes`
+            // is non-empty — a comment-only fallback (`<slot><!-- x --></slot>`)
+            // still yields `($$anchor) => {}`, not `null`. Don't downgrade to
+            // null just because the generated body came out empty.
+            b::arrow_block(vec![b::id_pattern("$$anchor")], block.body)
         };
 
         // Restore original transforms after visiting children
@@ -1849,6 +1862,13 @@ pub struct ComponentClientTransformState<'a> {
     /// Transformed {@const} declarations
     pub consts: Vec<JsStatement>,
 
+    /// Statements to duplicate at the very top of the NEXT snippet function
+    /// body built by `snippet_block`. Used by `<svelte:boundary>` (non-async
+    /// mode): upstream duplicates boundary-level `{@const}` declarations into
+    /// every hoisted snippet (SvelteBoundary.js "we cheat: we duplicate const
+    /// tags inside snippets"). Consumed (taken) by `snippet_block`.
+    pub snippet_body_prepend: Vec<JsStatement>,
+
     /// Transformed async {@const} declarations (if any)
     pub async_consts: Option<AsyncConsts>,
 
@@ -2097,6 +2117,11 @@ pub struct ComponentClientTransformState<'a> {
     /// This mirrors the official Svelte compiler's `binding.blocker` mechanism.
     /// Uses `Rc<RefCell<...>>` for shared ownership across nested fragment states.
     pub const_blocker_map: Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, JsExpr>>>,
+
+    /// Pending transform error set during template traversal (e.g. "Not implemented: LetDirective").
+    /// Checked after the root fragment visit; if Some, `transform_client_with_visitors` returns
+    /// `Err(TransformError::CodeGen(...))` so the corpus sees an error entry for the client target.
+    pub pending_error: Option<String>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -2195,6 +2220,7 @@ impl<'a> ComponentClientTransformState<'a> {
             update: Vec::new(),
             after_update: Vec::new(),
             consts: Vec::new(),
+            snippet_body_prepend: Vec::new(),
             async_consts: None,
             let_directives: Vec::new(),
             node,
@@ -2244,6 +2270,7 @@ impl<'a> ComponentClientTransformState<'a> {
             is_standalone: false,
             const_blocker_map: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
             templates: Rc::new(std::cell::RefCell::new(rustc_hash::FxHashMap::default())),
+            pending_error: None,
         }
     }
 
@@ -2278,6 +2305,26 @@ impl<'a> ComponentClientTransformState<'a> {
         // Fall back to searching all scopes (handles cases where scope linkage is missing)
         let index = self.scope_root.find_binding_any_scope(name)?;
         self.scope_root.bindings.get(index)
+    }
+
+    /// Whether `scope_index` is the current scope (`self.scope`) or one of its
+    /// ancestors. Used to restrict constant-folding of snippet-scoped template
+    /// declarations to lexically reachable references (upstream resolves these
+    /// through `scope.evaluate`, which walks the scope chain).
+    pub fn scope_chain_contains(&self, scope_index: usize) -> bool {
+        if let Some(target) = self.scope_root.all_scopes.get(scope_index)
+            && std::ptr::eq(self.scope as *const Scope, target as *const Scope)
+        {
+            return true;
+        }
+        let mut parent = self.scope.parent;
+        while let Some(idx) = parent {
+            if idx == scope_index {
+                return true;
+            }
+            parent = self.scope_root.all_scopes.get(idx).and_then(|s| s.parent);
+        }
+        false
     }
 
     /// Look up a local variable's init expression AST node type.
@@ -2566,7 +2613,6 @@ pub struct IdentifierTransform {
     /// - identifier: The identifier being assigned to
     /// - value: The value being assigned
     /// - needs_proxy: Whether the value needs to be proxified
-    #[allow(clippy::type_complexity)]
     pub assign: Option<fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
 
     /// How to handle mutations to the identifier
@@ -2584,7 +2630,6 @@ pub struct IdentifierTransform {
     /// - operator: The update operator (++ or --)
     /// - argument: The identifier being updated
     /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
-    #[allow(clippy::type_complexity)]
     pub update: Option<fn(&JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
 
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
@@ -2678,7 +2723,7 @@ impl TemplateBuilder {
             && last.ends_with('>')
         {
             last.pop(); // Remove the '>'
-            last.push_str(&format!(" {}=\"{}\"", name, value));
+            let _ = write!(last, " {}=\"{}\"", name, value);
             last.push('>');
         }
     }
@@ -3087,30 +3132,37 @@ impl Memoizer {
             return self.generate_id_slow(base);
         };
 
-        // Fast path: most calls succeed on the first attempt. Only borrow the
-        // shared `conflicts` set (skip the `next_suffix` borrow), and use
-        // `HashSet::insert` to combine the lookup + insert into a single
-        // hash. This function is ~33% of phase-3 transform inclusive time
-        // on template-heavy input, so trimming a redundant hash lookup +
-        // a RefCell borrow per call matters.
+        // Fast path: the base name is free. This function dominates phase-3
+        // transform time on template-heavy input, where a handful of base
+        // names ("text", "div", …) are reused across thousands of nodes — so
+        // the *first* call for a base takes this branch and every later one
+        // falls through to the suffix loop. `contains` (a borrow on `&str`,
+        // no allocation) keeps that common failure cheap; we only allocate
+        // the two owned Strings — one stored, one returned — on the rare
+        // success.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            let owned = sanitized.to_string();
-            if conflicts.insert(owned.clone()) {
-                return owned;
+            if !conflicts.contains(sanitized) {
+                conflicts.insert(sanitized.to_string());
+                return sanitized.to_string();
             }
         }
 
-        // Conflict path: fall through to the suffix loop. The loop body uses
-        // `contains` rather than `insert` so we don't allocate a String per
-        // candidate when the suffix tracker keeps us close to the next free
-        // slot — only the winning name gets cloned for insertion at the end.
+        // Conflict path: append `_N`, advancing `N` from the per-base suffix
+        // tracker so we usually land on a free slot in one iteration. A single
+        // `insert` does the membership test and the record in one hash; the
+        // reused `name` buffer is the winning return value, and only the
+        // stored copy is cloned.
         let mut conflicts = self.conflicts.borrow_mut();
         let mut next_suffix = self.next_suffix.borrow_mut();
-        let start_n = next_suffix.get(sanitized).copied().unwrap_or(1);
+        // One hash of the base: read the current suffix and keep the slot so we
+        // can bump it after the loop without a second lookup. The slot borrows
+        // `next_suffix`, but the loop only touches `conflicts`, so holding it
+        // across the loop is fine.
+        let slot = next_suffix.get_mut(sanitized);
+        let mut n = slot.as_deref().copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
-        let mut n = start_n;
         loop {
             name.clear();
             name.push_str(sanitized);
@@ -3120,34 +3172,40 @@ impl Memoizer {
             } else {
                 name.push_str(itoa_buf.format(n));
             }
-            if !conflicts.contains(name.as_str()) {
+            if conflicts.insert(name.clone()) {
                 break;
             }
             n += 1;
         }
 
-        conflicts.insert(name.clone());
-        next_suffix.insert(sanitized.to_string(), n + 1);
+        match slot {
+            Some(slot) => *slot = n + 1,
+            None => {
+                next_suffix.insert(sanitized.to_string(), n + 1);
+            }
+        }
         name
     }
 
     fn generate_id_slow(&mut self, base: &str) -> String {
         let sanitized = sanitize_identifier(base);
 
-        // Mirror the fast-path optimization in `generate_id`: skip the
-        // `next_suffix` borrow on the no-conflict path and combine the
-        // lookup + insert into a single `HashSet::insert`.
+        // Mirror the fast/conflict-path layout of `generate_id`: a
+        // non-allocating `contains` on the common failure, then a single
+        // `insert` that tests and records the suffixed name in one hash.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            if conflicts.insert(sanitized.clone()) {
+            if !conflicts.contains(sanitized.as_str()) {
+                conflicts.insert(sanitized.clone());
                 return sanitized;
             }
         }
 
         let mut conflicts = self.conflicts.borrow_mut();
         let mut next_suffix = self.next_suffix.borrow_mut();
-        let start_n = next_suffix.get(sanitized.as_str()).copied().unwrap_or(1);
-        let mut n = start_n;
+        // One hash of the base (see `generate_id`): read + bump via one slot.
+        let slot = next_suffix.get_mut(sanitized.as_str());
+        let mut n = slot.as_deref().copied().unwrap_or(1);
         let mut name = String::with_capacity(sanitized.len() + 4);
         let mut itoa_buf = itoa::Buffer::new();
         loop {
@@ -3159,14 +3217,18 @@ impl Memoizer {
             } else {
                 name.push_str(itoa_buf.format(n));
             }
-            if !conflicts.contains(name.as_str()) {
+            if conflicts.insert(name.clone()) {
                 break;
             }
             n += 1;
         }
 
-        conflicts.insert(name.clone());
-        next_suffix.insert(sanitized, n + 1);
+        match slot {
+            Some(slot) => *slot = n + 1,
+            None => {
+                next_suffix.insert(sanitized, n + 1);
+            }
+        }
         name
     }
 

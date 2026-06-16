@@ -78,6 +78,9 @@ pub struct ScopeBuilder<'a> {
     /// Used by Phase 2 visitors to properly track context.scope when entering
     /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
     template_scope_map: FxHashMap<u32, usize>,
+    /// Scope indices created for `{#snippet …}` bodies (see
+    /// `ScopeRoot::snippet_scope_indices`).
+    snippet_scope_indices: rustc_hash::FxHashSet<usize>,
     /// Identifier names found in template expression arrow function parameters.
     /// These need to be in the conflicts set so that generated variable names
     /// (like `node`, `$$array`, etc.) don't collide with them.
@@ -121,6 +124,7 @@ impl<'a> ScopeBuilder<'a> {
             current_script_offset: 0,
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
         }
@@ -316,6 +320,7 @@ impl<'a> ScopeBuilder<'a> {
                 function_scope_map: self.function_scope_map,
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
+                snippet_scope_indices: self.snippet_scope_indices,
                 conflicts: std::rc::Rc::new(std::cell::RefCell::new(conflicts)),
             },
             self.validation_errors,
@@ -700,7 +705,12 @@ impl<'a> ScopeBuilder<'a> {
                 }
                 // Declare function parameters in the new scope
                 for param in self.arena.get_js_children(params) {
-                    self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
+                    self.declare_bindings_from_pattern_node_with_kind(
+                        param,
+                        BindingKind::Normal,
+                        false,
+                        DeclarationKind::Param,
+                    );
                 }
                 // Process function body for assignments
                 if let Some(body_id) = body {
@@ -975,8 +985,12 @@ impl<'a> ScopeBuilder<'a> {
                     let body_node = self.arena.get_js_node(body_id);
                     if let JsNode::ExpressionStatement { expression, .. } = body_node {
                         let expr = self.arena.get_js_node(*expression);
-                        // Handle AssignmentExpression directly
-                        if let JsNode::AssignmentExpression { left, .. } = expr {
+                        // Handle AssignmentExpression directly. Only a top-level
+                        // `$:` (function_depth == 1) declares an implicit
+                        // reactive binding; a function-nested one is plain.
+                        if let JsNode::AssignmentExpression { left, .. } = expr
+                            && self.function_depth == 1
+                        {
                             let left_node = self.arena.get_js_node(*left);
                             self.collect_assignment_lhs_identifiers_typed(left_node);
                         }
@@ -1052,7 +1066,11 @@ impl<'a> ScopeBuilder<'a> {
                     // Declare function parameters
                     if let Some(params) = json.get("params").and_then(|p| p.as_array()) {
                         for param in params {
-                            self.declare_raw_binding_names(param, BindingKind::Normal);
+                            self.declare_raw_binding_names(
+                                param,
+                                BindingKind::Normal,
+                                DeclarationKind::Param,
+                            );
                         }
                     }
                     for stmt in body_stmts {
@@ -1131,6 +1149,7 @@ impl<'a> ScopeBuilder<'a> {
                     if inner_expr.get("type").and_then(|t| t.as_str())
                         == Some("AssignmentExpression")
                         && let Some(left) = inner_expr.get("left")
+                        && self.function_depth == 1
                     {
                         self.collect_raw_assignment_lhs_identifiers(left);
                     }
@@ -1217,7 +1236,11 @@ impl<'a> ScopeBuilder<'a> {
                     if let Some(param) = json.get("param")
                         && !param.is_null()
                     {
-                        self.declare_raw_binding_names(param, BindingKind::Normal);
+                        self.declare_raw_binding_names(
+                            param,
+                            BindingKind::Normal,
+                            DeclarationKind::Const,
+                        );
                     }
                     self.process_raw_statement(body);
                     self.pop_scope(old_scope);
@@ -1319,10 +1342,29 @@ impl<'a> ScopeBuilder<'a> {
                     if let Some(value) = element.get("value") {
                         let old_scope = self.push_function_scope();
                         self.function_depth += 1;
+                        // Register the method body scope for the visitor phase, keyed
+                        // by the body's JSON `start` offset (same as the JSON
+                        // `FunctionDeclaration` path above). Without this the visitor
+                        // resolved identifiers inside the method against the outer
+                        // class/module scope, so a method-local `let x` shadowing a
+                        // top-level function param `x` was misresolved to the outer
+                        // (constant) binding and mis-reported as `constant_assignment`
+                        // (issue #907 follow-up: runed `persisted-state`,
+                        // `use-search-params`).
+                        if let Some(fn_body) = value.get("body")
+                            && let Some(start) = fn_body.get("start").and_then(|s| s.as_u64())
+                        {
+                            self.function_scope_map
+                                .insert(start as u32, self.current_scope);
+                        }
                         // Declare function parameters
                         if let Some(params) = value.get("params").and_then(|p| p.as_array()) {
                             for param in params {
-                                self.declare_raw_binding_names(param, BindingKind::Normal);
+                                self.declare_raw_binding_names(
+                                    param,
+                                    BindingKind::Normal,
+                                    DeclarationKind::Param,
+                                );
                             }
                         }
                         // Process method body for declarations and updates
@@ -1469,7 +1511,7 @@ impl<'a> ScopeBuilder<'a> {
             Some("Identifier") => {
                 if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
                     let kind = init
-                        .map(Self::detect_binding_kind_from_json)
+                        .map(|i| self.detect_binding_kind_from_json(i))
                         .unwrap_or(BindingKind::Normal);
                     let start_val =
                         pattern.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
@@ -1518,6 +1560,13 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
             }
+            // An array-pattern rest element (`[a, ...rest]` / `[a, ...[b, c]]`)
+            // declares the bindings of its argument pattern. Without this arm,
+            // names nested under `...` in `export let [a, ...[b]] = …` were
+            // silently dropped (destructured-props-4/5).
+            Some("RestElement") | Some("SpreadElement") => {
+                self.process_raw_binding_pattern(pattern.get("argument"), None, decl_kind);
+            }
             Some("AssignmentPattern") => {
                 self.process_raw_binding_pattern(pattern.get("left"), init, decl_kind);
             }
@@ -1526,12 +1575,17 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Declare binding names from a JSON pattern (for function parameters in Raw paths).
-    fn declare_raw_binding_names(&mut self, pattern: &serde_json::Value, kind: BindingKind) {
+    fn declare_raw_binding_names(
+        &mut self,
+        pattern: &serde_json::Value,
+        kind: BindingKind,
+        decl_kind: DeclarationKind,
+    ) {
         let pattern_type = pattern.get("type").and_then(|t| t.as_str());
         match pattern_type {
             Some("Identifier") => {
                 if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
-                    self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                    self.declare_binding(name.to_string(), kind, decl_kind);
                 }
             }
             Some("ObjectPattern") => {
@@ -1540,13 +1594,13 @@ impl<'a> ScopeBuilder<'a> {
                         let prop_type = prop.get("type").and_then(|t| t.as_str());
                         if prop_type == Some("Property") {
                             if let Some(value) = prop.get("value") {
-                                self.declare_raw_binding_names(value, kind);
+                                self.declare_raw_binding_names(value, kind, decl_kind);
                             }
                         } else if (prop_type == Some("RestElement")
                             || prop_type == Some("SpreadElement"))
                             && let Some(arg) = prop.get("argument")
                         {
-                            self.declare_raw_binding_names(arg, kind);
+                            self.declare_raw_binding_names(arg, kind, decl_kind);
                         }
                     }
                 }
@@ -1555,19 +1609,19 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null() {
-                            self.declare_raw_binding_names(elem, kind);
+                            self.declare_raw_binding_names(elem, kind, decl_kind);
                         }
                     }
                 }
             }
             Some("AssignmentPattern") => {
                 if let Some(left) = pattern.get("left") {
-                    self.declare_raw_binding_names(left, kind);
+                    self.declare_raw_binding_names(left, kind, decl_kind);
                 }
             }
             Some("RestElement") => {
                 if let Some(arg) = pattern.get("argument") {
-                    self.declare_raw_binding_names(arg, kind);
+                    self.declare_raw_binding_names(arg, kind, decl_kind);
                 }
             }
             _ => {}
@@ -1576,7 +1630,11 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Detect binding kind from a JSON expression value.
     /// This is the JSON equivalent of `detect_binding_kind_from_node`.
-    fn detect_binding_kind_from_json(init: &serde_json::Value) -> BindingKind {
+    /// Like the typed version, a rune-named callee only counts when neither
+    /// the prefixed name (`$derived` — e.g. a shadowing function parameter)
+    /// nor the unprefixed name (`derived` — a store-subscription candidate)
+    /// is bound in the current scope chain.
+    fn detect_binding_kind_from_json(&self, init: &serde_json::Value) -> BindingKind {
         if init.get("type").and_then(|t| t.as_str()) == Some("CallExpression") {
             let callee = match init.get("callee") {
                 Some(c) => c,
@@ -1584,7 +1642,9 @@ impl<'a> ScopeBuilder<'a> {
             };
             let callee_type = callee.get("type").and_then(|t| t.as_str());
             if callee_type == Some("Identifier") {
-                if let Some(name) = callee.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = callee.get("name").and_then(|n| n.as_str())
+                    && !self.has_binding_for_rune_name(name)
+                {
                     match name {
                         "$state" => return BindingKind::State,
                         "$derived" => return BindingKind::Derived,
@@ -1598,6 +1658,11 @@ impl<'a> ScopeBuilder<'a> {
                 if let (Some(obj), Some(prop)) = (obj, prop) {
                     let obj_name = obj.get("name").and_then(|n| n.as_str());
                     let prop_name = prop.get("name").and_then(|n| n.as_str());
+                    if let Some(obj_name) = obj_name
+                        && self.has_binding_for_rune_name(obj_name)
+                    {
+                        return BindingKind::Normal;
+                    }
                     match (obj_name, prop_name) {
                         (Some("$state"), Some("raw")) => return BindingKind::RawState,
                         (Some("$derived"), Some("by")) => return BindingKind::Derived,
@@ -1607,6 +1672,15 @@ impl<'a> ScopeBuilder<'a> {
             }
         }
         BindingKind::Normal
+    }
+
+    /// Whether `name` (a `$`-prefixed rune candidate) or its unprefixed base
+    /// is bound in the current scope chain — mirroring the guard in the typed
+    /// `detect_binding_kind_from_node`.
+    fn has_binding_for_rune_name(&self, name: &str) -> bool {
+        let unprefixed = name.strip_prefix('$').unwrap_or(name);
+        self.find_binding_in_scope_chain(unprefixed).is_some()
+            || self.find_binding_in_scope_chain(name).is_some()
     }
 
     /// Process a binding pattern from a typed JsNode (for variable declarations).
@@ -1796,6 +1870,17 @@ impl<'a> ScopeBuilder<'a> {
                             self.process_binding_pattern_typed(node_ref, init, decl_kind);
                         }
                     }
+                    // An array-pattern rest element (`[a, ...rest]` /
+                    // `[a, ...[b, c]]`) declares the bindings of its argument
+                    // pattern (destructured-props-4/5).
+                    Some("RestElement") | Some("SpreadElement") => {
+                        if let Some(arg) = json.get("argument") {
+                            let node = JsNode::Raw(arg.clone());
+                            let node_id = self.arena.alloc_js_node(node);
+                            let node_ref = self.arena.get_js_node(node_id);
+                            self.process_binding_pattern_typed(node_ref, None, decl_kind);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -1879,12 +1964,29 @@ impl<'a> ScopeBuilder<'a> {
                             let params = *params;
                             let old_scope = self.push_function_scope();
                             self.function_depth += 1;
+                            // Record method body start -> scope index so the visitor
+                            // phase (`function_expression::visit_typed`) resolves
+                            // identifiers inside the method against the method's own
+                            // scope. Without this the body inherited the class/module
+                            // scope, so a method-local `let x` shadowing a top-level
+                            // function param `x` was misresolved to the outer
+                            // (constant) binding and mis-reported as
+                            // `constant_assignment` (issue #907 follow-up: runed
+                            // `persisted-state`, `use-search-params`). Mirrors the
+                            // typed `FunctionDeclaration` / `FunctionExpression`
+                            // registration above.
+                            if let Some(body_id) = body
+                                && let Some(start) = self.arena.get_js_node(body_id).start()
+                            {
+                                self.function_scope_map.insert(start, self.current_scope);
+                            }
                             // Declare function parameters
                             for param in self.arena.get_js_children(params) {
-                                self.declare_bindings_from_pattern_node(
+                                self.declare_bindings_from_pattern_node_with_kind(
                                     param,
                                     BindingKind::Normal,
                                     false,
+                                    DeclarationKind::Param,
                                 );
                             }
                             // Process method body
@@ -2314,7 +2416,14 @@ impl<'a> ScopeBuilder<'a> {
                         } else {
                             expr
                         };
-                    if let oxc_ast::ast::Expression::AssignmentExpression(assign) = inner_expr {
+                    // Only a top-level `$:` (direct child of the instance
+                    // Program, `function_depth == 1`) declares an implicit
+                    // reactive binding. A `$:` inside a function body is a plain
+                    // labeled statement (upstream scope.js LabeledStatement guard
+                    // `path.length > 1`).
+                    if let oxc_ast::ast::Expression::AssignmentExpression(assign) = inner_expr
+                        && self.function_depth == 1
+                    {
                         self.collect_assignment_lhs_identifiers(&assign.left);
                     }
                 }
@@ -2348,6 +2457,19 @@ impl<'a> ScopeBuilder<'a> {
                     // Create a new scope for the method (non-porous)
                     let old_scope = self.push_function_scope();
                     self.function_depth += 1;
+
+                    // Record method body start → scope index so the visitor phase
+                    // (`function_expression::visit`) resolves identifiers against
+                    // the method's own scope. Without this the method body inherited
+                    // the class/module scope, so a method-local `let x` that shadows
+                    // a top-level function param `x` was misresolved to the outer
+                    // (constant) binding and mis-reported as `constant_assignment`
+                    // (issue #907 follow-up: runed `persisted-state`). Mirrors the
+                    // `FunctionDeclaration` / `FunctionExpression` registration.
+                    if let Some(ref body) = method_def.value.body {
+                        let key = (self.current_script_offset + body.span.start as usize) as u32;
+                        self.function_scope_map.insert(key, self.current_scope);
+                    }
 
                     // Declare function parameters in the new scope
                     for param in &method_def.value.params.items {
@@ -3418,7 +3540,12 @@ impl<'a> ScopeBuilder<'a> {
                 // Declare parameters
                 if let Some(params) = obj.get("params").and_then(|p| p.as_array()) {
                     for param in params {
-                        self.declare_bindings_from_pattern(param, BindingKind::Normal, true);
+                        self.declare_bindings_from_pattern_with_kind(
+                            param,
+                            BindingKind::Normal,
+                            true,
+                            DeclarationKind::Param,
+                        );
                     }
                 }
 
@@ -3453,7 +3580,12 @@ impl<'a> ScopeBuilder<'a> {
 
                 if let Some(params) = obj.get("params").and_then(|p| p.as_array()) {
                     for param in params {
-                        self.declare_bindings_from_pattern(param, BindingKind::Normal, true);
+                        self.declare_bindings_from_pattern_with_kind(
+                            param,
+                            BindingKind::Normal,
+                            true,
+                            DeclarationKind::Param,
+                        );
                     }
                 }
 
@@ -3929,7 +4061,12 @@ impl<'a> ScopeBuilder<'a> {
                 }
                 // Declare parameters
                 for param in self.arena.get_js_children(params_range) {
-                    self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
+                    self.declare_bindings_from_pattern_node_with_kind(
+                        param,
+                        BindingKind::Normal,
+                        false,
+                        DeclarationKind::Param,
+                    );
                 }
                 // Process body for declarations AND updates.
                 // This mirrors the official Svelte scope builder, which declares inner
@@ -3972,7 +4109,12 @@ impl<'a> ScopeBuilder<'a> {
                     }
                 }
                 for param in self.arena.get_js_children(params_range) {
-                    self.declare_bindings_from_pattern_node(param, BindingKind::Normal, false);
+                    self.declare_bindings_from_pattern_node_with_kind(
+                        param,
+                        BindingKind::Normal,
+                        false,
+                        DeclarationKind::Param,
+                    );
                 }
                 if let Some(body_id) = body_id {
                     let body_node = self.arena.get_js_node(body_id);
@@ -4101,10 +4243,11 @@ impl<'a> ScopeBuilder<'a> {
                                 let old_scope = self.push_function_scope();
                                 self.function_depth += 1;
                                 for param in self.arena.get_js_children(params_range) {
-                                    self.declare_bindings_from_pattern_node(
+                                    self.declare_bindings_from_pattern_node_with_kind(
                                         param,
                                         BindingKind::Normal,
                                         false,
+                                        DeclarationKind::Param,
                                     );
                                 }
                                 if let Some(body_id) = body_id {
@@ -4388,11 +4531,14 @@ impl<'a> ScopeBuilder<'a> {
     /// This is used for the `bind_invalid_each_rest` warning - bindings inside rest elements
     /// create new objects, so binding to them won't work as expected.
     /// Corresponds to Svelte's scope.js L1201-1217.
-    fn declare_bindings_from_pattern(
+    /// Declare bindings from a JSON pattern with an explicit
+    /// `DeclarationKind` (see `declare_bindings_from_pattern_node_with_kind`).
+    fn declare_bindings_from_pattern_with_kind(
         &mut self,
         pattern: &serde_json::Value,
         kind: BindingKind,
         inside_rest: bool,
+        decl_kind: DeclarationKind,
     ) {
         let pattern_type = pattern.get("type").and_then(|t| t.as_str());
 
@@ -4407,8 +4553,13 @@ impl<'a> ScopeBuilder<'a> {
                             .push(super::errors::state_invalid_placement(name));
                         return;
                     }
-                    let binding_idx =
-                        self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                    // A rest element in a parameter list is a `rest_param` upstream.
+                    let decl_kind = if inside_rest && decl_kind == DeclarationKind::Param {
+                        DeclarationKind::RestParam
+                    } else {
+                        decl_kind
+                    };
+                    let binding_idx = self.declare_binding(name.to_string(), kind, decl_kind);
                     // Mark if this binding is inside a rest element
                     if inside_rest {
                         self.bindings[binding_idx].inside_rest = true;
@@ -4423,10 +4574,17 @@ impl<'a> ScopeBuilder<'a> {
                         let prop_type = prop.get("type").and_then(|t| t.as_str());
                         if prop_type == Some("RestElement") || prop_type == Some("SpreadElement") {
                             if let Some(argument) = prop.get("argument") {
-                                self.declare_bindings_from_pattern(argument, kind, true);
+                                self.declare_bindings_from_pattern_with_kind(
+                                    argument, kind, true, decl_kind,
+                                );
                             }
                         } else if let Some(value) = prop.get("value") {
-                            self.declare_bindings_from_pattern(value, kind, inside_rest);
+                            self.declare_bindings_from_pattern_with_kind(
+                                value,
+                                kind,
+                                inside_rest,
+                                decl_kind,
+                            );
                         }
                     }
                 }
@@ -4436,7 +4594,12 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null() {
-                            self.declare_bindings_from_pattern(elem, kind, inside_rest);
+                            self.declare_bindings_from_pattern_with_kind(
+                                elem,
+                                kind,
+                                inside_rest,
+                                decl_kind,
+                            );
                         }
                     }
                 }
@@ -4444,12 +4607,17 @@ impl<'a> ScopeBuilder<'a> {
             // Handle both RestElement (official AST) and SpreadElement (our parser's AST)
             Some("RestElement") | Some("SpreadElement") => {
                 if let Some(argument) = pattern.get("argument") {
-                    self.declare_bindings_from_pattern(argument, kind, true);
+                    self.declare_bindings_from_pattern_with_kind(argument, kind, true, decl_kind);
                 }
             }
             Some("AssignmentPattern") => {
                 if let Some(left) = pattern.get("left") {
-                    self.declare_bindings_from_pattern(left, kind, inside_rest);
+                    self.declare_bindings_from_pattern_with_kind(
+                        left,
+                        kind,
+                        inside_rest,
+                        decl_kind,
+                    );
                 }
             }
             _ => {}
@@ -4466,6 +4634,26 @@ impl<'a> ScopeBuilder<'a> {
         kind: BindingKind,
         inside_rest: bool,
     ) {
+        self.declare_bindings_from_pattern_node_with_kind(
+            pattern,
+            kind,
+            inside_rest,
+            DeclarationKind::Const,
+        );
+    }
+
+    /// Like `declare_bindings_from_pattern_node`, but with an explicit
+    /// `DeclarationKind`. Function parameters must be declared as
+    /// `DeclarationKind::Param` (upstream `scope.declare(…, 'param')`), which
+    /// — unlike `const`/`let` — is exempt from `validate_identifier_name`'s
+    /// `$`-prefix check (`function bar($derived, $effect) {}` is legal).
+    fn declare_bindings_from_pattern_node_with_kind(
+        &mut self,
+        pattern: &JsNode,
+        kind: BindingKind,
+        inside_rest: bool,
+        decl_kind: DeclarationKind,
+    ) {
         match pattern {
             JsNode::Identifier { name, .. } => {
                 // Check for invalid $state/$derived usage in each context
@@ -4476,8 +4664,13 @@ impl<'a> ScopeBuilder<'a> {
                         .push(super::errors::state_invalid_placement(name));
                     return;
                 }
-                let binding_idx =
-                    self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                // A rest element in a parameter list is a `rest_param` upstream.
+                let decl_kind = if inside_rest && decl_kind == DeclarationKind::Param {
+                    DeclarationKind::RestParam
+                } else {
+                    decl_kind
+                };
+                let binding_idx = self.declare_binding(name.to_string(), kind, decl_kind);
                 if inside_rest {
                     self.bindings[binding_idx].inside_rest = true;
                 }
@@ -4490,17 +4683,19 @@ impl<'a> ScopeBuilder<'a> {
                     match prop {
                         JsNode::RestElement { argument, .. }
                         | JsNode::SpreadElement { argument, .. } => {
-                            self.declare_bindings_from_pattern_node(
+                            self.declare_bindings_from_pattern_node_with_kind(
                                 self.arena.get_js_node(*argument),
                                 kind,
                                 true,
+                                decl_kind,
                             );
                         }
                         JsNode::Property { value, .. } => {
-                            self.declare_bindings_from_pattern_node(
+                            self.declare_bindings_from_pattern_node_with_kind(
                                 self.arena.get_js_node(*value),
                                 kind,
                                 inside_rest,
+                                decl_kind,
                             );
                         }
                         _ => {}
@@ -4510,32 +4705,44 @@ impl<'a> ScopeBuilder<'a> {
             // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
             JsNode::ArrayPattern { elements, .. } => {
                 for elem in elements.iter().flatten() {
-                    self.declare_bindings_from_pattern_node(elem, kind, inside_rest);
+                    self.declare_bindings_from_pattern_node_with_kind(
+                        elem,
+                        kind,
+                        inside_rest,
+                        decl_kind,
+                    );
                 }
             }
             JsNode::ArrayExpression { elements, .. } => {
                 for elem in elements.iter().flatten() {
-                    self.declare_bindings_from_pattern_node(elem, kind, inside_rest);
+                    self.declare_bindings_from_pattern_node_with_kind(
+                        elem,
+                        kind,
+                        inside_rest,
+                        decl_kind,
+                    );
                 }
             }
             // Handle both RestElement (official AST) and SpreadElement (our parser's AST)
             JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
-                self.declare_bindings_from_pattern_node(
+                self.declare_bindings_from_pattern_node_with_kind(
                     self.arena.get_js_node(*argument),
                     kind,
                     true,
+                    decl_kind,
                 );
             }
             JsNode::AssignmentPattern { left, .. } => {
-                self.declare_bindings_from_pattern_node(
+                self.declare_bindings_from_pattern_node_with_kind(
                     self.arena.get_js_node(*left),
                     kind,
                     inside_rest,
+                    decl_kind,
                 );
             }
             // Raw fallback: use JSON version
             JsNode::Raw(v) => {
-                self.declare_bindings_from_pattern(v, kind, inside_rest);
+                self.declare_bindings_from_pattern_with_kind(v, kind, inside_rest, decl_kind);
             }
             _ => {}
         }
@@ -4555,12 +4762,19 @@ impl<'a> ScopeBuilder<'a> {
 
         // Visit the consequent in its own scope
         let old_scope = self.push_scope();
+        // Register this scope in template_scope_map so that declaration-tag
+        // bindings inside the consequent are visible to the server evaluator.
+        self.template_scope_map
+            .insert(block.start, self.current_scope);
         self.visit_fragment(&block.consequent);
         self.pop_scope(old_scope);
 
         // Visit alternate if present, also in its own scope
         if let Some(ref alternate) = block.alternate {
             let old_scope = self.push_scope();
+            // Use block.end as a unique key for the alternate scope.
+            self.template_scope_map
+                .insert(block.end, self.current_scope);
             self.visit_fragment(alternate);
             self.pop_scope(old_scope);
         }
@@ -4568,9 +4782,14 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit an await block.
     fn visit_await_block(&mut self, block: &AwaitBlock) {
-        // Pending doesn't create a scope
+        // Pending creates a child scope (mirrors upstream: Fragment visitor always creates child scope)
         if let Some(ref pending) = block.pending {
+            let old_scope = self.push_scope();
+            // Map block.start to the pending scope so Phase 2 analysis can switch to it
+            self.template_scope_map
+                .insert(block.start, self.current_scope);
             self.visit_fragment(pending);
+            self.pop_scope(old_scope);
         }
 
         // Then creates a scope for the value
@@ -4618,6 +4837,10 @@ impl<'a> ScopeBuilder<'a> {
         // This ensures that {@const} declarations inside {#key} blocks are isolated
         // from sibling scopes (e.g., {#each} blocks at the same level).
         let old_scope = self.push_scope();
+        // Register this scope so declaration-tag bindings inside {#key} blocks
+        // are visible to the server evaluator's template-scope lookup.
+        self.template_scope_map
+            .insert(block.start, self.current_scope);
         self.visit_fragment(&block.fragment);
         self.pop_scope(old_scope);
     }
@@ -4648,6 +4871,9 @@ impl<'a> ScopeBuilder<'a> {
         // Map the snippet block's start position to its scope index
         self.template_scope_map
             .insert(block.start, self.current_scope);
+        // Record that this scope is a snippet-body scope: template declarations
+        // made inside it must not be constant-folded from sibling scopes.
+        self.snippet_scope_indices.insert(self.current_scope);
 
         // Declare snippet parameters - handle destructuring patterns
         for param in &block.parameters {
@@ -5286,69 +5512,6 @@ pub fn build_scopes(
     let builder = ScopeBuilder::new(source, runes_mode, is_typescript, arena);
     builder.build(ast)
 }
-
-// TODO: Re-enable tests after fixing Expression clone issue with OXC 0.107
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn test_detect_binding_kind_from_expr() {
-//         use oxc_allocator::Allocator;
-//         use oxc_parser::Parser;
-//
-//         let builder = ScopeBuilder::new("");
-//
-//         // Helper to parse an expression
-//         let parse_expr = |code: &str| -> Expression {
-//             let allocator = Allocator::default();
-//             let source_type = SourceType::default();
-//             let ret = Parser::new(&allocator, code, source_type).parse();
-//             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
-//                 ret.program.body.first()
-//             {
-//                 expr_stmt.expression.clone() // clone() doesn't exist in OXC 0.107
-//             } else {
-//                 panic!("Failed to parse expression: {}", code);
-//             }
-//         };
-//
-//         // Test $state()
-//         let expr = parse_expr("$state(0)");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::State
-//         );
-//
-//         // Test $state.raw()
-//         let expr = parse_expr("$state.raw({})");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::RawState
-//         );
-//
-//         // Test $derived()
-//         let expr = parse_expr("$derived(count * 2)");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::Derived
-//         );
-//
-//         // Test $props()
-//         let expr = parse_expr("$props()");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::Prop
-//         );
-//
-//         // Test normal expression
-//         let expr = parse_expr("42");
-//         assert_eq!(
-//             builder.detect_binding_kind_from_expr(&expr),
-//             BindingKind::Normal
-//         );
-//     }
-// }
 
 /// Recursively collect identifier names from arrow function parameters in a JSON AST.
 /// This walks the entire expression tree looking for ArrowFunctionExpression and

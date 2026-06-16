@@ -10,7 +10,6 @@ use super::{
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 /// Transform runes for client-side usage with skip and state variable handling.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn transform_client_runes_with_skip_and_state(
     line: &str,
     _skip_state_vars: &[String],

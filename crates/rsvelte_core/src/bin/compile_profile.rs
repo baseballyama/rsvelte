@@ -94,10 +94,10 @@ fn main() {
             // SAFETY: same lifetime invariant as 2a.
             unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
             if let Some(ref mut instance) = ast.instance {
-                ensure_script_parsed(&ast.arena, instance, content, &line_offsets);
+                let _ = ensure_script_parsed(&ast.arena, instance, content, &line_offsets);
             }
             if let Some(ref mut module) = ast.module {
-                ensure_script_parsed(&ast.arena, module, content, &line_offsets);
+                let _ = ensure_script_parsed(&ast.arena, module, content, &line_offsets);
             }
             rsvelte_core::ast::arena::clear_serialize_arena();
         }

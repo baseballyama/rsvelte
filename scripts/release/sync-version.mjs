@@ -3,10 +3,19 @@
 // Rust crate's `Cargo.toml` `[package].version` and the repo-root `Cargo.lock`.
 //
 // Why this exists:
-// - `@rsvelte/compiler` ← `crates/rsvelte_core`: `wasm-pack build` derives
-//   `pkg/package.json` from the crate's Cargo.toml, so keeping them aligned is
-//   what makes "bump the workspace package.json via changesets, then publish
-//   the freshly built pkg/" produce a coherent npm release.
+// - `@rsvelte/compiler` ← `crates/rsvelte_core` AND `crates/rsvelte_lint`:
+//   `@rsvelte/compiler` ships the wasm built from `crates/rsvelte_lint`
+//   (`build:wasm:core`), which re-exports the `rsvelte_core` compiler wasm
+//   API. Both crates embed their own `env!("CARGO_PKG_VERSION")` into the wasm
+//   module: `rsvelte_core` backs the compiler `version()` export and
+//   `rsvelte_lint` backs `lint_version()`. Keeping BOTH aligned with the
+//   release version keeps those runtime version strings honest. (The published
+//   `pkg/package.json` version itself is forced by `finalize-pkg.mjs`, which is
+//   what actually guards against a build-crate/version desync — but we still
+//   mirror both crates so the in-wasm version exports don't drift.)
+//   `crates/rsvelte_lint` was added here after #724 switched `build:wasm:core`
+//   from `rsvelte_core` to `rsvelte_lint`; without it `lint_version()` reported
+//   a stale `0.1.0`.
 // - `@rsvelte/fmt` ← `crates/rsvelte_fmt`: the `rsvelte-fmt` binary reports its
 //   version from `env!("CARGO_PKG_VERSION")` (clap `#[command(version)]`).
 //   Without this sync the crate stayed at `0.1.0` no matter how many releases
@@ -29,6 +38,12 @@ const MAPPINGS = [
 		npm: 'apps/npm/compiler/package.json',
 		cargoToml: 'crates/rsvelte_core/Cargo.toml',
 		lockName: 'rsvelte_core',
+	},
+	{
+		// The crate `build:wasm:core` actually builds into `pkg/` → `@rsvelte/compiler`.
+		npm: 'apps/npm/compiler/package.json',
+		cargoToml: 'crates/rsvelte_lint/Cargo.toml',
+		lockName: 'rsvelte_lint',
 	},
 	{
 		npm: 'apps/npm/fmt/package.json',

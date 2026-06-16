@@ -64,6 +64,7 @@ pub fn detect_store_subscriptions(
             &analysis.source,
             &mut store_refs,
             false,
+            analysis.is_typescript,
         );
     }
 
@@ -73,6 +74,7 @@ pub fn detect_store_subscriptions(
             &analysis.source,
             &mut store_refs,
             true,
+            analysis.is_typescript,
         );
     }
 
@@ -451,6 +453,7 @@ fn collect_dollar_refs_from_script_with_context(
     source: &str,
     refs: &mut Vec<StoreRef>,
     in_module: bool,
+    is_typescript: bool,
 ) {
     let start = script.content.start().unwrap_or(0) as usize;
     let end = script.content.end().unwrap_or(0) as usize;
@@ -460,6 +463,18 @@ fn collect_dollar_refs_from_script_with_context(
     }
 
     let content = &source[start..end];
+
+    // For TypeScript scripts, blank type-only syntax (interfaces, type aliases,
+    // annotations) with spaces before the lexical scan: a type reference like
+    // `let foo: $$Props['foo']` is NOT a JS variable reference in upstream's
+    // scope analysis, so it must not produce a `$$Props` store ref (which would
+    // trigger `global_reference_invalid`). Blanking preserves byte positions.
+    if is_typescript {
+        let blanked = super::types::blank_typescript(content);
+        collect_dollar_identifiers_from_js_with_context(&blanked, start, refs, in_module);
+        return;
+    }
+
     collect_dollar_identifiers_from_js_with_context(content, start, refs, in_module);
 }
 
@@ -625,11 +640,35 @@ fn is_dollar_ident_type_declaration(chars: &[char], ident_start: usize) -> bool 
 }
 
 /// Collect $xxx identifiers from a JavaScript string with context.
+///
+/// Two passes: the first records every `$name` that is *declared* locally
+/// (function parameter, `let/const/var`), the second collects references
+/// while skipping names from that declared set. Mirrors upstream's
+/// scope-accurate behaviour where e.g. `page.subscribe(($page) => $page.url)`
+/// resolves `$page` to the callback param, never reaching module scope —
+/// so it is not a store subscription (`analyze_module` only walks
+/// `scope.references`, i.e. unresolved module-level references).
 fn collect_dollar_identifiers_from_js_with_context(
     js: &str,
     base_offset: usize,
     refs: &mut Vec<StoreRef>,
     in_module: bool,
+) {
+    let mut declared: FxHashSet<String> = FxHashSet::default();
+    collect_dollar_identifiers_pass(js, base_offset, refs, in_module, true, &mut declared);
+    collect_dollar_identifiers_pass(js, base_offset, refs, in_module, false, &mut declared);
+}
+
+/// One scan over `js`. With `collect_declared` set, only fills `declared`
+/// with parameter/variable-declaration `$names`; otherwise pushes refs,
+/// skipping declared names.
+fn collect_dollar_identifiers_pass(
+    js: &str,
+    base_offset: usize,
+    refs: &mut Vec<StoreRef>,
+    in_module: bool,
+    collect_declared: bool,
+    declared: &mut FxHashSet<String>,
 ) {
     // Simple regex-like scanning for $xxx identifiers
     // We look for $ followed by valid identifier characters
@@ -771,13 +810,17 @@ fn collect_dollar_identifiers_from_js_with_context(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    // Skip if this dollar identifier is used as a function parameter
-                    // (e.g., `$count => $count * 2` or `($count) => ...`)
-                    // Such uses are NOT store subscriptions - they're local parameter names.
-                    // Also skip if this is a variable declaration (let/const/var $xxx).
-                    // Also skip if this is an object property key (e.g., `{ $userName4: 'value' }`).
-                    if !is_dollar_ident_parameter(&chars, ident_start, i)
-                        && !is_dollar_ident_variable_declaration(&chars, ident_start)
+                    let is_declaration = is_dollar_ident_parameter(&chars, ident_start, i)
+                        || is_dollar_ident_variable_declaration(&chars, ident_start);
+                    if collect_declared {
+                        if is_declaration {
+                            declared.insert(ident);
+                        }
+                    } else if !is_declaration
+                        // References to a locally-declared `$name` (param /
+                        // let/const/var) resolve to that binding upstream,
+                        // never to a store subscription.
+                        && !declared.contains(&ident)
                         && !is_dollar_ident_object_property_key(&chars, i)
                         && !is_dollar_ident_type_declaration(&chars, ident_start)
                     {
@@ -1168,6 +1211,9 @@ mod tests {
 "#;
         let mut ast = parse(source, parse_opts).unwrap();
         let options = CompileOptions::default();
+        // SAFETY: `ast` (and thus `ast.arena`) outlives the `analyze_component`
+        // call; `clear_serialize_arena()` runs before `ast` is dropped, so the
+        // installed pointer never dangles.
         unsafe { set_serialize_arena(&ast.arena as *const _) };
         let analysis = analyze_component(&mut ast, source, &options).unwrap();
         clear_serialize_arena();
@@ -1188,6 +1234,9 @@ mod tests {
 <p>{value}</p>
 "#;
         let mut ast2 = parse(source2, parse_opts).unwrap();
+        // SAFETY: `ast2` (and thus `ast2.arena`) outlives the `analyze_component`
+        // call; `clear_serialize_arena()` runs before `ast2` is dropped, so the
+        // installed pointer never dangles.
         unsafe { set_serialize_arena(&ast2.arena as *const _) };
         let analysis2 = analyze_component(&mut ast2, source2, &options).unwrap();
         clear_serialize_arena();
@@ -1212,6 +1261,9 @@ mod tests {
 <button onclick={() => $items.push('new')}>Add</button>
 "#;
         let mut ast3 = parse(source3, parse_opts).unwrap();
+        // SAFETY: `ast3` (and thus `ast3.arena`) outlives the `analyze_component`
+        // call; `clear_serialize_arena()` runs before `ast3` is dropped, so the
+        // installed pointer never dangles.
         unsafe { set_serialize_arena(&ast3.arena as *const _) };
         let analysis3 = analyze_component(&mut ast3, source3, &options).unwrap();
         clear_serialize_arena();

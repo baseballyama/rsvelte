@@ -394,7 +394,7 @@ fn audit_skipped_fixtures() {
         ("runtime-runes", "async-style-after-await"),
     ];
 
-    let parser_legacy_skipped = &["javascript-comments"];
+    let parser_legacy_skipped = &["javascript-comments", "implicitly-closed-li-block"];
     let parser_modern_skipped: &[&str] = &[];
     let css_skipped: &[&str] = &[];
     let print_skipped = &["css-keyframes-percent"];

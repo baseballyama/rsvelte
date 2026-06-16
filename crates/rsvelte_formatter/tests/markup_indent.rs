@@ -4,11 +4,13 @@
 use rsvelte_formatter::{FormatOptions, IndentStyle, IndentWidth, JsFormatOptions, format};
 
 fn fmt(src: &str) -> String {
-    format(src, &FormatOptions::default()).expect("format ok")
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 fn fmt_with(src: &str, opts: &FormatOptions) -> String {
-    format(src, opts).expect("format ok")
+    let out = format(src, opts).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 // ─── Close-tag normalization ─────────────────────────────────────────────

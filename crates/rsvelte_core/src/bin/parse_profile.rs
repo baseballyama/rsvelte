@@ -7,6 +7,7 @@
 // is built as both rlib and cdylib, and a lib-level `#[global_allocator]`
 // is duplicated across both outputs at link time — cargo issue
 // rust-lang/cargo#6313.
+use std::fmt::Write as _;
 #[cfg(all(
     feature = "jemalloc",
     not(feature = "napi"),
@@ -323,7 +324,8 @@ fn create_large_file() -> String {
     );
 
     for i in 0..50 {
-        s.push_str(&format!(
+        let _ = write!(
+            s,
             r#"        <section class="section-{i}">
             <h2>Section {i}</h2>
             {{#if count > {i}}}
@@ -343,7 +345,7 @@ fn create_large_file() -> String {
             {{/if}}
         </section>
 "#
-        ));
+        );
     }
 
     s.push_str(
@@ -410,10 +412,10 @@ fn create_expression_heavy_file() -> String {
     let mut s = String::from("<script>\n    let x = $state(0);\n</script>\n\n");
     // Many expressions of varying complexity
     for i in 0..100 {
-        s.push_str(&format!("<p>{{x + {i}}}</p>\n"));
+        let _ = writeln!(s, "<p>{{x + {i}}}</p>");
     }
     for i in 0..50 {
-        s.push_str(&format!("<p>{{x > {i} ? 'yes' : 'no'}}</p>\n"));
+        let _ = writeln!(s, "<p>{{x > {i} ? 'yes' : 'no'}}</p>");
     }
     for _ in 0..50 {
         s.push_str("<p>{x}</p>\n");
@@ -424,10 +426,7 @@ fn create_expression_heavy_file() -> String {
 fn create_plain_html_file() -> String {
     let mut s = String::new();
     for i in 0..200 {
-        s.push_str(&format!(
-            r#"<div class="item-{i}"><span>text {i}</span></div>
-"#
-        ));
+        let _ = writeln!(s, r#"<div class="item-{i}"><span>text {i}</span></div>"#);
     }
     s
 }
@@ -435,11 +434,13 @@ fn create_plain_html_file() -> String {
 fn create_html_with_attributes() -> String {
     let mut s = String::new();
     for i in 0..100 {
-        s.push_str(&format!(
+        let _ = write!(
+            s,
             r#"<div id="el-{i}" class="foo bar baz" data-index="{i}" data-active="true" role="listitem" aria-label="Item {i}">
     <input type="text" name="field-{i}" placeholder="Enter..." />
 </div>
-"#));
+"#
+        );
     }
     s
 }
@@ -459,9 +460,10 @@ fn create_deeply_nested() -> String {
 fn create_many_text_nodes() -> String {
     let mut s = String::new();
     for i in 0..500 {
-        s.push_str(&format!(
-            "<p>This is paragraph number {i} with some text content that is reasonably long.</p>\n"
-        ));
+        let _ = writeln!(
+            s,
+            "<p>This is paragraph number {i} with some text content that is reasonably long.</p>"
+        );
     }
     s
 }

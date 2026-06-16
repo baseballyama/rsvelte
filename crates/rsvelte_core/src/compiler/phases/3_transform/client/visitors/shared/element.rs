@@ -720,7 +720,6 @@ fn attr_has_await_expr(attr_value: &AttributeValue) -> bool {
 /// * `is_html` - Whether this is an HTML element (vs SVG)
 /// * `css_hash` - The CSS scoping hash (empty string if no CSS)
 /// * `is_scoped` - Whether the element needs CSS scoping
-#[allow(clippy::too_many_arguments)]
 pub fn build_set_class(
     _element: &RegularElementNode,
     node_id: &str,
@@ -748,6 +747,10 @@ pub fn build_set_class(
         let mut memoizer = std::mem::take(&mut context.state.memoizer);
         let mut any_has_call = false;
         let mut any_has_await = false;
+        // SAFETY: `JsArena` allocates via interior mutability (`UnsafeCell`)
+        // with nodes behind stable `Box`es, so a shared `&JsArena` stays valid
+        // while `context` is reborrowed mutably by `build_attribute_value`. The
+        // arena outlives this borrow; traversal is single-threaded (no aliasing).
         let arena_ref_elem = unsafe { &*(&context.arena as *const _) };
         let result = build_attribute_value(attr_value, context, |expr, metadata| {
             let has_call = metadata.has_call();
@@ -892,7 +895,6 @@ pub fn build_set_class(
 }
 
 /// Legacy function for backwards compatibility - use build_set_class instead.
-#[allow(clippy::too_many_arguments)]
 pub fn build_set_class_call(
     _element: &RegularElementNode,
     node_expr: JsExpr,
@@ -1358,7 +1360,6 @@ fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expre
 /// var event_handler = () => $.set(changed, 'a');
 /// $.attribute_effect(div, ($0) => ({ ...$0, ona: event_handler }), [() => get_rest()]);
 /// ```
-#[allow(clippy::too_many_arguments)]
 pub fn build_attribute_effect(
     attributes: &[&crate::ast::template::Attribute],
     class_directives: &[&ClassDirective],

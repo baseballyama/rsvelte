@@ -17,27 +17,67 @@ strip = false
 debug = false
 panic = "abort"
 
+[profile.profiling]
+inherits = "release"
+lto = "thin"          # thin LTO keeps profiling builds within the dev box's RAM
+codegen-units = 16    # and split codegen so the opt-level-3 lib build does not OOM
+debug = "line-tables-only"
+strip = false
+
 [profile.bench]
 inherits = "release"
 debug = true
-panic = "unwind"  # Criterion requires unwind for catching panics
+# Note: the `bench` profile always unwinds (Cargo ignores an explicit `panic`
+# setting here), which is exactly what Criterion needs to catch panics — so we
+# rely on that default rather than setting `panic` and triggering a manifest warning.
+
+# Workspace-wide lint policy. Every crate opts in via `[lints] workspace = true`,
+# so these are the single source of truth for the project's quality gates.
+# Keep this table to lints that the whole workspace passes cleanly — CI runs
+# `cargo clippy --all-targets --all-features -- -D warnings`, so a regression here
+# fails the build rather than emitting a warning.
+[workspace.lints.rust]
+# Force every `unsafe` operation inside an `unsafe fn` to sit in an explicit
+# `unsafe {}` block, so the unsafe surface is always visible at the call site.
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+# Every `unsafe {}` block must carry a `// SAFETY:` comment justifying its
+# soundness. This is the project's contract for reviewing unsafe code.
+undocumented_unsafe_blocks = "deny"
+
+# Ban the `out.push_str(&format!(...))` anti-pattern: it heap-allocates a throwaway
+# `String` per call, which profiling showed dominates the codegen hot path. Use
+# `write!`/`writeln!` into the target buffer instead (zero extra allocation).
+format_push_string = "deny"
+
+# Intentional, project-wide allowances (centralised here instead of scattered as
+# inline `#[allow(...)]`, so the policy is reviewable in one place):
+#
+# `too_many_arguments` / `type_complexity`: this crate is a line-for-line port of
+# the official Svelte compiler, so many functions deliberately mirror upstream
+# signatures (and the closure/visitor types they pass around) rather than being
+# re-factored into config structs. Refactoring for argument count alone would
+# diverge from the reference implementation we verify against.
+too_many_arguments = "allow"
+type_complexity = "allow"
 
 # SPIKE: redirect every published oxc_* crate to the same git rev so
 # rsvelte's AST types unify with oxc_formatter's transitive deps
 # (avoids "two Program<'a> types from different source units" errors).
 [patch.crates-io]
-oxc_allocator         = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_parser            = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_ast               = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_ast_macros        = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_ast_visit         = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_span              = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_diagnostics       = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_codegen           = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_syntax            = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_semantic          = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_ecmascript        = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_estree            = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_str               = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_data_structures   = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
+oxc_allocator         = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_parser            = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_ast               = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_ast_macros        = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_ast_visit         = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_span              = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_diagnostics       = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_codegen           = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_syntax            = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_semantic          = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_ecmascript        = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_estree            = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_str               = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_data_structures   = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }

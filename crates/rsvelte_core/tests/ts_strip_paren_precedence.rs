@@ -10,15 +10,20 @@
 //! member / call / `new`, etc.) — never a unary / binary / logical /
 //! conditional / sequence expression.
 
-use rsvelte_core::{GenerateMode, compile_module, compiler::ModuleCompileOptions};
+use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
-fn compile_ts(src: &str) -> String {
-    compile_module(
-        src,
-        ModuleCompileOptions {
-            filename: Some("x.svelte.ts".to_string()),
+// The TS-erasure pass runs for `<script lang="ts">` component scripts
+// (compileModule mirrors upstream and rejects TS outright, so the module
+// path no longer exercises it).
+fn compile_ts(body: &str) -> String {
+    let src = format!("<script lang=\"ts\">{body}</script>");
+    compile(
+        &src,
+        CompileOptions {
+            filename: Some("T.svelte".to_string()),
             generate: GenerateMode::Client,
             dev: false,
+            css: CssMode::External,
             ..Default::default()
         },
     )

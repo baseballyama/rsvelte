@@ -35,6 +35,10 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     if let Some(reactive_stmt_ptr) = context.reactive_statement
         && let Some(argument) = node.get("argument")
     {
+        // SAFETY: `reactive_stmt_ptr` is the `*mut ReactiveStatement` set on the
+        // visit context by the enclosing reactive-statement scope; its referent
+        // is owned by the analysis and outlives this single-threaded traversal,
+        // so there is no live aliasing reference.
         let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
 
         let id = if argument.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
@@ -87,6 +91,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
         // Track assignments in reactive statements (legacy mode)
         if let Some(reactive_stmt_ptr) = context.reactive_statement {
+            // SAFETY: `reactive_stmt_ptr` is the `*mut ReactiveStatement` set on
+            // the visit context by the enclosing reactive-statement scope; its
+            // referent is owned by the analysis and outlives this single-threaded
+            // traversal, so there is no live aliasing reference.
             let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
 
             let id_name = match arg_node {

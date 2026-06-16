@@ -1,5 +1,25 @@
 # @rsvelte/svelte-check
 
+## 0.2.13
+
+### Patch Changes
+
+- 359c84d: fix(svelte-check): a syntactically-invalid generated `.tsx` overlay no longer silently suppresses all real type errors — `--tsgo` now reports it loudly and exits non-zero instead of producing a false pass (#728)
+
+## 0.2.12
+
+### Patch Changes
+
+- 3908ff9: fix(svelte2tsx): lower static numeric DOM attribute values to bare numbers so `--tsgo` accepts the idiomatic string-literal form (`tabindex="-1"`, `colspan="2"`, `maxlength="5"`, …). `svelte/elements` types these attributes as `number | undefined | null` (no `string`), so emitting the value as a backtick string made tsgo reject every one with `Type 'string' is not assignable to type 'number'`, while official svelte-check accepted them. A single-`Text` value on a real element whose name is in svelte2tsx's `numberOnlyAttributes` set and which coerces to a number (`!isNaN`) is now emitted as a bare number (`"tabindex":-1,`) instead of `"tabindex":`-1``. Component props, non-listed attributes, and non-numeric values keep their string form. Mirrors upstream svelte2tsx's `needsNumberConversion`in`htmlxtojsx_v2/nodes/Attribute.ts`. Closes #939.
+- cc1984f: fix(svelte-check): stop leaking an imported library's internal diagnostics into a consumer's `--tsgo` run. When a project imports a workspace component library, its `.svelte` components are shadowed under `<cache>/ext/<n>/` so cross-package named exports resolve (#782). Those shadows were also type-checked, so the library's own transitive deps (`Cannot find module '@floating-ui/dom'`, `sortablejs`, `@nexus/types`) and every internal bug surfaced as errors on the consumer — official svelte-check reports 0 because it never type-checks a node_modules `.svelte` as a reported document. `map_tsgo_diagnostics` now drops any diagnostic whose file lives under the `<cache>/ext/` shadow root, matching official behavior while keeping the shadows for #782 export resolution. Closes #941.
+
+## 0.2.11
+
+### Patch Changes
+
+- 62fdefe: fix(svelte2tsx): preserve explicit type annotations on destructured `{#snippet}` parameters (#912). A snippet parameter that destructures and annotates its type (`{#snippet menuitem({ contentId }: { contentId?: string })}`) had its annotation dropped: the lowering spanned only the `{ contentId }` pattern, so svelte2tsx synthesized `{ contentId: any }` — losing both the type and the `?` optionality, and `{@render menuitem({})}` wrongly errored as a missing required property. The parser now folds a destructuring parameter's `typeAnnotation` into its span (mirroring the already-correct identifier-parameter path), so the generated `Snippet<[T]>` parameter type uses the annotation verbatim.
+- 9c3be67: fix(svelte2tsx): infer a generic component's `T` into its `T`-dependent prop params (#923). A runes-mode generic component (`<script generics="T">` + `$props()`) was lowered with `__sveltets_2_fn_component($$render())`, which discards `T` — `$$render()` is called without `<T>` and the component type alias (`type C<T> = ReturnType<typeof C>`) never consumes its own `<T>`. So `T` could not be inferred at the call site, and sibling props whose types depend on it — callback props `(row: T) => …` and snippet props `Snippet<[{ row: T }]>` — collapsed to `unknown` ("'row' is of type 'unknown'"). This was the dominant remaining `--tsgo` blocker on real generic table/list components. rsvelte now emits the upstream `__sveltets_Render<T>` + `$$IsomorphicComponent` shape (byte-identical to svelte2tsx) for runes generics, whose generic constructor / call signatures let TypeScript infer `T` from the supplied props and flow it into every `T`-dependent prop parameter. The previous `#801` fix (making `Foo<X>` a valid generic _reference_) is preserved by the new shape's `type Foo<T> = InstanceType<typeof Foo<T>>` alias.
+
 ## 0.2.10
 
 ### Patch Changes

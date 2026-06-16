@@ -48,10 +48,30 @@ impl Parser<'_> {
             && let Some(entry) = self.stack.last()
         {
             match entry {
-                StackEntry::Element { name, start, .. } => {
+                StackEntry::Element {
+                    name,
+                    start,
+                    element_type,
+                } => {
+                    // Upstream (1-parse/index.js) only reports `element_unclosed`
+                    // when the innermost open node is a *RegularElement*; every
+                    // other node type (Component, SvelteElement, TitleElement,
+                    // SlotElement, svelte:* meta elements, blocks) falls through
+                    // to `block_unclosed`.
+                    use super::super::parser::ElementType;
+                    if matches!(
+                        element_type,
+                        ElementType::Regular | ElementType::ShadowrootTemplate
+                    ) {
+                        return Err(crate::error::ParseError::svelte(
+                            "element_unclosed",
+                            format!("`<{}>` was left open", name),
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
                     return Err(crate::error::ParseError::svelte(
-                        "element_unclosed",
-                        format!("`<{}>` was left open", name),
+                        "block_unclosed",
+                        "Block was left open",
                         (*start as usize, *start as usize + 1),
                     ));
                 }
@@ -123,11 +143,7 @@ impl Parser<'_> {
         // block. `parse_fragment` stops on `{/...}` without consuming it, so any
         // leftover close marker here is an error in strict mode. (Comments
         // `{/*`, `{//` are not close markers.)
-        if !self.options.loose
-            && self.match_str("{/")
-            && !self.match_str("{/*")
-            && !self.match_str("{//")
-        {
+        if !self.options.loose && self.match_block_close_marker().is_some() {
             return Err(crate::error::ParseError::svelte(
                 "block_unexpected_close",
                 "Unexpected block closing tag",
@@ -262,30 +278,17 @@ impl Parser<'_> {
             // Fast dispatch on first byte to avoid redundant match_str calls
             let first_byte = self.bytes[self.index];
 
-            // Check for end conditions based on first byte
-            let (is_block_close, is_block_continuation) =
-                if first_byte == b'{' && self.index + 1 < self.bytes.len() {
-                    let second_byte = self.bytes[self.index + 1];
-                    if second_byte == b'/' {
-                        // {/ - but not {/* or {//
-                        let is_comment = self.index + 2 < self.bytes.len()
-                            && (self.bytes[self.index + 2] == b'*'
-                                || self.bytes[self.index + 2] == b'/');
-                        (!is_comment, false)
-                    } else if second_byte == b':' {
-                        // {: - but not {:/* or {://
-                        // Check 3rd+4th bytes directly: {:/ followed by * or /
-                        let is_comment = self.index + 3 < self.bytes.len()
-                            && self.bytes[self.index + 2] == b'/'
-                            && (self.bytes[self.index + 3] == b'*'
-                                || self.bytes[self.index + 3] == b'/');
-                        (false, !is_comment)
-                    } else {
-                        (false, false)
-                    }
-                } else {
-                    (false, false)
-                };
+            // Check for end conditions based on first byte. Whitespace is
+            // allowed between `{` and the `/` / `:` marker char (upstream
+            // `tag()` runs `allow_whitespace()` before dispatching).
+            let (is_block_close, is_block_continuation) = if first_byte == b'{' {
+                (
+                    self.match_block_close_marker().is_some(),
+                    self.match_block_continuation_marker().is_some(),
+                )
+            } else {
+                (false, false)
+            };
 
             // If we see a closing tag and the stack only has Root (root level), this is an error
             if first_byte == b'<'
@@ -342,6 +345,81 @@ impl Parser<'_> {
                             (close_start, close_start),
                         ));
                     }
+                }
+
+                // A closing element tag while the innermost open node is a
+                // *block* (`{#if}` / `{#each}` / `{#await}` / `{#key}` /
+                // `{#snippet}`): upstream's close() walks `parent.name !==
+                // name` and, since a block has no name, errors immediately in
+                // strict mode — `element_invalid_closing_tag` (or the
+                // `…_autoclosed` variant), even when the tag would match an
+                // element open *outside* the block. Loose mode pops the block
+                // silently (handled by the callers after `break`).
+                if !self.options.loose
+                    && matches!(
+                        self.stack.last(),
+                        Some(
+                            StackEntry::IfBlock { .. }
+                                | StackEntry::EachBlock { .. }
+                                | StackEntry::AwaitBlock { .. }
+                                | StackEntry::KeyBlock { .. }
+                                | StackEntry::SnippetBlock { .. }
+                        )
+                    )
+                {
+                    let close_start = self.index;
+                    let tag_name_start = self.index + 2;
+                    let mut tag_name_end = tag_name_start;
+                    while tag_name_end < self.bytes.len() {
+                        let b = self.bytes[tag_name_end];
+                        if b.is_ascii_alphanumeric() || b == b'-' || b == b':' {
+                            tag_name_end += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    let tag_name = &self.source[tag_name_start..tag_name_end];
+
+                    // Upstream order: read name, allow_whitespace, eat('>',
+                    // true) → `expected_token`, then the void-element check,
+                    // then the invalid-closing-tag error.
+                    let mut after_ws = tag_name_end;
+                    while after_ws < self.bytes.len()
+                        && matches!(self.bytes[after_ws], b' ' | b'\t' | b'\n' | b'\r')
+                    {
+                        after_ws += 1;
+                    }
+                    if self.bytes.get(after_ws) != Some(&b'>') {
+                        return Err(crate::error::ParseError::expected_token(">", after_ws));
+                    }
+                    if is_void_element(tag_name) {
+                        return Err(crate::error::ParseError::svelte(
+                            "void_element_invalid_content",
+                            "Void elements cannot have children or closing tags",
+                            (close_start, close_start + 2 + tag_name.len()),
+                        ));
+                    }
+                    if let Some(ref last_auto) = self.last_auto_closed_tag
+                        && last_auto.tag.as_str() == tag_name
+                    {
+                        let reason = last_auto.reason.clone();
+                        return Err(crate::error::ParseError::svelte(
+                            "element_invalid_closing_tag_autoclosed",
+                            format!(
+                                "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `</{}>`)",
+                                tag_name, reason, reason, tag_name
+                            ),
+                            (close_start, close_start),
+                        ));
+                    }
+                    return Err(crate::error::ParseError::svelte(
+                        "element_invalid_closing_tag",
+                        format!(
+                            "`</{}>` attempted to close an element that was not open",
+                            tag_name
+                        ),
+                        (close_start, close_start),
+                    ));
                 }
                 break;
             }

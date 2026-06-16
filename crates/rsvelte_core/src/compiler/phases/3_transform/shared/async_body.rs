@@ -8,6 +8,7 @@
 //! Corresponds to `transform_body()` in `svelte/packages/svelte/src/compiler/phases/3-transform/shared/transform-async.js`
 
 use memchr::memmem;
+use std::fmt::Write as _;
 
 /// Result of the async body transformation.
 pub struct AsyncBodyResult {
@@ -722,7 +723,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     // formatting). With sync-grouping, every entry is a real thunk
     // (no array holes) so `thunks.len() <= 1` is the right test.
     if thunks.len() <= 1 && !has_multiline_thunk {
-        output.push_str(&format!("var $$promises = {}([", runner));
+        let _ = write!(output, "var $$promises = {}([", runner);
         let total = thunks.len();
         for (i, thunk) in thunks.iter().enumerate() {
             output.push_str(thunk);
@@ -732,9 +733,9 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         }
         output.push_str("]);\n");
     } else {
-        output.push_str(&format!("var $$promises = {}([\n", runner));
+        let _ = writeln!(output, "var $$promises = {}([", runner);
         for (i, thunk) in thunks.iter().enumerate() {
-            output.push_str(&format!("\t{}", thunk));
+            let _ = write!(output, "\t{}", thunk);
             if i < thunks.len() - 1 {
                 output.push(',');
             }
@@ -2673,10 +2674,9 @@ fn extract_function_decl_name(s: &str) -> Option<String> {
         r.trim()
     } else if let Some(r) = s.strip_prefix("function*") {
         r.trim()
-    } else if let Some(r) = s.strip_prefix("function ") {
-        r.trim()
     } else {
-        return None;
+        let r = s.strip_prefix("function ")?;
+        r.trim()
     };
 
     let mut i = 0;

@@ -90,10 +90,28 @@ jobs:
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # This job times out on a cold cache (oxc is built from a git rev,
+          # so the first compile is ~15 min and used to eat most of the
+          # `Run criterion` budget — see below). rust-cache defaults to NOT
+          # saving on a failed job, so a single timeout left the cache cold
+          # forever: every subsequent run recompiled from scratch and timed
+          # out again. Saving on failure breaks that deadlock — the compiled
+          # `target/` is preserved even if a later step fails.
+          cache-on-failure: true
+
+      - name: Build benchmarks
+        # Compile the bench harnesses separately so the cold-cache build
+        # (~15 min) is not charged against the `Run criterion` measurement
+        # budget below. On a warm cache this is a quick no-op.
+        run: cargo bench --bench parser --bench compiler --no-run
+        timeout-minutes: 30
 
       - name: Run criterion
-        # `--save-baseline pr` saves results so a follow-up job (or the next
-        # commit) can diff against this baseline with `--baseline pr`.
+        # Benches are already compiled by the step above, so this only spends
+        # time measuring. `--save-baseline pr` saves results so a follow-up
+        # job (or the next commit) can diff against this baseline with
+        # `--baseline pr`.
         run: cargo bench --bench parser --bench compiler -- --save-baseline pr
         timeout-minutes: 30
 

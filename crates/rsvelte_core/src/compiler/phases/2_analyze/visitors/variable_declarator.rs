@@ -115,8 +115,19 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                 .and_then(|a| a.first());
             if let Some(arg) = rune_arg {
                 for path in &paths {
+                    // Prefer position-based lookup so a `$state` declared inside a
+                    // function body doesn't contaminate a same-named root binding
+                    // (e.g. `let value = $derived.by(() => { const value = $state(0); ... })`).
+                    let id_start = path.get("start").and_then(|s| s.as_u64()).map(|s| s as u32);
                     if let Some(name) = path.get("name").and_then(|n| n.as_str())
-                        && let Some(bi) = context.analysis.root.find_binding_any_scope(name)
+                        && let Some(bi) = id_start
+                            .and_then(|pos| {
+                                context.analysis.root.bindings.iter().position(|b| {
+                                    b.name == name && b.declaration_start == Some(pos)
+                                })
+                            })
+                            .or_else(|| context.analysis.root.get_binding(name, context.scope))
+                            .or_else(|| context.analysis.root.find_binding_any_scope(name))
                     {
                         let b = &mut context.analysis.root.bindings[bi];
                         // For $derived, always store the argument expression (even non-literals)
@@ -601,7 +612,18 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
         }
     }
 
-    // Set initial value for constant folding
+    // Set initial value for constant folding.
+    // For destructured patterns (`const { i } = obj`, `const [x] = arr`), each
+    // binding's *actual* value is a property/element access on the RHS — not the
+    // RHS itself.  The upstream `scope.evaluate` resolves `binding.initial`
+    // (which is the whole RHS) via ObjectExpression → UNKNOWN, so `is_defined`
+    // ends up false.  We mirror that: only mark `initial_is_defined` for the
+    // binding when the declarator id is a plain Identifier (no destructuring).
+    let id_is_plain_identifier = node
+        .get("id")
+        .and_then(|id| id.get("type"))
+        .and_then(|t| t.as_str())
+        == Some("Identifier");
     if let Some(init) = init {
         for path in &paths {
             if let Some(name) = path.get("name").and_then(|n| n.as_str())
@@ -609,7 +631,11 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);
-                binding.initial_is_defined = is_expression_defined(init);
+                // Only propagate `is_defined` when this is a simple binding
+                // (`const x = expr`).  For destructured bindings the runtime
+                // value comes from a property/index access on the RHS, so we
+                // cannot confirm it is defined without full evaluation.
+                binding.initial_is_defined = id_is_plain_identifier && is_expression_defined(init);
                 binding.initial_node_type =
                     init.get("type").and_then(|t| t.as_str()).map(String::from);
             }
@@ -1223,7 +1249,20 @@ fn visit_runes_mode_typed(
             };
             if let Some(arg) = rune_arg {
                 for path in &paths {
-                    if let Some(bi) = context.analysis.root.find_binding_any_scope(&path.name) {
+                    // Prefer position-based lookup so a `$state` declared inside a
+                    // function body doesn't contaminate a same-named root binding
+                    // (e.g. `let value = $derived.by(() => { const value = $state(0); ... })`).
+                    let bi = context
+                        .analysis
+                        .root
+                        .bindings
+                        .iter()
+                        .position(|b| {
+                            b.name == path.name && b.declaration_start == Some(path.start)
+                        })
+                        .or_else(|| context.analysis.root.get_binding(&path.name, context.scope))
+                        .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
+                    if let Some(bi) = bi {
                         let b = &mut context.analysis.root.bindings[bi];
                         b.initial = extract_literal_string_typed(arg).or_else(|| {
                             if rune_name == "$derived" {
@@ -1646,7 +1685,14 @@ fn visit_non_runes_mode_typed(
         }
     }
 
-    // Set initial value for constant folding
+    // Set initial value for constant folding.
+    // For destructured patterns (`const { i } = obj`, `const [x] = arr`), each
+    // binding's *actual* value is a property/element access on the RHS — not the
+    // RHS itself.  The upstream `scope.evaluate` resolves `binding.initial`
+    // (which is the whole RHS) via ObjectExpression → UNKNOWN, so `is_defined`
+    // ends up false.  We mirror that: only mark `initial_is_defined` for the
+    // binding when the declarator id is a plain Identifier (no destructuring).
+    let id_is_plain_identifier_typed = matches!(id_node, JsNode::Identifier { .. });
     if let Some(init) = init_node {
         for path in &paths {
             if let Some(&binding_idx) = context
@@ -1658,7 +1704,12 @@ fn visit_non_runes_mode_typed(
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string_typed(init);
-                binding.initial_is_defined = is_expression_defined_typed(init, arena);
+                // Only propagate `is_defined` when this is a simple binding
+                // (`const x = expr`).  For destructured bindings the runtime
+                // value comes from a property/index access on the RHS, so we
+                // cannot confirm it is defined without full evaluation.
+                binding.initial_is_defined =
+                    id_is_plain_identifier_typed && is_expression_defined_typed(init, arena);
                 binding.initial_node_type = Some(init.type_str().to_string());
                 if binding.initial_node_type.as_deref() == Some("Identifier")
                     && let JsNode::Identifier { name, .. } = init

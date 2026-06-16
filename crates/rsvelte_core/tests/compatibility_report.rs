@@ -37,7 +37,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     // comment statements that acorn surfaces via `leadingComments` /
     // `trailingComments` attachment.
     let skip_tests: &[&str] = if !modern {
-        &["javascript-comments"]
+        &["javascript-comments", "implicitly-closed-li-block"]
     } else {
         &[]
     };
@@ -53,6 +53,8 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         if skip_tests.contains(&name.as_str()) {
             let reason = if name == "javascript-comments" {
                 "Known incompatibility with OXC parser"
+            } else if name == "implicitly-closed-li-block" {
+                "Upstream skips it (skip: true) — the official compiler errors block_unexpected_close; output.json is stale"
             } else {
                 "Comments-in-tags (Svelte 5.53.0) not yet ported"
             };
@@ -1440,7 +1442,17 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // Main Test
 // ============================================================================
 
+// `#[ignore]` by default: this is a *reporting* artifact, not a correctness
+// gate. It re-runs every category (parser, css, validator, runtime, …) purely
+// to assemble `compatibility-report.json`, and it deliberately never fails
+// (see the comment at the end of the body). Those categories are each already
+// gated by their own dedicated test binaries (tests/runtime.rs, tests/css.rs,
+// tests/validator.rs, …), so running this in the default `cargo test` /
+// `cargo nextest run` only duplicates ~all of the suite (it was the single
+// slowest "test" by a wide margin). The dedicated `Compatibility Report` CI
+// job — and `pnpm run compatibility-report` — opt back in via `--ignored`.
 #[test]
+#[ignore = "reporting-only; run explicitly via `pnpm run compatibility-report` (re-runs every category, asserts nothing)"]
 fn generate_compatibility_report() {
     let mut report = CompatibilityReport::new();
 

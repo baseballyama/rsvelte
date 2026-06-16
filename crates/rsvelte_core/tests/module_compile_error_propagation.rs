@@ -24,11 +24,22 @@ fn opts(filename: &str) -> ModuleCompileOptions {
 }
 
 #[test]
-fn valid_ts_module_still_compiles() {
+fn ts_module_errors_like_upstream() {
+    // Upstream `analyze_module` parses plain JS only (`parse(source, comments,
+    // false, false)`), so TS syntax in a module is a js_parse_error regardless
+    // of the filename. rsvelte used to TS-sniff from `.svelte.ts` and strip;
+    // it now mirrors upstream and rejects.
     let r = compile_module("export const x: number = 1;", opts("x.svelte.ts"));
     assert!(
+        r.is_err(),
+        "TS syntax in a module must error like upstream compileModule, got: {:?}",
+        r.ok()
+    );
+
+    let r = compile_module("export const x = 1;", opts("x.svelte.js"));
+    assert!(
         r.is_ok(),
-        "valid TS module must still compile, got: {:?}",
+        "plain JS module must still compile, got: {:?}",
         r.err()
     );
 }
@@ -44,11 +55,8 @@ fn ts_decorator_now_errors_instead_of_being_silently_dropped() {
         "decorator on a class should now surface a parse error, got: {:?}",
         r.ok()
     );
-    let err = format!("{:?}", r.err().unwrap());
-    assert!(
-        err.contains("decorator"),
-        "expected the diagnostic to mention `decorator`, got:\n{err}"
-    );
+    // The error now comes from the plain-JS parse (upstream parity) rather
+    // than the TS strip pass, so only error presence is asserted.
 }
 
 #[test]

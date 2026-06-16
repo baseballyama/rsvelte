@@ -76,6 +76,20 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         }
     }
 
+    // Strip TypeScript type annotations from the body text BEFORE passing it to
+    // the instance-script transform. The transform fast-path does not run the
+    // TypeScript stripper, so `const typed: number = 1` would emit `typed:
+    // number` verbatim into the output JS.
+    //
+    // The rsvelte parser already strips annotations from the pattern in the AST
+    // (via `strip_type_annotation`), but the source text in `body` still carries
+    // them. We use a text-based scanner that mirrors the parser's logic: scan
+    // for the keyword, locate the top-level `=`, then strip the top-level `:`
+    // annotation from the LHS pattern.
+    // Mirrors upstream's reliance on OXC's TS-aware parse/emit.
+    let body_stripped = strip_ts_annotation_body(body);
+    let body = body_stripped.trim();
+
     // Ensure the statement ends with `;` so the rune-rewriting pipeline (which
     // expects script-like input) can parse and re-emit it cleanly.
     let mut script_input = String::with_capacity(body.len() + 2);
@@ -91,6 +105,32 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         context.state.options.dev,
         &[],
     );
+
+    // The instance-script pipeline wraps instance-state reads but is unaware of
+    // the enclosing each block's item bindings. Inside `{#each boxes as box}` a
+    // `{const area = box.width}` must read the reactive item as `$.get(box)`
+    // (mirroring the template-expression transform's each-item handling). Only
+    // REACTIVE each-items qualify — a non-reactive item (e.g. keyed by itself,
+    // `{#each xs as n (n)}`) stays bare. Reactive items are exactly those with a
+    // registered read transform in `context.state.transform` (each_block.rs only
+    // inserts one when `EACH_ITEM_REACTIVE` is set).
+    let reactive_each_names: Vec<String> = context
+        .state
+        .each_item_names
+        .iter()
+        .filter(|n| context.state.transform.contains_key(n.as_str()))
+        .map(|n| n.to_string())
+        .collect();
+    let transformed = if reactive_each_names.is_empty() {
+        transformed
+    } else {
+        crate::compiler::phases::phase3_transform::client::expression_utils::wrap_state_vars_in_expr(
+            &transformed,
+            &reactive_each_names,
+            &[],
+            &[],
+        )
+    };
 
     let trimmed = transformed.trim();
     if trimmed.is_empty() {
@@ -300,6 +340,78 @@ fn collect_init_identifiers(value: &serde_json::Value, out: &mut Vec<String>) {
         }
         _ => {}
     }
+}
+
+/// Strip TypeScript type annotations from a single-declarator body string.
+///
+/// Handles the case where the instance-script fast path does not run the
+/// TypeScript stripper. For `const typed: number = total / 2` the result is
+/// `const typed = total / 2`. Works text-based (not via AST spans) because
+/// the rsvelte parser already strips annotations from the AST pattern but
+/// leaves them in the raw source text.
+///
+/// Algorithm:
+/// 1. Find the `const`/`let`/`var` keyword.
+/// 2. Find the first top-level `=` after the keyword (skipping `==`/`=>`/etc.).
+/// 3. In the LHS pattern (before `=`), find the first top-level `:`.
+/// 4. Drop everything from `:` to the end of the LHS.
+///
+/// Multi-declarator bodies (containing top-level `,`) are returned unchanged
+/// because they fall through the fast path and are handled by the full
+/// transform pipeline.
+fn strip_ts_annotation_body(body: &str) -> std::borrow::Cow<'_, str> {
+    // Identify keyword length.
+    let kw_len = if body.starts_with("const ") {
+        6
+    } else if body.starts_with("let ") || body.starts_with("var ") {
+        4
+    } else {
+        return std::borrow::Cow::Borrowed(body);
+    };
+
+    let after_kw = &body[kw_len..];
+
+    // Find the top-level assignment `=` in the declarator text.
+    let Some(eq) = find_top_level_assignment_eq(after_kw) else {
+        // No `=`: bare declaration like `const x: T`. Strip annotation from
+        // the whole remaining text.
+        let stripped = strip_top_level_colon(after_kw);
+        if stripped.as_ref() == after_kw {
+            return std::borrow::Cow::Borrowed(body);
+        }
+        return std::borrow::Cow::Owned(format!("{}{}", &body[..kw_len], stripped));
+    };
+
+    let lhs = &after_kw[..eq];
+    let rhs = &after_kw[eq..]; // includes the `=`
+
+    // Strip the type annotation from the LHS pattern.
+    let stripped_lhs = strip_top_level_colon(lhs);
+    if stripped_lhs.as_ref() == lhs {
+        return std::borrow::Cow::Borrowed(body);
+    }
+
+    let keyword = &body[..kw_len];
+    std::borrow::Cow::Owned(format!("{}{}{}", keyword, stripped_lhs, rhs))
+}
+
+/// Return the portion of `s` before the first top-level `:`, trimmed.
+/// Returns `s` unchanged when no top-level `:` is found.
+fn strip_top_level_colon(s: &str) -> std::borrow::Cow<'_, str> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'{' | b'[' | b'(' | b'<' => depth += 1,
+            b'}' | b']' | b')' | b'>' => depth -= 1,
+            b':' if depth == 0 => {
+                let stripped = s[..i].trim_end();
+                return std::borrow::Cow::Owned(stripped.to_string());
+            }
+            _ => {}
+        }
+    }
+    std::borrow::Cow::Borrowed(s)
 }
 
 /// Whether a declaration body has a top-level comma (a multi-declarator

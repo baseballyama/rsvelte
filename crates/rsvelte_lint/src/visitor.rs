@@ -5,7 +5,7 @@
 //! is the verbatim `vize_patina` `visitor.rs` structure, which keeps the walk
 //! cache-friendly and the rule set trivially parallel across files.
 
-use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
+use rsvelte_core::ast::template::{Attribute, Fragment, Root, TemplateNode};
 
 use crate::context::LintContext;
 use crate::rule::{Rule, RuleMeta, Severity};
@@ -39,6 +39,18 @@ impl<'r> LintVisitor<'r> {
     fn visit_fragment(&self, ctx: &mut LintContext, fragment: &Fragment) {
         for node in &fragment.nodes {
             self.visit_node(ctx, node);
+        }
+    }
+
+    /// Dispatch `check_attribute` for every attribute/directive on an element.
+    /// Shared across all element-bearing node types so attribute rules fire
+    /// uniformly (not just on `RegularElement`).
+    fn visit_attributes(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
+        for attr in attributes {
+            for er in &self.rules {
+                ctx.enter_rule(er.meta, er.severity);
+                er.rule.check_attribute(ctx, attr);
+            }
         }
     }
 
@@ -104,18 +116,19 @@ impl<'r> LintVisitor<'r> {
                     er.rule.check_debug_tag(ctx, t);
                 }
             }
-            TemplateNode::KeyBlock(b) => self.visit_fragment(ctx, &b.fragment),
+            TemplateNode::KeyBlock(b) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_key(ctx, b);
+                }
+                self.visit_fragment(ctx, &b.fragment)
+            }
             TemplateNode::RegularElement(el) => {
                 for er in &self.rules {
                     ctx.enter_rule(er.meta, er.severity);
                     er.rule.check_element(ctx, el);
                 }
-                for attr in &el.attributes {
-                    for er in &self.rules {
-                        ctx.enter_rule(er.meta, er.severity);
-                        er.rule.check_attribute(ctx, attr);
-                    }
-                }
+                self.visit_attributes(ctx, &el.attributes);
                 self.visit_fragment(ctx, &el.fragment);
             }
             TemplateNode::Component(c) => {
@@ -123,12 +136,37 @@ impl<'r> LintVisitor<'r> {
                     ctx.enter_rule(er.meta, er.severity);
                     er.rule.check_component(ctx, c);
                 }
+                self.visit_attributes(ctx, &c.attributes);
                 self.visit_fragment(ctx, &c.fragment);
             }
-            TemplateNode::SvelteComponent(c) => self.visit_fragment(ctx, &c.fragment),
-            TemplateNode::SvelteElement(e) => self.visit_fragment(ctx, &e.fragment),
-            TemplateNode::TitleElement(e) => self.visit_fragment(ctx, &e.fragment),
-            TemplateNode::SlotElement(e) => self.visit_fragment(ctx, &e.fragment),
+            TemplateNode::SvelteComponent(c) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_svelte_component(ctx, c);
+                }
+                self.visit_attributes(ctx, &c.attributes);
+                self.visit_fragment(ctx, &c.fragment);
+            }
+            TemplateNode::SvelteElement(e) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_svelte_dynamic_element(ctx, e);
+                }
+                self.visit_attributes(ctx, &e.attributes);
+                self.visit_fragment(ctx, &e.fragment);
+            }
+            TemplateNode::TitleElement(e) => {
+                self.visit_attributes(ctx, &e.attributes);
+                self.visit_fragment(ctx, &e.fragment);
+            }
+            TemplateNode::SlotElement(e) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_slot(ctx, e);
+                }
+                self.visit_attributes(ctx, &e.attributes);
+                self.visit_fragment(ctx, &e.fragment)
+            }
             // The `svelte:*` special elements all wrap a `SvelteElement`.
             TemplateNode::SvelteBody(e)
             | TemplateNode::SvelteDocument(e)
@@ -137,14 +175,40 @@ impl<'r> LintVisitor<'r> {
             | TemplateNode::SvelteHead(e)
             | TemplateNode::SvelteOptions(e)
             | TemplateNode::SvelteSelf(e)
-            | TemplateNode::SvelteWindow(e) => self.visit_fragment(ctx, &e.fragment),
-            // Leaf nodes with no template children and no Wave-1 hooks.
-            TemplateNode::Text(_)
-            | TemplateNode::Comment(_)
-            | TemplateNode::ConstTag(_)
-            | TemplateNode::DeclarationTag(_)
-            | TemplateNode::RenderTag(_)
-            | TemplateNode::AttachTag(_) => {}
+            | TemplateNode::SvelteWindow(e) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_svelte_element(ctx, e);
+                }
+                self.visit_attributes(ctx, &e.attributes);
+                self.visit_fragment(ctx, &e.fragment);
+            }
+            TemplateNode::ConstTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_const_tag(ctx, t);
+                }
+            }
+            TemplateNode::Comment(c) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_comment(ctx, c);
+                }
+            }
+            TemplateNode::DeclarationTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_declaration_tag(ctx, t);
+                }
+            }
+            TemplateNode::RenderTag(t) => {
+                for er in &self.rules {
+                    ctx.enter_rule(er.meta, er.severity);
+                    er.rule.check_render_tag(ctx, t);
+                }
+            }
+            // Leaf nodes with no template children and no hooks.
+            TemplateNode::Text(_) | TemplateNode::AttachTag(_) => {}
         }
     }
 }

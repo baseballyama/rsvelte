@@ -22,6 +22,35 @@ lazy_static! {
         Regex::new(r"(^[0-9\-.])|([\^$@%&#?!|()\[\]{}*+~;])").unwrap();
 }
 
+/// Enforce the `experimental_async` / `legacy_await_invalid` gate for awaits in
+/// template expressions.
+///
+/// Upstream every template expression context (expression tags, block
+/// conditions, directives, attributes, `{@const}` …) sets
+/// `state.expression = node.metadata.expression`, so the `AwaitExpression`
+/// analyze visitor takes the `suspend = true` branch and errors unless
+/// a) `experimental.async` is enabled and b) the component is in runes mode
+/// (AwaitExpression.js L26-42). Function boundaries reset `expression` to
+/// `null` (shared/function.js L19-23) — mirrored by `in_template_function`.
+pub(crate) fn validate_template_await(context: &VisitorContext) -> Result<(), AnalysisError> {
+    if context.in_template_function {
+        return Ok(());
+    }
+    if !context.analysis.experimental_async {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "experimental_async".to_string(),
+            message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`".to_string(),
+        });
+    }
+    if !context.analysis.runes {
+        return Err(AnalysisError::ValidationWithCode {
+            code: "legacy_await_invalid".to_string(),
+            message: "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless in runes mode".to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// Check if there's a variable declaration for the given name in the current function's
 /// scope chain by looking at the JS AST path.
 ///
@@ -1890,6 +1919,12 @@ pub fn walk_js_expression(
         Some("AwaitExpression") => {
             // Mark expression as containing await
             metadata.set_has_await(true);
+            // Awaits in template expressions suspend (upstream: `state.expression`
+            // is set for every template expression context, so the AwaitExpression
+            // visitor takes the `suspend = true` branch — AwaitExpression.js L26-42).
+            // They are only allowed with `experimental.async` and runes mode,
+            // unless a function boundary breaks the reactive context.
+            validate_template_await(context)?;
             // Visit argument
             if let Some(argument) = expression.get("argument") {
                 walk_js_expression(argument, context, metadata)?;
@@ -2045,6 +2080,10 @@ pub fn walk_js_expression(
             // Reference: svelte/src/compiler/phases/2-analyze/visitors/shared/function.js L19-23
             let saved_expression = context.expression;
             context.expression = None;
+            // Awaits inside a function body are not suspending (upstream sets
+            // `expression: null` on function entry — function.js L19-23).
+            let saved_in_template_function = context.in_template_function;
+            context.in_template_function = true;
 
             // Visit function body with expression context cleared
             if let Some(body) = expression.get("body") {
@@ -2072,6 +2111,7 @@ pub fn walk_js_expression(
             }
 
             // Restore expression context
+            context.in_template_function = saved_in_template_function;
             context.expression = saved_expression;
 
             // Restore scope
@@ -3083,6 +3123,17 @@ pub fn walk_js_expression_node(
                 context.analysis.needs_context = true;
             }
 
+            // `$effect` / `$effect.pre` always need the component context
+            // (upstream CallExpression.js cases `$effect`/`$effect.pre` →
+            // `needs_context = true`). This matters for a rune used only inside
+            // a template directive (e.g. `{@attach … $effect(…)}`), which would
+            // otherwise leave the component without its `$.push`/`$.pop`.
+            if let Some(ref rn) = rune_name
+                && matches!(rn.as_str(), "$effect" | "$effect.pre")
+            {
+                context.analysis.needs_context = true;
+            }
+
             walk_js_expression_node(callee_node, context, metadata)?;
             for arg in arena.get_js_children(*arguments) {
                 walk_js_expression_node(arg, context, metadata)?;
@@ -3104,6 +3155,9 @@ pub fn walk_js_expression_node(
         }
         JsNode::AwaitExpression { argument, .. } => {
             metadata.set_has_await(true);
+            // See the `Some("AwaitExpression")` arm in `walk_js_expression` —
+            // mirrors upstream AwaitExpression.js L26-42 (suspend gate).
+            validate_template_await(context)?;
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::UpdateExpression { argument, .. } => {
@@ -3136,8 +3190,12 @@ pub fn walk_js_expression_node(
                 {
                     walk_js_expression_node(arena.get_js_node(key_id), context, metadata)?;
                 }
-                // Handle SpreadElement in object (rest/spread)
+                // Handle SpreadElement in object (rest/spread). Like the
+                // top-level SpreadElement arm, a spread marks the enclosing
+                // expression `has_call` + `has_state` (upstream SpreadElement.js).
                 if let JsNode::SpreadElement { argument, .. } = property {
+                    metadata.set_has_call(true);
+                    metadata.set_has_state(true);
                     walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
                 }
             }
@@ -3209,24 +3267,37 @@ pub fn walk_js_expression_node(
 
             let saved_expression = context.expression;
             context.expression = None;
+            // Awaits inside a function body are not suspending (upstream sets
+            // `expression: null` on function entry — function.js L19-23).
+            let saved_in_template_function = context.in_template_function;
+            context.in_template_function = true;
 
             // Visit function body
             let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
             walk_js_expression_node(arena.get_js_node(*body), context, &mut inner_metadata)?;
 
-            // Propagate references and dependencies
+            // Propagate references and has_state, but NOT dependencies.
+            //
+            // Upstream's `visit_function` (2-analyze/visitors/shared/function.js)
+            // enters function bodies with `context.next({ ..., expression: null })`,
+            // so identifiers referenced *inside* a nested function never get added
+            // to the enclosing expression's `dependencies` (Identifier.js only adds
+            // when `context.state.expression` is non-null). Propagating
+            // `inner_metadata.dependencies` here over-collects — in particular it
+            // pulls in a callback parameter that *shadows* an each-block item
+            // (e.g. `items.filter((item) => …)`), which wrongly flips
+            // EACH_ITEM_REACTIVE on. References and has_state are still propagated
+            // to preserve existing reactivity behaviour for captured outer state.
             if !context.analysis.runes {
                 for ref_idx in &inner_metadata.references {
                     metadata.references.insert(*ref_idx);
                 }
             }
-            for dep_idx in &inner_metadata.dependencies {
-                metadata.dependencies.insert(*dep_idx);
-            }
             if inner_metadata.has_state() {
                 metadata.set_has_state(true);
             }
 
+            context.in_template_function = saved_in_template_function;
             context.expression = saved_expression;
             context.scope = saved_scope;
             context.analysis.root.scope.declarations = saved_declarations;
@@ -3247,6 +3318,12 @@ pub fn walk_js_expression_node(
             walk_js_expression_node(arena.get_js_node(*expr), context, metadata)?;
         }
         JsNode::SpreadElement { argument, .. } => {
+            // Mirrors upstream's SpreadElement analyze visitor: `[...x]` is
+            // treated like `[...x.values()]`, whose result is unknown at
+            // compile time, so the enclosing expression is both `has_call` and
+            // `has_state`.
+            metadata.set_has_call(true);
+            metadata.set_has_state(true);
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
         JsNode::TemplateLiteral { expressions, .. } => {

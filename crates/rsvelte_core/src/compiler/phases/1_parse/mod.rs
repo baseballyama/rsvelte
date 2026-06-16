@@ -91,6 +91,13 @@ pub struct ParseOptions {
     /// When true, script blocks store raw content and parse lazily in the analysis phase.
     /// Set to false for tests that compare parse output directly.
     pub defer_script_parse: bool,
+    /// Force TypeScript parsing for every `<script>` and template expression,
+    /// regardless of a `lang="ts"` attribute. The compiler never sets this (a
+    /// plain `<script>` is JS by Svelte semantics), but the *formatter* uses it
+    /// as a fallback: oxfmt / prettier-plugin-svelte parse Svelte `<script>` as
+    /// TS by default, so a plain `<script>` containing TS (e.g. `import type`,
+    /// `typeof X<any>`) must be parsed as TS to format identically.
+    pub force_typescript: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).
@@ -144,6 +151,36 @@ pub fn compute_line_offsets(source: &str, skip: bool) -> Vec<usize> {
         pos = abs + 1;
     }
     offsets
+}
+
+/// Parse a standalone JavaScript / TypeScript module source into an
+/// ESTree-compatible JSON program (offsets are byte positions in `source`).
+///
+/// Unlike [`parse`], which expects a Svelte component, this parses a whole file
+/// as a JS/TS module — used to lint `*.svelte.js` / `*.svelte.ts` / `*.js`
+/// module files. The program node and its children are materialised eagerly
+/// (resolved through a fresh arena), so the returned value is self-contained.
+pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::Value {
+    let arena = crate::ast::arena::ParseArena::new();
+    let line_offsets = compute_line_offsets(source, false);
+    // The serialize arena must be installed for the WHOLE conversion: when the
+    // source contains comments, `parse_program` resolves statement children via
+    // `to_value()` during the parse itself (not just the final `as_json`), so
+    // without the guard active those arena-indexed children (e.g. an import's
+    // `source` / `specifiers`) come back empty.
+    crate::ast::arena::with_serialize_arena(&arena, || {
+        let (program, _parse_error) = expression::parse_program_with_error(
+            &arena,
+            source,
+            0,
+            &line_offsets,
+            is_typescript,
+            &[],
+            0,
+            source.len(),
+        );
+        program.as_json().clone()
+    })
 }
 
 /// Parse multiple Svelte components in parallel.

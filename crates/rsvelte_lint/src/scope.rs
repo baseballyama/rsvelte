@@ -80,7 +80,7 @@ pub fn scope_diagnostics(source: &str, config: &LintConfig) -> Vec<LintDiagnosti
     let Some(analysis) = analyze_scope(source) else {
         return Vec::new();
     };
-    let mut ctx = LintContext::new(config, source);
+    let mut ctx = LintContext::new(config, source, "");
     for binding in &analysis.root.bindings {
         for (rule, meta, severity) in &enabled {
             ctx.enter_rule(meta, *severity);

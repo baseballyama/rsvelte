@@ -356,7 +356,10 @@ impl NapiCompileOptions {
             if let Some(s) = v.as_str() {
                 opts.sourcemap = Some(s.to_string());
             } else if v.is_object() || v.is_array() {
-                opts.sourcemap = Some(serde_json::to_string(&v).unwrap_or_default());
+                // Only carry the map through when it serializes; on failure
+                // `.ok()` yields `None`, leaving the field unset rather than
+                // storing an empty-string sourcemap.
+                opts.sourcemap = serde_json::to_string(&v).ok();
             }
         }
         if let Some(v) = self.output_filename {
@@ -710,14 +713,18 @@ mod preprocess_bridge {
             napi_val: napi::sys::napi_value,
         ) -> napi::Result<Self> {
             let mut is_promise = false;
+            // SAFETY: `env`/`napi_val` are the valid handles passed by Node-API to
+            // `from_napi_value`; `napi_is_promise` only reads them and writes the bool.
             let status = unsafe { napi::sys::napi_is_promise(env, napi_val, &mut is_promise) };
             if status != napi::sys::Status::napi_ok {
                 return Err(napi::Error::from_status(napi::Status::from(status)));
             }
             if is_promise {
+                // SAFETY: same valid `env`/`napi_val`; we just confirmed it is a Promise.
                 let p = unsafe { Promise::<T>::from_napi_value(env, napi_val)? };
                 Ok(MaybePromise::Promise(p))
             } else {
+                // SAFETY: same valid `env`/`napi_val`; delegating to `T`'s own decoder.
                 let v = unsafe { T::from_napi_value(env, napi_val)? };
                 Ok(MaybePromise::Value(v))
             }
@@ -1320,10 +1327,14 @@ pub fn napi_compile_module_envelope_zero_copy(
     ensure_envelope_size(size)?;
     let bump = Box::new(bumpalo::Bump::with_capacity(size));
     let bump_ptr: *mut bumpalo::Bump = Box::into_raw(bump);
+    // SAFETY: `bump_ptr` is freshly leaked from `Box::into_raw` and not aliased;
+    // ownership is re-acquired via `Box::from_raw` in the finalizer below.
     let bump_ref: &bumpalo::Bump = unsafe { &*bump_ptr };
     let slice = crate::napi_raw::encode_into_bump(bump_ref, &cr);
     let ptr = slice.as_mut_ptr();
     let len = slice.len();
+    // SAFETY: `ptr`/`len` describe a valid slice inside `*bump_ptr`; V8 invokes the
+    // finalizer exactly once on GC, which drops the Box and frees the arena bytes.
     let js_buf_value = unsafe {
         env.create_buffer_with_borrowed_data(
             ptr,

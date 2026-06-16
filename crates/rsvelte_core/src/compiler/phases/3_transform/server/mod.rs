@@ -6,6 +6,8 @@
 
 pub mod bridge;
 pub mod build;
+pub(crate) mod esrap_layout;
+pub(crate) mod evaluate;
 pub mod helpers;
 mod template_rune_ast;
 pub mod transform_legacy;
@@ -82,16 +84,19 @@ pub fn transform_server(
     });
 
     // Handle CSS injection for options.css === 'injected'
-    // Reference: transform-server.js line 303: options.css === 'injected' && !options.customElement
-    // Note: analysis.inject_styles is also true for custom elements, but custom elements
-    // handle styles client-side (in shadow DOM), so we check the compile option directly.
+    // Reference: transform-server.js line 305:
+    // `analysis.css.ast !== null && analysis.inject_styles && !analysis.custom_element`
+    // Custom elements (including `<svelte:options customElement>`) handle styles
+    // client-side (in shadow DOM), so they are excluded here.
     if options.css == crate::compiler::CssMode::Injected
         && analysis.css.has_css
         && !analysis.css.hash.is_empty()
+        && analysis.custom_element.is_none()
         && !options.custom_element
     {
         // Render the CSS stylesheet with scoping and minification for SSR
-        if let Ok(css_output) = render_stylesheet_minified(analysis, &analysis.source, options)
+        if let Ok(css_output) =
+            render_stylesheet_minified(analysis, ast.css.as_deref(), &analysis.source, options)
             && !css_output.code.is_empty()
         {
             generator.set_injected_css(analysis.css.hash.clone(), css_output.code);
@@ -148,8 +153,18 @@ pub fn transform_server_module(
     // before applying transforms, since effects don't run on the server.
     let source_without_effects = strip_effects_from_source(source);
 
+    // Lower `$state` / `$derived` CLASS fields with the SERVER transform FIRST.
+    // The client module transform (below) privatizes a public `$state` field
+    // into `#field` + get/set accessors — correct for the client, but on the
+    // server a public `$state` field is just a plain public value
+    // (`active = false`). Running `transform_class_fields_server` first replaces
+    // `$state(v)` → `v` in the class body, so the subsequent client transform
+    // finds no rune in the class and leaves the (now server-shaped) fields
+    // alone. Mirrors how the component server path lowers class fields.
+    let source_without_effects =
+        transform_script::transform_class_fields_server(&source_without_effects);
+
     // Transform rune calls using the same infrastructure as client modules.
-    // The client transform handles class fields ($state, $derived in classes).
     let transformed =
         super::client::transform_module_source_for_module(&source_without_effects, analysis, false);
 
@@ -160,6 +175,15 @@ pub fn transform_server_module(
     // $.state(x) -> x (no signals on server)
     // $.effect_root(...) and $.user_effect(...) -> noop (should already be stripped)
     let transformed = post_process_for_server(&transformed);
+
+    // After the server lowering turns `$.get(x)` → `x()` for derived reads,
+    // a `$derived(<bare derived>)` initializer reads as
+    // `$.derived(() => source())`. Collapse it back to `$.derived(source)`,
+    // mirroring the component instance-script path (the server runtime treats
+    // a derived passed directly as a re-callable dependency). Modules went
+    // through the CLIENT module transform, so this server-only pass wasn't
+    // applied there.
+    let transformed = transform_script::unthunk_bare_derived_arg(&transformed);
 
     // Split imports from body
     let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
@@ -275,17 +299,39 @@ fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
     let mut result = source.to_string();
 
-    // Replace $effect.root(() => { ... }) with () => {} (a no-op cleanup function)
-    // $effect.root returns a cleanup function, so we need to provide one.
+    // `$effect.root(...)` has two upstream lowerings:
+    //   - statement position  → removed entirely (ExpressionStatement.js → b.empty)
+    //   - expression position  → `() => {}` no-op cleanup fn (CallExpression.js)
     while let Some(pos) = next_code_match(&result, "$effect.root(", 0) {
         let call_start = pos + 13; // after "$effect.root("
         if let Some(content_end) = find_matching_paren(&result[call_start..]) {
             let expr_end = call_start + content_end + 1; // after closing paren
-            let mut new_result = String::with_capacity(pos + 7 + result.len() - expr_end);
-            new_result.push_str(&result[..pos]);
-            new_result.push_str("() => {}");
-            new_result.push_str(&result[expr_end..]);
-            result = new_result;
+            // Statement position when everything from the line start to `pos` is
+            // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
+            let line_start = result[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            let is_statement = result[line_start..pos].chars().all(|c| c.is_whitespace());
+            if is_statement {
+                // Consume trailing whitespace + an optional `;` so no stray
+                // `() => {};` remains (mirrors the $effect.pre removal below).
+                let bytes = result.as_bytes();
+                let mut end = expr_end;
+                while end < result.len() && bytes[end].is_ascii_whitespace() {
+                    end += 1;
+                }
+                if end < result.len() && bytes[end] == b';' {
+                    end += 1;
+                }
+                let mut new_result = String::with_capacity(pos + result.len() - end);
+                new_result.push_str(&result[..pos]);
+                new_result.push_str(&result[end..]);
+                result = new_result;
+            } else {
+                let mut new_result = String::with_capacity(pos + 8 + result.len() - expr_end);
+                new_result.push_str(&result[..pos]);
+                new_result.push_str("() => {}");
+                new_result.push_str(&result[expr_end..]);
+                result = new_result;
+            }
         } else {
             break;
         }
@@ -340,6 +386,118 @@ fn strip_effects_from_source(source: &str) -> String {
     result
 }
 
+/// Recompact a state setter value back into a compound assignment.
+///
+/// The shared client module transform lowers `s += 1` (a `$state` compound
+/// assignment) to `$.set(s, $.get(s) + 1)`. On the server, state is a plain
+/// mutable binding, so the upstream `AssignmentExpression` visitor keeps the
+/// original compound operator. By the time `post_process_for_server` reaches
+/// the `$.set` rewrite, the inner `$.get(s)` read has already collapsed to a
+/// bare `s`, so `value` reads `s + 1`. When `value` is exactly
+/// `<signal> <binop> <single-operand>`, fold it back to `s += 1`.
+///
+/// Conservative on purpose: only arithmetic / bitwise operators (logical
+/// `&&`/`||`/`??` are skipped), and the right-hand side must be a single
+/// operand (no top-level binary operator) so there is never a precedence
+/// ambiguity between `s += a + b` and `s = (s + a) + b`.
+fn recompact_compound_set(signal: &str, value: &str) -> Option<String> {
+    if signal.is_empty() || !value.starts_with(signal) {
+        return None;
+    }
+    let after = &value[signal.len()..];
+    // `signal` must be the whole left operand — the next char cannot continue
+    // the identifier (`s.foo`, `state2`) or start a member access (`s.x += 1`
+    // is a member assignment, handled elsewhere).
+    match after.chars().next() {
+        Some(c) if c.is_alphanumeric() || c == '_' || c == '$' || c == '.' => return None,
+        None => return None,
+        _ => {}
+    }
+    let after = after.trim_start();
+    // longest-first so `**`/`<<`/`>>>`/`>>` win over their prefixes
+    const OPS: &[(&str, &str)] = &[
+        (">>>", ">>>="),
+        ("**", "**="),
+        ("<<", "<<="),
+        (">>", ">>="),
+        ("+", "+="),
+        ("-", "-="),
+        ("*", "*="),
+        ("/", "/="),
+        ("%", "%="),
+        ("&", "&="),
+        ("|", "|="),
+        ("^", "^="),
+    ];
+    for (bin, comp) in OPS {
+        let Some(rest) = after.strip_prefix(bin) else {
+            continue;
+        };
+        // Guard against logical / longer operators that share a prefix:
+        // `&&`, `||`, and a stray `>` after `>>` (i.e. `>>>`, already matched).
+        if (*bin == "&" && rest.starts_with('&'))
+            || (*bin == "|" && rest.starts_with('|'))
+            || (*bin == "*" && rest.starts_with('*'))
+            || (*bin == ">>" && rest.starts_with('>'))
+        {
+            continue;
+        }
+        let rhs = rest.trim();
+        if rhs.is_empty() || has_top_level_binary_operator(rhs) {
+            return None;
+        }
+        return Some(format!("{signal} {comp} {rhs}"));
+    }
+    None
+}
+
+/// True if `expr` contains a binary/logical operator at paren/bracket/brace
+/// depth 0 (after skipping leading unary `+`/`-`/`!`/`~`). Used to keep
+/// [`recompact_compound_set`] from folding a multi-operand right-hand side
+/// where operator precedence would make `s += a + b` mean something other than
+/// the original `s = s + a + b`.
+fn has_top_level_binary_operator(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    // Skip a run of leading unary operators (`-x`, `!flag`, `~mask`, `+n`).
+    while i < len && matches!(bytes[i], b'-' | b'+' | b'!' | b'~') {
+        i += 1;
+        while i < len && bytes[i] == b' ' {
+            i += 1;
+        }
+    }
+    let mut depth: i32 = 0;
+    while i < len {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b'"' | b'\'' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' && i + 1 < len {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'<' | b'>' | b'&' | b'|' | b'^' | b'=' | b'?'
+                if depth == 0 =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Post-process client module transform output for server context.
 /// Replaces client-specific runtime calls with server equivalents.
 fn post_process_for_server(source: &str) -> String {
@@ -354,6 +512,12 @@ fn post_process_for_server(source: &str) -> String {
     // become stale snapshots and downstream code (`get isValid()` etc.)
     // breaks when the underlying state mutates between calls.
     let derived_names = collect_derived_names(&result);
+    // Private class fields backed by `$.derived(...)` are *callable* on the
+    // server (read via `this.#x()`); `$state` fields are plain values (read via
+    // `this.#x`, set via `this.#x = v`). Collect the derived ones so the
+    // `$.get`/`$.set` member rewrites below pick the right form per field
+    // instead of blindly treating every `this.#x` as callable (issue #907).
+    let derived_private_fields = collect_derived_private_fields(&result);
 
     let finder_effect_root = memmem::Finder::new(b"$.effect_root(");
     let finder_user_effect = memmem::Finder::new(b"$.user_effect(");
@@ -429,10 +593,16 @@ fn post_process_for_server(source: &str) -> String {
                 .to_string();
             // Check if it's a member expression (contains '.')
             if memchr::memchr(b'.', content.as_bytes()).is_some() {
-                // Member expression: keep as function call
-                let mut replacement = String::with_capacity(content.len() + 2);
-                replacement.push_str(&content);
-                replacement.push_str("()");
+                // A private `$state` class field is a plain value on the server
+                // (`this.#x`); only derived fields (and other member exprs) read
+                // as a call (`this.#x()`).
+                let plain_state_field = private_field_name(&content)
+                    .is_some_and(|name| !derived_private_fields.contains(name));
+                let replacement = if plain_state_field {
+                    content.clone()
+                } else {
+                    format!("{content}()")
+                };
                 result = splice!(result, pos, &replacement, call_start + content_end + 1);
             } else if derived_names.contains(content.as_str()) {
                 // Derived simple ident: callable on the server
@@ -466,13 +636,37 @@ fn post_process_for_server(source: &str) -> String {
                     rest
                 };
                 if memchr::memchr(b'.', signal.as_bytes()).is_some() {
-                    // Member expression: function call form
-                    let mut replacement = String::with_capacity(signal.len() + 1 + value.len() + 1);
+                    // A private `$state` class field is a plain value on the
+                    // server, so its assignment stays `this.#x = v`; only derived
+                    // fields (and other member exprs) use the setter-call form
+                    // `this.#x(v)`.
+                    let plain_state_field = private_field_name(signal)
+                        .is_some_and(|name| !derived_private_fields.contains(name));
+                    let replacement = if plain_state_field {
+                        format!("{signal} = {value}")
+                    } else {
+                        format!("{signal}({value})")
+                    };
+                    result = splice!(result, pos, &replacement, call_start + content_end + 1);
+                } else if derived_names.contains(signal) {
+                    // Assignment to a derived binding becomes a setter call on
+                    // the server: `$.set(value, v)` → `value(v)` (the server
+                    // runtime exposes a writable derived as a callable).
+                    let mut replacement = String::with_capacity(signal.len() + 2 + value.len());
                     replacement.push_str(signal);
                     replacement.push('(');
                     replacement.push_str(value);
                     replacement.push(')');
                     result = splice!(result, pos, &replacement, call_start + content_end + 1);
+                } else if let Some(compound) = recompact_compound_set(signal, value) {
+                    // Compound assignment recompaction. The shared client
+                    // transform lowered a state compound assignment `s += 1`
+                    // to `$.set(s, $.get(s) + 1)`; by this point the inner
+                    // `$.get(s)` read already collapsed to `s`, so the value
+                    // reads `s + 1`. The upstream server `AssignmentExpression`
+                    // visitor keeps the original compound operator for a plain
+                    // (server-flat) state binding, so fold it back to `s += 1`.
+                    result = splice!(result, pos, &compound, call_start + content_end + 1);
                 } else {
                     // Simple identifier: assignment form
                     let mut replacement = String::with_capacity(signal.len() + 3 + value.len());
@@ -628,6 +822,63 @@ fn collect_derived_names(source: &str) -> std::collections::HashSet<String> {
         }
     }
     names
+}
+
+/// Scan a client-style class body and return the set of *private* field names
+/// (without the leading `#`) declared as `#name = $.derived(...)` /
+/// `$.derived_by(...)` / `$.derived_safe_equal(...)`.
+///
+/// On the server a private `$derived` field is callable (`this.#name()`), while
+/// a `$state` field is a plain value (`this.#name` / `this.#name = v`). The
+/// `$.get`/`$.set` member rewrites in [`post_process_for_server`] use this set
+/// to pick the right form per field — previously every `this.#x` was treated as
+/// callable, which turned plain `$state` field assignments into the broken
+/// `this.#x(value)` call form (issue #907).
+fn collect_derived_private_fields(source: &str) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix('#') else {
+            continue;
+        };
+        let Some(eq) = rest.find('=') else {
+            continue;
+        };
+        let name = rest[..eq].trim();
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+        {
+            continue;
+        }
+        let value = rest[eq + 1..].trim_start();
+        if value.starts_with("$.derived(")
+            || value.starts_with("$.derived_by(")
+            || value.starts_with("$.derived_safe_equal(")
+        {
+            names.insert(name.to_string());
+        }
+    }
+    names
+}
+
+/// Extract the private-field name (without `#`) from a member expression like
+/// `this.#current` → `current`. Returns `None` when the expression is not a
+/// direct private-field access (e.g. `obj.prop`, or `this.#x.y` which accesses
+/// a property *of* the field rather than the field itself).
+fn private_field_name(member_expr: &str) -> Option<&str> {
+    let hash = member_expr.rfind(".#")?;
+    let rest = &member_expr[hash + 2..];
+    let end = rest
+        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+        .unwrap_or(rest.len());
+    if end == 0 || end != rest.len() {
+        // Empty name, or trailing access (`this.#x.y`) — not a bare field read.
+        None
+    } else {
+        Some(&rest[..end])
+    }
 }
 
 /// Find the byte position of the first comma at bracket-depth 0, skipping
@@ -815,6 +1066,26 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// rewritten to `name?.()` (matching upstream `build_getter`'s
     /// `declaration_kind === 'var' ? b.maybe_call : b.call`).
     pub(crate) derived_var_names: FxHashSet<String>,
+    /// The Phase-2 scope index of the template fragment this generator is
+    /// emitting (currently tracked at `{#snippet}` boundaries, where the
+    /// generated output becomes a separate function). Used by the evaluator
+    /// to restrict constant-folding of snippet-scoped template declarations
+    /// (`{@const}` / `{const}` / `{let}`) to lexically reachable references —
+    /// a `{@const}` in a SIBLING snippet must render as a (possibly global)
+    /// identifier, not be substituted (mirrors upstream `scope.evaluate`).
+    pub(crate) current_scope_index: Option<usize>,
+    /// Lazily-built set of template scope indices (see `evaluate_identifier`)
+    /// — built once per compile instead of per evaluated identifier.
+    pub(crate) template_scopes_cache: std::cell::OnceCell<rustc_hash::FxHashSet<usize>>,
+    /// Comments inside template expressions the server transform drops
+    /// entirely (event-handler attributes / `on:` directives). The official
+    /// compiler keeps every parsed comment — esrap re-inserts them before the
+    /// next printed node with a later source position, which is typically the
+    /// next template expression (`$.escape(...)` / `$.ensure_array_like(...)`
+    /// argument). Collected as `(source_offset, comment_text)`; shared with
+    /// child fragment generators so nested handlers contribute too. Flushed
+    /// by `build()`.
+    pub(crate) lost_comments: std::rc::Rc<std::cell::RefCell<Vec<(usize, String)>>>,
 }
 
 /// Accumulator for grouping multiple const tags into a single `$$renderer.run()` call.
@@ -864,9 +1135,17 @@ impl<'a> ServerCodeGenerator<'a> {
         // Add scope-based constants for $state variables that are not updated.
         // The text-based extraction skips $state lines, but if scope analysis shows
         // a $state binding is never reassigned/mutated, we can fold its initial value.
+        // Only template-visible scopes participate: a `$state` declared inside a
+        // function body (e.g. within a `$derived.by` arrow) must not be folded
+        // into template reads of a same-named outer binding.
         if let Some(analysis) = analysis {
+            let template_scopes: rustc_hash::FxHashSet<usize> =
+                analysis.root.template_scope_map.values().copied().collect();
             for binding in &analysis.root.bindings {
                 if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                    && (binding.scope_index == 0
+                        || binding.scope_index == analysis.root.instance_scope_index
+                        || template_scopes.contains(&binding.scope_index))
                     && !binding.is_updated()
                     && !constant_vars.contains_key(&binding.name)
                     && let Some(ref init) = binding.initial
@@ -1087,6 +1366,28 @@ impl<'a> ServerCodeGenerator<'a> {
             async_consts: None,
             derived_names,
             derived_var_names,
+            current_scope_index: None,
+            template_scopes_cache: std::cell::OnceCell::new(),
+            lost_comments: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+        }
+    }
+
+    /// Record the comments contained in a dropped template expression (e.g.
+    /// an event-handler attribute the server ignores) so `build()` can
+    /// re-emit them positionally like the official compiler does.
+    pub(crate) fn record_lost_expression_comments(&self, start: usize, end: usize) {
+        if end <= start || end > self.source.len() {
+            return;
+        }
+        let snippet = &self.source[start..end];
+        if !snippet.contains("//") && !snippet.contains("/*") {
+            return;
+        }
+        let mut sink = self.lost_comments.borrow_mut();
+        for (rel, text) in
+            super::server::transform_script::extract_comments_from_snippet_with_pos(snippet)
+        {
+            sink.push((start + rel, text));
         }
     }
 
@@ -1121,6 +1422,9 @@ impl<'a> ServerCodeGenerator<'a> {
             async_consts: None,
             derived_names: self.derived_names.clone(),
             derived_var_names: self.derived_var_names.clone(),
+            current_scope_index: self.current_scope_index,
+            template_scopes_cache: std::cell::OnceCell::new(),
+            lost_comments: self.lost_comments.clone(),
         }
     }
 
@@ -1139,6 +1443,14 @@ impl<'a> ServerCodeGenerator<'a> {
     /// extracted from analysis, so static (non-derived) components pay
     /// nothing.
     pub(crate) fn transform_store_refs(&self, expr: &str) -> String {
+        // Legacy `$$props` reads become `$$sanitized_props` everywhere a
+        // template expression is emitted (upstream's server Identifier.js
+        // visitor returns `b.id('$$sanitized_props')` for every `$$props`
+        // reference). Running it here covers element attributes, component
+        // props, and every other expression path that funnels through
+        // `transform_store_refs`.
+        let expr = self.transform_special_vars(expr);
+        let expr = expr.as_str();
         if !self.uses_store_subs {
             return self.wrap_derived_reads(expr);
         }
@@ -1471,6 +1783,17 @@ impl<'a> ServerCodeGenerator<'a> {
         // When preserveWhitespace is true, whitespace-only text IS meaningful
         let preserve_ws = self.preserve_whitespace;
         let preserve_cmts = self.preserve_comments;
+        // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
+        // visitor visits them BEFORE process_children, so their statements
+        // precede the fragment's pushes and the surrounding HTML merges into a
+        // single push. Skipped when const/declaration tags exist (a debug may
+        // depend on a preceding const's async blocker — see fragment.rs).
+        let hoist_debug = !nodes.iter().any(|n| {
+            matches!(
+                n,
+                TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_)
+            )
+        });
         let is_ssr_meaningful = |n: &&TemplateNode| {
             (!matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                 || preserve_ws)
@@ -1478,11 +1801,30 @@ impl<'a> ServerCodeGenerator<'a> {
                 && !matches!(n, TemplateNode::SvelteWindow(_))
                 && !matches!(n, TemplateNode::SvelteDocument(_))
                 && !matches!(n, TemplateNode::SvelteBody(_))
+                // A hoisted DebugTag is removed from `regular` before whitespace
+                // trimming in upstream's clean_nodes, so it must not count as
+                // meaningful content — whitespace around it is leading/trailing
+                // whitespace and gets trimmed away entirely.
+                && !(hoist_debug && matches!(n, TemplateNode::DebugTag(_)))
         };
 
         // Find indices of first and last non-whitespace nodes (excluding SSR-invisible elements)
         let first_meaningful_idx = nodes.iter().position(is_ssr_meaningful);
-        let last_meaningful_idx = nodes.iter().rposition(is_ssr_meaningful);
+        // For the *trailing*-whitespace trim, also exclude hoisted const /
+        // declaration / snippet tags: upstream's clean_nodes pulls them out of
+        // `regular` before trimming, so a text node sitting just before a
+        // trailing `{@const}` / `{const …}` / `{#snippet}` is the real last node
+        // and its trailing whitespace must be trimmed (not collapsed to a space).
+        let is_last_meaningful = |n: &&TemplateNode| {
+            is_ssr_meaningful(n)
+                && !matches!(
+                    n,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                )
+        };
+        let last_meaningful_idx = nodes.iter().rposition(is_last_meaningful);
 
         // Check if the root fragment is standalone (only a single RenderTag/Component)
         // to determine if we should skip hydration boundaries
@@ -1491,9 +1833,29 @@ impl<'a> ServerCodeGenerator<'a> {
         // If the first meaningful node is a Text or ExpressionTag, add <!---->
         // to prevent text fusion during hydration.
         // Skip SvelteOptions nodes since they don't produce output.
+        // Also skip nodes that the official compiler hoists out of `regular`
+        // in `clean_nodes` (ConstTag, DeclarationTag, DebugTag, SvelteBody,
+        // SvelteWindow, SvelteDocument, SvelteHead, TitleElement, SnippetBlock)
+        // and comments removed when `preserveComments` is false — upstream
+        // computes `is_text_first` from the first node of `trimmed`, which
+        // excludes all of these. So `{const hello = 'hello'}{hello}` still
+        // counts as text-first and gets a `<!---->` anchor.
         let first_visible_idx = first_meaningful_idx.and_then(|start| {
             nodes[start..].iter().position(|n| {
-                !matches!(n, TemplateNode::SvelteOptions(_))
+                !matches!(
+                    n,
+                    TemplateNode::SvelteOptions(_)
+                        | TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::DebugTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                        | TemplateNode::SvelteHead(_)
+                        | TemplateNode::TitleElement(_)
+                        | TemplateNode::SvelteBody(_)
+                        | TemplateNode::SvelteWindow(_)
+                        | TemplateNode::SvelteDocument(_)
+                )
+                    && (preserve_cmts || !matches!(n, TemplateNode::Comment(_)))
                     && (preserve_ws || !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)))
             }).map(|offset| start + offset)
         });
@@ -1516,6 +1878,16 @@ impl<'a> ServerCodeGenerator<'a> {
         // When text before a hoisted node ends with whitespace and text after starts with
         // whitespace, the leading whitespace of the text-after is trimmed to avoid double space.
         let mut prev_text_ends_with_ws = false;
+
+        // Emit hoisted {@debug ...} tags before any template pushes (see the
+        // `hoist_debug` computation above).
+        if hoist_debug {
+            for node in nodes.iter() {
+                if matches!(node, TemplateNode::DebugTag(_)) {
+                    self.generate_node(node, true)?;
+                }
+            }
+        }
 
         for (i, node) in nodes.iter().enumerate() {
             // Flush accumulated root-level async consts before processing a
@@ -1673,12 +2045,17 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Both sides have visible content - keep this whitespace
                     }
                 }
-                // Skip whitespace around DebugTag ({@debug} generates JS code but no HTML)
-                if i > 0 && matches!(nodes[i - 1], TemplateNode::DebugTag(_)) {
-                    continue;
-                }
-                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::DebugTag(_)) {
-                    continue;
+                // Skip whitespace around DebugTag ({@debug} generates JS code but no HTML).
+                // When the debug tag is hoisted, it's transparent instead — the
+                // prev_text_ends_with_ws mechanism collapses the surrounding
+                // whitespace to a single space (matching upstream clean_nodes).
+                if !hoist_debug {
+                    if i > 0 && matches!(nodes[i - 1], TemplateNode::DebugTag(_)) {
+                        continue;
+                    }
+                    if i + 1 < len && matches!(nodes[i + 1], TemplateNode::DebugTag(_)) {
+                        continue;
+                    }
                 }
                 // Comments are transparent during rendering (stripped in clean_nodes).
                 // Whitespace before/after comments is handled naturally by the
@@ -1801,8 +2178,26 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
             } else {
-                // Reset trim flag when we hit a non-text, non-whitespace node
+                // Reset trim flag when we hit a non-text, non-whitespace node.
+                // Hoisted nodes (ConstTag, DeclarationTag, DebugTag, SnippetBlock,
+                // SvelteHead, TitleElement) are excluded: upstream removes them from
+                // `regular` before trimming, so the first *remaining* text node still
+                // gets its leading whitespace stripped.
+                let is_hoisted_for_trim = matches!(
+                    node,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
+                        | TemplateNode::DebugTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                        | TemplateNode::SvelteHead(_)
+                        | TemplateNode::TitleElement(_)
+                        | TemplateNode::SvelteBody(_)
+                        | TemplateNode::SvelteWindow(_)
+                        | TemplateNode::SvelteDocument(_)
+                ) || (matches!(node, TemplateNode::Comment(_))
+                    && !self.preserve_comments);
                 if trim_leading_ws
+                    && !is_hoisted_for_trim
                     && first_meaningful_idx.is_some()
                     && i >= first_meaningful_idx.unwrap()
                 {
@@ -1813,10 +2208,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 // transparent: they don't affect whitespace collapsing between text nodes.
                 let is_transparent = matches!(node, TemplateNode::SnippetBlock(_))
                     || matches!(node, TemplateNode::ConstTag(_))
+                    || (hoist_debug && matches!(node, TemplateNode::DebugTag(_)))
                     || (matches!(node, TemplateNode::Comment(_)) && !self.preserve_comments);
                 if !is_transparent {
                     prev_text_ends_with_ws = false;
                 }
+            }
+
+            // Hoisted DebugTags were already emitted in the pre-pass above.
+            if hoist_debug && matches!(node, TemplateNode::DebugTag(_)) {
+                continue;
             }
 
             self.generate_node(node, true)?;

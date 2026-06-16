@@ -1392,7 +1392,6 @@ fn try_parse_numeric_literal(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
-#[allow(clippy::too_many_arguments)]
 pub fn parse_expression(
     arena: &ParseArena,
     content: &str,
@@ -1525,7 +1524,6 @@ pub fn parse_destructuring_pattern(
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
 /// Returns an error message if parsing fails and loose mode is disabled.
-#[allow(clippy::too_many_arguments)]
 pub fn parse_expression_with_end(
     arena: &ParseArena,
     content: &str,
@@ -1632,6 +1630,67 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     js_result.as_ref()?;
 
     js_result.or(ts_result)
+}
+
+/// Check whether a parameter list (e.g. snippet params) parses as valid
+/// function parameters in the given language mode.
+///
+/// Mirrors upstream's snippet handling (1-parse/state/tag.js), which builds
+/// `${params} => {}` and parses it with `parse_expression_at` using the
+/// file's `parser.ts` mode — so TypeScript annotations in a snippet's
+/// parameters are a `js_parse_error` unless the component uses `lang="ts"`.
+///
+/// Returns `Some((message, pos_in_params))` when parsing fails.
+pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize)> {
+    let mut wrapped = String::with_capacity(params.len() + 9);
+    wrapped.push('(');
+    wrapped.push_str(params);
+    wrapped.push_str(") => {}");
+
+    with_oxc_allocator(|allocator| {
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let result = OxcParser::new(allocator, &wrapped, source_type).parse();
+        result.errors.first().map(|first_error| {
+            let pos = first_error
+                .labels
+                .as_ref()
+                .and_then(|labels| labels.first())
+                .map(|label| label.offset().saturating_sub(1).min(params.len()))
+                .unwrap_or(0);
+            (first_error.message.to_string(), pos)
+        })
+    })
+}
+
+/// Check whether `content` parses as a JS/TS *statement* (program), returning
+/// the first parse error as `Some((message, pos_in_content))`.
+///
+/// Mirrors upstream's `parse_statement_at` (acorn) used by
+/// `read_declaration()` in `1-parse/state/tag.js`: a declaration-tag body that
+/// does not parse as a statement is rethrown in strict mode and surfaces as
+/// `js_parse_error` (e.g. `{let }` → "The keyword 'let' is reserved").
+pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String, usize)> {
+    with_oxc_allocator(|allocator| {
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+        let result = OxcParser::new(allocator, content, source_type).parse();
+        result.errors.first().map(|first_error| {
+            let pos = first_error
+                .labels
+                .as_ref()
+                .and_then(|labels| labels.first())
+                .map(|label| label.offset().min(content.len()))
+                .unwrap_or(0);
+            (first_error.message.to_string(), pos)
+        })
+    })
 }
 
 /// For an *invalid* expression string, determine whether the failure is caused
@@ -2492,10 +2551,22 @@ fn convert_formal_parameter_inner(
             }
         }
         BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets)
+            let expr =
+                convert_object_pattern_to_expr(arena, obj_pat, adjusted_offset, line_offsets);
+            // A destructuring param can carry a type annotation on the
+            // FormalParameter (`{ a }: { a?: string }`), but the pattern's own
+            // span stops at the closing `}`. The BindingIdentifier branch above
+            // already folds the annotation into its span + attaches
+            // `typeAnnotation`; mirror that for object patterns so the param's
+            // `end` covers the annotation. svelte2tsx slices the snippet
+            // parameter's source by this span — without it the explicit type and
+            // its optionality are lost and the member is inferred as `any` /
+            // required (#912).
+            attach_param_type_annotation(expr, param, adjusted_offset, line_offsets)
         }
         BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern_to_expr(arena, arr_pat, adjusted_offset, line_offsets)
+            let expr = convert_array_pattern_to_expr(arena, arr_pat, adjusted_offset, line_offsets);
+            attach_param_type_annotation(expr, param, adjusted_offset, line_offsets)
         }
         BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern_to_expr(arena, assign_pat, adjusted_offset, line_offsets)
@@ -2518,6 +2589,39 @@ fn convert_formal_parameter_inner(
     }
 
     pattern_expr
+}
+
+/// Fold a FormalParameter's type annotation into a destructuring-pattern
+/// expression: extend the node's `end` to cover the annotation and attach a
+/// `typeAnnotation` field (mirroring the `BindingIdentifier` branch of
+/// `convert_formal_parameter_inner`). No-op when the parameter is untyped.
+///
+/// `adjusted_offset` is the offset already applied to the pattern's own spans
+/// (the OXC span is relative to the parser's wrapped source); the annotation's
+/// spans use the same base, so callers needing original-source positions
+/// (e.g. the optional-marker remap path) still remap the top-level `end`.
+fn attach_param_type_annotation(
+    expr: Expression,
+    param: &oxc_ast::ast::FormalParameter,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let Some(type_ann) = &param.type_annotation else {
+        return expr;
+    };
+    let mut json = expr.as_json().clone();
+    if let Some(obj) = json.as_object_mut() {
+        let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let end = adjusted_offset + type_ann.span.end as usize;
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        if let Some(loc) = create_loc(start, end, line_offsets) {
+            obj.insert("loc".to_string(), loc);
+        }
+        let type_ann_obj =
+            convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
+        obj.insert("typeAnnotation".to_string(), type_ann_obj);
+    }
+    Expression::Value(json)
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).
@@ -3934,7 +4038,6 @@ fn create_string_literal(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 fn create_binary_expression(
     arena: &ParseArena,
     left: &OxcExpression,
@@ -4971,6 +5074,20 @@ fn convert_assignment_target(
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
             convert_array_assignment_target(arena, arr_target, offset, line_offsets)
         }
+        AssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — mirror the simple-target arm so the
+            // `this.#field` MemberExpression is visited in 2-analyze.
+            let start = offset + member.span.start as usize - 1;
+            let end = offset + member.span.end as usize - 1;
+            expr_to_node(create_private_member_expression(
+                arena,
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
+        }
         _ => {
             // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
@@ -5055,6 +5172,22 @@ fn convert_simple_assignment_target(
             let start = offset + member.span.start as usize - 1;
             let end = offset + member.span.end as usize - 1;
             expr_to_node(create_computed_member_expression(
+                arena,
+                member,
+                start,
+                end,
+                offset,
+                line_offsets,
+            ))
+        }
+        SimpleAssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — without this arm it falls to `JsNode::Null`,
+            // so 2-analyze never visits the `this.#field` MemberExpression and
+            // `is_safe_identifier` can't flag it, leaving `needs_context` unset
+            // (no `$.push`/`$.pop`). Mirror the program-path arm.
+            let start = offset + member.span.start as usize - 1;
+            let end = offset + member.span.end as usize - 1;
+            expr_to_node(create_private_member_expression(
                 arena,
                 member,
                 start,
@@ -5923,14 +6056,20 @@ fn create_typed_loc_for_script(
     }))
 }
 
-/// Parse a JavaScript program (script content) and return it as an Expression.
-/// This is used for script tags.
+/// Parse a JavaScript program (script content) and return it as an Expression,
+/// surfacing the first JS parse error as a `js_parse_error` `ParseError`
+/// (mirroring upstream `acorn.parse`, which throws `e.js_parse_error` via
+/// `handle_parse_error` for any script that acorn rejects — read/script.js →
+/// acorn.js). The recovered partial program is still returned so lenient
+/// callers (e.g. the profiling binary) can keep operating on a best-effort
+/// AST.
+///
 /// Set `is_typescript` to true if the script contains TypeScript.
 /// `leading_comments` are HTML comments that appeared before the script tag.
 /// `script_tag_start` and `script_tag_end` are positions for loc calculation
 /// (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end).
 #[allow(clippy::too_many_arguments)]
-pub fn parse_program(
+pub fn parse_program_with_error(
     arena: &ParseArena,
     content: &str,
     offset: usize,
@@ -5939,7 +6078,7 @@ pub fn parse_program(
     leading_comments: &[String],
     script_tag_start: usize,
     script_tag_end: usize,
-) -> Expression {
+) -> (Expression, Option<crate::error::ParseError>) {
     with_oxc_allocator(|allocator| {
         let source_type = if is_typescript {
             SourceType::ts()
@@ -5948,6 +6087,50 @@ pub fn parse_program(
         };
         let parser = OxcParser::new(allocator, content, source_type);
         let result = parser.parse();
+
+        // Mirror upstream acorn's throw-on-error behaviour: capture the first
+        // parse error (acorn reports `err.pos` where it stopped consuming
+        // input; OXC's first label is the closest equivalent).
+        let mut parse_error = result.errors.first().map(|first_error| {
+            let pos = first_error
+                .labels
+                .as_ref()
+                .and_then(|labels| labels.first())
+                .map(|label| label.offset().min(content.len()))
+                .unwrap_or(0)
+                + offset;
+            crate::error::ParseError::svelte(
+                "js_parse_error",
+                first_error.message.to_string(),
+                (pos, pos),
+            )
+        });
+
+        // OXC accepts Stage-3 `@decorator` syntax even in plain JS; upstream's
+        // acorn (no decorator plugin) raises js_parse_error at the `@` token.
+        // A bare `@` is never legal JS outside decorators, so flag the first
+        // decorator's position. Gated on a cheap byte scan first.
+        if parse_error.is_none() && !is_typescript && content.contains('@') {
+            use oxc_ast_visit::Visit;
+            struct FindDecorator(Option<u32>);
+            impl<'a> Visit<'a> for FindDecorator {
+                fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
+                    if self.0.is_none() {
+                        self.0 = Some(dec.span.start);
+                    }
+                }
+            }
+            let mut finder = FindDecorator(None);
+            finder.visit_program(&result.program);
+            if let Some(at) = finder.0 {
+                let pos = at as usize + offset;
+                parse_error = Some(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    "Unexpected character '@'".to_string(),
+                    (pos, pos),
+                ));
+            }
+        }
 
         let program = &result.program;
 
@@ -6109,15 +6292,18 @@ pub fn parse_program(
             None
         };
 
-        Expression::from_node(JsNode::Program {
-            start: start as u32,
-            end: end as u32,
-            loc,
-            body: arena.alloc_js_children(body),
-            source_type: CompactString::from("module"),
-            leading_comments: leading_comments_val,
-            trailing_comments: trailing_comments_val,
-        })
+        (
+            Expression::from_node(JsNode::Program {
+                start: start as u32,
+                end: end as u32,
+                loc,
+                body: arena.alloc_js_children(body),
+                source_type: CompactString::from("module"),
+                leading_comments: leading_comments_val,
+                trailing_comments: trailing_comments_val,
+            }),
+            parse_error,
+        )
     })
 }
 
@@ -7086,7 +7272,12 @@ fn convert_statement_for_program(
             let end = offset + switch_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let discriminant = expr_to_node(convert_expression(
+            // Program context: the offset is already program-adjusted, so use
+            // `convert_expression_for_program` (no `-1` paren shift) like every
+            // other statement here. Using `convert_expression` double-counts the
+            // paren and shifts the discriminant span one unit left onto the `(`
+            // (#916).
+            let discriminant = expr_to_node(convert_expression_for_program(
                 arena,
                 &switch_stmt.discriminant,
                 offset,
@@ -7102,7 +7293,7 @@ fn convert_statement_for_program(
                     let case_loc = create_typed_loc(case_start, case_end, line_offsets);
 
                     let test = case.test.as_ref().map(|test| {
-                        arena.alloc_js_node(expr_to_node(convert_expression(
+                        arena.alloc_js_node(expr_to_node(convert_expression_for_program(
                             arena,
                             test,
                             offset,
@@ -7141,7 +7332,7 @@ fn convert_statement_for_program(
             let end = offset + do_while_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
 
-            let test = expr_to_node(convert_expression(
+            let test = expr_to_node(convert_expression_for_program(
                 arena,
                 &do_while_stmt.test,
                 offset,
@@ -8015,6 +8206,33 @@ fn convert_expression_for_program(
                 optional: member.optional,
             })
         }
+        OxcExpression::PrivateFieldExpression(member) => {
+            // `this.#field` — without this arm the object falls through to the
+            // `unknown` identifier fallback, which defeats `is_safe_identifier`
+            // in 2-analyze (so `needs_context` is never set). Mirror
+            // `create_private_member_expression` with the program-offset
+            // convention (`offset + span.start`, no `-1`).
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            Expression::from_node(JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
+                optional: member.optional,
+            })
+        }
         OxcExpression::ImportExpression(import_expr) => {
             let start = offset + import_expr.span.start as usize;
             let end = offset + import_expr.span.end as usize;
@@ -8557,6 +8775,36 @@ fn convert_expression_for_program(
         OxcExpression::TSInstantiationExpression(ts_inst) => {
             convert_expression_for_program(arena, &ts_inst.expression, offset, line_offsets)
         }
+        OxcExpression::MetaProperty(meta) => {
+            // `import.meta` / `new.target`. Without this arm the fallback
+            // below turns the node into a placeholder `Identifier("unknown")`,
+            // which Phase 2's `is_safe_identifier` then misclassifies as a
+            // safe global — `import.meta.glob(...)` must set `needs_context`
+            // (upstream: a non-Identifier base is never "safe").
+            let start = offset + meta.span.start as usize;
+            let end = offset + meta.span.end as usize;
+            let meta_start = offset + meta.meta.span.start as usize;
+            let meta_end = offset + meta.meta.span.end as usize;
+            let prop_start = offset + meta.property.span.start as usize;
+            let prop_end = offset + meta.property.span.end as usize;
+            Expression::from_node(JsNode::MetaProperty {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                meta: arena.alloc_js_node(expr_to_node(create_identifier(
+                    &meta.meta.name,
+                    meta_start,
+                    meta_end,
+                    line_offsets,
+                ))),
+                property: arena.alloc_js_node(expr_to_node(create_identifier(
+                    &meta.property.name,
+                    prop_start,
+                    prop_end,
+                    line_offsets,
+                ))),
+            })
+        }
         _ => {
             // Fallback for unsupported expression types
             let span = expr.span();
@@ -8971,7 +9219,13 @@ fn convert_assignment_pattern(
             offset,
             line_offsets,
         )),
-        right: arena.alloc_js_node(expr_to_node(convert_expression(
+        // Program context: `offset` is already program-adjusted (the pattern's
+        // own `start`/`end` and `left` use it raw), so the default value must
+        // also use `convert_expression_for_program`. `convert_expression` would
+        // re-apply the synthetic-paren `-1`, shifting the default expression one
+        // unit left — e.g. the `$bindable` callee in `let { open = $bindable() }`
+        // spanned ` $bindabl` (#916).
+        right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
             arena,
             &assign_pat.right,
             offset,
@@ -9043,6 +9297,33 @@ fn convert_assignment_target_for_program(
         AssignmentTarget::ArrayAssignmentTarget(arr_target) => JsNode::Raw(
             convert_array_assignment_target_for_program(arena, arr_target, offset, line_offsets),
         ),
+        AssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS in a function-body statement (program
+            // context). Without this arm it falls to `JsNode::Null`, so the
+            // `this.#field` MemberExpression is never visited in 2-analyze and
+            // `needs_context` stays unset (no `$.push`/`$.pop`) — e.g. a class
+            // constructor reassigning a private field.
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
+                optional: member.optional,
+            }
+        }
         _ => {
             // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             JsNode::Null
@@ -9317,6 +9598,30 @@ fn convert_simple_assignment_target_for_program(
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
                 computed: true,
+                optional: member.optional,
+            }
+        }
+        SimpleAssignmentTarget::PrivateFieldExpression(member) => {
+            // `this.#field = …` LHS — without this arm it becomes `JsNode::Null`,
+            // which breaks constructor state-field dedup and `is_safe_identifier`.
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+            let object =
+                convert_expression_for_program(arena, &member.object, offset, line_offsets);
+            let prop_start = offset + member.field.span.start as usize;
+            let prop_end = offset + member.field.span.end as usize;
+            JsNode::MemberExpression {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                object: arena.alloc_js_node(expr_to_node(object)),
+                property: arena.alloc_js_node(JsNode::PrivateIdentifier {
+                    start: prop_start as u32,
+                    end: prop_end as u32,
+                    loc: create_typed_loc(prop_start, prop_end, line_offsets),
+                    name: CompactString::from(member.field.name.as_str()),
+                }),
+                computed: false,
                 optional: member.optional,
             }
         }
@@ -10149,6 +10454,55 @@ fn convert_expression_with_adjustment(
             obj.insert("object".to_string(), object);
             obj.insert("property".to_string(), property);
             obj.insert("computed".to_string(), Value::Bool(true));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+            Value::Object(obj)
+        }
+        OxcExpression::PrivateFieldExpression(member) => {
+            // `this.#field` — without this arm the object falls through to the
+            // `unknown` identifier fallback, defeating `is_safe_identifier` in
+            // 2-analyze. Build a MemberExpression with a PrivateIdentifier
+            // property (binding-offset convention: `doc_offset + span - prefix_len`).
+            let start = doc_offset + member.span.start as usize - prefix_len;
+            let end = doc_offset + member.span.end as usize - prefix_len;
+            let object = convert_expression_with_adjustment(
+                arena,
+                &member.object,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let prop_start = doc_offset + member.field.span.start as usize - prefix_len;
+            let prop_end = doc_offset + member.field.span.end as usize - prefix_len;
+            let mut prop = Map::new();
+            prop.insert(
+                "type".to_string(),
+                Value::String("PrivateIdentifier".to_string()),
+            );
+            prop.insert(
+                "start".to_string(),
+                Value::Number((prop_start as i64).into()),
+            );
+            prop.insert("end".to_string(), Value::Number((prop_end as i64).into()));
+            if let Some(loc) = create_loc_for_binding(prop_start, prop_end, line_offsets) {
+                prop.insert("loc".to_string(), loc);
+            }
+            prop.insert(
+                "name".to_string(),
+                Value::String(member.field.name.as_str().to_string()),
+            );
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            if let Some(loc) = create_loc_for_binding(start, end, line_offsets) {
+                obj.insert("loc".to_string(), loc);
+            }
+            obj.insert("object".to_string(), object);
+            obj.insert("property".to_string(), Value::Object(prop));
+            obj.insert("computed".to_string(), Value::Bool(false));
             obj.insert("optional".to_string(), Value::Bool(member.optional));
             Value::Object(obj)
         }

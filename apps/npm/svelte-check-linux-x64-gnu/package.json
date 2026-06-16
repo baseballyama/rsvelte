@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte-check-linux-x64-gnu",
-  "version": "0.2.10",
+  "version": "0.2.13",
   "description": "Prebuilt svelte-check binary for linux-x64 (glibc)",
   "license": "MIT",
   "repository": {

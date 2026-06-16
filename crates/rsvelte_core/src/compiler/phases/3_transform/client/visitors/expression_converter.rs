@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use compact_str::CompactString;
 use serde_json::Value;
+use std::fmt::Write as _;
 
 /// Check if a JSON AST node contains an AwaitExpression anywhere in its tree.
 ///
@@ -782,9 +783,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let saved_transform = context.state.transform.clone();
             let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
+            // Track which param names are newly shadowed so a prop name bound by a
+            // (possibly destructured) param — e.g. `({ title }) => title` — is NOT
+            // rewritten to `$$props.title`. The non-source-prop rewrite gates on
+            // `shadowed_prop_names`, which the `transform` removal above misses.
+            let newly_shadowed: Vec<String> = param_names
+                .iter()
+                .filter(|n| !context.state.shadowed_prop_names.contains(n.as_str()))
+                .cloned()
+                .collect();
             for name in &param_names {
                 context.state.transform.remove(name);
                 context.state.transform_deep_read.remove(name);
+            }
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             context.state.push_local_scope();
@@ -835,6 +848,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             context.state.event_handler_arrow_body_level = saved_arrow_level;
 
             context.state.pop_local_scope();
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.remove(name);
+            }
             context.state.transform = saved_transform;
             context.state.transform_deep_read = saved_transform_deep_read;
 
@@ -875,9 +891,21 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let saved_transform = context.state.transform.clone();
             let saved_transform_deep_read = context.state.transform_deep_read.clone();
             let param_names = extract_param_names_from_node_refs(&param_nodes);
+            // Track which param names are newly shadowed so a prop name bound by a
+            // (possibly destructured) param — e.g. `({ title }) => title` — is NOT
+            // rewritten to `$$props.title`. The non-source-prop rewrite gates on
+            // `shadowed_prop_names`, which the `transform` removal above misses.
+            let newly_shadowed: Vec<String> = param_names
+                .iter()
+                .filter(|n| !context.state.shadowed_prop_names.contains(n.as_str()))
+                .cloned()
+                .collect();
             for name in &param_names {
                 context.state.transform.remove(name);
                 context.state.transform_deep_read.remove(name);
+            }
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.insert(name.clone());
             }
 
             context.state.push_local_scope();
@@ -910,6 +938,9 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 .unwrap_or_default();
 
             context.state.pop_local_scope();
+            for name in &newly_shadowed {
+                context.state.shadowed_prop_names.remove(name);
+            }
             context.state.transform = saved_transform;
             context.state.transform_deep_read = saved_transform_deep_read;
 
@@ -1099,6 +1130,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 /// This is a fast check to avoid the expensive `to_value()` conversion for non-rune calls.
 fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context` so the shared
+    // arena reference can be held alongside other accesses. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     let check_rune_name = |name: &str| -> bool {
@@ -1175,6 +1210,9 @@ fn convert_object_member_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsObjectMember> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1358,6 +1396,9 @@ fn convert_param_pattern_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsPattern> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1416,6 +1457,9 @@ fn convert_object_pattern_property_from_node(
     context: &mut ComponentContext,
 ) -> Option<JsObjectPatternProperty> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
 
     match node {
@@ -1459,16 +1503,14 @@ fn convert_object_pattern_property_from_node(
                         .unwrap_or(false);
 
                     let (conv_key, fallback_name) = if key_type == "Literal" {
-                        if let Some(val) = key_val.get("value") {
+                        {
+                            let val = key_val.get("value")?;
                             if let Some(s) = val.as_str() {
                                 (JsPropertyKey::Literal(JsLiteral::String(s.into())), None)
-                            } else if let Some(n) = val.as_f64() {
-                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                             } else {
-                                return None;
+                                let n = val.as_f64()?;
+                                (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                             }
-                        } else {
-                            return None;
                         }
                     } else if key_type == "Identifier" {
                         let name = key_val.get("name").and_then(|n| n.as_str())?;
@@ -1556,7 +1598,8 @@ fn convert_object_pattern_prop_inner(
         }
         JsNode::Raw(v) => {
             // Delegate to Value-based property key conversion
-            if let Some(obj) = v.as_object() {
+            {
+                let obj = v.as_object()?;
                 let key_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 if key_type == "Identifier" && !computed {
                     let name = obj
@@ -1578,8 +1621,6 @@ fn convert_object_pattern_prop_inner(
                         None,
                     )
                 }
-            } else {
-                return None;
             }
         }
         _ => {
@@ -3546,7 +3587,8 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                 // Handle Identifier keys, Literal keys, and computed keys
                                 let (key, fallback_name) = if key_type == "Literal" {
                                     // Literal key: { 'the-area': area } or { 2: sum }
-                                    if let Some(val) = key_val.get("value") {
+                                    {
+                                        let val = key_val.get("value")?;
                                         if let Some(s) = val.as_str() {
                                             (
                                                 JsPropertyKey::Literal(JsLiteral::String(
@@ -3559,13 +3601,10 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                                 JsPropertyKey::Literal(JsLiteral::Number(n as f64)),
                                                 None,
                                             )
-                                        } else if let Some(n) = val.as_f64() {
-                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                                         } else {
-                                            return None;
+                                            let n = val.as_f64()?;
+                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
                                         }
-                                    } else {
-                                        return None;
                                     }
                                 } else if key_type == "Identifier" {
                                     // Identifier key: { x } or { x: y }
@@ -3690,7 +3729,9 @@ pub fn pattern_to_string(pattern: &JsPattern) -> String {
                                         s.push('"');
                                     }
                                     JsLiteral::Number(n) => s.push_str(&n.to_string()),
-                                    _ => s.push_str(&format!("{:?}", lit)),
+                                    _ => {
+                                        let _ = write!(s, "{:?}", lit);
+                                    }
                                 },
                                 JsPropertyKey::Computed(_e) => {
                                     // Computed keys in destructuring patterns are unusual;
@@ -3728,18 +3769,173 @@ fn convert_block_statement(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsBlockStatement {
+    // `analysis` is an `&'a ComponentAnalysis` — copying the reference out
+    // releases the borrow of `context`, so the source can be read while
+    // `context` is mutably borrowed in the loop below.
+    let analysis = context.state.analysis;
+    let source = analysis.source.as_str();
+
+    // Save the shadow set at block entry; restore at exit so that names
+    // declared inside this block do not leak into the enclosing scope.
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
+
     let body = obj
         .get("body")
         .and_then(|b| b.as_array())
         .map(|stmts| {
-            stmts
-                .iter()
-                .filter_map(|stmt| convert_statement(stmt, context))
-                .collect()
+            let mut body: Vec<JsStatement> = Vec::with_capacity(stmts.len());
+            let mut prev_end: Option<usize> = None;
+            for stmt in stmts {
+                let stmt_start = stmt
+                    .as_object()
+                    .and_then(|o| o.get("start"))
+                    .and_then(|s| s.as_u64())
+                    .map(|s| s as usize);
+                let stmt_end = stmt
+                    .as_object()
+                    .and_then(|o| o.get("end"))
+                    .and_then(|e| e.as_u64())
+                    .map(|e| e as usize);
+                if let Some(start) = stmt_start {
+                    let gap_start =
+                        prev_end.unwrap_or_else(|| own_line_comment_scan_start(source, start));
+                    push_own_line_comment_raws(source, gap_start, start, &mut body);
+                }
+                if let Some(converted) = convert_statement(stmt, context) {
+                    body.push(converted);
+                }
+                // After each statement is processed, register any variable names
+                // it declares so that subsequent statements see them as shadowed.
+                register_block_decl_names_json(stmt, context);
+                if stmt_end.is_some() {
+                    prev_end = stmt_end;
+                }
+            }
+            body
         })
         .unwrap_or_default();
 
+    // Restore the shadow set to its state before this block was entered.
+    context.state.shadowed_prop_names = saved_shadowed;
+
     JsBlockStatement { body }
+}
+
+/// Add the top-level variable-declaration names from a JSON statement value to
+/// `shadowed_prop_names` so that subsequent statements in the same block do not
+/// rewrite those names as `$$props.name`.
+fn register_block_decl_names_json(stmt: &Value, context: &mut ComponentContext) {
+    let Some(obj) = stmt.as_object() else { return };
+    if obj.get("type").and_then(|t| t.as_str()) != Some("VariableDeclaration") {
+        return;
+    }
+    let Some(decls) = obj.get("declarations").and_then(|d| d.as_array()) else {
+        return;
+    };
+    for decl in decls {
+        if let Some(name) = decl
+            .as_object()
+            .and_then(|d| d.get("id"))
+            .and_then(|id| id.as_object())
+            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+        {
+            context.state.shadowed_prop_names.insert(name.to_string());
+        }
+    }
+}
+
+/// Find where to start scanning for own-line leading comments above the FIRST
+/// statement of a block: walk upward over lines that are entirely blank or
+/// single-line comments (`// ...` / `/* ... */`) and return the byte offset of
+/// the topmost such line. Stops at any line containing other content (e.g. the
+/// block opener), so code outside the gap is never rescanned.
+fn own_line_comment_scan_start(source: &str, stmt_start: usize) -> usize {
+    if stmt_start > source.len() || !source.is_char_boundary(stmt_start) {
+        return stmt_start;
+    }
+    let mut line_start = source[..stmt_start].rfind('\n').map(|p| p + 1).unwrap_or(0);
+    loop {
+        if line_start == 0 {
+            return 0;
+        }
+        let prev_line_start = source[..line_start - 1]
+            .rfind('\n')
+            .map(|p| p + 1)
+            .unwrap_or(0);
+        let prev_line = source[prev_line_start..line_start - 1].trim();
+        let is_comment_line = prev_line.starts_with("//")
+            || (prev_line.starts_with("/*") && prev_line.ends_with("*/"));
+        if prev_line.is_empty() || is_comment_line {
+            line_start = prev_line_start;
+        } else {
+            return line_start;
+        }
+    }
+}
+
+/// Scan `source[gap_start..stmt_start]` (the trivia gap before a statement)
+/// for comments that sit on their own line and push them as `JsStatement::Raw`
+/// entries — esrap prints a statement's leading comments as separate lines
+/// above it. Trailing comments on the previous statement's line are skipped
+/// (they are not own-line leading trivia).
+fn push_own_line_comment_raws(
+    source: &str,
+    gap_start: usize,
+    stmt_start: usize,
+    body: &mut Vec<JsStatement>,
+) {
+    if gap_start >= stmt_start
+        || stmt_start > source.len()
+        || !source.is_char_boundary(gap_start)
+        || !source.is_char_boundary(stmt_start)
+    {
+        return;
+    }
+    let gap = &source[gap_start..stmt_start];
+    let bytes = gap.as_bytes();
+    // `clean` = only whitespace seen on the current line so far
+    let mut clean = gap_start == 0 || source.as_bytes()[gap_start - 1] == b'\n';
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\n' => {
+                clean = true;
+                i += 1;
+            }
+            b' ' | b'\t' | b'\r' => i += 1,
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                let s = i;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                if clean {
+                    body.push(JsStatement::Raw(gap[s..i].trim_end().into()));
+                }
+            }
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                let s = i;
+                i += 2;
+                let mut closed = false;
+                while i < bytes.len() {
+                    if bytes[i] == b'*' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                        i += 2;
+                        closed = true;
+                        break;
+                    }
+                    i += 1;
+                }
+                if clean && closed {
+                    body.push(JsStatement::Raw(gap[s..i].into()));
+                }
+                clean = false;
+            }
+            _ => {
+                clean = false;
+                i += 1;
+            }
+        }
+    }
 }
 
 /// Convert a statement node to JsStatement.
@@ -3803,7 +3999,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ReturnStatement" => {
-            let argument = obj.get("argument").map(|a| {
+            // Filter out JSON null: `{ "argument": null }` means `return;` (no value),
+            // not `return null;`. Without this filter, convert_json_value(Null) produces
+            // a null literal, turning bare `return;` into `return null;`.
+            let argument = obj.get("argument").filter(|a| !a.is_null()).map(|a| {
                 let __tmp = convert_json_value(a, context);
                 context.arena.alloc_expr(__tmp)
             });
@@ -4546,7 +4745,6 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
 /// Check if an assignment expression's LHS is a member expression targeting a prop,
 /// and if so, return the ownership validation info (prop_alias, path array, optional source location).
 /// This works on the original JSON AST before transforms are applied.
-#[allow(clippy::type_complexity)]
 fn check_ownership_validation(
     left_json: Option<&Value>,
     context: &ComponentContext,
@@ -5712,13 +5910,110 @@ fn convert_block_statement_from_jsnode(
     context: &mut ComponentContext,
 ) -> JsBlockStatement {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
+    let analysis = context.state.analysis;
+    let source = analysis.source.as_str();
     let children: Vec<&JsNode> = pa.get_js_children(*body_range).iter().collect();
-    let body: Vec<JsStatement> = children
-        .iter()
-        .filter_map(|child| convert_statement_from_jsnode(child, context))
-        .collect();
+
+    // Save the current set of shadowed prop names at block entry so we can
+    // restore it at block exit. As we encounter variable declarations inside
+    // the block we add their declared names progressively so that subsequent
+    // statements (and nested blocks) don't rewrite them as `$$props.name`.
+    let saved_shadowed = context.state.shadowed_prop_names.clone();
+
+    let mut body: Vec<JsStatement> = Vec::with_capacity(children.len());
+    let mut prev_end: Option<usize> = None;
+    for child in &children {
+        if let Some(start) = child.start().map(|s| s as usize) {
+            let gap_start = prev_end.unwrap_or_else(|| own_line_comment_scan_start(source, start));
+            push_own_line_comment_raws(source, gap_start, start, &mut body);
+        }
+        if let Some(converted) = convert_statement_from_jsnode(child, context) {
+            body.push(converted);
+        }
+        // After processing each statement, add any newly-declared variable names
+        // to the shadow set so they are visible to subsequent statements.
+        register_block_decl_names_jsnode(child, pa, context);
+        if let Some(end) = child.end().map(|e| e as usize) {
+            prev_end = Some(end);
+        }
+    }
+
+    // Restore the shadow set to its state before this block was entered.
+    context.state.shadowed_prop_names = saved_shadowed;
+
     JsBlockStatement { body }
+}
+
+/// Add the top-level variable-declaration names from a JsNode statement to
+/// `shadowed_prop_names`.  Only simple `Identifier` lhs patterns are handled;
+/// destructuring patterns are ignored (they rarely shadow a prop name and the
+/// code is cleaner without the extra complexity).
+fn register_block_decl_names_jsnode(
+    node: &JsNode,
+    pa: &ParseArena,
+    context: &mut ComponentContext,
+) {
+    let names: Vec<String> = match node {
+        JsNode::VariableDeclaration { declarations, .. } => pa
+            .get_js_children(*declarations)
+            .iter()
+            .filter_map(|d| match d {
+                JsNode::VariableDeclarator { id, .. } => match pa.get_js_node(*id) {
+                    JsNode::Identifier { name, .. } => Some(name.to_string()),
+                    JsNode::Raw(v) => v
+                        .as_object()
+                        .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                        .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                        .map(|n| n.to_string()),
+                    _ => None,
+                },
+                JsNode::Raw(v) => v
+                    .as_object()
+                    .and_then(|o| o.get("id"))
+                    .and_then(|id| id.as_object())
+                    .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
+                    .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                    .map(|n| n.to_string()),
+                _ => None,
+            })
+            .collect(),
+        JsNode::Raw(v) => {
+            if v.as_object()
+                .and_then(|o| o.get("type").and_then(|t| t.as_str()))
+                == Some("VariableDeclaration")
+            {
+                v.as_object()
+                    .and_then(|o| o.get("declarations"))
+                    .and_then(|d| d.as_array())
+                    .map(|decls| {
+                        decls
+                            .iter()
+                            .filter_map(|decl| {
+                                decl.as_object()
+                                    .and_then(|d| d.get("id"))
+                                    .and_then(|id| id.as_object())
+                                    .filter(|o| {
+                                        o.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                                    })
+                                    .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                                    .map(|n| n.to_string())
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            }
+        }
+        _ => vec![],
+    };
+    for name in names {
+        context.state.shadowed_prop_names.insert(name);
+    }
 }
 
 /// Convert a single statement from a JsNode.
@@ -5728,6 +6023,9 @@ fn convert_statement_from_jsnode(
     context: &mut ComponentContext,
 ) -> Option<JsStatement> {
     let pa = context.state.parse_arena as *const ParseArena;
+    // SAFETY: `parse_arena` is a live `&ParseArena`; reborrowing it through a
+    // raw pointer only decouples the lifetime from `context`. The referent
+    // outlives this borrow and the dereference is always valid.
     let pa: &ParseArena = unsafe { &*pa };
     match node {
         JsNode::ExpressionStatement { expression, .. } => {
@@ -6125,6 +6423,37 @@ fn apply_store_ref_transform(
         {
             *first_arg = transformed_ref;
         }
+        return result;
+    }
+
+    // Non-source props (`const { store } = $props()`) don't register a read
+    // transform — their reads are emitted as `$$props.store` by the default
+    // identifier path. The store-mutation builders, however, emit the bare
+    // store name as the first argument, so resolve it here directly from the
+    // binding: a non-source prop store object must be `$$props.store`
+    // (or `$$props['alias']`). Mirrors the store-getter declaration.
+    if let Some(binding) = context.state.get_binding(store_name)
+        && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+        && !crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+            binding,
+            context.state.analysis,
+        )
+        && let JsExpr::Call(ref mut call) = result
+        && let Some(first_arg) = call.arguments.first_mut()
+        && matches!(first_arg, JsExpr::Identifier(n) if n.as_str() == store_name)
+    {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        let alias = binding.prop_alias.as_deref().filter(|a| *a != store_name);
+        *first_arg = if let Some(a) = alias {
+            JsExpr::Member(JsMemberExpression {
+                object: context.arena.alloc_expr(b::id("$$props")),
+                property: JsMemberProperty::Expression(context.arena.alloc_expr(b::string(a))),
+                computed: true,
+                optional: false,
+            })
+        } else {
+            b::member_path(&context.arena, &format!("$$props.{}", store_name))
+        };
     }
 
     result

@@ -197,6 +197,10 @@ pub fn unified_build_bind_this(
         ) {
             if let JsExpr::Member(member) = expr {
                 member.optional = true;
+                // SAFETY: `take_expr` requires no live alias to the slot. The
+                // `member.object` id is owned solely by this `member`; we take
+                // it out, recurse, and reinstall a fresh id, so no other
+                // reference to that slot is live during the replacement.
                 let mut inner = unsafe { arena.take_expr(member.object) };
                 make_optional(arena, &mut inner);
                 member.object = arena.alloc_expr(inner);
@@ -1603,10 +1607,9 @@ fn build_bind_this_each_block(
     let property_path =
         if let Some(stripped) = get_str.strip_prefix(&format!("$.get({})", item_name)) {
             stripped.trim_start_matches('.').to_string()
-        } else if let Some(stripped) = get_str.strip_prefix(&format!("{}.", item_name)) {
-            stripped.to_string()
         } else {
-            return None;
+            let stripped = get_str.strip_prefix(&format!("{}.", item_name))?;
+            stripped.to_string()
         };
 
     if property_path.is_empty() {

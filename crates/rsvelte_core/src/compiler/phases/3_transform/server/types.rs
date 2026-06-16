@@ -330,6 +330,9 @@ pub(crate) enum OutputPart {
         is_rich: bool,
         /// CSS hash for scoped elements
         css_hash: Option<String>,
+        /// `class:` directives object literal (e.g. `{ selected: cond }`),
+        /// passed as the 4th argument (after css_hash)
+        classes: Option<String>,
     },
     /// Option element - produces $$renderer.option() call
     OptionElement {
@@ -342,6 +345,9 @@ pub(crate) enum OutputPart {
         direct_value: Option<String>,
         /// CSS hash for scoped elements
         css_hash: Option<String>,
+        /// `class:` directives object literal (e.g. `{ selected: cond }`),
+        /// passed as the 4th argument (after css_hash)
+        classes: Option<String>,
         /// Dev mode location (line, col) for push_element/pop_element
         dev_location: Option<(usize, usize)>,
     },

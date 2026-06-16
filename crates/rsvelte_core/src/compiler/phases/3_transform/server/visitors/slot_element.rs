@@ -8,6 +8,7 @@ use super::super::helpers::prop_string;
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SlotElement};
 use crate::compiler::phases::phase3_transform::TransformError;
+use std::fmt::Write as _;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_slot_element(
@@ -92,12 +93,18 @@ impl<'a> ServerCodeGenerator<'a> {
             // generate_children_from_nodes trims whitespace and does NOT add a <!---> anchor
             // for expression-first content (unlike generate_component which does add one).
             let mut child_gen = self.new_child_generator(false);
-            match child_gen.generate_children_from_nodes_no_anchor(&frag_nodes)? {
-                Some(parts) if !parts.is_empty() => {
-                    child_gen.output_parts = parts;
-                    Some(child_gen.output_parts)
-                }
-                _ => None,
+            let parts = child_gen
+                .generate_children_from_nodes_no_anchor(&frag_nodes)?
+                .unwrap_or_default();
+            // Upstream emits the fallback arrow whenever `node.fragment.nodes`
+            // is non-empty (`length === 0 ? null : arrow`). A comment-only
+            // fallback (`<slot><!-- x --></slot>`) therefore yields
+            // `() => {}`, not `null`, even though it generates no output parts.
+            if frag_nodes.is_empty() {
+                None
+            } else {
+                child_gen.output_parts = parts;
+                Some(child_gen.output_parts)
             }
         };
 
@@ -150,7 +157,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if end > start && end <= self.source.len() {
                                     let expr = self.source[start..end].trim();
                                     let expr = self.transform_store_refs(expr);
-                                    result.push_str(&format!("${{{}}}", expr));
+                                    let _ = write!(result, "${{{}}}", expr);
                                 }
                             }
                         }

@@ -6,7 +6,9 @@ use super::super::types::{OutputPart, SnippetDef};
 use crate::ast::template::{Fragment, SnippetBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_snippet_block(
@@ -48,6 +50,14 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.dev = self.dev;
         body_generator.is_typescript = self.is_typescript;
         body_generator.uses_store_subs = self.uses_store_subs;
+        body_generator.current_scope_index = self.current_scope_index;
+        // Track the snippet body's Phase-2 scope so the evaluator resolves
+        // template declarations lexically (a sibling snippet's `{@const}` is
+        // not reachable from this body and must not be constant-folded).
+        body_generator.current_scope_index = self
+            .analysis
+            .and_then(|a| a.root.template_scope_map.get(&block.start).copied())
+            .or(self.current_scope_index);
         // Snippet parameters shadow outer derived bindings: drop any derived
         // name that matches a parameter binding from the body's derived_names
         // / derived_var_names so we don't wrap reads of the parameter as
@@ -62,28 +72,34 @@ impl<'a> ServerCodeGenerator<'a> {
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
         let len = body_nodes.len();
 
-        // Find first non-whitespace node
+        // Find first non-whitespace node. Comments are removed by clean_nodes
+        // (when preserveComments is off), so leading comments — and the
+        // whitespace around them — are trimmed too.
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                start_idx += 1;
-                continue;
+            match body_nodes[start_idx] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    start_idx += 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    start_idx += 1;
+                }
+                _ => break,
             }
-            break;
         }
 
-        // Find last non-whitespace node
+        // Find last non-whitespace node (trailing comments trimmed likewise)
         let mut end_idx = len;
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                end_idx -= 1;
-                continue;
+            match body_nodes[end_idx - 1] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    end_idx -= 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    end_idx -= 1;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Compute standalone-ness for the trimmed fragment
@@ -99,7 +115,35 @@ impl<'a> ServerCodeGenerator<'a> {
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
         // This prevents text from being fused with its surroundings during hydration
         if !is_standalone {
-            let first_node = body_nodes.get(start_idx);
+            // Hoisted nodes (const / declaration / debug tags, nested
+            // snippets) are lifted out by upstream's clean_nodes before the
+            // text-first check, so skip them (and the whitespace runs between
+            // them) when probing for the first content node.
+            let mut probe = start_idx;
+            let mut prev_was_hoisted = false;
+            while probe < end_idx {
+                match body_nodes[probe] {
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::DeclarationTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_) => {
+                        probe += 1;
+                        prev_was_hoisted = true;
+                    }
+                    TemplateNode::Text(text)
+                        if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                    {
+                        probe += 1;
+                        prev_was_hoisted = false;
+                    }
+                    _ => break,
+                }
+            }
+            let first_node = if probe < end_idx {
+                body_nodes.get(probe)
+            } else {
+                None
+            };
             let is_text_first = matches!(
                 first_node,
                 Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
@@ -124,15 +168,27 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             if i == start_idx {
                 // First node - if it's text, trim leading whitespace but preserve trailing space
-                // if there is a following node (the space separates text from expression/element)
+                // if there is a following node (the space separates text from expression/element).
+                // Trims use the Svelte whitespace set (` \t\r\n\x0C`), not Rust's
+                // Unicode trim which would also eat `\u{00A0}` (`&nbsp;`).
                 if let TemplateNode::Text(text) = node {
-                    let trimmed = text.data.trim_start();
-                    // Check if there's a next node - preserve trailing space if so
-                    let next_node = body_nodes.get(i + 1);
+                    let trimmed = svelte_trim_start(&text.data);
+                    // Check if there's a next node within the trimmed range -
+                    // preserve trailing space if so (last text node gets its
+                    // trailing whitespace trimmed, like upstream clean_nodes).
+                    let next_node = if i + 1 < end_idx {
+                        body_nodes.get(i + 1)
+                    } else {
+                        None
+                    };
                     let needs_trailing_space = next_node.is_some()
-                        && text.data.chars().last().is_some_and(|c| c.is_whitespace());
+                        && text
+                            .data
+                            .chars()
+                            .last()
+                            .is_some_and(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'));
 
-                    let trimmed_end = trimmed.trim_end();
+                    let trimmed_end = svelte_trim_end(trimmed);
                     if !trimmed_end.is_empty() {
                         let mut content = escape_html(&sanitize_template_string(trimmed_end));
                         if needs_trailing_space {
@@ -145,7 +201,28 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
 
-            // Skip whitespace-only text nodes after ConstTag
+            // Last node - if it's text, trim its trailing whitespace before the
+            // generic Text path collapses it to a space (upstream clean_nodes
+            // trims the LAST text node's trailing whitespace entirely).
+            if i == end_idx - 1
+                && !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
+            {
+                let mut modified = text.clone();
+                modified.data = svelte_trim_end(&modified.data).to_string().into();
+                if !modified.data.is_empty() {
+                    body_generator.flush_async_consts();
+                    body_generator.generate_node(&TemplateNode::Text(modified), false)?;
+                }
+                prev_was_const_tag = false;
+                continue;
+            }
+
+            // Skip whitespace-only text nodes after hoisted nodes (ConstTag,
+            // nested SnippetBlock, DeclarationTag) — upstream's clean_nodes
+            // hoists those out BEFORE whitespace trimming, so the whitespace
+            // runs around them vanish. Dropped comments are transparent and
+            // do not reset the tracking.
             if prev_was_const_tag
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
@@ -153,8 +230,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
 
-            // Track if current node is a ConstTag
-            prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
+            // Track if current node is hoisted (transparent comments keep the
+            // previous tracking).
+            if !matches!(node, TemplateNode::Comment(_)) || self.preserve_comments {
+                prev_was_const_tag = matches!(
+                    node,
+                    TemplateNode::ConstTag(_)
+                        | TemplateNode::SnippetBlock(_)
+                        | TemplateNode::DeclarationTag(_)
+                );
+            }
 
             // Flush accumulated async consts before processing non-const content
             if !matches!(node, TemplateNode::ConstTag(_))
@@ -171,12 +256,18 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Apply const-tag-level async wrapping to snippet body parts
         let const_blocker_map = body_generator.const_blocker_map.borrow();
-        let body_parts = if !const_blocker_map.is_empty() {
+        let mut body_parts = if !const_blocker_map.is_empty() {
             Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
         } else {
             body_generator.output_parts
         };
         drop(const_blocker_map);
+
+        // Nested snippets declared inside this snippet body are emitted as
+        // function declarations within the snippet's own scope (upstream's
+        // Fragment visitor hoists SnippetBlocks per fragment, including
+        // snippet bodies).
+        Self::splice_nested_snippets(&mut body_parts, body_generator.snippets, self.dev);
 
         // Determine if the snippet can be hoisted to module level
         // Use metadata.can_hoist from the analyze phase
@@ -217,34 +308,68 @@ impl<'a> ServerCodeGenerator<'a> {
         let body_nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = body_nodes.len();
 
-        // Find first non-whitespace node
+        // Find first non-whitespace node. Comments are removed by clean_nodes
+        // (when preserveComments is off), so leading comments — and the
+        // whitespace around them — are trimmed too.
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                start_idx += 1;
-                continue;
+            match body_nodes[start_idx] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    start_idx += 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    start_idx += 1;
+                }
+                _ => break,
             }
-            break;
         }
 
-        // Find last non-whitespace node
+        // Find last non-whitespace node (trailing comments trimmed likewise)
         let mut end_idx = len;
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && is_svelte_whitespace_only(&text.data)
-            {
-                end_idx -= 1;
-                continue;
+            match body_nodes[end_idx - 1] {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                    end_idx -= 1;
+                }
+                TemplateNode::Comment(_) if !self.preserve_comments => {
+                    end_idx -= 1;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Check if first node is text or expression tag - if so, we need hydration marker
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
         // This prevents text from being fused with its surroundings during hydration
-        let first_node = body_nodes.get(start_idx);
+        // Hoisted nodes (const / declaration / debug tags, nested snippets)
+        // are lifted out by upstream's clean_nodes before the text-first
+        // check, so skip them (and the whitespace runs between them) when
+        // probing for the first content node.
+        let mut probe = start_idx;
+        let mut prev_was_hoisted = false;
+        while probe < end_idx {
+            match body_nodes[probe] {
+                TemplateNode::ConstTag(_)
+                | TemplateNode::DeclarationTag(_)
+                | TemplateNode::SnippetBlock(_)
+                | TemplateNode::DebugTag(_) => {
+                    probe += 1;
+                    prev_was_hoisted = true;
+                }
+                TemplateNode::Text(text)
+                    if prev_was_hoisted && is_svelte_whitespace_only(&text.data) =>
+                {
+                    probe += 1;
+                    prev_was_hoisted = false;
+                }
+                _ => break,
+            }
+        }
+        let first_node = if probe < end_idx {
+            body_nodes.get(probe)
+        } else {
+            None
+        };
         let is_text_first = matches!(
             first_node,
             Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
@@ -266,15 +391,25 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             if i == start_idx {
                 // First node - if it's text, trim leading whitespace but preserve trailing space
-                // if there is a following node (the space separates text from expression/element)
+                // if there is a following node within the trimmed range (the
+                // space separates text from expression/element). Trims use the
+                // Svelte whitespace set, not Rust's Unicode trim (`&nbsp;`).
                 if let TemplateNode::Text(text) = node {
-                    let trimmed = text.data.trim_start();
+                    let trimmed = svelte_trim_start(&text.data);
                     // Check if there's a next node - preserve trailing space if so
-                    let next_node = body_nodes.get(i + 1);
+                    let next_node = if i + 1 < end_idx {
+                        body_nodes.get(i + 1)
+                    } else {
+                        None
+                    };
                     let needs_trailing_space = next_node.is_some()
-                        && text.data.chars().last().is_some_and(|c| c.is_whitespace());
+                        && text
+                            .data
+                            .chars()
+                            .last()
+                            .is_some_and(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'));
 
-                    let trimmed_end = trimmed.trim_end();
+                    let trimmed_end = svelte_trim_end(trimmed);
                     if !trimmed_end.is_empty() {
                         let mut content = escape_html(&sanitize_template_string(trimmed_end));
                         if needs_trailing_space {
@@ -284,6 +419,21 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                     continue;
                 }
+            }
+            // Last node - if it's text, trim its trailing whitespace before the
+            // generic Text path collapses it to a space (upstream clean_nodes
+            // trims the LAST text node's trailing whitespace entirely).
+            if i == end_idx - 1
+                && !self.preserve_whitespace
+                && let TemplateNode::Text(text) = node
+            {
+                let mut modified = (*text).clone();
+                modified.data = svelte_trim_end(&modified.data).to_string().into();
+                if !modified.data.is_empty() {
+                    body_generator.flush_async_consts();
+                    body_generator.generate_node(&TemplateNode::Text(modified), false)?;
+                }
+                continue;
             }
             // Flush accumulated async consts before processing non-const content
             if !matches!(node, TemplateNode::ConstTag(_))
@@ -300,14 +450,51 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Apply const-tag-level async wrapping
         let const_blocker_map = body_generator.const_blocker_map.borrow();
-        let body_parts = if !const_blocker_map.is_empty() {
+        let mut body_parts = if !const_blocker_map.is_empty() {
             Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
         } else {
             body_generator.output_parts
         };
         drop(const_blocker_map);
 
+        // Nested snippets declared inside this fragment are emitted as
+        // function declarations within the same scope.
+        Self::splice_nested_snippets(&mut body_parts, body_generator.snippets, self.dev);
+
         Ok(body_parts)
+    }
+
+    /// Splice snippet definitions collected while generating a snippet body
+    /// into the body parts as `SnippetFunction` declarations. Mirrors the
+    /// insertion logic in `generate_fragment_body_parts_inner`: insert after
+    /// the last `let `-RawStatement / ConstDeclaration so hoisted promise
+    /// declarations stay first, preserving source order.
+    pub(crate) fn splice_nested_snippets(
+        parts: &mut Vec<OutputPart>,
+        snippets: Vec<super::super::types::SnippetDef>,
+        dev: bool,
+    ) {
+        if snippets.is_empty() {
+            return;
+        }
+        let snippet_parts: Vec<OutputPart> = snippets
+            .into_iter()
+            .map(|snippet| OutputPart::SnippetFunction {
+                name: snippet.name,
+                params: snippet.params,
+                body: snippet.body_parts,
+                dev,
+            })
+            .collect();
+        let insert_pos = parts
+            .iter()
+            .rposition(|p| {
+                matches!(p, OutputPart::RawStatement(s) if s.starts_with("let "))
+                    || matches!(p, OutputPart::ConstDeclaration(_))
+            })
+            .map(|pos| pos + 1)
+            .unwrap_or(0);
+        parts.splice(insert_pos..insert_pos, snippet_parts);
     }
 
     /// Extract the set of bound identifier names from a list of snippet

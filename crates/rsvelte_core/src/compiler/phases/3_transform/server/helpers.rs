@@ -8,6 +8,7 @@ use super::types::{ConstantFoldResult, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Script, TemplateNode};
 use memchr::memmem;
 use rustc_hash::FxHashMap;
+use std::fmt::Write as _;
 
 // Re-export from sibling modules for backward compatibility
 pub(crate) use super::transform_legacy::*;
@@ -50,7 +51,7 @@ pub(crate) fn expr_contains_await(expr: &str) -> bool {
         }
 
         // Check for `function` keyword - skip function body
-        if ch == b'f' && i + 8 <= len && &expr[i..i + 8] == "function" {
+        if ch == b'f' && i + 8 <= len && &bytes[i..i + 8] == b"function" {
             let next = if i + 8 < len { bytes[i + 8] } else { 0 };
             if next == b' ' || next == b'(' || next == b'*' {
                 i += 8;
@@ -84,7 +85,7 @@ pub(crate) fn expr_contains_await(expr: &str) -> bool {
         }
 
         // Check for `await` keyword
-        if ch == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+        if ch == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'
@@ -195,7 +196,7 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
         }
 
         // Check for `await` keyword
-        if ch == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+        if ch == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'
@@ -220,7 +221,7 @@ pub(crate) fn transform_await_to_save(expr: &str) -> String {
                 } else {
                     arg.to_string()
                 };
-                result.push_str(&format!("(await $.save({}))()", transformed_arg));
+                let _ = write!(result, "(await $.save({}))()", transformed_arg);
                 // If the next character is a binary operator (not whitespace/end),
                 // add a space to maintain readable formatting.
                 if arg_end < len
@@ -653,18 +654,12 @@ pub(crate) fn needs_clsx(attr_value: &AttributeValue) -> bool {
             let expr_type = expr_tag.expression.node_type().unwrap_or("");
             expr_needs_clsx(expr_type)
         }
-        // Also check for Sequence with single ExpressionTag (for quoted expressions like class="{x}")
-        AttributeValue::Sequence(parts) if parts.len() == 1 => {
-            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
-                let expr_type = expr_tag.expression.node_type().unwrap_or("");
-                expr_needs_clsx(expr_type)
-            } else {
-                // Single text part doesn't need clsx
-                false
-            }
-        }
-        // Multiple parts (mixed text and expressions) or True don't need clsx
-        _ => false,
+        // Upstream's `needs_clsx` requires `!Array.isArray(node.value)`
+        // (2-analyze/visitors/Attribute.js): clsx is only applied to the bare
+        // single-expression form `class={x}`. A quoted `class="{x}"` parses to
+        // an array (our `Sequence`) and coerces to a string, so it must NOT be
+        // wrapped in `$.clsx(...)`, even when it has a single expression part.
+        AttributeValue::Sequence(_) | AttributeValue::True(_) => false,
     }
 }
 
@@ -863,22 +858,32 @@ pub(crate) fn collapse_whitespace(s: &str) -> String {
 }
 
 /// Trim leading and trailing whitespace from output parts.
-/// This trims whitespace from the first and last Html parts if they exist.
+///
+/// Mirrors upstream `clean_nodes` (3-transform/utils.js): ALL leading /
+/// trailing whitespace-only text nodes are removed (not just one), and the
+/// remaining first / last text gets its edge whitespace trimmed using the
+/// Svelte whitespace set (` \t\r\n` — NOT `\u{00A0}` from `&nbsp;`, which
+/// upstream's `regex_not_whitespace = /[^ \t\r\n]/` treats as content).
 pub(crate) fn trim_output_parts(parts: &mut Vec<OutputPart>) {
-    // Trim leading whitespace from first Html part
+    use crate::compiler::phases::phase3_transform::utils::{
+        is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+    };
+
+    // Remove leading whitespace-only Html parts (upstream pops every
+    // whitespace-only leading text node), then trim the first remaining one.
+    while matches!(parts.first(), Some(OutputPart::Html(html)) if is_svelte_whitespace_only(html)) {
+        parts.remove(0);
+    }
     if let Some(OutputPart::Html(html)) = parts.first_mut() {
-        *html = html.trim_start().to_string();
-        if html.is_empty() {
-            parts.remove(0);
-        }
+        *html = svelte_trim_start(html).to_string();
     }
 
-    // Trim trailing whitespace from last Html part
+    // Same for the tail.
+    while matches!(parts.last(), Some(OutputPart::Html(html)) if is_svelte_whitespace_only(html)) {
+        parts.pop();
+    }
     if let Some(OutputPart::Html(html)) = parts.last_mut() {
-        *html = html.trim_end().to_string();
-        if html.is_empty() {
-            parts.pop();
-        }
+        *html = svelte_trim_end(html).to_string();
     }
 }
 
@@ -1377,10 +1382,11 @@ pub(crate) fn transform_props_spread_ex(
 
             // Case 1: Simple identifier (let props = $$props)
             if !pattern.starts_with('{') {
-                result.push_str(&format!(
-                    "{}{} {{ {}, $$events, ...{} }} = $$props;\n",
+                let _ = writeln!(
+                    result,
+                    "{}{} {{ {}, $$events, ...{} }} = $$props;",
                     target_indent, decl_keyword, slots_part, pattern
-                ));
+                );
                 continue;
             }
 
@@ -1395,22 +1401,24 @@ pub(crate) fn transform_props_spread_ex(
                     let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
 
                     if other_props.is_empty() {
-                        result.push_str(&format!(
-                            "{}{} {{ {}, $$events, ...{} }} = $$props;\n",
+                        let _ = writeln!(
+                            result,
+                            "{}{} {{ {}, $$events, ...{} }} = $$props;",
                             target_indent, decl_keyword, slots_part, rest_name
-                        ));
+                        );
                     } else {
-                        result.push_str(&format!(
-                            "{}{} {{ {}, {}, $$events, ...{} }} = $$props;\n",
+                        let _ = writeln!(
+                            result,
+                            "{}{} {{ {}, {}, $$events, ...{} }} = $$props;",
                             target_indent, decl_keyword, other_props, slots_part, rest_name
-                        ));
+                        );
                     }
                     continue;
                 }
             }
 
             // Fallback: keep original line
-            result.push_str(&format!("{}{}\n", target_indent, trimmed));
+            let _ = writeln!(result, "{}{}", target_indent, trimmed);
             continue;
         }
 
@@ -1440,7 +1448,7 @@ pub(crate) fn transform_props_spread_ex(
                 update_template_literal_state_full(line, in_template_literal, template_brace_depth);
             in_template_literal = new_in_template;
             template_brace_depth = new_brace_depth;
-            result.push_str(&format!("{}{}\n", indent, trimmed));
+            let _ = writeln!(result, "{}{}", indent, trimmed);
         }
     }
 
@@ -2512,7 +2520,7 @@ fn try_extract_spread_await(
         }
 
         // Look for ...await
-        if i + 8 <= len && &expr[i..i + 3] == "..." {
+        if i + 8 <= len && &bytes[i..i + 3] == b"..." {
             let after_dots = i + 3;
             // Skip whitespace
             let mut k = after_dots;
@@ -2578,7 +2586,7 @@ fn extract_all_awaits(
         }
 
         // Check for `await` keyword
-        if bytes[i] == b'a' && i + 5 <= len && &expr[i..i + 5] == "await" {
+        if bytes[i] == b'a' && i + 5 <= len && &bytes[i..i + 5] == b"await" {
             let before_ok = i == 0
                 || !bytes[i - 1].is_ascii_alphanumeric()
                     && bytes[i - 1] != b'_'
@@ -2954,13 +2962,13 @@ pub(crate) fn normalize_import(import_str: &str) -> String {
         let mut result = format!("{} {{\n", prefix);
         for (i, spec) in specifiers.iter().enumerate() {
             if i < specifiers.len() - 1 {
-                result.push_str(&format!("\t{},\n", spec));
+                let _ = writeln!(result, "\t{},", spec);
             } else {
                 // Last specifier: no trailing comma
-                result.push_str(&format!("\t{}\n", spec));
+                let _ = writeln!(result, "\t{}", spec);
             }
         }
-        result.push_str(&format!("}} {}", after_brace));
+        let _ = write!(result, "}} {}", after_brace);
         if !result.ends_with(';') {
             result.push(';');
         }

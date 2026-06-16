@@ -4,6 +4,7 @@
 //! such as formatting blocks and handling attributes.
 
 use super::Context;
+use std::fmt::Write as _;
 
 /// Threshold for when content should be formatted on separate lines.
 ///
@@ -1299,7 +1300,7 @@ fn format_export_declaration(stmt: &serde_json::Value) -> String {
                 if exported == local {
                     result.push_str(&exported);
                 } else {
-                    result.push_str(&format!("{local} as {exported}"));
+                    let _ = write!(result, "{local} as {exported}");
                 }
             }
             result.push_str(" }");

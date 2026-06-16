@@ -31,14 +31,47 @@ pub fn visit(self_: &mut SvelteElement, context: &mut VisitorContext) -> Result<
 
     context.emit_warning(warnings::svelte_self_deprecated(component_name, &basename));
 
-    // Check attribute_quoted for svelte:self
-    for attr in &self_.attributes {
-        if let Attribute::Attribute(a) = attr
-            && let AttributeValue::Sequence(parts) = &a.value
-            && parts.len() == 1
-            && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
-        {
-            context.emit_warning(warnings::attribute_quoted());
+    // Analyze attributes — upstream's SvelteSelf.js delegates to the shared
+    // `visit_component(node, context)`, which visits every attribute (and
+    // the expressions inside it). Walking the expressions here is what flags
+    // `uses_props` / `needs_context` for e.g.
+    // `<svelte:self count={$$props.count} />`.
+    for attr in &mut self_.attributes {
+        match attr {
+            Attribute::Attribute(a) => {
+                // Check attribute_quoted for svelte:self
+                if let AttributeValue::Sequence(parts) = &a.value
+                    && parts.len() == 1
+                    && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+                {
+                    context.emit_warning(warnings::attribute_quoted());
+                }
+                // Walk attribute value expressions
+                super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
+            }
+            Attribute::BindDirective(bind) => {
+                // Track component bindings (skip bind:this)
+                if bind.name != "this" {
+                    context.analysis.uses_component_bindings = true;
+                }
+                // Walk the bind expression to add template references.
+                super::script::walk_expression(&bind.expression, context)?;
+            }
+            Attribute::OnDirective(on) => {
+                // Walk event handler expression if present. Event forwarding
+                // (on:foo without handler) sets needs_props in the CLIENT
+                // transform phase, not here. See OnDirective.js line 21.
+                if let Some(ref expr) = on.expression {
+                    super::script::walk_expression(expr, context)?;
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                super::script::walk_expression(&spread.expression, context)?;
+            }
+            Attribute::AttachTag(attach) => {
+                super::script::walk_expression(&attach.expression, context)?;
+            }
+            _ => {}
         }
     }
 

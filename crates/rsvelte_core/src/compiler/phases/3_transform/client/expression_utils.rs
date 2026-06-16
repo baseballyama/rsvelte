@@ -1,6 +1,7 @@
 //! Expression parsing, shadowing detection, and identifier analysis utilities.
 
 use memchr::memmem;
+use std::fmt::Write as _;
 
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
 /// Strip TypeScript generic type parameters from rune calls.
@@ -91,10 +92,17 @@ pub(super) fn collapse_to_single_line(content: &str) -> String {
     // Extract inner content (between braces/brackets)
     let inner = &trimmed[1..trimmed.len() - 1];
 
-    // Collapse whitespace: replace newlines and leading whitespace with single space
+    // Collapse whitespace: replace newlines and leading whitespace with single space.
+    // Line comments must be dropped — joining lines would otherwise swallow the
+    // rest of the collapsed expression behind the `//`. This matches esrap,
+    // which prints the flattened object from the AST without interior comments.
     let mut collapsed_inner = String::new();
     for line in inner.split('\n') {
-        let trimmed_line = line.trim();
+        let mut trimmed_line = line.trim();
+        if let Some(comment_pos) = super::props_transforms::find_line_comment_position(trimmed_line)
+        {
+            trimmed_line = trimmed_line[..comment_pos].trim_end();
+        }
         if !trimmed_line.is_empty() {
             if !collapsed_inner.is_empty() {
                 collapsed_inner.push(' ');
@@ -2661,7 +2669,7 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
 
                 if has_more_after {
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
-                    result.push_str(&format!("(await $.save({}))()", await_arg_trimmed));
+                    let _ = write!(result, "(await $.save({}))()", await_arg_trimmed);
                     i = j;
                 } else {
                     // Last expression - keep as is

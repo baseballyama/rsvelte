@@ -13,8 +13,12 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         head: &SvelteElement,
     ) -> Result<(), TransformError> {
-        // Generate body parts for the head content
-        let body = self.generate_fragment_body_parts(&head.fragment)?;
+        // Generate body parts for the head content.
+        // Note: upstream's `is_text_first` (clean_nodes in 3-transform/utils.js) is only
+        // true for Fragment/SnippetBlock/EachBlock/SvelteComponent/SvelteBoundary/
+        // Component/SvelteSelf parents — SvelteHead is not in that list, so head
+        // content that starts with text does NOT get a `<!---->` anchor.
+        let body = self.generate_fragment_body_parts_inner(&head.fragment, true)?;
 
         // Generate a hash for hydration validation based on the filename
         // The official Svelte compiler uses hash(filename) for this

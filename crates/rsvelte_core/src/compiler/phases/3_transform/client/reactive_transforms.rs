@@ -236,7 +236,6 @@ pub(super) fn sort_reactive_statements(
     }
 
     // Reconstruct the result in sorted order
-    #[allow(clippy::type_complexity)]
     let mut statements_opt: Vec<Option<(Vec<String>, Vec<String>, String)>> =
         statements.into_iter().map(Some).collect();
     let mut result = Vec::with_capacity(n);
@@ -263,7 +262,6 @@ pub(super) fn sort_reactive_statements(
 /// The second thunk contains the body of the reactive statement.
 ///
 /// Reference: `LabeledStatement.js` in `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/`
-#[allow(clippy::too_many_arguments)]
 pub(super) fn transform_reactive_statement(
     statement: &str,
     state_vars: &[String],
@@ -541,8 +539,18 @@ pub(super) fn transform_reactive_statement(
             let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars, &[]);
             let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
-            transformed_body =
+            let temp =
                 wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
+            // Reassigning a store-holding variable via destructuring
+            // (`$: ({ store } = store_container)`) must unsubscribe the old store
+            // so subsequent `$store` reads re-subscribe: wrap the inner
+            // `$.set(store, …)` in `$.store_unsub(…, '$store', $$stores)`. The
+            // non-destructured `$: z = …` branch below already does this inline.
+            transformed_body = super::state_transforms::wrap_store_unsub_for_state_sets(
+                &temp,
+                state_vars,
+                store_sub_vars,
+            );
         } else {
             // If the LHS is a prop variable, transform to prop(value) call
             if prop_assignment_transform_vars.contains(&lhs.to_string()) {
@@ -708,8 +716,17 @@ pub(super) fn transform_reactive_statement(
         let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
         // Transform state var assignments to $.set() before wrapping reads in $.get()
         let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
-        transformed_body =
-            wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
+        let temp = wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
+        // Reassigning a store-holding variable inside a destructuring IIFE
+        // (`$: ({ store } = store_container)`) must unsubscribe the old store so
+        // later `$store` reads re-subscribe: wrap `$.set(store, …)` in
+        // `$.store_unsub(…, '$store', $$stores)`. (The simple-assignment branch
+        // above does this inline.)
+        transformed_body = super::state_transforms::wrap_store_unsub_for_state_sets(
+            &temp,
+            state_vars,
+            store_sub_vars,
+        );
     }
 
     // Apply store subscription transformations to body.

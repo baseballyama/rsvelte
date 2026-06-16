@@ -6,6 +6,7 @@ use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
+use std::fmt::Write as _;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_element(
@@ -77,7 +78,13 @@ impl<'a> ServerCodeGenerator<'a> {
             _ => false, // Skip event handlers, use directives, etc.
         });
 
-        if !has_relevant_attrs {
+        // A CSS-scoped `<svelte:element>` still needs ` class="svelte-hash"`
+        // pushed even with no authored attributes, so don't bail when scoped —
+        // upstream always emits the attributes callback for a scoped dynamic
+        // element (the scope class is injected there).
+        let scoped_with_hash =
+            elem.metadata.scoped && self.analysis.is_some_and(|a| !a.css.hash.is_empty());
+        if !has_relevant_attrs && !scoped_with_hash {
             return Ok(None);
         }
 
@@ -212,6 +219,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                     }
                                 }
                             }
+                        } else if matches!(node.value, AttributeValue::True(_)) {
+                            // A valueless attribute (`<svelte:element scope>`) is
+                            // static; upstream bakes ` scope=""` into the markup
+                            // rather than emitting a dynamic `$.attr(name, true)`.
+                            attr_parts.push(format!(" {}=\"\"", name));
                         } else {
                             let value = self.extract_attribute_value_as_literal(node)?;
                             if let Some(val) = value {
@@ -263,6 +275,18 @@ impl<'a> ServerCodeGenerator<'a> {
             if !style_directives.is_empty() && !handled_style {
                 let directives_obj = self.build_style_directives_obj(&style_directives)?;
                 attr_parts.push(format!("${{$.attr_style('', {})}}", directives_obj));
+            }
+
+            // Scoped element with no class attribute and no class directives:
+            // emit the bare scope class (`<svelte:element this={x} />` under a
+            // component with matching CSS → ` class="svelte-hash"`).
+            if let Some(ref hash) = css_hash {
+                let has_class_attr = elem.attributes.iter().any(
+                    |attr| matches!(attr, Attribute::Attribute(n) if n.name.as_str() == "class"),
+                );
+                if !has_class_attr && class_directives.is_empty() && !handled_class {
+                    attr_parts.push(format!(" class=\"{}\"", hash));
+                }
             }
 
             if attr_parts.is_empty() {
@@ -372,7 +396,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if ee > es && ee <= self.source.len() {
                                     let expr = self.source[es..ee].trim().to_string();
                                     let expr = self.transform_store_refs(&expr);
-                                    tmpl.push_str(&format!("${{$.stringify({})}}", expr));
+                                    let _ = write!(tmpl, "${{$.stringify({})}}", expr);
                                 }
                             }
                         }
@@ -484,7 +508,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             let end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if end > start && end <= self.source.len() {
                                 let expr = self.source[start..end].trim();
-                                result.push_str(&format!("${{$.stringify({})}}", expr));
+                                let _ = write!(result, "${{$.stringify({})}}", expr);
                             }
                         }
                     }

@@ -14,6 +14,7 @@
 //!   instead of duplicating compiler options.
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -243,7 +244,7 @@ pub fn materialize_overlay_with(
             // exposes both the component default and the companion's exports.
             let mut tsx_code = result.code.clone();
             if let Some(spec) = companion_reexport_specifier(abs_source, &tsx_path) {
-                tsx_code.push_str(&format!("\nexport * from \"{spec}\";\n"));
+                let _ = writeln!(tsx_code, "\nexport * from \"{spec}\";");
             }
             fs::write(&tsx_path, &tsx_code)?;
 
@@ -443,7 +444,7 @@ fn emit_external_shadows(pkg: &ExternalPackage) -> Result<(), OverlayError> {
         })?;
         let mut tsx_code = result.code.clone();
         if let Some(spec) = companion_reexport_specifier(abs_source, &tsx_path) {
-            tsx_code.push_str(&format!("\nexport * from \"{spec}\";\n"));
+            let _ = writeln!(tsx_code, "\nexport * from \"{spec}\";");
         }
         fs::write(&tsx_path, &tsx_code)?;
         let import_basename = tsx_path

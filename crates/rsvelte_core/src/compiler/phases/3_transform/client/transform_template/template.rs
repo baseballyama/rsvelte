@@ -12,6 +12,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use indexmap::IndexMap;
 use regex::Regex;
+use std::fmt::Write as _;
 use std::sync::LazyLock;
 
 // Cached regex for stripping leading newline from pre/textarea content
@@ -249,7 +250,7 @@ fn stringify(item: &Node) -> String {
                     str.push_str(key);
                 }
                 if let Some(val) = value {
-                    str.push_str(&format!("=\"{}\"", escape_attr(val)));
+                    let _ = write!(str, "=\"{}\"", escape_attr(val));
                 }
             }
 
@@ -267,7 +268,7 @@ fn stringify(item: &Node) -> String {
                         .collect::<Vec<_>>()
                         .join(""),
                 );
-                str.push_str(&format!("</{}>", element.name));
+                let _ = write!(str, "</{}>", element.name);
             }
 
             str

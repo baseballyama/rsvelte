@@ -20,6 +20,7 @@
 // is built as both rlib and cdylib, and a lib-level `#[global_allocator]`
 // is duplicated across both outputs at link time — cargo issue
 // rust-lang/cargo#6313.
+use std::fmt::Write as _;
 #[cfg(all(
     feature = "jemalloc",
     not(feature = "napi"),
@@ -302,14 +303,15 @@ fn create_medium_file() -> String {
     );
 
     for i in 0..10 {
-        s.push_str(&format!(
+        let _ = write!(
+            s,
             r#"        {{#if count > {i}}}
             <li class="active">Item {i}</li>
         {{:else}}
             <li>Item {i}</li>
         {{/if}}
 "#
-        ));
+        );
     }
 
     s.push_str(
@@ -373,7 +375,8 @@ fn create_large_file() -> String {
 
     // Add many elements
     for i in 0..50 {
-        s.push_str(&format!(
+        let _ = write!(
+            s,
             r#"        <section class="section-{i}">
             <h2>Section {i}</h2>
             {{#if count > {i}}}
@@ -393,7 +396,7 @@ fn create_large_file() -> String {
             {{/if}}
         </section>
 "#
-        ));
+        );
     }
 
     s.push_str(
@@ -430,6 +433,7 @@ fn profile_file(config: &Config, filename: &str, content: &str) -> FileMetrics {
         loose: false,
         skip_expression_loc: true,
         defer_script_parse: false,
+        force_typescript: false,
     };
 
     let compile_options = CompileOptions {
@@ -725,9 +729,102 @@ fn print_json_output(config: &Config, all_metrics: &[FileMetrics]) {
     println!("{}", serde_json::to_string_pretty(&result).unwrap());
 }
 
+#[cfg(feature = "pprof")]
+fn pprof_transform(config: &Config, files: &[(String, String)]) {
+    use std::collections::{HashMap, HashSet};
+    let Some((name, content)) = files.first() else {
+        return;
+    };
+    let parse_options = ParseOptions {
+        modern: true,
+        loose: false,
+        skip_expression_loc: true,
+        defer_script_parse: false,
+        force_typescript: false,
+    };
+    let compile_options = CompileOptions {
+        generate: config.mode,
+        filename: Some(name.clone()),
+        enable_sourcemap: false,
+        ..Default::default()
+    };
+    let mut ast = match parse(content, parse_options) {
+        Ok(a) => a,
+        Err(_) => {
+            eprintln!("[pprof] parse failed");
+            return;
+        }
+    };
+    let analysis = match analyze_component(&mut ast, content, &compile_options) {
+        Ok(a) => a,
+        Err(_) => {
+            eprintln!("[pprof] analyze failed");
+            return;
+        }
+    };
+    let iters = 2500usize;
+    eprintln!("[pprof] sampling transform of {name} over {iters} iterations...");
+    let guard = pprof::ProfilerGuardBuilder::default()
+        .frequency(2000)
+        .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+        .build()
+        .expect("guard");
+    for _ in 0..iters {
+        let r = transform_component(&analysis, &ast, content, &compile_options);
+        std::hint::black_box(&r);
+    }
+    let report = guard.report().build().expect("report");
+    let mut incl: HashMap<String, isize> = HashMap::new();
+    let mut selfc: HashMap<String, isize> = HashMap::new();
+    let mut total: isize = 0;
+    for (frames, count) in report.data.iter() {
+        total += *count;
+        if let Some(first) = frames.frames.first().and_then(|f| f.first()) {
+            *selfc.entry(format!("{first}")).or_insert(0) += *count;
+        }
+        let mut seen = HashSet::new();
+        for frame in &frames.frames {
+            for sym in frame {
+                let n = format!("{sym}");
+                if seen.insert(n.clone()) {
+                    *incl.entry(n).or_insert(0) += *count;
+                }
+            }
+        }
+    }
+    let denom = total.max(1) as f64;
+    let mut sv: Vec<_> = selfc.into_iter().collect();
+    sv.sort_by_key(|b| std::cmp::Reverse(b.1));
+    let mut iv: Vec<_> = incl.into_iter().collect();
+    iv.sort_by_key(|b| std::cmp::Reverse(b.1));
+    eprintln!("[pprof] total samples: {total}");
+    eprintln!("[pprof] TOP SELF:");
+    for (n, c) in sv.into_iter().take(25) {
+        let p = 100.0 * (c as f64) / denom;
+        if p < 1.0 {
+            break;
+        }
+        eprintln!("  {p:5.1}%  {n}");
+    }
+    eprintln!("[pprof] TOP INCLUSIVE:");
+    for (n, c) in iv.into_iter().take(30) {
+        let p = 100.0 * (c as f64) / denom;
+        if p < 2.0 {
+            break;
+        }
+        eprintln!("  {p:5.1}%  {n}");
+    }
+}
+
 fn main() {
     let config = parse_args();
     let files = load_files(&config);
+
+    #[cfg(feature = "pprof")]
+    if config.phase == "transform" {
+        pprof_transform(&config, &files);
+        return;
+    }
 
     if files.is_empty() {
         eprintln!("No files to profile");

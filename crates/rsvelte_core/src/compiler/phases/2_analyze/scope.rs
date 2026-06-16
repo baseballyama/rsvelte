@@ -37,6 +37,14 @@ pub struct ScopeRoot {
     /// Key: start position of the template node
     /// Value: scope index in all_scopes
     pub template_scope_map: FxHashMap<u32, usize>,
+    /// Scope indices created for `{#snippet …}` bodies. Snippet bodies become
+    /// separate functions in the generated output, so template declarations
+    /// (`{@const}` / `{const}` / `{let}`) made inside one snippet are NOT
+    /// visible from sibling snippets or the enclosing fragment. Phase 3 uses
+    /// this set to restrict constant-folding of `BindingKind::Template`
+    /// bindings to lexically reachable scopes (mirrors upstream
+    /// `scope.evaluate`, which resolves identifiers through the scope chain).
+    pub snippet_scope_indices: FxHashSet<usize>,
     /// All declaration names from all scopes, used for unique name generation.
     /// Mirrors the `conflicts` set in the official Svelte compiler's ScopeRoot.
     /// Every `declare()` call adds the name here.
@@ -55,6 +63,7 @@ impl ScopeRoot {
             function_scope_map: FxHashMap::default(),
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
+            snippet_scope_indices: FxHashSet::default(),
             conflicts: Rc::new(RefCell::new(FxHashSet::default())),
         }
     }
@@ -92,6 +101,28 @@ impl ScopeRoot {
         }
 
         None
+    }
+
+    /// Check if `potential_ancestor` is the same scope as, or an ancestor of, `descendant`.
+    ///
+    /// Walks up the parent chain from `descendant` to see if `potential_ancestor` is encountered.
+    /// Used to validate that a binding found via `get_binding` was actually declared in a scope
+    /// that is lexically visible from the lookup site — the root scope (index 0) is intentionally
+    /// polluted with all child-scope declarations for backward compatibility, so a raw
+    /// `get_binding` result may point to a binding declared in a descendant scope.
+    pub fn is_scope_ancestor_of(&self, potential_ancestor: usize, descendant: usize) -> bool {
+        let mut current = Some(descendant);
+        while let Some(idx) = current {
+            if idx == potential_ancestor {
+                return true;
+            }
+            if let Some(scope) = self.all_scopes.get(idx) {
+                current = scope.parent;
+            } else {
+                break;
+            }
+        }
+        false
     }
 
     /// Look up a binding by name, searching all scopes.

@@ -6,6 +6,7 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{collapse_whitespace, needs_clsx, prop_string, quote_prop_name};
 use super::super::types::OutputPart;
+use super::shared::utils::has_top_level_comma;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, ClassDirective,
     RegularElement, StyleDirective, TemplateNode,
@@ -17,6 +18,19 @@ use crate::compiler::phases::phase3_transform::shared::{
 use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
 };
+use std::fmt::Write as _;
+
+/// Wrap a top-level sequence (comma) expression in parens so it remains a
+/// single call argument. esrap prints `class={size, color}` as
+/// `$.clsx((size, color))` — without the parens the comma would be parsed as
+/// an argument separator.
+fn paren_if_sequence(expr: String) -> String {
+    if has_top_level_comma(&expr) {
+        format!("({})", expr)
+    } else {
+        expr
+    }
+}
 
 /// Compute 1-based line number and 0-based column for a byte offset in source.
 pub(crate) fn locate_in_source(source: &str, offset: usize) -> (usize, usize) {
@@ -61,6 +75,16 @@ fn is_load_error_element(name: &str) -> bool {
         name,
         "body" | "embed" | "iframe" | "img" | "link" | "object" | "script" | "style" | "track"
     )
+}
+
+/// Server-side void check mirroring upstream `is_void` (svelte/src/utils.js):
+/// the shared VOID list plus `command`, `keygen`, and a case-insensitive
+/// `!doctype` (`<!doctype html>` parses as an element named `!doctype` and is
+/// emitted self-closing: `<!doctype html=""/>`).
+fn is_void_element_server(name: &str) -> bool {
+    is_void_element(name)
+        || matches!(name, "command" | "keygen")
+        || name.eq_ignore_ascii_case("!doctype")
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -264,12 +288,13 @@ impl<'a> ServerCodeGenerator<'a> {
                                                         self.source[es..ee].trim().to_string();
                                                     let expr = self.transform_store_refs(&expr);
                                                     if matches!(eval, AttrExprEval::StringNoWrap) {
-                                                        tmpl.push_str(&format!("${{{}}}", expr));
+                                                        let _ = write!(tmpl, "${{{}}}", expr);
                                                     } else {
-                                                        tmpl.push_str(&format!(
+                                                        let _ = write!(
+                                                            tmpl,
                                                             "${{$.stringify({})}}",
                                                             expr
-                                                        ));
+                                                        );
                                                     }
                                                 }
                                             }
@@ -365,7 +390,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     && base_class.is_none()
                     && class_directives.is_empty()
                 {
-                    tag.push_str(&format!(" class=\"{}\"", hash));
+                    let _ = write!(tag, " class=\"{}\"", hash);
                     emitted_class_hash = true;
                 }
                 emitted_style = true;
@@ -420,7 +445,7 @@ impl<'a> ServerCodeGenerator<'a> {
             && base_class.is_none()
             && class_directives.is_empty()
         {
-            tag.push_str(&format!(" class=\"{}\"", hash));
+            let _ = write!(tag, " class=\"{}\"", hash);
         }
 
         // Emit any remaining class/style directives that weren't handled in the loop
@@ -438,27 +463,39 @@ impl<'a> ServerCodeGenerator<'a> {
             tag.push_str(&attr_style_call);
         }
 
-        // For load/error elements (img, video, etc.), add event capture attributes
-        // when the element has onerror/onload event handlers.
-        // Reference: element.js lines 272-276
+        // For load/error elements (img, track, etc.), add event capture attributes.
+        // Upstream collects `events_to_capture` (a Set, in attribute order) while
+        // walking the attributes: an `onload`/`onerror` event attribute adds that
+        // event; a `use:` directive adds BOTH `onload` and `onerror` (actions can
+        // attach listeners, so load/error events must be captured for replay).
+        // Reference: 3-transform/server/visitors/shared/element.js lines 70-77,
+        // 192-196 and 276-280.
         if is_load_error_element(name) {
-            let has_onerror = element
-                .attributes
-                .iter()
-                .any(|a| matches!(a, Attribute::Attribute(n) if n.name == "onerror"));
-            let has_onload = element
-                .attributes
-                .iter()
-                .any(|a| matches!(a, Attribute::Attribute(n) if n.name == "onload"));
-            if has_onerror {
-                tag.push_str(" onerror=\"this.__e=event\"");
+            let mut events_to_capture: Vec<&str> = Vec::new();
+            for attr in &element.attributes {
+                match attr {
+                    Attribute::Attribute(n)
+                        if (n.name == "onload" || n.name == "onerror")
+                            && !events_to_capture.contains(&n.name.as_str()) =>
+                    {
+                        events_to_capture.push(n.name.as_str());
+                    }
+                    Attribute::UseDirective(_) => {
+                        for event in ["onload", "onerror"] {
+                            if !events_to_capture.contains(&event) {
+                                events_to_capture.push(event);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
-            if has_onload {
-                tag.push_str(" onload=\"this.__e=event\"");
+            for event in events_to_capture {
+                let _ = write!(tag, " {}=\"this.__e=event\"", event);
             }
         }
 
-        if is_void_element(name) {
+        if is_void_element_server(name) {
             tag.push_str("/>");
             if shorthand_style_vars.is_empty() {
                 self.output_parts.push(OutputPart::Html(tag));
@@ -814,10 +851,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 self.generate_node(child, false)?;
-                // Snippet blocks and debug tags are hoisted/transparent and don't produce inline output
+                // Snippet blocks, debug tags, const tags, and declaration tags are
+                // hoisted/transparent and don't produce inline output, so they must
+                // not advance the "has real content" cursor — otherwise the
+                // whitespace text that follows them inside an element body would be
+                // suppressed as "leading" whitespace.
                 if !matches!(
                     child,
-                    TemplateNode::SnippetBlock(_) | TemplateNode::DebugTag(_)
+                    TemplateNode::SnippetBlock(_)
+                        | TemplateNode::DebugTag(_)
+                        | TemplateNode::ConstTag(_)
+                        | TemplateNode::DeclarationTag(_)
                 ) {
                     has_output_content = true;
                     is_first_content = false;
@@ -891,7 +935,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         // Transform rune calls in spread expressions
                         let expr = Self::transform_rune_in_template_expr(&expr);
                         // Wrap bare reads of $derived bindings (Svelte 5.52+).
-                        let mut expr = self.wrap_derived_reads(&expr);
+                        let expr = self.wrap_derived_reads(&expr);
+                        // Legacy `$$props` reads become `$$sanitized_props`
+                        // (upstream's server Identifier visitor), so a spread
+                        // `{...$$props}` emits `{ ...$$sanitized_props }`.
+                        let mut expr = self.transform_special_vars(&expr);
                         // In dev mode, if the parent element has a svelte-ignore
                         // state_snapshot_uncloneable comment, add `true` arg to $.snapshot()
                         if self.dev
@@ -944,7 +992,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let value = self.extract_attribute_value_as_string(node)?;
                     // Wrap class attribute dynamic expressions in $.clsx()
                     let value = if attr_name == "class" && needs_clsx(&node.value) {
-                        format!("$.clsx({})", value)
+                        format!("$.clsx({})", paren_if_sequence(value))
                     } else {
                         value
                     };
@@ -1100,38 +1148,73 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                         AttributeValue::Sequence(parts) => {
-                            // For sequences, build a template literal or concatenation
-                            let mut expr_parts: Vec<String> = Vec::new();
-                            for part in parts {
-                                match part {
+                            // A single bare part (one text or one expression) is
+                            // emitted as-is. A mixed text+expression sequence
+                            // (e.g. `rgb({c}, 0, 0)`) becomes a template literal
+                            // with each dynamic part interpolated through
+                            // `$.stringify`, matching the official server output
+                            // (`\`rgb(${$.stringify(c)}, 0, 0)\``) rather than a
+                            // string concatenation.
+                            if parts.len() == 1 {
+                                match &parts[0] {
                                     AttributeValuePart::Text(text) => {
-                                        let text_start = text.start as usize;
-                                        let text_end = text.end as usize;
-                                        if text_end > text_start && text_end <= self.source.len() {
-                                            expr_parts.push(format!(
-                                                "'{}'",
-                                                &self.source[text_start..text_end]
-                                            ));
+                                        let s = text.start as usize;
+                                        let e = text.end as usize;
+                                        if e > s && e <= self.source.len() {
+                                            format!("'{}'", &self.source[s..e])
+                                        } else {
+                                            "''".to_string()
                                         }
                                     }
                                     AttributeValuePart::ExpressionTag(expr) => {
-                                        let expr_start =
-                                            expr.expression.start().unwrap_or(0) as usize;
-                                        let expr_end = expr.expression.end().unwrap_or(0) as usize;
-                                        if expr_end > expr_start && expr_end <= self.source.len() {
-                                            expr_parts.push(
-                                                self.source[expr_start..expr_end]
-                                                    .trim()
-                                                    .to_string(),
-                                            );
+                                        let s = expr.expression.start().unwrap_or(0) as usize;
+                                        let e = expr.expression.end().unwrap_or(0) as usize;
+                                        if e > s && e <= self.source.len() {
+                                            self.source[s..e].trim().to_string()
+                                        } else {
+                                            "true".to_string()
                                         }
                                     }
                                 }
-                            }
-                            if expr_parts.len() == 1 {
-                                expr_parts.remove(0)
                             } else {
-                                expr_parts.join(" + ")
+                                let mut tmpl = String::from("`");
+                                for part in parts {
+                                    match part {
+                                        AttributeValuePart::Text(text) => {
+                                            let s = text.start as usize;
+                                            let e = text.end as usize;
+                                            if e > s && e <= self.source.len() {
+                                                let text = &self.source[s..e];
+                                                let bytes = text.as_bytes();
+                                                for (i, ch) in text.char_indices() {
+                                                    match ch {
+                                                        '`' => tmpl.push_str("\\`"),
+                                                        '\\' => tmpl.push_str("\\\\"),
+                                                        // Only escape `$` that begins a `${`
+                                                        // interpolation; a lone `$` stays raw.
+                                                        '$' if bytes.get(i + 1) == Some(&b'{') => {
+                                                            tmpl.push_str("\\$")
+                                                        }
+                                                        _ => tmpl.push(ch),
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        AttributeValuePart::ExpressionTag(expr) => {
+                                            let s = expr.expression.start().unwrap_or(0) as usize;
+                                            let e = expr.expression.end().unwrap_or(0) as usize;
+                                            if e > s && e <= self.source.len() {
+                                                let _ = write!(
+                                                    tmpl,
+                                                    "${{$.stringify({})}}",
+                                                    self.source[s..e].trim()
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                                tmpl.push('`');
+                                tmpl
                             }
                         }
                     };
@@ -1230,6 +1313,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             format!("$.attributes({})", args.join(", "))
         };
+        // Match esrap's newline-presence for the `${$.attributes(...)}` slot
+        // (the spread object breaks when its measured width exceeds 60).
+        let attributes_call = super::super::esrap_layout::reflow_template_expr(&attributes_call);
         self.output_parts
             .push(OutputPart::RawExpression(attributes_call));
 
@@ -1241,7 +1327,7 @@ impl<'a> ServerCodeGenerator<'a> {
             ));
         }
 
-        if is_void_element(name) {
+        if is_void_element_server(name) {
             self.output_parts.push(OutputPart::Html("/>".to_string()));
             // In dev mode, add $.push_element()/$.pop_element() for void elements with spreads
             if self.dev {
@@ -1552,7 +1638,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 let expr = self.transform_store_refs(expr);
                                 // Wrap expressions in $.stringify() when mixed with text
                                 // This matches the official Svelte build_attribute_value behavior
-                                value.push_str(&format!("${{$.stringify({})}}", expr));
+                                let _ = write!(value, "${{$.stringify({})}}", expr);
                             }
                         }
                     }
@@ -1774,8 +1860,18 @@ impl<'a> ServerCodeGenerator<'a> {
             Attribute::BindDirective(bind) => {
                 self.generate_bind_directive_for_element_instance(bind, element)
             }
-            // Event handlers are not rendered on server
-            Attribute::OnDirective(_) => Ok(None),
+            // Event handlers are not rendered on server. Comments inside the
+            // dropped handler survive in the official output (esrap re-inserts
+            // them before the next positioned node).
+            Attribute::OnDirective(on) => {
+                if let Some(expr) = &on.expression {
+                    self.record_lost_expression_comments(
+                        expr.start().unwrap_or(0) as usize,
+                        expr.end().unwrap_or(0) as usize,
+                    );
+                }
+                Ok(None)
+            }
             _ => Ok(None),
         }
     }
@@ -2099,6 +2195,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     // Skip event handler attributes (onclick, onmousedown, etc.)
                     if name.starts_with("on") {
+                        // Comments inside the dropped handler survive in the
+                        // official output (esrap re-inserts them before the
+                        // next positioned node).
+                        self.record_lost_expression_comments(
+                            expr_tag.expression.start().unwrap_or(0) as usize,
+                            expr_tag.expression.end().unwrap_or(0) as usize,
+                        );
                         return Ok(None);
                     }
 
@@ -2118,6 +2221,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
                         let expr = self.transform_store_refs(&expr);
+                        // Template runes (`$state.eager(x)` → `x`, etc.) are
+                        // simplified AFTER the derived-read wrap, mirroring
+                        // expression_tag.rs (upstream's server CallExpression
+                        // visitor returns `node.arguments[0]` for $state.eager).
+                        let expr = Self::transform_rune_in_template_expr(&expr);
                         let expr = self.strip_ts_from_expr(&expr);
                         return Ok(Some(make_attr_call(name, &expr)));
                     } else {
@@ -2219,6 +2327,13 @@ impl<'a> ServerCodeGenerator<'a> {
             AttributeValue::Expression(expr_tag) => {
                 // Skip event handler attributes (onclick, onmousedown, etc.)
                 if name.starts_with("on") {
+                    // Comments inside the dropped handler survive in the
+                    // official output (esrap re-inserts them before the next
+                    // positioned node).
+                    self.record_lost_expression_comments(
+                        expr_tag.expression.start().unwrap_or(0) as usize,
+                        expr_tag.expression.end().unwrap_or(0) as usize,
+                    );
                     return Ok(None);
                 }
 
@@ -2238,6 +2353,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
                     let expr = self.transform_store_refs(&expr);
+                    // Template runes (`$state.eager(x)` → `x`, etc.) — see the
+                    // single-expression Sequence arm above.
+                    let expr = Self::transform_rune_in_template_expr(&expr);
                     let expr = self.strip_ts_from_expr(&expr);
                     Ok(Some(make_attr_call(name, &expr)))
                 } else {
@@ -2473,7 +2591,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Check if we need to wrap in $.clsx() for dynamic class expressions
                     let should_clsx = needs_clsx(&node.value);
                     let value_expr = if should_clsx {
-                        format!("$.clsx({})", expr)
+                        format!("$.clsx({})", paren_if_sequence(expr.clone()))
                     } else {
                         // Pass simple expressions directly to $.attr_class()
                         // The runtime handles coercion, no need for $.stringify()
@@ -2500,11 +2618,45 @@ impl<'a> ServerCodeGenerator<'a> {
     /// `scope.evaluate(node.expression)`:
     /// known → inline; null/undefined → drop; defined-string → no `$.stringify`; else wrap.
     fn evaluate_attribute_expression(&self, expr: &crate::ast::js::Expression) -> AttrExprEval {
+        // Bare identifier: resolve without the expensive `as_json`
+        // serialization (mirrors evaluate_template_expression's fast path).
+        if let Some(name) = expr.identifier_name() {
+            use super::super::evaluate::{EvalValue, js_display_string};
+            let evaluation = self.evaluate_identifier_pub(name);
+            if let Some(value) = evaluation.known_value() {
+                return match value {
+                    EvalValue::Null | EvalValue::Undefined => AttrExprEval::Empty,
+                    v => AttrExprEval::InlineLiteral(js_display_string(v)),
+                };
+            }
+            if evaluation.is_string() && evaluation.is_defined() {
+                return AttrExprEval::StringNoWrap;
+            }
+            return AttrExprEval::Wrap;
+        }
         self.eval_attr_expr_json(expr.as_json())
     }
 
     fn eval_attr_expr_json(&self, json: &serde_json::Value) -> AttrExprEval {
         use serde_json::Value;
+
+        // First run the scope.evaluate port (upstream `build_template_chunk`
+        // evaluates every attribute chunk): a known value inlines, a known
+        // nullish drops, and a provably-defined-string skips `$.stringify`.
+        {
+            use super::super::evaluate::{EvalValue, js_display_string};
+            let evaluation = self.evaluate_estree(json, 0);
+            if let Some(value) = evaluation.known_value() {
+                return match value {
+                    EvalValue::Null | EvalValue::Undefined => AttrExprEval::Empty,
+                    v => AttrExprEval::InlineLiteral(js_display_string(v)),
+                };
+            }
+            if evaluation.is_string() && evaluation.is_defined() {
+                return AttrExprEval::StringNoWrap;
+            }
+        }
+
         let Some(obj) = json.as_object() else {
             return AttrExprEval::Wrap;
         };
@@ -2578,57 +2730,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     AttrExprEval::Wrap
                 }
             }
-            // Upstream `scope.evaluate` (Svelte 5.55.9 `a5df6616e`) treats a
-            // ternary as provably-string when BOTH branches are provably-string,
-            // so the wrapping `$.stringify(...)` can be elided.
-            "ConditionalExpression" => {
-                let Some(consequent) = obj.get("consequent") else {
-                    return AttrExprEval::Wrap;
-                };
-                let Some(alternate) = obj.get("alternate") else {
-                    return AttrExprEval::Wrap;
-                };
-                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(consequent))
-                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(alternate))
-                {
-                    AttrExprEval::StringNoWrap
-                } else {
-                    AttrExprEval::Wrap
-                }
-            }
-            // String concatenation `a + b` where both operands are provably-string
-            // is itself provably-string.
-            "BinaryExpression" => {
-                let operator = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("");
-                if operator != "+" {
-                    return AttrExprEval::Wrap;
-                }
-                let Some(left) = obj.get("left") else {
-                    return AttrExprEval::Wrap;
-                };
-                let Some(right) = obj.get("right") else {
-                    return AttrExprEval::Wrap;
-                };
-                if Self::eval_is_string_or_inline(&self.eval_attr_expr_json(left))
-                    && Self::eval_is_string_or_inline(&self.eval_attr_expr_json(right))
-                {
-                    AttrExprEval::StringNoWrap
-                } else {
-                    AttrExprEval::Wrap
-                }
-            }
+            // Ternaries (`ConditionalExpression`) and string concatenation
+            // (`BinaryExpression "+"`) are handled by the `evaluate_estree`
+            // pass above: it elides `$.stringify` only when BOTH branches /
+            // operands are provably string (`is_string()`). A ternary with
+            // numeric branches (`cond ? 1 : 0`) is NOT a string, so it keeps
+            // `$.stringify`, matching upstream `scope.evaluate`.
             _ => AttrExprEval::Wrap,
-        }
-    }
-
-    /// Helper for `eval_attr_expr_json`: whether a sub-expression's evaluation
-    /// proves it returns a (non-nullish) string.
-    fn eval_is_string_or_inline(eval: &AttrExprEval) -> bool {
-        match eval {
-            AttrExprEval::InlineLiteral(_) | AttrExprEval::StringNoWrap => true,
-            // `Empty` corresponds to `null`/`undefined` — these are NOT strings,
-            // so a ternary with an `undefined` branch is not provably-string.
-            AttrExprEval::Empty | AttrExprEval::Wrap => false,
         }
     }
 
@@ -2695,6 +2803,22 @@ impl<'a> ServerCodeGenerator<'a> {
                     .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
 
                 if has_expr {
+                    // Upstream rule (build_attribute_value): when the value array has
+                    // exactly one element and it is an ExpressionTag, pass the
+                    // expression BARE — no $.stringify template wrapper.  Only when
+                    // there are multiple parts (text + expr interleaved) do we build a
+                    // template-literal with $.stringify slots.
+                    if parts.len() == 1
+                        && let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0]
+                    {
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_src = self.source[expr_start..expr_end].trim();
+                            let transformed = self.transform_store_refs(expr_src);
+                            return Some(format!("__EXPR__:{}", transformed));
+                        }
+                    }
                     // Generate a template literal with $.stringify() for dynamic parts
                     // Collapse whitespace (newlines/tabs/spaces) in text parts to single spaces,
                     // matching the official Svelte compiler's behavior for style attributes.
@@ -2719,14 +2843,13 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if expr_end > expr_start && expr_end <= self.source.len() {
                                     let expr_src = self.source[expr_start..expr_end].trim();
                                     let transformed = self.transform_store_refs(expr_src);
-                                    template
-                                        .push_str(&format!("${{$.stringify({})}}", transformed));
+                                    let _ = write!(template, "${{$.stringify({})}}", transformed);
                                 }
                             }
                         }
                     }
                     template.push('`');
-                    // Use __TEMPL__: prefix so generate_attr_style_call knows it's a raw expression
+                    // Use __EXPR__: prefix so generate_attr_style_call knows it's a raw expression
                     Some(format!("__EXPR__:{}", template))
                 } else {
                     // All static text
@@ -2793,7 +2916,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let expr = &base_class.unwrap()["__EXPR__:".len()..];
             // Transform store refs in class expression
             let expr = self.transform_store_refs(expr);
-            let base = format!("$.clsx({})", expr);
+            let base = format!("$.clsx({})", paren_if_sequence(expr));
             let hash = if let Some(hash) = css_hash {
                 format!("'{}'", hash)
             } else {
@@ -2840,6 +2963,25 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Shorthand: style:color means style:color={color}
                     dir.name.to_string()
                 }
+                AttributeValue::Sequence(parts) if parts.len() == 1 => {
+                    // A single chunk maps to upstream `build_attribute_value`'s
+                    // `!Array.isArray(value) || value.length === 1` branch: a lone
+                    // `ExpressionTag` (e.g. quoted `style:x="{color}"`) becomes the
+                    // bare expression with no `$.stringify` template.
+                    match &parts[0] {
+                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let raw = self.source[expr_start..expr_end].trim().to_string();
+                                self.transform_store_refs(&raw)
+                            } else {
+                                "undefined".to_string()
+                            }
+                        }
+                        AttributeValuePart::Text(text) => format!("'{}'", text.data),
+                    }
+                }
                 AttributeValue::Sequence(parts) => {
                     // Check if any part is an expression (dynamic value)
                     let has_expr = parts
@@ -2884,13 +3026,14 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 let transformed =
                                                     self.transform_store_refs(expr_src);
                                                 if matches!(eval, AttrExprEval::StringNoWrap) {
-                                                    template
-                                                        .push_str(&format!("${{{}}}", transformed));
+                                                    let _ =
+                                                        write!(template, "${{{}}}", transformed);
                                                 } else {
-                                                    template.push_str(&format!(
+                                                    let _ = write!(
+                                                        template,
                                                         "${{$.stringify({})}}",
                                                         transformed
-                                                    ));
+                                                    );
                                                 }
                                             }
                                         }
@@ -2979,10 +3122,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 "''".to_string()
             }
         };
-        Ok(format!(
-            "${{$.attr_style({}, {})}}",
+        // Match esrap's newline-presence: the style-directives object breaks
+        // when its measured width exceeds 60 (esrap `sequence()` rule).
+        let call = super::super::esrap_layout::reflow_template_expr(&format!(
+            "$.attr_style({}, {})",
             base_arg, directives_arg
-        ))
+        ));
+        Ok(format!("${{{}}}", call))
     }
 }
 

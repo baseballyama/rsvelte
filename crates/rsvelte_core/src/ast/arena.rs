@@ -412,6 +412,8 @@ pub fn with_serialize_arena<F, R>(arena: &ParseArena, f: F) -> R
 where
     F: FnOnce() -> R,
 {
+    // SAFETY: `arena` is a live `&ParseArena` borrowed for this whole function,
+    // so it outlives `_guard`, satisfying `SerializeArenaGuard::new`'s contract.
     let _guard = unsafe { SerializeArenaGuard::new(arena as *const _) };
     f()
 }

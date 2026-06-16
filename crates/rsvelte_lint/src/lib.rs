@@ -28,7 +28,9 @@ pub mod registry;
 pub mod rule;
 pub mod rules;
 pub mod scope;
+pub mod script;
 pub mod suppression;
+pub mod svelte_scan;
 pub mod visitor;
 
 // `--config-from-eslint` importer (OXC). Excluded from the wasm build.
@@ -49,10 +51,10 @@ pub mod validator;
 pub mod wasm;
 
 pub use config::LintConfig;
-pub use diagnostic::{Fix, LintDiagnostic, TextEdit};
+pub use diagnostic::{Fix, LintDiagnostic, Suggestion, TextEdit};
 pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
 #[cfg(feature = "native")]
 pub use output::{LintFormat, render};
 #[cfg(feature = "native")]
-pub use runner::{FixResult, fix_source, lint_file, lint_source};
+pub use runner::{FixResult, fix_source, lint_file, lint_source, lint_source_raw};

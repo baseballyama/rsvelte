@@ -340,6 +340,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // to suppress `state_referenced_locally` warnings inside these rune calls.
     // Corresponds to CallExpression.js L244-259
     let increment_depth = matches!(rune.as_deref(), Some("$derived") | Some("$inspect"));
+    // For `$derived(...)` (not `$derived.by`), upstream additionally sets
+    // `derived_function_depth: function_depth + 1` and a fresh ExpressionMetadata
+    // as `state.expression` while visiting the argument (CallExpression.js L245-253).
+    // We mirror the depth tracking so the AwaitExpression visitor can detect awaits
+    // directly inside `$derived(...)` (the `suspend` / `experimental_async` gate).
+    let is_derived_rune = matches!(rune.as_deref(), Some("$derived"));
 
     // Visit children (callee and arguments)
     // This is equivalent to context.next() in the JavaScript implementation
@@ -350,6 +356,10 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     if increment_depth {
         context.function_depth += 1;
     }
+    let saved_derived_function_depth = context.derived_function_depth;
+    if is_derived_rune {
+        context.derived_function_depth = context.function_depth;
+    }
 
     if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
         for arg in arguments {
@@ -357,6 +367,9 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    if is_derived_rune {
+        context.derived_function_depth = saved_derived_function_depth;
+    }
     if increment_depth {
         context.function_depth -= 1;
     }
@@ -1167,6 +1180,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
     // For $derived and $inspect, increment function_depth when visiting arguments
     let increment_depth = matches!(rune.as_deref(), Some("$derived") | Some("$inspect"));
+    // For `$derived(...)` (not `$derived.by`), mirror upstream's
+    // `derived_function_depth: function_depth + 1` (CallExpression.js L245-253)
+    // so the AwaitExpression visitor can detect awaits directly inside
+    // `$derived(...)` (the `suspend` / `experimental_async` gate).
+    let is_derived_rune = matches!(rune.as_deref(), Some("$derived"));
 
     // Visit children (callee and arguments)
     super::script::walk_js_node_typed(callee_node, context)?;
@@ -1174,8 +1192,15 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     if increment_depth {
         context.function_depth += 1;
     }
+    let saved_derived_function_depth = context.derived_function_depth;
+    if is_derived_rune {
+        context.derived_function_depth = context.function_depth;
+    }
     for arg in args {
         super::script::walk_js_node_typed(arg, context)?;
+    }
+    if is_derived_rune {
+        context.derived_function_depth = saved_derived_function_depth;
     }
     if increment_depth {
         context.function_depth -= 1;

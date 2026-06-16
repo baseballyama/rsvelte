@@ -11,6 +11,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_ids_from_expr;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     apply_transforms_to_expression, expression_has_await, expression_has_reactive_state,
+    get_literal_value,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -292,6 +293,17 @@ fn build_title_content(
         let mut has_state = false;
         for node in nodes {
             if let TemplateNode::ExpressionTag(expr) = node {
+                // Upstream `TitleElement`: `evaluated.is_known ? b.literal(value)`
+                // with `has_state = false` → a plain (non-reactive) `$.effect`.
+                // Inline string-valued knowns only; numeric/boolean knowns would
+                // need a numeric `b.literal` (`title = 0`, not `"0"`) to
+                // byte-match, so they fall through to the existing path.
+                if let Some(Some(v)) = get_literal_value(&expr.expression, context) {
+                    let is_num_or_bool = v.parse::<f64>().is_ok() || v == "true" || v == "false";
+                    if !is_num_or_bool {
+                        return (b::string(v), false, memo_entries);
+                    }
+                }
                 if expression_has_reactive_state(&expr.expression, context) {
                     has_state = true;
                 }

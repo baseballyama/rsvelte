@@ -25,10 +25,10 @@ oxc_allocator = "0.134"
 oxc_ast = "0.134"
 oxc_parser = "0.134"
 oxc_span = "0.134"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "71e489a5c7871f1481d172611b4b10bee76066e5" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
 thiserror = "2.0"
-unicode-width = "0.1"
+unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = { version = "4.7.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
@@ -36,3 +36,6 @@ criterion = { version = "4.7.0", features = ["html_reports"], package = "codspee
 [[bench]]
 name = "formatter"
 harness = false
+
+[lints]
+workspace = true

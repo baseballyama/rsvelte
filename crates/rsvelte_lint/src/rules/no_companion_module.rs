@@ -116,7 +116,7 @@ mod tests {
 
     fn fires_at(dir: &Path, svelte_name: &str) -> bool {
         let path = dir.join(svelte_name);
-        run_native_rules(SRC, &enabled(), Some(&path))
+        run_native_rules(SRC, svelte_name, &enabled(), Some(&path))
             .iter()
             .any(|d| d.rule == "svelte/no-companion-module-shadow")
     }
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn silent_when_no_path() {
         // wasm / in-memory: no path → never fires even when enabled.
-        let hits = run_native_rules(SRC, &enabled(), None)
+        let hits = run_native_rules(SRC, "H.svelte", &enabled(), None)
             .iter()
             .any(|d| d.rule == "svelte/no-companion-module-shadow");
         assert!(!hits, "should no-op when the file path is unknown");
@@ -174,7 +174,7 @@ mod tests {
         fs::write(dir.join("H.svelte"), SRC).unwrap();
         fs::write(dir.join("H.svelte.ts"), "export const x = 1;").unwrap();
         let path = dir.join("H.svelte");
-        let hits = run_native_rules(SRC, &LintConfig::recommended(), Some(&path))
+        let hits = run_native_rules(SRC, "H.svelte", &LintConfig::recommended(), Some(&path))
             .iter()
             .any(|d| d.rule == "svelte/no-companion-module-shadow");
         assert!(

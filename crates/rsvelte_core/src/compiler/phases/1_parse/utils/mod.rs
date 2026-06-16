@@ -9,15 +9,30 @@ pub mod html;
 
 // Re-export utilities for use by other parser modules
 // These are library functions that may be used as the parser is extended
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for structural parity with the upstream Svelte parser-utils module; not every helper is wired into the port yet"
+)]
 pub use bracket::{find_matching_bracket, match_bracket};
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for structural parity with the upstream Svelte parser-utils module; not every helper is wired into the port yet"
+)]
 pub use create::{create_empty_fragment, create_fragment};
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for structural parity with the upstream Svelte parser-utils module; not every helper is wired into the port yet"
+)]
 pub use entities::decode_html_entities;
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for structural parity with the upstream Svelte parser-utils module; not every helper is wired into the port yet"
+)]
 pub use fuzzymatch::fuzzymatch;
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for structural parity with the upstream Svelte parser-utils module; not every helper is wired into the port yet"
+)]
 pub use html::{decode_character_references, is_void_element, validate_code};
 
 /// JavaScript reserved words.

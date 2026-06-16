@@ -5,7 +5,8 @@
 use rsvelte_formatter::{FormatOptions, format};
 
 fn fmt(src: &str) -> String {
-    format(src, &FormatOptions::default()).expect("format ok")
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 #[test]
@@ -92,7 +93,8 @@ fn snippet_object_destructuring_parameter() {
 
 fn fmt_ts(snippet: &str) -> String {
     let src = format!("<script lang=\"ts\"></script>\n{snippet}\n");
-    format(&src, &FormatOptions::default()).expect("format ok")
+    let out = format(&src, &FormatOptions::default()).expect("format ok");
+    out.strip_suffix('\n').map(str::to_string).unwrap_or(out)
 }
 
 #[test]
@@ -167,20 +169,23 @@ fn let_directive_with_destructuring() {
 #[test]
 fn snippet_long_param_list_breaks_like_function_signature() {
     let out = fmt_ts(
-        "{#snippet rowSnippet({ row }: { row: SomeVeryLongRowTypeNameThatPushesPastThePrintWidthLimit })}\n  <Cell />\n{/snippet}",
+        "{#snippet rowSnippet({ row }: { row: SomeVeryLongRowTypeNameThatPushesWayBeyondTheDefaultPrintWidthLimitForReal })}\n  <Cell />\n{/snippet}",
     );
     assert!(
         out.contains(
-            "{#snippet rowSnippet({\n  row,\n}: {\n  row: SomeVeryLongRowTypeNameThatPushesPastThePrintWidthLimit;\n})}"
+            "{#snippet rowSnippet({\n  row,\n}: {\n  row: SomeVeryLongRowTypeNameThatPushesWayBeyondTheDefaultPrintWidthLimitForReal;\n})}"
         ),
         "long snippet header should break across lines:\n{out}"
     );
     // Idempotent: re-formatting the already-broken output must not change it.
-    assert_eq!(
-        format(&out, &FormatOptions::default()).expect("format ok"),
-        out,
-        "snippet header formatting must be idempotent"
-    );
+    // `out` came through `fmt_ts`, which strips the single trailing newline, so
+    // strip it from the re-format too before comparing.
+    let twice = format(&out, &FormatOptions::default()).expect("format ok");
+    let twice = twice
+        .strip_suffix('\n')
+        .map(str::to_string)
+        .unwrap_or(twice);
+    assert_eq!(twice, out, "snippet header formatting must be idempotent");
 }
 
 #[test]

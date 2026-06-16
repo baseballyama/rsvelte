@@ -13,6 +13,8 @@ fn free_of_zero_initialised_buffer_is_noop() {
         len: 0,
         cap: 0,
     };
+    // SAFETY: a zero-initialised `RsvelteBuf` (null data, zero len/cap) is an explicitly
+    // documented valid input to `rsvelte_free`, which treats it as a no-op.
     unsafe { rsvelte_free(empty) };
 }
 

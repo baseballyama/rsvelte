@@ -11,6 +11,35 @@ use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 use rustc_hash::FxHashMap;
 
+/// Returns true when the node has an explicit `slot="…"` attribute (regardless
+/// of the slot name).  This mirrors upstream's condition for contributing a
+/// child's LetDirectives to the slot's parameter list:
+///
+/// ```js
+/// const slot = child.attributes.find(attr => attr.type === 'Attribute' && attr.name === 'slot');
+/// if (slot !== undefined) { lets[slot_name] = child.attributes.filter(LetDirective) }
+/// ```
+///
+/// A RegularElement WITHOUT a `slot` attribute goes into the default slot, but
+/// its own LetDirectives are NOT part of the outer component's slot API.
+fn node_has_explicit_slot_attr(node: &TemplateNode) -> bool {
+    fn attrs_have_slot(attrs: &[Attribute]) -> bool {
+        attrs
+            .iter()
+            .any(|a| matches!(a, Attribute::Attribute(a) if a.name.as_str() == "slot"))
+    }
+    match node {
+        TemplateNode::RegularElement(e) => attrs_have_slot(&e.attributes),
+        TemplateNode::Component(c) => attrs_have_slot(&c.attributes),
+        TemplateNode::SvelteElement(e) => attrs_have_slot(&e.attributes),
+        TemplateNode::SvelteSelf(e) => attrs_have_slot(&e.attributes),
+        TemplateNode::SvelteComponent(e) => attrs_have_slot(&e.attributes),
+        TemplateNode::SlotElement(s) => attrs_have_slot(&s.attributes),
+        // SvelteFragment does not need a slot attr to contribute to lets.default
+        _ => false,
+    }
+}
+
 fn push_component_prop(items: &mut Vec<ComponentPropItem>, prop: String) {
     if let Some(ComponentPropItem::Props(props)) = items.last_mut() {
         props.push(prop);
@@ -43,6 +72,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(part, OutputPart::SvelteBoundary { .. })
                 || matches!(part, OutputPart::SvelteBoundaryWithPending { .. })
                 || matches!(part, OutputPart::RenderCall { .. })
+                // A `<slot>` (`$.slot(...)` wrapped in `<!--[-->…<!--]-->`) is
+                // meaningful content, so a following component is not standalone
+                // and must keep its trailing `<!---->` marker.
+                || matches!(part, OutputPart::Slot { .. })
         });
 
         // Extract interleaved props/spreads and bindings
@@ -529,7 +562,6 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Snippets are tuples of (name, params, body_parts, is_true_snippet)
     /// - is_true_snippet=true means it's a SnippetBlock (needs hoisting)
     /// - is_true_snippet=false means it's a slot child (inline in $$slots with destructured params)
-    #[allow(clippy::type_complexity)]
     pub(crate) fn generate_component_children_with_snippets(
         &mut self,
         fragment: &Fragment,
@@ -582,8 +614,17 @@ impl<'a> ServerCodeGenerator<'a> {
                     .filter(|s| !s.is_empty())
                     .collect();
 
-                // Generate snippet body
+                // Generate snippet body. Track the snippet's Phase-2 scope for
+                // the duration so the evaluator resolves template declarations
+                // lexically (a `{@const}` in a SIBLING snippet must not fold
+                // here, while one declared in THIS snippet's body still does).
+                let saved_scope_idx = self.current_scope_index;
+                self.current_scope_index = self
+                    .analysis
+                    .and_then(|a| a.root.template_scope_map.get(&snippet_block.start).copied())
+                    .or(saved_scope_idx);
                 let body_parts = self.generate_snippet_body(&snippet_block.body)?;
+                self.current_scope_index = saved_scope_idx;
 
                 // Add to slot names
                 let slot_name = if snippet_name == "children" {
@@ -595,32 +636,56 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 snippets.push((snippet_name, params, body_parts, true)); // true = is_true_snippet
             } else {
-                // Get the slot name and let directive params (with aliases) from the node's attributes
+                // Get the slot name and let directive params (with aliases) from the node's attributes.
+                //
+                // Upstream's `build_inline_component` only propagates LetDirectives into the
+                // slot params under two conditions (mirroring `component.js` lines ~200-215):
+                //   1. The child has a `slot="name"` attribute  → contributes to `lets[slot_name]`
+                //   2. The child is a `<svelte:fragment>`       → contributes to `lets.default`
+                //
+                // A plain RegularElement with `let:foo` in the default slot does NOT contribute
+                // to `lets.default`; its LetDirective is scoped to the element's own children.
+                // Collecting it here caused rsvelte to emit `$.invalid_default_snippet` for the
+                // outer component instead of the correct `children: ($$renderer) => { … }` prop.
                 let slot_name = get_slot_name(node);
-                let let_directive_params = match node {
-                    TemplateNode::RegularElement(elem) => {
-                        get_let_directive_params(&elem.attributes, &self.source)
-                    }
-                    TemplateNode::SvelteFragment(frag) => {
-                        get_let_directive_params(&frag.attributes, &self.source)
-                    }
-                    TemplateNode::Component(comp) => {
-                        get_let_directive_params(&comp.attributes, &self.source)
-                    }
-                    TemplateNode::SvelteElement(elem) => {
-                        get_let_directive_params(&elem.attributes, &self.source)
-                    }
-                    TemplateNode::SvelteSelf(elem) => {
-                        get_let_directive_params(&elem.attributes, &self.source)
-                    }
-                    TemplateNode::SvelteComponent(elem) => {
-                        get_let_directive_params(&elem.attributes, &self.source)
-                    }
-                    TemplateNode::SlotElement(slot) => {
-                        get_let_directive_params(&slot.attributes, &self.source)
-                    }
-                    _ => get_let_directives(node),
-                };
+                let is_svelte_fragment = matches!(node, TemplateNode::SvelteFragment(_));
+                // Only collect let directives from a child when:
+                //  a) The child carries an explicit `slot="…"` attribute, OR
+                //  b) It is a `<svelte:fragment>` (which contributes to `lets.default`)
+                //
+                // A plain RegularElement WITHOUT a `slot` attribute that ends up in
+                // the default slot should NOT have its LetDirectives collected here —
+                // they are scoped to the element's own children, not the outer slot API.
+                // (Mirrors `component.js` `build_inline_component` lines ~200-215.)
+                let let_directive_params =
+                    if node_has_explicit_slot_attr(node) || is_svelte_fragment {
+                        match node {
+                            TemplateNode::RegularElement(elem) => {
+                                get_let_directive_params(&elem.attributes, &self.source)
+                            }
+                            TemplateNode::SvelteFragment(frag) => {
+                                get_let_directive_params(&frag.attributes, &self.source)
+                            }
+                            TemplateNode::Component(comp) => {
+                                get_let_directive_params(&comp.attributes, &self.source)
+                            }
+                            TemplateNode::SvelteElement(elem) => {
+                                get_let_directive_params(&elem.attributes, &self.source)
+                            }
+                            TemplateNode::SvelteSelf(elem) => {
+                                get_let_directive_params(&elem.attributes, &self.source)
+                            }
+                            TemplateNode::SvelteComponent(elem) => {
+                                get_let_directive_params(&elem.attributes, &self.source)
+                            }
+                            TemplateNode::SlotElement(slot) => {
+                                get_let_directive_params(&slot.attributes, &self.source)
+                            }
+                            _ => get_let_directives(node),
+                        }
+                    } else {
+                        Vec::new()
+                    };
                 let entry = slot_children.entry(slot_name.clone()).or_insert_with(|| {
                     slot_order.push(slot_name.clone());
                     (Vec::new(), Vec::new())

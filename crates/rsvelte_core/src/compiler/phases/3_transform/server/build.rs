@@ -3,6 +3,7 @@
 //! Converts the internal OutputPart representation into the final JavaScript string output.
 
 use std::cell::RefCell;
+use std::fmt::Write as _;
 
 use super::ServerCodeGenerator;
 use super::helpers::*;
@@ -50,6 +51,14 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
     // Strip existing indentation before OXC parsing (OXC expects unindented input)
     let stripped = strip_indent_for_oxc(&js_normalized, indent_level);
 
+    // OXC's codegen drops "dangling" comments — whole-line comments whose
+    // next token is a closing block brace (`// c` right before `}`), since
+    // there is no following statement to attach them to as leading comments.
+    // The official compiler (esrap) flushes such comments before the `}`.
+    // Protect them by inserting a placeholder statement after the comment
+    // run; the placeholder is removed again after codegen.
+    let (stripped, has_dangling) = protect_dangling_comments(&stripped);
+
     SSR_SCRIPT_ALLOCATOR.with(|cell| {
         let mut alloc = cell.borrow_mut();
         alloc.reset();
@@ -82,6 +91,13 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
             &stripped, &code,
         );
 
+        // Restore source spelling of numeric literals that OXC minified
+        // (e.g. `1000` -> `1e3`); the official compiler (esrap) prints the
+        // raw source text of literals.
+        code = crate::compiler::phases::phase3_transform::client::restore_number_literals(
+            &stripped, &code,
+        );
+
         // Re-escape ASCII control characters inside string literals. OXC's
         // codegen unescapes `\t` / `\b` / `\v` / `\f` to their literal byte
         // values when emitting string literals, but esrap (and the official
@@ -90,6 +106,31 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         // diffs against the expected fixture even though it's semantically
         // equivalent.
         code = reescape_control_chars_in_string_literals(&code);
+
+        // OXC's codegen prints leading comments but drops trailing same-line
+        // `// ...` comments (e.g. `value === proxy; // always false`). The
+        // official compiler preserves them (esrap re-inserts every comment
+        // positionally), so re-attach the dropped ones by matching the code
+        // part of each commented line against the generated output.
+        code = reattach_trailing_line_comments(&stripped, &code);
+
+        // Decode smuggled in-call comments: `(VALUE, void '$$C$$<hex>')`
+        // becomes `VALUE <comment>` (with a newline after a `//` comment so
+        // it can't swallow the closing paren). See the export-let lowering in
+        // transform_legacy.rs.
+        if memmem::find(code.as_bytes(), b"$$C$$").is_some() {
+            code = decode_in_call_comment_placeholders(&code);
+        }
+
+        // Remove dangling-comment placeholder statements (the comments they
+        // protected are now leading comments of the placeholder and survive).
+        if has_dangling {
+            code = code
+                .lines()
+                .filter(|l| l.trim() != DANGLING_COMMENT_PLACEHOLDER_STMT)
+                .collect::<Vec<_>>()
+                .join("\n");
+        }
 
         // Restore `;;` markers
         if has_double_semi {
@@ -140,6 +181,676 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         }
         result_str
     })
+}
+
+/// Blank out (replace with spaces) the instance / module script content
+/// ranges of `source`, so searches for template-expression text can't match
+/// inside the scripts.
+fn blank_out_script_regions(
+    source: &str,
+    instance: Option<&crate::ast::template::Script>,
+    module: Option<&crate::ast::template::Script>,
+) -> String {
+    let mut blanked = source.as_bytes().to_vec();
+    for script in [instance, module].into_iter().flatten() {
+        let s = script.content.start().unwrap_or(0) as usize;
+        let e = script.content.end().unwrap_or(0) as usize;
+        if e > s && e <= blanked.len() {
+            for b in &mut blanked[s..e] {
+                if !b.is_ascii_whitespace() {
+                    *b = b' ';
+                }
+            }
+        }
+    }
+    String::from_utf8(blanked).unwrap_or_else(|_| source.to_string())
+}
+
+/// Find the matching `)` for an open paren at `open` (the index of `(`)
+/// inside `s`, skipping strings, template literals, and comments. Returns the
+/// index of the `)` or `None`.
+fn find_close_paren(s: &str, open: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut depth = 0i32;
+    let mut i = open;
+    while i < len {
+        match bytes[i] {
+            b'"' | b'\'' | b'`' => {
+                let q = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                i = memchr::memchr(b'\n', &bytes[i..])
+                    .map(|p| i + p)
+                    .unwrap_or(len);
+                continue;
+            }
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i = memmem::find(&bytes[i + 2..], b"*/")
+                    .map(|p| i + 2 + p + 2)
+                    .unwrap_or(len);
+                continue;
+            }
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Check whether `needle` occurs in `haystack` at a word boundary, starting
+/// the search at `from`. Returns the match offset.
+fn find_word(haystack: &str, needle: &str, from: usize) -> Option<usize> {
+    if needle.is_empty() || from >= haystack.len() {
+        return None;
+    }
+    let hb = haystack.as_bytes();
+    let mut cursor = from;
+    while let Some(p) = memmem::find(&hb[cursor..], needle.as_bytes()) {
+        let pos = cursor + p;
+        let before_ok = pos == 0 || {
+            let c = hb[pos - 1];
+            !(c.is_ascii_alphanumeric() || c == b'_' || c == b'$' || c == b'.')
+        };
+        let after = pos + needle.len();
+        let after_ok = after >= hb.len() || {
+            let c = hb[after];
+            !(c.is_ascii_alphanumeric() || c == b'_' || c == b'$')
+        };
+        if before_ok && after_ok {
+            return Some(pos);
+        }
+        cursor = pos + 1;
+    }
+    None
+}
+
+/// Flush pending comments (sorted by source offset) into the first
+/// "positioned" template expression of `body_code`, mirroring esrap's
+/// positional comment re-insertion: a comment prints right before the next
+/// node whose source position is greater. Candidate anchors are the
+/// arguments of `$.escape(...)` and `$.ensure_array_like(...)`; an argument
+/// counts as positioned when its text occurs (word-bounded) in the
+/// script-blanked component source after the comment's offset. Returns the
+/// updated body and the comments that could not be anchored (to be emitted
+/// at the end of the component body).
+fn flush_pending_comments_into_body(
+    body_code: &str,
+    pending: Vec<(usize, String)>,
+    blanked_source: &str,
+) -> (String, Vec<String>) {
+    let mut remaining: std::collections::VecDeque<(usize, String)> = pending.into();
+    let mut out = String::with_capacity(body_code.len() + 64);
+    let mut emitted_upto = 0usize; // cursor into body_code
+    let mut src_cursor = 0usize; // cursor into blanked_source
+    // `$.attr(name, value[, true])` anchors on its VALUE argument (the name
+    // is a synthesized literal with no source position, so esrap flushes the
+    // comment right before the positioned value node).
+    let patterns: [&str; 3] = ["$.escape(", "$.ensure_array_like(", "$.attr("];
+
+    let bytes = body_code.as_bytes();
+    let mut scan = 0usize;
+    while !remaining.is_empty() && scan < body_code.len() {
+        // Find the next candidate hole.
+        let mut next: Option<(usize, usize)> = None; // (idx, pat_len)
+        for pat in patterns {
+            if let Some(p) = memmem::find(&bytes[scan..], pat.as_bytes()) {
+                let idx = scan + p;
+                if next.is_none() || idx < next.unwrap().0 {
+                    next = Some((idx, pat.len()));
+                }
+            }
+        }
+        let Some((idx, pat_len)) = next else { break };
+        let open = idx + pat_len - 1; // index of `(`
+        let Some(close) = find_close_paren(body_code, open) else {
+            scan = idx + pat_len;
+            continue;
+        };
+        let args = body_code[open + 1..close].trim();
+        scan = idx + pat_len;
+        if args.is_empty() {
+            continue;
+        }
+        // For `$.attr(...)` the positioned expression is the second argument;
+        // the leading `"name",` prefix is emitted verbatim before the
+        // comments. For the single-argument helpers prefix is empty.
+        let is_attr = body_code[idx..].starts_with("$.attr(");
+        let (prefix, arg) = if is_attr {
+            let Some(comma) = find_top_level_comma(args) else {
+                continue;
+            };
+            let value_rest = args[comma + 1..].trim();
+            // Strip a trailing `, true` (boolean-attribute flag, synthesized).
+            let value = match find_top_level_comma(value_rest) {
+                Some(c) => value_rest[..c].trim(),
+                None => value_rest,
+            };
+            (&args[..comma + 1], value)
+        } else {
+            ("", args)
+        };
+        if arg.is_empty() {
+            continue;
+        }
+        // Positioned check: the argument text must occur in the blanked
+        // source (i.e. in the template) at/after the moving source cursor.
+        // A `$.attr(...)` value lowered from a `bind:` directive is a
+        // synthesized node WITHOUT a source position upstream, so esrap
+        // never flushes comments before it — skip `bind:` context matches.
+        let pos = {
+            let mut search_from = src_cursor;
+            loop {
+                match find_word(blanked_source, arg, search_from) {
+                    Some(p) if is_attr && is_bind_directive_context(blanked_source, p) => {
+                        search_from = p + 1;
+                    }
+                    other => break other,
+                }
+            }
+        };
+        let Some(pos) = pos else {
+            continue;
+        };
+        src_cursor = pos + 1;
+        // Flush every pending comment that precedes this expression.
+        let mut flushed: Vec<String> = Vec::new();
+        while let Some((off, _)) = remaining.front() {
+            if *off < pos {
+                flushed.push(remaining.pop_front().unwrap().1);
+            } else {
+                break;
+            }
+        }
+        if flushed.is_empty() {
+            continue;
+        }
+        // Indentation of the line containing the hole.
+        let line_start = body_code[..idx].rfind('\n').map(|p| p + 1).unwrap_or(0);
+        let indent: String = body_code[line_start..]
+            .chars()
+            .take_while(|c| *c == '\t' || *c == ' ')
+            .collect();
+        let inner_indent = format!("{indent}\t");
+        out.push_str(&body_code[emitted_upto..=open]);
+        out.push('\n');
+        if !prefix.is_empty() {
+            out.push_str(&inner_indent);
+            out.push_str(prefix);
+            out.push('\n');
+        }
+        for c in &flushed {
+            out.push_str(&inner_indent);
+            out.push_str(c);
+            out.push('\n');
+        }
+        out.push_str(&inner_indent);
+        out.push_str(body_code[open + 1..close].trim()[prefix.len()..].trim_start());
+        out.push('\n');
+        out.push_str(&indent);
+        out.push_str(&body_code[close..close + 1]);
+        emitted_upto = close + 1;
+        scan = close + 1;
+    }
+    out.push_str(&body_code[emitted_upto..]);
+    let leftover = remaining.into_iter().map(|(_, c)| c).collect();
+    (out, leftover)
+}
+
+/// Whether the word match at `pos` in the (blanked) component source sits in
+/// `bind:` directive context: either the shorthand name itself
+/// (`bind:checked`) or the brace expression of a bind directive
+/// (`bind:value={message}`).
+fn is_bind_directive_context(src: &str, pos: usize) -> bool {
+    let b = src.as_bytes();
+    if pos == 0 {
+        return false;
+    }
+    let mut k = pos;
+    // `bind:value={message}` — step inside the brace to the attribute name.
+    if b[k - 1] == b'{' {
+        k -= 1;
+        if k == 0 || b[k - 1] != b'=' {
+            return false;
+        }
+        k -= 1;
+    }
+    // Read the attribute / directive name backwards.
+    let end = k;
+    while k > 0 && (b[k - 1].is_ascii_alphanumeric() || matches!(b[k - 1], b'_' | b'-' | b':')) {
+        k -= 1;
+    }
+    src[k..end].starts_with("bind:")
+}
+
+/// Find the first comma at paren/bracket/brace depth 0, outside string
+/// literals, in `s`. Returns its byte offset.
+fn find_top_level_comma(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    let mut quote: Option<u8> = None;
+    while i < b.len() {
+        let c = b[i];
+        if let Some(q) = quote {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                quote = None;
+            }
+        } else {
+            match c {
+                b'"' | b'\'' | b'`' => quote = Some(c),
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 0 => return Some(i),
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Decode `(VALUE, void '$$C$$<hex>')` placeholders (created by the
+/// export-let lowering to carry a comment through OXC normalization) back
+/// into `VALUE <comment>`.
+fn decode_in_call_comment_placeholders(code: &str) -> String {
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code;
+    loop {
+        let Some(marker) = memmem::find(rest.as_bytes(), b", void '$$C$$") else {
+            out.push_str(rest);
+            break;
+        };
+        // Find the enclosing `(` by scanning backward with reverse depth.
+        let before = &rest[..marker];
+        let bytes = before.as_bytes();
+        let mut depth = 0i32;
+        let mut open = None;
+        for i in (0..bytes.len()).rev() {
+            match bytes[i] {
+                b')' | b']' | b'}' => depth += 1,
+                b'(' | b'[' | b'{' => {
+                    if depth == 0 {
+                        open = Some(i);
+                        break;
+                    }
+                    depth -= 1;
+                }
+                _ => {}
+            }
+        }
+        // Find the closing `')` after the hex payload.
+        let hex_start = marker + ", void '$$C$$".len();
+        let Some(quote_end_rel) = rest[hex_start..].find('\'') else {
+            out.push_str(rest);
+            break;
+        };
+        let hex = &rest[hex_start..hex_start + quote_end_rel];
+        let after_quote = hex_start + quote_end_rel + 1;
+        let close = if rest[after_quote..].starts_with(')') {
+            after_quote + 1
+        } else {
+            // Unexpected shape: leave as-is to be safe.
+            out.push_str(&rest[..after_quote]);
+            rest = &rest[after_quote..];
+            continue;
+        };
+        let Some(open) = open else {
+            out.push_str(&rest[..close]);
+            rest = &rest[close..];
+            continue;
+        };
+        // Decode the comment text (hex-encoded UTF-8 bytes).
+        let hb = hex.as_bytes();
+        let mut decoded: Vec<u8> = Vec::with_capacity(hb.len() / 2);
+        let mut ok = hb.len().is_multiple_of(2);
+        if ok {
+            for pair in hb.chunks(2) {
+                match u8::from_str_radix(std::str::from_utf8(pair).unwrap_or("zz"), 16) {
+                    Ok(b) => decoded.push(b),
+                    Err(_) => {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+        }
+        let comment = String::from_utf8(decoded).unwrap_or_else(|_| {
+            ok = false;
+            String::new()
+        });
+        if !ok {
+            out.push_str(&rest[..close]);
+            rest = &rest[close..];
+            continue;
+        }
+        let value = rest[open + 1..marker].trim();
+        out.push_str(&rest[..open]);
+        out.push_str(value);
+        out.push(' ');
+        out.push_str(&comment);
+        if comment.starts_with("//") {
+            out.push('\n');
+        }
+        rest = &rest[close..];
+    }
+    out
+}
+
+/// Statement inserted after a dangling comment run so OXC's codegen keeps the
+/// comments (as leading comments of the placeholder); removed after codegen.
+const DANGLING_COMMENT_PLACEHOLDER_STMT: &str = "void '$$DANGLING_COMMENT$$';";
+
+/// Find whole-line comments whose next token is a closing block brace and
+/// insert a placeholder statement between the comment run and the `}` so the
+/// comments survive OXC codegen (which drops comments with no following
+/// statement). Returns the protected source and whether anything was inserted.
+fn protect_dangling_comments(src: &str) -> (String, bool) {
+    // Fast path: nothing to protect without comments.
+    if memmem::find(src.as_bytes(), b"//").is_none()
+        && memmem::find(src.as_bytes(), b"/*").is_none()
+    {
+        return (src.to_string(), false);
+    }
+    let bytes = src.as_bytes();
+    let len = bytes.len();
+    let mut insertions: Vec<usize> = Vec::new();
+    let mut i = 0usize;
+    let mut line_start = 0usize;
+    while i < len {
+        let c = bytes[i];
+        match c {
+            b'\n' => {
+                line_start = i + 1;
+                i += 1;
+            }
+            b'"' | b'\'' => {
+                let q = c;
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q || bytes[i] == b'\n' {
+                        break;
+                    }
+                    i += 1;
+                }
+                if i < len && bytes[i] == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+            }
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        break;
+                    }
+                    if bytes[i] == b'\n' {
+                        line_start = i + 1;
+                    }
+                    i += 1;
+                }
+                i += 1;
+            }
+            b'/' if i + 1 < len && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*') => {
+                let whole_line = src[line_start..i].trim().is_empty();
+                // Consume the whole run of comments / whitespace after this
+                // comment to find the next real token.
+                let mut j = i;
+                loop {
+                    if j + 1 < len && bytes[j] == b'/' && bytes[j + 1] == b'/' {
+                        j = memchr::memchr(b'\n', &bytes[j..])
+                            .map(|p| j + p)
+                            .unwrap_or(len);
+                    } else if j + 1 < len && bytes[j] == b'/' && bytes[j + 1] == b'*' {
+                        j = memmem::find(&bytes[j + 2..], b"*/")
+                            .map(|p| j + 2 + p + 2)
+                            .unwrap_or(len);
+                    } else if j < len && bytes[j].is_ascii_whitespace() {
+                        j += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if whole_line && j < len && bytes[j] == b'}' {
+                    // Distinguish a block-closing `}` from object/expression
+                    // closers: the char after `}` (skipping spaces/tabs) must
+                    // be a newline, EOF, or a letter (`else`, `while`, …).
+                    let mut k = j + 1;
+                    while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
+                        k += 1;
+                    }
+                    if k >= len || bytes[k] == b'\n' || bytes[k].is_ascii_alphabetic() {
+                        let brace_line_start = src[..j].rfind('\n').map(|p| p + 1).unwrap_or(0);
+                        insertions.push(brace_line_start);
+                    }
+                }
+                // Continue scanning just past this single comment so inner
+                // comment runs are still examined normally.
+                if bytes[i + 1] == b'/' {
+                    i = memchr::memchr(b'\n', &bytes[i..])
+                        .map(|p| i + p)
+                        .unwrap_or(len);
+                } else {
+                    i = memmem::find(&bytes[i + 2..], b"*/")
+                        .map(|p| i + 2 + p + 2)
+                        .unwrap_or(len);
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    if insertions.is_empty() {
+        return (src.to_string(), false);
+    }
+    insertions.dedup();
+    let mut out = String::with_capacity(src.len() + insertions.len() * 32);
+    let mut prev = 0usize;
+    for pos in insertions {
+        out.push_str(&src[prev..pos]);
+        out.push_str(DANGLING_COMMENT_PLACEHOLDER_STMT);
+        out.push('\n');
+        prev = pos;
+    }
+    out.push_str(&src[prev..]);
+    (out, true)
+}
+
+/// Re-attach trailing same-line `// ...` comments that OXC's codegen drops.
+///
+/// `original` and `generated` are both unindented script sources. OXC keeps
+/// statement order, so commented lines are matched sequentially: for each
+/// `code; // comment` line in `original`, the first generated line (from a
+/// moving cursor) whose trimmed text equals the trimmed code part gets the
+/// comment appended. Lines that don't round-trip verbatim through OXC simply
+/// don't match and are skipped (no worse than the previous behavior).
+fn reattach_trailing_line_comments(original: &str, generated: &str) -> String {
+    // Fast path: no line comments in the source, nothing was dropped.
+    if memmem::find(original.as_bytes(), b"//").is_none() {
+        return generated.to_string();
+    }
+    // Collect (code_part, comment) pairs from `original`, skipping string and
+    // template-literal contents and block comments.
+    let mut entries: Vec<(&str, &str)> = Vec::new();
+    {
+        let bytes = original.as_bytes();
+        let mut i = 0usize;
+        let mut line_start = 0usize;
+        let mut in_string: Option<u8> = None;
+        let mut in_block_comment = false;
+        while i < bytes.len() {
+            let c = bytes[i];
+            if in_block_comment {
+                if c == b'*' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                    in_block_comment = false;
+                    i += 2;
+                    continue;
+                }
+                if c == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            if let Some(q) = in_string {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == q || (c == b'\n' && q != b'`') {
+                    in_string = None;
+                }
+                if c == b'\n' {
+                    line_start = i + 1;
+                }
+                i += 1;
+                continue;
+            }
+            match c {
+                b'"' | b'\'' | b'`' => {
+                    in_string = Some(c);
+                    i += 1;
+                }
+                b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                    in_block_comment = true;
+                    i += 2;
+                }
+                b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                    let eol = memchr::memchr(b'\n', &bytes[i..])
+                        .map(|p| i + p)
+                        .unwrap_or(bytes.len());
+                    let code_part = original[line_start..i].trim();
+                    let comment = original[i..eol].trim_end();
+                    // Whole-line comments (no code before them) are leading
+                    // comments, which OXC already preserves.
+                    if !code_part.is_empty() {
+                        entries.push((code_part, comment));
+                    }
+                    line_start = eol + 1;
+                    i = eol + 1;
+                }
+                b'\n' => {
+                    line_start = i + 1;
+                    i += 1;
+                }
+                _ => i += 1,
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        return generated.to_string();
+    }
+
+    let mut out_lines: Vec<String> = generated.lines().map(|l| l.to_string()).collect();
+    let mut cursor = 0usize;
+    for (code_part, comment) in entries {
+        let mut found = None;
+        for (idx, line) in out_lines.iter().enumerate().skip(cursor) {
+            if line.trim() == code_part {
+                found = Some(idx);
+                break;
+            }
+        }
+        if let Some(idx) = found {
+            if !out_lines[idx].ends_with(comment) {
+                out_lines[idx].push(' ');
+                out_lines[idx].push_str(comment);
+            }
+            cursor = idx + 1;
+        }
+    }
+
+    let mut result = out_lines.join("\n");
+    if generated.ends_with('\n') {
+        result.push('\n');
+    }
+    result
+}
+
+/// Split the trailing run of comment-only lines off the end of the
+/// transformed instance script.
+///
+/// esrap re-emits comments positionally: a comment that follows the last
+/// positioned statement of the script is flushed at the END of the component
+/// body — i.e. *after* the template `$$renderer.push(...)` statements — not
+/// glued to the script section. Returns `(script_without_trailing_comments,
+/// comments)` where each comment is trimmed of surrounding whitespace.
+fn split_trailing_script_comments(script: &str) -> (String, Vec<String>) {
+    let lines: Vec<&str> = script.lines().collect();
+
+    // Mark lines inside multi-line template literals so string content is
+    // never mistaken for a comment.
+    let mut inside_template = vec![false; lines.len()];
+    let mut state = false;
+    for (i, line) in lines.iter().enumerate() {
+        inside_template[i] = state;
+        state = super::helpers::update_template_literal_state_for_indent(line, state);
+    }
+
+    let mut idx = lines.len();
+    let mut comments_rev: Vec<String> = Vec::new();
+    while idx > 0 {
+        if inside_template[idx - 1] {
+            break;
+        }
+        let trimmed = lines[idx - 1].trim();
+        if trimmed.is_empty() {
+            idx -= 1;
+            continue;
+        }
+        let is_line_comment = trimmed.starts_with("//");
+        let is_block_comment = trimmed.starts_with("/*")
+            && trimmed.ends_with("*/")
+            && !trimmed.contains("$$async_hole")
+            && !trimmed.contains("$$async_void_noop");
+        if is_line_comment || is_block_comment {
+            comments_rev.push(trimmed.to_string());
+            idx -= 1;
+            continue;
+        }
+        break;
+    }
+
+    if comments_rev.is_empty() {
+        return (script.to_string(), Vec::new());
+    }
+
+    let mut remainder = lines[..idx].join("\n");
+    while remainder.ends_with('\n') || remainder.ends_with(' ') || remainder.ends_with('\t') {
+        remainder.pop();
+    }
+    comments_rev.reverse();
+    (remainder, comments_rev)
 }
 
 /// Decide whether a `/` at the *next* byte position can start a regex literal.
@@ -244,6 +955,21 @@ fn slash_starts_regex(prev_significant: u8, out: &str) -> bool {
 /// (e.g. `/"/`, `/['"]/`) must NOT be mistaken for string-literal openers —
 /// otherwise the scanner stays in fake-string mode through the rest of the
 /// file and escapes every subsequent tab/newline byte. (baseballyama/rsvelte#154)
+/// Unicode bidirectional-control / format characters and line/paragraph
+/// separators that esrap escapes (`\uXXXX`) inside JS string literals. These
+/// are invisible and a source-injection hazard, so the official printer never
+/// emits them raw. Ordinary non-ASCII (accents, CJK, emoji) is NOT in this set.
+fn is_bidi_or_separator_char(cp: u32) -> bool {
+    matches!(cp,
+        0x061C            // ARABIC LETTER MARK
+        | 0x200E | 0x200F // LRM / RLM
+        | 0x2028 | 0x2029 // LINE / PARAGRAPH SEPARATOR
+        | 0x202A..=0x202E // LRE RLE PDF LRO RLO
+        | 0x2066..=0x2069 // LRI RLI FSI PDI
+        | 0xFEFF          // ZERO WIDTH NO-BREAK SPACE (BOM)
+    )
+}
+
 fn reescape_control_chars_in_string_literals(code: &str) -> String {
     let bytes = code.as_bytes();
     let mut out = String::with_capacity(code.len());
@@ -396,7 +1122,19 @@ fn reescape_control_chars_in_string_literals(code: &str) -> String {
                             i += 1;
                         } else {
                             let ch_len = utf8_char_len(c);
-                            out.push_str(&code[i..i + ch_len]);
+                            let ch = code[i..i + ch_len].chars().next().unwrap_or('\u{0}');
+                            // esrap escapes Unicode bidirectional-control / format
+                            // characters (and line/paragraph separators) inside
+                            // string literals — they are invisible and unsafe in
+                            // source — while leaving ordinary non-ASCII (accents,
+                            // emoji, CJK) literal. Mirror that here so a string
+                            // literal containing e.g. U+2067 round-trips as the
+                            // escape sequence, not the raw byte.
+                            if is_bidi_or_separator_char(ch as u32) {
+                                let _ = write!(out, "\\u{:04x}", ch as u32);
+                            } else {
+                                out.push_str(&code[i..i + ch_len]);
+                            }
                             i += ch_len;
                         }
                     }
@@ -498,7 +1236,7 @@ fn split_long_destructures(code: &str, indent_level: usize) -> String {
                     .filter(|s| !s.is_empty())
                     .collect();
 
-                result.push_str(&format!("{}{{\n", prefix));
+                let _ = writeln!(result, "{}{{", prefix);
                 for (i, spec) in specs.iter().enumerate() {
                     result.push_str(&inner_indent);
                     result.push_str(spec);
@@ -877,7 +1615,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 rest
             };
             let transformed = transform_script_content_module(&rest, self.dev);
-            let transformed = if !transformed.trim().is_empty() {
+            // A comment-only `<script module>` body is an empty Program upstream;
+            // esrap drops the dangling comments. Mirror that here so the comments
+            // are not hoisted to module top level (see client mod.rs).
+            let transformed = if crate::compiler::phases::phase3_transform::client::is_js_comments_and_whitespace_only(&transformed) {
+                String::new()
+            } else if !transformed.trim().is_empty() {
                 normalize_script_with_oxc(&transformed, 0)
             } else {
                 transformed
@@ -944,6 +1687,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     &raw_script,
                 )
                 .into_owned();
+            // Hide nested (non-top-level) `$:` labels from the line-based
+            // legacy reactive transforms — upstream only treats top-level
+            // `$:` statements as reactive; nested ones are plain JS labels
+            // that stay in place. Unmasked after OXC normalization.
+            let (raw_script, _) = super::transform_legacy::mask_nested_reactive_labels(&raw_script);
             let raw_script = remove_effect_blocks(&raw_script, self.use_async, self.dev);
             let has_bindable_props = self.analysis.is_some_and(|a| {
                 a.root.bindings.iter().any(|b| {
@@ -1020,13 +1768,27 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 Vec::new()
             };
+            // Store-subscription base names (e.g. `state` for a `$state`
+            // auto-subscription on a destructured prop). These shadow the
+            // same-named rune so `$state(...)` is lowered as a store, not a rune.
+            let store_sub_bases: rustc_hash::FxHashSet<String> = self
+                .get_store_sub_names()
+                .into_iter()
+                .map(|(_, base)| base)
+                .collect();
             let transformed = if reexported_props.is_empty() {
-                transform_script_content_with_imports(&rest, &imported_names, self.dev)
+                transform_script_content_with_imports(
+                    &rest,
+                    &imported_names,
+                    &store_sub_bases,
+                    self.dev,
+                )
             } else {
                 transform_script_content_with_props_and_imports(
                     &rest,
                     &reexported_props,
                     &imported_names,
+                    &store_sub_bases,
                     self.dev,
                 )
             };
@@ -1088,13 +1850,101 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 strip_async_placeholders(&script_code)
             }
+        } else if memmem::find(script_code.as_bytes(), b"$$async_hole").is_some()
+            || memmem::find(script_code.as_bytes(), b"$$async_void_noop").is_some()
+        {
+            // Even when the component is not async, the SSR script transform
+            // may have left `/* $$async_hole */` markers behind ($inspect
+            // removal). Rewrite them to `;;` so the internal marker never
+            // leaks into emitted code.
+            strip_async_placeholders(&script_code)
         } else {
+            script_code
+        };
+
+        // Pull trailing comment-only lines off the script. The official
+        // compiler (esrap) flushes comments that follow the last positioned
+        // script statement before the next printed node with a later source
+        // position — typically the first template expression (`$.escape(...)`
+        // / `$.ensure_array_like(...)` argument), or at the END of the
+        // component body when no positioned template expression follows.
+        let (script_code, trailing_script_comments) = split_trailing_script_comments(&script_code);
+
+        // Combine script-trailing comments (anchored at their script source
+        // offsets) with comments lost from dropped template expressions
+        // (event handlers). These are flushed into the first positioned
+        // template expression of the emitted body like esrap does; whatever
+        // can't be anchored stays as end-of-body trailing comments.
+        let pending_comments: Vec<(usize, String)> = {
+            let mut pending: Vec<(usize, String)> = Vec::new();
+            if !trailing_script_comments.is_empty()
+                && let Some(script) = self.instance_script
+            {
+                let s = script.content.start().unwrap_or(0) as usize;
+                let e = script.content.end().unwrap_or(0) as usize;
+                let mut cursor = s;
+                for c in &trailing_script_comments {
+                    let off = if e > cursor && e <= self.source.len() {
+                        memmem::find(&self.source.as_bytes()[cursor..e], c.as_bytes())
+                            .map(|p| cursor + p)
+                            .unwrap_or(s)
+                    } else {
+                        s
+                    };
+                    cursor = off.max(cursor);
+                    pending.push((off, c.clone()));
+                }
+            }
+            pending.extend(self.lost_comments.borrow().iter().cloned());
+            pending.sort_by_key(|(off, _)| *off);
+            pending
+        };
+        let blanked_source = if pending_comments.is_empty() {
+            String::new()
+        } else {
+            blank_out_script_regions(&self.source, self.instance_script, self.module_script)
+        };
+        // Default: everything trails at the end of the component body. The
+        // body-emission paths below (component wrapper / direct body) run the
+        // positional flush on the body text they actually emit and overwrite
+        // this with the leftover set.
+        let mut trailing_script_comments: Vec<String> =
+            pending_comments.iter().map(|(_, c)| c.clone()).collect();
+
+        // `;; // comment` lines ($inspect removal with a same-line trailing
+        // comment) would lose the comment in OXC codegen (trailing comments
+        // are dropped). Pull them off and re-attach after normalization.
+        let double_semi_comments: Vec<String>;
+        let script_code = if memmem::find(script_code.as_bytes(), b";; //").is_some() {
+            let (code, comments) = extract_double_semi_trailing_comments(&script_code);
+            double_semi_comments = comments;
+            code
+        } else {
+            double_semi_comments = Vec::new();
             script_code
         };
 
         // Normalize the script code with OXC
         let script_code = if !script_code.trim().is_empty() {
             normalize_script_with_oxc(&script_code, 1)
+        } else {
+            script_code
+        };
+
+        let script_code = if double_semi_comments.is_empty() {
+            script_code
+        } else {
+            reattach_double_semi_comments(&script_code, &double_semi_comments)
+        };
+
+        // Restore nested `$:` labels hidden from the legacy transforms.
+        let script_code = if memmem::find(
+            script_code.as_bytes(),
+            super::transform_legacy::NESTED_REACTIVE_LABEL.as_bytes(),
+        )
+        .is_some()
+        {
+            super::transform_legacy::unmask_nested_reactive_labels(&script_code)
         } else {
             script_code
         };
@@ -1243,6 +2093,19 @@ impl<'a> ServerCodeGenerator<'a> {
                     &mut each_counter_w,
                     wrapper_indent,
                 );
+                // Flush pending comments into the first positioned template
+                // expression of the emitted body (esrap positional re-insertion).
+                let inner_body = if pending_comments.is_empty() {
+                    inner_body
+                } else {
+                    let (flushed, leftover) = flush_pending_comments_into_body(
+                        &inner_body,
+                        pending_comments.clone(),
+                        &blanked_source,
+                    );
+                    trailing_script_comments = leftover;
+                    flushed
+                };
                 let instance_snippets = self.build_instance_snippets(wrapper_indent);
                 let bind_props_code = self.build_bind_props(wrapper_indent);
                 let indent_str = "\t".repeat(wrapper_indent);
@@ -1285,6 +2148,24 @@ impl<'a> ServerCodeGenerator<'a> {
                     )
                 } else {
                     inner_body
+                };
+
+                // Trailing script comments flush at the end of the component
+                // callback body (after the template pushes), mirroring esrap's
+                // positional comment re-insertion.
+                let inner_body = if trailing_script_comments.is_empty() {
+                    inner_body
+                } else {
+                    let mut with_comments = inner_body;
+                    if !with_comments.is_empty() && !with_comments.ends_with('\n') {
+                        with_comments.push('\n');
+                    }
+                    for comment in &trailing_script_comments {
+                        with_comments.push_str(&indent_str);
+                        with_comments.push_str(comment);
+                        with_comments.push('\n');
+                    }
+                    with_comments
                 };
 
                 let component_second_arg = if self.dev {
@@ -1368,6 +2249,19 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 // Body code (template output)
                 if !body_code.is_empty() {
+                    // Flush pending comments into the first positioned
+                    // template expression (esrap positional re-insertion).
+                    let body_code = if pending_comments.is_empty() {
+                        body_code
+                    } else {
+                        let (flushed, leftover) = flush_pending_comments_into_body(
+                            &body_code,
+                            pending_comments.clone(),
+                            &blanked_source,
+                        );
+                        trailing_script_comments = leftover;
+                        flushed
+                    };
                     let body_section = if uses_component_bindings {
                         let body_code_extra_indent = {
                             let mut result = String::new();
@@ -1433,6 +2327,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         bind_props_code.trim_end_matches('\n'),
                     )));
                 }
+
+                // Trailing script comments flush at the end of the function
+                // body (after the template pushes), mirroring esrap's
+                // positional comment re-insertion. Raw comment statements are
+                // typed "Comment" by the codegen, so no blank line is added.
+                if !trailing_script_comments.is_empty() {
+                    fn_body.push(JsStatement::Raw(CompactString::from(
+                        trailing_script_comments.join("\n"),
+                    )));
+                }
             }
         } else if needs_component_wrapper {
             // Empty body but needs component wrapper
@@ -1442,10 +2346,24 @@ impl<'a> ServerCodeGenerator<'a> {
                 String::new()
             };
             let bind_props_code = self.build_bind_props(1);
-            fn_body.push(JsStatement::Raw(CompactString::from(format!(
-                "$$renderer.component(($$renderer) => {{}}{});",
-                component_second_arg
-            ))));
+            if trailing_script_comments.is_empty() {
+                fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                    "$$renderer.component(($$renderer) => {{}}{});",
+                    component_second_arg
+                ))));
+            } else {
+                // The script reduced to comments only (e.g. a removed
+                // `$effect(...)` whose body held a comment). Upstream still
+                // prints those comments inside the component callback.
+                let comments_block: String = trailing_script_comments
+                    .iter()
+                    .map(|c| format!("\t\t{}\n", c))
+                    .collect();
+                fn_body.push(JsStatement::Raw(CompactString::from(format!(
+                    "$$renderer.component(($$renderer) => {{\n{}\t}}{});",
+                    comments_block, component_second_arg
+                ))));
+            }
             if !bind_props_code.is_empty() {
                 fn_body.push(JsStatement::Raw(strip_first_line_indent(
                     bind_props_code.trim_end_matches('\n'),
@@ -1457,6 +2375,11 @@ impl<'a> ServerCodeGenerator<'a> {
             if !bind_props_code.is_empty() {
                 fn_body.push(JsStatement::Raw(strip_first_line_indent(
                     bind_props_code.trim_end_matches('\n'),
+                )));
+            }
+            if !trailing_script_comments.is_empty() {
+                fn_body.push(JsStatement::Raw(CompactString::from(
+                    trailing_script_comments.join("\n"),
                 )));
             }
         }
@@ -1522,7 +2445,15 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn hoist_const_declarations_and_strip_ws(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut consts: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
-        let mut in_const_region = true; // Start in const region (beginning of block)
+        // The whitespace strip exists to drop whitespace-only Html
+        // between/around hoisted ConstDeclarations. When the body has no
+        // consts at all, nothing may be stripped — a leading whitespace-only
+        // Html can then only come from a folded expression tag like `{' '}`,
+        // which upstream renders as a real `$$renderer.push(\` \`)`.
+        let has_consts = parts
+            .iter()
+            .any(|p| matches!(p, OutputPart::ConstDeclaration(_)));
+        let mut in_const_region = has_consts; // Start in const region (beginning of block)
 
         for part in parts {
             match part {
@@ -1532,11 +2463,23 @@ impl<'a> ServerCodeGenerator<'a> {
                     in_const_region = true; // After a const, we're still in const region
                 }
                 OutputPart::Html(html) | OutputPart::HtmlWithExclusions { html, .. } => {
-                    if in_const_region && html.trim().is_empty() {
-                        // Skip whitespace-only Html between/after ConstDeclarations
+                    if in_const_region && html.trim().is_empty() && !html.is_empty() {
+                        // Skip whitespace-only NON-EMPTY Html parts (spaces/newlines)
+                        // between/after ConstDeclarations — these are inter-declaration
+                        // whitespace that the official compiler never emits (ConstTag goes
+                        // to state.init, whitespace between/around it is trimmed by
+                        // clean_nodes before process_children runs).
+                        //
+                        // An empty `Html("")` (from an expression tag that evaluated to
+                        // the empty string, e.g. `{x}` where `x = $state("")`) is NOT
+                        // stripped: it represents real template output (even if empty)
+                        // and exits the const region so that whitespace following it
+                        // (e.g. the space between `{x}` and the next element) is
+                        // preserved rather than incorrectly stripped.
+                        //
                         // Don't add to rest - it gets discarded
                     } else {
-                        in_const_region = false; // Real HTML content, leave const region
+                        in_const_region = false; // Real HTML content (or empty expr), leave const region
                         rest.push(part.clone());
                     }
                 }
@@ -2647,7 +3590,24 @@ impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn hoist_const_and_snippet_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
         let mut hoisted: Vec<OutputPart> = Vec::new();
         let mut rest: Vec<OutputPart> = Vec::new();
-        let mut in_hoisted_region = true;
+        // Like `hoist_const_declarations_and_strip_ws`: only strip
+        // whitespace-only Html when there actually are hoistable
+        // declarations — a leading whitespace-only Html without any
+        // declarations comes from a folded `{' '}` expression tag, which
+        // upstream renders as a real push.
+        let has_decls = parts.iter().any(|p| {
+            matches!(
+                p,
+                OutputPart::ConstDeclaration(_)
+                    | OutputPart::VarDeclaration(_)
+                    | OutputPart::SnippetFunction { .. }
+            ) || matches!(
+                p,
+                OutputPart::RawStatement(s)
+                    if s.starts_with("let ") || s.starts_with("var ") || s.starts_with("const ")
+            )
+        });
+        let mut in_hoisted_region = has_decls;
 
         for part in parts {
             match part {
@@ -2782,10 +3742,10 @@ impl<'a> ServerCodeGenerator<'a> {
                                     }
                                 }
                                 OutputPart::Expression(e) => {
-                                    element_html.push_str(&format!("${{$.escape({})}}", e));
+                                    let _ = write!(element_html, "${{$.escape({})}}", e);
                                 }
                                 OutputPart::RawExpression(e) => {
-                                    element_html.push_str(&format!("${{{}}}", e));
+                                    let _ = write!(element_html, "${{{}}}", e);
                                 }
                                 _ => break,
                             }
@@ -2799,22 +3759,25 @@ impl<'a> ServerCodeGenerator<'a> {
                         if declarations.is_empty() {
                             current_html.push_str(&element_html);
                         } else {
-                            body_code.push_str(&format!(
-                                "\n{}$$renderer.child(async ($$renderer) => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "\n{}$$renderer.child(async ($$renderer) => {{",
                                 indent
-                            ));
+                            );
                             for (var_name, decl_value) in &declarations {
-                                body_code.push_str(&format!(
-                                    "{}\tconst {} = {};\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tconst {} = {};",
                                     indent, var_name, decl_value
-                                ));
+                                );
                             }
                             body_code.push('\n');
-                            body_code.push_str(&format!(
-                                "{}\t$$renderer.push(`{}`);\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\t$$renderer.push(`{}`);",
                                 indent, transformed_html
-                            ));
-                            body_code.push_str(&format!("{}}});\n", indent));
+                            );
+                            let _ = writeln!(body_code, "{}}});", indent);
                         }
 
                         i = j;
@@ -2833,13 +3796,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     current_html.push_str(html);
                 }
                 OutputPart::Expression(expr) => {
-                    current_html.push_str(&format!("${{$.escape({})}}", expr));
+                    let _ = write!(current_html, "${{$.escape({})}}", expr);
                 }
                 OutputPart::AsyncExpression { expr, has_save } => {
                     // Async expression: flush current HTML, then emit as separate push
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
                     // Transform await to use $.save() if needed
@@ -2853,10 +3816,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         ""
                     };
-                    body_code.push_str(&format!(
-                        "{}$$renderer.push({}() => $.escape({}));\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.push({}() => $.escape({}));",
                         indent, async_kw, transformed_expr
-                    ));
+                    );
                 }
                 OutputPart::AsyncBlock {
                     blocker_indices,
@@ -2889,8 +3853,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -2900,10 +3864,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    body_code.push_str(&format!(
-                        "{}$$renderer.async_block([{}], {}($$renderer) => {{\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.async_block([{}], {}($$renderer) => {{",
                         indent, blockers_str, async_keyword
-                    ));
+                    );
 
                     // Render inner content based on type.
                     // Each type is rendered directly to avoid inner <!--]--> markers
@@ -2981,7 +3946,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     body_code.push('\n');
-                    body_code.push_str(&format!("{}}});\n\n", indent));
+                    let _ = writeln!(body_code, "{}}});\n", indent);
 
                     // Only add <!--]--> outside the callback for block types (IfBlock, AwaitBlock, EachBlock)
                     // Component types do NOT get a <!--]--> marker
@@ -3011,17 +3976,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     let blockers_str = blockers.join(", ");
 
-                    body_code.push_str(&format!(
-                        "{}$$renderer.async_block([{}], {}($$renderer) => {{\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.async_block([{}], {}($$renderer) => {{",
                         indent, blockers_str, async_keyword
-                    ));
+                    );
 
                     // Render inner content
                     if let Some(OutputPart::IfBlock {
@@ -3077,7 +4043,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     body_code.push('\n');
-                    body_code.push_str(&format!("{}}});\n\n", indent));
+                    let _ = writeln!(body_code, "{}}});\n", indent);
 
                     if inner_is_block {
                         current_html.push_str("<!--]-->");
@@ -3090,8 +4056,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Async-wrapped expression: flush current HTML, then emit
                     // $$renderer.async([$$promises[N], ...], ($$renderer) => $$renderer.push(async () => $.escape(expr)))
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -3114,17 +4080,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         ""
                     };
-                    body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));",
                         indent, blockers_str, async_kw, transformed_expr
-                    ));
+                    );
                 }
                 OutputPart::AsyncWrappedExpressionCustom { blockers, expr } => {
                     // Async-wrapped expression with custom blocker expressions
                     // (not $$promises indices but const-tag-level like promises_N[M])
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -3143,10 +4110,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         ""
                     };
-                    body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.async([{}], ($$renderer) => $$renderer.push({}() => $.escape({})));",
                         indent, blockers_str, async_kw, transformed_expr
-                    ));
+                    );
                 }
                 OutputPart::AsyncWrappedHtml {
                     blocker_indices,
@@ -3155,8 +4123,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Async-wrapped HTML: flush current HTML, then emit
                     // $$renderer.async([$$promises[N], ...], ($$renderer) => $$renderer.push(`html`))
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -3167,12 +4135,13 @@ impl<'a> ServerCodeGenerator<'a> {
                         .join(", ");
 
                     // Use block arrow body: ($$renderer) => { $$renderer.push(...); }
-                    body_code.push_str(&format!(
-                        "{}$$renderer.async([{}], ($$renderer) => {{\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.async([{}], ($$renderer) => {{",
                         indent, blockers_str
-                    ));
-                    body_code.push_str(&format!("{}\t$$renderer.push(`{}`);\n", indent, html));
-                    body_code.push_str(&format!("{}}});\n", indent));
+                    );
+                    let _ = writeln!(body_code, "{}\t$$renderer.push(`{}`);", indent, html);
+                    let _ = writeln!(body_code, "{}}});", indent);
                 }
                 OutputPart::RawExpression(expr) => {
                     if super::helpers::expr_contains_await(expr) {
@@ -3191,13 +4160,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
                         // Flush prefix (content before this element)
                         if !prefix.is_empty() {
-                            body_code
-                                .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, prefix));
+                            let _ = writeln!(body_code, "{}$$renderer.push(`{}`);", indent, prefix);
                         }
 
                         // Collect the full element HTML
                         let mut element_html = tag_start;
-                        element_html.push_str(&format!("${{{}}}", expr));
+                        let _ = write!(element_html, "${{{}}}", expr);
 
                         // Look ahead and consume parts until we find the closing tag
                         // for this element or a self-closing tag
@@ -3218,10 +4186,10 @@ impl<'a> ServerCodeGenerator<'a> {
                                     }
                                 }
                                 OutputPart::Expression(e) => {
-                                    element_html.push_str(&format!("${{$.escape({})}}", e));
+                                    let _ = write!(element_html, "${{$.escape({})}}", e);
                                 }
                                 OutputPart::RawExpression(e) => {
-                                    element_html.push_str(&format!("${{{}}}", e));
+                                    let _ = write!(element_html, "${{{}}}", e);
                                 }
                                 _ => break,
                             }
@@ -3240,22 +4208,25 @@ impl<'a> ServerCodeGenerator<'a> {
                             // No await found (shouldn't happen, but fallback)
                             current_html.push_str(&element_html);
                         } else {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.child(async ($$renderer) => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.child(async ($$renderer) => {{",
                                 indent
-                            ));
+                            );
                             for (var_name, decl_value) in &declarations {
-                                body_code.push_str(&format!(
-                                    "{}\tconst {} = {};\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tconst {} = {};",
                                     indent, var_name, decl_value
-                                ));
+                                );
                             }
                             body_code.push('\n');
-                            body_code.push_str(&format!(
-                                "{}\t$$renderer.push(`{}`);\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\t$$renderer.push(`{}`);",
                                 indent, transformed_html
-                            ));
-                            body_code.push_str(&format!("{}}});\n", indent));
+                            );
+                            let _ = writeln!(body_code, "{}}});", indent);
                         }
 
                         // Skip consumed parts
@@ -3263,31 +4234,34 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     } else {
                         // Raw expressions don't need escaping (e.g., $.attributes())
-                        current_html.push_str(&format!("${{{}}}", expr));
+                        let _ = write!(current_html, "${{{}}}", expr);
                     }
                 }
                 OutputPart::HtmlExpression(expr) => {
                     if super::helpers::expr_contains_await(expr) {
                         // Async @html: flush current HTML, then emit child_block
                         if !current_html.is_empty() {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`{}`);\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.push(`{}`);",
                                 indent, current_html
-                            ));
+                            );
                             current_html.clear();
                         }
                         let transformed = super::helpers::transform_await_to_save(expr);
-                        body_code.push_str(&format!(
-                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.child_block(async ($$renderer) => {{",
                             indent
-                        ));
-                        body_code.push_str(&format!(
-                            "{}\t$$renderer.push($.html({}));\n",
+                        );
+                        let _ = writeln!(
+                            body_code,
+                            "{}\t$$renderer.push($.html({}));",
                             indent, transformed
-                        ));
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        );
+                        let _ = writeln!(body_code, "{}}});", indent);
                     } else {
-                        current_html.push_str(&format!("${{$.html({})}}", expr));
+                        let _ = write!(current_html, "${{$.html({})}}", expr);
                     }
                 }
                 OutputPart::Flush => {
@@ -3295,8 +4269,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Used before/after elements like <style> and <script> that need their
                     // own $$renderer.push() call (matching official Svelte compiler behavior).
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
                 }
@@ -3325,8 +4299,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // `<!---->` marker — the if/else hydration wrapper supplies
                     // the boundary.
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -3340,29 +4314,31 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // Generate component call - use $.spread_props if spreads exist
                     if has_spreads(props_and_spreads) {
-                        body_code.push_str(&format!(
-                            "{}{}{}($$renderer, $.spread_props([\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}{}{}($$renderer, $.spread_props([",
                             indent, name, call_syntax
-                        ));
+                        );
 
                         // Add interleaved props and spreads in order
                         for item in props_and_spreads {
                             match item {
                                 ComponentPropItem::Props(props) => {
-                                    body_code.push_str(&format!(
-                                        "{}\t{{ {} }},\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t{{ {} }},",
                                         indent,
                                         props.join(", ")
-                                    ));
+                                    );
                                 }
                                 ComponentPropItem::Spread(expr) => {
-                                    body_code.push_str(&format!("{}\t{},\n", indent, expr));
+                                    let _ = writeln!(body_code, "{}\t{},", indent, expr);
                                 }
                             }
                         }
 
                         // Add bindings as a final object
-                        body_code.push_str(&format!("{}\t{{\n", indent));
+                        let _ = writeln!(body_code, "{}\t{{", indent);
 
                         let binding_count = bindings.len();
                         for (idx, binding) in bindings.iter().enumerate() {
@@ -3370,28 +4346,24 @@ impl<'a> ServerCodeGenerator<'a> {
                                 resolve_binding_exprs(binding, store_subs);
                             let is_seq =
                                 matches!(binding, ComponentBinding::SequenceExpression { .. });
-                            body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
-                            body_code
-                                .push_str(&format!("{}\t\t\treturn {};\n", indent, getter_expr));
-                            body_code.push_str(&format!("{}\t\t}},\n\n", indent));
-                            body_code.push_str(&format!(
-                                "{}\t\tset {}($$value) {{\n",
-                                indent, prop_name
-                            ));
-                            body_code.push_str(&format!("{}\t\t\t{};\n", indent, setter_expr));
+                            let _ = writeln!(body_code, "{}\t\tget {}() {{", indent, prop_name);
+                            let _ = writeln!(body_code, "{}\t\t\treturn {};", indent, getter_expr);
+                            let _ = writeln!(body_code, "{}\t\t}},\n", indent);
+                            let _ =
+                                writeln!(body_code, "{}\t\tset {}($$value) {{", indent, prop_name);
+                            let _ = writeln!(body_code, "{}\t\t\t{};", indent, setter_expr);
                             if !is_seq {
-                                body_code
-                                    .push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                                let _ = writeln!(body_code, "{}\t\t\t$$settled = false;", indent);
                             }
                             if idx < binding_count - 1 {
-                                body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                                let _ = writeln!(body_code, "{}\t\t}},\n", indent);
                             } else {
-                                body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                let _ = writeln!(body_code, "{}\t\t}}", indent);
                             }
                         }
 
-                        body_code.push_str(&format!("{}\t}}\n", indent));
-                        body_code.push_str(&format!("{}]));\n", indent));
+                        let _ = writeln!(body_code, "{}\t}}", indent);
+                        let _ = writeln!(body_code, "{}]));", indent);
                     } else {
                         // No spreads, use simple object literal
                         let all_props = collect_all_props(props_and_spreads);
@@ -3418,7 +4390,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
                         // Open block if we have true snippets
                         if has_true_snippets {
-                            body_code.push_str(&format!("{}{{\n", indent));
+                            let _ = writeln!(body_code, "{}{{", indent);
 
                             // Generate snippet function declarations inside the block
                             for (snippet_name, params, body_parts, _) in &true_snippets {
@@ -3427,10 +4399,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                 } else {
                                     format!("$$renderer, {}", params.join(", "))
                                 };
-                                body_code.push_str(&format!(
-                                    "{}\tfunction {}({}) {{\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tfunction {}({}) {{",
                                     indent, snippet_name, params_str
-                                ));
+                                );
                                 let snippet_body = Self::build_parts_with_store_subs(
                                     body_parts,
                                     indent_level + 2,
@@ -3438,18 +4411,19 @@ impl<'a> ServerCodeGenerator<'a> {
                                     store_subs,
                                 );
                                 body_code.push_str(&snippet_body);
-                                body_code.push_str(&format!("{}\t}}\n\n", indent));
+                                let _ = writeln!(body_code, "{}\t}}\n", indent);
                             }
                         }
 
-                        body_code.push_str(&format!(
-                            "{}{}{}($$renderer, {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}{}{}($$renderer, {{",
                             inner_indent, name, call_syntax
-                        ));
+                        );
 
                         // Regular props first
                         for prop in &all_props {
-                            body_code.push_str(&format!("{}\t{},\n", inner_indent, prop));
+                            let _ = writeln!(body_code, "{}\t{},", inner_indent, prop);
                         }
 
                         // Generate getter/setter for each binding
@@ -3459,36 +4433,34 @@ impl<'a> ServerCodeGenerator<'a> {
                                 resolve_binding_exprs(binding, store_subs);
                             let is_seq =
                                 matches!(binding, ComponentBinding::SequenceExpression { .. });
-                            body_code
-                                .push_str(&format!("{}\tget {}() {{\n", inner_indent, prop_name));
-                            body_code.push_str(&format!(
-                                "{}\t\treturn {};\n",
-                                inner_indent, getter_expr
-                            ));
-                            body_code.push_str(&format!("{}\t}},\n\n", inner_indent));
-                            body_code.push_str(&format!(
-                                "{}\tset {}($$value) {{\n",
+                            let _ = writeln!(body_code, "{}\tget {}() {{", inner_indent, prop_name);
+                            let _ =
+                                writeln!(body_code, "{}\t\treturn {};", inner_indent, getter_expr);
+                            let _ = writeln!(body_code, "{}\t}},\n", inner_indent);
+                            let _ = writeln!(
+                                body_code,
+                                "{}\tset {}($$value) {{",
                                 inner_indent, prop_name
-                            ));
-                            body_code.push_str(&format!("{}\t\t{};\n", inner_indent, setter_expr));
+                            );
+                            let _ = writeln!(body_code, "{}\t\t{};", inner_indent, setter_expr);
                             if !is_seq {
-                                body_code
-                                    .push_str(&format!("{}\t\t$$settled = false;\n", inner_indent));
+                                let _ =
+                                    writeln!(body_code, "{}\t\t$$settled = false;", inner_indent);
                             }
                             if idx < binding_count - 1
                                 || has_children
                                 || has_true_snippets
                                 || has_any_slots
                             {
-                                body_code.push_str(&format!("{}\t}},\n\n", inner_indent));
+                                let _ = writeln!(body_code, "{}\t}},\n", inner_indent);
                             } else {
-                                body_code.push_str(&format!("{}\t}}\n", inner_indent));
+                                let _ = writeln!(body_code, "{}\t}}", inner_indent);
                             }
                         }
 
                         // Add true snippet names as shorthand props
                         for (snippet_name, _, _, _) in &true_snippets {
-                            body_code.push_str(&format!("{}\t{},\n", inner_indent, snippet_name));
+                            let _ = writeln!(body_code, "{}\t{},", inner_indent, snippet_name);
                         }
 
                         // Add children callback if there are children
@@ -3500,21 +4472,23 @@ impl<'a> ServerCodeGenerator<'a> {
                                 store_subs,
                             );
                             if *component_dev {
-                                body_code.push_str(&format!(
-                                    "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{",
                                     inner_indent
-                                ));
+                                );
                             } else {
-                                body_code.push_str(&format!(
-                                    "{}\tchildren: ($$renderer) => {{\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tchildren: ($$renderer) => {{",
                                     inner_indent
-                                ));
+                                );
                             }
                             body_code.push_str(&children_code);
                             if *component_dev {
-                                body_code.push_str(&format!("{}\t}}),\n", inner_indent));
+                                let _ = writeln!(body_code, "{}\t}}),", inner_indent);
                             } else {
-                                body_code.push_str(&format!("{}\t}},\n", inner_indent));
+                                let _ = writeln!(body_code, "{}\t}},", inner_indent);
                             }
                         }
 
@@ -3554,17 +4528,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                 slots_entries.push("default: true".to_string());
                             }
                             let slots_str = slots_entries.join(", ");
-                            body_code.push_str(&format!(
-                                "{}\t$$slots: {{ {} }}\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\t$$slots: {{ {} }}",
                                 inner_indent, slots_str
-                            ));
+                            );
                         }
 
-                        body_code.push_str(&format!("{}}});\n", inner_indent));
+                        let _ = writeln!(body_code, "{}}});", inner_indent);
 
                         // Close block if we had true snippets
                         if has_true_snippets {
-                            body_code.push_str(&format!("{}}}\n", indent));
+                            let _ = writeln!(body_code, "{}}}", indent);
                         }
                     }
 
@@ -3612,8 +4587,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // `<!---->` marker — the `if (expr) { push('<!--[--> ...) }`
                     // wrapper supplies the hydration boundary.
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -3648,16 +4623,17 @@ impl<'a> ServerCodeGenerator<'a> {
 
                         // Wrap in a block if we have true snippets (need hoisting)
                         if has_true_snippets {
-                            body_code.push_str(&format!("{}{{\n", indent));
+                            let _ = writeln!(body_code, "{}{{", indent);
 
                             // Generate snippet function declarations inside the block
                             for (snippet_name, params, body_parts, _) in &true_snippets {
                                 // In dev mode, add prevent_snippet_stringification before function
                                 if *component_dev {
-                                    body_code.push_str(&format!(
-                                        "{}\t$.prevent_snippet_stringification({});\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t$.prevent_snippet_stringification({});",
                                         indent, snippet_name
-                                    ));
+                                    );
                                 }
 
                                 let params_str = if params.is_empty() {
@@ -3665,17 +4641,19 @@ impl<'a> ServerCodeGenerator<'a> {
                                 } else {
                                     format!("$$renderer, {}", params.join(", "))
                                 };
-                                body_code.push_str(&format!(
-                                    "{}\tfunction {}({}) {{\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tfunction {}({}) {{",
                                     indent, snippet_name, params_str
-                                ));
+                                );
 
                                 // In dev mode, add validate_snippet_args
                                 if *component_dev {
-                                    body_code.push_str(&format!(
-                                        "{}\t\t$.validate_snippet_args($$renderer);\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\t$.validate_snippet_args($$renderer);",
                                         indent
-                                    ));
+                                    );
                                 }
 
                                 let snippet_body = Self::build_parts_with_store_subs(
@@ -3685,7 +4663,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                     store_subs,
                                 );
                                 body_code.push_str(&snippet_body);
-                                body_code.push_str(&format!("{}\t}}\n\n", indent));
+                                let _ = writeln!(body_code, "{}\t}}\n", indent);
                             }
 
                             // Component call with true snippets as props
@@ -3754,57 +4732,61 @@ impl<'a> ServerCodeGenerator<'a> {
                                 // not drop the `{...rest}`. Emit
                                 // `Child($$renderer, $.spread_props([…interleaved spreads/props…, { snippets, $$slots }]))`
                                 // mirroring the existing bindings + spread path. (issue #448, H-104/H-105)
-                                body_code.push_str(&format!(
-                                    "{}\t{}{}($$renderer, $.spread_props([\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\t{}{}($$renderer, $.spread_props([",
                                     indent, name, call_syntax
-                                ));
+                                );
                                 for item in props_and_spreads {
                                     match item {
                                         ComponentPropItem::Props(props) => {
-                                            body_code.push_str(&format!(
-                                                "{}\t\t{{ {} }},\n",
+                                            let _ = writeln!(
+                                                body_code,
+                                                "{}\t\t{{ {} }},",
                                                 indent,
                                                 props.join(", ")
-                                            ));
+                                            );
                                         }
                                         ComponentPropItem::Spread(expr) => {
-                                            body_code
-                                                .push_str(&format!("{}\t\t{},\n", indent, expr));
+                                            let _ = writeln!(body_code, "{}\t\t{},", indent, expr);
                                         }
                                     }
                                 }
                                 let mut final_entries = props_after_spread.clone();
                                 final_entries.push(format!("$$slots: {{ {} }}", slots_str));
-                                body_code.push_str(&format!(
-                                    "{}\t\t{{ {} }}\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\t\t{{ {} }}",
                                     indent,
                                     final_entries.join(", ")
-                                ));
-                                body_code.push_str(&format!("{}\t]));\n", indent));
+                                );
+                                let _ = writeln!(body_code, "{}\t]));", indent);
                             } else {
                                 // No spread: preserve the existing single-object emission
                                 // (`Child($$renderer, { …, $$slots: { … } })`).
                                 let mut all_props: Vec<String> =
                                     collect_all_props(props_and_spreads);
                                 all_props.extend(props_after_spread);
-                                body_code.push_str(&format!(
+                                let _ = write!(
+                                    body_code,
                                     "{}\t{}{}($$renderer, {{ ",
                                     indent, name, call_syntax
-                                ));
+                                );
                                 if all_props.is_empty() {
-                                    body_code
-                                        .push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
+                                    let _ =
+                                        writeln!(body_code, "$$slots: {{ {} }} }});", slots_str);
                                 } else {
-                                    body_code.push_str(&format!(
-                                        "{}, $$slots: {{ {} }} }});\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}, $$slots: {{ {} }} }});",
                                         all_props.join(", "),
                                         slots_str
-                                    ));
+                                    );
                                 }
                             }
 
                             // Close the block
-                            body_code.push_str(&format!("{}}}\n", indent));
+                            let _ = writeln!(body_code, "{}}}", indent);
                         } else if has_slot_children && !has_children {
                             // Only named slot children (no default children, no true snippets)
                             // Note: the "default" slot may be among slot_children when it has
@@ -3816,26 +4798,28 @@ impl<'a> ServerCodeGenerator<'a> {
                                 .iter()
                                 .any(|(n, params, _, _)| n == "default" && !params.is_empty());
 
-                            body_code.push_str(&format!(
-                                "{}{}{}($$renderer, {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}{}{}($$renderer, {{",
                                 indent, name, call_syntax
-                            ));
+                            );
 
                             // Props
                             for prop in &all_props {
-                                body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                                let _ = writeln!(body_code, "{}\t{},", indent, prop);
                             }
 
                             // When default slot has let directives, add children: $.invalid_default_snippet
                             if default_has_let_dirs {
-                                body_code.push_str(&format!(
-                                    "{}\tchildren: $.invalid_default_snippet,\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\tchildren: $.invalid_default_snippet,",
                                     indent
-                                ));
+                                );
                             }
 
                             // $$slots with inline functions (with params for let directives)
-                            body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                            let _ = writeln!(body_code, "{}\t$$slots: {{", indent);
                             for (slot_name, params, body_parts, _) in &slot_children {
                                 let quoted_name = quote_prop_name(slot_name);
                                 let fn_body = Self::build_parts_with_store_subs(
@@ -3845,22 +4829,24 @@ impl<'a> ServerCodeGenerator<'a> {
                                     store_subs,
                                 );
                                 if params.is_empty() {
-                                    body_code.push_str(&format!(
+                                    let _ = write!(
+                                        body_code,
                                         "{}\t\t{}: ($$renderer) => {{\n{}",
                                         indent, quoted_name, fn_body
-                                    ));
+                                    );
                                 } else {
                                     // Destructured params from let directives
                                     let params_str = format!("{{ {} }}", params.join(", "));
-                                    body_code.push_str(&format!(
+                                    let _ = write!(
+                                        body_code,
                                         "{}\t\t{}: ($$renderer, {}) => {{\n{}",
                                         indent, quoted_name, params_str, fn_body
-                                    ));
+                                    );
                                 }
-                                body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                let _ = writeln!(body_code, "{}\t\t}},", indent);
                             }
-                            body_code.push_str(&format!("{}\t}}\n", indent));
-                            body_code.push_str(&format!("{}}});\n", indent));
+                            let _ = writeln!(body_code, "{}\t}}", indent);
+                            let _ = writeln!(body_code, "{}}});", indent);
                         } else if let Some(children_parts) = children {
                             // Component with children (default slot) and possibly named slots
                             let has_let_dirs = !let_directives.is_empty();
@@ -3874,10 +4860,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                 // ]))
                                 // The last Props group (if any) gets merged into the
                                 // children/$$slots object instead of being a separate entry.
-                                body_code.push_str(&format!(
-                                    "{}{}{}($$renderer, $.spread_props([\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}{}{}($$renderer, $.spread_props([",
                                     indent, name, call_syntax
-                                ));
+                                );
 
                                 // Separate trailing props from the rest
                                 let trailing_props: Vec<String> =
@@ -3899,39 +4886,42 @@ impl<'a> ServerCodeGenerator<'a> {
                                 for item in items_to_emit.iter() {
                                     match item {
                                         ComponentPropItem::Props(props) => {
-                                            body_code.push_str(&format!(
-                                                "{}\t{{ {} }},\n",
+                                            let _ = writeln!(
+                                                body_code,
+                                                "{}\t{{ {} }},",
                                                 indent,
                                                 props.join(", ")
-                                            ));
+                                            );
                                         }
                                         ComponentPropItem::Spread(expr) => {
-                                            body_code.push_str(&format!("{}\t{},\n", indent, expr));
+                                            let _ = writeln!(body_code, "{}\t{},", indent, expr);
                                         }
                                     }
                                 }
 
                                 // Add final object with trailing props + children and $$slots
-                                body_code.push_str(&format!("{}\t{{\n", indent));
+                                let _ = writeln!(body_code, "{}\t{{", indent);
 
                                 // Emit trailing props into this object
                                 for prop in &trailing_props {
-                                    body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
+                                    let _ = writeln!(body_code, "{}\t\t{},", indent, prop);
                                 }
 
                                 if has_let_dirs {
-                                    body_code.push_str(&format!(
-                                        "{}\t\tchildren: $.invalid_default_snippet,\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\tchildren: $.invalid_default_snippet,",
                                         indent
-                                    ));
+                                    );
 
-                                    body_code.push_str(&format!("{}\t\t$$slots: {{\n", indent));
+                                    let _ = writeln!(body_code, "{}\t\t$$slots: {{", indent);
 
                                     let params_str = format!("{{ {} }}", let_directives.join(", "));
-                                    body_code.push_str(&format!(
-                                        "{}\t\t\tdefault: ($$renderer, {}) => {{\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\t\tdefault: ($$renderer, {}) => {{",
                                         indent, params_str
-                                    ));
+                                    );
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
                                         indent_level + 4,
@@ -3939,7 +4929,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                         store_subs,
                                     );
                                     body_code.push_str(&children_code);
-                                    body_code.push_str(&format!("{}\t\t\t}},\n", indent));
+                                    let _ = writeln!(body_code, "{}\t\t\t}},", indent);
 
                                     for (slot_name, params, body_parts, _) in &slot_children {
                                         let quoted_name = quote_prop_name(slot_name);
@@ -3950,33 +4940,37 @@ impl<'a> ServerCodeGenerator<'a> {
                                             store_subs,
                                         );
                                         if params.is_empty() {
-                                            body_code.push_str(&format!(
+                                            let _ = write!(
+                                                body_code,
                                                 "{}\t\t\t{}: ($$renderer) => {{\n{}",
                                                 indent, quoted_name, fn_body
-                                            ));
+                                            );
                                         } else {
                                             let params_str = format!("{{ {} }}", params.join(", "));
-                                            body_code.push_str(&format!(
+                                            let _ = write!(
+                                                body_code,
                                                 "{}\t\t\t{}: ($$renderer, {}) => {{\n{}",
                                                 indent, quoted_name, params_str, fn_body
-                                            ));
+                                            );
                                         }
-                                        body_code.push_str(&format!("{}\t\t\t}},\n", indent));
+                                        let _ = writeln!(body_code, "{}\t\t\t}},", indent);
                                     }
 
-                                    body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                    let _ = writeln!(body_code, "{}\t\t}}", indent);
                                 } else {
                                     // No let directives - standard children callback
                                     if *component_dev {
-                                        body_code.push_str(&format!(
-                                            "{}\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {{",
                                             indent
-                                        ));
+                                        );
                                     } else {
-                                        body_code.push_str(&format!(
-                                            "{}\t\tchildren: ($$renderer) => {{\n",
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\t\tchildren: ($$renderer) => {{",
                                             indent
-                                        ));
+                                        );
                                     }
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
@@ -3986,15 +4980,15 @@ impl<'a> ServerCodeGenerator<'a> {
                                     );
                                     body_code.push_str(&children_code);
                                     if *component_dev {
-                                        body_code.push_str(&format!("{}\t\t}}),\n", indent));
+                                        let _ = writeln!(body_code, "{}\t\t}}),", indent);
                                     } else {
-                                        body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                        let _ = writeln!(body_code, "{}\t\t}},", indent);
                                     }
 
                                     if has_slot_children {
-                                        body_code.push_str(&format!("{}\t\t$$slots: {{\n", indent));
-                                        body_code
-                                            .push_str(&format!("{}\t\t\tdefault: true,\n", indent));
+                                        let _ = writeln!(body_code, "{}\t\t$$slots: {{", indent);
+                                        let _ =
+                                            writeln!(body_code, "{}\t\t\tdefault: true,", indent);
                                         for (slot_name, params, body_parts, _) in &slot_children {
                                             let quoted_name = quote_prop_name(slot_name);
                                             let fn_body = Self::build_parts_with_store_subs(
@@ -4004,43 +4998,47 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 store_subs,
                                             );
                                             if params.is_empty() {
-                                                body_code.push_str(&format!(
+                                                let _ = write!(
+                                                    body_code,
                                                     "{}\t\t\t{}: ($$renderer) => {{\n{}",
                                                     indent, quoted_name, fn_body
-                                                ));
+                                                );
                                             } else {
                                                 let params_str =
                                                     format!("{{ {} }}", params.join(", "));
-                                                body_code.push_str(&format!(
+                                                let _ = write!(
+                                                    body_code,
                                                     "{}\t\t\t{}: ($$renderer, {}) => {{\n{}",
                                                     indent, quoted_name, params_str, fn_body
-                                                ));
+                                                );
                                             }
-                                            body_code.push_str(&format!("{}\t\t\t}},\n", indent));
+                                            let _ = writeln!(body_code, "{}\t\t\t}},", indent);
                                         }
-                                        body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                        let _ = writeln!(body_code, "{}\t\t}}", indent);
                                     } else {
-                                        body_code.push_str(&format!(
-                                            "{}\t\t$$slots: {{ default: true }}\n",
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\t\t$$slots: {{ default: true }}",
                                             indent
-                                        ));
+                                        );
                                     }
                                 }
 
-                                body_code.push_str(&format!("{}\t}}\n", indent));
-                                body_code.push_str(&format!("{}]));\n", indent));
+                                let _ = writeln!(body_code, "{}\t}}", indent);
+                                let _ = writeln!(body_code, "{}]));", indent);
                             } else {
                                 // No spreads - use simple object literal
                                 let all_props = collect_all_props(props_and_spreads);
 
-                                body_code.push_str(&format!(
-                                    "{}{}{}($$renderer, {{\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}{}{}($$renderer, {{",
                                     indent, name, call_syntax
-                                ));
+                                );
 
                                 // Props
                                 for prop in &all_props {
-                                    body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                                    let _ = writeln!(body_code, "{}\t{},", indent, prop);
                                 }
 
                                 // Check if 'children' is already in all_props (explicit attribute)
@@ -4055,20 +5053,22 @@ impl<'a> ServerCodeGenerator<'a> {
                                     // Has let directives on the component:
                                     // children: $.invalid_default_snippet,
                                     // $$slots: { default: ($$renderer, { name }) => { ... }, ... }
-                                    body_code.push_str(&format!(
-                                        "{}\tchildren: $.invalid_default_snippet,\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\tchildren: $.invalid_default_snippet,",
                                         indent
-                                    ));
+                                    );
 
                                     // Build $$slots with default slot function having destructured params
-                                    body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                                    let _ = writeln!(body_code, "{}\t$$slots: {{", indent);
 
                                     // Default slot with destructured let directive params
                                     let params_str = format!("{{ {} }}", let_directives.join(", "));
-                                    body_code.push_str(&format!(
-                                        "{}\t\tdefault: ($$renderer, {}) => {{\n",
+                                    let _ = writeln!(
+                                        body_code,
+                                        "{}\t\tdefault: ($$renderer, {}) => {{",
                                         indent, params_str
-                                    ));
+                                    );
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
                                         indent_level + 3,
@@ -4076,7 +5076,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                         store_subs,
                                     );
                                     body_code.push_str(&children_code);
-                                    body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                    let _ = writeln!(body_code, "{}\t\t}},", indent);
 
                                     // Named slot children
                                     for (slot_name, params, body_parts, _) in &slot_children {
@@ -4088,25 +5088,27 @@ impl<'a> ServerCodeGenerator<'a> {
                                             store_subs,
                                         );
                                         if params.is_empty() {
-                                            body_code.push_str(&format!(
+                                            let _ = write!(
+                                                body_code,
                                                 "{}\t\t{}: ($$renderer) => {{\n{}",
                                                 indent, quoted_name, fn_body
-                                            ));
+                                            );
                                         } else {
                                             let params_str = format!("{{ {} }}", params.join(", "));
-                                            body_code.push_str(&format!(
+                                            let _ = write!(
+                                                body_code,
                                                 "{}\t\t{}: ($$renderer, {}) => {{\n{}",
                                                 indent, quoted_name, params_str, fn_body
-                                            ));
+                                            );
                                         }
-                                        body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                        let _ = writeln!(body_code, "{}\t\t}},", indent);
                                     }
 
-                                    body_code.push_str(&format!("{}\t}}\n", indent));
+                                    let _ = writeln!(body_code, "{}\t}}", indent);
                                 } else if children_already_in_props {
                                     // 'children' is already an explicit prop (e.g., children="foo").
                                     // The slot content must go in $$slots.default (not as another 'children' prop).
-                                    body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                                    let _ = writeln!(body_code, "{}\t$$slots: {{", indent);
 
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
@@ -4114,11 +5116,12 @@ impl<'a> ServerCodeGenerator<'a> {
                                         each_counter,
                                         store_subs,
                                     );
-                                    body_code.push_str(&format!(
+                                    let _ = write!(
+                                        body_code,
                                         "{}\t\tdefault: ($$renderer) => {{\n{}",
                                         indent, children_code
-                                    ));
-                                    body_code.push_str(&format!("{}\t\t}}", indent));
+                                    );
+                                    let _ = write!(body_code, "{}\t\t}}", indent);
 
                                     // Named slot children
                                     for (slot_name, params, body_parts, _) in &slot_children {
@@ -4131,33 +5134,37 @@ impl<'a> ServerCodeGenerator<'a> {
                                             store_subs,
                                         );
                                         if params.is_empty() {
-                                            body_code.push_str(&format!(
+                                            let _ = write!(
+                                                body_code,
                                                 "{}\t\t{}: ($$renderer) => {{\n{}",
                                                 indent, quoted_name, fn_body
-                                            ));
+                                            );
                                         } else {
                                             let params_str = format!("{{ {} }}", params.join(", "));
-                                            body_code.push_str(&format!(
+                                            let _ = write!(
+                                                body_code,
                                                 "{}\t\t{}: ($$renderer, {}) => {{\n{}",
                                                 indent, quoted_name, params_str, fn_body
-                                            ));
+                                            );
                                         }
-                                        body_code.push_str(&format!("{}\t\t}}", indent));
+                                        let _ = write!(body_code, "{}\t\t}}", indent);
                                     }
                                     body_code.push('\n');
-                                    body_code.push_str(&format!("{}\t}}\n", indent));
+                                    let _ = writeln!(body_code, "{}\t}}", indent);
                                 } else {
                                     // No let directives - standard children callback (no-spreads path)
                                     if *component_dev {
-                                        body_code.push_str(&format!(
-                                            "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{",
                                             indent
-                                        ));
+                                        );
                                     } else {
-                                        body_code.push_str(&format!(
-                                            "{}\tchildren: ($$renderer) => {{\n",
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\tchildren: ($$renderer) => {{",
                                             indent
-                                        ));
+                                        );
                                     }
                                     let children_code = Self::build_parts_with_store_subs(
                                         children_parts,
@@ -4167,16 +5174,15 @@ impl<'a> ServerCodeGenerator<'a> {
                                     );
                                     body_code.push_str(&children_code);
                                     if *component_dev {
-                                        body_code.push_str(&format!("{}\t}}),\n", indent));
+                                        let _ = writeln!(body_code, "{}\t}}),", indent);
                                     } else {
-                                        body_code.push_str(&format!("{}\t}},\n", indent));
+                                        let _ = writeln!(body_code, "{}\t}},", indent);
                                     }
 
                                     // $$slots with default: true and any named slot children
                                     if has_slot_children {
-                                        body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
-                                        body_code
-                                            .push_str(&format!("{}\t\tdefault: true,\n", indent));
+                                        let _ = writeln!(body_code, "{}\t$$slots: {{", indent);
+                                        let _ = writeln!(body_code, "{}\t\tdefault: true,", indent);
                                         for (slot_name, params, body_parts, _) in &slot_children {
                                             let quoted_name = quote_prop_name(slot_name);
                                             let fn_body = Self::build_parts_with_store_subs(
@@ -4186,31 +5192,34 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 store_subs,
                                             );
                                             if params.is_empty() {
-                                                body_code.push_str(&format!(
+                                                let _ = write!(
+                                                    body_code,
                                                     "{}\t\t{}: ($$renderer) => {{\n{}",
                                                     indent, quoted_name, fn_body
-                                                ));
+                                                );
                                             } else {
                                                 // Destructured params from let directives
                                                 let params_str =
                                                     format!("{{ {} }}", params.join(", "));
-                                                body_code.push_str(&format!(
+                                                let _ = write!(
+                                                    body_code,
                                                     "{}\t\t{}: ($$renderer, {}) => {{\n{}",
                                                     indent, quoted_name, params_str, fn_body
-                                                ));
+                                                );
                                             }
-                                            body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                            let _ = writeln!(body_code, "{}\t\t}},", indent);
                                         }
-                                        body_code.push_str(&format!("{}\t}}\n", indent));
+                                        let _ = writeln!(body_code, "{}\t}}", indent);
                                     } else {
                                         // Only default slot
-                                        body_code.push_str(&format!(
-                                            "{}\t$$slots: {{ default: true }}\n",
+                                        let _ = writeln!(
+                                            body_code,
+                                            "{}\t$$slots: {{ default: true }}",
                                             indent
-                                        ));
+                                        );
                                     }
                                 }
-                                body_code.push_str(&format!("{}}});\n", indent));
+                                let _ = writeln!(body_code, "{}}});", indent);
                             }
                         }
                     } else if component_has_spreads {
@@ -4320,32 +5329,35 @@ impl<'a> ServerCodeGenerator<'a> {
                                 }
                             }
 
-                            body_code.push_str(&format!(
-                                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.child_block(async ($$renderer) => {{",
                                 indent
-                            ));
+                            );
                             for decl in &save_decls {
                                 body_code.push_str(decl);
                             }
                             if !save_decls.is_empty() {
                                 body_code.push('\n');
                             }
-                            body_code.push_str(&format!(
-                                "{}\t{}{}($$renderer, $.spread_props([{}]));\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\t{}{}($$renderer, $.spread_props([{}]));",
                                 indent,
                                 name,
                                 call_syntax,
                                 transformed_items.join(", ")
-                            ));
-                            body_code.push_str(&format!("{}}});\n", indent));
+                            );
+                            let _ = writeln!(body_code, "{}}});", indent);
                         } else {
-                            body_code.push_str(&format!(
-                                "{}{}{}($$renderer, $.spread_props([{}]));\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}{}{}($$renderer, $.spread_props([{}]));",
                                 indent,
                                 name,
                                 call_syntax,
                                 spread_items.join(", ")
-                            ));
+                            );
                         }
                     } else {
                         // No children, no snippets, no spreads - simple call
@@ -4359,35 +5371,39 @@ impl<'a> ServerCodeGenerator<'a> {
                                 .collect::<Vec<_>>()
                                 .join(", ");
                             let inner_indent = format!("{}\t", indent);
-                            body_code.push_str(&format!(
-                                "\n{}$.css_props($$renderer, {}, {{ {} }}, () => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "\n{}$.css_props($$renderer, {}, {{ {} }}, () => {{",
                                 indent, css_props_is_html, css_props_str
-                            ));
+                            );
                             if all_props.is_empty() {
-                                body_code.push_str(&format!(
-                                    "{}{}{}($$renderer, {{}});\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}{}{}($$renderer, {{}});",
                                     inner_indent, name, call_syntax
-                                ));
+                                );
                             } else {
-                                body_code.push_str(&format!(
-                                    "{}{}{}($$renderer, {{ {} }});\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}{}{}($$renderer, {{ {} }});",
                                     inner_indent,
                                     name,
                                     call_syntax,
                                     all_props.join(", ")
-                                ));
+                                );
                             }
                             // Dynamic components pass a 5th `true` argument to $.css_props()
                             if *dynamic {
-                                body_code.push_str(&format!("{}}}, true);\n", indent));
+                                let _ = writeln!(body_code, "{}}}, true);", indent);
                             } else {
-                                body_code.push_str(&format!("{}}});\n", indent));
+                                let _ = writeln!(body_code, "{}}});", indent);
                             }
                         } else if all_props.is_empty() {
-                            body_code.push_str(&format!(
-                                "{}{}{}($$renderer, {{}});\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}{}{}($$renderer, {{}});",
                                 indent, name, call_syntax
-                            ));
+                            );
                         } else {
                             // Check if any prop value contains await - if so, use PromiseOptimiser pattern
                             let has_await_props = all_props
@@ -4425,32 +5441,35 @@ impl<'a> ServerCodeGenerator<'a> {
                                     }
                                 }
 
-                                body_code.push_str(&format!(
-                                    "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}$$renderer.child_block(async ($$renderer) => {{",
                                     indent
-                                ));
+                                );
                                 for decl in &save_decls {
                                     body_code.push_str(decl);
                                 }
                                 if !save_decls.is_empty() {
                                     body_code.push('\n');
                                 }
-                                body_code.push_str(&format!(
-                                    "{}\t{}{}($$renderer, {{ {} }});\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}\t{}{}($$renderer, {{ {} }});",
                                     indent,
                                     name,
                                     call_syntax,
                                     transformed_props.join(", ")
-                                ));
-                                body_code.push_str(&format!("{}}});\n", indent));
+                                );
+                                let _ = writeln!(body_code, "{}}});", indent);
                             } else {
-                                body_code.push_str(&format!(
-                                    "{}{}{}($$renderer, {{ {} }});\n",
+                                let _ = writeln!(
+                                    body_code,
+                                    "{}{}{}($$renderer, {{ {} }});",
                                     indent,
                                     name,
                                     call_syntax,
                                     all_props.join(", ")
-                                ));
+                                );
                             }
                         }
                     }
@@ -4580,56 +5599,64 @@ impl<'a> ServerCodeGenerator<'a> {
                     if fallback.is_some() {
                         // For fallback case, flush current HTML WITHOUT marker first
                         if !current_html.is_empty() {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`{}`);\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.push(`{}`);",
                                 indent, current_html
-                            ));
+                            );
                             current_html.clear();
                         }
 
                         if needs_child_block {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.child_block(async ($$renderer) => {{",
                                 indent
-                            ));
+                            );
                         }
 
-                        body_code.push_str(&format!(
-                            "{}const {} = $.ensure_array_like({});\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}const {} = $.ensure_array_like({});\n",
                             effective_indent, array_var, transformed_iterable
-                        ));
+                        );
 
                         // If there's a fallback, wrap in if-else
-                        body_code.push_str(&format!(
-                            "{}if ({}.length !== 0) {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}if ({}.length !== 0) {{",
                             effective_indent, array_var
-                        ));
+                        );
                         // Add block marker for non-empty case INSIDE the if
-                        body_code.push_str(&format!(
-                            "{}\t$$renderer.push('<!--[-->');\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}\t$$renderer.push('<!--[-->');\n",
                             effective_indent
-                        ));
+                        );
 
                         // For loop (indented)
-                        body_code.push_str(&format!(
-                            "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
                             effective_indent, index_var, array_var, index_var, index_var
-                        ));
+                        );
 
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
-                            body_code.push_str(&format!(
-                                "{}\t\tlet {} = {}[{}];\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\t\tlet {} = {}[{}];",
                                 effective_indent, ctx_name, array_var, index_var
-                            ));
+                            );
                         }
 
                         // Index alias (when contains_group_binding: `let original_name = $$index_N`)
                         if let Some(alias) = index_alias {
-                            body_code.push_str(&format!(
-                                "{}\t\tlet {} = {};\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\t\tlet {} = {};",
                                 effective_indent, alias, index_var
-                            ));
+                            );
                         }
 
                         if context_name.is_some() || index_alias.is_some() {
@@ -4647,15 +5674,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
-                        body_code.push_str(&format!("{}\t}}\n", effective_indent));
+                        let _ = writeln!(body_code, "{}\t}}", effective_indent);
 
                         // Else branch with fallback
-                        body_code.push_str(&format!("{}}} else {{\n", effective_indent));
+                        let _ = writeln!(body_code, "{}}} else {{", effective_indent);
                         // Add block marker for empty case (note the !)
-                        body_code.push_str(&format!(
-                            "{}\t$$renderer.push('<!--[!-->');\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}\t$$renderer.push('<!--[!-->');",
                             effective_indent
-                        ));
+                        );
 
                         // Fallback body
                         if let Some(fb) = fallback {
@@ -4668,10 +5696,10 @@ impl<'a> ServerCodeGenerator<'a> {
                             body_code.push_str(&fallback_code);
                         }
 
-                        body_code.push_str(&format!("{}}}\n", effective_indent));
+                        let _ = writeln!(body_code, "{}}}", effective_indent);
 
                         if needs_child_block {
-                            body_code.push_str(&format!("{}}});\n\n", indent));
+                            let _ = writeln!(body_code, "{}}});\n", indent);
                         } else {
                             body_code.push('\n');
                         }
@@ -4681,42 +5709,47 @@ impl<'a> ServerCodeGenerator<'a> {
                         current_html.push_str("<!--[-->");
 
                         // Flush current HTML (including the marker) before each block
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
 
                         if needs_child_block {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.child_block(async ($$renderer) => {{",
                                 indent
-                            ));
+                            );
                         }
 
-                        body_code.push_str(&format!(
-                            "{}const {} = $.ensure_array_like({});\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}const {} = $.ensure_array_like({});\n",
                             effective_indent, array_var, transformed_iterable
-                        ));
+                        );
 
                         // For loop
-                        body_code.push_str(&format!(
-                            "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
                             effective_indent, index_var, array_var, index_var, index_var
-                        ));
+                        );
 
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
-                            body_code.push_str(&format!(
-                                "{}\tlet {} = {}[{}];\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\tlet {} = {}[{}];",
                                 effective_indent, ctx_name, array_var, index_var
-                            ));
+                            );
                         }
 
                         // Index alias (when contains_group_binding: `let original_name = $$index_N`)
                         if let Some(alias) = index_alias {
-                            body_code.push_str(&format!(
-                                "{}\tlet {} = {};\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\tlet {} = {};",
                                 effective_indent, alias, index_var
-                            ));
+                            );
                         }
 
                         if context_name.is_some() || index_alias.is_some() {
@@ -4734,10 +5767,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
-                        body_code.push_str(&format!("{}}}\n", effective_indent));
+                        let _ = writeln!(body_code, "{}}}", effective_indent);
 
                         if needs_child_block {
-                            body_code.push_str(&format!("{}}});\n\n", indent));
+                            let _ = writeln!(body_code, "{}}});\n", indent);
                         } else {
                             body_code.push('\n');
                         }
@@ -4754,8 +5787,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before if block
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -4784,13 +5817,14 @@ impl<'a> ServerCodeGenerator<'a> {
                         );
 
                         // Wrap in $$renderer.child_block(async ($$renderer) => { ... })
-                        body_code.push_str(&format!(
-                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.child_block(async ($$renderer) => {{",
                             indent
-                        ));
+                        );
                         body_code.push_str(&if_code);
                         body_code.push('\n');
-                        body_code.push_str(&format!("{}}});\n\n", indent));
+                        let _ = writeln!(body_code, "{}}});\n", indent);
                     } else {
                         // Generate the if block with proper markers (no async wrapping)
                         let if_code = Self::build_if_statement(
@@ -4802,6 +5836,11 @@ impl<'a> ServerCodeGenerator<'a> {
                             store_subs,
                         );
                         body_code.push_str(&if_code);
+                        // `if_code` ends with `}` (no newline). Terminate the
+                        // statement and add a blank line so the following
+                        // `$$renderer.push(`<!--]-->…`)` lands on its own line,
+                        // matching esrap's blank line after a multi-line statement.
+                        body_code.push_str("\n\n");
                     }
 
                     // Add closing marker to current_html to combine with subsequent content
@@ -4815,40 +5854,43 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before svelte:element
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // In dev mode, validate the dynamic element tag
                     if *dev {
-                        body_code.push_str(&format!(
-                            "{}$.validate_dynamic_element_tag(() => {});\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$.validate_dynamic_element_tag(() => {});",
                             indent, tag_expr
-                        ));
+                        );
                     }
 
                     // Generate $.element call with attributes and body callback
                     if body.is_empty() && attrs_expr.is_none() {
                         // No body and no attributes - simple form
-                        body_code
-                            .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
+                        let _ =
+                            writeln!(body_code, "{}$.element($$renderer, {});", indent, tag_expr);
                     } else {
                         // Build $.element($$renderer, tag, attrs, () => { ... })
                         let attrs_arg = attrs_expr.as_deref().unwrap_or("void 0");
 
                         if body.is_empty() {
                             // No body, just attributes
-                            body_code.push_str(&format!(
-                                "{}$.element($$renderer, {}, {});\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$.element($$renderer, {}, {});",
                                 indent, tag_expr, attrs_arg
-                            ));
+                            );
                         } else {
                             // Has body - use callback form
-                            body_code.push_str(&format!(
-                                "{}$.element($$renderer, {}, {}, () => {{\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}$.element($$renderer, {}, {}, () => {{",
                                 indent, tag_expr, attrs_arg
-                            ));
+                            );
 
                             // Generate body content
                             let body_code_inner = Self::build_parts_with_store_subs(
@@ -4859,7 +5901,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             );
                             body_code.push_str(&body_code_inner);
 
-                            body_code.push_str(&format!("{}}});\n", indent));
+                            let _ = writeln!(body_code, "{}}});", indent);
                         }
                     }
                 }
@@ -4868,25 +5910,35 @@ impl<'a> ServerCodeGenerator<'a> {
                     body,
                     is_rich,
                     css_hash,
+                    classes,
                 } => {
                     // Flush current HTML before select element
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
-                    // Generate $$renderer.select() call with multiline formatting when css_hash is present
-                    if css_hash.is_some() || *is_rich {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.select(\n{}\t{},\n{}\t($$renderer) => {{\n",
+                    let rest = super::bridge::select_rest_args(
+                        css_hash.as_deref(),
+                        classes.as_deref(),
+                        *is_rich,
+                    );
+
+                    // Generate $$renderer.select() call with multiline
+                    // formatting when trailing args are present
+                    if !rest.is_empty() {
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.select(\n{}\t{},\n{}\t($$renderer) => {{",
                             indent, indent, attrs_obj, indent
-                        ));
+                        );
                     } else {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.select({}, ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.select({}, ($$renderer) => {{",
                             indent, attrs_obj
-                        ));
+                        );
                     }
 
                     // Body
@@ -4898,30 +5950,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     );
                     body_code.push_str(&body_code_inner);
 
-                    // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
-                    // The full signature is: $$renderer.select(attrs, fn, css_hash, classes, styles, flags, is_rich)
-                    // When intermediate arguments are undefined, they must be `void 0`
-                    if *is_rich {
-                        if let Some(hash) = css_hash {
-                            // With css_hash: select(attrs, fn, 'hash', void 0, void 0, void 0, true)
-                            body_code.push_str(&format!(
-                                "{}\t}},\n{}\t'{}',\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
-                                indent, indent, hash, indent, indent, indent, indent, indent
-                            ));
-                        } else {
-                            // Without css_hash: select(attrs, fn, void 0, void 0, void 0, void 0, true)
-                            body_code.push_str(&format!(
-                                "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
-                                indent, indent, indent, indent, indent, indent, indent
-                            ));
+                    // Close callback with optional css_hash, classes, styles,
+                    // flags and is_rich arguments. Trailing undefined args are
+                    // dropped (upstream b.call), interior ones print `void 0`.
+                    if !rest.is_empty() {
+                        let _ = write!(body_code, "{}\t}},", indent);
+                        for arg in &rest {
+                            let _ = write!(body_code, "\n{}\t{},", indent, arg);
                         }
-                    } else if let Some(hash) = css_hash {
-                        body_code.push_str(&format!(
-                            "{}\t}},\n{}\t'{}'\n{});\n",
-                            indent, indent, hash, indent
-                        ));
+                        body_code.pop(); // strip trailing comma
+                        let _ = writeln!(body_code, "\n{});", indent);
                     } else {
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        let _ = writeln!(body_code, "{}}});", indent);
                     }
                 }
                 OutputPart::OptionElement {
@@ -4930,16 +5970,24 @@ impl<'a> ServerCodeGenerator<'a> {
                     is_rich,
                     direct_value,
                     css_hash,
+                    classes,
                     dev_location,
                 } => {
                     // Flush current HTML before option element
                     if !current_html.is_empty() {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.push(`{}`);\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.push(`{}`);\n",
                             indent, current_html
-                        ));
+                        );
                         current_html.clear();
                     }
+
+                    let rest = super::bridge::select_rest_args(
+                        css_hash.as_deref(),
+                        classes.as_deref(),
+                        *is_rich,
+                    );
 
                     // Generate $$renderer.option() call
                     let attrs_str = attr_entries.join(", ");
@@ -4960,21 +6008,36 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // If we have a direct value (from synthetic_value_node), pass it directly
                     if let Some(value_expr) = direct_value {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.option({}, {});\n",
-                            indent, attrs_obj, value_expr
-                        ));
-                    } else if *is_rich {
-                        // Build the $$renderer.option() call
-                        // If is_rich, we need to pass 7 arguments: attrs, body, void 0, void 0, void 0, void 0, true
-                        body_code.push_str(&format!(
-                            "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{\n",
+                        if rest.is_empty() {
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.option({}, {});",
+                                indent, attrs_obj, value_expr
+                            );
+                        } else {
+                            let _ = write!(
+                                body_code,
+                                "{}$$renderer.option(\n{}\t{},\n{}\t{},",
+                                indent, indent, attrs_obj, indent, value_expr
+                            );
+                            for arg in &rest {
+                                let _ = write!(body_code, "\n{}\t{},", indent, arg);
+                            }
+                            body_code.pop(); // strip trailing comma
+                            let _ = writeln!(body_code, "\n{});", indent);
+                        }
+                    } else if !rest.is_empty() {
+                        // Trailing args (css_hash / classes / customizable
+                        // `true`): multiline formatting
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{",
                             indent, indent, attrs_obj, indent
-                        ));
+                        );
 
                         // Dev mode: push_element after callback opening
                         if !dev_push.is_empty() {
-                            body_code.push_str(&format!("{}\t\t{}", indent, dev_push));
+                            let _ = write!(body_code, "{}\t\t{}", indent, dev_push);
                         }
 
                         // Body
@@ -4988,54 +6051,28 @@ impl<'a> ServerCodeGenerator<'a> {
 
                         // Dev mode: pop_element before callback closing
                         if !dev_push.is_empty() {
-                            body_code.push_str(&format!("{}\t\t$.pop_element();\n", indent));
+                            let _ = writeln!(body_code, "{}\t\t$.pop_element();", indent);
                         }
 
-                        // Close callback with remaining args
-                        body_code.push_str(&format!(
-                            "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
-                            indent, indent, indent, indent, indent, indent, indent
-                        ));
-                    } else if let Some(hash) = css_hash {
-                        // Has CSS hash - pass as 3rd argument
-                        body_code.push_str(&format!(
-                            "{}$$renderer.option(\n{}\t{},\n{}\t($$renderer) => {{\n",
-                            indent, indent, attrs_obj, indent
-                        ));
-
-                        // Dev mode: push_element
-                        if !dev_push.is_empty() {
-                            body_code.push_str(&format!("{}\t\t{}", indent, dev_push));
+                        // Close callback with remaining args. Trailing
+                        // undefined args are dropped (upstream b.call),
+                        // interior ones print `void 0`.
+                        let _ = write!(body_code, "{}\t}},", indent);
+                        for arg in &rest {
+                            let _ = write!(body_code, "\n{}\t{},", indent, arg);
                         }
-
-                        // Body
-                        let body_code_inner = Self::build_parts_with_store_subs(
-                            body,
-                            indent_level + 2,
-                            each_counter,
-                            store_subs,
-                        );
-                        body_code.push_str(&body_code_inner);
-
-                        // Dev mode: pop_element
-                        if !dev_push.is_empty() {
-                            body_code.push_str(&format!("{}\t\t$.pop_element();\n", indent));
-                        }
-
-                        // Close callback with CSS hash
-                        body_code.push_str(&format!(
-                            "{}\t}},\n{}\t'{}'\n{});\n",
-                            indent, indent, hash, indent
-                        ));
+                        body_code.pop(); // strip trailing comma
+                        let _ = writeln!(body_code, "\n{});", indent);
                     } else {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.option({}, ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.option({}, ($$renderer) => {{",
                             indent, attrs_obj
-                        ));
+                        );
 
                         // Dev mode: push_element
                         if !dev_push.is_empty() {
-                            body_code.push_str(&format!("{}\t{}", indent, dev_push));
+                            let _ = write!(body_code, "{}\t{}", indent, dev_push);
                         }
 
                         // Body
@@ -5049,11 +6086,11 @@ impl<'a> ServerCodeGenerator<'a> {
 
                         // Dev mode: pop_element
                         if !dev_push.is_empty() {
-                            body_code.push_str(&format!("{}\t$.pop_element();\n", indent));
+                            let _ = writeln!(body_code, "{}\t$.pop_element();", indent);
                         }
 
                         // Close callback
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        let _ = writeln!(body_code, "{}}});", indent);
                     }
                 }
                 OutputPart::AwaitBlock {
@@ -5067,8 +6104,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before await block
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -5084,10 +6121,11 @@ impl<'a> ServerCodeGenerator<'a> {
                         (indent_level, indent.clone())
                     };
                     if needs_child_block {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.child_block(async ($$renderer) => {{",
                             indent
-                        ));
+                        );
                     }
 
                     // Generate $.await call with proper callbacks
@@ -5105,21 +6143,22 @@ impl<'a> ServerCodeGenerator<'a> {
                         } else {
                             format!("({}) => {{}}", then_param)
                         };
-                        body_code.push_str(&format!(
-                            "{}$.await($$renderer, {}, () => {{}}, {});\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$.await($$renderer, {}, () => {{}}, {});",
                             await_indent, promise, then_fn
-                        ));
+                        );
                     } else {
                         // Multi-line format
-                        body_code.push_str(&format!("{}$.await(\n", await_indent));
-                        body_code.push_str(&format!("{}\t$$renderer,\n", await_indent));
-                        body_code.push_str(&format!("{}\t{},\n", await_indent, promise));
+                        let _ = writeln!(body_code, "{}$.await(", await_indent);
+                        let _ = writeln!(body_code, "{}\t$$renderer,", await_indent);
+                        let _ = writeln!(body_code, "{}\t{},", await_indent, promise);
 
                         // Pending callback
                         if pending_is_empty {
-                            body_code.push_str(&format!("{}\t() => {{}},\n", await_indent));
+                            let _ = writeln!(body_code, "{}\t() => {{}},", await_indent);
                         } else {
-                            body_code.push_str(&format!("{}\t() => {{\n", await_indent));
+                            let _ = writeln!(body_code, "{}\t() => {{", await_indent);
                             let pending_code = Self::build_parts_with_store_subs(
                                 pending_body,
                                 await_indent_level + 2,
@@ -5127,27 +6166,23 @@ impl<'a> ServerCodeGenerator<'a> {
                                 store_subs,
                             );
                             body_code.push_str(&pending_code);
-                            body_code.push_str(&format!("{}\t}},\n", await_indent));
+                            let _ = writeln!(body_code, "{}\t}},", await_indent);
                         }
 
                         // Then callback (last argument - no catch callback on server)
                         if then_is_empty {
                             if then_param.is_empty() {
-                                body_code.push_str(&format!("{}\t() => {{}}", await_indent));
+                                let _ = write!(body_code, "{}\t() => {{}}", await_indent);
                             } else {
-                                body_code.push_str(&format!(
-                                    "{}\t({}) => {{}}",
-                                    await_indent, then_param
-                                ));
+                                let _ =
+                                    write!(body_code, "{}\t({}) => {{}}", await_indent, then_param);
                             }
                         } else {
                             if then_param.is_empty() {
-                                body_code.push_str(&format!("{}\t() => {{\n", await_indent));
+                                let _ = writeln!(body_code, "{}\t() => {{", await_indent);
                             } else {
-                                body_code.push_str(&format!(
-                                    "{}\t({}) => {{\n",
-                                    await_indent, then_param
-                                ));
+                                let _ =
+                                    writeln!(body_code, "{}\t({}) => {{", await_indent, then_param);
                             }
                             let then_code = Self::build_parts_with_store_subs(
                                 then_body,
@@ -5156,15 +6191,15 @@ impl<'a> ServerCodeGenerator<'a> {
                                 store_subs,
                             );
                             body_code.push_str(&then_code);
-                            body_code.push_str(&format!("{}\t}}", await_indent));
+                            let _ = write!(body_code, "{}\t}}", await_indent);
                         }
 
                         body_code.push('\n');
-                        body_code.push_str(&format!("{});\n", await_indent));
+                        let _ = writeln!(body_code, "{});", await_indent);
                     }
 
                     if needs_child_block {
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        let _ = writeln!(body_code, "{}}});", indent);
                     }
 
                     // Add closing marker to the next push
@@ -5180,8 +6215,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // (b.stmt nodes inside build_template), so they must NOT fuse with
                     // surrounding HTML.
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -5189,17 +6224,19 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     if let Some(props) = failed_props {
                         // Wrap in $$renderer.boundary({props}, ($$renderer) => { ... });
-                        body_code.push_str(&format!(
-                            "\n{}$$renderer.boundary({}, ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "\n{}$$renderer.boundary({}, ($$renderer) => {{",
                             indent, props
-                        ));
+                        );
                         let inner_indent_level = indent_level + 1;
                         let inner_indent = "\t".repeat(inner_indent_level);
-                        body_code.push_str(&format!(
-                            "{}$$renderer.push(`{}`);\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.push(`{}`);\n",
                             inner_indent, open_marker
-                        ));
-                        body_code.push_str(&format!("{}{{\n", inner_indent));
+                        );
+                        let _ = writeln!(body_code, "{}{{", inner_indent);
                         if !body.is_empty() {
                             let body_code_inner = Self::build_parts_with_store_subs(
                                 body,
@@ -5209,17 +6246,14 @@ impl<'a> ServerCodeGenerator<'a> {
                             );
                             body_code.push_str(&body_code_inner);
                         }
-                        body_code.push_str(&format!("{}}}\n\n", inner_indent));
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", inner_indent));
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        let _ = writeln!(body_code, "{}}}\n", inner_indent);
+                        let _ = writeln!(body_code, "{}$$renderer.push(`<!--]-->`);", inner_indent);
+                        let _ = writeln!(body_code, "{}}});", indent);
                     } else {
                         // Emit open marker, body block, close marker as separate pushes
-                        body_code.push_str(&format!(
-                            "{}$$renderer.push(`{}`);\n\n",
-                            indent, open_marker
-                        ));
-                        body_code.push_str(&format!("{}{{\n", indent));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);\n", indent, open_marker);
+                        let _ = writeln!(body_code, "{}{{", indent);
                         if !body.is_empty() {
                             let body_code_inner = Self::build_parts_with_store_subs(
                                 body,
@@ -5229,8 +6263,8 @@ impl<'a> ServerCodeGenerator<'a> {
                             );
                             body_code.push_str(&body_code_inner);
                         }
-                        body_code.push_str(&format!("{}}}\n\n", indent));
-                        body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
+                        let _ = writeln!(body_code, "{}}}\n", indent);
+                        let _ = writeln!(body_code, "{}$$renderer.push(`<!--]-->`);", indent);
                     }
                 }
                 OutputPart::SvelteBoundaryWithPending {
@@ -5241,10 +6275,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before conditional
                     if !current_html.is_empty() {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.push(`{}`);\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.push(`{}`);\n",
                             indent, current_html
-                        ));
+                        );
                         current_html.clear();
                     }
 
@@ -5252,11 +6287,12 @@ impl<'a> ServerCodeGenerator<'a> {
                         |body_code: &mut String, indent_level: usize, each_counter: &mut usize| {
                             let indent = "\t".repeat(indent_level);
                             let inner_indent = format!("{}\t", indent);
-                            body_code.push_str(&format!("{}if ({}) {{\n", indent, pending_expr));
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`<!--[!-->`);\n",
+                            let _ = writeln!(body_code, "{}if ({}) {{", indent, pending_expr);
+                            let _ = writeln!(
+                                body_code,
+                                "{}$$renderer.push(`<!--[!-->`);",
                                 inner_indent
-                            ));
+                            );
                             if !pending_body.is_empty() {
                                 let pending_code = Self::build_parts_with_store_subs(
                                     pending_body,
@@ -5266,15 +6302,11 @@ impl<'a> ServerCodeGenerator<'a> {
                                 );
                                 body_code.push_str(&pending_code);
                             }
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`<!--]-->`);\n",
-                                inner_indent
-                            ));
-                            body_code.push_str(&format!("{}}} else {{\n", indent));
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`<!--[-->`);\n",
-                                inner_indent
-                            ));
+                            let _ =
+                                writeln!(body_code, "{}$$renderer.push(`<!--]-->`);", inner_indent);
+                            let _ = writeln!(body_code, "{}}} else {{", indent);
+                            let _ =
+                                writeln!(body_code, "{}$$renderer.push(`<!--[-->`);", inner_indent);
                             if !main_body.is_empty() {
                                 let main_code = Self::build_parts_with_store_subs(
                                     main_body,
@@ -5284,20 +6316,19 @@ impl<'a> ServerCodeGenerator<'a> {
                                 );
                                 body_code.push_str(&main_code);
                             }
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`<!--]-->`);\n",
-                                inner_indent
-                            ));
-                            body_code.push_str(&format!("{}}}\n", indent));
+                            let _ =
+                                writeln!(body_code, "{}$$renderer.push(`<!--]-->`);", inner_indent);
+                            let _ = writeln!(body_code, "{}}}", indent);
                         };
 
                     if let Some(props) = failed_props {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.boundary({}, ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.boundary({}, ($$renderer) => {{",
                             indent, props
-                        ));
+                        );
                         render_inner(&mut body_code, indent_level + 1, each_counter);
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        let _ = writeln!(body_code, "{}}});", indent);
                     } else {
                         render_inner(&mut body_code, indent_level, each_counter);
                     }
@@ -5305,16 +6336,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 OutputPart::SvelteHead { hash, body } => {
                     // Flush current HTML before head call
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate $.head('hash', $$renderer, ($$renderer) => { ... });
-                    body_code.push_str(&format!(
-                        "{}$.head('{}', $$renderer, ($$renderer) => {{\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$.head('{}', $$renderer, ($$renderer) => {{",
                         indent, hash
-                    ));
+                    );
 
                     if !body.is_empty() {
                         let body_code_inner = Self::build_parts_with_store_subs(
@@ -5326,18 +6358,18 @@ impl<'a> ServerCodeGenerator<'a> {
                         body_code.push_str(&body_code_inner);
                     }
 
-                    body_code.push_str(&format!("{}}});\n", indent));
+                    let _ = writeln!(body_code, "{}}});", indent);
                 }
                 OutputPart::TitleElement { body } => {
                     // Flush current HTML before title call
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate $$renderer.title(($$renderer) => { ... });
-                    body_code.push_str(&format!("{}$$renderer.title(($$renderer) => {{\n", indent));
+                    let _ = writeln!(body_code, "{}$$renderer.title(($$renderer) => {{", indent);
 
                     if !body.is_empty() {
                         let body_code_inner = Self::build_parts_with_store_subs(
@@ -5349,15 +6381,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         body_code.push_str(&body_code_inner);
                     }
 
-                    body_code.push_str(&format!("{}}});\n", indent));
+                    let _ = writeln!(body_code, "{}}});", indent);
                 }
                 OutputPart::TextareaBody { value_expr } => {
                     // Flush current HTML before textarea body
                     if !current_html.is_empty() {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.push(`{}`);\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.push(`{}`);\n",
                             indent, current_html
-                        ));
+                        );
                         current_html.clear();
                     }
 
@@ -5376,14 +6409,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     // if ($$body) {
                     //     $$renderer.push(`${$$body}`);
                     // } else {}
-                    body_code.push_str(&format!(
-                        "{}const {} = $.escape({});\n\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}const {} = $.escape({});\n",
                         indent, var_name, value_expr
-                    ));
-                    body_code.push_str(&format!(
-                        "{}if ({}) {{\n{}\t$$renderer.push(`${{{}}}`);\n{}}} else {{}}\n\n",
+                    );
+                    let _ = writeln!(
+                        body_code,
+                        "{}if ({}) {{\n{}\t$$renderer.push(`${{{}}}`);\n{}}} else {{}}\n",
                         indent, var_name, indent, var_name, indent
-                    ));
+                    );
                 }
                 OutputPart::ContentEditableBody {
                     value_expr,
@@ -5391,12 +6426,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before content-editable body
                     if !current_html.is_empty() {
-                        body_code.push_str(&format!(
+                        let _ = write!(
+                            body_code,
                             "{}$$renderer.push(`{}`);
 
 ",
                             indent, current_html
-                        ));
+                        );
                         current_html.clear();
                     }
 
@@ -5415,10 +6451,11 @@ impl<'a> ServerCodeGenerator<'a> {
                             format!("$$body_{}", textarea_body_count)
                         };
                         textarea_body_count += 1;
-                        body_code.push_str(&format!(
-                            "{}const {} = {};\n\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}const {} = {};\n",
                             indent, var_name, value_expr
-                        ));
+                        );
                         (var_name.clone(), var_name)
                     };
 
@@ -5428,16 +6465,12 @@ impl<'a> ServerCodeGenerator<'a> {
                     // } else {
                     //     /* children */
                     // }
-                    body_code.push_str(&format!(
-                        "{}if ({}) {{
-",
-                        indent, condition_expr
-                    ));
-                    body_code.push_str(&format!(
-                        "{}	$$renderer.push(`${{{}}}`);
-",
+                    let _ = writeln!(body_code, "{}if ({}) {{", indent, condition_expr);
+                    let _ = writeln!(
+                        body_code,
+                        "{}	$$renderer.push(`${{{}}}`);",
                         indent, push_expr
-                    ));
+                    );
                     // Generate children in the else branch
                     let children_code = Self::build_parts_with_store_subs(
                         children_body,
@@ -5446,25 +6479,23 @@ impl<'a> ServerCodeGenerator<'a> {
                         store_subs,
                     );
                     if children_code.trim().is_empty() {
-                        body_code.push_str(&format!(
+                        let _ = write!(
+                            body_code,
                             "{}}} else {{}}
 
 ",
                             indent
-                        ));
+                        );
                     } else {
-                        body_code.push_str(&format!(
-                            "{}}} else {{
-",
-                            indent
-                        ));
+                        let _ = writeln!(body_code, "{}}} else {{", indent);
                         body_code.push_str(&children_code);
-                        body_code.push_str(&format!(
+                        let _ = write!(
+                            body_code,
                             "{}}}
 
 ",
                             indent
-                        ));
+                        );
                     }
                 }
                 OutputPart::RenderCall {
@@ -5473,13 +6504,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before render call
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate the snippet function call
-                    body_code.push_str(&format!("{}{};\n", indent, call_str));
+                    let _ = writeln!(body_code, "{}{};", indent, call_str);
 
                     // Add hydration boundary marker after render call only if not in a standalone context
                     // Official Svelte adds empty_comment after RenderTag unless skip_hydration_boundaries is true
@@ -5490,35 +6521,35 @@ impl<'a> ServerCodeGenerator<'a> {
                 OutputPart::ConstDeclaration(declaration) => {
                     // Flush current HTML before const declaration
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate the const declaration
-                    body_code.push_str(&format!("{}const {};\n", indent, declaration));
+                    let _ = writeln!(body_code, "{}const {};", indent, declaration);
                 }
                 OutputPart::VarDeclaration(declaration) => {
                     // Flush current HTML before var declaration
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate the var declaration
-                    body_code.push_str(&format!("{}var {};\n", indent, declaration));
+                    let _ = writeln!(body_code, "{}var {};", indent, declaration);
                 }
                 OutputPart::BlockScope { body } => {
                     // Flush current HTML before block scope
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate the block scope
-                    body_code.push_str(&format!("{}{{\n", indent));
+                    let _ = writeln!(body_code, "{}{{", indent);
                     if !body.is_empty() {
                         let body_code_inner = Self::build_parts_with_store_subs(
                             body,
@@ -5528,7 +6559,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         );
                         body_code.push_str(&body_code_inner);
                     }
-                    body_code.push_str(&format!("{}}}\n", indent));
+                    let _ = writeln!(body_code, "{}}}", indent);
                 }
                 OutputPart::HydrationAnchor => {
                     // Add <!> marker to current HTML (hydration anchor for Components/RenderTags/HtmlTags in select/optgroup)
@@ -5542,15 +6573,18 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Flush current HTML before slot (+ add <!--[--> marker)
                     current_html.push_str("<!--[-->");
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // Generate $.slot() call
                     let fallback_arg = if let Some(fallback_parts) = fallback {
                         if fallback_parts.is_empty() {
-                            "null".to_string()
+                            // Non-null fallback whose body generates no output —
+                            // e.g. a comment-only `<slot><!-- x --></slot>`.
+                            // Upstream still emits the (empty) arrow, not null.
+                            "() => {}".to_string()
                         } else {
                             // Build fallback as a thunk: () => { ... }
                             let fallback_code = Self::build_parts_with_store_subs(
@@ -5572,10 +6606,11 @@ impl<'a> ServerCodeGenerator<'a> {
                     // which wraps async slot props in child_block.
                     if memmem::find(props_expr.as_bytes(), b"await ").is_some() {
                         let inner_indent = format!("{}\t", indent);
-                        body_code.push_str(&format!(
-                            "{}$$renderer.child_block(async ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.child_block(async ($$renderer) => {{",
                             indent
-                        ));
+                        );
 
                         // Extract await expressions from props and replace with const vars.
                         // e.g., { message: await 'hello' } -> const $$0 = (await $.save("hello"))();
@@ -5583,22 +6618,25 @@ impl<'a> ServerCodeGenerator<'a> {
                         let (extracted_consts, modified_props) =
                             extract_await_from_slot_props(props_expr);
                         for (i, await_expr) in extracted_consts.iter().enumerate() {
-                            body_code.push_str(&format!(
-                                "{}const $${} = (await $.save({}))();\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}const $${} = (await $.save({}))();",
                                 inner_indent, i, await_expr
-                            ));
+                            );
                         }
 
-                        body_code.push_str(&format!(
-                            "{}$.slot($$renderer, $$props, '{}', {}, {});\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$.slot($$renderer, $$props, '{}', {}, {});",
                             inner_indent, name, modified_props, fallback_arg
-                        ));
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        );
+                        let _ = writeln!(body_code, "{}}});", indent);
                     } else {
-                        body_code.push_str(&format!(
-                            "{}$.slot($$renderer, $$props, '{}', {}, {});\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$.slot($$renderer, $$props, '{}', {}, {});",
                             indent, name, props_expr, fallback_arg
-                        ));
+                        );
                     }
 
                     // Add closing marker
@@ -5616,8 +6654,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // Flush current HTML before async child
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -5626,16 +6664,17 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         "child"
                     };
-                    body_code.push_str(&format!(
-                        "{}$$renderer.{}(async ($$renderer) => {{\n",
+                    let _ = writeln!(
+                        body_code,
+                        "{}$$renderer.{}(async ($$renderer) => {{",
                         indent, method
-                    ));
+                    );
 
                     let inner_indent = format!("{}\t", indent);
 
                     // Emit hoisted declarations
                     for decl in declarations {
-                        body_code.push_str(&format!("{}{}\n", inner_indent, decl));
+                        let _ = writeln!(body_code, "{}{}", inner_indent, decl);
                     }
 
                     if !declarations.is_empty() {
@@ -5651,13 +6690,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     );
                     body_code.push_str(&inner_code);
 
-                    body_code.push_str(&format!("{}}});\n", indent));
+                    let _ = writeln!(body_code, "{}}});", indent);
                 }
                 OutputPart::RawStatement(stmt) => {
                     // Flush current HTML before raw statement
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
@@ -5677,7 +6716,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             in_tl = super::helpers::update_template_literal_state_for_indent(
                                 line, in_tl,
                             );
-                            body_code.push_str(&format!("{}{}\n", indent, line));
+                            let _ = writeln!(body_code, "{}{}", indent, line);
                         }
                     }
                     // Only add a trailing blank line for multi-line statements.
@@ -5696,17 +6735,18 @@ impl<'a> ServerCodeGenerator<'a> {
                 } => {
                     // Flush current HTML before function declaration
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        let _ =
+                            writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
                         current_html.clear();
                     }
 
                     // In dev mode, add prevent_snippet_stringification before the function
                     if *snippet_dev {
-                        body_code.push_str(&format!(
-                            "{}$.prevent_snippet_stringification({});\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$.prevent_snippet_stringification({});",
                             indent, name
-                        ));
+                        );
                     }
 
                     // Generate function declaration
@@ -5716,14 +6756,15 @@ impl<'a> ServerCodeGenerator<'a> {
                         format!("$$renderer, {}", params.join(", "))
                     };
 
-                    body_code.push_str(&format!("{}function {}({}) {{\n", indent, name, param_str));
+                    let _ = writeln!(body_code, "{}function {}({}) {{", indent, name, param_str);
 
                     // In dev mode, add validate_snippet_args
                     if *snippet_dev {
-                        body_code.push_str(&format!(
-                            "{}{}$.validate_snippet_args($$renderer);\n",
-                            indent, "\t"
-                        ));
+                        let _ = writeln!(
+                            body_code,
+                            "{}\t$.validate_snippet_args($$renderer);",
+                            indent
+                        );
                     }
 
                     // Generate body
@@ -5737,7 +6778,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         body_code.push_str(&body_inner);
                     }
 
-                    body_code.push_str(&format!("{}}}\n\n", indent));
+                    let _ = writeln!(body_code, "{}}}\n", indent);
                 }
                 OutputPart::ConstBlockerMetadata { .. } => {
                     // Metadata-only part, consumed by apply_const_async_wrapping.
@@ -5770,12 +6811,12 @@ impl<'a> ServerCodeGenerator<'a> {
         let indent = "\t".repeat(indent_level);
 
         // Start the if statement
-        code.push_str(&format!("{}if ({}) {{\n", indent, test_expr));
+        let _ = writeln!(code, "{}if ({}) {{", indent, test_expr);
 
         // Opening marker for consequent. Svelte 5.53.7 (upstream commit
         // `86ec21086`) switched if-block markers from `<!--[-->` / `<!--[!-->`
         // to numbered indices `<!--[0-->` ... `<!--[N-->` / `<!--[-1-->`.
-        code.push_str(&format!("{}\t$$renderer.push('<!--[0-->');\n", indent));
+        let _ = writeln!(code, "{}\t$$renderer.push('<!--[0-->');", indent);
 
         // Generate consequent body - hoist @const declarations to the top
         let hoisted_consequent = Self::hoist_const_declarations_and_strip_ws(consequent_body);
@@ -5788,7 +6829,7 @@ impl<'a> ServerCodeGenerator<'a> {
         code.push_str(&consequent_code);
 
         // Close consequent block
-        code.push_str(&format!("{}}}", indent));
+        let _ = write!(code, "{}}}", indent);
 
         // Flatten else-if chain: collect all branches
         let mut elseif_index: usize = 1; // next branch index (1, 2, ...)
@@ -5799,8 +6840,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 None => {
                     // No alternate at all - add empty else with BLOCK_OPEN_ELSE
                     code.push_str(" else {\n");
-                    code.push_str(&format!("{}\t$$renderer.push('<!--[-1-->');\n", indent));
-                    code.push_str(&format!("{}}}", indent));
+                    let _ = writeln!(code, "{}\t$$renderer.push('<!--[-1-->');", indent);
+                    let _ = write!(code, "{}}}", indent);
                     break;
                 }
                 Some(alt_body) => {
@@ -5821,8 +6862,8 @@ impl<'a> ServerCodeGenerator<'a> {
                         let marker = format!("<!--[{}-->", elseif_index);
                         elseif_index += 1;
 
-                        code.push_str(&format!(" else if ({}) {{\n", nested_test));
-                        code.push_str(&format!("{}\t$$renderer.push('{}');\n", indent, marker));
+                        let _ = writeln!(code, " else if ({}) {{", nested_test);
+                        let _ = writeln!(code, "{}\t$$renderer.push('{}');", indent, marker);
 
                         let hoisted_nested =
                             Self::hoist_const_declarations_and_strip_ws(nested_consequent);
@@ -5833,14 +6874,14 @@ impl<'a> ServerCodeGenerator<'a> {
                             store_subs,
                         );
                         code.push_str(&branch_code);
-                        code.push_str(&format!("{}}}", indent));
+                        let _ = write!(code, "{}}}", indent);
 
                         // Advance to next alternate
                         current_alt = nested_alternate.as_deref();
                     } else {
                         // Regular else (final branch in chain, or non-elseif block inside else)
                         code.push_str(" else {\n");
-                        code.push_str(&format!("{}\t$$renderer.push('<!--[-1-->');\n", indent));
+                        let _ = writeln!(code, "{}\t$$renderer.push('<!--[-1-->');", indent);
 
                         let hoisted_alt = Self::hoist_const_declarations_and_strip_ws(alt_body);
                         let alternate_code = Self::build_parts_with_store_subs(
@@ -5851,7 +6892,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         );
                         code.push_str(&alternate_code);
 
-                        code.push_str(&format!("{}}}", indent));
+                        let _ = write!(code, "{}}}", indent);
                         break;
                     }
                 }
@@ -5877,15 +6918,15 @@ impl<'a> ServerCodeGenerator<'a> {
         let indent = "\t".repeat(indent_level);
 
         // Generate $.await call with proper callbacks
-        code.push_str(&format!("{}$.await(\n", indent));
-        code.push_str(&format!("{}\t$$renderer,\n", indent));
-        code.push_str(&format!("{}\t{},\n", indent, promise));
+        let _ = writeln!(code, "{}$.await(", indent);
+        let _ = writeln!(code, "{}\t$$renderer,", indent);
+        let _ = writeln!(code, "{}\t{},", indent, promise);
 
         // Pending callback
         if pending_body.is_empty() {
-            code.push_str(&format!("{}\t() => {{}},\n", indent));
+            let _ = writeln!(code, "{}\t() => {{}},", indent);
         } else {
-            code.push_str(&format!("{}\t() => {{\n", indent));
+            let _ = writeln!(code, "{}\t() => {{", indent);
             let pending_code = Self::build_parts_with_store_subs(
                 pending_body,
                 indent_level + 2,
@@ -5893,21 +6934,21 @@ impl<'a> ServerCodeGenerator<'a> {
                 store_subs,
             );
             code.push_str(&pending_code);
-            code.push_str(&format!("{}\t}},\n", indent));
+            let _ = writeln!(code, "{}\t}},", indent);
         }
 
         // Then callback (last argument - no catch callback on server)
         if then_body.is_empty() {
             if then_param.is_empty() {
-                code.push_str(&format!("{}\t() => {{}}", indent));
+                let _ = write!(code, "{}\t() => {{}}", indent);
             } else {
-                code.push_str(&format!("{}\t({}) => {{}}", indent, then_param));
+                let _ = write!(code, "{}\t({}) => {{}}", indent, then_param);
             }
         } else {
             if then_param.is_empty() {
-                code.push_str(&format!("{}\t() => {{\n", indent));
+                let _ = writeln!(code, "{}\t() => {{", indent);
             } else {
-                code.push_str(&format!("{}\t({}) => {{\n", indent, then_param));
+                let _ = writeln!(code, "{}\t({}) => {{", indent, then_param);
             }
             let then_code = Self::build_parts_with_store_subs(
                 then_body,
@@ -5916,11 +6957,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 store_subs,
             );
             code.push_str(&then_code);
-            code.push_str(&format!("{}\t}}", indent));
+            let _ = write!(code, "{}\t}}", indent);
         }
 
         code.push('\n');
-        code.push_str(&format!("{});\n", indent));
+        let _ = writeln!(code, "{});", indent);
 
         code
     }
@@ -5981,44 +7022,47 @@ impl<'a> ServerCodeGenerator<'a> {
         *each_counter += 1;
 
         if needs_child_block {
-            code.push_str(&format!(
-                "{}$$renderer.child_block(async ($$renderer) => {{\n",
+            let _ = writeln!(
+                code,
+                "{}$$renderer.child_block(async ($$renderer) => {{",
                 indent
-            ));
+            );
         }
 
         if fallback.is_some() {
-            code.push_str(&format!(
-                "{}const {} = $.ensure_array_like({});\n\n",
+            let _ = writeln!(
+                code,
+                "{}const {} = $.ensure_array_like({});\n",
                 effective_indent, array_var, transformed_iterable
-            ));
+            );
 
-            code.push_str(&format!(
-                "{}if ({}.length !== 0) {{\n",
+            let _ = writeln!(
+                code,
+                "{}if ({}.length !== 0) {{",
                 effective_indent, array_var
-            ));
-            code.push_str(&format!(
-                "{}\t$$renderer.push('<!--[-->');\n\n",
-                effective_indent
-            ));
+            );
+            let _ = writeln!(code, "{}\t$$renderer.push('<!--[-->');\n", effective_indent);
 
-            code.push_str(&format!(
-                "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+            let _ = writeln!(
+                code,
+                "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
                 effective_indent, index_var, array_var, index_var, index_var
-            ));
+            );
 
             if let Some(ctx_name) = context_name {
-                code.push_str(&format!(
-                    "{}\t\tlet {} = {}[{}];\n",
+                let _ = writeln!(
+                    code,
+                    "{}\t\tlet {} = {}[{}];",
                     effective_indent, ctx_name, array_var, index_var
-                ));
+                );
             }
 
             if let Some(alias) = index_alias {
-                code.push_str(&format!(
-                    "{}\t\tlet {} = {};\n",
+                let _ = writeln!(
+                    code,
+                    "{}\t\tlet {} = {};",
                     effective_indent, alias, index_var
-                ));
+                );
             }
 
             if context_name.is_some() || index_alias.is_some() {
@@ -6034,13 +7078,10 @@ impl<'a> ServerCodeGenerator<'a> {
             );
             code.push_str(&body_code_inner);
 
-            code.push_str(&format!("{}\t}}\n", effective_indent));
+            let _ = writeln!(code, "{}\t}}", effective_indent);
 
-            code.push_str(&format!("{}}} else {{\n", effective_indent));
-            code.push_str(&format!(
-                "{}\t$$renderer.push('<!--[!-->');\n",
-                effective_indent
-            ));
+            let _ = writeln!(code, "{}}} else {{", effective_indent);
+            let _ = writeln!(code, "{}\t$$renderer.push('<!--[!-->');", effective_indent);
 
             if let Some(fb) = fallback {
                 let fallback_code = Self::build_parts_with_store_subs(
@@ -6052,31 +7093,31 @@ impl<'a> ServerCodeGenerator<'a> {
                 code.push_str(&fallback_code);
             }
 
-            code.push_str(&format!("{}}}\n", effective_indent));
+            let _ = writeln!(code, "{}}}", effective_indent);
         } else {
             // No fallback
-            code.push_str(&format!(
-                "{}const {} = $.ensure_array_like({});\n\n",
+            let _ = writeln!(
+                code,
+                "{}const {} = $.ensure_array_like({});\n",
                 effective_indent, array_var, transformed_iterable
-            ));
+            );
 
-            code.push_str(&format!(
-                "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+            let _ = writeln!(
+                code,
+                "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{",
                 effective_indent, index_var, array_var, index_var, index_var
-            ));
+            );
 
             if let Some(ctx_name) = context_name {
-                code.push_str(&format!(
-                    "{}\tlet {} = {}[{}];\n",
+                let _ = writeln!(
+                    code,
+                    "{}\tlet {} = {}[{}];",
                     effective_indent, ctx_name, array_var, index_var
-                ));
+                );
             }
 
             if let Some(alias) = index_alias {
-                code.push_str(&format!(
-                    "{}\tlet {} = {};\n",
-                    effective_indent, alias, index_var
-                ));
+                let _ = writeln!(code, "{}\tlet {} = {};", effective_indent, alias, index_var);
             }
 
             if context_name.is_some() || index_alias.is_some() {
@@ -6092,11 +7133,11 @@ impl<'a> ServerCodeGenerator<'a> {
             );
             code.push_str(&body_code_inner);
 
-            code.push_str(&format!("{}}}\n", effective_indent));
+            let _ = writeln!(code, "{}}}", effective_indent);
         }
 
         if needs_child_block {
-            code.push_str(&format!("{}}});\n\n", indent));
+            let _ = writeln!(code, "{}}});\n", indent);
         }
 
         code
@@ -6114,10 +7155,11 @@ impl<'a> ServerCodeGenerator<'a> {
         for snippet in hoisted {
             // In dev mode, add prevent_snippet_stringification before the function declaration
             if self.dev {
-                result.push_str(&format!(
-                    "$.prevent_snippet_stringification({});\n",
+                let _ = writeln!(
+                    result,
+                    "$.prevent_snippet_stringification({});",
                     snippet.name
-                ));
+                );
             }
 
             // Generate function signature
@@ -6127,7 +7169,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 format!("$$renderer, {}", snippet.params.join(", "))
             };
 
-            result.push_str(&format!("function {}({}) {{\n", snippet.name, params));
+            let _ = writeln!(result, "function {}({}) {{", snippet.name, params);
 
             // In dev mode, add snippet argument validation
             if self.dev {
@@ -6168,10 +7210,11 @@ impl<'a> ServerCodeGenerator<'a> {
         for snippet in instance {
             // In dev mode, add prevent_snippet_stringification before the function declaration
             if self.dev {
-                result.push_str(&format!(
-                    "{}$.prevent_snippet_stringification({});\n",
+                let _ = writeln!(
+                    result,
+                    "{}$.prevent_snippet_stringification({});",
                     indent, snippet.name
-                ));
+                );
             }
 
             // Generate function signature
@@ -6181,18 +7224,16 @@ impl<'a> ServerCodeGenerator<'a> {
                 format!("$$renderer, {}", snippet.params.join(", "))
             };
 
-            result.push_str(&format!(
-                "{}function {}({}) {{\n",
-                indent, snippet.name, params
-            ));
+            let _ = writeln!(result, "{}function {}({}) {{", indent, snippet.name, params);
 
             // In dev mode, add snippet argument validation
             if self.dev {
                 let inner_indent = "\t".repeat(indent_level + 1);
-                result.push_str(&format!(
-                    "{}$.validate_snippet_args($$renderer);\n",
+                let _ = writeln!(
+                    result,
+                    "{}$.validate_snippet_args($$renderer);",
                     inner_indent
-                ));
+                );
             }
 
             // Generate body - snippets have their own counter scope
@@ -6210,7 +7251,7 @@ impl<'a> ServerCodeGenerator<'a> {
             );
             result.push_str(&body);
 
-            result.push_str(&format!("{}}}\n\n", indent));
+            let _ = writeln!(result, "{}}}\n", indent);
         }
 
         result
@@ -6229,18 +7270,20 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // If uses_slots, add $$slots = $.sanitize_slots($$props)
         if analysis.uses_slots {
-            result.push_str(&format!(
-                "{}const $$slots = $.sanitize_slots($$props);\n",
+            let _ = writeln!(
+                result,
+                "{}const $$slots = $.sanitize_slots($$props);",
                 indent
-            ));
+            );
         }
 
         // If uses_props or uses_rest_props, add $$sanitized_props
         if analysis.uses_props || analysis.uses_rest_props {
-            result.push_str(&format!(
-                "{}const $$sanitized_props = $.sanitize_props($$props);\n",
+            let _ = writeln!(
+                result,
+                "{}const $$sanitized_props = $.sanitize_props($$props);",
                 indent
-            ));
+            );
         }
 
         // If uses_rest_props, add $$restProps
@@ -6270,10 +7313,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 .map(|p| format!("'{}'", p))
                 .collect::<Vec<_>>()
                 .join(", ");
-            result.push_str(&format!(
-                "{}const $$restProps = $.rest_props($$sanitized_props, [{}]);\n",
+            let _ = writeln!(
+                result,
+                "{}const $$restProps = $.rest_props($$sanitized_props, [{}]);",
                 indent, props_array
-            ));
+            );
         }
 
         result
@@ -6356,7 +7400,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         if !super::helpers::html_template_contains_await(current_html) {
             // No await in template expressions - flush normally
-            body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+            let _ = writeln!(body_code, "{}$$renderer.push(`{}`);", indent, current_html);
             current_html.clear();
             return;
         }
@@ -6374,7 +7418,7 @@ impl<'a> ServerCodeGenerator<'a> {
             match seg {
                 AwaitHtmlSegment::Static(s) => {
                     if !s.is_empty() {
-                        body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, s));
+                        let _ = writeln!(body_code, "{}$$renderer.push(`{}`);", indent, s);
                     }
                 }
                 AwaitHtmlSegment::ElementWithAwait(html) => {
@@ -6382,24 +7426,24 @@ impl<'a> ServerCodeGenerator<'a> {
                         super::helpers::extract_await_from_html_template(&html);
                     if declarations.is_empty() {
                         // Fallback - no await extracted
-                        body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, html));
+                        let _ = writeln!(body_code, "{}$$renderer.push(`{}`);", indent, html);
                     } else {
-                        body_code.push_str(&format!(
-                            "{}$$renderer.child(async ($$renderer) => {{\n",
+                        let _ = writeln!(
+                            body_code,
+                            "{}$$renderer.child(async ($$renderer) => {{",
                             indent
-                        ));
+                        );
                         for (var_name, decl_value) in &declarations {
-                            body_code.push_str(&format!(
-                                "{}\tconst {} = {};\n",
+                            let _ = writeln!(
+                                body_code,
+                                "{}\tconst {} = {};",
                                 indent, var_name, decl_value
-                            ));
+                            );
                         }
                         body_code.push('\n');
-                        body_code.push_str(&format!(
-                            "{}\t$$renderer.push(`{}`);\n",
-                            indent, transformed
-                        ));
-                        body_code.push_str(&format!("{}}});\n", indent));
+                        let _ =
+                            writeln!(body_code, "{}\t$$renderer.push(`{}`);", indent, transformed);
+                        let _ = writeln!(body_code, "{}}});", indent);
                     }
                 }
             }
@@ -6565,6 +7609,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // hydration guard, so the call itself is always direct (no `?.`).
         let call_syntax = "";
         let has_css_props = !css_custom_props.is_empty();
+        // Capture where the component call code begins so a `<Component --x="…">`
+        // with slotted content can be wrapped in `$.css_props(...)` afterwards
+        // (the no-children branch self-wraps; the children/snippets one does not).
+        let comp_code_start = code.len();
 
         if has_snippets || has_children {
             #[allow(clippy::type_complexity)]
@@ -6582,17 +7630,18 @@ impl<'a> ServerCodeGenerator<'a> {
                 code.push_str("{\n");
                 for (snippet_name, params, body_parts, _) in &true_snippets {
                     if component_dev {
-                        code.push_str(&format!(
-                            "\t$.prevent_snippet_stringification({});\n",
+                        let _ = writeln!(
+                            code,
+                            "\t$.prevent_snippet_stringification({});",
                             snippet_name
-                        ));
+                        );
                     }
                     let params_str = if params.is_empty() {
                         "$$renderer".to_string()
                     } else {
                         format!("$$renderer, {}", params.join(", "))
                     };
-                    code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
+                    let _ = writeln!(code, "\tfunction {}({}) {{", snippet_name, params_str);
                     if component_dev {
                         code.push_str("\t\t$.validate_snippet_args($$renderer);\n");
                     }
@@ -6659,36 +7708,38 @@ impl<'a> ServerCodeGenerator<'a> {
                     // drop the `{...rest}`. Emit
                     // `Child($$renderer, $.spread_props([…interleaved spreads/props…, { snippets, $$slots }]))`
                     // (issue #448, H-104/H-105).
-                    code.push_str(&format!(
-                        "\t{}{}($$renderer, $.spread_props([\n",
+                    let _ = writeln!(
+                        code,
+                        "\t{}{}($$renderer, $.spread_props([",
                         name, call_syntax
-                    ));
+                    );
                     for item in props_and_spreads {
                         match item {
                             ComponentPropItem::Props(props) => {
-                                code.push_str(&format!("\t\t{{ {} }},\n", props.join(", ")));
+                                let _ = writeln!(code, "\t\t{{ {} }},", props.join(", "));
                             }
                             ComponentPropItem::Spread(expr) => {
-                                code.push_str(&format!("\t\t{},\n", expr));
+                                let _ = writeln!(code, "\t\t{},", expr);
                             }
                         }
                     }
                     let mut final_entries = props_after_spread.clone();
                     final_entries.push(format!("$$slots: {{ {} }}", slots_str));
-                    code.push_str(&format!("\t\t{{ {} }}\n", final_entries.join(", ")));
+                    let _ = writeln!(code, "\t\t{{ {} }}", final_entries.join(", "));
                     code.push_str("\t]));\n");
                 } else {
                     let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
                     all_props.extend(props_after_spread);
-                    code.push_str(&format!("\t{}{}($$renderer, {{ ", name, call_syntax));
+                    let _ = write!(code, "\t{}{}($$renderer, {{ ", name, call_syntax);
                     if all_props.is_empty() {
-                        code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
+                        let _ = writeln!(code, "$$slots: {{ {} }} }});", slots_str);
                     } else {
-                        code.push_str(&format!(
-                            "{}, $$slots: {{ {} }} }});\n",
+                        let _ = writeln!(
+                            code,
+                            "{}, $$slots: {{ {} }} }});",
                             all_props.join(", "),
                             slots_str
-                        ));
+                        );
                     }
                 }
                 code.push_str("}\n");
@@ -6709,16 +7760,18 @@ impl<'a> ServerCodeGenerator<'a> {
                         3,
                     );
                     if params.is_empty() {
-                        slots_block.push_str(&format!(
+                        let _ = write!(
+                            slots_block,
                             "\t\t{}: ($$renderer) => {{\n{}",
                             quoted_name, fn_body
-                        ));
+                        );
                     } else {
                         let params_str = format!("{{ {} }}", params.join(", "));
-                        slots_block.push_str(&format!(
+                        let _ = write!(
+                            slots_block,
                             "\t\t{}: ($$renderer, {}) => {{\n{}",
                             quoted_name, params_str, fn_body
-                        ));
+                        );
                     }
                     slots_block.push_str("\t\t},\n");
                 }
@@ -6729,17 +7782,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     // `{...rest}`. Emit
                     // `$.spread_props([…interleaved spreads/props…, { [children:…], $$slots: { … } }])`
                     // (issue #448, H-105).
-                    code.push_str(&format!(
-                        "{}{}($$renderer, $.spread_props([\n",
-                        name, call_syntax
-                    ));
+                    let _ = writeln!(code, "{}{}($$renderer, $.spread_props([", name, call_syntax);
                     for item in props_and_spreads {
                         match item {
                             ComponentPropItem::Props(props) => {
-                                code.push_str(&format!("\t{{ {} }},\n", props.join(", ")));
+                                let _ = writeln!(code, "\t{{ {} }},", props.join(", "));
                             }
                             ComponentPropItem::Spread(expr) => {
-                                code.push_str(&format!("\t{},\n", expr));
+                                let _ = writeln!(code, "\t{},", expr);
                             }
                         }
                     }
@@ -6747,28 +7797,25 @@ impl<'a> ServerCodeGenerator<'a> {
                     if default_has_let_dirs {
                         code.push_str("\t\tchildren: $.invalid_default_snippet,\n");
                     }
-                    code.push_str(&format!("\t\t{}\n", slots_block));
+                    let _ = writeln!(code, "\t\t{}", slots_block);
                     code.push_str("\t}\n");
                     code.push_str("]));\n");
                 } else {
                     let all_props = collect_all_props(props_and_spreads);
-                    code.push_str(&format!("{}{}($$renderer, {{\n", name, call_syntax));
+                    let _ = writeln!(code, "{}{}($$renderer, {{", name, call_syntax);
                     for prop in &all_props {
-                        code.push_str(&format!("\t{},\n", prop));
+                        let _ = writeln!(code, "\t{},", prop);
                     }
                     if default_has_let_dirs {
                         code.push_str("\tchildren: $.invalid_default_snippet,\n");
                     }
-                    code.push_str(&format!("\t{}\n", slots_block));
+                    let _ = writeln!(code, "\t{}", slots_block);
                     code.push_str("});\n");
                 }
             } else if let Some(children_parts) = children {
                 let has_let_dirs = !let_directives.is_empty();
                 if component_has_spreads {
-                    code.push_str(&format!(
-                        "{}{}($$renderer, $.spread_props([\n",
-                        name, call_syntax
-                    ));
+                    let _ = writeln!(code, "{}{}($$renderer, $.spread_props([", name, call_syntax);
                     let trailing_props: Vec<String> =
                         if let Some(ComponentPropItem::Props(props)) = props_and_spreads.last() {
                             props.clone()
@@ -6783,25 +7830,22 @@ impl<'a> ServerCodeGenerator<'a> {
                     for item in items_to_emit.iter() {
                         match item {
                             ComponentPropItem::Props(props) => {
-                                code.push_str(&format!("\t{{ {} }},\n", props.join(", ")));
+                                let _ = writeln!(code, "\t{{ {} }},", props.join(", "));
                             }
                             ComponentPropItem::Spread(expr) => {
-                                code.push_str(&format!("\t{},\n", expr));
+                                let _ = writeln!(code, "\t{},", expr);
                             }
                         }
                     }
                     code.push_str("\t{\n");
                     for prop in &trailing_props {
-                        code.push_str(&format!("\t\t{},\n", prop));
+                        let _ = writeln!(code, "\t\t{},", prop);
                     }
                     if has_let_dirs {
                         code.push_str("\t\tchildren: $.invalid_default_snippet,\n");
                         code.push_str("\t\t$$slots: {\n");
                         let params_str = format!("{{ {} }}", let_directives.join(", "));
-                        code.push_str(&format!(
-                            "\t\t\tdefault: ($$renderer, {}) => {{\n",
-                            params_str
-                        ));
+                        let _ = writeln!(code, "\t\t\tdefault: ($$renderer, {}) => {{", params_str);
                         let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
                             store_subs,
@@ -6819,16 +7863,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                 4,
                             );
                             if params.is_empty() {
-                                code.push_str(&format!(
+                                let _ = write!(
+                                    code,
                                     "\t\t\t{}: ($$renderer) => {{\n{}",
                                     quoted_name, fn_body
-                                ));
+                                );
                             } else {
                                 let params_str = format!("{{ {} }}", params.join(", "));
-                                code.push_str(&format!(
+                                let _ = write!(
+                                    code,
                                     "\t\t\t{}: ($$renderer, {}) => {{\n{}",
                                     quoted_name, params_str, fn_body
-                                ));
+                                );
                             }
                             code.push_str("\t\t\t},\n");
                         }
@@ -6865,16 +7911,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                     4,
                                 );
                                 if params.is_empty() {
-                                    code.push_str(&format!(
+                                    let _ = write!(
+                                        code,
                                         "\t\t\t{}: ($$renderer) => {{\n{}",
                                         quoted_name, fn_body
-                                    ));
+                                    );
                                 } else {
                                     let params_str = format!("{{ {} }}", params.join(", "));
-                                    code.push_str(&format!(
+                                    let _ = write!(
+                                        code,
                                         "\t\t\t{}: ($$renderer, {}) => {{\n{}",
                                         quoted_name, params_str, fn_body
-                                    ));
+                                    );
                                 }
                                 code.push_str("\t\t\t},\n");
                             }
@@ -6887,9 +7935,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     code.push_str("]));\n");
                 } else {
                     let all_props = collect_all_props(props_and_spreads);
-                    code.push_str(&format!("{}{}($$renderer, {{\n", name, call_syntax));
+                    let _ = writeln!(code, "{}{}($$renderer, {{", name, call_syntax);
                     for prop in &all_props {
-                        code.push_str(&format!("\t{},\n", prop));
+                        let _ = writeln!(code, "\t{},", prop);
                     }
                     let children_already_in_props = all_props.iter().any(|p| {
                         p == "children" || p.starts_with("children:") || p.starts_with("children ")
@@ -6898,10 +7946,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         code.push_str("\tchildren: $.invalid_default_snippet,\n");
                         code.push_str("\t$$slots: {\n");
                         let params_str = format!("{{ {} }}", let_directives.join(", "));
-                        code.push_str(&format!(
-                            "\t\tdefault: ($$renderer, {}) => {{\n",
-                            params_str
-                        ));
+                        let _ = writeln!(code, "\t\tdefault: ($$renderer, {}) => {{", params_str);
                         let children_code = super::bridge::generate_inner_body_code_direct(
                             children_parts,
                             store_subs,
@@ -6919,16 +7964,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                 3,
                             );
                             if params.is_empty() {
-                                code.push_str(&format!(
+                                let _ = write!(
+                                    code,
                                     "\t\t{}: ($$renderer) => {{\n{}",
                                     quoted_name, fn_body
-                                ));
+                                );
                             } else {
                                 let params_str = format!("{{ {} }}", params.join(", "));
-                                code.push_str(&format!(
+                                let _ = write!(
+                                    code,
                                     "\t\t{}: ($$renderer, {}) => {{\n{}",
                                     quoted_name, params_str, fn_body
-                                ));
+                                );
                             }
                             code.push_str("\t\t},\n");
                         }
@@ -6941,10 +7988,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             each_counter,
                             3,
                         );
-                        code.push_str(&format!(
-                            "\t\tdefault: ($$renderer) => {{\n{}",
-                            children_code
-                        ));
+                        let _ = write!(code, "\t\tdefault: ($$renderer) => {{\n{}", children_code);
                         code.push_str("\t\t}");
                         for (slot_name, params, body_parts, _) in &slot_children {
                             code.push_str(",\n");
@@ -6956,16 +8000,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                 3,
                             );
                             if params.is_empty() {
-                                code.push_str(&format!(
+                                let _ = write!(
+                                    code,
                                     "\t\t{}: ($$renderer) => {{\n{}",
                                     quoted_name, fn_body
-                                ));
+                                );
                             } else {
                                 let params_str = format!("{{ {} }}", params.join(", "));
-                                code.push_str(&format!(
+                                let _ = write!(
+                                    code,
                                     "\t\t{}: ($$renderer, {}) => {{\n{}",
                                     quoted_name, params_str, fn_body
-                                ));
+                                );
                             }
                             code.push_str("\t\t}");
                         }
@@ -7003,16 +8049,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                     3,
                                 );
                                 if params.is_empty() {
-                                    code.push_str(&format!(
+                                    let _ = write!(
+                                        code,
                                         "\t\t{}: ($$renderer) => {{\n{}",
                                         quoted_name, fn_body
-                                    ));
+                                    );
                                 } else {
                                     let params_str = format!("{{ {} }}", params.join(", "));
-                                    code.push_str(&format!(
+                                    let _ = write!(
+                                        code,
                                         "\t\t{}: ($$renderer, {}) => {{\n{}",
                                         quoted_name, params_str, fn_body
-                                    ));
+                                    );
                                 }
                                 code.push_str("\t\t},\n");
                             }
@@ -7112,20 +8160,22 @@ impl<'a> ServerCodeGenerator<'a> {
                 if !save_decls.is_empty() {
                     code.push('\n');
                 }
-                code.push_str(&format!(
-                    "\t{}{}($$renderer, $.spread_props([{}]));\n",
+                let _ = writeln!(
+                    code,
+                    "\t{}{}($$renderer, $.spread_props([{}]));",
                     name,
                     call_syntax,
                     transformed_items.join(", ")
-                ));
+                );
                 code.push_str("});\n");
             } else {
-                code.push_str(&format!(
-                    "{}{}($$renderer, $.spread_props([{}]));\n",
+                let _ = writeln!(
+                    code,
+                    "{}{}($$renderer, $.spread_props([{}]));",
                     name,
                     call_syntax,
                     spread_items.join(", ")
-                ));
+                );
             }
         } else {
             let all_props = collect_all_props(props_and_spreads);
@@ -7135,19 +8185,21 @@ impl<'a> ServerCodeGenerator<'a> {
                     .map(|(n, v)| format!("{}: {}", n, v))
                     .collect::<Vec<_>>()
                     .join(", ");
-                code.push_str(&format!(
-                    "\n$.css_props($$renderer, {}, {{ {} }}, () => {{\n",
+                let _ = writeln!(
+                    code,
+                    "\n$.css_props($$renderer, {}, {{ {} }}, () => {{",
                     css_props_is_html, css_props_str
-                ));
+                );
                 if all_props.is_empty() {
-                    code.push_str(&format!("\t{}{}($$renderer, {{}});\n", name, call_syntax));
+                    let _ = writeln!(code, "\t{}{}($$renderer, {{}});", name, call_syntax);
                 } else {
-                    code.push_str(&format!(
-                        "\t{}{}($$renderer, {{ {} }});\n",
+                    let _ = writeln!(
+                        code,
+                        "\t{}{}($$renderer, {{ {} }});",
                         name,
                         call_syntax,
                         all_props.join(", ")
-                    ));
+                    );
                 }
                 if dynamic {
                     code.push_str("}, true);\n");
@@ -7155,7 +8207,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     code.push_str("});\n");
                 }
             } else if all_props.is_empty() {
-                code.push_str(&format!("{}{}($$renderer, {{}});\n", name, call_syntax));
+                let _ = writeln!(code, "{}{}($$renderer, {{}});", name, call_syntax);
             } else {
                 let has_await_props = all_props
                     .iter()
@@ -7191,21 +8243,48 @@ impl<'a> ServerCodeGenerator<'a> {
                     if !save_decls.is_empty() {
                         code.push('\n');
                     }
-                    code.push_str(&format!(
-                        "\t{}{}($$renderer, {{ {} }});\n",
+                    let _ = writeln!(
+                        code,
+                        "\t{}{}($$renderer, {{ {} }});",
                         name,
                         call_syntax,
                         transformed_props.join(", ")
-                    ));
+                    );
                     code.push_str("});\n");
                 } else {
-                    code.push_str(&format!(
-                        "{}{}($$renderer, {{ {} }});\n",
+                    let _ = writeln!(
+                        code,
+                        "{}{}($$renderer, {{ {} }});",
                         name,
                         call_syntax,
                         all_props.join(", ")
-                    ));
+                    );
                 }
+            }
+        }
+
+        // Component CSS custom properties (`<Component --x="…">`): the
+        // children/snippets branch above does not self-wrap in `$.css_props(...)`
+        // (only the no-children branch does), so wrap its slotted output here,
+        // mirroring upstream's css_props wrapper around the whole component call.
+        if has_css_props && (has_snippets || has_children) {
+            let segment = code[comp_code_start..].to_string();
+            code.truncate(comp_code_start);
+            let css_props_str = css_custom_props
+                .iter()
+                .map(|(n, v)| format!("{}: {}", n, v))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(
+                code,
+                "\n$.css_props($$renderer, {}, {{ {} }}, () => {{",
+                css_props_is_html, css_props_str
+            );
+            code.push_str(&segment);
+            if dynamic {
+                code.push_str("}, true);\n");
+            } else {
+                code.push_str("});\n");
             }
         }
 
@@ -7301,7 +8380,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         format!("$$renderer, {}", params.join(", "))
                     };
-                    code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
+                    let _ = writeln!(code, "\tfunction {}({}) {{", snippet_name, params_str);
                     let snippet_body = super::bridge::generate_inner_body_code_direct(
                         body_parts,
                         store_subs,
@@ -7314,21 +8393,22 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             let inner_indent = if has_true_snippets { "\t" } else { "" };
 
-            code.push_str(&format!(
-                "{}{}{}($$renderer, $.spread_props([\n",
+            let _ = writeln!(
+                code,
+                "{}{}{}($$renderer, $.spread_props([",
                 inner_indent, name, call_syntax
-            ));
+            );
             for item in props_and_spreads {
                 match item {
                     ComponentPropItem::Props(props) => {
-                        code.push_str(&format!("{}\t{{ {} }},\n", inner_indent, props.join(", ")));
+                        let _ = writeln!(code, "{}\t{{ {} }},", inner_indent, props.join(", "));
                     }
                     ComponentPropItem::Spread(expr) => {
-                        code.push_str(&format!("{}\t{},\n", inner_indent, expr));
+                        let _ = writeln!(code, "{}\t{},", inner_indent, expr);
                     }
                 }
             }
-            code.push_str(&format!("{}\t{{\n", inner_indent));
+            let _ = writeln!(code, "{}\t{{", inner_indent);
 
             let binding_count = bindings.len();
             let has_extras = has_true_snippets
@@ -7339,28 +8419,25 @@ impl<'a> ServerCodeGenerator<'a> {
                 let (prop_name, getter_expr, setter_expr) =
                     resolve_binding_exprs(binding, store_subs);
                 let is_seq = matches!(binding, ComponentBinding::SequenceExpression { .. });
-                code.push_str(&format!("{}\t\tget {}() {{\n", inner_indent, prop_name));
-                code.push_str(&format!("{}\t\t\treturn {};\n", inner_indent, getter_expr));
-                code.push_str(&format!("{}\t\t}},\n\n", inner_indent));
-                code.push_str(&format!(
-                    "{}\t\tset {}($$value) {{\n",
-                    inner_indent, prop_name
-                ));
-                code.push_str(&format!("{}\t\t\t{};\n", inner_indent, setter_expr));
+                let _ = writeln!(code, "{}\t\tget {}() {{", inner_indent, prop_name);
+                let _ = writeln!(code, "{}\t\t\treturn {};", inner_indent, getter_expr);
+                let _ = writeln!(code, "{}\t\t}},\n", inner_indent);
+                let _ = writeln!(code, "{}\t\tset {}($$value) {{", inner_indent, prop_name);
+                let _ = writeln!(code, "{}\t\t\t{};", inner_indent, setter_expr);
                 if !is_seq {
-                    code.push_str(&format!("{}\t\t\t$$settled = false;\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t\t$$settled = false;", inner_indent);
                 }
                 let is_last_binding = idx == binding_count - 1;
                 if is_last_binding && !has_extras {
-                    code.push_str(&format!("{}\t\t}}\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t}}", inner_indent);
                 } else {
-                    code.push_str(&format!("{}\t\t}},\n\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t}},\n", inner_indent);
                 }
             }
 
             // True snippet names
             for (snippet_name, _, _, _) in &true_snippets {
-                code.push_str(&format!("{}\t\t{},\n", inner_indent, snippet_name));
+                let _ = writeln!(code, "{}\t\t{},", inner_indent, snippet_name);
             }
 
             // Default `children` callback (separate from `$$slots`)
@@ -7372,21 +8449,19 @@ impl<'a> ServerCodeGenerator<'a> {
                     if has_true_snippets { 3 } else { 2 },
                 );
                 if component_dev {
-                    code.push_str(&format!(
-                        "{}\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                    let _ = writeln!(
+                        code,
+                        "{}\t\tchildren: $.prevent_snippet_stringification(($$renderer) => {{",
                         inner_indent
-                    ));
+                    );
                 } else {
-                    code.push_str(&format!(
-                        "{}\t\tchildren: ($$renderer) => {{\n",
-                        inner_indent
-                    ));
+                    let _ = writeln!(code, "{}\t\tchildren: ($$renderer) => {{", inner_indent);
                 }
                 code.push_str(&children_code);
                 if component_dev {
-                    code.push_str(&format!("{}\t\t}}),\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t}}),", inner_indent);
                 } else {
-                    code.push_str(&format!("{}\t\t}},\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t}},", inner_indent);
                 }
             }
 
@@ -7396,7 +8471,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 || has_slot_children_binding
                 || has_children
             {
-                code.push_str(&format!("{}\t\t$$slots: {{\n", inner_indent));
+                let _ = writeln!(code, "{}\t\t$$slots: {{", inner_indent);
                 for slot_name in slot_names {
                     let quoted_name = quote_prop_name(slot_name);
                     if let Some((_, params, body_parts, _)) = slot_children_binding
@@ -7410,34 +8485,36 @@ impl<'a> ServerCodeGenerator<'a> {
                             if has_true_snippets { 4 } else { 3 },
                         );
                         if params.is_empty() {
-                            code.push_str(&format!(
-                                "{}\t\t\t{}: ($$renderer) => {{\n{}{}\t\t\t}},\n",
+                            let _ = writeln!(
+                                code,
+                                "{}\t\t\t{}: ($$renderer) => {{\n{}{}\t\t\t}},",
                                 inner_indent, quoted_name, fn_body, inner_indent
-                            ));
+                            );
                         } else {
                             let params_str = format!("{{ {} }}", params.join(", "));
-                            code.push_str(&format!(
-                                "{}\t\t\t{}: ($$renderer, {}) => {{\n{}{}\t\t\t}},\n",
+                            let _ = writeln!(
+                                code,
+                                "{}\t\t\t{}: ($$renderer, {}) => {{\n{}{}\t\t\t}},",
                                 inner_indent, quoted_name, params_str, fn_body, inner_indent
-                            ));
+                            );
                         }
                     } else {
-                        code.push_str(&format!("{}\t\t\t{}: true,\n", inner_indent, quoted_name));
+                        let _ = writeln!(code, "{}\t\t\t{}: true,", inner_indent, quoted_name);
                     }
                 }
                 for (snippet_name, _, _, _) in &true_snippets {
                     if !slot_names.contains(snippet_name) {
-                        code.push_str(&format!("{}\t\t\t{}: true,\n", inner_indent, snippet_name));
+                        let _ = writeln!(code, "{}\t\t\t{}: true,", inner_indent, snippet_name);
                     }
                 }
                 if has_children && !slot_names.contains(&"default".to_string()) {
-                    code.push_str(&format!("{}\t\t\tdefault: true,\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t\tdefault: true,", inner_indent);
                 }
-                code.push_str(&format!("{}\t\t}}\n", inner_indent));
+                let _ = writeln!(code, "{}\t\t}}", inner_indent);
             }
 
-            code.push_str(&format!("{}\t}}\n", inner_indent));
-            code.push_str(&format!("{}]));\n", inner_indent));
+            let _ = writeln!(code, "{}\t}}", inner_indent);
+            let _ = writeln!(code, "{}]));", inner_indent);
             if has_true_snippets {
                 code.push_str("}\n");
             }
@@ -7462,7 +8539,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         format!("$$renderer, {}", params.join(", "))
                     };
-                    code.push_str(&format!("\tfunction {}({}) {{\n", snippet_name, params_str));
+                    let _ = writeln!(code, "\tfunction {}({}) {{", snippet_name, params_str);
                     let snippet_body = super::bridge::generate_inner_body_code_direct(
                         body_parts,
                         store_subs,
@@ -7473,37 +8550,35 @@ impl<'a> ServerCodeGenerator<'a> {
                     code.push_str("\t}\n\n");
                 }
             }
-            code.push_str(&format!(
-                "{}{}{}($$renderer, {{\n",
+            let _ = writeln!(
+                code,
+                "{}{}{}($$renderer, {{",
                 inner_indent, name, call_syntax
-            ));
+            );
             for prop in &all_props {
-                code.push_str(&format!("{}\t{},\n", inner_indent, prop));
+                let _ = writeln!(code, "{}\t{},", inner_indent, prop);
             }
             let binding_count = bindings.len();
             for (idx, binding) in bindings.iter().enumerate() {
                 let (prop_name, getter_expr, setter_expr) =
                     resolve_binding_exprs(binding, store_subs);
                 let is_seq = matches!(binding, ComponentBinding::SequenceExpression { .. });
-                code.push_str(&format!("{}\tget {}() {{\n", inner_indent, prop_name));
-                code.push_str(&format!("{}\t\treturn {};\n", inner_indent, getter_expr));
-                code.push_str(&format!("{}\t}},\n\n", inner_indent));
-                code.push_str(&format!(
-                    "{}\tset {}($$value) {{\n",
-                    inner_indent, prop_name
-                ));
-                code.push_str(&format!("{}\t\t{};\n", inner_indent, setter_expr));
+                let _ = writeln!(code, "{}\tget {}() {{", inner_indent, prop_name);
+                let _ = writeln!(code, "{}\t\treturn {};", inner_indent, getter_expr);
+                let _ = writeln!(code, "{}\t}},\n", inner_indent);
+                let _ = writeln!(code, "{}\tset {}($$value) {{", inner_indent, prop_name);
+                let _ = writeln!(code, "{}\t\t{};", inner_indent, setter_expr);
                 if !is_seq {
-                    code.push_str(&format!("{}\t\t$$settled = false;\n", inner_indent));
+                    let _ = writeln!(code, "{}\t\t$$settled = false;", inner_indent);
                 }
                 if idx < binding_count - 1 || has_children || has_true_snippets || has_any_slots {
-                    code.push_str(&format!("{}\t}},\n\n", inner_indent));
+                    let _ = writeln!(code, "{}\t}},\n", inner_indent);
                 } else {
-                    code.push_str(&format!("{}\t}}\n", inner_indent));
+                    let _ = writeln!(code, "{}\t}}", inner_indent);
                 }
             }
             for (snippet_name, _, _, _) in &true_snippets {
-                code.push_str(&format!("{}\t{},\n", inner_indent, snippet_name));
+                let _ = writeln!(code, "{}\t{},", inner_indent, snippet_name);
             }
             if let Some(children_parts) = children {
                 let children_code = super::bridge::generate_inner_body_code_direct(
@@ -7513,18 +8588,19 @@ impl<'a> ServerCodeGenerator<'a> {
                     2,
                 );
                 if component_dev {
-                    code.push_str(&format!(
-                        "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{\n",
+                    let _ = writeln!(
+                        code,
+                        "{}\tchildren: $.prevent_snippet_stringification(($$renderer) => {{",
                         inner_indent
-                    ));
+                    );
                 } else {
-                    code.push_str(&format!("{}\tchildren: ($$renderer) => {{\n", inner_indent));
+                    let _ = writeln!(code, "{}\tchildren: ($$renderer) => {{", inner_indent);
                 }
                 code.push_str(&children_code);
                 if component_dev {
-                    code.push_str(&format!("{}\t}}),\n", inner_indent));
+                    let _ = writeln!(code, "{}\t}}),", inner_indent);
                 } else {
-                    code.push_str(&format!("{}\t}},\n", inner_indent));
+                    let _ = writeln!(code, "{}\t}},", inner_indent);
                 }
             }
             if has_any_slots {
@@ -7562,9 +8638,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     slots_entries.push("default: true".to_string());
                 }
                 let slots_str = slots_entries.join(", ");
-                code.push_str(&format!("{}\t$$slots: {{ {} }}\n", inner_indent, slots_str));
+                let _ = writeln!(code, "{}\t$$slots: {{ {} }}", inner_indent, slots_str);
             }
-            code.push_str(&format!("{}}});\n", inner_indent));
+            let _ = writeln!(code, "{}}});", inner_indent);
             if has_true_snippets {
                 code.push_str("}\n");
             }
@@ -7601,7 +8677,11 @@ impl<'a> ServerCodeGenerator<'a> {
 /// (`export let foo, bar;`).
 fn is_declared_via_export_let(script: &str, name: &str) -> bool {
     for line in script.lines() {
-        let trimmed = line.trim();
+        let mut trimmed = line.trim();
+        // `/* ... */ export let x` — skip the leading block-comment close.
+        if let Some(p) = trimmed.find("*/") {
+            trimmed = trimmed[p + 2..].trim_start();
+        }
         let rest = if let Some(s) = trimmed.strip_prefix("export let ") {
             s
         } else if let Some(s) = trimmed.strip_prefix("export var ") {
@@ -7609,6 +8689,10 @@ fn is_declared_via_export_let(script: &str, name: &str) -> bool {
         } else {
             continue;
         };
+
+        // Strip a trailing `// ...` / `/* ...` comment so
+        // `export let foo; // comment` still parses as a plain declaration.
+        let rest = super::transform_legacy::strip_trailing_comment_for_decl(rest);
 
         // Strip trailing semicolon
         let decl = rest.trim_end_matches(';').trim();
@@ -7729,7 +8813,7 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
             let await_arg = props_expr[arg_start..j].trim().to_string();
             let idx = extracted.len();
             extracted.push(await_arg);
-            modified.push_str(&format!("$${}", idx));
+            let _ = write!(modified, "$${}", idx);
             i = j;
             continue;
         }
@@ -7739,6 +8823,58 @@ fn extract_await_from_slot_props(props_expr: &str) -> (Vec<String>, String) {
     }
 
     (extracted, modified)
+}
+
+/// Pull `// …` comments off `;; // comment` lines ($inspect removal with a
+/// same-line trailing comment). Returns the script with those lines reduced
+/// to `;;` plus the comments in `;;`-occurrence order (one slot per `;;`
+/// line, empty string when that line had no comment), so they can be
+/// re-attached after OXC normalization (which drops trailing comments).
+fn extract_double_semi_trailing_comments(s: &str) -> (String, Vec<String>) {
+    let mut out = String::with_capacity(s.len());
+    let mut comments: Vec<String> = Vec::new();
+    let mut first = true;
+    for line in s.lines() {
+        if !first {
+            out.push('\n');
+        }
+        first = false;
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix(";;") {
+            let rest_trimmed = rest.trim_start();
+            if rest_trimmed.starts_with("//") {
+                comments.push(rest_trimmed.to_string());
+                out.push_str(&line[..line.len() - rest.len()]);
+                continue;
+            }
+            comments.push(String::new());
+        }
+        out.push_str(line);
+    }
+    (out, comments)
+}
+
+/// Re-attach comments extracted by `extract_double_semi_trailing_comments`
+/// to the `;;` lines of the normalized script, in occurrence order.
+fn reattach_double_semi_comments(s: &str, comments: &[String]) -> String {
+    let mut out = String::with_capacity(s.len() + 64);
+    let mut idx = 0usize;
+    let mut first = true;
+    for line in s.lines() {
+        if !first {
+            out.push('\n');
+        }
+        first = false;
+        out.push_str(line);
+        if line.trim() == ";;" && idx < comments.len() {
+            if !comments[idx].is_empty() {
+                out.push(' ');
+                out.push_str(&comments[idx]);
+            }
+            idx += 1;
+        }
+    }
+    out
 }
 
 /// Strip async placeholder markers from script output.
@@ -7763,9 +8899,18 @@ fn strip_async_placeholders(s: &str) -> String {
         first = false;
         // Either form of `$$async_hole` placeholder rewrites to `;;` in
         // non-async-body contexts (the official compiler emits two empty
-        // statements where $inspect() used to be).
+        // statements where $inspect() used to be). A `// …` comment that
+        // trailed the removed `$inspect(...)` on the same line stays attached
+        // (upstream emits `;; // comment` — esrap's flush_trailing_comments
+        // prints same-line trailing comments after the empty statements).
         if memmem::find(trimmed.as_bytes(), b"$$async_hole").is_some() {
             result.push_str(";;");
+            if let Some(close) = memmem::find(trimmed.as_bytes(), b"*/")
+                && let Some(slashes) = memmem::find(&trimmed.as_bytes()[close + 2..], b"//")
+            {
+                result.push(' ');
+                result.push_str(&trimmed[close + 2 + slashes..]);
+            }
         } else {
             result.push_str(line);
         }

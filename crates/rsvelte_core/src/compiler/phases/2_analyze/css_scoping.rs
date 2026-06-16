@@ -177,12 +177,16 @@ fn gather_possible_values(
     }
 }
 
-/// Extract possible class values from an expression tag.
-fn get_possible_class_values(expr: &crate::ast::js::Expression) -> Option<Vec<String>> {
+/// Gather all statically-determinable values for an attribute expression.
+/// Mirrors upstream `get_possible_values(chunk, is_class)` in 2-analyze/css/utils.js.
+fn get_possible_attr_values(
+    expr: &crate::ast::js::Expression,
+    is_class: bool,
+) -> Option<Vec<String>> {
     let json = expr.as_json();
     let mut values = Vec::new();
     let mut unknown = false;
-    gather_possible_values(json, true, false, &mut values, &mut unknown);
+    gather_possible_values(json, is_class, false, &mut values, &mut unknown);
     if unknown { None } else { Some(values) }
 }
 
@@ -205,7 +209,7 @@ fn sequence_possible_values(
                 let mut unknown = false;
                 gather_possible_values(
                     tag.expression.as_json(),
-                    true,
+                    is_class,
                     is_class,
                     &mut values,
                     &mut unknown,
@@ -342,12 +346,14 @@ impl ElementInfo {
                             if is_all_text && !static_parts.is_empty() {
                                 let full_value = static_parts.join("");
                                 attr_pairs.push((attr_name.clone(), AttrValue::Static(full_value)));
-                            } else if attr_name == "class" {
+                            } else {
                                 // Try to compute possible values across all chunks, so
-                                // selectors like `.foo` can be pruned when `foo` isn't
-                                // a candidate token. Mirrors the official compiler's
-                                // `attribute_matches` logic in css-prune.js.
-                                if let Some(possible) = sequence_possible_values(parts, true) {
+                                // selectors like `.foo` or `[data-x='y']` can be pruned
+                                // when the value isn't a candidate token. Mirrors the
+                                // official compiler's `attribute_matches` chunk logic in
+                                // css-prune.js (applies to every attribute, not just class).
+                                let is_class = attr_name == "class";
+                                if let Some(possible) = sequence_possible_values(parts, is_class) {
                                     attr_pairs.push((
                                         attr_name.clone(),
                                         AttrValue::PossibleValues(possible),
@@ -355,22 +361,15 @@ impl ElementInfo {
                                 } else {
                                     attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                                 }
-                            } else {
-                                attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                             }
                         }
                         template::AttributeValue::Expression(expr_tag) => {
-                            if attr_name == "class" {
-                                if let Some(possible) =
-                                    get_possible_class_values(&expr_tag.expression)
-                                {
-                                    attr_pairs.push((
-                                        attr_name.clone(),
-                                        AttrValue::PossibleValues(possible),
-                                    ));
-                                } else {
-                                    attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
-                                }
+                            let is_class = attr_name == "class";
+                            if let Some(possible) =
+                                get_possible_attr_values(&expr_tag.expression, is_class)
+                            {
+                                attr_pairs
+                                    .push((attr_name.clone(), AttrValue::PossibleValues(possible)));
                             } else {
                                 attr_pairs.push((attr_name.clone(), AttrValue::Dynamic));
                             }
@@ -444,7 +443,40 @@ pub fn extract_css_selectors(stylesheet: &crate::ast::css::StyleSheet) -> Vec<Cs
     for child in &stylesheet.children {
         extract_selectors_from_css_node(child, &mut selectors, &[]);
     }
+    // A bare `:global` marker (the prelude of a `:global { ... }` BLOCK, no
+    // args) makes everything AT AND AFTER it global. A nested global block
+    // desugars to e.g. `article :global aside p`; without flagging the
+    // `:global` and its tail as global, the bare `:global` compound matches
+    // every element in `element_matches_simple_selectors`, so intermediate
+    // ancestors get wrongly scoped (e.g. `<header>` for
+    // `article { p {} :global { aside p {} } }`). Marking the tail global lets
+    // `truncate_globals` strip it, leaving only the scoped prefix (`article`).
+    for sel in &mut selectors {
+        mark_global_block_tail(sel);
+    }
     selectors
+}
+
+/// True when a relative selector is a bare `:global` marker — a single
+/// `:global` pseudo-class with no argument list. This is the prelude of a
+/// `:global { ... }` BLOCK (as opposed to the inline `:global(sel)` form,
+/// which carries args).
+fn is_bare_global_relative(rel: &CssRelativeSelector) -> bool {
+    rel.selectors.len() == 1
+        && matches!(
+            &rel.selectors[0],
+            CssSimpleSelector::PseudoClass(name, args) if name == "global" && args.is_none()
+        )
+}
+
+/// Flag a bare `:global` block marker and every relative selector after it as
+/// global, so `truncate_globals` / ancestor matching treat them as unscoped.
+fn mark_global_block_tail(sel: &mut CssComplexSelector) {
+    if let Some(pos) = sel.children.iter().position(is_bare_global_relative) {
+        for rel in &mut sel.children[pos..] {
+            rel.is_global = true;
+        }
+    }
 }
 
 fn extract_selectors_from_css_node(
@@ -657,13 +689,18 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
+    let selectors_json = rel.get("selectors")?.as_array()?;
+
+    // Compute `is_global_like` the way upstream's css-analyze.js RelativeSelector
+    // visitor does (the parser does not store this metadata in the JSON AST):
+    // 1. every selector is a pseudo-class/pseudo-element AND the first is
+    //    `:host` or a `::view-transition*` pseudo-element, or
+    // 2. any selector is `:root` and none is `:has`.
     let is_global_like = rel
         .get("metadata")
         .and_then(|m| m.get("is_global_like"))
         .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-
-    let selectors_json = rel.get("selectors")?.as_array()?;
+        .unwrap_or_else(|| compute_is_global_like(selectors_json));
     let mut selectors = Vec::new();
     for sel in selectors_json {
         if let Some(parsed) = parse_simple_selector(sel) {
@@ -677,6 +714,56 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
         is_global,
         is_global_like,
     })
+}
+
+/// Mirror of upstream css-analyze.js RelativeSelector visitor's
+/// `is_global_like` computation (lines 156-181).
+fn compute_is_global_like(selectors_json: &[serde_json::Value]) -> bool {
+    let ty = |s: &serde_json::Value| {
+        s.get("type")
+            .and_then(|t| t.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+    let name = |s: &serde_json::Value| {
+        s.get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+
+    if !selectors_json.is_empty()
+        && selectors_json.iter().all(|s| {
+            matches!(
+                ty(s).as_str(),
+                "PseudoClassSelector" | "PseudoElementSelector"
+            )
+        })
+    {
+        let first = &selectors_json[0];
+        let first_ty = ty(first);
+        let first_name = name(first);
+        if (first_ty == "PseudoClassSelector" && first_name == "host")
+            || (first_ty == "PseudoElementSelector"
+                && matches!(
+                    first_name.as_str(),
+                    "view-transition"
+                        | "view-transition-group"
+                        | "view-transition-old"
+                        | "view-transition-new"
+                        | "view-transition-image-pair"
+                ))
+        {
+            return true;
+        }
+    }
+
+    selectors_json
+        .iter()
+        .any(|s| ty(s) == "PseudoClassSelector" && name(s) == "root")
+        && !selectors_json
+            .iter()
+            .any(|s| ty(s) == "PseudoClassSelector" && name(s) == "has")
 }
 
 fn parse_simple_selector(sel: &serde_json::Value) -> Option<CssSimpleSelector> {
@@ -1219,11 +1306,21 @@ fn collect_render_sites_in_node(
 }
 
 /// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
-pub fn mark_elements_scoped(fragment: &mut Fragment, css_selectors: &[CssComplexSelector]) {
+pub fn mark_elements_scoped(
+    fragment: &mut Fragment,
+    css_selectors: &[CssComplexSelector],
+    analysis: Option<&super::types::ComponentAnalysis>,
+) {
     // Pre-pass: collect render site ancestors for each snippet
     let snippet_ancestors = collect_render_site_ancestors(fragment);
     let mut ancestors: Vec<ElementInfo> = Vec::new();
-    mark_elements_in_fragment(fragment, css_selectors, &mut ancestors, &snippet_ancestors);
+    mark_elements_in_fragment(
+        fragment,
+        css_selectors,
+        &mut ancestors,
+        &snippet_ancestors,
+        analysis,
+    );
 }
 
 /// Mark ALL elements in the fragment as scoped (used when @keyframes rules exist).
@@ -1319,29 +1416,32 @@ fn mark_elements_in_fragment(
     css_selectors: &[CssComplexSelector],
     ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
+    analysis: Option<&super::types::ComponentAnalysis>,
 ) {
+    // Selectors containing `:has(...)` are handled exclusively by the
+    // graph-based pass (which evaluates `:has` faithfully); everything else
+    // goes through the direct-matching passes below.
+    let direct_selectors: Vec<CssComplexSelector> = css_selectors
+        .iter()
+        .filter(|s| !selector_contains_has(s))
+        .cloned()
+        .collect();
+
     // First pass: mark elements that match CSS selectors directly (type/class/id/ancestor matching)
     for node in &mut fragment.nodes {
-        process_node_scoping(node, css_selectors, ancestors, snippet_ancestors);
+        process_node_scoping(node, &direct_selectors, ancestors, snippet_ancestors);
     }
 
-    // Second pass: handle sibling combinators.
-    // Pre-compute the sibling-combinator subset once so the recursive
-    // walk doesn't re-filter on every fragment.
-    let sibling_selectors: Vec<&CssComplexSelector> = css_selectors
-        .iter()
-        .filter(|s| has_sibling_combinator(s))
-        .collect();
-    process_sibling_selectors(
-        fragment,
-        css_selectors,
-        &sibling_selectors,
-        ancestors,
-        snippet_ancestors,
-    );
+    // Second pass: sibling-combinator and `:has(...)` selectors, evaluated
+    // with the upstream-faithful `apply_selector` port over the node graph.
+    let mut marks: FxHashSet<(u32, u32)> = FxHashSet::default();
+    process_graph_selectors(fragment, css_selectors, analysis, &mut marks);
+    if !marks.is_empty() {
+        apply_scoping_marks(fragment, &marks);
+    }
 
     // Third pass: propagate scoping to ancestor elements
-    propagate_ancestor_scoping(fragment, css_selectors, ancestors, snippet_ancestors);
+    propagate_ancestor_scoping(fragment, &direct_selectors, ancestors, snippet_ancestors);
 }
 
 /// Process a single node for direct CSS selector matching.
@@ -1469,681 +1569,6 @@ fn process_node_scoping(
     }
 }
 
-/// An element with its start/end position for identification in the marking pass.
-#[derive(Debug, Clone)]
-struct SiblingElementInfo {
-    info: ElementInfo,
-    start: u32,
-    end: u32,
-}
-
-/// A path segment describing where a node sits: a fragment and position within it.
-/// We use the fragment's raw pointer as identity since we only hold immutable refs.
-#[derive(Debug, Clone)]
-struct PathSegment<'a> {
-    fragment: &'a Fragment,
-    node_index: usize,
-}
-
-/// Process sibling selectors for a fragment.
-/// Uses a path-based approach that mirrors the official compiler's get_possible_element_siblings.
-/// Phase 1: Walk the tree immutably, collecting which elements need to be scoped (as start/end positions).
-/// Phase 2: Walk the tree mutably and mark the collected elements.
-fn process_sibling_selectors(
-    fragment: &mut Fragment,
-    css_selectors: &[CssComplexSelector],
-    sibling_selectors: &[&CssComplexSelector],
-    ancestors: &mut Vec<ElementInfo>,
-    snippet_ancestors: &SnippetAncestorMap,
-) {
-    if !sibling_selectors.is_empty() {
-        // Phase 1: Collect elements to scope (immutable)
-        let mut elements_to_scope: FxHashSet<(u32, u32)> = FxHashSet::default();
-        collect_sibling_scoping(
-            fragment,
-            sibling_selectors,
-            ancestors,
-            &[],
-            &mut elements_to_scope,
-        );
-
-        // Phase 2: Mark collected elements as scoped (mutable)
-        if !elements_to_scope.is_empty() {
-            apply_scoping_marks(fragment, &elements_to_scope);
-        }
-    }
-
-    // Recurse into child elements for their own sibling handling
-    recurse_sibling_processing(
-        fragment,
-        css_selectors,
-        sibling_selectors,
-        ancestors,
-        snippet_ancestors,
-    );
-}
-
-/// Walk the tree immutably, finding all sibling relationships and recording which
-/// elements need to be scoped. The `path` tracks the nesting context so we can
-/// walk up through block boundaries to find siblings (like the official compiler).
-fn collect_sibling_scoping<'a>(
-    fragment: &'a Fragment,
-    sibling_selectors: &[&CssComplexSelector],
-    ancestors: &[ElementInfo],
-    path: &[PathSegment<'a>],
-    elements_to_scope: &mut FxHashSet<(u32, u32)>,
-) {
-    for (i, node) in fragment.nodes.iter().enumerate() {
-        let current_path_segment = PathSegment {
-            fragment,
-            node_index: i,
-        };
-
-        match node {
-            TemplateNode::RegularElement(el) => {
-                let elem_info = SiblingElementInfo {
-                    info: ElementInfo::from_element(el),
-                    start: el.start,
-                    end: el.end,
-                };
-                check_element_as_subject(
-                    &elem_info,
-                    fragment,
-                    i,
-                    path,
-                    sibling_selectors,
-                    ancestors,
-                    elements_to_scope,
-                );
-            }
-            TemplateNode::SvelteElement(el) => {
-                let elem_info = SiblingElementInfo {
-                    info: ElementInfo::from_svelte_element(el),
-                    start: el.start,
-                    end: el.end,
-                };
-                check_element_as_subject(
-                    &elem_info,
-                    fragment,
-                    i,
-                    path,
-                    sibling_selectors,
-                    ancestors,
-                    elements_to_scope,
-                );
-            }
-            TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_) => {
-                // Recurse into block fragments with updated path
-                let mut new_path = path.to_vec();
-                new_path.push(current_path_segment);
-
-                let block_frags = get_block_fragments_ref(node);
-                for bf in block_frags {
-                    collect_sibling_scoping(
-                        bf,
-                        sibling_selectors,
-                        ancestors,
-                        &new_path,
-                        elements_to_scope,
-                    );
-                }
-
-                // Each block wrap-around: last elements can be siblings of first elements
-                if let TemplateNode::EachBlock(each) = node {
-                    check_each_wrap_around(
-                        &each.body,
-                        sibling_selectors,
-                        ancestors,
-                        elements_to_scope,
-                    );
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Check if an element is a subject of any sibling selector and if so,
-/// find matching siblings by walking up through the path.
-fn check_element_as_subject(
-    elem: &SiblingElementInfo,
-    fragment: &Fragment,
-    node_index: usize,
-    path: &[PathSegment],
-    sibling_selectors: &[&CssComplexSelector],
-    ancestors: &[ElementInfo],
-    elements_to_scope: &mut FxHashSet<(u32, u32)>,
-) {
-    for selector in sibling_selectors {
-        let effective = truncate_globals(&selector.children);
-        if effective.len() < 2 {
-            continue;
-        }
-
-        let last = &effective[effective.len() - 1];
-        if !element_matches_simple_selectors(&elem.info, &last.selectors) {
-            continue;
-        }
-
-        let combinator = last.combinator.as_deref().unwrap_or(" ");
-        if combinator != "+" && combinator != "~" {
-            continue;
-        }
-
-        let adjacent_only = combinator == "+";
-        let prev_sel = &effective[effective.len() - 2];
-
-        // Get all possible previous siblings, walking up through block boundaries
-        let siblings =
-            get_possible_previous_siblings_via_path(fragment, node_index, adjacent_only, path);
-
-        for sibling in &siblings {
-            if element_matches_simple_selectors(&sibling.info, &prev_sel.selectors) {
-                // Check ancestor chain if needed
-                if effective.len() > 2 {
-                    let ancestor_part = &effective[..effective.len() - 2];
-                    let prev_combinator = prev_sel.combinator.as_deref().unwrap_or(" ");
-                    if (prev_combinator == " " || prev_combinator == ">")
-                        && !check_ancestor_chain(ancestor_part, prev_sel, ancestors)
-                    {
-                        continue;
-                    }
-                }
-                // Mark both the subject and the sibling
-                elements_to_scope.insert((elem.start, elem.end));
-                elements_to_scope.insert((sibling.start, sibling.end));
-            }
-        }
-    }
-}
-
-/// Get all possible previous siblings for an element at (fragment, node_index),
-/// walking up through block boundaries via the path.
-/// This mirrors the official compiler's get_possible_element_siblings.
-fn get_possible_previous_siblings_via_path(
-    fragment: &Fragment,
-    node_index: usize,
-    adjacent_only: bool,
-    path: &[PathSegment],
-) -> Vec<SiblingElementInfo> {
-    let mut result = Vec::new();
-
-    // First, look backward in the current fragment
-    let mut found_definite =
-        collect_previous_siblings_in_fragment(fragment, node_index, adjacent_only, &mut result);
-
-    if adjacent_only && found_definite {
-        return result;
-    }
-
-    // Walk up through the path (block boundaries)
-    for segment in path.iter().rev() {
-        let parent_fragment = segment.fragment;
-        let block_index = segment.node_index;
-        let block_node = &parent_fragment.nodes[block_index];
-
-        // Check if this is an each block - if so, add wrap-around siblings.
-        // Important: wrap-around siblings never cause early termination (matching official compiler).
-        if let TemplateNode::EachBlock(_) = block_node {
-            let mut _ignored = false;
-            collect_last_elements_from_block_recursive(
-                block_node,
-                adjacent_only,
-                &mut result,
-                &mut _ignored,
-            );
-        }
-
-        // Look backward from the block's position in the parent fragment
-        found_definite |= collect_previous_siblings_in_fragment(
-            parent_fragment,
-            block_index,
-            adjacent_only,
-            &mut result,
-        );
-
-        if adjacent_only && found_definite {
-            return result;
-        }
-
-        // Check if the parent node is a block or component - if not, stop walking up
-        if block_index < parent_fragment.nodes.len() {
-            let parent_node = &parent_fragment.nodes[block_index];
-            if !is_block_node(parent_node) {
-                break;
-            }
-        }
-    }
-
-    result
-}
-
-/// Collect previous siblings by looking backward in a fragment from a given position.
-/// Returns true if a definite (RegularElement) sibling was found.
-fn collect_previous_siblings_in_fragment(
-    fragment: &Fragment,
-    node_index: usize,
-    adjacent_only: bool,
-    result: &mut Vec<SiblingElementInfo>,
-) -> bool {
-    let mut i = node_index;
-    let mut found_definite = false;
-
-    while i > 0 {
-        i -= 1;
-        let node = &fragment.nodes[i];
-        match node {
-            TemplateNode::RegularElement(el) => {
-                let has_slot_attr = el.attributes.iter().any(|attr| {
-                    if let template::Attribute::Attribute(a) = attr {
-                        a.name.as_str().eq_ignore_ascii_case("slot")
-                    } else {
-                        false
-                    }
-                });
-                if !has_slot_attr {
-                    result.push(SiblingElementInfo {
-                        info: ElementInfo::from_element(el),
-                        start: el.start,
-                        end: el.end,
-                    });
-                    found_definite = true;
-                    if adjacent_only {
-                        return true;
-                    }
-                }
-            }
-            TemplateNode::SvelteElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_svelte_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-                // Don't set found_definite - svelte:element might resolve to nothing
-            }
-            TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_) => {
-                // Elements inside blocks are "probable" not "definite" because the block
-                // might not render (each with 0 items, if with false condition, etc.).
-                // We need to check if the block is exhaustive (all branches have elements)
-                // to determine if the block provides a definite barrier.
-                let block_definite = block_has_definite_elements(node);
-                let mut _ignored = false;
-                collect_last_elements_from_block_recursive(
-                    node,
-                    adjacent_only,
-                    result,
-                    &mut _ignored,
-                );
-                if block_definite {
-                    found_definite = true;
-                }
-                if adjacent_only && found_definite {
-                    return true;
-                }
-            }
-            TemplateNode::Component(_) | TemplateNode::SlotElement(_) => {
-                let mut _ignored = false;
-                collect_last_elements_from_block_recursive(
-                    node,
-                    adjacent_only,
-                    result,
-                    &mut _ignored,
-                );
-            }
-            _ => {}
-        }
-    }
-
-    found_definite
-}
-
-/// Recursively collect the last (backward direction) elements from inside a block node.
-/// Mirrors the official compiler's get_possible_nested_siblings + loop_child.
-///
-/// The key insight: elements from non-exhaustive blocks are "probable" (not "definite"),
-/// which means they should NOT stop the adjacent-only search in the parent.
-fn collect_last_elements_from_block_recursive(
-    node: &TemplateNode,
-    adjacent_only: bool,
-    result: &mut Vec<SiblingElementInfo>,
-    found_definite: &mut bool,
-) {
-    let fragments = get_block_fragments_ref(node);
-    let is_slot_or_snippet = matches!(
-        node,
-        TemplateNode::SlotElement(_) | TemplateNode::SnippetBlock(_)
-    );
-
-    let mut exhaustive = !is_slot_or_snippet;
-    let mut all_fragment_results: Vec<(Vec<SiblingElementInfo>, bool)> = Vec::new();
-
-    for fragment in &fragments {
-        let (frag_results, frag_has_definite) = loop_child_backward(&fragment.nodes, adjacent_only);
-        exhaustive = exhaustive && frag_has_definite;
-        all_fragment_results.push((frag_results, frag_has_definite));
-    }
-
-    // If any fragment is missing (e.g., no else branch, no fallback), not exhaustive
-    match node {
-        TemplateNode::IfBlock(if_block) if if_block.alternate.is_none() => {
-            exhaustive = false;
-        }
-        TemplateNode::EachBlock(each) if each.fallback.is_none() => {
-            exhaustive = false;
-        }
-        TemplateNode::AwaitBlock(ab)
-            if (ab.pending.is_none() || ab.then.is_none() || ab.catch.is_none()) =>
-        {
-            exhaustive = false;
-        }
-        _ => {}
-    }
-
-    // Add all results
-    for (frag_results, _) in all_fragment_results {
-        result.extend(frag_results);
-    }
-
-    // Only set found_definite if the block is exhaustive
-    if exhaustive {
-        *found_definite = true;
-    }
-}
-
-/// Walk backward through a fragment's nodes collecting elements (like loop_child in the official compiler).
-/// Returns the elements found and whether any definite elements were found.
-fn loop_child_backward(
-    nodes: &[TemplateNode],
-    adjacent_only: bool,
-) -> (Vec<SiblingElementInfo>, bool) {
-    let mut result = Vec::new();
-    let mut found_definite = false;
-
-    let mut i = nodes.len();
-    while i > 0 {
-        i -= 1;
-        match &nodes[i] {
-            TemplateNode::RegularElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-                found_definite = true;
-                if adjacent_only {
-                    break;
-                }
-            }
-            TemplateNode::SvelteElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_svelte_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-                // SvelteElement is PROBABLY - don't set found_definite, don't break
-            }
-            TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_) => {
-                let mut child_definite = false;
-                collect_last_elements_from_block_recursive(
-                    &nodes[i],
-                    adjacent_only,
-                    &mut result,
-                    &mut child_definite,
-                );
-                // Only break on adjacent_only if the child block provides definite elements
-                if child_definite {
-                    found_definite = true;
-                    if adjacent_only {
-                        break;
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    (result, found_definite)
-}
-
-/// Collect first elements from a block fragment (forward direction).
-fn collect_first_elements_with_pos(fragment: &Fragment) -> Vec<SiblingElementInfo> {
-    let mut result = Vec::new();
-    for node in &fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-                return result;
-            }
-            TemplateNode::SvelteElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_svelte_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-            }
-            TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_) => {
-                let block_frags = get_block_fragments_ref(node);
-                for bf in block_frags {
-                    result.extend(collect_first_elements_with_pos(bf));
-                }
-                if !result.is_empty() {
-                    return result;
-                }
-            }
-            _ => {}
-        }
-    }
-    result
-}
-
-/// Collect last elements from a block fragment with position info.
-fn collect_last_elements_with_pos(fragment: &Fragment) -> Vec<SiblingElementInfo> {
-    let mut result = Vec::new();
-    let mut found = false;
-    collect_last_elements_from_fragment(fragment, false, &mut result, &mut found);
-    result
-}
-
-fn collect_last_elements_from_fragment(
-    fragment: &Fragment,
-    adjacent_only: bool,
-    result: &mut Vec<SiblingElementInfo>,
-    found_definite: &mut bool,
-) {
-    let nodes = &fragment.nodes;
-    let mut i = nodes.len();
-    while i > 0 {
-        i -= 1;
-        match &nodes[i] {
-            TemplateNode::RegularElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-                *found_definite = true;
-                if adjacent_only {
-                    return;
-                }
-            }
-            TemplateNode::SvelteElement(el) => {
-                result.push(SiblingElementInfo {
-                    info: ElementInfo::from_svelte_element(el),
-                    start: el.start,
-                    end: el.end,
-                });
-            }
-            TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_) => {
-                collect_last_elements_from_block_recursive(
-                    &nodes[i],
-                    adjacent_only,
-                    result,
-                    found_definite,
-                );
-                if adjacent_only && *found_definite {
-                    return;
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Check each-block wrap-around: last elements in body can be siblings of first elements.
-fn check_each_wrap_around(
-    body: &Fragment,
-    sibling_selectors: &[&CssComplexSelector],
-    ancestors: &[ElementInfo],
-    elements_to_scope: &mut FxHashSet<(u32, u32)>,
-) {
-    let last_elements = collect_last_elements_with_pos(body);
-    let first_elements = collect_first_elements_with_pos(body);
-
-    for first_elem in &first_elements {
-        for selector in sibling_selectors {
-            let effective = truncate_globals(&selector.children);
-            if effective.len() < 2 {
-                continue;
-            }
-
-            let last_sel = &effective[effective.len() - 1];
-            if !element_matches_simple_selectors(&first_elem.info, &last_sel.selectors) {
-                continue;
-            }
-
-            let combinator = last_sel.combinator.as_deref().unwrap_or(" ");
-            if combinator != "+" && combinator != "~" {
-                continue;
-            }
-
-            let prev_sel = &effective[effective.len() - 2];
-
-            for sibling in &last_elements {
-                if element_matches_simple_selectors(&sibling.info, &prev_sel.selectors) {
-                    if effective.len() > 2 {
-                        let ancestor_part = &effective[..effective.len() - 2];
-                        let prev_combinator = prev_sel.combinator.as_deref().unwrap_or(" ");
-                        if (prev_combinator == " " || prev_combinator == ">")
-                            && !check_ancestor_chain(ancestor_part, prev_sel, ancestors)
-                        {
-                            continue;
-                        }
-                    }
-                    elements_to_scope.insert((first_elem.start, first_elem.end));
-                    elements_to_scope.insert((sibling.start, sibling.end));
-                }
-            }
-        }
-    }
-}
-
-/// Check if a node is a block node (if/each/await/key).
-fn is_block_node(node: &TemplateNode) -> bool {
-    matches!(
-        node,
-        TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_)
-    )
-}
-
-/// Check if a block node has definite elements in ALL its branches.
-/// A block is exhaustive (provides a definite barrier) only if every possible
-/// branch produces at least one definite element.
-fn block_has_definite_elements(node: &TemplateNode) -> bool {
-    match node {
-        TemplateNode::IfBlock(if_block) => {
-            // Both consequent and alternate must have definite elements.
-            // If there's no alternate, the block is NOT exhaustive.
-            let consequent_definite = fragment_has_definite_element(&if_block.consequent);
-            let alternate_definite = if_block
-                .alternate
-                .as_ref()
-                .is_some_and(fragment_has_definite_element);
-            consequent_definite && alternate_definite
-        }
-        TemplateNode::EachBlock(each) => {
-            // Body AND fallback must both have definite elements.
-            // If there's no fallback, the each could produce 0 items -> not exhaustive.
-            let body_definite = fragment_has_definite_element(&each.body);
-            let fallback_definite = each
-                .fallback
-                .as_ref()
-                .is_some_and(fragment_has_definite_element);
-            body_definite && fallback_definite
-        }
-        TemplateNode::AwaitBlock(await_block) => {
-            // All present branches must have definite elements, and at least
-            // pending+then+catch must all be present.
-            let pending_ok = await_block
-                .pending
-                .as_ref()
-                .is_some_and(fragment_has_definite_element);
-            let then_ok = await_block
-                .then
-                .as_ref()
-                .is_some_and(fragment_has_definite_element);
-            let catch_ok = await_block
-                .catch
-                .as_ref()
-                .is_some_and(fragment_has_definite_element);
-            pending_ok && then_ok && catch_ok
-        }
-        TemplateNode::KeyBlock(key) => fragment_has_definite_element(&key.fragment),
-        _ => false,
-    }
-}
-
-/// Check if a fragment contains at least one definite element (RegularElement).
-fn fragment_has_definite_element(fragment: &Fragment) -> bool {
-    for node in &fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(el) => {
-                let has_slot_attr = el.attributes.iter().any(|attr| {
-                    if let template::Attribute::Attribute(a) = attr {
-                        a.name.as_str().eq_ignore_ascii_case("slot")
-                    } else {
-                        false
-                    }
-                });
-                if !has_slot_attr {
-                    return true;
-                }
-            }
-            TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_)
-                if block_has_definite_elements(node) =>
-            {
-                return true;
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
 /// Apply scoping marks to elements whose (start, end) positions are in the set.
 fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &FxHashSet<(u32, u32)>) {
     for node in &mut fragment.nodes {
@@ -2207,241 +1632,6 @@ fn apply_scoping_marks(fragment: &mut Fragment, elements_to_scope: &FxHashSet<(u
             _ => {}
         }
     }
-}
-
-/// Recurse into child elements for sibling processing.
-fn recurse_sibling_processing(
-    fragment: &mut Fragment,
-    css_selectors: &[CssComplexSelector],
-    sibling_selectors: &[&CssComplexSelector],
-    ancestors: &mut Vec<ElementInfo>,
-    snippet_ancestors: &SnippetAncestorMap,
-) {
-    for node in &mut fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(el) => {
-                let ei = ElementInfo::from_element(el);
-                ancestors.push(ei);
-                process_sibling_selectors(
-                    &mut el.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-                ancestors.pop();
-            }
-            TemplateNode::SvelteElement(el) => {
-                let ei = ElementInfo::from_svelte_element(el);
-                ancestors.push(ei);
-                process_sibling_selectors(
-                    &mut el.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-                ancestors.pop();
-            }
-            TemplateNode::Component(comp) => {
-                process_sibling_selectors(
-                    &mut comp.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            TemplateNode::IfBlock(if_block) => {
-                process_sibling_selectors(
-                    &mut if_block.consequent,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-                if let Some(ref mut alt) = if_block.alternate {
-                    process_sibling_selectors(
-                        alt,
-                        css_selectors,
-                        sibling_selectors,
-                        ancestors,
-                        snippet_ancestors,
-                    );
-                }
-            }
-            TemplateNode::EachBlock(each) => {
-                process_sibling_selectors(
-                    &mut each.body,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-                if let Some(ref mut fallback) = each.fallback {
-                    process_sibling_selectors(
-                        fallback,
-                        css_selectors,
-                        sibling_selectors,
-                        ancestors,
-                        snippet_ancestors,
-                    );
-                }
-            }
-            TemplateNode::AwaitBlock(await_block) => {
-                if let Some(ref mut pending) = await_block.pending {
-                    process_sibling_selectors(
-                        pending,
-                        css_selectors,
-                        sibling_selectors,
-                        ancestors,
-                        snippet_ancestors,
-                    );
-                }
-                if let Some(ref mut then) = await_block.then {
-                    process_sibling_selectors(
-                        then,
-                        css_selectors,
-                        sibling_selectors,
-                        ancestors,
-                        snippet_ancestors,
-                    );
-                }
-                if let Some(ref mut catch) = await_block.catch {
-                    process_sibling_selectors(
-                        catch,
-                        css_selectors,
-                        sibling_selectors,
-                        ancestors,
-                        snippet_ancestors,
-                    );
-                }
-            }
-            TemplateNode::KeyBlock(key) => {
-                process_sibling_selectors(
-                    &mut key.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            TemplateNode::SnippetBlock(snippet) => {
-                let snippet_name = get_snippet_block_name(snippet);
-                let render_site_chains = snippet_name
-                    .as_ref()
-                    .and_then(|name| snippet_ancestors.get(name));
-                if let Some(chains) = render_site_chains {
-                    for site_anc in chains {
-                        // Replace ancestors with the render-site chain.
-                        // Snippet bodies are processed once per render site,
-                        // and SnippetAncestorMap is per-name, so the chain
-                        // is small and the clone is bounded by snippet count.
-                        let mut chain = site_anc.clone();
-                        process_sibling_selectors(
-                            &mut snippet.body,
-                            css_selectors,
-                            sibling_selectors,
-                            &mut chain,
-                            snippet_ancestors,
-                        );
-                    }
-                } else {
-                    process_sibling_selectors(
-                        &mut snippet.body,
-                        css_selectors,
-                        sibling_selectors,
-                        ancestors,
-                        snippet_ancestors,
-                    );
-                }
-            }
-            TemplateNode::SvelteHead(head) => {
-                process_sibling_selectors(
-                    &mut head.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            TemplateNode::SvelteBoundary(boundary) => {
-                process_sibling_selectors(
-                    &mut boundary.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            TemplateNode::SlotElement(slot) => {
-                process_sibling_selectors(
-                    &mut slot.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            TemplateNode::TitleElement(title) => {
-                process_sibling_selectors(
-                    &mut title.fragment,
-                    css_selectors,
-                    sibling_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Get block fragment references (immutable).
-fn get_block_fragments_ref(node: &TemplateNode) -> Vec<&Fragment> {
-    match node {
-        TemplateNode::IfBlock(if_block) => {
-            let mut frags = vec![&if_block.consequent];
-            if let Some(ref alt) = if_block.alternate {
-                frags.push(alt);
-            }
-            frags
-        }
-        TemplateNode::EachBlock(each) => {
-            let mut frags = vec![&each.body];
-            if let Some(ref fallback) = each.fallback {
-                frags.push(fallback);
-            }
-            frags
-        }
-        TemplateNode::AwaitBlock(await_block) => {
-            let mut frags = Vec::new();
-            if let Some(ref pending) = await_block.pending {
-                frags.push(pending);
-            }
-            if let Some(ref then) = await_block.then {
-                frags.push(then);
-            }
-            if let Some(ref catch) = await_block.catch {
-                frags.push(catch);
-            }
-            frags
-        }
-        TemplateNode::KeyBlock(key) => vec![&key.fragment],
-        TemplateNode::SnippetBlock(snippet) => vec![&snippet.body],
-        TemplateNode::SlotElement(slot) => vec![&slot.fragment],
-        TemplateNode::Component(comp) => vec![&comp.fragment],
-        _ => vec![],
-    }
-}
-
-/// Check ancestor chain for a sibling selector.
-fn check_ancestor_chain(
-    remaining: &[CssRelativeSelector],
-    current_rel: &CssRelativeSelector,
-    ancestors: &[ElementInfo],
-) -> bool {
-    apply_combinator_chain(remaining, current_rel, ancestors, ancestors.len())
 }
 
 /// Check if a complex selector matches an element, considering combinators.
@@ -3089,4 +2279,1172 @@ fn decode_css_escape(name: &str) -> String {
     }
 
     result
+}
+
+// ============================================================================
+// Upstream-faithful sibling / :has matching over a template node graph.
+//
+// This is a direct port of the relevant parts of the official compiler's
+// `2-analyze/css/css-prune.js`: `apply_selector`, `apply_combinator`,
+// `relative_selector_might_apply_to_node` (the `:has` / `:not` / `:is` /
+// `:where` / `:global` handling), `get_ancestor_elements`,
+// `get_descendant_elements`, `get_element_parent`,
+// `get_possible_element_siblings`, `get_possible_nested_siblings` and
+// `loop_child` — operating on a lightweight arena built from the template
+// fragment, with the snippet linkage (`RenderTag.metadata.snippets`,
+// `Component.metadata.snippets`, `SnippetBlock.metadata.sites`) resolved
+// like the upstream RenderTag / shared/component.js visitors.
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Dir {
+    Forward,
+    Backward,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SKind {
+    Root,
+    Regular,
+    SvelteElem,
+    Slot,
+    Component,
+    SvelteComponent,
+    SvelteSelf,
+    RenderTag,
+    If,
+    Each,
+    Await,
+    Key,
+    Snippet,
+    /// Containers that are not blocks (svelte:head, svelte:boundary, title, ...)
+    Other,
+}
+
+fn is_block_kind(kind: SKind) -> bool {
+    matches!(
+        kind,
+        SKind::If | SKind::Each | SKind::Await | SKind::Key | SKind::Slot
+    )
+}
+
+struct SNode {
+    kind: SKind,
+    elem: Option<ElementInfo>,
+    start: u32,
+    end: u32,
+    has_slot_attribute: bool,
+    parent: Option<usize>,
+    /// Which fragment of the parent contains this node.
+    parent_fragment: usize,
+    /// Index within that fragment's node list.
+    parent_index: usize,
+    /// Child fragments. `None` = the fragment slot is absent in the source
+    /// (e.g. an `{#if}` without `{:else}`), which makes blocks non-exhaustive.
+    fragments: Vec<Option<Vec<usize>>>,
+    /// SnippetBlock: the snippet's name. RenderTag: the callee name.
+    name: Option<String>,
+}
+
+struct SGraph {
+    nodes: Vec<SNode>,
+    /// renderer node id (RenderTag / Component / SvelteComponent / SvelteSelf)
+    /// -> snippet node ids it may render
+    renderer_snippets: FxHashMap<usize, Vec<usize>>,
+    /// snippet node id -> renderer node ids ("sites")
+    snippet_sites: FxHashMap<usize, Vec<usize>>,
+}
+
+impl SGraph {
+    fn node(&self, id: usize) -> &SNode {
+        &self.nodes[id]
+    }
+}
+
+/// Build the node graph from a template fragment.
+fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAnalysis>) -> SGraph {
+    let mut graph = SGraph {
+        nodes: Vec::new(),
+        renderer_snippets: FxHashMap::default(),
+        snippet_sites: FxHashMap::default(),
+    };
+    // Virtual root node owning the top-level fragment.
+    graph.nodes.push(SNode {
+        kind: SKind::Root,
+        elem: None,
+        start: 0,
+        end: 0,
+        has_slot_attribute: false,
+        parent: None,
+        parent_fragment: 0,
+        parent_index: 0,
+        fragments: vec![Some(Vec::new())],
+        name: None,
+    });
+
+    // (renderer id, callee name or None, kind) collected during the walk;
+    // component "resolved" state tracked separately.
+    let mut renderers: Vec<(usize, Option<String>, bool /* resolved-by-structure */)> = Vec::new();
+    let mut component_direct_snippets: FxHashMap<usize, Vec<usize>> = FxHashMap::default();
+    let mut all_snippets: Vec<usize> = Vec::new();
+    let mut snippets_by_name: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_fragment(
+        graph: &mut SGraph,
+        nodes: &[TemplateNode],
+        parent: usize,
+        frag_idx: usize,
+        renderers: &mut Vec<(usize, Option<String>, bool)>,
+        component_direct_snippets: &mut FxHashMap<usize, Vec<usize>>,
+        all_snippets: &mut Vec<usize>,
+        snippets_by_name: &mut FxHashMap<String, Vec<usize>>,
+    ) {
+        for node in nodes {
+            let id = graph.nodes.len();
+            let (kind, elem, start, end, has_slot_attr, name) = match node {
+                TemplateNode::RegularElement(el) => {
+                    let has_slot = el.attributes.iter().any(|attr| {
+                        if let template::Attribute::Attribute(a) = attr {
+                            a.name.as_str().eq_ignore_ascii_case("slot")
+                        } else {
+                            false
+                        }
+                    });
+                    (
+                        SKind::Regular,
+                        Some(ElementInfo::from_element(el)),
+                        el.start,
+                        el.end,
+                        has_slot,
+                        None,
+                    )
+                }
+                TemplateNode::SvelteElement(el) => (
+                    SKind::SvelteElem,
+                    Some(ElementInfo::from_svelte_element(el)),
+                    el.start,
+                    el.end,
+                    false,
+                    None,
+                ),
+                TemplateNode::SlotElement(slot) => {
+                    (SKind::Slot, None, slot.start, slot.end, false, None)
+                }
+                TemplateNode::Component(comp) => {
+                    (SKind::Component, None, comp.start, comp.end, false, None)
+                }
+                TemplateNode::SvelteComponent(comp) => (
+                    SKind::SvelteComponent,
+                    None,
+                    comp.start,
+                    comp.end,
+                    false,
+                    None,
+                ),
+                TemplateNode::SvelteSelf(el) => {
+                    (SKind::SvelteSelf, None, el.start, el.end, false, None)
+                }
+                TemplateNode::RenderTag(rt) => (
+                    SKind::RenderTag,
+                    None,
+                    rt.start,
+                    rt.end,
+                    false,
+                    get_render_tag_callee_name(rt),
+                ),
+                TemplateNode::IfBlock(b) => (SKind::If, None, b.start, b.end, false, None),
+                TemplateNode::EachBlock(b) => (SKind::Each, None, b.start, b.end, false, None),
+                TemplateNode::AwaitBlock(b) => (SKind::Await, None, b.start, b.end, false, None),
+                TemplateNode::KeyBlock(b) => (SKind::Key, None, b.start, b.end, false, None),
+                TemplateNode::SnippetBlock(s) => (
+                    SKind::Snippet,
+                    None,
+                    s.start,
+                    s.end,
+                    false,
+                    get_snippet_block_name(s),
+                ),
+                TemplateNode::SvelteHead(el)
+                | TemplateNode::SvelteBoundary(el)
+                | TemplateNode::SvelteFragment(el)
+                | TemplateNode::SvelteBody(el)
+                | TemplateNode::SvelteDocument(el)
+                | TemplateNode::SvelteWindow(el) => {
+                    (SKind::Other, None, el.start, el.end, false, None)
+                }
+                TemplateNode::TitleElement(t) => (SKind::Other, None, t.start, t.end, false, None),
+                _ => continue,
+            };
+
+            let parent_index = graph.nodes[parent].fragments[frag_idx]
+                .as_ref()
+                .map(|f| f.len())
+                .unwrap_or(0);
+            graph.nodes.push(SNode {
+                kind,
+                elem,
+                start,
+                end,
+                has_slot_attribute: has_slot_attr,
+                parent: Some(parent),
+                parent_fragment: frag_idx,
+                parent_index,
+                fragments: Vec::new(),
+                name,
+            });
+            if let Some(frag) = graph.nodes[parent].fragments[frag_idx].as_mut() {
+                frag.push(id);
+            }
+
+            // Recurse into child fragments.
+            let child_fragments: Vec<Option<&Fragment>> = match node {
+                TemplateNode::RegularElement(el) => vec![Some(&el.fragment)],
+                TemplateNode::SvelteElement(el) => vec![Some(&el.fragment)],
+                TemplateNode::SlotElement(slot) => vec![Some(&slot.fragment)],
+                TemplateNode::Component(comp) => vec![Some(&comp.fragment)],
+                TemplateNode::SvelteComponent(comp) => vec![Some(&comp.fragment)],
+                TemplateNode::SvelteSelf(el) => vec![Some(&el.fragment)],
+                TemplateNode::IfBlock(b) => {
+                    vec![Some(&b.consequent), b.alternate.as_ref()]
+                }
+                TemplateNode::EachBlock(b) => vec![Some(&b.body), b.fallback.as_ref()],
+                TemplateNode::AwaitBlock(b) => {
+                    vec![b.pending.as_ref(), b.then.as_ref(), b.catch.as_ref()]
+                }
+                TemplateNode::KeyBlock(b) => vec![Some(&b.fragment)],
+                TemplateNode::SnippetBlock(s) => vec![Some(&s.body)],
+                TemplateNode::SvelteHead(el)
+                | TemplateNode::SvelteBoundary(el)
+                | TemplateNode::SvelteFragment(el)
+                | TemplateNode::SvelteBody(el)
+                | TemplateNode::SvelteDocument(el)
+                | TemplateNode::SvelteWindow(el) => vec![Some(&el.fragment)],
+                TemplateNode::TitleElement(t) => vec![Some(&t.fragment)],
+                _ => vec![],
+            };
+            for cf in &child_fragments {
+                graph.nodes[id].fragments.push(cf.map(|_| Vec::new()));
+            }
+            for (i, cf) in child_fragments.iter().enumerate() {
+                if let Some(f) = cf {
+                    add_fragment(
+                        graph,
+                        &f.nodes,
+                        id,
+                        i,
+                        renderers,
+                        component_direct_snippets,
+                        all_snippets,
+                        snippets_by_name,
+                    );
+                }
+            }
+
+            // Track snippets and renderers.
+            match node {
+                TemplateNode::SnippetBlock(_) => {
+                    all_snippets.push(id);
+                    if let Some(n) = graph.nodes[id].name.clone() {
+                        snippets_by_name.entry(n).or_default().push(id);
+                    }
+                }
+                TemplateNode::RenderTag(rt) => {
+                    let callee = get_render_tag_callee_name(rt);
+                    let structurally_resolved = callee.is_some();
+                    renderers.push((id, callee, structurally_resolved));
+                }
+                TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteSelf(_) => {
+                    let attrs = match node {
+                        TemplateNode::Component(c) => &c.attributes,
+                        TemplateNode::SvelteComponent(c) => &c.attributes,
+                        TemplateNode::SvelteSelf(c) => &c.attributes,
+                        _ => unreachable!(),
+                    };
+                    let (resolved, names) = component_snippet_resolution(attrs);
+                    if resolved {
+                        // Direct `{#snippet}` children of the component.
+                        let direct: Vec<usize> = graph.nodes[id].fragments[0]
+                            .as_ref()
+                            .map(|frag| {
+                                frag.iter()
+                                    .copied()
+                                    .filter(|&c| graph.nodes[c].kind == SKind::Snippet)
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        component_direct_snippets.insert(id, direct);
+                    }
+                    renderers.push((id, None, resolved));
+                    // Names referenced via `foo={bar}` attributes are resolved
+                    // against the snippet name map after the walk (stored in the
+                    // otherwise-unused name slot, NUL-separated).
+                    if !names.is_empty() {
+                        graph.nodes[id].name = Some(names.join("\u{0}"));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    add_fragment(
+        &mut graph,
+        &fragment.nodes,
+        0,
+        0,
+        &mut renderers,
+        &mut component_direct_snippets,
+        &mut all_snippets,
+        &mut snippets_by_name,
+    );
+
+    // Resolve renderer -> snippets, mirroring 2-analyze/index.js lines 846-855:
+    // unresolved renderers link to EVERY local snippet; each linked snippet's
+    // `sites` gains the renderer.
+    for (renderer, callee, structurally_resolved) in &renderers {
+        let node_kind = graph.nodes[*renderer].kind;
+        let mut snippet_ids: Vec<usize> = Vec::new();
+        let mut resolved = *structurally_resolved;
+
+        if node_kind == SKind::RenderTag {
+            if let Some(name) = callee {
+                if let Some(ids) = snippets_by_name.get(name) {
+                    snippet_ids.extend(ids.iter().copied());
+                } else {
+                    // Callee doesn't name a local snippet: resolved when it is a
+                    // prop / import / unknown global (is_resolved_snippet), else
+                    // unresolved.
+                    resolved = name_is_resolved_snippet(name, analysis);
+                }
+            }
+        } else {
+            // Components: direct `{#snippet}` children (when structurally
+            // resolved) plus snippet-named expression attributes.
+            if let Some(direct) = component_direct_snippets.get(renderer) {
+                snippet_ids.extend(direct.iter().copied());
+            }
+            if let Some(names) = graph.nodes[*renderer].name.clone() {
+                for n in names.split('\u{0}') {
+                    if let Some(ids) = snippets_by_name.get(n) {
+                        snippet_ids.extend(ids.iter().copied());
+                    } else if !name_is_resolved_snippet(n, analysis) {
+                        resolved = false;
+                    }
+                }
+            }
+        }
+
+        if !resolved {
+            snippet_ids = all_snippets.clone();
+        }
+        snippet_ids.sort_unstable();
+        snippet_ids.dedup();
+        for s in &snippet_ids {
+            graph.snippet_sites.entry(*s).or_default().push(*renderer);
+        }
+        graph.renderer_snippets.insert(*renderer, snippet_ids);
+    }
+
+    graph
+}
+
+/// Approximation of upstream `is_resolved_snippet(binding)` using the
+/// analysis root bindings: a prop / rest prop / bindable prop / import /
+/// unknown (global) identifier cannot reference a locally defined snippet.
+fn name_is_resolved_snippet(
+    name: &str,
+    analysis: Option<&super::types::ComponentAnalysis>,
+) -> bool {
+    let Some(analysis) = analysis else {
+        // No analysis available: treat unknown callees as resolved (no local
+        // snippet linkage) to avoid over-linking.
+        return true;
+    };
+    let mut found = false;
+    for b in &analysis.root.bindings {
+        if b.name != name {
+            continue;
+        }
+        found = true;
+        if matches!(
+            b.kind,
+            crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                | crate::compiler::phases::phase2_analyze::scope::BindingKind::RestProp
+        ) || matches!(
+            b.declaration_kind,
+            crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Import
+        ) || b.initial_node_type.as_deref() == Some("SnippetBlock")
+        {
+            return true;
+        }
+    }
+    // No binding at all (global) is "resolved" upstream.
+    !found
+}
+
+/// Mirror of upstream shared/component.js `visit_component` snippet
+/// resolution over a component's attributes. Returns (resolved, snippet
+/// names referenced through expression attributes).
+fn component_snippet_resolution(attributes: &[template::Attribute]) -> (bool, Vec<String>) {
+    let mut resolved = true;
+    let mut names = Vec::new();
+    for attr in attributes {
+        match attr {
+            template::Attribute::SpreadAttribute(_) | template::Attribute::BindDirective(_) => {
+                resolved = false;
+            }
+            template::Attribute::Attribute(a) => {
+                if let template::AttributeValue::Expression(expr_tag) = &a.value {
+                    let json = expr_tag.expression.as_json();
+                    match json.get("type").and_then(|t| t.as_str()) {
+                        Some("Identifier") => {
+                            if let Some(n) = json.get("name").and_then(|n| n.as_str()) {
+                                names.push(n.to_string());
+                            }
+                        }
+                        Some("Literal") => {}
+                        _ => {
+                            resolved = false;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    (resolved, names)
+}
+
+// ---------------------------------------------------------------------------
+// Tree helpers (ports of get_ancestor_elements / get_descendant_elements /
+// get_element_parent / get_possible_element_siblings / loop_child)
+// ---------------------------------------------------------------------------
+
+/// Port of `get_element_parent`: nearest element ancestor (lexically).
+fn g_element_parent(graph: &SGraph, node: usize) -> Option<usize> {
+    let mut cur = graph.node(node).parent;
+    while let Some(p) = cur {
+        match graph.node(p).kind {
+            SKind::Regular | SKind::SvelteElem => return Some(p),
+            _ => cur = graph.node(p).parent,
+        }
+    }
+    None
+}
+
+/// Port of `get_ancestor_elements`.
+fn g_ancestor_elements(
+    graph: &SGraph,
+    node: usize,
+    adjacent_only: bool,
+    seen: &mut FxHashSet<usize>,
+) -> Vec<usize> {
+    let mut ancestors = Vec::new();
+    let mut cur = graph.node(node).parent;
+    while let Some(p) = cur {
+        match graph.node(p).kind {
+            SKind::Snippet => {
+                if seen.insert(p)
+                    && let Some(sites) = graph.snippet_sites.get(&p)
+                {
+                    for site in sites {
+                        ancestors.extend(g_ancestor_elements(graph, *site, adjacent_only, seen));
+                    }
+                }
+                break;
+            }
+            SKind::Regular | SKind::SvelteElem => {
+                ancestors.push(p);
+                if adjacent_only {
+                    break;
+                }
+                cur = graph.node(p).parent;
+            }
+            SKind::Root => break,
+            _ => cur = graph.node(p).parent,
+        }
+    }
+    ancestors
+}
+
+/// Port of `get_descendant_elements`.
+fn g_descendant_elements(
+    graph: &SGraph,
+    node: usize,
+    adjacent_only: bool,
+    seen: &mut FxHashSet<usize>,
+) -> Vec<usize> {
+    let mut descendants = Vec::new();
+    fn walk_children(
+        graph: &SGraph,
+        node: usize,
+        adjacent_only: bool,
+        seen: &mut FxHashSet<usize>,
+        out: &mut Vec<usize>,
+    ) {
+        for frag in graph.node(node).fragments.iter().flatten() {
+            for &child in frag {
+                match graph.node(child).kind {
+                    SKind::Regular | SKind::SvelteElem => {
+                        out.push(child);
+                        if !adjacent_only {
+                            walk_children(graph, child, adjacent_only, seen, out);
+                        }
+                    }
+                    SKind::RenderTag => {
+                        if let Some(snippets) = graph.renderer_snippets.get(&child) {
+                            for &snippet in snippets {
+                                if seen.insert(snippet) {
+                                    walk_children(graph, snippet, adjacent_only, seen, out);
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        walk_children(graph, child, adjacent_only, seen, out);
+                    }
+                }
+            }
+        }
+    }
+    if graph.node(node).kind == SKind::RenderTag {
+        if let Some(snippets) = graph.renderer_snippets.get(&node) {
+            for &snippet in snippets.clone().iter() {
+                if seen.insert(snippet) {
+                    walk_children(graph, snippet, adjacent_only, seen, &mut descendants);
+                }
+            }
+        }
+    } else {
+        walk_children(graph, node, adjacent_only, seen, &mut descendants);
+    }
+    descendants
+}
+
+/// Ordered map of node id -> "definitely exists".
+type SiblingMap = Vec<(usize, bool)>;
+
+fn map_insert(map: &mut SiblingMap, id: usize, definite: bool) {
+    if let Some(entry) = map.iter_mut().find(|(eid, _)| *eid == id) {
+        entry.1 |= definite;
+    } else {
+        map.push((id, definite));
+    }
+}
+
+fn map_extend(map: &mut SiblingMap, from: &SiblingMap) {
+    for (id, definite) in from {
+        map_insert(map, *id, *definite);
+    }
+}
+
+fn map_has_definite(map: &SiblingMap) -> bool {
+    map.iter().any(|(_, d)| *d)
+}
+
+/// Port of `get_possible_element_siblings`.
+fn g_possible_element_siblings(
+    graph: &SGraph,
+    node: usize,
+    dir: Dir,
+    adjacent_only: bool,
+    seen: &mut FxHashSet<usize>,
+) -> SiblingMap {
+    let mut result: SiblingMap = Vec::new();
+    let mut current = node;
+
+    while let Some(parent) = graph.node(current).parent {
+        let frag_idx = graph.node(current).parent_fragment;
+        let pos = graph.node(current).parent_index as isize;
+        let frag = match &graph.node(parent).fragments[frag_idx] {
+            Some(f) => f,
+            None => break,
+        };
+
+        let step: isize = if dir == Dir::Forward { 1 } else { -1 };
+        let mut j = pos + step;
+        while j >= 0 && (j as usize) < frag.len() {
+            let n = frag[j as usize];
+            let kind = graph.node(n).kind;
+            match kind {
+                SKind::Regular if !graph.node(n).has_slot_attribute => {
+                    map_insert(&mut result, n, true);
+                    if adjacent_only {
+                        return result;
+                    }
+                }
+                SKind::Regular => {}
+                SKind::SvelteElem => {
+                    map_insert(&mut result, n, false);
+                }
+                SKind::RenderTag => {
+                    map_insert(&mut result, n, false);
+                    if let Some(snippets) = graph.renderer_snippets.get(&n) {
+                        for &snippet in snippets {
+                            let nested = g_possible_nested_siblings(
+                                graph,
+                                snippet,
+                                dir,
+                                adjacent_only,
+                                &mut FxHashSet::default(),
+                            );
+                            map_extend(&mut result, &nested);
+                        }
+                    }
+                }
+                _ if is_block_kind(kind) || kind == SKind::Component => {
+                    if kind == SKind::Slot || kind == SKind::Component {
+                        map_insert(&mut result, n, false);
+                    }
+                    let nested = g_possible_nested_siblings(
+                        graph,
+                        n,
+                        dir,
+                        adjacent_only,
+                        &mut FxHashSet::default(),
+                    );
+                    let nested_definite = map_has_definite(&nested);
+                    map_extend(&mut result, &nested);
+                    if adjacent_only && kind != SKind::Component && nested_definite {
+                        return result;
+                    }
+                }
+                _ => {}
+            }
+            j += step;
+        }
+
+        current = parent;
+        let kind = graph.node(current).kind;
+        if kind == SKind::Root {
+            break;
+        }
+        if matches!(
+            kind,
+            SKind::Component | SKind::SvelteComponent | SKind::SvelteSelf
+        ) {
+            continue;
+        }
+        if kind == SKind::Snippet {
+            if !seen.insert(current) {
+                break;
+            }
+            if let Some(sites) = graph.snippet_sites.get(&current) {
+                for site in sites {
+                    let siblings =
+                        g_possible_element_siblings(graph, *site, dir, adjacent_only, seen);
+                    let definite = map_has_definite(&siblings);
+                    map_extend(&mut result, &siblings);
+                    if adjacent_only && sites.len() == 1 && definite {
+                        return result;
+                    }
+                }
+            }
+        }
+        if !is_block_kind(kind) {
+            break;
+        }
+        if kind == SKind::Each && frag_idx == 0 {
+            // `{#each ...}<a /><b />{/each}` — `<b>` can be a previous sibling
+            // of `<a />` (wrap-around).
+            let nested = g_possible_nested_siblings(
+                graph,
+                current,
+                dir,
+                adjacent_only,
+                &mut FxHashSet::default(),
+            );
+            map_extend(&mut result, &nested);
+        }
+    }
+
+    result
+}
+
+/// Port of `get_possible_nested_siblings`.
+fn g_possible_nested_siblings(
+    graph: &SGraph,
+    node: usize,
+    dir: Dir,
+    adjacent_only: bool,
+    seen: &mut FxHashSet<usize>,
+) -> SiblingMap {
+    let kind = graph.node(node).kind;
+    let mut fragments: Vec<Option<&Vec<usize>>> = Vec::new();
+    match kind {
+        SKind::Each | SKind::If | SKind::Await | SKind::Key | SKind::Slot => {
+            for f in &graph.node(node).fragments {
+                fragments.push(f.as_ref());
+            }
+        }
+        SKind::Snippet => {
+            if !seen.insert(node) {
+                return Vec::new();
+            }
+            for f in &graph.node(node).fragments {
+                fragments.push(f.as_ref());
+            }
+        }
+        SKind::Component => {
+            for f in &graph.node(node).fragments {
+                fragments.push(f.as_ref());
+            }
+            if let Some(snippets) = graph.renderer_snippets.get(&node) {
+                for &snippet in snippets {
+                    for f in &graph.node(snippet).fragments {
+                        fragments.push(f.as_ref());
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    let mut result: SiblingMap = Vec::new();
+    let mut exhaustive = kind != SKind::Slot && kind != SKind::Snippet;
+
+    for fragment in fragments {
+        let Some(fragment) = fragment else {
+            exhaustive = false;
+            continue;
+        };
+        let map = g_loop_child(graph, fragment, dir, adjacent_only, seen);
+        exhaustive = exhaustive && map_has_definite(&map);
+        map_extend(&mut result, &map);
+    }
+
+    if !exhaustive {
+        for entry in &mut result {
+            entry.1 = false;
+        }
+    }
+
+    result
+}
+
+/// Port of `loop_child`.
+fn g_loop_child(
+    graph: &SGraph,
+    children: &[usize],
+    dir: Dir,
+    adjacent_only: bool,
+    seen: &mut FxHashSet<usize>,
+) -> SiblingMap {
+    let mut result: SiblingMap = Vec::new();
+    let step: isize = if dir == Dir::Forward { 1 } else { -1 };
+    let mut i: isize = if dir == Dir::Forward {
+        0
+    } else {
+        children.len() as isize - 1
+    };
+    while i >= 0 && (i as usize) < children.len() {
+        let child = children[i as usize];
+        let kind = graph.node(child).kind;
+        match kind {
+            SKind::Regular => {
+                map_insert(&mut result, child, true);
+                if adjacent_only {
+                    break;
+                }
+            }
+            SKind::SvelteElem => {
+                map_insert(&mut result, child, false);
+            }
+            SKind::RenderTag => {
+                if let Some(snippets) = graph.renderer_snippets.get(&child) {
+                    for &snippet in snippets {
+                        let nested =
+                            g_possible_nested_siblings(graph, snippet, dir, adjacent_only, seen);
+                        map_extend(&mut result, &nested);
+                    }
+                }
+            }
+            _ if is_block_kind(kind) => {
+                let child_result =
+                    g_possible_nested_siblings(graph, child, dir, adjacent_only, seen);
+                let definite = map_has_definite(&child_result);
+                map_extend(&mut result, &child_result);
+                if adjacent_only && definite {
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += step;
+    }
+    result
+}
+
+// ---------------------------------------------------------------------------
+// Selector application (ports of apply_selector / apply_combinator /
+// relative_selector_might_apply_to_node)
+// ---------------------------------------------------------------------------
+
+/// Port of upstream `is_global(node)` from 2-analyze/css/utils.js — the
+/// strict form used by the opaque-sibling rule (`metadata.is_global`).
+fn compute_is_global(selectors: &[CssSimpleSelector]) -> bool {
+    let Some(CssSimpleSelector::PseudoClass(name, args)) = selectors.first() else {
+        return false;
+    };
+    name == "global" && (args.is_none() || selectors.iter().all(is_unscoped_or_pseudo_element))
+}
+
+fn g_every_is_global(selectors: &[CssRelativeSelector], from: usize, to: usize) -> bool {
+    selectors[from..to].iter().all(is_relative_selector_global)
+}
+
+/// Port of `apply_selector`. Marks every matched element in `marks`.
+fn g_apply_selector(
+    graph: &SGraph,
+    selectors: &[CssRelativeSelector],
+    from: usize,
+    to: usize,
+    node: usize,
+    dir: Dir,
+    marks: &mut FxHashSet<(u32, u32)>,
+) -> bool {
+    if from >= to {
+        return false;
+    }
+    let idx = if dir == Dir::Forward { from } else { to - 1 };
+    let rel = &selectors[idx];
+    let (rest_from, rest_to) = if dir == Dir::Forward {
+        (from + 1, to)
+    } else {
+        (from, to - 1)
+    };
+
+    let matched = g_relative_might_apply(graph, rel, selectors, node, marks)
+        && g_apply_combinator(graph, rel, selectors, rest_from, rest_to, node, dir, marks);
+
+    if matched {
+        let n = graph.node(node);
+        marks.insert((n.start, n.end));
+    }
+
+    matched
+}
+
+/// Port of `apply_combinator`.
+#[allow(clippy::too_many_arguments)]
+fn g_apply_combinator(
+    graph: &SGraph,
+    rel: &CssRelativeSelector,
+    selectors: &[CssRelativeSelector],
+    from: usize,
+    to: usize,
+    node: usize,
+    dir: Dir,
+    marks: &mut FxHashSet<(u32, u32)>,
+) -> bool {
+    let combinator: Option<String> = if dir == Dir::Forward {
+        if from < to {
+            selectors[from].combinator.clone()
+        } else {
+            None
+        }
+    } else {
+        rel.combinator.clone()
+    };
+    let Some(comb) = combinator else {
+        return true;
+    };
+
+    match comb.as_str() {
+        " " | ">" => {
+            let is_adjacent = comb == ">";
+            let parents = if dir == Dir::Forward {
+                g_descendant_elements(graph, node, is_adjacent, &mut FxHashSet::default())
+            } else {
+                g_ancestor_elements(graph, node, is_adjacent, &mut FxHashSet::default())
+            };
+            let mut parent_matched = false;
+            for parent in &parents {
+                if g_apply_selector(graph, selectors, from, to, *parent, dir, marks) {
+                    parent_matched = true;
+                }
+            }
+            parent_matched
+                || (dir == Dir::Backward
+                    && (!is_adjacent || parents.is_empty())
+                    && g_every_is_global(selectors, from, to))
+        }
+        "+" | "~" => {
+            let siblings = g_possible_element_siblings(
+                graph,
+                node,
+                dir,
+                comb == "+",
+                &mut FxHashSet::default(),
+            );
+            let mut sibling_matched = false;
+            for (sibling, _) in &siblings {
+                let kind = graph.node(*sibling).kind;
+                if matches!(kind, SKind::RenderTag | SKind::Slot | SKind::Component) {
+                    // `{@render foo()}<p>foo</p>` with `:global(.x) + p` is a match
+                    if to - from == 1 && compute_is_global(&selectors[from].selectors) {
+                        sibling_matched = true;
+                    }
+                } else if g_apply_selector(graph, selectors, from, to, *sibling, dir, marks) {
+                    sibling_matched = true;
+                }
+            }
+            sibling_matched
+                || (dir == Dir::Backward
+                    && g_element_parent(graph, node).is_none()
+                    && g_every_is_global(selectors, from, to))
+        }
+        _ => true,
+    }
+}
+
+/// Port of `relative_selector_might_apply_to_node`, covering the `:has`,
+/// `:not`, `:is`/`:where` and `:global(...)` cases with graph-based matching;
+/// plain simple selectors delegate to `element_matches_simple_selectors`.
+fn g_relative_might_apply(
+    graph: &SGraph,
+    rel: &CssRelativeSelector,
+    complex: &[CssRelativeSelector],
+    node: usize,
+    marks: &mut FxHashSet<(u32, u32)>,
+) -> bool {
+    let Some(elem) = graph.node(node).elem.as_ref() else {
+        return false;
+    };
+
+    for selector in &rel.selectors {
+        match selector {
+            CssSimpleSelector::PseudoClass(name, Some(args)) if name == "has" => {
+                // If this is a :has inside a global selector, include the
+                // element itself, because the global part might match an
+                // element outside the component (e.g. `:root:has(.scoped)`).
+                let include_self = complex.iter().any(is_relative_selector_global)
+                    || complex.iter().any(|r| {
+                        r.selectors.iter().any(|s| {
+                            matches!(s, CssSimpleSelector::PseudoClass(n, a)
+                                if n == "root" || (n == "global" && a.is_some()))
+                        })
+                    });
+
+                let mut matched = false;
+                for cs in args {
+                    let truncated = truncate_globals(&cs.children);
+                    if truncated.is_empty() {
+                        // it was just a :global(...)
+                        matched = true;
+                        continue;
+                    }
+
+                    if include_self {
+                        let mut sel_inc: Vec<CssRelativeSelector> = truncated.to_vec();
+                        sel_inc[0].combinator = None;
+                        if g_apply_selector(
+                            graph,
+                            &sel_inc,
+                            0,
+                            sel_inc.len(),
+                            node,
+                            Dir::Forward,
+                            marks,
+                        ) {
+                            matched = true;
+                        }
+                    }
+
+                    // `.x:has(.y)` is treated as `.x .y`: prepend a synthetic
+                    // "any" selector representing the element itself.
+                    let mut sel_exc: Vec<CssRelativeSelector> =
+                        Vec::with_capacity(truncated.len() + 1);
+                    sel_exc.push(CssRelativeSelector {
+                        combinator: None,
+                        selectors: Vec::new(),
+                        is_global: false,
+                        is_global_like: false,
+                    });
+                    let mut first = truncated[0].clone();
+                    if first.combinator.is_none() {
+                        first.combinator = Some(" ".to_string());
+                    }
+                    sel_exc.push(first);
+                    sel_exc.extend_from_slice(&truncated[1..]);
+                    if g_apply_selector(
+                        graph,
+                        &sel_exc,
+                        0,
+                        sel_exc.len(),
+                        node,
+                        Dir::Forward,
+                        marks,
+                    ) {
+                        matched = true;
+                    }
+                }
+
+                if !matched {
+                    return false;
+                }
+            }
+            CssSimpleSelector::PseudoClass(name, args) => {
+                if name == "host" || name == "root" {
+                    return false;
+                }
+                if name == "global" {
+                    if let Some(args) = args {
+                        if rel.selectors.len() == 1 {
+                            let Some(cs) = args.first() else {
+                                return true;
+                            };
+                            return g_apply_selector(
+                                graph,
+                                &cs.children,
+                                0,
+                                cs.children.len(),
+                                node,
+                                Dir::Backward,
+                                marks,
+                            );
+                        }
+                        // `:global(...)` among other selectors: potential match.
+                        continue;
+                    }
+                    // bare `:global` — everything beyond it is global
+                    return true;
+                }
+                if name == "not" {
+                    if let Some(args) = args {
+                        for cs in args {
+                            if cs.children.len() > 1 {
+                                // foo:not(bar foo): assume bar is an ancestor of
+                                // foo; scope the element and its ancestors.
+                                let mut el = Some(node);
+                                while let Some(e) = el {
+                                    let n = graph.node(e);
+                                    marks.insert((n.start, n.end));
+                                    el = g_element_parent(graph, e);
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if (name == "is" || name == "where") && args.is_some() {
+                    let mut matched = false;
+                    for cs in args.as_ref().unwrap() {
+                        let relative = truncate_globals(&cs.children);
+                        if relative.is_empty()
+                            || g_apply_selector(
+                                graph,
+                                relative,
+                                0,
+                                relative.len(),
+                                node,
+                                Dir::Backward,
+                                marks,
+                            )
+                        {
+                            matched = true;
+                        } else if cs.children.len() > 1 {
+                            // foo :is(bar baz): assume bar is an ancestor of foo
+                            matched = true;
+                        }
+                    }
+                    if !matched {
+                        return false;
+                    }
+                }
+                // other pseudo-classes are a potential match
+            }
+            CssSimpleSelector::PseudoElement | CssSimpleSelector::Nesting => {}
+            simple => {
+                if !element_matches_simple_selectors(elem, std::slice::from_ref(simple)) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+/// Whether a complex selector contains a `:has(...)` anywhere.
+fn selector_contains_has(selector: &CssComplexSelector) -> bool {
+    fn rel_has(rel: &CssRelativeSelector) -> bool {
+        rel.selectors.iter().any(|s| match s {
+            CssSimpleSelector::PseudoClass(name, args) => {
+                (name == "has" && args.is_some())
+                    || args
+                        .as_ref()
+                        .is_some_and(|a| a.iter().any(selector_contains_has))
+            }
+            _ => false,
+        })
+    }
+    selector.children.iter().any(rel_has)
+}
+
+/// Whether a complex selector contains a `:not(...)` with a multi-part
+/// complex selector argument (`foo:not(bar foo)`), which upstream handles by
+/// scoping the element under test and all of its element ancestors
+/// (css-prune.js `:not` branch).
+fn selector_contains_complex_not(selector: &CssComplexSelector) -> bool {
+    fn rel_has(rel: &CssRelativeSelector) -> bool {
+        rel.selectors.iter().any(|s| match s {
+            CssSimpleSelector::PseudoClass(name, Some(args)) => {
+                (name == "not" && args.iter().any(|cs| cs.children.len() > 1))
+                    || args.iter().any(selector_contains_complex_not)
+            }
+            _ => false,
+        })
+    }
+    selector.children.iter().any(rel_has)
+}
+
+/// Run the graph-based pass: every element in the template is tested against
+/// every sibling-combinator / `:has` selector via the faithful
+/// `apply_selector` port; matched elements (subjects, siblings, ancestors and
+/// `:has` inner elements) are collected into `marks`.
+fn process_graph_selectors(
+    fragment: &Fragment,
+    css_selectors: &[CssComplexSelector],
+    analysis: Option<&super::types::ComponentAnalysis>,
+    marks: &mut FxHashSet<(u32, u32)>,
+) {
+    let graph_selectors: Vec<&CssComplexSelector> = css_selectors
+        .iter()
+        .filter(|s| {
+            has_sibling_combinator(s)
+                || selector_contains_has(s)
+                || selector_contains_complex_not(s)
+        })
+        .collect();
+    if graph_selectors.is_empty() {
+        return;
+    }
+
+    let graph = build_sgraph(fragment, analysis);
+
+    for id in 0..graph.nodes.len() {
+        if graph.node(id).elem.is_none() {
+            continue;
+        }
+        for selector in &graph_selectors {
+            let effective = truncate_globals(&selector.children);
+            if effective.is_empty() {
+                continue;
+            }
+            g_apply_selector(
+                &graph,
+                effective,
+                0,
+                effective.len(),
+                id,
+                Dir::Backward,
+                marks,
+            );
+        }
+    }
 }

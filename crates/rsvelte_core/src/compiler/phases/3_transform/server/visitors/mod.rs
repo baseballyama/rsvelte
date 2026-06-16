@@ -84,6 +84,25 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Ok(())
             }
+            // <svelte:window> / <svelte:document> / <svelte:body> render
+            // nothing in SSR, but comments inside their dropped event-handler
+            // expressions survive in the official output (esrap re-inserts
+            // them before the next positioned node).
+            TemplateNode::SvelteWindow(elem)
+            | TemplateNode::SvelteDocument(elem)
+            | TemplateNode::SvelteBody(elem) => {
+                for attr in &elem.attributes {
+                    if let crate::ast::template::Attribute::OnDirective(on) = attr
+                        && let Some(expr) = &on.expression
+                    {
+                        self.record_lost_expression_comments(
+                            expr.start().unwrap_or(0) as usize,
+                            expr.end().unwrap_or(0) as usize,
+                        );
+                    }
+                }
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -137,18 +156,29 @@ impl<'a> ServerCodeGenerator<'a> {
             out
         };
 
-        let body = if ident_names.is_empty() {
-            // {@debug} with no identifiers - just emit debugger
-            "debugger;".to_string()
-        } else {
-            // {@debug expr1, expr2} - emit console.log({ expr1, expr2 }); debugger;
-            let obj_entries = ident_names.join(", ");
-            format!("console.log({{ {} }});\ndebugger;", obj_entries)
-        };
-
         if blocker_strs.is_empty() {
-            self.output_parts.push(OutputPart::RawStatement(body));
+            // Emit `console.log({...})` and `debugger` as SEPARATE statements
+            // (upstream's DebugTag visitor pushes two statements). The codegen's
+            // esrap-style blank-line logic then separates them — `debugger` is a
+            // DebuggerStatement, so it gets a blank line on both sides, matching
+            // the official output.
+            if !ident_names.is_empty() {
+                self.output_parts.push(OutputPart::RawStatement(format!(
+                    "console.log({{ {} }});",
+                    ident_names.join(", ")
+                )));
+            }
+            self.output_parts
+                .push(OutputPart::RawStatement("debugger;".to_string()));
         } else {
+            let body = if ident_names.is_empty() {
+                // {@debug} with no identifiers - just emit debugger
+                "debugger;".to_string()
+            } else {
+                // {@debug expr1, expr2} - emit console.log({ expr1, expr2 }); debugger;
+                let obj_entries = ident_names.join(", ");
+                format!("console.log({{ {} }});\ndebugger;", obj_entries)
+            };
             // Wrap in $$renderer.async_block([blockers], ($$renderer) => { ... }).
             // Each body line is indented one level inside the arrow body so the
             // emitted code matches the indented-by-codegen pretty-printed shape.

@@ -10,6 +10,7 @@
 //! 4. Applies all replacements in a single pass (right-to-left to preserve offsets)
 
 use std::cell::RefCell;
+use std::fmt::Write as _;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
@@ -108,14 +109,11 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String]) -> bool {
         Expression::ParenthesizedExpression(paren) => {
             should_proxy_ast(&paren.expression, non_proxy_vars)
         }
-        // SequenceExpression (comma): check last expression
-        Expression::SequenceExpression(seq) => {
-            if let Some(last) = seq.expressions.last() {
-                should_proxy_ast(last, non_proxy_vars)
-            } else {
-                true
-            }
-        }
+        // SequenceExpression (comma): upstream `should_proxy` does NOT whitelist
+        // SequenceExpression, so it falls through to `return true` — a comma
+        // expression like `(void 0, 1)` IS proxied. (Do not recurse into the
+        // last operand: that would wrongly skip the proxy for a literal tail.)
+        Expression::SequenceExpression(_) => true,
         // Everything else (CallExpression, MemberExpression, etc.) might need proxy
         _ => true,
     }
@@ -234,7 +232,6 @@ struct StateVarCollector<'a, 's> {
 }
 
 impl<'a, 's> StateVarCollector<'a, 's> {
-    #[allow(clippy::too_many_arguments)]
     fn new(
         source: &'s str,
         state_vars: &'a FxHashSet<&'a str>,
@@ -392,6 +389,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// For `$count`, the base is `count`. The access depends on whether
     /// `count` is a prop, state var, or plain variable.
     fn store_access_for(&self, store_sub: &str) -> String {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        use crate::compiler::phases::phase3_transform::client::utils::is_prop_source;
         let store_name = &store_sub[1..]; // Strip leading $
         if self.prop_vars_for_store.contains(store_name) {
             format!("{}()", store_name) // prop getter
@@ -399,6 +398,19 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             && !self.non_reactive_vars.contains(store_name)
         {
             format!("$.get({})", store_name) // reactive state getter
+        } else if let Some(analysis) = self.analysis
+            && let Some(idx) = analysis.root.find_binding_any_scope(store_name)
+            && let Some(binding) = analysis.root.bindings.get(idx)
+            && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+            && !is_prop_source(binding, analysis)
+        {
+            // Non-source prop store (`const { store } = $props()`): the store
+            // object is the prop value, read via `$$props.store` /
+            // `$$props['alias']` — mirrors the store-getter declaration.
+            match binding.prop_alias.as_deref().filter(|a| *a != store_name) {
+                Some(alias) => format!("$$props[\"{}\"]", alias),
+                None => format!("$$props.{}", store_name),
+            }
         } else {
             store_name.to_string() // regular variable
         }
@@ -712,7 +724,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // by node kind here (not by post-rewrite text).
         let (needs_proxy, is_explicit_undefined) = if let Some(arg) = call.arguments.first() {
             let arg_expr = arg.as_expression();
-            let needs_proxy = arg_expr.map(|e| should_proxy_ast(e, &[])).unwrap_or(false);
+            let needs_proxy = arg_expr
+                .map(|e| should_proxy_ast(e, self.non_proxy_vars))
+                .unwrap_or(false);
             let is_undef = matches!(
                 arg_expr,
                 Some(Expression::Identifier(id)) if id.name == "undefined"
@@ -1599,10 +1613,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         }
 
         // Case 4: bare store-sub / prop-source identifier — already callable.
+        // Pass the bare identifier name directly (not the walked version which would be `name()`),
+        // because store-sub / prop-source vars are already getter functions.
+        // This mirrors upstream's `b.thunk(test())` → `unthunk(() => test())` → `test` collapsing.
         if let Some(Expression::Identifier(ident)) = arg_expr_opt {
             let name = ident.name.as_str();
             if self.store_sub_vars.contains(name) || self.prop_source_vars.contains(name) {
-                let replacement = format!("$.derived({})", walked_for_emit);
+                let replacement = format!("$.derived({})", name);
                 let replacement = self.maybe_tag_declarator(var_name, replacement);
                 self.add_replacement(call.span.start, call.span.end, replacement);
                 return true;
@@ -2283,6 +2300,19 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             && member.property.name == "id"
         {
             self.add_replacement(member.span.start, member.span.end, "$.props_id".to_string());
+            return;
+        }
+
+        // `$host()` -> `$$props.$$host`. Whole-call replacement.
+        // Reference: 3-transform/client/visitors/CallExpression.js `case '$host'`.
+        if self.is_runes
+            && !self.is_shadowed("$host")
+            && !self.store_sub_vars.contains("$host")
+            && expr.arguments.is_empty()
+            && let Expression::Identifier(callee) = &expr.callee
+            && callee.name == "$host"
+        {
+            self.add_replacement(expr.span.start, expr.span.end, "$$props.$$host".to_string());
             return;
         }
 
@@ -3113,23 +3143,25 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let length = arr.elements.len();
         let mut body = String::new();
-        body.push_str(&format!(
-            "\t\t\tvar {} = $.to_array($$value, {});\n",
+        let _ = writeln!(
+            body,
+            "\t\t\tvar {} = $.to_array($$value, {});",
             array_name, length
-        ));
+        );
 
         for (i, target) in targets.iter().enumerate() {
             match target {
                 ArrayTarget::Null => {}
                 ArrayTarget::Prop(name) => {
-                    body.push_str(&format!("\t\t\t{}({}[{}]);\n", name, array_name, i));
+                    let _ = writeln!(body, "\t\t\t{}({}[{}]);", name, array_name, i);
                 }
                 ArrayTarget::MemberOnProp { prop_name, .. } => {
                     let member_text = transformed_member_texts[i].as_ref().unwrap();
-                    body.push_str(&format!(
-                        "\t\t\t{}({} = {}[{}], true);\n",
+                    let _ = writeln!(
+                        body,
+                        "\t\t\t{}({} = {}[{}], true);",
                         prop_name, member_text, array_name, i
-                    ));
+                    );
                 }
             }
         }
@@ -3605,6 +3637,10 @@ pub(super) fn transform_state_vars_ast(
     let has_props_calls = is_runes
         && !store_sub_vars.iter().any(|v| v == "$props")
         && memchr::memmem::find(script.as_bytes(), b"$props").is_some();
+    // `$host()` → `$$props.$$host` (custom elements).
+    let has_host_calls = is_runes
+        && !store_sub_vars.iter().any(|v| v == "$host")
+        && memchr::memmem::find(script.as_bytes(), b"$host").is_some();
     // Dev-mode `===` / `!==` → `$.strict_equals(...)` rewrite (formerly
     // `rune_transforms::transform_strict_equals`). The visitor walks
     // every BinaryExpression so we only need a byte probe to know
@@ -3622,6 +3658,7 @@ pub(super) fn transform_state_vars_ast(
         && !has_state_calls
         && !has_derived_calls
         && !has_props_calls
+        && !has_host_calls
         && !has_strict_equals
     {
         return None;
@@ -3647,6 +3684,10 @@ pub(super) fn transform_state_vars_ast(
             {
                 i += 1;
             }
+            // SAFETY: `bytes` come from `script.as_bytes()`. The slice spans
+            // `start..i`, a run that begins at an ASCII ident-start byte and
+            // continues only over ASCII ident-continue bytes, so it is
+            // entirely ASCII and therefore valid UTF-8 on char boundaries.
             let word = unsafe { std::str::from_utf8_unchecked(&bytes[start..i]) };
             set.insert(word);
         }
@@ -3673,6 +3714,7 @@ pub(super) fn transform_state_vars_ast(
         || (has_state_calls && script_ids.contains("$state"))
         || (has_derived_calls && script_ids.contains("$derived"))
         || (has_props_calls && script_ids.contains("$props"))
+        || (has_host_calls && script_ids.contains("$host"))
         || has_strict_equals;
 
     if !has_any_match {

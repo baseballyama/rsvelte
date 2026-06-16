@@ -9,6 +9,7 @@ use crate::ast::template::{
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{escape_attr, escape_js_string};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use std::fmt::Write as _;
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Generate <select> element using $$renderer.select().
@@ -65,6 +66,22 @@ impl<'a> ServerCodeGenerator<'a> {
         }
         let _ = has_value; // value is now included in attrs directly
 
+        // Upstream's analysis (2-analyze/index.js) appends a synthetic empty
+        // `class` attribute when the element is scoped or has `class:`
+        // directives (and no spread / class attribute), so the spread object
+        // gets `class: ''` and the scope hash travels as a separate argument.
+        let has_spread = attrs.iter().any(|(name, _)| name == "__spread__");
+        let has_class_attr = attrs.iter().any(|(name, _)| name == "class");
+        let has_class_directive = element
+            .attributes
+            .iter()
+            .any(|a| matches!(a, Attribute::ClassDirective(_)));
+        if !has_spread && !has_class_attr && (element.metadata.scoped || has_class_directive) {
+            attrs.push(("class".to_string(), "''".to_string()));
+        }
+        // `class:` directives object (4th argument, after css_hash).
+        let classes = self.build_class_directives_object(element)?;
+
         // Generate body parts for children
         let mut body_generator = ServerCodeGenerator::new(
             self.component_name.clone(),
@@ -75,6 +92,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.current_scope_index = self.current_scope_index;
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
         body_generator.uses_store_subs = self.uses_store_subs;
@@ -143,11 +161,9 @@ impl<'a> ServerCodeGenerator<'a> {
         // Check if it has rich content (Components, RenderTags, etc.)
         let is_rich = Self::has_component_or_render_tag(&element.fragment.nodes);
 
-        // Check if this element has a class attribute
-        let has_class = attrs.iter().any(|(name, _)| name == "class");
-
-        // Get CSS hash for scoped elements - only if they have a class attribute
-        let css_hash = if element.metadata.scoped && has_class {
+        // Get CSS hash for scoped elements (upstream `prepare_element_spread`:
+        // `element.metadata.scoped && context.state.analysis.css.hash`)
+        let css_hash = if element.metadata.scoped {
             self.analysis.and_then(|a| {
                 if !a.css.hash.is_empty() {
                     Some(a.css.hash.clone())
@@ -205,6 +221,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         body: body_generator.output_parts,
                         is_rich,
                         css_hash,
+                        classes,
                     }],
                 });
 
@@ -220,6 +237,7 @@ impl<'a> ServerCodeGenerator<'a> {
             },
             is_rich,
             css_hash,
+            classes,
         };
 
         self.output_parts.push(select_part);
@@ -300,7 +318,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             // Append CSS hash: class="foo" → class="foo svelte-xxx"
                             if attr_str.ends_with('"') {
                                 let without_quote = &attr_str[..attr_str.len() - 1];
-                                tag.push_str(&format!("{} {}\"", without_quote, hash));
+                                let _ = write!(tag, "{} {}\"", without_quote, hash);
                             } else {
                                 tag.push_str(&attr_str);
                             }
@@ -380,7 +398,7 @@ impl<'a> ServerCodeGenerator<'a> {
             && let Some(hash) = self.analysis.as_ref().map(|a| a.css.hash.as_str())
         {
             // No class directives and no class attr - add CSS hash if scoped
-            tag.push_str(&format!(" class=\"{}\"", hash));
+            let _ = write!(tag, " class=\"{}\"", hash);
         }
 
         // Collect style directives and add attr_style if needed
@@ -464,7 +482,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     let name = node.name.to_string();
                     match &node.value {
                         AttributeValue::True(_) => {
-                            attr_entries.push(format!("{}: true", name));
+                            attr_entries.push(format!(
+                                "{}: true",
+                                super::super::helpers::quote_prop_name(&name)
+                            ));
                         }
                         AttributeValue::Expression(expr_tag) => {
                             let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
@@ -525,17 +546,18 @@ impl<'a> ServerCodeGenerator<'a> {
                                                 let expr = self.source[expr_start..expr_end]
                                                     .trim()
                                                     .to_string();
-                                                value.push_str(&format!(
-                                                    "${{$.stringify({})}}",
-                                                    expr
-                                                ));
+                                                let _ = write!(value, "${{$.stringify({})}}", expr);
                                             }
                                         }
                                     }
                                 }
                                 if has_expression {
                                     // Interpolated value: emit a template literal.
-                                    attr_entries.push(format!("{}: `{}`", name, value));
+                                    attr_entries.push(format!(
+                                        "{}: `{}`",
+                                        super::super::helpers::quote_prop_name(&name),
+                                        value
+                                    ));
                                 } else {
                                     // Pure static text: HTML-escape the content then
                                     // JS-escape the single-quoted literal so quotes /
@@ -543,7 +565,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                     // or inject into the generated SSR module.
                                     attr_entries.push(format!(
                                         "{}: '{}'",
-                                        name,
+                                        super::super::helpers::quote_prop_name(&name),
                                         escape_js_string(&escape_attr(&value))
                                     ));
                                 }
@@ -563,11 +585,24 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // Check if this element has a class attribute
-        let has_class = attr_entries.iter().any(|e| e.starts_with("class:"));
+        // Upstream's analysis appends a synthetic empty `class` attribute
+        // when the element is scoped or has `class:` directives (and no
+        // spread / class attribute).
+        let has_spread = attr_entries.iter().any(|e| e.starts_with("..."));
+        let has_class_attr = attr_entries.iter().any(|e| e.starts_with("class:"));
+        let has_class_directive = element
+            .attributes
+            .iter()
+            .any(|a| matches!(a, Attribute::ClassDirective(_)));
+        if !has_spread && !has_class_attr && (element.metadata.scoped || has_class_directive) {
+            attr_entries.push("class: ''".to_string());
+        }
+        // `class:` directives object (4th argument, after css_hash).
+        let classes = self.build_class_directives_object(element)?;
 
-        // Get CSS hash for scoped elements - only if they have a class attribute
-        let css_hash = if element.metadata.scoped && has_class {
+        // Get CSS hash for scoped elements (upstream `prepare_element_spread`:
+        // `element.metadata.scoped && context.state.analysis.css.hash`)
+        let css_hash = if element.metadata.scoped {
             self.analysis.and_then(|a| {
                 if !a.css.hash.is_empty() {
                     Some(a.css.hash.clone())
@@ -619,6 +654,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         is_rich,
                         direct_value: Some(temp_name.to_string()),
                         css_hash: css_hash.clone(),
+                        classes: classes.clone(),
                         dev_location: dev_loc,
                     }],
                 });
@@ -629,6 +665,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     is_rich,
                     direct_value: Some(expr_source),
                     css_hash: css_hash.clone(),
+                    classes: classes.clone(),
                     dev_location: dev_loc,
                 });
             }
@@ -646,6 +683,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.current_scope_index = self.current_scope_index;
         body_generator.is_typescript = self.is_typescript;
         body_generator.dev = self.dev;
         body_generator.uses_store_subs = self.uses_store_subs;
@@ -708,10 +746,47 @@ impl<'a> ServerCodeGenerator<'a> {
             is_rich,
             direct_value: None,
             css_hash,
+            classes,
             dev_location: dev_loc,
         });
 
         Ok(())
+    }
+
+    /// Build the `class:` directives object literal for `$$renderer.select` /
+    /// `$$renderer.option` (upstream `prepare_element_spread`'s `classes`
+    /// argument): `{ name: expr, ... }`, or `None` when the element has no
+    /// class directives. A directive whose expression is the same identifier
+    /// as its name emits the bare identifier (upstream `b.id(name)`).
+    fn build_class_directives_object(
+        &self,
+        element: &RegularElement,
+    ) -> Result<Option<String>, TransformError> {
+        let mut entries: Vec<String> = Vec::new();
+        for attr in &element.attributes {
+            if let Attribute::ClassDirective(dir) = attr {
+                let name = dir.name.as_str();
+                let expr_start = dir.expression.start().unwrap_or(0) as usize;
+                let expr_end = dir.expression.end().unwrap_or(0) as usize;
+                let expr = if expr_end > expr_start && expr_end <= self.source.len() {
+                    let raw = self.source[expr_start..expr_end].trim().to_string();
+                    if raw == name {
+                        raw
+                    } else {
+                        let e = self.strip_ts_from_expr(&raw);
+                        self.transform_store_refs(&e)
+                    }
+                } else {
+                    name.to_string()
+                };
+                entries.push(prop_string(name, &expr));
+            }
+        }
+        if entries.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(format!("{{ {} }}", entries.join(", "))))
+        }
     }
 
     /// Check if option content is "rich" (contains elements other than text, or components/render tags)

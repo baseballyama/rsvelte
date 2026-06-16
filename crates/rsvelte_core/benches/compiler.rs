@@ -6,6 +6,7 @@
 //! 3. Transform - Code generation
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use std::fmt::Write as _;
 use std::fs;
 use std::hint::black_box;
 use std::path::PathBuf;
@@ -76,7 +77,8 @@ fn create_large_synthetic_file() -> (String, String) {
 
     // Add many elements to create a large template
     for i in 0..100 {
-        source.push_str(&format!(
+        let _ = write!(
+            source,
             r#"<div class="item-{i}">
     <span>Item {i}: {{count}}</span>
     {{#if count > {i}}}
@@ -86,7 +88,7 @@ fn create_large_synthetic_file() -> (String, String) {
     {{/if}}
 </div>
 "#
-        ));
+        );
     }
 
     ("synthetic-large".to_string(), source)
@@ -108,7 +110,8 @@ fn create_legacy_state_var_heavy_file() -> (String, String) {
 "#,
     );
     for i in 0..40 {
-        script.push_str(&format!(
+        let _ = write!(
+            script,
             r#"    function action_{i}() {{
         count = {i};
         total += count;
@@ -125,13 +128,14 @@ fn create_legacy_state_var_heavy_file() -> (String, String) {
         count ??= 0;
     }}
 "#
-        ));
+        );
     }
     script.push_str("</script>\n\n");
     for i in 0..20 {
-        script.push_str(&format!(
-            "<button on:click={{action_{i}}}>Action {i}</button>\n"
-        ));
+        let _ = writeln!(
+            script,
+            "<button on:click={{action_{i}}}>Action {i}</button>"
+        );
     }
     ("synthetic-legacy-state-heavy".to_string(), script)
 }
@@ -158,7 +162,8 @@ fn create_state_var_heavy_file() -> (String, String) {
     // Build a function body with many state-var ops — covers the
     // simple/compound/update/reads paths in one pass.
     for i in 0..40 {
-        script.push_str(&format!(
+        let _ = write!(
+            script,
             r#"    function action_{i}() {{
         count = {i};
         total += count;
@@ -175,13 +180,14 @@ fn create_state_var_heavy_file() -> (String, String) {
         count ??= 0;
     }}
 "#
-        ));
+        );
     }
     script.push_str("</script>\n\n");
     for i in 0..20 {
-        script.push_str(&format!(
-            "<button on:click={{action_{i}}}>Action {i}</button>\n"
-        ));
+        let _ = writeln!(
+            script,
+            "<button on:click={{action_{i}}}>Action {i}</button>"
+        );
     }
     ("synthetic-state-heavy".to_string(), script)
 }

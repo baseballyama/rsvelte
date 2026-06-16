@@ -25,8 +25,14 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
         component.name.as_str()
     };
 
-    // Look up the binding for the component name
-    let binding = context.analysis.root.scope.declarations.get(base_name);
+    // Look up the binding for the component name by walking up the scope chain from the
+    // current scope (context.scope). This mirrors the official compiler's
+    // `context.state.scope.get(name)` which traverses parent links, so that loop
+    // variables declared in an each-block scope (EachItem bindings) are found even
+    // when the component is referenced inside the loop body.
+    // Previously this only checked the root scope, causing each-item components such as
+    // `{#each [] as Component}<Component />` to be treated as non-dynamic.
+    let binding_idx_opt = context.analysis.root.get_binding(base_name, context.scope);
 
     // Determine if this component is dynamic
     // A component is dynamic if:
@@ -36,16 +42,16 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
     //
     // In Svelte 4, you had to use <svelte:component> to switch components dynamically.
     // In Svelte 5 with runes, regular components can be dynamic if the above conditions are met.
-    let is_dynamic = context.analysis.runes && binding.is_some() && {
-        let binding_idx = binding.unwrap();
-        let binding = &context.analysis.root.bindings[*binding_idx];
+    let is_dynamic = context.analysis.runes && binding_idx_opt.is_some() && {
+        let binding_idx = binding_idx_opt.unwrap();
+        let binding = &context.analysis.root.bindings[binding_idx];
         binding.kind != super::super::BindingKind::Normal || component.name.contains('.')
     };
 
     // Set metadata.dynamic
     component.metadata.dynamic = is_dynamic;
 
-    if let Some(&binding_idx) = binding {
+    if let Some(binding_idx) = binding_idx_opt {
         let binding = &context.analysis.root.bindings[binding_idx];
 
         // Update expression metadata

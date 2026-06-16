@@ -9,6 +9,7 @@
 //! used by the main compiler, keeping svelte2tsx self-contained.
 
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write as _;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast as oxc;
@@ -116,6 +117,10 @@ pub struct ExportedNameInfo {
     pub is_prop: bool,
     pub is_let: bool,
     pub is_named_export: bool,
+    /// Leading JSDoc `/** @type {…} */` comment on the export declaration,
+    /// preserved in the legacy `props: { … }` return (mirrors official's
+    /// `value.doc`).
+    pub doc: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -125,6 +130,9 @@ struct PossibleExport {
     has_type_annotation: bool,
     decl_end: u32,
     type_annotation_text: Option<String>,
+    /// Leading JSDoc `/** @type {…} */` on the declaration, for
+    /// `export { x as y }` (the doc lives on the `let x` declaration).
+    doc: Option<String>,
 }
 
 impl ExportedNames {
@@ -199,6 +207,7 @@ impl ExportedNames {
                 is_prop,
                 is_let: false,
                 is_named_export: false,
+                doc: None,
             },
         );
     }
@@ -224,6 +233,7 @@ impl ExportedNames {
                 is_prop,
                 is_let,
                 is_named_export,
+                doc: None,
             },
         );
     }
@@ -254,6 +264,29 @@ impl ExportedNames {
     pub fn has(&self, name: &str) -> bool {
         self.names.contains_key(name)
     }
+    /// True if `local` is the *local* (source-declared) name of any export.
+    /// Unlike `has`, this matches through aliases: `export { v1 as a1 }`
+    /// is keyed by `a1`, but its local name is `v1`.
+    pub fn has_local(&self, local: &str) -> bool {
+        self.names.values().any(|info| info.local_name == local)
+    }
+    /// Mirror official `hasNoProps()`: runes mode → no `$props` type/comment;
+    /// legacy → no exports.
+    pub fn has_no_props(&self) -> bool {
+        if self.is_runes_mode() {
+            self.props_type_text.is_none()
+                && !self.has_component_props_typedef
+                && self.props_jsdoc_type.is_none()
+        } else {
+            self.names.is_empty()
+        }
+    }
+    /// Attach the leading JSDoc comment to an exported name (by export key).
+    pub fn set_doc(&mut self, name: &str, doc: String) {
+        if let Some(info) = self.names.get_mut(name) {
+            info.doc = Some(doc);
+        }
+    }
     pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
         self.names.get(name)
     }
@@ -263,7 +296,7 @@ impl ExportedNames {
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
-    pub fn create_props_str(&self, is_ts: bool) -> String {
+    pub fn create_props_str(&self, is_ts: bool, uses_dollar_props: bool) -> String {
         if self.is_runes_mode() {
             // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
             if self.has_component_props_typedef && self.props_type_text.is_some() {
@@ -282,32 +315,61 @@ impl ExportedNames {
             }
 
             // JSDoc named type case: `/** @type {SomeType} */` → `/** @type {SomeType} */({})`
-            if let Some(ref jsdoc_type) = self.props_jsdoc_type {
-                if !self.has_component_props_typedef {
-                    return format!("/** @type {} */({{}})", jsdoc_type);
-                }
+            if let Some(ref jsdoc_type) = self.props_jsdoc_type
+                && !self.has_component_props_typedef
+            {
+                return format!("/** @type {} */({{}})", jsdoc_type);
             }
 
-            // Otherwise, list the prop entries from $props() destructuring
-            // In runes mode, named exports (export { x as y }) are NOT props
-            let entries: Vec<String> = self
-                .get_ordered()
-                .iter()
-                .filter(|(_, info)| info.is_prop && !info.is_named_export)
-                .map(|(en, info)| format!("{}: {}", en, info.local_name))
-                .collect();
+            // Otherwise, list the prop entries from $props() destructuring.
+            // In runes mode, props ONLY come from a `$props()` call; a stray
+            // `export let foo` is not a prop (it's a runes-mode error), so
+            // without a `$props()` call there are no props. Named exports
+            // (`export { x as y }`) are likewise not props.
+            let entries: Vec<String> = if self.has_props_rune {
+                self.get_ordered()
+                    .iter()
+                    .filter(|(_, info)| info.is_prop && !info.is_named_export)
+                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                    .collect()
+            } else {
+                Vec::new()
+            };
             if entries.is_empty() {
-                return "/** @type {Record<string, never>} */ ({})".to_string();
+                // Reference: addComponentExport.ts `props()` function —
+                // runes mode with no props: TS uses `{} as Record<string, never>`,
+                // JS uses `/** @type {Record<string, never>} */ ({})`.
+                return if is_ts {
+                    "{} as Record<string, never>".to_string()
+                } else {
+                    "/** @type {Record<string, never>} */ ({})".to_string()
+                };
             }
             return format!("{{{}}}", entries.join(" , "));
         }
+        // In JS (non-TS) files the props object omits the `as {…}` type assert
+        // (`dontAddTypeDef`), so a captured leading JSDoc `/** @type {…} */` is
+        // emitted before the prop — mirrors official `createReturnElements`.
         let entries: Vec<String> = self
             .get_ordered()
             .iter()
-            .map(|(en, info)| format!("{}: {}", en, info.local_name))
+            .map(|(en, info)| match (&info.doc, is_ts) {
+                (Some(doc), false) => format!("{} {}: {}", doc, en, info.local_name),
+                _ => format!("{}: {}", en, info.local_name),
+            })
             .collect();
         if entries.is_empty() {
-            "/** @type {Record<string, never>} */ ({})".to_string()
+            // Reference: ExportedNames.ts createPropsStr — non-runes mode with
+            // no props. When `$$props`/`$$restProps` is used, props flattens to
+            // a bare `{}`; otherwise TS uses `{} as Record<string, never>` and
+            // JS uses `/** @type {Record<string, never>} */ ({})`.
+            if uses_dollar_props {
+                "{}".to_string()
+            } else if is_ts {
+                "{} as Record<string, never>".to_string()
+            } else {
+                "/** @type {Record<string, never>} */ ({})".to_string()
+            }
         } else {
             let base = format!("{{{}}}", entries.join(" , "));
             if is_ts {
@@ -378,10 +440,16 @@ impl ExportedNames {
                     }
                 })
                 .collect();
-            // In runes mode, include values in the exports object
+            // In runes mode, include values in the exports object — but ONLY for
+            // exports that carry an explicit type annotation. Official's value
+            // call is `createReturnElements(others, false, /*onlyTyped*/ true)`,
+            // which skips any entry without `value.type`. Untyped exports
+            // (`let count = $state(0)`) therefore yield an empty value object,
+            // with the names appearing only in the `as any as { … }` cast.
             let val_str = if self.is_runes_mode() {
                 let val_entries: Vec<String> = others
                     .iter()
+                    .filter(|(_, info)| info.type_annotation.is_some())
                     .map(|(en, info)| format!("{}: {}", en, info.local_name))
                     .collect();
                 val_entries.join(",")
@@ -518,6 +586,11 @@ pub struct ComponentEvents {
     /// Generic type text from `createEventDispatcher<Type>()`, if any.
     /// Used to generate `{...__sveltets_2_toEventTypings<Type>()}` in the events return.
     pub dispatcher_generic_type: Option<String>,
+    /// Names of locally-created, *untyped* event dispatchers
+    /// (`const dispatch = createEventDispatcher()`). Their `dispatch("name")`
+    /// call sites are scanned across the whole component to populate the
+    /// `events: { name: __sveltets_2_customEvent }` return.
+    pub dispatcher_names: Vec<String>,
 }
 
 /// Metadata about a single component event.
@@ -536,6 +609,7 @@ impl ComponentEvents {
             events: HashMap::new(),
             forwards_all_events: false,
             dispatcher_generic_type: None,
+            dispatcher_names: Vec::new(),
         }
     }
 
@@ -562,13 +636,68 @@ impl ComponentEvents {
         self.events.is_empty()
     }
 
+    /// Scan `source` for `<dispatcher>("eventName", …)` call sites of every
+    /// recorded untyped dispatcher and add each event name. Mirrors official
+    /// `ComponentEventsFromEventsMap`, which walks the component for dispatcher
+    /// calls and records the first string-literal argument. A lightweight
+    /// lexical scan suffices here: find the dispatcher identifier as a word,
+    /// require the next non-space char to be `(`, then read a single quoted
+    /// string-literal first argument.
+    pub fn collect_dispatched_events(&mut self, source: &str) {
+        let names = self.dispatcher_names.clone();
+        let bytes = source.as_bytes();
+        let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+        for disp in &names {
+            let dn = disp.as_bytes();
+            let mut from = 0usize;
+            while let Some(rel) = source[from..].find(disp.as_str()) {
+                let idx = from + rel;
+                from = idx + 1;
+                // Word boundary: not part of a longer identifier / member access.
+                if idx > 0 && (is_ident(bytes[idx - 1]) || bytes[idx - 1] == b'.') {
+                    continue;
+                }
+                let mut p = idx + dn.len();
+                if p < bytes.len() && is_ident(bytes[p]) {
+                    continue;
+                }
+                while p < bytes.len() && (bytes[p] == b' ' || bytes[p] == b'\t') {
+                    p += 1;
+                }
+                if p >= bytes.len() || bytes[p] != b'(' {
+                    continue;
+                }
+                p += 1;
+                while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+                    p += 1;
+                }
+                if p >= bytes.len() || (bytes[p] != b'"' && bytes[p] != b'\'' && bytes[p] != b'`') {
+                    continue;
+                }
+                let quote = bytes[p];
+                p += 1;
+                let name_start = p;
+                while p < bytes.len() && bytes[p] != quote {
+                    p += 1;
+                }
+                if p < bytes.len() {
+                    let evt = &source[name_start..p];
+                    // Only simple identifier-ish names (skip interpolated/dynamic).
+                    if !evt.is_empty() && !self.events.contains_key(evt) {
+                        self.add(evt.to_string(), None, false);
+                    }
+                }
+            }
+        }
+    }
+
     /// Get event entries for the return statement.
     /// Returns (name, value) pairs like ("hi", "__sveltets_2_customEvent").
     pub fn get_event_entries(&self) -> Vec<(String, String)> {
         let mut entries: Vec<(String, String)> = self
             .events
-            .iter()
-            .map(|(name, _info)| (name.clone(), "__sveltets_2_customEvent".to_string()))
+            .keys()
+            .map(|name| (name.clone(), "__sveltets_2_customEvent".to_string()))
             .collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
         entries
@@ -604,8 +733,20 @@ struct PropsRuneInfo {
     colon_pos: Option<u32>,
     /// Whether the TS type annotation is hoistable (inline object type, not a named reference)
     is_hoistable_type: bool,
+    /// Whether the TS type annotation is a simple named type reference (TSTypeReference).
+    /// Only `TSTypeReference` nodes (e.g. `Props`, `Props<T>`) are used directly;
+    /// all other annotated types (TSIndexedAccessType, TSUnionType, etc.) get wrapped
+    /// in `$$ComponentProps` — mirrors the official `ts.isTypeReferenceNode` check.
+    is_named_type_reference: bool,
+    /// Whether the $props() binding pattern is an identifier (whole-object form),
+    /// e.g. `let props = $props()` rather than a destructuring `let { a } = $props()`.
+    is_identifier_pattern: bool,
     /// Whether the pattern has a rest element (`...rest`)
     has_rest: bool,
+    /// Whether the pattern has any non-identifier property keys (mirrors official `withUnknown`).
+    /// Set when a prop uses a string literal, numeric, or computed key (e.g. `'kebab-case': x`).
+    /// When true, contributes `& Record<string, any>` to the generated type.
+    has_unknown_props: bool,
     /// Prop type entries: (name, optional, inferred_type)
     prop_types: Vec<(String, bool, String)>,
     /// Names of $bindable() props
@@ -673,7 +814,12 @@ pub fn process_instance_script(
     with_parsed_script(script, source, |program, raw_content| {
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
-        let mut declared_names: HashSet<String> = HashSet::new();
+        // Pre-populate with ALL top-level declared names so rune-vs-store
+        // disambiguation (`$state` rune vs `$`-prefixed store of a declared
+        // `state`) sees the complete scope — incl. a name declared by the very
+        // statement whose initializer we're checking. See
+        // collect_top_level_declared_names.
+        let mut declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -727,6 +873,10 @@ pub fn process_instance_script(
                                     has_type_annotation: declarator.type_annotation.is_some(),
                                     decl_end: declarator.span.end,
                                     type_annotation_text: ta_text,
+                                    doc: leading_jsdoc_comment(
+                                        raw_content,
+                                        var_decl.span.start as usize,
+                                    ),
                                 },
                             );
                         }
@@ -755,10 +905,40 @@ pub fn process_instance_script(
                     if let Some(ref id) = func.id {
                         declared_names.insert(id.name.to_string());
                     }
+                    // Detect rune calls nested inside the function body.
+                    // The official svelte2tsx `checkGlobalsForRunes` walks the
+                    // entire TypeScript AST (including function bodies) and flags
+                    // any undeclared `$state`/`$derived`/`$effect` reference.
+                    // Mirror that here by recursively scanning the body.
+                    // Reference: ExportedNames.ts `checkGlobalsForRunes`.
+                    if let Some(ref body) = func.body {
+                        // Add the function's params to the scope so a rune name
+                        // shadowed by a param (`function bar($derived){ … }`) is
+                        // treated as that param, not a rune.
+                        let scope = scope_with_params(&declared_names, &func.params);
+                        if detect_rune_in_nested_body(&body.statements, &scope) {
+                            exported_names.set_uses_runes(true);
+                        }
+                    }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
                     if let Some(ref id) = class.id {
                         declared_names.insert(id.name.to_string());
+                    }
+                    // Detect rune calls nested inside class method bodies.
+                    if class.body.body.iter().any(|member| match member {
+                        oxc::ClassElement::MethodDefinition(method) => {
+                            method.value.body.as_ref().is_some_and(|body| {
+                                detect_rune_in_nested_body(&body.statements, &declared_names)
+                            })
+                        }
+                        oxc::ClassElement::PropertyDefinition(prop) => prop
+                            .value
+                            .as_ref()
+                            .is_some_and(|e| detect_rune_in_expr(e, &declared_names)),
+                        _ => false,
+                    }) {
+                        exported_names.set_uses_runes(true);
                     }
                 }
                 // Track instance-script namespace and enum names so the
@@ -812,6 +992,10 @@ pub fn process_instance_script(
                                                     .is_some(),
                                                 decl_end: declarator.span.end,
                                                 type_annotation_text: ta_text,
+                                                doc: leading_jsdoc_comment(
+                                                    raw_content,
+                                                    var_decl.span.start as usize,
+                                                ),
                                             },
                                         );
                                     }
@@ -891,6 +1075,14 @@ pub fn process_instance_script(
                             .push((type_alias.span.start, type_alias.span.end));
                     }
                 }
+                // Detect rune globals used as standalone expression statements,
+                // e.g. `$effect(() => { ... })` or `$effect.pre(() => { ... })`.
+                // These are missed by `detect_runes_call` which only visits
+                // VariableDeclarator inits.
+                // Reference: svelte2tsx ExportedNames.ts `hasRunesGlobals` check.
+                oxc::Statement::ExpressionStatement(es) => {
+                    detect_runes_expr_stmt(es, exported_names, &declared_names);
+                }
                 _ => {}
             }
         }
@@ -937,7 +1129,10 @@ pub fn process_instance_script(
                     // Check if any declarator in this statement is exported
                     let any_exported = var_decl.declarations.iter().any(|d| {
                         if let Some(name) = binding_pattern_simple_name(&d.id) {
-                            exported_names.has(&name)
+                            // Match through aliases: `export { v1 as a1 }` keys
+                            // the entry by `a1`, so `has(v1)` is false — check
+                            // the local name too.
+                            exported_names.has(&name) || exported_names.has_local(&name)
                         } else {
                             false
                         }
@@ -951,6 +1146,35 @@ pub fn process_instance_script(
                                 .map(|p| decl_end_rel + p as u32)
                                 .unwrap_or(decl_end_rel);
                             str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
+                        }
+                        // Mirror official `propTypeAssertToUserDefined`, which is
+                        // invoked on the *whole* declaration list when any of its
+                        // bindings is exported by reference and wraps EVERY
+                        // widening-eligible declarator — including siblings that
+                        // are not themselves exported. The exported declarators
+                        // are already wrapped in the export-specifier handling
+                        // (Case 2), so here we only cover the non-exported
+                        // siblings to avoid double-wrapping.
+                        for d in var_decl.declarations.iter() {
+                            let Some(name) = binding_pattern_simple_name(&d.id) else {
+                                continue;
+                            };
+                            if exported_names.has(&name) || exported_names.has_local(&name) {
+                                continue;
+                            }
+                            // Match handleTypeAssertion's widening condition:
+                            // no initializer, OR a boolean-literal initializer
+                            // (TS narrows `let x = false` to `false`), OR a type
+                            // annotation.
+                            let widen = d.init.is_none()
+                                || matches!(d.init, Some(oxc::Expression::BooleanLiteral(_)))
+                                || d.type_annotation.is_some();
+                            if widen {
+                                let inject = format!(
+                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                );
+                                str.append_left(d.span.end + offset, &inject);
+                            }
                         }
                     }
                 }
@@ -968,17 +1192,17 @@ pub fn process_instance_script(
         let raw_content = &source[content_start..content_end];
 
         for stmt in program.body.iter() {
-            if let oxc::Statement::LabeledStatement(labeled) = stmt {
-                if labeled.label.name == "$" {
-                    handle_reactive_statement(
-                        labeled,
-                        offset,
-                        str,
-                        raw_content,
-                        &declared_names,
-                        &mut reactive_declared_names,
-                    );
-                }
+            if let oxc::Statement::LabeledStatement(labeled) = stmt
+                && labeled.label.name == "$"
+            {
+                handle_reactive_statement(
+                    labeled,
+                    offset,
+                    str,
+                    raw_content,
+                    &declared_names,
+                    &mut reactive_declared_names,
+                );
             }
         }
 
@@ -1091,8 +1315,41 @@ fn apply_props_typedef(
             }
         }
         exported_names.props_let_abs_pos = Some(p as u32 + offset);
-    } else if info.has_type_annotation && !info.is_hoistable_type {
-        // TS case with named type reference: `: Props` or `: Props<T>`
+    } else if info.has_type_annotation && !info.is_hoistable_type && !info.is_named_type_reference {
+        // TS case with non-TSTypeReference annotation (e.g. `SvelteHTMLElements["div"]`,
+        // union types, intersection types, etc.).
+        // Mirrors the official `!ts.isTypeReferenceNode(generic_arg)` branch:
+        // create a `$$ComponentProps` alias and replace the annotation with
+        // `/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/`.
+        // The type alias is placed BEFORE `$$render` (same mechanism as the hoistable
+        // TSTypeLiteral case) via `props_let_abs_pos` + `props_type_text`.
+        if let (Some(colon), Some(ta_end)) = (info.colon_pos, info.type_annotation_end) {
+            let abs_colon = colon + offset;
+            let abs_end = ta_end + offset;
+            str.overwrite(
+                abs_colon + 1,
+                abs_end,
+                "/*\u{03A9}ignore_start\u{03A9}*/$$ComponentProps/*\u{03A9}ignore_end\u{03A9}*/",
+            );
+        }
+        exported_names.has_component_props_typedef = true;
+        // props_type_text is the original type text (set by detect_props_rune_oxc).
+        // svelte2tsx.rs uses it in `ts_component_props_before_render` to emit
+        // `;type $$ComponentProps = <type_text>;` before `function $$render`.
+        // Leave type_already_inserted = false so it goes BEFORE render.
+        let raw_bytes = raw_content.as_bytes();
+        let mut p = info.let_pos as usize;
+        while p > 0 {
+            let prev = raw_bytes[p - 1];
+            if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
+                p -= 1;
+            } else {
+                break;
+            }
+        }
+        exported_names.props_let_abs_pos = Some(p as u32 + offset);
+    } else if info.has_type_annotation && !info.is_hoistable_type && info.is_named_type_reference {
+        // TS case with simple named type reference: `: Props` or `: Props<T>`
         // Keep the type annotation as-is, use it directly in props_type_text
         // (props_type_text is already set by detect_props_rune_oxc)
         // Don't create $$ComponentProps
@@ -1107,17 +1364,45 @@ fn apply_props_typedef(
 
         if is_inline_object_type {
             // Inline object type: transform `/** @type {{ a: number }} */` to
-            // `/** @typedef {{ a: number }} $$ComponentProps *//** @type {$$ComponentProps} */`.
-            // Mirrors the JS reference's `overwrite(end, end + 2, ' $$ComponentProps */' + ...)`
-            // which produces a single space between the closing `}}` and the
-            // alias name.
+            // `/** @typedef {{ a: number }}  $$ComponentProps *//** @type {$$ComponentProps} */`.
+            //
+            // Mirrors the official JS two-step:
+            //   1. overwrite `@type` → `@typedef`
+            //   2. overwrite `*/` at end → ` $$ComponentProps */` + `/** @type {$$ComponentProps} */`
+            //
+            // The original comment typically has a space before `*/` (e.g. `}} */`).
+            // After step 2, that space is preserved and the new ` $$ComponentProps */`
+            // contributes another space → two spaces between `}}` and `$$ComponentProps`.
+            // We replicate by finding the `*/` position in the original and capturing
+            // the trailing whitespace between the type text and `*/`.
             if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
+                let orig_comment = &raw_content[jsdoc_start as usize..jsdoc_end as usize];
+                // Locate `@type` and `*/` positions within the original comment text
+                let typedef = if let (Some(at_type_rel), Some(star_slash_rel)) =
+                    (orig_comment.find("@type"), orig_comment.rfind("*/"))
+                {
+                    // Everything from `/**` up to (but not including) `@type`
+                    let prefix = &orig_comment[..at_type_rel];
+                    // The type content including surrounding whitespace up to `*/`
+                    // e.g. for `/** @type {{ a: string }} */`: after-@typedef text
+                    let after_typedef_kw = &orig_comment[at_type_rel + 5..star_slash_rel];
+                    // after_typedef_kw is like ` {{ a: string }} ` (includes surrounding spaces)
+                    // Produce: `/** @typedef{{ a: string }} $$ComponentProps *//** @type {$$ComponentProps} */`
+                    // The official replaces `*/` with ` $$ComponentProps */`, so the space before `*/`
+                    // in the original is preserved plus one new space → two spaces for the typical case.
+                    format!(
+                        "{}@typedef{} $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                        prefix, after_typedef_kw
+                    )
+                } else {
+                    // Fallback: generate from extracted type (may lose trailing space)
+                    format!(
+                        "/** @typedef {} $$ComponentProps *//** @type {{$$ComponentProps}} */",
+                        jsdoc_type
+                    )
+                };
                 let abs_start = jsdoc_start + offset;
                 let abs_end = jsdoc_end + offset;
-                let typedef = format!(
-                    "/** @typedef {} $$ComponentProps *//** @type {{$$ComponentProps}} */",
-                    jsdoc_type
-                );
                 str.overwrite(abs_start, abs_end, &typedef);
             }
             exported_names.has_component_props_typedef = true;
@@ -1127,7 +1412,25 @@ fn apply_props_typedef(
             // Use the type name directly in create_props_str
             exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
         }
-    } else if !info.prop_types.is_empty() || info.has_rest {
+    } else if info.prop_types.is_empty() && !info.has_rest && !info.has_unknown_props {
+        // No named props, no rest element, no non-identifier keys:
+        // whole-object identifier (`let props = $props()`) or empty ObjectPattern (`let {} = $props()`).
+        //
+        // Official sets `this.$props.type = '$$ComponentProps'` (TS) or
+        // `this.$props.comment = '/** @type {$$ComponentProps} */'` (JS) unconditionally,
+        // without emitting any type alias — the identifier `$$ComponentProps` is left
+        // unresolved but that's intentional (mirrors official behavior exactly).
+        // Reference: ExportedNames.ts handle$propsRune lines 376-401.
+        if is_ts {
+            // TS: props_type_text = "$$ComponentProps" → create_props_str returns `{} as any as $$ComponentProps`
+            // has_component_props_typedef stays false (no alias emitted)
+            exported_names.props_type_text = Some("$$ComponentProps".to_string());
+        } else {
+            // JS: has_component_props_typedef = true → create_props_str returns `/** @type {$$ComponentProps} */({})`
+            // No source changes needed, no typedef inserted
+            exported_names.has_component_props_typedef = true;
+        }
+    } else if !info.prop_types.is_empty() || info.has_rest || info.has_unknown_props {
         // Auto-generate typedef from destructured props.
         //
         // For SvelteKit `+page.svelte` / `+layout.svelte` route files, override
@@ -1135,12 +1438,21 @@ fn apply_props_typedef(
         // `params` with `import('./$types.js').*` references — matches the JS
         // reference's `isKitRouteFile` branch in `ExportedNames.handle$propsRune`.
         let kit_layout = classify_kit_route_file(basename);
-        let type_entries: Vec<String> = info
+        // Build type entries for each named prop.
+        //
+        // For SvelteKit route files, the official code only includes the well-known
+        // kit props (`data`, `form`, `params`) and silently skips any other names
+        // (their types are not inferred). After the loop, layout files get
+        // `children: import('svelte').Snippet` appended unconditionally.
+        // For non-kit files, all named props are included with inferred types.
+        // Mirrors official ExportedNames.ts lines 296-366.
+        let mut type_entries: Vec<String> = info
             .prop_types
             .iter()
-            .map(|(name, optional, inferred_type)| {
-                let actual_type = if let Some(is_layout) = kit_layout {
-                    match name.as_str() {
+            .filter_map(|(name, optional, inferred_type)| {
+                if let Some(is_layout) = kit_layout {
+                    // Kit route file: only include special props
+                    let kit_type = match name.as_str() {
                         "data" => Some(
                             if is_layout {
                                 "import('./$types.js').LayoutData"
@@ -1160,24 +1472,49 @@ fn apply_props_typedef(
                             }
                             .to_string(),
                         ),
-                        _ => None,
+                        _ => return None, // skip non-kit props; they're not inferred for kit files
+                    };
+                    Some(format!("{}: {}", name, kit_type.unwrap()))
+                } else {
+                    // Non-kit file: include all props with inferred types
+                    let resolved = inferred_type.as_str();
+                    if *optional {
+                        Some(format!("{}?: {}", name, resolved))
+                    } else {
+                        Some(format!("{}: {}", name, resolved))
                     }
-                } else {
-                    None
-                };
-                let resolved = actual_type.as_deref().unwrap_or(inferred_type);
-                if *optional {
-                    format!("{}?: {}", name, resolved)
-                } else {
-                    format!("{}: {}", name, resolved)
                 }
             })
             .collect();
 
-        let type_body = if info.has_rest {
+        // For SvelteKit layout files, always append `children: import('svelte').Snippet`.
+        // Mirrors official ExportedNames.ts line 364-366:
+        //   `if (isKitLayoutFile) { props.push('children: import(\'svelte\').Snippet'); }`
+        if kit_layout == Some(true) {
+            type_entries.push("children: import('svelte').Snippet".to_string());
+        }
+
+        // `with_unknown` mirrors official's `withUnknown`: true when there's a rest
+        // element OR non-identifier property keys (e.g. 'kebab-case': x).
+        let with_unknown = info.has_rest || info.has_unknown_props;
+
+        // Build the type body string, mirroring official lines 368-377:
+        //   if props.length > 0:
+        //     `{ p1: T1, p2?: T2 }` + (withUnknown ? ' & Record<string, any>' : '')
+        //   else if withUnknown (rest only or unknown-prop only):
+        //     `Record<string, any>`
+        //   else (no props, no unknown):
+        //     `Record<string, never>`
+        let type_body = if !type_entries.is_empty() && with_unknown {
+            // Named props AND (rest element or unknown props): `{ ... } & Record<string, any>`
+            format!("{{ {} }} & Record<string, any>", type_entries.join(", "))
+        } else if !type_entries.is_empty() {
+            format!("{{ {} }}", type_entries.join(", "))
+        } else if with_unknown {
+            // Only rest/unknown, no named props
             "Record<string, any>".to_string()
         } else {
-            format!("{{ {} }}", type_entries.join(", "))
+            "Record<string, never>".to_string()
         };
 
         if is_ts {
@@ -1593,22 +1930,22 @@ fn resolve_hoistable_type_decls(
                 return g;
             }
             let header_end = raw_content[s..e]
-                .find(|ch: char| ch == '{' || ch == '=')
+                .find(['{', '='])
                 .map(|p| s + p)
                 .unwrap_or(e);
             let header = &raw_content[s..header_end];
-            if let (Some(lt), Some(gt)) = (header.find('<'), header.rfind('>')) {
-                if lt < gt {
-                    let inner = &header[lt + 1..gt];
-                    for part in inner.split(',') {
-                        let trimmed = part.trim();
-                        let name = trimmed
-                            .split(|ch: char| !is_ident_char_for_str(ch))
-                            .find(|s| !s.is_empty())
-                            .unwrap_or("");
-                        if !name.is_empty() {
-                            g.insert(name.to_string());
-                        }
+            if let (Some(lt), Some(gt)) = (header.find('<'), header.rfind('>'))
+                && lt < gt
+            {
+                let inner = &header[lt + 1..gt];
+                for part in inner.split(',') {
+                    let trimmed = part.trim();
+                    let name = trimmed
+                        .split(|ch: char| !is_ident_char_for_str(ch))
+                        .find(|s| !s.is_empty())
+                        .unwrap_or("");
+                    if !name.is_empty() {
+                        g.insert(name.to_string());
                     }
                 }
             }
@@ -1779,7 +2116,7 @@ fn is_ident_char_for_str(ch: char) -> bool {
 /// hoisting, the constraint references the type before it's defined.
 fn hoist_dollar_generic_referenced_types(
     candidates: &[HoistCandidate],
-    raw_content: &str,
+    _raw_content: &str,
     offset: u32,
     exported_names: &mut ExportedNames,
 ) {
@@ -2129,12 +2466,12 @@ fn collect_ts_type_assertions_stmt(stmt: &oxc::Statement, out: &mut Vec<(u32, u3
             collect_ts_type_assertions_expr(&es.expression, out);
         }
         oxc::Statement::ExportNamedDeclaration(export) => {
-            if let Some(decl) = &export.declaration {
-                if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
-                    for declarator in var_decl.declarations.iter() {
-                        if let Some(init) = &declarator.init {
-                            collect_ts_type_assertions_expr(init, out);
-                        }
+            if let Some(decl) = &export.declaration
+                && let oxc::Declaration::VariableDeclaration(var_decl) = decl
+            {
+                for declarator in var_decl.declarations.iter() {
+                    if let Some(init) = &declarator.init {
+                        collect_ts_type_assertions_expr(init, out);
                     }
                 }
             }
@@ -2315,12 +2652,22 @@ fn handle_export_named_decl(
                             false,
                         );
                         // Update the type annotation on the exported name
-                        if let Some(ref ta_text) = type_annotation_text {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-                                if let Some(info) = exported_names.get_mut(&name) {
-                                    info.type_annotation = Some(ta_text.clone());
-                                }
-                            }
+                        if let Some(ref ta_text) = type_annotation_text
+                            && let Some(name) = binding_pattern_simple_name(&declarator.id)
+                            && let Some(info) = exported_names.get_mut(&name)
+                        {
+                            info.type_annotation = Some(ta_text.clone());
+                        }
+
+                        // Preserve a leading JSDoc `/** @type {…} */` on the
+                        // export so it round-trips into the legacy props return
+                        // (`props: { /** @type {boolean} */ visible: visible }`),
+                        // mirroring official's `value.doc`.
+                        if let Some(name) = binding_pattern_simple_name(&declarator.id)
+                            && let Some(doc) =
+                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                        {
+                            exported_names.set_doc(&name, doc);
                         }
 
                         // For multi-declarator let exports (export let a, b, c;),
@@ -2355,14 +2702,15 @@ fn handle_export_named_decl(
                             .init
                             .as_ref()
                             .is_some_and(|init| matches!(init, oxc::Expression::BooleanLiteral(_)));
-                        if is_prop && (!has_default || has_type_annotation || has_boolean_init) {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-                                let inject = format!(
-                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
-                                );
-                                let inject_pos = declarator.span.end + offset;
-                                str.append_left(inject_pos, &inject);
-                            }
+                        if is_prop
+                            && (!has_default || has_type_annotation || has_boolean_init)
+                            && let Some(name) = binding_pattern_simple_name(&declarator.id)
+                        {
+                            let inject = format!(
+                                "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
+                            );
+                            let inject_pos = declarator.span.end + offset;
+                            str.append_left(inject_pos, &inject);
                         }
 
                         // SvelteKit `+page.svelte` / `+layout.svelte`: inject
@@ -2373,53 +2721,48 @@ fn handle_export_named_decl(
                         if is_instance
                             && classify_kit_route_file(basename).is_some()
                             && !has_type_annotation
+                            && let Some(name) = binding_pattern_simple_name(&declarator.id)
                         {
-                            if let Some(name) = binding_pattern_simple_name(&declarator.id) {
-                                let kit_layout = classify_kit_route_file(basename);
-                                let inject_type: Option<&str> = if !is_let {
-                                    // `export const snapshot = ...`
-                                    match name.as_str() {
-                                        "snapshot" => Some("import('./$types.js').Snapshot"),
-                                        _ => None,
+                            let kit_layout = classify_kit_route_file(basename);
+                            let inject_type: Option<&str> = if !is_let {
+                                // `export const snapshot = ...`
+                                match name.as_str() {
+                                    "snapshot" => Some("import('./$types.js').Snapshot"),
+                                    _ => None,
+                                }
+                            } else {
+                                // `export let data | form | params`
+                                match (name.as_str(), kit_layout) {
+                                    ("data", Some(true)) => {
+                                        Some("import('./$types.js').LayoutData")
                                     }
+                                    ("data", Some(false)) => Some("import('./$types.js').PageData"),
+                                    ("form", Some(false)) => {
+                                        Some("import('./$types.js').ActionData")
+                                    }
+                                    ("params", Some(true)) => {
+                                        Some("import('./$types.js').LayoutProps['params']")
+                                    }
+                                    ("params", Some(false)) => {
+                                        Some("import('./$types.js').PageProps['params']")
+                                    }
+                                    _ => None,
+                                }
+                            };
+                            if let Some(kit_type) = inject_type
+                                && let oxc::BindingPattern::BindingIdentifier(id) = &declarator.id
+                            {
+                                let name_start = id.span.start + offset;
+                                let name_end = id.span.end + offset;
+                                if emit_jsdoc && !is_ts {
+                                    let inject = format!("/** @type {{{}}} */ ", kit_type);
+                                    str.append_left(name_start, &inject);
                                 } else {
-                                    // `export let data | form | params`
-                                    match (name.as_str(), kit_layout) {
-                                        ("data", Some(true)) => {
-                                            Some("import('./$types.js').LayoutData")
-                                        }
-                                        ("data", Some(false)) => {
-                                            Some("import('./$types.js').PageData")
-                                        }
-                                        ("form", Some(false)) => {
-                                            Some("import('./$types.js').ActionData")
-                                        }
-                                        ("params", Some(true)) => {
-                                            Some("import('./$types.js').LayoutProps['params']")
-                                        }
-                                        ("params", Some(false)) => {
-                                            Some("import('./$types.js').PageProps['params']")
-                                        }
-                                        _ => None,
-                                    }
-                                };
-                                if let Some(kit_type) = inject_type {
-                                    if let oxc::BindingPattern::BindingIdentifier(id) =
-                                        &declarator.id
-                                    {
-                                        let name_start = id.span.start + offset;
-                                        let name_end = id.span.end + offset;
-                                        if emit_jsdoc && !is_ts {
-                                            let inject = format!("/** @type {{{}}} */ ", kit_type);
-                                            str.append_left(name_start, &inject);
-                                        } else {
-                                            let inject = format!(
-                                                "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
-                                                kit_type
-                                            );
-                                            str.append_left(name_end, &inject);
-                                        }
-                                    }
+                                    let inject = format!(
+                                        "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
+                                        kit_type
+                                    );
+                                    str.append_left(name_end, &inject);
                                 }
                             }
                         }
@@ -2453,9 +2796,10 @@ fn handle_export_named_decl(
             let is_let = possible.map(|p| p.is_let).unwrap_or(false);
             let has_init = possible.map(|p| p.has_init).unwrap_or(true);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
+            let doc = possible.and_then(|p| p.doc.clone());
             let is_prop = is_instance && is_let;
             exported_names.add_full(
-                exported,
+                exported.clone(),
                 local.clone(),
                 has_init,
                 type_ann,
@@ -2463,18 +2807,23 @@ fn handle_export_named_decl(
                 is_let,
                 true,
             );
+            // The JSDoc lives on the `let x` declaration; carry it onto the
+            // export so it round-trips into the legacy props return.
+            if let Some(doc) = doc {
+                exported_names.set_doc(&exported, doc);
+            }
             // Inject __sveltets_2_any for exported variables that either:
             // 1. Have no initializer (export { x } where x has no default)
             // 2. Have a type annotation (export { x } where x: Type = value)
             if is_instance && is_let {
                 let has_ta = possible.map(|p| p.has_type_annotation).unwrap_or(false);
-                if !has_init || has_ta {
-                    if let Some(pe) = possible {
-                        let inject = format!(
-                            "/*\u{03A9}ignore_start\u{03A9}*/;{local} = __sveltets_2_any({local});/*\u{03A9}ignore_end\u{03A9}*/"
-                        );
-                        str.append_left(pe.decl_end + offset, &inject);
-                    }
+                if (!has_init || has_ta)
+                    && let Some(pe) = possible
+                {
+                    let inject = format!(
+                        "/*\u{03A9}ignore_start\u{03A9}*/;{local} = __sveltets_2_any({local});/*\u{03A9}ignore_end\u{03A9}*/"
+                    );
+                    str.append_left(pe.decl_end + offset, &inject);
                 }
             }
         }
@@ -2492,6 +2841,21 @@ fn handle_export_named_decl(
 /// - `$: ({ a } = expr)` (destructure, existing) → `$: ({ a } = __sveltets_2_invalidate(() => expr))`
 /// - `$: { ... }` (block) → `;() => {$: { ... }}`
 /// - `$: expr` (expression) → `;() => {$: expr}`
+/// True if a reactive assignment's LHS qualifies for the
+/// `__sveltets_2_invalidate(() => …)` RHS wrap — i.e. it is a plain Identifier,
+/// an object destructuring target, or an array destructuring target. Mirrors
+/// official `isAssignmentBinaryExpr`'s `isIdentifier(left) ||
+/// isObjectLiteralExpression(left) || isArrayLiteralExpression(left)`. A
+/// member-expression target (`foo.bar`) does NOT qualify.
+fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
+    matches!(
+        target,
+        oxc::AssignmentTarget::AssignmentTargetIdentifier(_)
+            | oxc::AssignmentTarget::ObjectAssignmentTarget(_)
+            | oxc::AssignmentTarget::ArrayAssignmentTarget(_)
+    )
+}
+
 fn handle_reactive_statement(
     labeled: &oxc::LabeledStatement,
     offset: u32,
@@ -2511,8 +2875,24 @@ fn handle_reactive_statement(
                 other => other,
             };
 
-            if let oxc::Expression::AssignmentExpression(assign) = expr {
-                if matches!(assign.operator, oxc::AssignmentOperator::Assign) {
+            // Official only applies the `__sveltets_2_invalidate(() => …)` RHS
+            // wrap when the labeled statement is a plain `=` assignment whose
+            // LHS is an Identifier / object pattern / array pattern
+            // (`isAssignmentBinaryExpr` in `utils/tsAst.ts`). Member-expression
+            // LHS (`$: foo.bar = …`) and compound operators (`$: x *= 2`) do
+            // NOT qualify — those are wrapped whole in `;() => {$: …}` like any
+            // other reactive statement (`handleReactiveStatement`'s else branch).
+            let qualifies_for_invalidate = matches!(
+                expr,
+                oxc::Expression::AssignmentExpression(assign)
+                    if matches!(assign.operator, oxc::AssignmentOperator::Assign)
+                        && is_invalidate_assignment_target(&assign.left)
+            );
+
+            if let oxc::Expression::AssignmentExpression(assign) = expr
+                && qualifies_for_invalidate
+            {
+                {
                     // Get the LHS names
                     let lhs_names = extract_names_from_assignment_target(&assign.left);
 
@@ -2573,7 +2953,7 @@ fn handle_reactive_statement(
                         // the assignment still triggers reactivity.
                         let mut decls = String::new();
                         for name in &new_names {
-                            decls.push_str(&format!("let {};\n", name));
+                            let _ = writeln!(decls, "let {};", name);
                         }
                         str.prepend_right(label_start, &decls);
                         for name in &new_names {
@@ -2626,7 +3006,10 @@ fn handle_reactive_statement(
                     // else: keep `$:` as-is, RHS is already wrapped
                 }
             } else {
-                // Non-assignment expression: `$: console.log(x)` → `;() => {$: console.log(x)}`
+                // Non-qualifying reactive statement — a non-assignment
+                // expression (`$: console.log(x)`), a member-LHS assignment
+                // (`$: foo.bar = x`), or a compound operator (`$: x *= 2`).
+                // All are wrapped whole: `;() => {$: …}`.
                 let label_colon_end = labeled.label.span.end + 1;
                 let label_colon_abs = label_colon_end + offset;
                 str.overwrite(label_start, label_colon_abs, ";() => {$:");
@@ -2657,24 +3040,430 @@ fn handle_reactive_statement(
     }
 }
 
+/// The official svelte2tsx `is_rune` quirk: a `$state(...)`/`$derived(...)`/
+/// `$props(...)` call that is the *direct* initializer of a variable
+/// declaration whose binding name (source text) **includes** the rune base
+/// name (`state`/`derived`/`props`) is treated as the canonical rune form and
+/// is therefore NOT counted as a store-access global — so it does not, on its
+/// own, switch the component into runes mode.
+///
+/// Reference: `processInstanceScriptContent.ts` `handleIdentifier`:
+/// ```text
+/// const is_rune =
+///   (text === '$props' || text === '$derived' || text === '$state') &&
+///   ts.isCallExpression(parent) &&
+///   ts.isVariableDeclaration(parent.parent) &&
+///   parent.parent.name.getText().includes(text.slice(1));
+/// ```
+///
+/// Returns the base rune call when the init is the excluded canonical form, so
+/// callers can still scan its *arguments* for nested rune globals (which keep
+/// their own non-VariableDeclaration parent and so are not excluded).
+fn excluded_rune_init<'a>(
+    init: &'a oxc::Expression,
+    id: &oxc::BindingPattern,
+) -> Option<&'a oxc::CallExpression<'a>> {
+    let oxc::Expression::CallExpression(call) = init else {
+        return None;
+    };
+    let oxc::Expression::Identifier(callee) = &call.callee else {
+        return None;
+    };
+    let base = match callee.name.as_str() {
+        "$state" => "state",
+        "$derived" => "derived",
+        "$props" => "props",
+        _ => return None,
+    };
+    if binding_name_contains(id, base) {
+        Some(call)
+    } else {
+        None
+    }
+}
+
+/// True if any identifier bound by `pattern` contains `needle` as a substring.
+/// Mirrors official's `name.getText().includes(base)` for the common simple /
+/// destructuring cases.
+fn binding_name_contains(pattern: &oxc::BindingPattern, needle: &str) -> bool {
+    extract_all_names_from_binding_pattern(pattern)
+        .iter()
+        .any(|n| n.contains(needle))
+}
+
+/// Scan a rune call's arguments for nested rune globals (used when the call
+/// itself is the excluded canonical form but its arguments may still contain
+/// runes, e.g. `let derived1 = $derived($state(0))`).
+fn detect_rune_in_call_args(call: &oxc::CallExpression, declared_names: &HashSet<String>) -> bool {
+    call.arguments.iter().any(|arg| match arg {
+        oxc::Argument::SpreadElement(spread) => {
+            detect_rune_in_expr(&spread.argument, declared_names)
+        }
+        _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+    })
+}
+
 fn detect_runes_call(
     declarator: &oxc::VariableDeclarator,
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
     if let Some(ref init) = declarator.init {
-        if let oxc::Expression::CallExpression(call) = init {
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                if matches!(callee.name.as_str(), "$state" | "$derived" | "$effect") {
-                    // Don't treat as rune if the base name (without $) is already declared
-                    // (e.g., `import { derived } from 'svelte/store'` means $derived is a store)
-                    let base_name = &callee.name[1..];
-                    if !declared_names.contains(base_name) {
-                        exported_names.set_uses_runes(true);
+        // Apply the official `is_rune` exclusion: the canonical
+        // `let stateX = $state(...)` form does not, by itself, trigger runes
+        // mode — but nested runes in the arguments still do.
+        if let Some(call) = excluded_rune_init(init, &declarator.id) {
+            if detect_rune_in_call_args(call, declared_names) {
+                exported_names.set_uses_runes(true);
+            }
+            return;
+        }
+        // `detect_rune_in_expr` subsumes `detect_rune_global_call_expr`: it
+        // fast-paths to the top-level check first, then recurses into nested
+        // function/arrow bodies. This catches patterns like:
+        //   `const action = (node) => { $effect(() => { … }); }`
+        // which the original top-level-only check missed.
+        // Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the
+        // entire TS AST (not just top-level statements).
+        if detect_rune_in_expr(init, declared_names) {
+            exported_names.set_uses_runes(true);
+        }
+    }
+}
+
+/// Detect `$state(...)`, `$derived(...)`, `$effect(...)` — including member-call
+/// variants such as `$state.raw(...)`, `$effect.pre(...)` — anywhere as an
+/// expression (not just as a VariableDeclarator init).
+///
+/// Mirrors the official `isRunesMode` `hasRunesGlobals` check which looks for
+/// undeclared `$state`/`$derived`/`$effect` identifiers in the instance scope.
+/// We check both direct calls (`$state(v)`) and member calls (`$state.raw(v)`)
+/// since both reference the `$state` global.
+///
+/// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
+///   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
+fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
+    match expr {
+        // Direct call: $state(...), $derived(...), $effect(...)
+        oxc::Expression::CallExpression(call) => {
+            match &call.callee {
+                // $state(...), $derived(...), $effect(...)
+                oxc::Expression::Identifier(id)
+                    if matches!(id.name.as_str(), "$state" | "$derived" | "$effect") =>
+                {
+                    // Not a rune if either the store base (`$state` is a
+                    // store-sub of a declared `state`) OR the full `$state`
+                    // identifier itself is declared (e.g. shadowed by a param
+                    // named `$derived`).
+                    let base = &id.name[1..]; // "$state" -> "state"
+                    !declared_names.contains(base) && !declared_names.contains(id.name.as_str())
+                }
+                // Member call: $state.raw(...), $effect.pre(...), etc.
+                // The object identifier must be $state/$derived/$effect.
+                oxc::Expression::StaticMemberExpression(mem) => {
+                    if let oxc::Expression::Identifier(obj) = &mem.object
+                        && matches!(obj.name.as_str(), "$state" | "$derived" | "$effect")
+                    {
+                        let base = &obj.name[1..];
+                        !declared_names.contains(base)
+                            && !declared_names.contains(obj.name.as_str())
+                    } else {
+                        false
                     }
                 }
+                _ => false,
             }
         }
+        _ => false,
+    }
+}
+
+/// Detect rune globals used as top-level ExpressionStatements in the instance
+/// script, e.g. `$effect(() => { ... })`.
+///
+/// These don't have a VariableDeclarator so `detect_runes_call` misses them.
+/// Reference: official svelte2tsx `hasRunesGlobals` which checks ALL undeclared
+/// `$state`/`$derived`/`$effect` references in the instance script scope.
+fn detect_runes_expr_stmt(
+    expr_stmt: &oxc::ExpressionStatement,
+    exported_names: &mut ExportedNames,
+    declared_names: &HashSet<String>,
+) {
+    // Use the recursive walker so runes nested in arrow/function bodies are also
+    // detected (e.g. `setTimeout(() => { $effect(() => {}) })`).
+    // `detect_rune_in_expr` fast-paths to `detect_rune_global_call_expr` first.
+    if detect_rune_in_expr(&expr_stmt.expression, declared_names) {
+        exported_names.set_uses_runes(true);
+    }
+}
+
+/// Detect whether any rune global call (`$state`, `$derived`, `$effect` including
+/// member variants such as `$state.raw`, `$effect.pre`) appears anywhere inside
+/// a function, class, or arrow-function body — even when not at the top level.
+///
+/// The official svelte2tsx `checkGlobalsForRunes` works by collecting every
+/// undeclared identifier referenced anywhere in the script (via the TypeScript
+/// compiler's symbol walk) and then testing whether any of `$state`/`$derived`/
+/// `$effect` appears. This mirrors that behaviour for the OXC AST by recursively
+/// walking statements and expressions inside nested bodies.
+///
+/// Reference: ExportedNames.ts `checkGlobalsForRunes` + `ImplicitStoreValues.getGlobals()`
+///   `this.hasRunesGlobals = isSvelte5Plus && globals.some(g => runes.includes(g))`
+fn detect_rune_in_nested_body(stmts: &[oxc::Statement], declared_names: &HashSet<String>) -> bool {
+    for stmt in stmts {
+        if detect_rune_in_stmt(stmt, declared_names) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Walk a single statement (and any nested sub-statements / expressions)
+/// looking for an undeclared `$state`/`$derived`/`$effect` reference.
+fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) -> bool {
+    match stmt {
+        oxc::Statement::ExpressionStatement(es) => {
+            detect_rune_in_expr(&es.expression, declared_names)
+        }
+        oxc::Statement::VariableDeclaration(var_decl) => var_decl.declarations.iter().any(|d| {
+            d.init.as_ref().is_some_and(|e| {
+                // Same `is_rune` exclusion as the top-level pass: the canonical
+                // `let stateX = $state(...)` form is not a runes-globals trigger,
+                // but nested runes in the arguments still are.
+                if let Some(call) = excluded_rune_init(e, &d.id) {
+                    detect_rune_in_call_args(call, declared_names)
+                } else {
+                    detect_rune_in_expr(e, declared_names)
+                }
+            })
+        }),
+        oxc::Statement::ReturnStatement(ret) => ret
+            .argument
+            .as_ref()
+            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Statement::BlockStatement(block) => {
+            detect_rune_in_nested_body(&block.body, declared_names)
+        }
+        oxc::Statement::IfStatement(if_stmt) => {
+            detect_rune_in_expr(&if_stmt.test, declared_names)
+                || detect_rune_in_stmt(&if_stmt.consequent, declared_names)
+                || if_stmt
+                    .alternate
+                    .as_ref()
+                    .is_some_and(|s| detect_rune_in_stmt(s, declared_names))
+        }
+        oxc::Statement::WhileStatement(while_stmt) => {
+            detect_rune_in_expr(&while_stmt.test, declared_names)
+                || detect_rune_in_stmt(&while_stmt.body, declared_names)
+        }
+        oxc::Statement::ForStatement(for_stmt) => {
+            for_stmt.init.as_ref().is_some_and(|init| match init {
+                oxc::ForStatementInit::VariableDeclaration(vd) => vd.declarations.iter().any(|d| {
+                    d.init
+                        .as_ref()
+                        .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                }),
+                // ForStatementInit inherits Expression variants; use to_expression()
+                // for all non-VariableDeclaration arms.
+                _ => {
+                    if let Some(e) = init.as_expression() {
+                        detect_rune_in_expr(e, declared_names)
+                    } else {
+                        false
+                    }
+                }
+            }) || for_stmt
+                .test
+                .as_ref()
+                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || for_stmt
+                    .update
+                    .as_ref()
+                    .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || detect_rune_in_stmt(&for_stmt.body, declared_names)
+        }
+        oxc::Statement::LabeledStatement(labeled) => {
+            detect_rune_in_stmt(&labeled.body, declared_names)
+        }
+        oxc::Statement::ForOfStatement(f) => {
+            detect_rune_in_expr(&f.right, declared_names)
+                || detect_rune_in_stmt(&f.body, declared_names)
+        }
+        oxc::Statement::ForInStatement(f) => {
+            detect_rune_in_expr(&f.right, declared_names)
+                || detect_rune_in_stmt(&f.body, declared_names)
+        }
+        oxc::Statement::TryStatement(t) => {
+            detect_rune_in_nested_body(&t.block.body, declared_names)
+                || t.handler
+                    .as_ref()
+                    .is_some_and(|h| detect_rune_in_nested_body(&h.body.body, declared_names))
+                || t.finalizer
+                    .as_ref()
+                    .is_some_and(|f| detect_rune_in_nested_body(&f.body, declared_names))
+        }
+        oxc::Statement::SwitchStatement(s) => s.cases.iter().any(|c| {
+            c.test
+                .as_ref()
+                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || detect_rune_in_nested_body(&c.consequent, declared_names)
+        }),
+        oxc::Statement::FunctionDeclaration(func) => func.body.as_ref().is_some_and(|body| {
+            let scope = scope_with_params(declared_names, &func.params);
+            detect_rune_in_nested_body(&body.statements, &scope)
+        }),
+        _ => false,
+    }
+}
+
+/// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
+/// (including member variants) anywhere inside the given expression tree.
+/// Clone `base` and add a function's parameter names, so a `$state`/`$derived`/
+/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived(x) }`)
+/// is treated as a store-sub / call of the param, not a rune. Mirrors official's
+/// scope-aware global resolution.
+fn scope_with_params(base: &HashSet<String>, params: &oxc::FormalParameters) -> HashSet<String> {
+    let mut s = base.clone();
+    let mut tmp: Vec<String> = Vec::new();
+    for p in params.items.iter() {
+        collect_binding_names(&p.pattern, &mut tmp);
+    }
+    if let Some(rest) = &params.rest {
+        collect_binding_names(&rest.rest.argument, &mut tmp);
+    }
+    for n in tmp {
+        s.insert(n);
+    }
+    s
+}
+
+fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
+    // Fast-path: check if this expression itself is a rune call.
+    if detect_rune_global_call_expr(expr, declared_names) {
+        return true;
+    }
+    match expr {
+        oxc::Expression::CallExpression(call) => {
+            // The callee might not be a rune but the arguments could contain rune calls.
+            detect_rune_in_expr(&call.callee, declared_names)
+                || call.arguments.iter().any(|arg| match arg {
+                    oxc::Argument::SpreadElement(spread) => {
+                        detect_rune_in_expr(&spread.argument, declared_names)
+                    }
+                    // Argument inherits Expression variants via `@inherit Expression`;
+                    // use to_expression() (panics for SpreadElement, already handled above).
+                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+                })
+        }
+        oxc::Expression::ArrowFunctionExpression(arrow) => {
+            let scope = scope_with_params(declared_names, &arrow.params);
+            detect_rune_in_nested_body(&arrow.body.statements, &scope)
+        }
+        oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
+            let scope = scope_with_params(declared_names, &func.params);
+            detect_rune_in_nested_body(&body.statements, &scope)
+        }),
+        oxc::Expression::ClassExpression(class) => {
+            class.body.body.iter().any(|member| match member {
+                oxc::ClassElement::MethodDefinition(method) => {
+                    method.value.body.as_ref().is_some_and(|body| {
+                        let scope = scope_with_params(declared_names, &method.value.params);
+                        detect_rune_in_nested_body(&body.statements, &scope)
+                    })
+                }
+                oxc::ClassElement::PropertyDefinition(prop) => prop
+                    .value
+                    .as_ref()
+                    .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+                _ => false,
+            })
+        }
+        oxc::Expression::AssignmentExpression(assign) => {
+            detect_rune_in_expr(&assign.right, declared_names)
+        }
+        oxc::Expression::BinaryExpression(bin) => {
+            detect_rune_in_expr(&bin.left, declared_names)
+                || detect_rune_in_expr(&bin.right, declared_names)
+        }
+        oxc::Expression::LogicalExpression(log) => {
+            detect_rune_in_expr(&log.left, declared_names)
+                || detect_rune_in_expr(&log.right, declared_names)
+        }
+        oxc::Expression::ConditionalExpression(cond) => {
+            detect_rune_in_expr(&cond.test, declared_names)
+                || detect_rune_in_expr(&cond.consequent, declared_names)
+                || detect_rune_in_expr(&cond.alternate, declared_names)
+        }
+        oxc::Expression::SequenceExpression(seq) => seq
+            .expressions
+            .iter()
+            .any(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::ObjectExpression(obj) => obj.properties.iter().any(|prop| match prop {
+            oxc::ObjectPropertyKind::ObjectProperty(p) => {
+                detect_rune_in_expr(&p.value, declared_names)
+            }
+            oxc::ObjectPropertyKind::SpreadProperty(spread) => {
+                detect_rune_in_expr(&spread.argument, declared_names)
+            }
+        }),
+        oxc::Expression::ArrayExpression(arr) => arr.elements.iter().any(|el| match el {
+            oxc::ArrayExpressionElement::SpreadElement(spread) => {
+                detect_rune_in_expr(&spread.argument, declared_names)
+            }
+            oxc::ArrayExpressionElement::Elision(_) => false,
+            // ArrayExpressionElement inherits Expression variants via `@inherit Expression`;
+            // use to_expression() for all non-SpreadElement, non-Elision arms.
+            _ => detect_rune_in_expr(el.to_expression(), declared_names),
+        }),
+        oxc::Expression::StaticMemberExpression(mem) => {
+            detect_rune_in_expr(&mem.object, declared_names)
+        }
+        oxc::Expression::ComputedMemberExpression(mem) => {
+            detect_rune_in_expr(&mem.object, declared_names)
+                || detect_rune_in_expr(&mem.expression, declared_names)
+        }
+        oxc::Expression::UnaryExpression(unary) => {
+            detect_rune_in_expr(&unary.argument, declared_names)
+        }
+        oxc::Expression::NewExpression(new_expr) => {
+            // e.g. `new class Counter { constructor() { this.x = $state(0) } }`
+            // or `new Foo($derived(...))`.
+            detect_rune_in_expr(&new_expr.callee, declared_names)
+                || new_expr.arguments.iter().any(|arg| match arg {
+                    oxc::Argument::SpreadElement(spread) => {
+                        detect_rune_in_expr(&spread.argument, declared_names)
+                    }
+                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+                })
+        }
+        oxc::Expression::TemplateLiteral(tpl) => tpl
+            .expressions
+            .iter()
+            .any(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::TaggedTemplateExpression(tagged) => {
+            detect_rune_in_expr(&tagged.tag, declared_names)
+                || tagged
+                    .quasi
+                    .expressions
+                    .iter()
+                    .any(|e| detect_rune_in_expr(e, declared_names))
+        }
+        oxc::Expression::AwaitExpression(aw) => detect_rune_in_expr(&aw.argument, declared_names),
+        oxc::Expression::YieldExpression(y) => y
+            .argument
+            .as_ref()
+            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::ParenthesizedExpression(paren) => {
+            detect_rune_in_expr(&paren.expression, declared_names)
+        }
+        oxc::Expression::TSAsExpression(ts_as) => {
+            detect_rune_in_expr(&ts_as.expression, declared_names)
+        }
+        oxc::Expression::TSNonNullExpression(nn) => {
+            detect_rune_in_expr(&nn.expression, declared_names)
+        }
+        // Identifier, literals, template literals without expressions, etc. → no rune
+        _ => false,
     }
 }
 
@@ -2687,37 +3476,37 @@ fn detect_create_event_dispatcher(
     raw_content: &str,
     events: &mut ComponentEvents,
 ) {
-    if let Some(ref init) = declarator.init {
-        if let oxc::Expression::CallExpression(call) = init {
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                if callee.name == "createEventDispatcher" {
-                    // Check for type arguments: createEventDispatcher<Type>()
-                    if let Some(ref type_args) = call.type_arguments {
-                        if let Some(first_param) = type_args.params.first() {
-                            let start = first_param.span().start as usize;
-                            let end = first_param.span().end as usize;
-                            if start < end && end <= raw_content.len() {
-                                let type_text = raw_content[start..end].to_string();
-                                events.dispatcher_generic_type = Some(type_text);
-                            }
-                        }
-                    }
-                    // Also detect dispatch('eventName') calls for individual events
-                    // (but that requires analyzing all call sites, which we skip here)
-                }
+    if let Some(ref init) = declarator.init
+        && let oxc::Expression::CallExpression(call) = init
+        && let oxc::Expression::Identifier(ref callee) = call.callee
+        && callee.name == "createEventDispatcher"
+    {
+        // Check for type arguments: createEventDispatcher<Type>()
+        if let Some(ref type_args) = call.type_arguments
+            && let Some(first_param) = type_args.params.first()
+        {
+            let start = first_param.span().start as usize;
+            let end = first_param.span().end as usize;
+            if start < end && end <= raw_content.len() {
+                let type_text = raw_content[start..end].to_string();
+                events.dispatcher_generic_type = Some(type_text);
             }
+        } else if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+            // Untyped dispatcher: record its name so `dispatch("name")` call
+            // sites (anywhere in the component, incl. template handlers) can be
+            // scanned to populate the events return.
+            events.dispatcher_names.push(name);
         }
     }
 }
 
 /// Check if a variable declarator's init is a `$props()` call.
 fn is_props_call_oxc(declarator: &oxc::VariableDeclarator) -> bool {
-    if let Some(ref init) = declarator.init {
-        if let oxc::Expression::CallExpression(call) = init {
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                return callee.name == "$props";
-            }
-        }
+    if let Some(ref init) = declarator.init
+        && let oxc::Expression::CallExpression(call) = init
+        && let oxc::Expression::Identifier(ref callee) = call.callee
+    {
+        return callee.name == "$props";
     }
     false
 }
@@ -2756,18 +3545,17 @@ fn is_bindable_call(expr: &oxc::Expression, raw_content: &str) -> (bool, Option<
         oxc::Expression::TSAsExpression(ts_as) => &ts_as.expression,
         other => other,
     };
-    if let oxc::Expression::CallExpression(call) = inner {
-        if let oxc::Expression::Identifier(ref callee) = call.callee {
-            if callee.name == "$bindable" {
-                // Get the first argument if any (for type inference)
-                let arg_text = call.arguments.first().map(|arg| {
-                    let start = arg.span().start as usize;
-                    let end = arg.span().end as usize;
-                    raw_content[start..end].to_string()
-                });
-                return (true, arg_text);
-            }
-        }
+    if let oxc::Expression::CallExpression(call) = inner
+        && let oxc::Expression::Identifier(ref callee) = call.callee
+        && callee.name == "$bindable"
+    {
+        // Get the first argument if any (for type inference)
+        let arg_text = call.arguments.first().map(|arg| {
+            let start = arg.span().start as usize;
+            let end = arg.span().end as usize;
+            raw_content[start..end].to_string()
+        });
+        return (true, arg_text);
     }
     (false, None)
 }
@@ -2805,16 +3593,16 @@ fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String 
         }
         oxc::Expression::CallExpression(call) => {
             // Check for $bindable() - extract inner type
-            if let oxc::Expression::Identifier(ref callee) = call.callee {
-                if callee.name == "$bindable" {
-                    if let Some(first_arg) = call.arguments.first() {
-                        if let oxc::Argument::SpreadElement(_) = first_arg {
-                            return "any".to_string();
-                        }
-                        return infer_type_from_default(first_arg.to_expression(), raw_content);
+            if let oxc::Expression::Identifier(ref callee) = call.callee
+                && callee.name == "$bindable"
+            {
+                if let Some(first_arg) = call.arguments.first() {
+                    if let oxc::Argument::SpreadElement(_) = first_arg {
+                        return "any".to_string();
                     }
-                    return "any".to_string();
+                    return infer_type_from_default(first_arg.to_expression(), raw_content);
                 }
+                return "any".to_string();
             }
             "any".to_string()
         }
@@ -2901,6 +3689,7 @@ fn collect_props_rune_info(
         type_annotation_end,
         type_text,
         is_hoistable_type,
+        is_named_type_reference,
         colon_pos,
     ) = if let Some(ref ta) = declarator.type_annotation {
         let ts_type = &ta.type_annotation;
@@ -2911,8 +3700,13 @@ fn collect_props_rune_info(
         } else {
             None
         };
-        // Inline object types are hoistable, named type references are not
+        // Inline object types are hoistable, named type references are not.
+        // Mirrors official `ts.isTypeReferenceNode` check:
+        // - TSTypeLiteral (`{ a: T }`) → hoistable (inline object)
+        // - TSTypeReference (`Props`, `Props<T>`) → named reference, use directly
+        // - Everything else (TSIndexedAccessType, TSUnionType, etc.) → create $$ComponentProps
         let is_hoistable = matches!(&ts_type, oxc::TSType::TSTypeLiteral(_));
+        let is_named_ref = matches!(&ts_type, oxc::TSType::TSTypeReference(_));
         // The colon position is the start of the TSTypeAnnotation span (includes `:`)
         let colon = ta.span.start;
         (
@@ -2921,10 +3715,11 @@ fn collect_props_rune_info(
             Some(end),
             text,
             is_hoistable,
+            is_named_ref,
             Some(colon),
         )
     } else {
-        (false, None, None, None, false, None)
+        (false, None, None, None, false, false, None)
     };
 
     // Detect JSDoc @type comment before the let statement
@@ -2935,19 +3730,43 @@ fn collect_props_rune_info(
         stmt_index,
     );
 
-    // Detect rest element and collect prop types
+    // Detect rest element and collect prop types.
+    // Also detect whether the binding is an identifier (whole-object) vs destructure.
     let mut has_rest = false;
+    // `has_unknown_props` mirrors official's `withUnknown` flag: set to true when
+    // a property has a non-identifier key (string literal, numeric, computed) or
+    // a non-identifier name. Mirrors official check:
+    //   `!ts.isIdentifier(element.name) || (element.propertyName && !ts.isIdentifier(element.propertyName))`
+    let mut has_unknown_props = false;
     let mut prop_types: Vec<(String, bool, String)> = Vec::new();
     let mut bindable_names: Vec<String> = Vec::new();
+    let is_identifier_pattern = matches!(&declarator.id, oxc::BindingPattern::BindingIdentifier(_));
 
     if let oxc::BindingPattern::ObjectPattern(obj_pat) = &declarator.id {
         has_rest = obj_pat.rest.is_some();
 
         for prop in obj_pat.properties.iter() {
+            // Only include a prop in the type if its key is a plain identifier.
+            // For non-identifier keys (string literals like `'kebab-case'`, numeric
+            // literals like `0`, computed properties), set `has_unknown_props = true`
+            // which will contribute `& Record<string, any>` or `Record<string, any>`
+            // to the generated type — mirrors official's `withUnknown` path.
+            let is_identifier_key = matches!(&prop.key, oxc::PropertyKey::StaticIdentifier(_));
+            if !is_identifier_key {
+                has_unknown_props = true;
+                continue;
+            }
             let key_name = property_key_to_string(&prop.key);
             if let Some(key) = key_name {
+                // Also check that the binding target name is a simple identifier
+                // (not a nested destructure, which is a non-identifier).
                 match &prop.value {
                     oxc::BindingPattern::AssignmentPattern(assign) => {
+                        if binding_pattern_simple_name(&assign.left).is_none() {
+                            // Complex binding (nested destructure) → unknown
+                            has_unknown_props = true;
+                            continue;
+                        }
                         let inferred_type = infer_type_from_default(&assign.right, raw_content);
                         let (bindable, _) = is_bindable_call(&assign.right, raw_content);
                         prop_types.push((key.clone(), true, inferred_type));
@@ -2955,8 +3774,12 @@ fn collect_props_rune_info(
                             bindable_names.push(key);
                         }
                     }
-                    _ => {
+                    oxc::BindingPattern::BindingIdentifier(_) => {
                         prop_types.push((key, false, "any".to_string()));
+                    }
+                    _ => {
+                        // Nested destructure in value position → unknown
+                        has_unknown_props = true;
                     }
                 }
             }
@@ -2974,10 +3797,13 @@ fn collect_props_rune_info(
         type_text,
         colon_pos,
         is_hoistable_type,
+        is_named_type_reference,
+        is_identifier_pattern,
         jsdoc_type,
         jsdoc_start,
         jsdoc_end,
         has_rest,
+        has_unknown_props,
         prop_types,
         bindable_names,
     })
@@ -3081,25 +3907,23 @@ fn extract_names_from_binding_pattern(
             }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
-            for element in arr_pat.elements.iter() {
-                if let Some(el) = element {
-                    match el {
-                        oxc::BindingPattern::AssignmentPattern(assign) => {
-                            extract_names_from_binding_pattern(
-                                &assign.left,
-                                exported_names,
-                                true,
-                                is_prop,
-                            );
-                        }
-                        _ => {
-                            extract_names_from_binding_pattern(
-                                el,
-                                exported_names,
-                                has_default,
-                                is_prop,
-                            );
-                        }
+            for el in arr_pat.elements.iter().flatten() {
+                match el {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        extract_names_from_binding_pattern(
+                            &assign.left,
+                            exported_names,
+                            true,
+                            is_prop,
+                        );
+                    }
+                    _ => {
+                        extract_names_from_binding_pattern(
+                            el,
+                            exported_names,
+                            has_default,
+                            is_prop,
+                        );
                     }
                 }
             }
@@ -3158,29 +3982,27 @@ fn extract_names_from_binding_pattern_full(
             }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
-            for element in arr_pat.elements.iter() {
-                if let Some(el) = element {
-                    match el {
-                        oxc::BindingPattern::AssignmentPattern(assign) => {
-                            extract_names_from_binding_pattern_full(
-                                &assign.left,
-                                exported_names,
-                                true,
-                                is_prop,
-                                is_let,
-                                is_named_export,
-                            );
-                        }
-                        _ => {
-                            extract_names_from_binding_pattern_full(
-                                el,
-                                exported_names,
-                                has_default,
-                                is_prop,
-                                is_let,
-                                is_named_export,
-                            );
-                        }
+            for el in arr_pat.elements.iter().flatten() {
+                match el {
+                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                        extract_names_from_binding_pattern_full(
+                            &assign.left,
+                            exported_names,
+                            true,
+                            is_prop,
+                            is_let,
+                            is_named_export,
+                        );
+                    }
+                    _ => {
+                        extract_names_from_binding_pattern_full(
+                            el,
+                            exported_names,
+                            has_default,
+                            is_prop,
+                            is_let,
+                            is_named_export,
+                        );
                     }
                 }
             }
@@ -3251,11 +4073,61 @@ const SVELTE_RUNES: &[&str] = &[
 /// - Reserved names (`$$props`, `$$restProps`, `$$slots`)
 /// - Member access like `obj.$store` (preceded by `.`)
 /// - String literals like `'$store'` or `"$store"` (preceded by `'` or `"`)
+/// Return the leading `/** … */` JSDoc comment immediately before `before`
+/// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
+fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
+    let bytes = source.as_bytes();
+    let before = before.min(bytes.len());
+    // Skip whitespace immediately before the declaration.
+    let mut p = before;
+    while p > 0 && bytes[p - 1].is_ascii_whitespace() {
+        p -= 1;
+    }
+    // Require a block comment terminator `*/` right there.
+    if p < 2 || &source[p - 2..p] != "*/" {
+        return None;
+    }
+    // Find the matching `/**` (JSDoc) opener.
+    let open = source[..p].rfind("/**")?;
+    // Ensure the `/**` is the opener for THIS `*/` (no intervening `*/`).
+    if source[open..p - 2].contains("*/") {
+        return None;
+    }
+    Some(source[open..p].to_string())
+}
+
 fn collect_store_references(source: &str) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
     // pass returns `None`) and avoids per-match string allocations.
+    //
+    // HTML comments are blanked first: a `$name` inside `<!-- … -->` is not a
+    // real reference (official builds stores from parsed expressions, never
+    // comments), so e.g. a `<!-- … `$derived` … -->` migration-task comment
+    // must not make a local `derived` variable look like a store subscription.
+    let blanked;
+    let source: &str = if source.contains("<!--") {
+        let mut buf = source.as_bytes().to_vec();
+        let mut j = 0usize;
+        while let Some(rel) = source[j..].find("<!--") {
+            let start = j + rel;
+            let end = source[start..]
+                .find("-->")
+                .map(|e| start + e + 3)
+                .unwrap_or(buf.len());
+            for b in &mut buf[start..end] {
+                if *b != b'\n' && *b != b'\r' {
+                    *b = b' ';
+                }
+            }
+            j = end;
+        }
+        blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
+        &blanked
+    } else {
+        source
+    };
     let mut stores = HashSet::new();
     let bytes = source.as_bytes();
     let len = bytes.len();
@@ -3309,6 +4181,87 @@ fn collect_store_references(source: &str) -> HashSet<String> {
     stores
 }
 
+/// Pre-pass: collect EVERY top-level declared binding name in the instance
+/// script before rune detection runs. Official `svelte2tsx` resolves a
+/// `$name` reference as a store auto-subscription (NOT the `$state`/`$derived`/
+/// `$effect` rune) whenever `name` is a declared binding, using the COMPLETE
+/// top-level scope. So `let state = $state(0)` must see its own `state` as
+/// declared (→ legacy), while `let x = $state(0)` stays runes. Without this
+/// pre-pass `declared_names` was still empty when a declarator's own
+/// initializer was checked, over-detecting runes. Mirrors upstream
+/// `ImplicitStoreValues` / `checkGlobalsForRunes`.
+fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashSet<String> {
+    fn add_var(vd: &oxc::VariableDeclaration, names: &mut HashSet<String>) {
+        for d in vd.declarations.iter() {
+            for n in extract_all_names_from_binding_pattern(&d.id) {
+                names.insert(n);
+            }
+        }
+    }
+    let mut names = HashSet::new();
+    for stmt in body {
+        match stmt {
+            oxc::Statement::VariableDeclaration(vd) => add_var(vd, &mut names),
+            oxc::Statement::FunctionDeclaration(f) => {
+                if let Some(id) = &f.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::ClassDeclaration(c) => {
+                if let Some(id) = &c.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::TSModuleDeclaration(m) => {
+                if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &m.id {
+                    names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::TSEnumDeclaration(e) => {
+                names.insert(e.id.name.to_string());
+            }
+            oxc::Statement::ImportDeclaration(imp) => {
+                if let Some(specs) = &imp.specifiers {
+                    for s in specs.iter() {
+                        let n = match s {
+                            oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                            oxc::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                            oxc::ImportDeclarationSpecifier::ImportSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                        };
+                        names.insert(n);
+                    }
+                }
+            }
+            oxc::Statement::ExportNamedDeclaration(ex) => {
+                if let Some(decl) = &ex.declaration {
+                    match decl {
+                        oxc::Declaration::VariableDeclaration(vd) => add_var(vd, &mut names),
+                        oxc::Declaration::FunctionDeclaration(f) => {
+                            if let Some(id) = &f.id {
+                                names.insert(id.name.to_string());
+                            }
+                        }
+                        oxc::Declaration::ClassDeclaration(c) => {
+                            if let Some(id) = &c.id {
+                                names.insert(id.name.to_string());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    names
+}
+
 /// Extract all identifier names from a binding pattern (for destructuring support).
 ///
 /// For `{ a, b, c }` returns `["a", "b", "c"]`.
@@ -3334,10 +4287,8 @@ fn collect_binding_names(pattern: &oxc::BindingPattern, names: &mut Vec<String>)
             }
         }
         oxc::BindingPattern::ArrayPattern(arr) => {
-            for el in arr.elements.iter() {
-                if let Some(el) = el {
-                    collect_binding_names(el, names);
-                }
+            for el in arr.elements.iter().flatten() {
+                collect_binding_names(el, names);
             }
             if let Some(ref rest) = arr.rest {
                 collect_binding_names(&rest.argument, names);
@@ -3395,18 +4346,16 @@ fn collect_assignment_target_names(target: &oxc::AssignmentTarget, names: &mut V
             }
         }
         oxc::AssignmentTarget::ArrayAssignmentTarget(arr) => {
-            for el in arr.elements.iter() {
-                if let Some(el) = el {
-                    match el {
-                        oxc::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
-                            with_default,
-                        ) => {
-                            collect_assignment_target_names(&with_default.binding, names);
-                        }
-                        _ => {
-                            if let Some(target) = el.as_assignment_target() {
-                                collect_assignment_target_names(target, names);
-                            }
+            for el in arr.elements.iter().flatten() {
+                match el {
+                    oxc::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+                        with_default,
+                    ) => {
+                        collect_assignment_target_names(&with_default.binding, names);
+                    }
+                    _ => {
+                        if let Some(target) = el.as_assignment_target() {
+                            collect_assignment_target_names(target, names);
                         }
                     }
                 }
@@ -3428,10 +4377,7 @@ fn create_store_declarations(store_names: &[&str]) -> String {
     }
     let mut result = String::from("/*\u{03A9}ignore_start\u{03A9}*/");
     for name in store_names {
-        result.push_str(&format!(
-            ";let ${} = __sveltets_2_store_get({});",
-            name, name
-        ));
+        let _ = write!(result, ";let ${} = __sveltets_2_store_get({});", name, name);
     }
     result.push_str("/*\u{03A9}ignore_end\u{03A9}*/");
     result
@@ -3503,47 +4449,45 @@ fn inject_store_subscriptions_with_program(
             }
 
             oxc::Statement::ExportNamedDeclaration(export) => {
-                if let Some(ref decl) = export.declaration {
-                    if let oxc::Declaration::VariableDeclaration(var_decl) = decl {
-                        let last_decl_end = var_decl
-                            .declarations
-                            .last()
-                            .map(|d| d.span.end)
-                            .unwrap_or(var_decl.span.end);
-                        let inject_pos = last_decl_end + offset;
+                if let Some(ref decl) = export.declaration
+                    && let oxc::Declaration::VariableDeclaration(var_decl) = decl
+                {
+                    let last_decl_end = var_decl
+                        .declarations
+                        .last()
+                        .map(|d| d.span.end)
+                        .unwrap_or(var_decl.span.end);
+                    let inject_pos = last_decl_end + offset;
 
-                        for declarator in var_decl.declarations.iter() {
-                            let names = extract_all_names_from_binding_pattern(&declarator.id);
-                            let matching: Vec<String> = names
-                                .into_iter()
-                                .filter(|name| accessed_stores.contains(name))
-                                .collect();
+                    for declarator in var_decl.declarations.iter() {
+                        let names = extract_all_names_from_binding_pattern(&declarator.id);
+                        let matching: Vec<String> = names
+                            .into_iter()
+                            .filter(|name| accessed_stores.contains(name))
+                            .collect();
 
-                            if !matching.is_empty() {
-                                let name_refs: Vec<&str> =
-                                    matching.iter().map(|s| s.as_str()).collect();
-                                let store_decls = create_store_declarations(&name_refs);
-                                str.append_left(inject_pos, &store_decls);
-                            }
+                        if !matching.is_empty() {
+                            let name_refs: Vec<&str> =
+                                matching.iter().map(|s| s.as_str()).collect();
+                            let store_decls = create_store_declarations(&name_refs);
+                            str.append_left(inject_pos, &store_decls);
                         }
                     }
                 }
             }
 
-            oxc::Statement::LabeledStatement(labeled) => {
-                if labeled.label.name == "$" {
-                    let names = extract_names_from_labeled_body(&labeled.body);
-                    let matching: Vec<String> = names
-                        .into_iter()
-                        .filter(|n| accessed_stores.contains(n))
-                        .collect();
+            oxc::Statement::LabeledStatement(labeled) if labeled.label.name == "$" => {
+                let names = extract_names_from_labeled_body(&labeled.body);
+                let matching: Vec<String> = names
+                    .into_iter()
+                    .filter(|n| accessed_stores.contains(n))
+                    .collect();
 
-                    if !matching.is_empty() {
-                        let inject_pos = labeled.span.end + offset;
-                        let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
-                        let store_decls = create_store_declarations(&name_refs);
-                        str.append_left(inject_pos, &store_decls);
-                    }
+                if !matching.is_empty() {
+                    let inject_pos = labeled.span.end + offset;
+                    let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                    let store_decls = create_store_declarations(&name_refs);
+                    str.append_left(inject_pos, &store_decls);
                 }
             }
 
@@ -3553,8 +4497,14 @@ fn inject_store_subscriptions_with_program(
 
     collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
 
-    import_store_names.sort();
-    import_store_names.dedup();
+    // Order the store-subscription declarations by first `$store` use in source
+    // (official emits them in walk order), not alphabetically. Dedup preserving
+    // that order.
+    import_store_names.sort_by_key(|n| source.find(&format!("${}", n)).unwrap_or(usize::MAX));
+    {
+        let mut seen = std::collections::HashSet::new();
+        import_store_names.retain(|n| seen.insert(n.clone()));
+    }
     if !import_store_names.is_empty() {
         let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
         let store_decls = create_store_declarations(&name_refs);
@@ -4106,6 +5056,90 @@ mod tests {
         );
     }
 
+    // -- Bug 1: empty-props TS vs JS cast (addComponentExport.ts `props()`) --
+
+    /// For a TS file with no props, the return statement must use the TS `as`
+    /// cast form: `{} as Record<string, never>`.
+    /// Reference: ExportedNames.ts `createPropsStr` runes-mode branch:
+    ///   `return this.isTsFile ? '{} as Record<string, never>' : '/** @type ... */ ({})'`
+    #[test]
+    fn test_empty_props_ts_file_uses_as_cast() {
+        let source = "<script lang=\"ts\">\nconst internal: number = 5;\n</script>";
+        let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Default::default()
+        };
+        let result = svelte2tsx(source, opts).expect("svelte2tsx should not fail");
+        assert!(
+            result.code.contains("{} as Record<string, never>"),
+            "TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("/** @type {Record<string, never>} */"),
+            "TS file must NOT use JSDoc cast for empty props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// For a JS file with no props, the JSDoc cast form must be used:
+    /// `/** @type {Record<string, never>} */ ({})`.
+    /// Reference: same ExportedNames.ts branch, JS (non-TS) path.
+    #[test]
+    fn test_empty_props_js_file_uses_jsdoc() {
+        let source = "<script>\nconst internal = 5;\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("/** @type {Record<string, never>} */"),
+            "JS file with no props must use JSDoc cast, got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("{} as Record<string, never>"),
+            "JS file must NOT use TS `as` cast for empty props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Runes-mode TS file with no props must also emit `{} as Record<string, never>`.
+    /// Reference: ExportedNames.ts `createPropsStr` runes branch (same isTsFile check).
+    #[test]
+    fn test_empty_props_runes_ts_file_uses_as_cast() {
+        // A runes component (uses $state) with no exported props in a TS file.
+        let source_no_props = "<script lang=\"ts\">\nlet x = $state(0);\n</script>";
+        let opts = crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Default::default()
+        };
+        let result = svelte2tsx(source_no_props, opts).expect("svelte2tsx should not fail");
+        assert!(
+            result.code.contains("{} as Record<string, never>"),
+            "Runes-mode TS file with no props must use `{{}} as Record<string, never>`, got:\n{}",
+            result.code
+        );
+    }
+
+    // -- Bug 2: nested $effect (inside function body) triggers runes mode --
+
+    /// A JS component with `$effect` called INSIDE a function body (not top-level)
+    /// should still be detected as runes mode and emit `__sveltets_$$bindings("")`.
+    /// Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the entire AST.
+    #[test]
+    fn test_runes_effect_in_function_body() {
+        let source = "<script>\nfunction myaction(node) {\n    $effect(() => {\n        // setup\n    });\n}\n</script>\n<div use:myaction>...</div>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("__sveltets_$$bindings"),
+            "Component with $effect inside function body should be runes mode (emit __sveltets_$$bindings), got:\n{}",
+            result.code
+        );
+        assert!(
+            !result.code.contains("bindings: \"\""),
+            "Runes mode must not emit `bindings: \"\"`, got:\n{}",
+            result.code
+        );
+    }
+
     // -- Generic arrow disambiguation (#725) --
 
     #[test]
@@ -4292,6 +5326,232 @@ mod tests {
         assert!(
             result.code.contains(store2_block),
             "store2 should have separate ignore block"
+        );
+    }
+
+    // =========================================================================
+    // $$ComponentProps generation tests
+    // Reference: ExportedNames.ts handle$propsRune / createPropsStr
+    // =========================================================================
+
+    /// Helper to run svelte2tsx with TS enabled
+    fn run_svelte2tsx_ts(source: &str) -> crate::svelte2tsx::svelte2tsx::Svelte2TsxResult {
+        svelte2tsx(
+            source,
+            Svelte2TsxOptions {
+                filename: "Component.svelte".to_string(),
+                is_ts_file: true,
+                ..Default::default()
+            },
+        )
+        .expect("svelte2tsx should not fail")
+    }
+
+    /// Case A: JS whole-object `let props = $props()` — no typedef, but props slot
+    /// uses `/** @type {$$ComponentProps} */({})` (mirrors official behavior).
+    /// Reference: ExportedNames.ts handle$propsRune, else-branch line 393.
+    #[test]
+    fn test_component_props_js_whole_object() {
+        let source = "<script>\nlet props = $props();\n</script>\n<p>{props.x}</p>";
+        let result = run_svelte2tsx(source);
+        // No typedef should be emitted
+        assert!(
+            !result.code.contains("@typedef"),
+            "JS whole-object: no @typedef expected, got:\n{}",
+            result.code
+        );
+        // Props slot should use $$ComponentProps
+        assert!(
+            result.code.contains("/** @type {$$ComponentProps} */({})"),
+            "JS whole-object: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case A-TS: TS whole-object `let props = $props()` — no typedef, but props slot
+    /// uses `{} as any as $$ComponentProps` (mirrors official behavior).
+    #[test]
+    fn test_component_props_ts_whole_object() {
+        let source = "<script lang=\"ts\">\nlet props = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // No typedef should be emitted
+        assert!(
+            !result.code.contains("type $$ComponentProps"),
+            "TS whole-object: no type alias expected, got:\n{}",
+            result.code
+        );
+        // Props slot should use $$ComponentProps
+        assert!(
+            result.code.contains("{} as any as $$ComponentProps"),
+            "TS whole-object: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case B: TS with inline object type annotation — creates hoistable `$$ComponentProps` alias.
+    /// `let { x }: { a: string } = $props()` →
+    ///   `;type $$ComponentProps = { a: string };` (before $$render)
+    ///   annotation becomes `/*Ωignore_start*/$$ComponentProps/*Ωignore_end*/`
+    ///   props slot: `{} as any as $$ComponentProps`
+    /// Reference: ExportedNames.ts handle$propsRune, TSTypeLiteral branch.
+    #[test]
+    fn test_component_props_ts_inline_object_type() {
+        let source = "<script lang=\"ts\">\nlet { x }: { a: string } = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // Should emit type alias before $$render
+        assert!(
+            result.code.contains("type $$ComponentProps ="),
+            "TS inline type: should emit $$ComponentProps alias, got:\n{}",
+            result.code
+        );
+        // Annotation should be replaced with $$ComponentProps
+        assert!(
+            result.code.contains("$$ComponentProps"),
+            "annotation should reference $$ComponentProps, got:\n{}",
+            result.code
+        );
+        // Props slot should use `{} as any as $$ComponentProps`
+        assert!(
+            result.code.contains("{} as any as $$ComponentProps"),
+            "props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case C: TS with named type reference — uses type directly, no $$ComponentProps.
+    /// `let { x }: Props = $props()` → props slot: `{} as any as Props`
+    /// Reference: ExportedNames.ts handle$propsRune, TSTypeReferenceNode branch.
+    #[test]
+    fn test_component_props_ts_named_type_ref() {
+        let source = "<script lang=\"ts\">\ninterface Props { x: string }\nlet { x }: Props = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // Should NOT emit $$ComponentProps alias
+        assert!(
+            !result.code.contains("type $$ComponentProps"),
+            "TS named ref: should NOT emit $$ComponentProps alias, got:\n{}",
+            result.code
+        );
+        // Props slot should use Props directly
+        assert!(
+            result.code.contains("{} as any as Props"),
+            "TS named ref: props slot should use Props, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case D: TS with non-TSTypeReference annotation (e.g. TSIndexedAccessType) — creates $$ComponentProps.
+    /// `let { x }: SvelteHTMLElements["div"] = $props()` →
+    ///   `type $$ComponentProps = SvelteHTMLElements["div"];` (before $$render)
+    ///   props slot: `{} as any as $$ComponentProps`
+    /// Reference: ExportedNames.ts handle$propsRune, !isTypeReferenceNode branch.
+    #[test]
+    fn test_component_props_ts_indexed_access_type() {
+        let source = "<script lang=\"ts\">\nlet { x }: SomeType[\"key\"] = $props();\n</script>";
+        let result = run_svelte2tsx_ts(source);
+        // Should emit $$ComponentProps alias
+        assert!(
+            result.code.contains("type $$ComponentProps ="),
+            "TS indexed access: should emit $$ComponentProps alias, got:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("{} as any as $$ComponentProps"),
+            "TS indexed access: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case E: JS with inline JSDoc type `/** @type {{ a: string }} */`.
+    /// The `@type` is rewritten to `@typedef` and the type is renamed to `$$ComponentProps`.
+    /// Reference: ExportedNames.ts handle$propsRune, JSDoc inline object branch.
+    #[test]
+    fn test_component_props_js_jsdoc_inline_type() {
+        let source = "<script>\n/** @type {{ adjective: string }} */\nlet { adjective } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        // Should have @typedef with $$ComponentProps
+        assert!(
+            result.code.contains("@typedef"),
+            "JS JSDoc inline: should have @typedef, got:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("$$ComponentProps"),
+            "JS JSDoc inline: should reference $$ComponentProps, got:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("/** @type {$$ComponentProps} */({})"),
+            "JS JSDoc inline: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+        // The @typedef should have two spaces before $$ComponentProps (preserving original trailing space)
+        assert!(
+            result.code.contains("}}  $$ComponentProps"),
+            "JS JSDoc inline: should have two spaces before $$ComponentProps (orig space preserved), got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case F: JS destructure with rest element + named props.
+    /// `let { a, ...rest } = $props()` →
+    ///   `@typedef {{ a: any } & Record<string, any>} $$ComponentProps`
+    /// Reference: ExportedNames.ts, lines 369-370.
+    #[test]
+    fn test_component_props_js_rest_with_named_props() {
+        let source = "<script>\nlet { a, ...rest } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("{ a: any } & Record<string, any>"),
+            "JS rest+named: type should include named props AND Record, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case G: JS destructure with only rest element.
+    /// `let { ...rest } = $props()` → `@typedef {Record<string, any>} $$ComponentProps`
+    #[test]
+    fn test_component_props_js_rest_only() {
+        let source = "<script>\nlet { ...rest } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("Record<string, any>"),
+            "JS rest-only: type should be Record<string, any>, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case H: JS empty destructure `let {} = $props()`.
+    /// No typedef, but props slot uses `/** @type {$$ComponentProps} */({})`.
+    /// Reference: ExportedNames.ts, empty ObjectBindingPattern path (propsStr = Record<string,never>
+    /// but $props.comment = '/** @type {$$ComponentProps} */').
+    #[test]
+    fn test_component_props_js_empty_destructure() {
+        let source = "<script>\nlet {} = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("/** @type {$$ComponentProps} */({})"),
+            "JS empty destructure: props slot should use $$ComponentProps, got:\n{}",
+            result.code
+        );
+        // No typedef should be inserted (only the @type comment in props slot)
+        assert!(
+            !result.code.contains("@typedef"),
+            "JS empty destructure: no @typedef expected, got:\n{}",
+            result.code
+        );
+    }
+
+    /// Case I: JS with non-identifier property key (string literal key).
+    /// `let { 'kebab-case': x } = $props()` → `withUnknown = true` → `Record<string, any>`
+    /// Reference: ExportedNames.ts withUnknown condition line 299-303.
+    #[test]
+    fn test_component_props_js_non_identifier_key() {
+        let source = "<script>\nlet { 'kebab-case': x } = $props();\n</script>";
+        let result = run_svelte2tsx(source);
+        assert!(
+            result.code.contains("Record<string, any>"),
+            "JS non-identifier key: should generate Record<string, any>, got:\n{}",
+            result.code
         );
     }
 }

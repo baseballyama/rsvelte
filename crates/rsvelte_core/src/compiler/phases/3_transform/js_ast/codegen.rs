@@ -682,7 +682,25 @@ impl<'a> JsCodegen<'a> {
         self.output.push_str("while (");
         self.emit_expression(self.arena.get_expr(while_stmt.test));
         self.output.push_str(") ");
-        self.emit_statement_as_block(self.arena.get_stmt(while_stmt.body));
+        // Like esrap, emit the body as-is without forcing braces.
+        // A BlockStatement body will naturally emit with { ... };
+        // a bare single-statement body stays bare (matching upstream behaviour).
+        self.emit_loop_body(self.arena.get_stmt(while_stmt.body));
+    }
+
+    /// Emit a loop body (while/for), mirroring how esrap emits while/for bodies:
+    /// block bodies are emitted inline, non-block bodies are emitted bare.
+    fn emit_loop_body(&mut self, stmt: &JsStatement) {
+        match stmt {
+            JsStatement::Block(block) => self.emit_block_inline(block),
+            _ => {
+                self.emit_statement_inner(stmt);
+                if self.needs_semicolon {
+                    self.output.push(';');
+                    self.needs_semicolon = false;
+                }
+            }
+        }
     }
 
     fn emit_do_while_statement(&mut self, do_while: &JsDoWhileStatement) {
@@ -2144,6 +2162,7 @@ fn raw_stmt_type_name(code: &str) -> &'static str {
             }
         }
         b'v' if trimmed.starts_with("var ") => "VariableDeclaration",
+        b'd' if (trimmed == "debugger" || trimmed.starts_with("debugger;")) => "DebuggerStatement",
         b'l' if trimmed.starts_with("let ") => "VariableDeclaration",
         b'c' => {
             if trimmed.starts_with("const ") {
@@ -2205,10 +2224,12 @@ fn binary_op_precedence(op: &JsBinaryOp) -> u8 {
 fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
     // Fast path: use memchr to check if any escaping is needed.
     // This is faster than iterating all bytes for strings that don't need escaping.
+    // Mirrors esrap's `quote()` (esrap src/languages/ts/index.js), which only
+    // escapes the backslash, the quote character, `\n` and `\r` — tabs and
+    // other control characters are emitted literally.
     let bytes = s.as_bytes();
     if memchr::memchr3(b'\'', b'\\', b'\n', bytes).is_none()
-        && memchr::memchr3(b'\r', b'\t', 0x0c /* \f */, bytes).is_none()
-        && memchr::memchr2(0x08 /* \b */, 0x0b /* \v */, bytes).is_none()
+        && memchr::memchr(b'\r', bytes).is_none()
     {
         return std::borrow::Cow::Borrowed(s);
     }
@@ -2222,10 +2243,6 @@ fn escape_string_single(s: &str) -> std::borrow::Cow<'_, str> {
             b'\\' => "\\\\",
             b'\n' => "\\n",
             b'\r' => "\\r",
-            b'\t' => "\\t",
-            0x08 => "\\b",
-            0x0b => "\\v",
-            0x0c => "\\f",
             _ => continue,
         };
         // Copy the unmodified slice before this special character

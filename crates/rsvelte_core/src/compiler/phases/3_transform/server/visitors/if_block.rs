@@ -4,7 +4,9 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{Fragment, IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Compute the set of blocker "identity" strings for a test expression.
@@ -221,33 +223,41 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut start_idx = 0;
         let mut end_idx = len;
 
-        // Skip leading whitespace and comments (comments don't produce output)
-        while start_idx < len {
-            match nodes[start_idx] {
-                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
-                    start_idx += 1;
-                    continue;
-                }
-                TemplateNode::Comment(_) => {
-                    start_idx += 1;
-                    continue;
-                }
-                _ => break,
-            }
-        }
+        // When preserve_whitespace is active (e.g. inside a <pre> or <textarea>),
+        // skip ALL the whitespace-collapsing and trimming passes — upstream's
+        // clean_nodes returns the nodes verbatim when preserve_whitespace=true.
+        // Only strip Comment nodes (unless preserveComments) and sort ConstTags.
+        let preserve_whitespace = self.preserve_whitespace;
 
-        // Skip trailing whitespace and comments
-        while end_idx > start_idx {
-            match nodes[end_idx - 1] {
-                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
-                    end_idx -= 1;
-                    continue;
+        if !preserve_whitespace {
+            // Skip leading whitespace and comments (comments don't produce output)
+            while start_idx < len {
+                match nodes[start_idx] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        start_idx += 1;
+                        continue;
+                    }
+                    TemplateNode::Comment(_) => {
+                        start_idx += 1;
+                        continue;
+                    }
+                    _ => break,
                 }
-                TemplateNode::Comment(_) => {
-                    end_idx -= 1;
-                    continue;
+            }
+
+            // Skip trailing whitespace and comments
+            while end_idx > start_idx {
+                match nodes[end_idx - 1] {
+                    TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
+                        end_idx -= 1;
+                        continue;
+                    }
+                    TemplateNode::Comment(_) => {
+                        end_idx -= 1;
+                        continue;
+                    }
+                    _ => break,
                 }
-                _ => break,
             }
         }
 
@@ -261,11 +271,16 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Trim leading whitespace from first text node and trailing whitespace from last text node
         // This handles cases like `{#if cond}\nmid\n{/if}` which should output `mid` not ` mid `
-        if !trimmed_nodes.is_empty() {
-            // Find the first text node (may be after ConstTag or other non-output nodes)
+        // Skip this pass when preserve_whitespace is active — upstream's clean_nodes returns
+        // the raw text when preserve_whitespace=true.
+        if !preserve_whitespace && !trimmed_nodes.is_empty() {
+            // Find the first text node (may be after ConstTag or other non-output nodes).
+            // Use the Svelte whitespace set (` \t\r\n\x0C`) — NOT Rust's Unicode
+            // trim, which would also strip `\u{00A0}` (`&nbsp;`), treated as
+            // content by upstream's `regex_starts_with_whitespaces`.
             for node in trimmed_nodes.iter_mut() {
                 if let TemplateNode::Text(text) = node {
-                    let trimmed_data = text.data.trim_start().to_string();
+                    let trimmed_data = svelte_trim_start(&text.data).to_string();
                     text.data = trimmed_data.into();
                     break;
                 }
@@ -277,7 +292,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // Find the last text node (may be before trailing non-output nodes)
             for node in trimmed_nodes.iter_mut().rev() {
                 if let TemplateNode::Text(text) = node {
-                    let trimmed_data = text.data.trim_end().to_string();
+                    let trimmed_data = svelte_trim_end(&text.data).to_string();
                     text.data = trimmed_data.into();
                     break;
                 }
@@ -306,7 +321,9 @@ impl<'a> ServerCodeGenerator<'a> {
         // previous Text ended up empty (and was therefore dropped from the
         // final `trimmed` array). We do the same: mutate in place first, then
         // drop empties in a second pass.
-        if !trimmed_nodes.is_empty() {
+        //
+        // Skip this entire pass when preserve_whitespace is active.
+        if !preserve_whitespace && !trimmed_nodes.is_empty() {
             use crate::compiler::phases::phase3_transform::utils::{
                 replace_leading_whitespace, replace_trailing_whitespace,
             };
@@ -341,9 +358,19 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             // Drop Text nodes whose data is now empty (matches upstream's
-            // `if (node.data && (...)) trimmed.push(node)` filter).
+            // `if (node.data && (node.data !== ' ' || !can_remove_entirely))
+            // trimmed.push(node)` filter). In an SVG-namespace fragment,
+            // whitespace-only text collapsed to a single space is removed
+            // entirely (upstream's `can_remove_entirely` — clean_nodes,
+            // utils.js). The namespace for a block branch is inferred from
+            // its element children like upstream's `infer_namespace`
+            // fallthrough loop (parent is an IfBlock, so the element scan
+            // applies).
+            let can_remove_entirely = crate::compiler::phases::phase3_transform::server::visitors::fragment::infer_namespace_from_nodes_owned(&trimmed_nodes, &self.namespace) == "svg";
             trimmed_nodes.retain(|n| match n {
-                TemplateNode::Text(t) => !t.data.is_empty(),
+                TemplateNode::Text(t) => {
+                    !t.data.is_empty() && (t.data != " " || !can_remove_entirely)
+                }
                 _ => true,
             });
         }
@@ -373,7 +400,10 @@ impl<'a> ServerCodeGenerator<'a> {
             // This prevents whitespace between const tags from triggering a
             // flush_async_consts, which would split consecutive const tags
             // into separate $$renderer.run() groups.
-            if !seen_real_content
+            // When preserve_whitespace is active (e.g. inside <pre>/<textarea>),
+            // upstream does NOT skip these — the raw whitespace is part of the output.
+            if !preserve_whitespace
+                && !seen_real_content
                 && let TemplateNode::Text(text) = node
                 && is_svelte_whitespace_only(&text.data)
             {
@@ -439,6 +469,31 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Final flush for any remaining async consts
         body_generator.flush_async_consts();
+
+        // Lone `<script>` body: append a comment anchor, mirroring upstream
+        // `clean_nodes` (utils.js:265-275) — when the only meaningful child is a
+        // single `<script>` element, a `<!---->` is emitted after it so the
+        // client/server run-scripts logic stays in sync.
+        {
+            let meaningful: Vec<&TemplateNode> = trimmed_nodes
+                .iter()
+                .filter(|n| match n {
+                    TemplateNode::Text(t) => !is_svelte_whitespace_only(&t.data),
+                    TemplateNode::ConstTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DeclarationTag(_) => false,
+                    _ => true,
+                })
+                .collect();
+            if meaningful.len() == 1
+                && let TemplateNode::RegularElement(el) = meaningful[0]
+                && el.name.as_str() == "script"
+            {
+                body_generator
+                    .output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
+            }
+        }
 
         // Include any snippets defined inside the block as inline SnippetFunction parts
         // This handles cases like `{#if true}{#snippet test()}{/snippet}{/if}`

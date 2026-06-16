@@ -41,8 +41,10 @@ apps/playground/node_modules/
 apps/playground/.svelte-kit/
 apps/playground/build/
 
-# Generated fixtures (run `npm run generate-fixtures` to regenerate)
-fixtures/
+# Generated fixtures (run `npm run generate-fixtures` to regenerate).
+# Root-anchored so it ignores the generated top-level `fixtures/` dir but NOT
+# source under `scripts/fixtures/` (generators, canonical configs).
+/fixtures/
 
 # Test binaries
 test_css_debug
@@ -107,3 +109,18 @@ artifacts/
 
 # Claude scheduled task lock (runtime artifact)
 .claude/scheduled_tasks.lock
+
+# Corpus-compat pipeline (generated; see scripts/compat-corpus/)
+.corpus-cache/
+compat/corpus/sources/
+compat/corpus/expected/
+compat/corpus/actual/
+compat/corpus/expected-s2t/
+compat/corpus/actual-s2t/
+compat/corpus/manifest.json
+compat/corpus/report.json
+compat/corpus/report-s2t.json
+compat/corpus/.oxfmt-ignore-nothing
+# fmt-parity stage (generated; the fmt-known-failures.json ratchet is checked in)
+compat/corpus/fmt/
+compat/corpus/fmt-report.json

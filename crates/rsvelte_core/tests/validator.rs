@@ -3,6 +3,7 @@
 //! These tests verify that the compiler produces expected warnings for Svelte code.
 //! They compare warning codes, messages, and positions with the official Svelte test suite.
 
+use std::fmt::Write as _;
 mod common;
 
 // NOTE: Validator runs sequentially. Previous attempts at `par_iter()` hung;
@@ -257,7 +258,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                             expected_warnings_count, actual_warnings_count
                         );
                         for w in &result.warnings {
-                            detail.push_str(&format!("  [{}] {}\n", w.code, w.message));
+                            let _ = writeln!(detail, "  [{}] {}", w.code, w.message);
                         }
                         TestResult {
                             name: fixture.name.clone(),

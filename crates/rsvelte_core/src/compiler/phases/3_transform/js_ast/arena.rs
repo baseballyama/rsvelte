@@ -48,7 +48,10 @@ pub struct JsArena {
 }
 
 // JsArena is explicitly NOT Sync - it's single-threaded only.
-// Send is fine since we can move it between threads.
+// SAFETY: the arena owns its `UnsafeCell`-backed storage outright and hands out no
+// thread-shared references, so moving the whole arena across threads (Send) transfers
+// sole ownership without cross-thread aliasing. It is deliberately not `Sync`, which
+// is what keeps the `&self` interior mutability sound.
 unsafe impl Send for JsArena {}
 
 impl JsArena {
@@ -258,6 +261,8 @@ mod tests {
         let arena = JsArena::new();
         let id = arena.alloc_expr(JsExpr::Identifier(CompactString::new("bar")));
 
+        // SAFETY: `id` was just allocated and no reference into its slot is
+        // live here, satisfying `take_expr`'s no-aliasing contract.
         let taken = unsafe { arena.take_expr(id) };
         match taken {
             JsExpr::Identifier(name) => assert_eq!(name.as_str(), "bar"),
@@ -275,6 +280,8 @@ mod tests {
         let arena = JsArena::new();
         let id = arena.alloc_stmt(JsStatement::Debugger);
 
+        // SAFETY: `id` was just allocated and no reference into its slot is
+        // live here, satisfying `take_stmt`'s no-aliasing contract.
         let taken = unsafe { arena.take_stmt(id) };
         assert!(matches!(taken, JsStatement::Debugger));
         // After take, slot should contain Empty
@@ -286,6 +293,8 @@ mod tests {
         let arena = JsArena::new();
         let id = arena.alloc_expr(JsExpr::Identifier(CompactString::new("x")));
 
+        // SAFETY: `id` was just allocated and no other reference into its slot
+        // is live here, satisfying `get_expr_mut`'s no-aliasing contract.
         *unsafe { arena.get_expr_mut(id) } = JsExpr::Identifier(CompactString::new("y"));
 
         match arena.get_expr(id) {

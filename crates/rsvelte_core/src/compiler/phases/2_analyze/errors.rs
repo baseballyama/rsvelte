@@ -858,6 +858,14 @@ pub fn legacy_export_invalid() -> AnalysisError {
     )
 }
 
+/// `$:` is not allowed in runes mode, use `$derived` or `$effect` instead
+pub fn legacy_reactive_statement_invalid() -> AnalysisError {
+    error(
+        "legacy_reactive_statement_invalid",
+        "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid",
+    )
+}
+
 /// Cannot subscribe to stores that are not declared at the top level of the component
 pub fn store_invalid_scoped_subscription() -> AnalysisError {
     error(

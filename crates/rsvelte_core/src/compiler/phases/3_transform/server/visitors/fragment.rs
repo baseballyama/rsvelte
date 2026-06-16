@@ -60,6 +60,16 @@ fn collapse_leading_trailing_whitespace(
     result
 }
 
+/// Infer namespace from fragment children nodes (owned-slice variant for
+/// block-branch bodies, e.g. `{#if}` / `{:else}` fragments).
+pub(crate) fn infer_namespace_from_nodes_owned(
+    nodes: &[TemplateNode],
+    parent_namespace: &str,
+) -> String {
+    let refs: Vec<&TemplateNode> = nodes.iter().collect();
+    infer_namespace_from_nodes(&refs, parent_namespace)
+}
+
 /// Infer namespace from fragment children nodes.
 /// If all RegularElement children are SVG, returns "svg".
 /// If all are MathML, returns "mathml".
@@ -187,7 +197,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 match nodes[first_visible] {
                     TemplateNode::ConstTag(_)
                     | TemplateNode::DeclarationTag(_)
-                    | TemplateNode::SnippetBlock(_) => {
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_) => {
                         first_visible += 1;
                         prev_was_hoisted = true;
                     }
@@ -231,7 +242,61 @@ impl<'a> ServerCodeGenerator<'a> {
         // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
         let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
 
+        // Hoist `<title>` to the front of the fragment — upstream's clean_nodes
+        // hoists TitleElement alongside const/snippet tags, so a `<title>` that
+        // appears after other content in `<svelte:head>` is emitted first.
+        // After moving the title out, drop any now-trailing whitespace-only
+        // text so the last remaining node's close marker isn't followed by a
+        // stray space.
+        let sorted_meaningful_nodes = if sorted_meaningful_nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::TitleElement(_)))
+        {
+            let mut titles: Vec<&TemplateNode> = Vec::new();
+            let mut rest: Vec<&TemplateNode> = Vec::new();
+            for n in sorted_meaningful_nodes {
+                if matches!(n, TemplateNode::TitleElement(_)) {
+                    titles.push(n);
+                } else {
+                    rest.push(n);
+                }
+            }
+            while matches!(
+                rest.last(),
+                Some(TemplateNode::Text(t)) if is_svelte_whitespace_only(&t.data)
+            ) {
+                rest.pop();
+            }
+            titles.extend(rest);
+            titles
+        } else {
+            sorted_meaningful_nodes
+        };
+
         let meaningful_nodes = sorted_meaningful_nodes.as_slice();
+
+        // {@debug ...} tags are hoisted by upstream's clean_nodes: the Fragment
+        // visitor visits them BEFORE process_children, so their console.log /
+        // debugger statements precede the fragment's $$renderer.push calls
+        // (and the surrounding HTML merges into a single push).
+        //
+        // Exception: when the fragment also contains const/declaration tags,
+        // keep the debug tag inline — a `{@debug d}` may depend on a preceding
+        // `{@const d = await ...}` blocker registered during const processing
+        // (upstream visits the hoisted const first for the same reason).
+        let hoist_debug = !meaningful_nodes.iter().any(|n| {
+            matches!(
+                n,
+                TemplateNode::ConstTag(_) | TemplateNode::DeclarationTag(_)
+            )
+        });
+        if hoist_debug {
+            for node in meaningful_nodes.iter() {
+                if matches!(node, TemplateNode::DebugTag(_)) {
+                    body_generator.generate_node(node, false)?;
+                }
+            }
+        }
         let is_first_text = |idx: usize| -> bool {
             // Check if this is the first text node (ignoring hoisted/transparent nodes)
             for n in meaningful_nodes.iter().take(idx) {
@@ -246,8 +311,25 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             true
         };
+        // The last *rendered* (non-hoisted) node is what upstream trims trailing
+        // whitespace on: hoisted nodes (const / snippet / declaration / debug)
+        // are pulled out of `regular` before the trailing-whitespace pass, so a
+        // trailing hoisted node must not stop the preceding text from being
+        // treated as the last node (utils.js: trim runs on post-hoist `regular`).
+        let last_render_idx = meaningful_nodes
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, n)| {
+                !(matches!(n, TemplateNode::ConstTag(_))
+                    || matches!(n, TemplateNode::SnippetBlock(_))
+                    || matches!(n, TemplateNode::DeclarationTag(_))
+                    || matches!(n, TemplateNode::DebugTag(_))
+                    || (matches!(n, TemplateNode::Comment(_)) && !self.preserve_comments))
+            })
+            .map(|(i, _)| i);
         for (i, node) in meaningful_nodes.iter().enumerate() {
-            let is_last = i == meaningful_nodes.len() - 1;
+            let is_last = Some(i) == last_render_idx;
 
             // Whitespace-only text before any real content (after hoisted/transparent nodes):
             // In the official compiler, hoisted nodes are removed before leading whitespace
@@ -301,6 +383,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_hoisted = is_const_tag
                 || matches!(node, TemplateNode::SnippetBlock(_))
                 || matches!(node, TemplateNode::DeclarationTag(_))
+                || (hoist_debug && matches!(node, TemplateNode::DebugTag(_)))
                 || is_transparent_comment;
             // Flush accumulated async consts before processing non-const content.
             // Also skip SnippetBlock and transparent comments since those are hoisted/stripped.
@@ -404,6 +487,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 seen_real_content = true;
             }
 
+            // DebugTags were already emitted in the hoisted pre-pass above.
+            if hoist_debug && matches!(node, TemplateNode::DebugTag(_)) {
+                continue;
+            }
+
             body_generator.generate_node(node, false)?;
         }
 
@@ -428,11 +516,24 @@ impl<'a> ServerCodeGenerator<'a> {
         // In the official compiler, snippet blocks are hoisted and emitted as function
         // declarations within the same scope (matching Fragment visitor behavior).
         let mut parts = body_generator.output_parts;
-        for snippet in body_generator.snippets {
-            // Insert snippet function BEFORE the async consts run call
-            // (snippets are hoisted in JS, so they can reference promises declared later)
-            // Find the position of the last RawStatement that starts with "let " or
-            // the last ConstDeclaration, and insert after that.
+        // Insert snippet functions BEFORE the async consts run call
+        // (snippets are hoisted in JS, so they can reference promises declared
+        // later). Find the position of the last RawStatement that starts with
+        // "let " or the last ConstDeclaration, and insert after that. The
+        // anchor is computed ONCE and advanced per snippet so multiple
+        // snippets keep their source order (inserting each at the same anchor
+        // would reverse them).
+        let snippet_parts: Vec<OutputPart> = body_generator
+            .snippets
+            .into_iter()
+            .map(|snippet| OutputPart::SnippetFunction {
+                name: snippet.name,
+                params: snippet.params,
+                body: snippet.body_parts,
+                dev: self.dev,
+            })
+            .collect();
+        if !snippet_parts.is_empty() {
             let insert_pos = parts
                 .iter()
                 .rposition(|p| {
@@ -441,15 +542,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 })
                 .map(|pos| pos + 1)
                 .unwrap_or(0);
-            parts.insert(
-                insert_pos,
-                OutputPart::SnippetFunction {
-                    name: snippet.name,
-                    params: snippet.params,
-                    body: snippet.body_parts,
-                    dev: self.dev,
-                },
-            );
+            parts.splice(insert_pos..insert_pos, snippet_parts);
         }
 
         // Apply const-tag-level async wrapping to fragment body parts
@@ -562,7 +655,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 _ => break,
             }
         }
-        let first_content = nodes.get(first_visible_idx);
+        // Bound by `end_idx`: trailing whitespace-only text was trimmed above
+        // and must not re-trigger the anchor (e.g. `{@const …}\n` where the
+        // only meaningful child is the const tag).
+        let first_content = if first_visible_idx < end_idx {
+            nodes.get(first_visible_idx)
+        } else {
+            None
+        };
         let needs_anchor = add_text_anchor
             && matches!(
                 first_content,
@@ -580,6 +680,12 @@ impl<'a> ServerCodeGenerator<'a> {
             .collect();
         let num_nodes = nodes_to_process.len();
         let mut prev_was_debug = false;
+        // Whether the previously emitted text ended with whitespace. Upstream's
+        // clean_nodes second pass replaces a text's leading whitespace with ''
+        // (not ' ') when the previous text ends with whitespace — two adjacent
+        // whitespace runs (left over when a slotted sibling moved into its own
+        // slot group) must collapse to ONE space, not two.
+        let mut prev_text_ends_with_ws = false;
 
         for (i, node) in nodes_to_process.iter().enumerate() {
             let is_first = i == 0;
@@ -651,6 +757,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     body_generator.use_async,
                 );
                 frag_generator.constant_vars = body_generator.constant_vars.clone();
+                frag_generator.current_scope_index = body_generator.current_scope_index;
                 frag_generator.namespace = body_generator.namespace.clone();
                 frag_generator.dev = body_generator.dev;
                 frag_generator.uses_store_subs = body_generator.uses_store_subs;
@@ -753,6 +860,19 @@ impl<'a> ServerCodeGenerator<'a> {
                     raw
                 };
 
+                // Strip (rather than collapse) leading whitespace when the
+                // previous emitted text already ended with whitespace.
+                let raw = if !self.preserve_whitespace && prev_text_ends_with_ws {
+                    svelte_trim_start(&raw).to_string()
+                } else {
+                    raw
+                };
+
+                if raw.is_empty() {
+                    continue;
+                }
+                prev_text_ends_with_ws = raw.ends_with([' ', '\t', '\r', '\n', '\x0C']);
+
                 if !raw.is_empty() {
                     // Collapse only leading/trailing whitespace, not internal.
                     // This matches clean_nodes which replaces leading/trailing
@@ -787,6 +907,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 continue;
             }
+            // Hoisted nodes (const/snippet/debug tags) are transparent for the
+            // whitespace pass (upstream removes them before it runs).
+            if !matches!(
+                ***node,
+                TemplateNode::ConstTag(_)
+                    | TemplateNode::SnippetBlock(_)
+                    | TemplateNode::DebugTag(_)
+                    | TemplateNode::Comment(_)
+            ) {
+                prev_text_ends_with_ws = false;
+            }
             body_generator.generate_node(node, false)?;
         }
 
@@ -795,12 +926,23 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Apply const-tag-level async wrapping to children body parts
         let const_blocker_map = body_generator.const_blocker_map.borrow();
-        let body_parts = if !const_blocker_map.is_empty() {
+        let mut body_parts = if !const_blocker_map.is_empty() {
             Self::apply_const_async_wrapping(&body_generator.output_parts, &const_blocker_map)
         } else {
             body_generator.output_parts
         };
         drop(const_blocker_map);
+
+        // Splice any snippets that were collected while visiting child nodes
+        // (e.g. {#snippet foo(…)} blocks nested inside a <span> or other
+        // element that is itself the default-slot content of a component).
+        // Upstream's Fragment visitor calls `context.state.init.push(fn)`
+        // for each SnippetBlock, and those declarations end up inside the
+        // enclosing `children: ($$renderer) => { … }` lambda.
+        if !body_generator.snippets.is_empty() {
+            let dev = body_generator.dev;
+            Self::splice_nested_snippets(&mut body_parts, body_generator.snippets, dev);
+        }
 
         Ok(Some(body_parts))
     }

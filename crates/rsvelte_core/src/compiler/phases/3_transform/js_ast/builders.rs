@@ -296,6 +296,42 @@ pub fn setter(
     })
 }
 
+/// Create a setter property whose parameter has a default value, e.g.
+/// `set foo($$value = "world") { ... }`.
+/// If the name is not a valid identifier (e.g., contains hyphens), uses a string literal key.
+pub fn setter_with_default(
+    arena: &JsArena,
+    name: impl Into<CompactString>,
+    param: impl Into<CompactString>,
+    default: JsExpr,
+    body: Vec<JsStatement>,
+) -> JsObjectMember {
+    let name_str: CompactString = name.into();
+    let key = if is_valid_identifier(&name_str) {
+        JsPropertyKey::Identifier(name_str)
+    } else {
+        JsPropertyKey::Literal(JsLiteral::String(name_str))
+    };
+    let func_expr = JsExpr::Function(JsFunctionExpression {
+        id: None,
+        params: smallvec![JsPattern::Assignment(JsAssignmentPattern {
+            left: Box::new(id_pattern(param)),
+            right: arena.alloc_expr(default),
+        })],
+        body: JsBlockStatement::with_body(body),
+        is_async: false,
+        is_generator: false,
+    });
+    JsObjectMember::Property(JsProperty {
+        key,
+        value: arena.alloc_expr(func_expr),
+        kind: JsPropertyKind::Set,
+        computed: false,
+        shorthand: false,
+        method: false,
+    })
+}
+
 /// Create a spread element in an object.
 pub fn spread(arena: &JsArena, expr: JsExpr) -> JsObjectMember {
     JsObjectMember::SpreadElement(arena.alloc_expr(expr))
@@ -552,6 +588,8 @@ pub fn js_expr_has_await(arena: &JsArena, expr: &JsExpr) -> bool {
 /// Otherwise returns the original expression unchanged.
 pub fn strip_await(arena: &JsArena, expr: JsExpr) -> JsExpr {
     match expr {
+        // SAFETY: this handle's node is moved out exactly once here, with no other live
+        // reference into its arena slot; the arena is single-threaded (`!Sync`).
         JsExpr::Await(inner_id) => unsafe { arena.take_expr(inner_id) },
         other => other,
     }
@@ -612,18 +650,26 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         JsExpr::Await(inner_id) => {
             if is_tail {
                 // Tail position: leave as plain `await X`
+                // SAFETY: this handle's node is moved out exactly once here, with no other live
+                // reference into its arena slot; the arena is single-threaded (`!Sync`).
                 let inner = unsafe { arena.take_expr(inner_id) };
                 let transformed = apply_save_recursive(arena, inner, true);
                 JsExpr::Await(arena.alloc_expr(transformed))
             } else {
                 // Non-tail position: wrap as `(await $.save(X))()`
+                // SAFETY: this handle's node is moved out exactly once here, with no other live
+                // reference into its arena slot; the arena is single-threaded (`!Sync`).
                 let inner = unsafe { arena.take_expr(inner_id) };
                 save(arena, inner)
             }
         }
 
         JsExpr::Binary(bin) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let left = unsafe { arena.take_expr(bin.left) };
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let right = unsafe { arena.take_expr(bin.right) };
             let left = apply_save_recursive(arena, left, false);
             let right = apply_save_recursive(arena, right, is_tail);
@@ -635,7 +681,11 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Logical(log) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let left = unsafe { arena.take_expr(log.left) };
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let right = unsafe { arena.take_expr(log.right) };
             let left = apply_save_recursive(arena, left, false);
             let right = apply_save_recursive(arena, right, is_tail);
@@ -647,7 +697,11 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Assignment(assign) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let left = unsafe { arena.take_expr(assign.left) };
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let right = unsafe { arena.take_expr(assign.right) };
             let left = apply_save_recursive(arena, left, false);
             let right = apply_save_recursive(arena, right, is_tail);
@@ -659,6 +713,8 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Call(call_expr) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let callee = unsafe { arena.take_expr(call_expr.callee) };
             let callee = apply_save_recursive(arena, callee, false);
             let len = call_expr.arguments.len();
@@ -679,6 +735,8 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::New(new_expr) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let callee = unsafe { arena.take_expr(new_expr.callee) };
             let callee = apply_save_recursive(arena, callee, false);
             let len = new_expr.arguments.len();
@@ -714,8 +772,14 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Conditional(cond) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let test = unsafe { arena.take_expr(cond.test) };
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let consequent = unsafe { arena.take_expr(cond.consequent) };
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let alternate = unsafe { arena.take_expr(cond.alternate) };
             let test = apply_save_recursive(arena, test, false);
             let consequent = apply_save_recursive(arena, consequent, is_tail);
@@ -729,10 +793,14 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
 
         JsExpr::Member(member) => {
             let object_is_tail = if member.computed { false } else { is_tail };
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let object = unsafe { arena.take_expr(member.object) };
             let object = apply_save_recursive(arena, object, object_is_tail);
             let property = match member.property {
                 JsMemberProperty::Expression(e_id) => {
+                    // SAFETY: this handle's node is moved out exactly once here, with no other live
+                    // reference into its arena slot; the arena is single-threaded (`!Sync`).
                     let e = unsafe { arena.take_expr(e_id) };
                     let transformed = apply_save_recursive(arena, e, is_tail);
                     JsMemberProperty::Expression(arena.alloc_expr(transformed))
@@ -779,6 +847,8 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::TaggedTemplate(tt) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let tag = unsafe { arena.take_expr(tt.tag) };
             let tag = apply_save_recursive(arena, tag, false);
             let len = tt.quasi.expressions.len();
@@ -813,12 +883,16 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
                         JsObjectMember::Property(p) => {
                             let key = match p.key {
                                 JsPropertyKey::Computed(e_id) => {
+                                    // SAFETY: this handle's node is moved out exactly once here, with no other live
+                                    // reference into its arena slot; the arena is single-threaded (`!Sync`).
                                     let e = unsafe { arena.take_expr(e_id) };
                                     let transformed = apply_save_recursive(arena, e, false);
                                     JsPropertyKey::Computed(arena.alloc_expr(transformed))
                                 }
                                 other => other,
                             };
+                            // SAFETY: this handle's node is moved out exactly once here, with no other live
+                            // reference into its arena slot; the arena is single-threaded (`!Sync`).
                             let value = unsafe { arena.take_expr(p.value) };
                             let value = apply_save_recursive(arena, value, prop_is_tail);
                             JsObjectMember::Property(JsProperty {
@@ -831,6 +905,8 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
                             })
                         }
                         JsObjectMember::SpreadElement(e_id) => {
+                            // SAFETY: this handle's node is moved out exactly once here, with no other live
+                            // reference into its arena slot; the arena is single-threaded (`!Sync`).
                             let e = unsafe { arena.take_expr(e_id) };
                             let transformed = apply_save_recursive(arena, e, prop_is_tail);
                             JsObjectMember::SpreadElement(arena.alloc_expr(transformed))
@@ -842,6 +918,8 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Unary(un) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let argument = unsafe { arena.take_expr(un.argument) };
             let argument = apply_save_recursive(arena, argument, false);
             JsExpr::Unary(JsUnaryExpression {
@@ -852,6 +930,8 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Update(up) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let argument = unsafe { arena.take_expr(up.argument) };
             let argument = apply_save_recursive(arena, argument, false);
             JsExpr::Update(JsUpdateExpression {
@@ -862,12 +942,16 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         JsExpr::Spread(inner_id) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let inner = unsafe { arena.take_expr(inner_id) };
             let transformed = apply_save_recursive(arena, inner, is_tail);
             JsExpr::Spread(arena.alloc_expr(transformed))
         }
 
         JsExpr::Void(inner_id) => {
+            // SAFETY: this handle's node is moved out exactly once here, with no other live
+            // reference into its arena slot; the arena is single-threaded (`!Sync`).
             let inner = unsafe { arena.take_expr(inner_id) };
             let transformed = apply_save_recursive(arena, inner, false);
             JsExpr::Void(arena.alloc_expr(transformed))

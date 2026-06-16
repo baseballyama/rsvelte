@@ -1,0 +1,243 @@
+name: corpus-compat
+
+# Compiles every .svelte / .svelte.(js|ts) source (including markdown code
+# blocks) from sveltejs/svelte (pinned by the submodule gitlink) and
+# sveltejs/svelte.dev (pinned by the submodules/svelte.dev gitlink) with BOTH the
+# official Svelte compiler and rsvelte, for client (CSR) and server (SSR)
+# targets, normalizes both output trees with oxfmt, and requires the results
+# to be byte-identical. The same corpus also drives a svelte2tsx TSX
+# output-parity check (official svelte2tsx from submodules/language-tools vs
+# rsvelte's port). See scripts/compat-corpus/README.md.
+#
+# Expected outputs are regenerated from the pinned upstreams on every run, so
+# bumping either submodule (auto-update-svelte.yml for the compiler,
+# auto-update-submodules.yml for svelte.dev) automatically refreshes both
+# the test corpus and its expectations.
+#
+# The fmt-parity job additionally formats every .svelte component with both
+# rsvelte-fmt and the oxfmt(`svelte: true`) oracle (prettier-plugin-svelte for
+# the structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
+# requires byte-identical output, ratcheted by compat/corpus/fmt-known-failures.json.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/**'
+      - 'scripts/compat-corpus/**'
+      - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
+      - 'pnpm-lock.yaml'
+      - 'compat/corpus/**'
+      - 'submodules/svelte'
+      - 'submodules/svelte.dev'
+      - 'submodules/language-tools'
+      - '.gitmodules'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/corpus-compat.yml'
+  pull_request:
+    paths:
+      - 'crates/**'
+      - 'scripts/compat-corpus/**'
+      - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
+      - 'pnpm-lock.yaml'
+      - 'compat/corpus/**'
+      - 'submodules/svelte'
+      - 'submodules/svelte.dev'
+      - 'submodules/language-tools'
+      - '.gitmodules'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/corpus-compat.yml'
+
+concurrency:
+  group: corpus-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The NAPI build is the whole job's bottleneck (~5 min of the ~6 min total):
+  # the default `release` profile's `lto = "fat"` + `codegen-units = 1` runs an
+  # uncacheable whole-program pass every time, while the actual corpus compile +
+  # verify over 6,400+ entries takes only ~0.2 min. Turning LTO off and splitting
+  # codegen cuts the build sharply; the resulting compiler binary is marginally
+  # slower per file but the run is already negligible, so the net is a large win.
+  # Mirrors the `compatibility-report` job; release artifacts keep fat-LTO.
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+
+jobs:
+  corpus:
+    name: Corpus compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout svelte + svelte.dev + language-tools submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Install root dependencies (oxfmt)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve Svelte submodule SHA
+        id: svelte-sha
+        run: echo "sha=$(git submodule status submodules/svelte | awk '{print $1}' | sed 's/^[+-]//')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Svelte compiler dependencies
+        id: svelte-deps-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            submodules/svelte/node_modules
+            submodules/svelte/packages/svelte/node_modules
+          key: corpus-svelte-deps-v1-${{ runner.os }}-${{ steps.svelte-sha.outputs.sha }}-${{ hashFiles('submodules/svelte/pnpm-lock.yaml') }}
+
+      - name: Install Svelte compiler dependencies
+        if: steps.svelte-deps-cache.outputs.cache-hit != 'true'
+        run: |
+          cd submodules/svelte
+          pnpm install --frozen-lockfile
+
+      - name: Build official svelte2tsx (parsing with the mirrored svelte)
+        # Built fresh every run (not cached): pnpm's node_modules links into a
+        # content-addressable store, which actions/cache cannot round-trip
+        # intact — a restored cache loses runtime deps like `dedent-js`. The
+        # build is cheap, so correctness beats caching here.
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile --ignore-scripts
+          # svelte2tsx parses with whatever `svelte/compiler` it resolves; pin it
+          # to the exact svelte rsvelte mirrors so the TSX oracle is generated
+          # by the same parser (otherwise the v4 dev-dep rejects Svelte-5 syntax).
+          SV=$(node -p "require('../svelte/packages/svelte/package.json').version")
+          pnpm --filter svelte2tsx add -D "svelte@$SV"
+          pnpm --filter svelte2tsx build
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # The release NAPI build compiles oxc from a git rev — ~15 min cold.
+          # rust-cache skips saving on a failed job by default, so a single
+          # timeout/failure left the cache cold forever and every later run
+          # recompiled from scratch and could time out again. Saving on failure
+          # preserves the compiled `target/` and breaks that deadlock (mirrors
+          # the same fix in bench.yml).
+          cache-on-failure: true
+
+      - name: Build rsvelte NAPI binding
+        run: |
+          cargo build --release --features napi --lib
+          mkdir -p .corpus-cache
+          cp target/release/librsvelte_core.so .corpus-cache/rsvelte.node
+
+      - name: Collect corpus
+        run: node scripts/compat-corpus/collect.mjs
+
+      - name: Compile corpus (official svelte + rsvelte, CSR + SSR)
+        run: node scripts/compat-corpus/compile.mjs
+
+      - name: Verify (oxfmt-normalized outputs must be identical)
+        run: node scripts/compat-corpus/verify.mjs
+
+      - name: Convert corpus to TSX (official svelte2tsx + rsvelte)
+        run: node scripts/compat-corpus/svelte2tsx-compile.mjs
+
+      - name: Verify svelte2tsx (oxfmt-normalized TSX must be identical)
+        run: node scripts/compat-corpus/svelte2tsx-verify.mjs
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-report
+          path: |
+            compat/corpus/report.json
+            compat/corpus/report-s2t.json
+            compat/corpus/manifest.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  fmt-parity:
+    name: Formatter parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout svelte + svelte.dev submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Install root dependencies (oxfmt)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build rsvelte-fmt
+        run: cargo build --release -p rsvelte_fmt
+
+      - name: Collect corpus
+        run: node scripts/compat-corpus/collect.mjs
+
+      - name: Resolve corpus pins
+        id: pins
+        run: |
+          echo "svelte=$(git -C submodules/svelte rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "svelte_dev=$(git -C submodules/svelte.dev rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # The oracle depends only on the pins + oxfmt version + oracle config, so
+      # cache it: only the first run per pin pays the ~6k oxfmt invocations.
+      - name: Cache fmt oracle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            compat/corpus/fmt/oracle
+            compat/corpus/fmt/meta.json
+          key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.svelte }}-${{ steps.pins.outputs.svelte_dev }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml') }}
+
+      - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
+        run: node scripts/compat-corpus/fmt.mjs
+
+      - name: Verify formatter parity (ratchet, byte-identical)
+        run: node scripts/compat-corpus/fmt-verify.mjs
+
+      - name: Upload fmt report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corpus-fmt-report
+          path: |
+            compat/corpus/fmt-report.json
+            compat/corpus/fmt/meta.json
+          if-no-files-found: ignore
+          retention-days: 14

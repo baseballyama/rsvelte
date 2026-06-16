@@ -38,6 +38,21 @@ See `docs/ecosystem-implementation-plan.md` for the multi-wave plan to port
 the Svelte ecosystem (svelte2tsx, svelte-check, vite-plugin-svelte) on top
 of the rsvelte compiler.
 
+### Corpus output-equality pipeline (`scripts/compat-corpus/`)
+
+Every `.svelte` / `.svelte.(js|ts)` source in sveltejs/svelte and
+sveltejs/svelte.dev (including markdown code blocks; 6,407 entries) is
+compiled with both the official compiler and rsvelte for CSR **and** SSR,
+and the outputs must be byte-identical after comparison-side normalization
+(oxfmt + blank-line stripping — never compiler post-passes). CI ratchet:
+`compat/corpus/known-failures.json` may only shrink. See
+[scripts/compat-corpus/README.md](scripts/compat-corpus/README.md),
+[docs/corpus-remaining-work.md](docs/corpus-remaining-work.md) (burn-down
+playbook for the remaining entries), and
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md)
+(staged plan to replace Phase-3 string surgery with an AST → esrap-port
+printer pipeline).
+
 **Key Design Decisions:**
 
 - Memory-efficient layout (u32 positions, compact_str)
@@ -139,6 +154,40 @@ Source: `pnpm run compatibility-report` (generated 2026-06-08, Svelte commit `a9
 | Migrate | 0/76 | **Out of scope** — rsvelte is a Svelte 5 compiler port, not a Svelte 4 → 5 migration tool |
 
 **Compatibility report total (Svelte 5.56.3): all in-scope-run fixtures passing (100.0%, 0 failures, 0 errors). 5.56.3 is a runtime/types-only patch — svelte#18384 (guard that a boundary exists before calling its error handler in an async derived) and #18388 (`$state.snapshot` bigint `Primitive` type), both under `internal/client` / `ambient.d.ts` — with no changes under `packages/svelte/src/compiler/`. The compiler output is therefore unchanged from 5.56.2: fixtures regenerate identically and every category stays at 100%. The 76 `migrate` fixtures are intentionally out of scope.**
+
+### Formatter parity corpus (svelte.dev)
+
+Asserts rsvelte formats real svelte.dev sources byte-for-byte like an
+**oxfmt(`svelte: true`)** oracle — `prettier-plugin-svelte` for the Svelte structure +
+the oxc engine for embedded JS/CSS, the exact layering rsvelte-fmt uses, so a diff
+isolates rsvelte's Svelte-structure formatting. Oracle outputs are precomputed by
+`pnpm run generate-fmt-corpus` into `fixtures/fmt-corpus/<svelte.dev-sha>/` (gitignored,
+CI-cached by svelte.dev SHA) using the canonical config
+`scripts/fixtures/fmt-corpus.oxfmtrc.json` (spaces/2/80 = rsvelte defaults). Three stages:
+
+- **Stage 1+2** — `crates/rsvelte_formatter/tests/svelte_dev_corpus.rs`: every `.svelte`
+  file (`files/…`) **and** every ` ```svelte ` code block in markdown (`blocks/…`, with
+  svelte.dev highlight markers `/// file:` / `+++` / `---` / `// ---cut---` stripped;
+  unparseable blocks skipped). Formats via `rsvelte_formatter::format` with an
+  oxfmt-backed `<style>` callback.
+- **Stage 3** — `crates/rsvelte_fmt/tests/svelte_dev_markdown.rs`: runs the real
+  `rsvelte-fmt` CLI on each whole `.md` (`markdown/…`) vs a direct-oxfmt oracle —
+  guards that `.md` delegation + config forwarding stay a faithful pass-through.
+
+Both need a runnable `oxfmt` (env `FMT_CORPUS_OXFMT` / `OXFMT_BIN`; default
+`node_modules/.bin/oxfmt`) and no-op with a notice when the corpus or oxfmt is absent.
+**Hard gate, no baseline tolerance:** every sample must match the oracle byte-for-byte,
+so any divergence fails CI — remaining gaps are fixed in the formatter, not tolerated.
+`FMT_CORPUS_SHOW=N` raises the printed-failure cap for burndown.
+
+Status at svelte.dev@`49ee73732aef`, oxfmt 0.53.0, svelte 5.56.2: **Stage 1+2 944/1148**
+(burning down from an initial 726; cleared: mustache-tag indentation, void self-closing,
+final newline, mixed-text re-indentation, block-body text re-indentation), **Stage 3
+638/638**. Remaining clusters are the harder prettier HTML layout behaviors — inline
+element collapse/keep-on-one-line (~51), long open-tag wrapping + child breaking (~26),
+pure-text collapse, plus small items (`{@const}`/`{let}` statement formatting,
+comment/element separation, a few docs blocks with intentionally-invalid code). (Non-svelte
+code blocks are out of scope — both sides format them with oxfmt.)
 
 ### Ports landed for skip-reduction (Svelte 5.53.0+)
 

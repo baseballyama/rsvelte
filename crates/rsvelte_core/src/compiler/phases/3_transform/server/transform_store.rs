@@ -5,6 +5,7 @@
 //! and store assignment transforms.
 
 /// Replace store identifier in an expression with $.store_get() call.
+use std::fmt::Write as _;
 pub(crate) fn replace_store_identifier(expr: &str, store_ref: &str, store_name: &str) -> String {
     // Fast path: if `store_ref` doesn't appear in `expr` at all, there is
     // nothing to replace. Skips the `Vec<char>` allocation and the full
@@ -67,10 +68,11 @@ pub(crate) fn replace_store_identifier(expr: &str, store_ref: &str, store_name: 
                 };
 
                 if !prev_is_ident && !next_is_ident {
-                    result.push_str(&format!(
+                    let _ = write!(
+                        result,
                         "$.store_get($$store_subs ??= {{}}, '{}', {})",
                         store_ref, store_name
-                    ));
+                    );
                     i += store_ref_len;
                     continue;
                 }
@@ -486,10 +488,11 @@ pub(crate) fn replace_store_identifier_in_script(
 
                     if !is_in_store_call && !is_shadowed && !is_param_decl && !is_in_paren_fn_param
                     {
-                        result.push_str(&format!(
+                        let _ = write!(
+                            result,
                             "$.store_get($$store_subs ??= {{}}, '{}', {})",
                             store_ref, store_name
-                        ));
+                        );
                         i += store_ref_len;
                         continue;
                     }
@@ -1532,15 +1535,17 @@ fn transform_store_assignments_once(script: &str) -> String {
         match operator {
             "++" | "--" => {
                 if operator == "++" {
-                    new_result.push_str(&format!(
+                    let _ = write!(
+                        new_result,
                         "$.update_store($$store_subs ??= {{}}, '${0}', {0})",
                         store_name
-                    ));
+                    );
                 } else {
-                    new_result.push_str(&format!(
+                    let _ = write!(
+                        new_result,
                         "$.update_store($$store_subs ??= {{}}, '${0}', {0}, -1)",
                         store_name
-                    ));
+                    );
                 }
             }
             "=" => {
@@ -1567,7 +1572,7 @@ fn transform_store_assignments_once(script: &str) -> String {
                 // the code structure when comments are stripped by the test normalizer.
                 let value = strip_trailing_line_comments(value);
                 let value = value.trim();
-                new_result.push_str(&format!("$.store_set({}, {})", store_name, value));
+                let _ = write!(new_result, "$.store_set({}, {})", store_name, value);
                 last_end = end + value_end;
                 continue;
             }
@@ -1576,10 +1581,11 @@ fn transform_store_assignments_once(script: &str) -> String {
                 let rest = &result[end..];
                 let value_end = find_statement_end(rest);
                 let value = rest[..value_end].trim();
-                new_result.push_str(&format!(
+                let _ = write!(
+                    new_result,
                     "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} {})",
                     store_name, base_op, value
-                ));
+                );
                 last_end = end + value_end;
                 continue;
             }

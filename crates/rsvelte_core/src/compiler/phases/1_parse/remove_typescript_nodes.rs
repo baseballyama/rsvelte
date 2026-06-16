@@ -450,10 +450,11 @@ mod tests {
         let result = remove_typescript_nodes(&mut node, &[]);
         assert!(result.is_err());
         match result {
-            Err(ParseError::TypeScriptInvalidFeature { feature, .. }) => {
-                assert!(feature.contains("decorators"));
+            Err(ParseError::SvelteError { code, message, .. }) => {
+                assert_eq!(code, "typescript_invalid_feature");
+                assert!(message.contains("decorators"));
             }
-            _ => panic!("Expected TypeScriptInvalidFeature error"),
+            _ => panic!("Expected typescript_invalid_feature error"),
         }
     }
 

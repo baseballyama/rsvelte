@@ -145,6 +145,7 @@ pub fn fragment(
         update: Vec::new(),
         after_update: Vec::new(),
         consts: Vec::new(),
+        snippet_body_prepend: Vec::new(),
         async_consts: None,
         let_directives: Vec::new(),
         node: context.state.node.clone(),
@@ -176,10 +177,18 @@ pub fn fragment(
         is_controlled_each: false,
         is_controlled_html: false,
         snippets: Vec::new(),
-        // Root fragment starts at level 0; non-root fragments (e.g., inside {#if}/{#each})
-        // start at level 1 so that snippets inside blocks are not hoisted to the root.
-        // This matches the official compiler's `context.path.length === 1` check.
-        template_nesting_level: if is_root_fragment { 0 } else { 1 },
+        // Root fragment inherits the caller's nesting level; non-root fragments (e.g.,
+        // inside {#if}/{#each}) start at level 1 so that snippets inside blocks are not
+        // hoisted to the root. This matches the official compiler's
+        // `context.path.length === 1` check: the component's own root fragment is entered
+        // with template_nesting_level==0 and is_root_fragment==true, so it stays at 0.
+        // A snippet body bumps template_nesting_level before calling fragment_visitor with
+        // is_root_fragment=true, so nested snippets correctly see level >= 1 here.
+        template_nesting_level: if is_root_fragment {
+            context.state.template_nesting_level
+        } else {
+            1
+        },
         in_control_flow_block: context.state.in_control_flow_block,
         each_index_used: context.state.each_index_used.clone(),
         each_index_name: context.state.each_index_name.clone(),
@@ -200,6 +209,7 @@ pub fn fragment(
         const_blocker_map: context.state.const_blocker_map.clone(),
         needs_mutation_validation: context.state.needs_mutation_validation.clone(),
         templates: Rc::clone(&context.state.templates),
+        pending_error: None,
     };
 
     // Swap context.state with our local state so that process_children uses it
@@ -445,6 +455,11 @@ pub fn fragment(
 
     // Swap the state back and get the modified state
     let state = std::mem::replace(&mut context.state, saved_state);
+
+    // Propagate any pending error from the fragment state to the parent state.
+    if state.pending_error.is_some() {
+        context.state.pending_error = state.pending_error.clone();
+    }
 
     // Build the final body
     // Add snippets, let_directives, and consts (matches official Fragment.js line 154)

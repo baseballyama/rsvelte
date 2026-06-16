@@ -137,6 +137,8 @@ impl Clone for JsPathEntry {
             Self::Borrowed(ptr) => Self::Borrowed(*ptr),
             Self::Owned(boxed) => Self::Owned(boxed.clone()),
             Self::TypedNode { node, cached_value } => {
+                // SAFETY: single-threaded read of the lazily-materialized cache;
+                // `JsPathEntry` is never shared across threads.
                 let cached = unsafe { &*cached_value.get() };
                 Self::TypedNode {
                     node: *node,
@@ -185,6 +187,9 @@ impl JsPathEntry {
                 // SAFETY: Single-threaded access; walk_js_node_typed is not concurrent.
                 let cached = unsafe { &mut *cached_value.get() };
                 if cached.is_none() {
+                    // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                    // `&JsNode` whose referent outlives this entry (upheld by the
+                    // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                     let js_node = unsafe { &**node };
                     *cached = Some(Box::new(js_node.to_value()));
                 }
@@ -197,6 +202,9 @@ impl JsPathEntry {
     #[inline]
     pub fn as_js_node(&self) -> Option<&crate::ast::typed_expr::JsNode> {
         match self {
+            // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+            // `&JsNode` whose referent outlives this entry (upheld by the
+            // `walk_js_node_typed` push/pop discipline); access is single-threaded.
             Self::TypedNode { node, .. } => Some(unsafe { &**node }),
             _ => None,
         }
@@ -209,6 +217,9 @@ impl JsPathEntry {
     pub fn get_type_str(&self) -> Option<&str> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 Some(js_node.type_str())
             }
@@ -223,6 +234,9 @@ impl JsPathEntry {
     pub fn get_field_str(&self, field: &str) -> Option<&str> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 js_node.get_field_str(field)
             }
@@ -234,6 +248,9 @@ impl JsPathEntry {
     pub fn get_field_bool(&self, field: &str) -> Option<bool> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 js_node.get_field_bool(field)
             }
@@ -245,6 +262,9 @@ impl JsPathEntry {
     pub fn get_field_u64(&self, field: &str) -> Option<u64> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 js_node.get_field_u64(field)
             }
@@ -263,6 +283,9 @@ impl JsPathEntry {
     ) -> Option<u32> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 js_node.get_child_field_start(field, arena)
             }
@@ -283,6 +306,9 @@ impl JsPathEntry {
     ) -> Option<u32> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 js_node.get_child_field_end(field, arena)
             }
@@ -304,6 +330,9 @@ impl JsPathEntry {
     ) -> Option<&'a crate::ast::typed_expr::JsNode> {
         match self {
             Self::TypedNode { node, .. } => {
+                // SAFETY: `node` was installed by `JsPathEntry::new_typed` from a live
+                // `&JsNode` whose referent outlives this entry (upheld by the
+                // `walk_js_node_typed` push/pop discipline); access is single-threaded.
                 let js_node = unsafe { &**node };
                 js_node.get_callee(arena)
             }
@@ -393,6 +422,13 @@ pub struct VisitorContext<'a> {
     /// Whether we're inside a template expression tag ({expression}).
     /// Used to detect reactive context for pickled_awaits.
     pub in_expression_tag: bool,
+    /// Whether the template expression walker (`walk_js_expression` /
+    /// `walk_js_expression_node`) is currently inside a function body.
+    /// Mirrors upstream's `expression: null` reset on function entry
+    /// (`2-analyze/visitors/shared/function.js`) — awaits inside a function
+    /// within a template expression are NOT suspending and must not trigger
+    /// the `experimental_async` / `legacy_await_invalid` errors.
+    pub in_template_function: bool,
     /// Stack of ignored warning codes.
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
     /// Corresponds to ignore_stack in Svelte's state.js.
@@ -527,6 +563,7 @@ impl<'a> VisitorContext<'a> {
             event_directive_node: None,
             uses_event_attributes: false,
             in_expression_tag: false,
+            in_template_function: false,
             ignore_stack: Vec::new(),
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),
@@ -601,6 +638,11 @@ impl<'a> VisitorContext<'a> {
     /// This is used by visitors to track metadata about the current expression,
     /// such as whether it contains calls, state references, or assignments.
     pub fn current_expression(&mut self) -> Option<&mut crate::ast::template::ExpressionMetadata> {
+        // SAFETY: when set, `self.expression` points at an `ExpressionMetadata`
+        // field of an AST node borrowed mutably by the enclosing visit scope
+        // (installed and restored by the block visitors, e.g. `if_block`); the
+        // referent outlives this `&mut self` borrow and is never aliased
+        // (single-threaded traversal), so the dereference is unique and valid.
         self.expression.and_then(|ptr| unsafe { ptr.as_mut() })
     }
 }
@@ -611,7 +653,14 @@ pub fn analyze_template(
     analysis: &mut ComponentAnalysis,
     parse_arena: &ParseArena,
 ) -> Result<(), AnalysisError> {
+    // Read the instance scope index before borrowing `analysis` into the context,
+    // so we can initialize context.scope to the correct starting scope.
+    // The scope builder visits the template while current_scope = instance_scope_index,
+    // so template-root declarations land in that scope; the visitor must mirror it to
+    // ensure lexical scope-chain lookups (e.g. render-tag binding resolution) are correct.
+    let instance_scope_index = analysis.root.instance_scope_index;
     let mut context = VisitorContext::new(analysis, parse_arena);
+    context.scope = instance_scope_index;
     fragment::analyze(&mut ast.fragment, &mut context)?;
 
     // Build sibling relationships for CSS sibling combinator detection
@@ -648,6 +697,9 @@ pub fn visit_node(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     let node_ptr: *const TemplateNode = node as *const _;
+    // SAFETY: see this function's doc comment — `node_ptr` aliases `node` for the
+    // duration of the inner visit and is popped before `node` is used again; path
+    // readers only rely on the enum discriminant, which stays valid.
     context.path.push(unsafe { &*node_ptr });
     let result = match node {
         TemplateNode::Text(text) => text::visit(text, context),

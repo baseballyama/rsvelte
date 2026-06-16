@@ -11,6 +11,7 @@ use crate::compiler::phases::phase3_transform::server::types::{
 };
 use crate::compiler::phases::phase3_transform::shared::{escape_html, sanitize_template_string};
 use compact_str::CompactString;
+use std::fmt::Write as _;
 
 /// Strip TypeScript annotations from an expression string.
 fn strip_ts_from_expr_simple(expr: &str) -> String {
@@ -100,7 +101,7 @@ pub fn process_children<F>(
                     quasi.cooked.push_str(&escape_html(&text.data));
                 }
                 TemplateNode::Comment(comment) => {
-                    quasi.cooked.push_str(&format!("<!--{}-->", comment.data));
+                    let _ = write!(quasi.cooked, "<!--{}-->", comment.data);
                 }
                 TemplateNode::ExpressionTag(expr_tag) => {
                     // Try to evaluate the expression at compile time (constant folding)
@@ -291,7 +292,7 @@ pub fn build_template(
                                 JsLiteral::Null => last.push_str("null"),
                                 JsLiteral::Undefined => last.push_str("undefined"),
                                 JsLiteral::Regex { pattern, flags } => {
-                                    last.push_str(&format!("/{}/{}", pattern, flags))
+                                    let _ = write!(last, "/{}/{}", pattern, flags);
                                 }
                             }
                         }

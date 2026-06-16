@@ -30,32 +30,6 @@ fn client(src: &str) -> String {
     .code
 }
 
-fn try_compile(src: &str) -> Result<(), String> {
-    match compile(
-        src,
-        CompileOptions {
-            filename: Some("T.svelte".to_string()),
-            generate: GenerateMode::Client,
-            dev: false,
-            css: CssMode::External,
-            runes: Some(true),
-            ..Default::default()
-        },
-    ) {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            let s = format!("{e:?}");
-            let code = s
-                .split("code: \"")
-                .nth(1)
-                .and_then(|t| t.split('"').next())
-                .unwrap_or("")
-                .to_string();
-            Err(code)
-        }
-    }
-}
-
 #[test]
 fn h121_effect_pending_lowers_in_component_scope() {
     let out = client(r#"<script>let p = $effect.pending(); $effect(() => { p; });</script>"#);
@@ -65,12 +39,15 @@ fn h121_effect_pending_lowers_in_component_scope() {
 }
 
 #[test]
-fn h122_user_dollar_prefix_var_is_rejected() {
-    // rsvelte rejects user variables that start with `$` — so a shadowed local
-    // `$effect` never gets emitted in the first place.
-    let err = try_compile(r#"<script>function f($effect){ $effect("x"); }</script>"#)
-        .expect_err("should error");
-    assert_eq!(err, "dollar_prefix_invalid", "got `{err}`");
+fn h122_user_dollar_prefix_param_shadows_rune() {
+    // Upstream exempts function params from `dollar_prefix_invalid`
+    // (declaration_kind === 'param'), so a `$effect` param shadows the rune
+    // and the call is emitted verbatim instead of being lowered.
+    let out = client(r#"<script>function f($effect){ $effect("x"); }</script>"#);
+    assert!(
+        out.contains(r#"$effect("x")"#) && !out.contains("$.user_effect"),
+        "shadowed $effect param must not lower to $.user_effect, got:\n{out}"
+    );
 }
 
 #[test]
