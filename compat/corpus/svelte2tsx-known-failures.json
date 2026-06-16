@@ -28,7 +28,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-shorthand-dynamic-component/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-derived-destructured/Child.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/async-derived-invalidation-during-init/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-slot/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-const-same-block/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",

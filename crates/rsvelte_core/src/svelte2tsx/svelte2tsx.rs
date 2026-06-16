@@ -3381,6 +3381,25 @@ fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
                 || tt.quasi.expressions.iter().any(expr_contains_await_deep)
         }
 
+        // Object / array literals: `$derived({ value: await x })`, `[await x]`.
+        E::ObjectExpression(o) => o.properties.iter().any(|p| match p {
+            oxc_ast::ast::ObjectPropertyKind::ObjectProperty(prop) => {
+                expr_contains_await_deep(&prop.value)
+            }
+            oxc_ast::ast::ObjectPropertyKind::SpreadProperty(sp) => {
+                expr_contains_await_deep(&sp.argument)
+            }
+        }),
+        E::ArrayExpression(a) => a.elements.iter().any(|el| match el {
+            oxc_ast::ast::ArrayExpressionElement::SpreadElement(sp) => {
+                expr_contains_await_deep(&sp.argument)
+            }
+            oxc_ast::ast::ArrayExpressionElement::Elision(_) => false,
+            other => other
+                .as_expression()
+                .is_some_and(expr_contains_await_deep),
+        }),
+
         // Everything else (literals, identifiers, `this`, …) cannot contain await.
         _ => false,
     }
