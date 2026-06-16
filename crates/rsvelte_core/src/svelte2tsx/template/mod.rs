@@ -2564,6 +2564,25 @@ fn handle_regular_element(
         return;
     }
 
+    // Official svelte2tsx switches the opener on the *tag name*, not the AST node
+    // type: any element named `slot` emits `__sveltets_createSlot(...)`. The parser
+    // only produces a `SlotElement` for `<slot>` outside a `<template
+    // shadowrootmode>`; inside one it is a `RegularElement` (mirroring upstream's
+    // `parent_is_shadowroot_template` check), yet svelte2tsx still lowers it to a
+    // slot. Route those through the same slot handler.
+    if el.name == "slot" {
+        let slot = SlotElement {
+            start: el.start,
+            end: el.end,
+            name: el.name.clone(),
+            name_loc: el.name_loc.clone(),
+            attributes: el.attributes.clone(),
+            fragment: el.fragment.clone(),
+        };
+        handle_slot_element(&slot, source, options, str, counter, depth);
+        return;
+    }
+
     // Named-slot routing: when processing a component's children (possibly deep
     // inside `{#each}`/`{#if}`/etc. control-flow blocks), an element targeting a
     // named slot is lowered to the `$$slot_def[...]` form referencing the

@@ -8,7 +8,6 @@
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/output.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte",
-	"svelte/packages/svelte/tests/parser-modern/samples/template-shadowroot/input.svelte",
 	"svelte/packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-multiple/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-1/A.svelte",
