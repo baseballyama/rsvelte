@@ -432,10 +432,16 @@ impl ExportedNames {
                         } else {
                             ""
                         };
+                        // A leading block comment on the export is preserved
+                        // before its type-cast entry (official emits the doc here).
+                        let doc = match &info.doc {
+                            Some(d) => format!("{} ", d),
+                            None => String::new(),
+                        };
                         if let Some(ref ta) = info.type_annotation {
-                            format!("{}{}: {}", en, optional, ta)
+                            format!("{}{}{}: {}", doc, en, optional, ta)
                         } else {
-                            format!("{}{}: typeof {}", en, optional, info.local_name)
+                            format!("{}{}{}: typeof {}", doc, en, optional, info.local_name)
                         }
                     })
                     .collect();
