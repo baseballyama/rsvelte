@@ -1,5 +1,4 @@
 [
-	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/search/+page.svelte",
 	"svelte.dev/packages/repl/src/lib/Input/ComponentSelector.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
@@ -28,7 +27,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-multiple/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-context-props-let/Inner.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-default-in-each/Nested.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/component-slot-named-scope/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment-let-in-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/deconflict-globals/main.svelte",
@@ -44,7 +42,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/html-entities-inside-component-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/inline-style-directive-string-variable-kebab-case/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/inline-style-directive-string-variable/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/ondestroy-prop-access-3/Component.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/store-imported-module/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-derived-destructured/Child.svelte",

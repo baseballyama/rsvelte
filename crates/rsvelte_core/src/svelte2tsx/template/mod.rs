@@ -5359,15 +5359,11 @@ fn format_attribute_node_segments(
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        // Escape backslash first so `\n` / `\t` in raw text
-                        // (e.g. a Windows path like `C:\temp\new`) stay literal
-                        // inside the template literal, then escape the
-                        // template-literal delimiters (`` ` `` and `${`). H-091.
-                        let escaped = text
-                            .raw
-                            .replace('\\', "\\\\")
-                            .replace('`', "\\`")
-                            .replace("${", "\\${");
+                        // Official slices the raw source verbatim into the
+                        // template literal (Attribute.ts), so a backslash stays
+                        // single (`back\slash`); only the template-literal
+                        // delimiters (`` ` `` / `${`) need escaping.
+                        let escaped = text.raw.replace('`', "\\`").replace("${", "\\${");
                         segs_push_lit(&mut inner, &escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {

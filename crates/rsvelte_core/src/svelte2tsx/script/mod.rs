@@ -372,7 +372,16 @@ impl ExportedNames {
             }
         } else {
             let base = format!("{{{}}}", entries.join(" , "));
-            if is_ts {
+            // Mirror official `dontAddTypeDef` (ExportedNames.ts createPropsStr):
+            // omit the `as {…}` cast entirely when every export is untyped AND
+            // required — a plain `export let x` with no default and no type
+            // annotation (`required = !initializer`). A typed or defaulted /
+            // optional export (or any non-`let` export) forces the cast.
+            let dont_add_type_def = self
+                .get_ordered()
+                .iter()
+                .all(|(_, info)| info.type_annotation.is_none() && info.is_let && !info.has_default);
+            if is_ts && !dont_add_type_def {
                 // For TS files, add `as {name1?: type, ...}` type assertion
                 let type_entries: Vec<String> = self
                     .get_ordered()
@@ -3316,18 +3325,13 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
         // field initializers can still reference rune globals (e.g.
         // `function bar() { class Foo { foo = $state(0) } }`). Mirror the
         // top-level ClassDeclaration scan.
-        oxc::Statement::ClassDeclaration(class) => {
-            detect_rune_in_class_body(class, declared_names)
-        }
+        oxc::Statement::ClassDeclaration(class) => detect_rune_in_class_body(class, declared_names),
         _ => false,
     }
 }
 
 /// Scan a class body's method bodies and property initializers for rune globals.
-fn detect_rune_in_class_body(
-    class: &oxc::Class,
-    declared_names: &HashSet<String>,
-) -> bool {
+fn detect_rune_in_class_body(class: &oxc::Class, declared_names: &HashSet<String>) -> bool {
     class.body.body.iter().any(|member| match member {
         oxc::ClassElement::MethodDefinition(method) => method
             .value
@@ -4300,7 +4304,18 @@ fn is_self_named_rune_decl(source: &str, bytes: &[u8], dollar_pos: usize, base: 
     if eq > 0
         && matches!(
             bytes[eq - 1],
-            b'=' | b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' | b'~'
+            b'=' | b'!'
+                | b'<'
+                | b'>'
+                | b'+'
+                | b'-'
+                | b'*'
+                | b'/'
+                | b'%'
+                | b'&'
+                | b'|'
+                | b'^'
+                | b'~'
         )
     {
         return false;
