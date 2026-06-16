@@ -1987,22 +1987,37 @@ fn handle_await_block(
         // we can preserve PROMISE's chunk in place by splitting the
         // header overwrite into a prefix / suffix pair around the
         // expression range.
+        // `const $$_value = ` and the `{ const VALUE = $$_value; … }` scope are
+        // emitted only for a `{:then value}` binding (mirrors official
+        // `handleAwait`, which gates both on `awaitBlock.value`). A bare
+        // `{#await … then}` is just `await (…);` with the body inline (the body
+        // elements provide their own block). `value_close` is the matching `}`
+        // for the value scope, emitted by the close logic below.
+        let value_close = if value_text.is_empty() { "" } else { "}" };
         let (header_prefix, header_suffix) = if has_catch {
             (
-                "   { try { const $$_value = await (",
+                if value_text.is_empty() {
+                    "   { try { await ("
+                } else {
+                    "   { try { const $$_value = await ("
+                },
                 if !value_text.is_empty() {
                     format!(");{{ const {} = $$_value; ", value_text)
                 } else {
-                    ");{ ".to_string()
+                    ");".to_string()
                 },
             )
         } else {
             (
-                "   { const $$_value = await (",
+                if value_text.is_empty() {
+                    "   { await ("
+                } else {
+                    "   { const $$_value = await ("
+                },
                 if !value_text.is_empty() {
                     format!(");{{ const {} = $$_value; ", value_text)
                 } else {
-                    ");{ ".to_string()
+                    ");".to_string()
                 },
             )
         };
@@ -2044,16 +2059,18 @@ fn handle_await_block(
                     then_end,
                     catch_start,
                     &format!(
-                        "}}}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                        error_text
+                        "{}}} catch($$_e) {{ const {} = __sveltets_2_any();",
+                        value_close, error_text
                     ),
                 );
             } else {
-                // Variable-less `{:catch}` — close the value block + `try`
-                // (two `}`) and open the catch. Always emit the `($$_e)`
-                // binding so the braces stay balanced and the shape matches
-                // the with-variable case; upstream does the same.
-                str.overwrite(then_end, catch_start, "}} catch($$_e) { ");
+                // Close the value block (only when there's a `{:then value}`
+                // binding) + `try`, then open the catch. Always emit `($$_e)`.
+                str.overwrite(
+                    then_end,
+                    catch_start,
+                    &format!("{}}} catch($$_e) {{ ", value_close),
+                );
             }
 
             process_fragment_inplace(catch, source, options, str, counter, depth);
@@ -2068,7 +2085,7 @@ fn handle_await_block(
                 str.overwrite(catch_end, block.end, "}}");
             }
         } else if then_end < block.end {
-            str.overwrite(then_end, block.end, "}}");
+            str.overwrite(then_end, block.end, &format!("{}}}", value_close));
         }
     } else if has_catch {
         // Pattern: {#await promise catch error} catch {/await} (no pending, no then)
