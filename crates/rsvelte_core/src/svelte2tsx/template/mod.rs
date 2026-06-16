@@ -5440,6 +5440,39 @@ fn format_attribute_node_segments(
                 return Some(out);
             }
 
+            // Single static Text value: mirror official Attribute.ts. The quote
+            // is a backtick UNLESS the DECODED value contains a backtick, in which
+            // case the source quote (`"`/`'`) is used. The value is the raw source
+            // range unless it contains `\` (or a newline in the non-template case),
+            // when it is JSON-escaped — so `title="`${x}\n`"` → `"`${x}\\n`"`.
+            if !has_expr
+                && parts.len() == 1
+                && let AttributeValuePart::Text(text) = &parts[0]
+            {
+                let data = text.data.as_str();
+                let has_backtick = data.contains('`');
+                let quote = if !has_backtick {
+                    '`'
+                } else {
+                    match text.start.checked_sub(1).map(|i| source.as_bytes()[i as usize]) {
+                        Some(b'\'') => '\'',
+                        _ => '"',
+                    }
+                };
+                let needs_escape = data.contains('\\') || (has_backtick && data.contains('\n'));
+                let mut inner: Vec<Seg> = Vec::new();
+                segs_push_lit(&mut inner, &format!("\"{}\":{}", name, quote));
+                if needs_escape {
+                    let json = serde_json::to_string(data)
+                        .unwrap_or_else(|_| format!("\"{}\"", data));
+                    segs_push_lit(&mut inner, &json[1..json.len() - 1]);
+                } else {
+                    segs_push_src(&mut inner, text.start, text.end);
+                }
+                segs_push_lit(&mut inner, &quote.to_string());
+                return Some(wrap_segs(inner));
+            }
+
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
             let mut inner: Vec<Seg> = Vec::new();
