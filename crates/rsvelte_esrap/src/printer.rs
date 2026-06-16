@@ -955,9 +955,7 @@ impl<'opt> Printer<'opt> {
             Expression::NewExpression(n) => {
                 ctx.write("new ");
                 self.child_with_parens(&n.callee, 19, ctx);
-                ctx.write("(");
-                self.sequence_arguments(&n.arguments, ctx);
-                ctx.write(")");
+                self.call_arguments(&n.arguments, ctx);
             }
             Expression::UpdateExpression(u) => {
                 let op = u.operator.as_str();
@@ -1047,9 +1045,7 @@ impl<'opt> Printer<'opt> {
         if node.optional {
             ctx.write("?.");
         }
-        ctx.write("(");
-        self.sequence_arguments(&node.arguments, ctx);
-        ctx.write(")");
+        self.call_arguments(&node.arguments, ctx);
     }
 
     fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context) {
@@ -1208,26 +1204,58 @@ impl<'opt> Printer<'opt> {
         }
     }
 
-    fn sequence_arguments(&mut self, args: &[Argument], ctx: &mut Context) {
-        // NOTE: call arguments use esrap's bespoke layout (the final argument can
-        // be multiline without forcing the others to wrap), which the generic
-        // `sequence` does not model — so this stays single-line for now. Wiring
-        // the proper call-arg layout is a follow-up.
+    /// esrap's bespoke call/new argument layout (`(...)`). Unlike a generic
+    /// `sequence`, the call wraps one-argument-per-line **only when a non-final
+    /// argument is itself multiline** — so a trailing function/array/object
+    /// argument can span lines while the call stays on one line
+    /// (`$.run([ … ])`, `foo(a, b, () => { … })`). Length is not a factor.
+    fn call_arguments(&mut self, args: &[Argument], ctx: &mut Context) {
+        let n = args.len();
+        // Render each argument into its own context; non-final ones carry their
+        // trailing comma so the comma stays put whichever layout wins.
+        let mut rendered: Vec<Context> = Vec::with_capacity(n);
         for (i, arg) in args.iter().enumerate() {
-            if i > 0 {
-                ctx.write(", ");
-            }
+            let mut child = ctx.child();
             match arg {
                 Argument::SpreadElement(s) => {
-                    ctx.write("...");
-                    self.print_expression(unparen(&s.argument), ctx);
+                    child.write("...");
+                    self.print_expression(unparen(&s.argument), &mut child);
                 }
                 _ => match arg.as_expression() {
-                    Some(e) => self.print_expression(unparen(e), ctx),
-                    None => self.unsupported("Argument", ctx),
+                    Some(e) => self.print_expression(unparen(e), &mut child),
+                    None => self.unsupported("Argument", &mut child),
                 },
             }
+            if i < n - 1 {
+                child.write(",");
+            }
+            rendered.push(child);
         }
+
+        // Wrap iff any non-final argument went multiline.
+        let wrap = rendered
+            .iter()
+            .take(n.saturating_sub(1))
+            .any(|c| c.multiline);
+
+        ctx.write("(");
+        if wrap {
+            ctx.indent();
+            for arg_ctx in rendered {
+                ctx.newline();
+                ctx.append(arg_ctx);
+            }
+            ctx.dedent();
+            ctx.newline();
+        } else {
+            for (i, arg_ctx) in rendered.into_iter().enumerate() {
+                if i > 0 {
+                    ctx.write(" ");
+                }
+                ctx.append(arg_ctx);
+            }
+        }
+        ctx.write(")");
     }
 
     // ----- literals ---------------------------------------------------------
@@ -1562,6 +1590,16 @@ mod tests {
         assert_eq!(print_ok("new Foo(1, 2);"), "new Foo(1, 2);");
         assert_eq!(print_ok("x++;"), "x++;");
         assert_eq!(print_ok("--obj.count;"), "--obj.count;");
+    }
+
+    #[test]
+    fn call_trailing_multiline_arg_stays_inline() {
+        // A multiline *final* argument does not wrap the call (esrap's bespoke
+        // call layout) — only a multiline non-final argument would.
+        assert_eq!(
+            print_ok("foo(a, () => { b(); });"),
+            "foo(a, () => {\n\tb();\n});"
+        );
     }
 
     #[test]
