@@ -4576,7 +4576,122 @@ fn unthunk_no_arg_ident_call(expr: &str) -> Option<&str> {
     Some(id_trimmed)
 }
 
+/// Emit the server replacement for a single rune call, given the raw text
+/// `inner` between the call's parentheses (verbatim, including any comments /
+/// trailing comma / formatting) and which derived flavour it is. Shared by the
+/// byte scanner [`transform_rune_call_multiline`] and the AST locator
+/// `rune_call_ast`, so both produce byte-identical output.
+pub(crate) fn emit_rune_replacement(inner: &str, is_derived: bool, is_derived_by: bool) -> String {
+    let mut result = String::new();
+    let trimmed_inner = inner.trim();
+
+    if trimmed_inner.is_empty() {
+        // Svelte 5.52+: empty `$derived()` is a no-op and shouldn't
+        // appear in real code; treat it as `$.derived(() => void 0)`
+        // for `$derived` and `$.derived(void 0)` for `$derived.by`.
+        if is_derived {
+            result.push_str("$.derived(() => void 0)");
+        } else if is_derived_by {
+            result.push_str("$.derived(void 0)");
+        } else {
+            result.push_str("void 0");
+        }
+    } else if is_derived_by {
+        // Svelte 5.52+: `$derived.by(fn)` becomes `$.derived(fn)`
+        // so the derived can be re-run on every render (the server
+        // runtime calls the function each time the derived is read).
+        let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+        result.push_str("$.derived(");
+        result.push_str(cleaned);
+        result.push(')');
+    } else if is_derived {
+        // Svelte 5.52+: `$derived(expr)` becomes
+        // `$.derived(() => expr)` so the derived re-runs each time
+        // a render reads it. An object-literal expression must be
+        // wrapped in parens (`() => ({ ... })`) — otherwise the
+        // braces parse as a function body.
+        //
+        // Mirror upstream's `unthunk` optimization: a bare
+        // `$derived(foo())` (no-arg call to a simple identifier)
+        // collapses to `$.derived(foo)` rather than
+        // `$.derived(() => foo())`.
+        //
+        // For async derived (top-level `await` in expression), the
+        // upstream emits `await $.async_derived(b.thunk(value, true))`
+        // — i.e. `await $.async_derived(async () => value)` with
+        // an unthunk pass that collapses `async () => await x`
+        // to `async () => x` when `x` has no nested await.
+        let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+        if super::helpers::expr_contains_await(cleaned) {
+            // Async derived emission. Strip the top-level `await`
+            // (the unthunk pass), then check whether the remaining
+            // expression has nested awaits — if so we still need
+            // an `async` arrow.
+            let stripped = strip_top_level_await_from_expr(cleaned);
+            let nested_await = super::helpers::expr_contains_await(&stripped);
+            let needs_paren = stripped.trim_start().starts_with('{');
+            if !nested_await
+                && !needs_paren
+                && let Some(ident) = unthunk_no_arg_ident_call(&stripped)
+            {
+                // `await $.async_derived(() => getFoo())` collapses to
+                // `await $.async_derived(getFoo)` — the bare function
+                // reference (upstream's `b.thunk(value, true)` →
+                // unthunk pass).
+                result.push_str("await $.async_derived(");
+                result.push_str(ident);
+                result.push(')');
+            } else {
+                if nested_await {
+                    result.push_str("await $.async_derived(async () => ");
+                } else {
+                    result.push_str("await $.async_derived(() => ");
+                }
+                if needs_paren {
+                    result.push('(');
+                    result.push_str(&stripped);
+                    result.push(')');
+                } else {
+                    result.push_str(&stripped);
+                }
+                result.push(')');
+            }
+        } else if let Some(ident) = unthunk_no_arg_ident_call(cleaned) {
+            result.push_str("$.derived(");
+            result.push_str(ident);
+            result.push(')');
+        } else {
+            let needs_paren = cleaned.trim_start().starts_with('{');
+            result.push_str("$.derived(() => ");
+            if needs_paren {
+                result.push('(');
+                result.push_str(cleaned);
+                result.push(')');
+            } else {
+                result.push_str(cleaned);
+            }
+            result.push(')');
+        }
+    } else {
+        // $state and friends keep their previous semantics: strip
+        // the rune wrapper, preserve the raw expression.
+        let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
+        result.push_str(cleaned);
+    }
+
+    result
+}
+
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
+    // Prefer the AST locator: it matches rune calls structurally (never inside
+    // a string / comment / nested template) and resolves shadowing via real
+    // scope analysis, instead of the byte prefix-match + `find_rune_shadow_ranges`
+    // heuristics below. Emission is shared (`emit_rune_replacement`), so output
+    // is byte-identical. Falls back to the scanner when the script doesn't parse
+    // as a standalone module.
+    if let Some(out) = super::rune_call_ast::transform_rune_call_ast(script, prefix) {
+        return out;
+    }
     // First, find function scopes where the rune name is shadowed by a parameter.
     // E.g., `function bar($derived, $effect) { ... }` shadows `$derived` inside bar.
     let rune_name = &prefix[..prefix.len() - 1]; // e.g., "$derived(" -> "$derived"
@@ -4638,101 +4753,7 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 }
 
                 let inner: String = chars[start..end].iter().collect();
-                let trimmed_inner = inner.trim();
-
-                if trimmed_inner.is_empty() {
-                    // Svelte 5.52+: empty `$derived()` is a no-op and shouldn't
-                    // appear in real code; treat it as `$.derived(() => void 0)`
-                    // for `$derived` and `$.derived(void 0)` for `$derived.by`.
-                    if is_derived {
-                        result.push_str("$.derived(() => void 0)");
-                    } else if is_derived_by {
-                        result.push_str("$.derived(void 0)");
-                    } else {
-                        result.push_str("void 0");
-                    }
-                } else if is_derived_by {
-                    // Svelte 5.52+: `$derived.by(fn)` becomes `$.derived(fn)`
-                    // so the derived can be re-run on every render (the server
-                    // runtime calls the function each time the derived is read).
-                    let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
-                    result.push_str("$.derived(");
-                    result.push_str(cleaned);
-                    result.push(')');
-                } else if is_derived {
-                    // Svelte 5.52+: `$derived(expr)` becomes
-                    // `$.derived(() => expr)` so the derived re-runs each time
-                    // a render reads it. An object-literal expression must be
-                    // wrapped in parens (`() => ({ ... })`) — otherwise the
-                    // braces parse as a function body.
-                    //
-                    // Mirror upstream's `unthunk` optimization: a bare
-                    // `$derived(foo())` (no-arg call to a simple identifier)
-                    // collapses to `$.derived(foo)` rather than
-                    // `$.derived(() => foo())`.
-                    //
-                    // For async derived (top-level `await` in expression), the
-                    // upstream emits `await $.async_derived(b.thunk(value, true))`
-                    // — i.e. `await $.async_derived(async () => value)` with
-                    // an unthunk pass that collapses `async () => await x`
-                    // to `async () => x` when `x` has no nested await.
-                    let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
-                    if super::helpers::expr_contains_await(cleaned) {
-                        // Async derived emission. Strip the top-level `await`
-                        // (the unthunk pass), then check whether the remaining
-                        // expression has nested awaits — if so we still need
-                        // an `async` arrow.
-                        let stripped = strip_top_level_await_from_expr(cleaned);
-                        let nested_await = super::helpers::expr_contains_await(&stripped);
-                        let needs_paren = stripped.trim_start().starts_with('{');
-                        if !nested_await
-                            && !needs_paren
-                            && let Some(ident) = unthunk_no_arg_ident_call(&stripped)
-                        {
-                            // `await $.async_derived(() => getFoo())` collapses to
-                            // `await $.async_derived(getFoo)` — the bare function
-                            // reference (upstream's `b.thunk(value, true)` →
-                            // unthunk pass).
-                            result.push_str("await $.async_derived(");
-                            result.push_str(ident);
-                            result.push(')');
-                        } else {
-                            if nested_await {
-                                result.push_str("await $.async_derived(async () => ");
-                            } else {
-                                result.push_str("await $.async_derived(() => ");
-                            }
-                            if needs_paren {
-                                result.push('(');
-                                result.push_str(&stripped);
-                                result.push(')');
-                            } else {
-                                result.push_str(&stripped);
-                            }
-                            result.push(')');
-                        }
-                    } else if let Some(ident) = unthunk_no_arg_ident_call(cleaned) {
-                        result.push_str("$.derived(");
-                        result.push_str(ident);
-                        result.push(')');
-                    } else {
-                        let needs_paren = cleaned.trim_start().starts_with('{');
-                        result.push_str("$.derived(() => ");
-                        if needs_paren {
-                            result.push('(');
-                            result.push_str(cleaned);
-                            result.push(')');
-                        } else {
-                            result.push_str(cleaned);
-                        }
-                        result.push(')');
-                    }
-                } else {
-                    // $state and friends keep their previous semantics: strip
-                    // the rune wrapper, preserve the raw expression.
-                    let cleaned = inner.trim_end().trim_end_matches(',').trim_end();
-                    result.push_str(cleaned);
-                }
+                result.push_str(&emit_rune_replacement(&inner, is_derived, is_derived_by));
 
                 i = end + 1;
                 continue;
