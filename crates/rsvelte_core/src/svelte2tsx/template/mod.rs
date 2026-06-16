@@ -3192,12 +3192,13 @@ fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
     for node in &fragment.nodes {
         match node {
             TemplateNode::Text(text) => {
-                // Check if text has non-whitespace content
-                if text.start < text.end {
-                    let content = &source[text.start as usize..text.end as usize];
-                    if content.chars().any(|c| !c.is_whitespace()) {
-                        return true;
-                    }
+                // Use the DECODED `text.data` (HTML entities resolved), not the
+                // raw source: `&nbsp;` decodes to U+00A0 which IS whitespace, so
+                // `<Component>&nbsp;</Component>` has no meaningful default-slot
+                // content and must not get a synthetic `children` prop. Mirrors
+                // upstream `handleImplicitChildren`'s `node.data` check.
+                if text.data.chars().any(|c| !c.is_whitespace()) {
+                    return true;
                 }
             }
             // `{#snippet}` blocks are passed as implicit *props*, not as
