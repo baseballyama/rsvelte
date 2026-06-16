@@ -489,6 +489,7 @@ pub fn svelte2tsx(
         loose: false,
         skip_expression_loc: false,
         defer_script_parse: false,
+        force_typescript: false,
     };
     let ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
 

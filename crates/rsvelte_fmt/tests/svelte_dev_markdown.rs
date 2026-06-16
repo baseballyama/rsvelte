@@ -143,10 +143,20 @@ fn svelte_dev_markdown_cli_parity() {
 
     let failures: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
     let next = AtomicUsize::new(0);
+    // Each worker spends almost all of its wall-time *blocked* in
+    // `child.wait_with_output()`: every sample spawns the `rsvelte-fmt` CLI,
+    // which in turn spawns `oxfmt` (a Node launcher), so the loop is dominated
+    // by two chained process-startup latencies, not CPU. With one worker per
+    // core (`available_parallelism`) the cores sit idle waiting on those
+    // subprocesses, and on a 4-core CI runner this single `#[test]` was the
+    // suite's long pole (~200s for ~640 markdown samples). Oversubscribe so
+    // many startups are in flight at once; the cap bounds peak concurrent
+    // Node processes (memory) while keeping the CPUs saturated.
     let n_threads = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4)
-        .min(8);
+        .saturating_mul(4)
+        .clamp(8, 32);
 
     std::thread::scope(|scope| {
         for _ in 0..n_threads {
