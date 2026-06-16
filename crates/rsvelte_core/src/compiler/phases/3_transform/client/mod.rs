@@ -5,8 +5,8 @@
 //! This module mirrors the official Svelte compiler structure at
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/`.
 
-use std::fmt::Write as _;
 pub(crate) use super::shared::ast_rewrite;
+use std::fmt::Write as _;
 mod ast_state_transform;
 mod class_transforms;
 mod console_dev_ast;
