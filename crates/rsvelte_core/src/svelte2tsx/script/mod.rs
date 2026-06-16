@@ -3792,16 +3792,19 @@ fn collect_props_rune_info(
                 // (not a nested destructure, which is a non-identifier).
                 match &prop.value {
                     oxc::BindingPattern::AssignmentPattern(assign) => {
-                        if binding_pattern_simple_name(&assign.left).is_none() {
+                        let Some(local_name) = binding_pattern_simple_name(&assign.left) else {
                             // Complex binding (nested destructure) → unknown
                             has_unknown_props = true;
                             continue;
-                        }
+                        };
                         let inferred_type = infer_type_from_default(&assign.right, raw_content);
                         let (bindable, _) = is_bindable_call(&assign.right, raw_content);
                         prop_types.push((key.clone(), true, inferred_type));
                         if bindable {
-                            bindable_names.push(key);
+                            // The bindable marker statement uses the LOCAL binding
+                            // name, not the prop key: `{ count: definedCount =
+                            // $bindable() }` → `definedCount;`.
+                            bindable_names.push(local_name);
                         }
                     }
                     oxc::BindingPattern::BindingIdentifier(_) => {
