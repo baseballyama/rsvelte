@@ -241,3 +241,43 @@ jobs:
             compat/corpus/fmt/meta.json
           if-no-files-found: ignore
           retention-days: 14
+
+  lint-parity:
+    name: Lint parity (eslint-plugin-svelte)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout eslint-plugin-svelte + svelte-eslint-parser submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/eslint-plugin-svelte submodules/svelte-eslint-parser
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Build rsvelte-lint
+        run: cargo build --release --bin rsvelte-lint
+
+      # The oracle is the pinned real eslint-plugin-svelte; deps install into an
+      # isolated package so the comparison never drifts from what users run.
+      - name: Install lint oracle (real eslint-plugin-svelte)
+        run: npm --prefix scripts/compat-corpus/lint-oracle install --no-package-lock
+
+      - name: Collect lint corpus
+        run: node scripts/compat-corpus/lint-collect.mjs eslint-plugin-svelte svelte-eslint-parser
+
+      - name: Verify lint parity (ratchet against known-failures.json)
+        run: node scripts/compat-corpus/lint-verify.mjs

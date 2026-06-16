@@ -187,3 +187,59 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
   weekly PR (shared with the fmt parity corpus); the svelte side via
   `auto-update-svelte.yml`. Both trigger corpus-compat through its
   submodule path filters.
+
+## Lint parity (eslint-plugin-svelte)
+
+A third track verifies that the native `rsvelte-lint` produces the **same
+findings** as the real `eslint-plugin-svelte`, over every `.svelte` source in
+the two lint-relevant upstream repos:
+
+| Source | Pin |
+|---|---|
+| [sveltejs/eslint-plugin-svelte](https://github.com/sveltejs/eslint-plugin-svelte) | `submodules/eslint-plugin-svelte` gitlink |
+| [sveltejs/svelte-eslint-parser](https://github.com/sveltejs/svelte-eslint-parser) | `submodules/svelte-eslint-parser` gitlink |
+
+Both repos' rule fixtures, parser fixtures, docs snippets and demo components
+exercise exactly the surface the linter must match. (The fixture-level oracle
+in `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs` asserts *exact* parity
+against each fixture's expected `*-errors.yaml`; this corpus track is the
+*real-world* complement — every source linted by both engines, diffed.)
+
+### How it works
+
+```bash
+pnpm run lint-corpus:sync             # init eslint-plugin-svelte + svelte-eslint-parser submodules
+pnpm run lint-corpus:oracle-install   # install the pinned real eslint-plugin-svelte (oracle)
+cargo build --release --bin rsvelte-lint
+pnpm run lint-corpus:collect          # gather .svelte sources -> compat/lint-corpus/sources/
+pnpm run lint-corpus:verify           # diff oracle vs rsvelte-lint, ratchet known-failures.json
+# or, all of the above:
+pnpm run lint-corpus                   # sync + install + collect + verify
+pnpm run lint-corpus:update            # re-baseline known-failures.json after a fix
+```
+
+- **Oracle** (`lint-oracle/`) — an isolated package pinning the same
+  `eslint-plugin-svelte` version as the submodule. `run.mjs` lints each source
+  with the real plugin (svelte parser + TS sub-parser) and emits normalized
+  JSON findings. This is the ground truth — what users actually run.
+- **Rule universe** — only the rules **both** engines implement are compared
+  (`rsvelte --list-rules` ∩ plugin rules), at `"warn"`, with each rule's plugin
+  default options. A small `EXCLUDE` set (in `lint-verify.mjs`) drops rules that
+  can't be finding-compared on this corpus: type-aware rules (need tsgo),
+  option-required rules, Svelte-3/4-only rules (the corpus declares Svelte 5),
+  the `valid-compile` / `valid-style-parse` compiler/CSS meta-rules (governed by
+  the compiler's own 100%-passing test suites), and `indent` (a stylistic rule
+  only partially ported; ~84% of the raw divergence count).
+- **SvelteKit / Svelte version detection** — `lint-collect.mjs` writes a
+  synthetic `package.json` (`@sveltejs/kit ^2`, `svelte ^5`) at the corpus root
+  so the oracle's version detection treats every source as a Svelte 5 +
+  SvelteKit 2 project — matching `rsvelte-lint`, which fires the
+  SvelteKit-conditional rules unconditionally.
+- **Ratchet** — every finding present on exactly one side is a *divergence*,
+  recorded in `compat/lint-corpus/known-failures.json` (tracked). The set may
+  only **shrink**: a NEW divergence fails CI; fixed ones are pruned with
+  `--update`. See [docs/lint-corpus-remaining-work.md](../../docs/lint-corpus-remaining-work.md)
+  for the burn-down playbook and the root-cause clusters.
+
+The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track
+on PRs/pushes touching the linter, the pipeline, or either pin.
