@@ -57,18 +57,84 @@ pub fn lint_source(
             for d in crate::scope::scope_diagnostics(source, config) {
                 diags.push(d.to_output(file, &line_index));
             }
+
+            // 2c. valid-compile (opt-in): surface compiler warnings/errors under
+            // the single `svelte/valid-compile` id. Off by default, so this is a
+            // no-op (and skips the extra compile) unless the rule is enabled.
+            diags.extend(crate::rules::valid_compile::valid_compile_diagnostics(
+                source, file, options, config,
+            ));
+
+            // 2d. valid-style-parse: report `<style>` blocks with an unsupported
+            // `lang`. A source scan, so it runs even when the (invalid) style
+            // body would otherwise abort the main parse.
+            diags.extend(
+                crate::rules::valid_style_parse::valid_style_parse_diagnostics(
+                    source, file, config,
+                ),
+            );
+
+            // 2e. Cross-cutting (template + script) source-scan meta-rules.
+            diags.extend(crate::rules::experimental_require_slot_types::diagnostics(
+                source, file, config,
+            ));
+            diags.extend(
+                crate::rules::experimental_require_strict_events::diagnostics(source, file, config),
+            );
+            diags.extend(crate::rules::require_event_dispatcher_types::diagnostics(
+                source, file, config,
+            ));
+            diags.extend(crate::rules::require_event_prefix::diagnostics(
+                source, file, config,
+            ));
+            diags.extend(crate::rules::no_unused_props::diagnostics(
+                source, file, config,
+            ));
             diags
         }
     };
 
-    // 3. Suppression directives (eslint-disable* + svelte-ignore).
+    // 3. comment-directive meta-rule: compute unused-directive reports from the
+    //    full pre-suppression finding set. Emitted *after* suppression so the
+    //    directives don't suppress their own reports (upstream's position-based
+    //    filter keeps them; our line-based suppression would not).
+    let cd = &crate::rules::comment_directive::META;
+    let cd_severity = config.resolve_code(cd.name, cd.default_severity);
+    let cd_reports: Vec<LintDiagnostic> = if cd_severity != crate::rule::Severity::Off
+        && crate::rules::comment_directive::report_unused_enabled(config.options_for(cd.name))
+    {
+        let findings: Vec<(u32, u32, String)> = diagnostics
+            .iter()
+            .filter_map(|d| {
+                let code = d.code.clone()?;
+                let range = d.range?;
+                Some((range.start.line, range.start.column, code))
+            })
+            .collect();
+        crate::rules::comment_directive::unused_directive_diagnostics(
+            source,
+            &line_index,
+            &findings,
+            cd_severity,
+        )
+    } else {
+        Vec::new()
+    };
+
+    // 4. Suppression directives (eslint-disable* + svelte-ignore).
     let suppressions = Suppressions::collect(source);
     diagnostics.retain(|d| match (&d.code, &d.range) {
         (Some(code), Some(range)) => !suppressions.is_suppressed(code, range.start.line),
         _ => true,
     });
 
-    // 4. Stable order: by line, then column.
+    // 4a. Append the unused-directive reports (not subject to the line-based
+    //     suppression above).
+    for d in cd_reports {
+        diagnostics.push(d.to_output(file, &line_index));
+    }
+
+    // 5. Stable order: by line, then column.
     diagnostics.sort_by_key(|d| {
         d.range
             .map(|r| (r.start.line, r.start.column))

@@ -30,7 +30,26 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
         .iter()
         .map(|r| r.meta())
         .chain(all_script_rules().iter().map(|r| r.meta()))
+        .chain(meta_rule_metas())
         .collect()
+}
+
+/// Metas for *meta-rules* — rules that operate on the aggregated diagnostic set
+/// after the walk rather than via a per-node [`Rule`] hook (so they live outside
+/// [`all_rules`] / [`all_script_rules`]). Currently just `comment-directive`,
+/// whose unused-directive reporting is wired into [`crate::runner::lint_source`].
+pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
+    [
+        &crate::rules::comment_directive::META,
+        &crate::rules::valid_compile::META,
+        &crate::rules::valid_style_parse::META,
+        &crate::rules::experimental_require_slot_types::META,
+        &crate::rules::experimental_require_strict_events::META,
+        &crate::rules::require_event_dispatcher_types::META,
+        &crate::rules::require_event_prefix::META,
+        &crate::rules::no_unused_props::META,
+    ]
+    .into_iter()
 }
 
 /// Construct the full set of native rules.
@@ -68,6 +87,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::require_store_reactive_access::RequireStoreReactiveAccess),
         Box::new(crate::rules::max_lines_per_block::MaxLinesPerBlock),
         Box::new(crate::rules::no_navigation_without_base::NoNavigationWithoutBase),
+        Box::new(crate::rules::no_navigation_without_resolve::NoNavigationWithoutResolve),
         Box::new(
             crate::rules::no_spaces_around_equal_signs_in_attribute::NoSpacesAroundEqualSignsInAttribute,
         ),
@@ -80,6 +100,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::html_self_closing::HtmlSelfClosing),
         Box::new(crate::rules::mustache_spacing::MustacheSpacing),
         Box::new(crate::rules::no_trailing_spaces::NoTrailingSpaces),
+        Box::new(crate::rules::indent::Indent),
         Box::new(crate::rules::html_closing_bracket_new_line::HtmlClosingBracketNewLine),
         Box::new(crate::rules::max_attributes_per_line::MaxAttributesPerLine),
         Box::new(crate::rules::sort_attributes::SortAttributes),
