@@ -86,17 +86,55 @@ fn collect_template_reassignments(source: &str, out: &mut HashSet<String>) {
     walk_assignments(&value, out);
 }
 
+/// Add names that are declared by more than one `let`/`var`/`const` declarator
+/// in `program` (a redeclaration), which the core `prefer-const` rule treats as
+/// having multiple writes. Used only on the parse-only fallback path.
+fn add_redeclared_names(program: &Value, out: &mut HashSet<String>) {
+    let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    walk_js(program, |node, _| {
+        if node_type(node) != Some("VariableDeclaration") {
+            return;
+        }
+        let Some(decls) = node.get("declarations").and_then(Value::as_array) else {
+            return;
+        };
+        for d in decls {
+            let mut ids = Vec::new();
+            if let Some(id) = d.get("id") {
+                collect_pattern_idents(id, &mut ids);
+            }
+            for id in ids {
+                if let Some(name) = ident_name(id) {
+                    *counts.entry(name.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+    });
+    for (name, count) in counts {
+        if count > 1 {
+            out.insert(name);
+        }
+    }
+}
+
 fn walk_assignments(value: &Value, out: &mut HashSet<String>) {
     match value {
         Value::Object(map) => {
             match map.get("type").and_then(Value::as_str) {
                 Some("AssignmentExpression") => {
-                    if let Some(name) = map
-                        .get("left")
-                        .filter(|l| node_type(l) == Some("Identifier"))
-                        .and_then(ident_name)
-                    {
-                        out.insert(name.to_string());
+                    // `x = …` / `x += …` and destructuring `[x] = …` / `({x} =
+                    // …)` reassign their bound identifiers. A member/element
+                    // target (`x.y = …`) is a mutation, not a reassignment, so
+                    // `collect_pattern_idents` (which descends only patterns,
+                    // not MemberExpression) naturally skips it.
+                    if let Some(left) = map.get("left") {
+                        let mut ids = Vec::new();
+                        collect_pattern_idents(left, &mut ids);
+                        for id in ids {
+                            if let Some(name) = ident_name(id) {
+                                out.insert(name.to_string());
+                            }
+                        }
                     }
                 }
                 Some("UpdateExpression") => {
@@ -106,6 +144,23 @@ fn walk_assignments(value: &Value, out: &mut HashSet<String>) {
                         .and_then(ident_name)
                     {
                         out.insert(name.to_string());
+                    }
+                }
+                // A two-way binding `bind:value={x}` / `bind:x` reassigns its
+                // bound variable; svelte-eslint-parser records a write reference
+                // for it, so the core rule treats it as not-const-able. The
+                // bound target is the directive's `expression` (an Identifier,
+                // or a MemberExpression for `bind:value={obj.x}` — a mutation,
+                // which `collect_pattern_idents` skips).
+                Some("BindDirective") => {
+                    if let Some(expr) = map.get("expression") {
+                        let mut ids = Vec::new();
+                        collect_pattern_idents(expr, &mut ids);
+                        for id in ids {
+                            if let Some(name) = ident_name(id) {
+                                out.insert(name.to_string());
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -180,16 +235,32 @@ impl ScriptRule for PreferConst {
 
     fn check_program(&self, ctx: &mut LintContext, program: &Value, kind: ScriptKind) {
         // Reassignment info from the analyzed scope (reliable per the R9 audit).
-        let Some(analysis) = crate::scope::analyze_scope(ctx.source()) else {
-            return;
+        // `analyze_scope` runs the full Phase-2 analysis, which returns `Err`
+        // (→ `None`) when the component has *any* analysis/validation error
+        // (e.g. an `animate:` directive outside a keyed `{#each}`). The oracle's
+        // svelte-eslint-parser only parses, so it still lints such a file; to
+        // match, fall back to a parse-only assignment scan of the script +
+        // template when the analysis is unavailable.
+        let mut reassigned: HashSet<String> = match crate::scope::analyze_scope(ctx.source()) {
+            Some(analysis) => analysis
+                .root
+                .bindings
+                .iter()
+                .filter(|b| b.reassigned)
+                .map(|b| b.name.clone())
+                .collect(),
+            None => {
+                let mut s = HashSet::new();
+                walk_assignments(program, &mut s);
+                // A name declared by more than one declarator (`let x; let x`)
+                // has multiple write references in the svelte-eslint-parser
+                // scope, so the core rule never converts it to `const`. The
+                // accurate analysis path knows this; the parse-only fallback
+                // must detect the redeclaration explicitly.
+                add_redeclared_names(program, &mut s);
+                s
+            }
         };
-        let mut reassigned: HashSet<String> = analysis
-            .root
-            .bindings
-            .iter()
-            .filter(|b| b.reassigned)
-            .map(|b| b.name.clone())
-            .collect();
         // The compiler's scope walk (`scope_builder::visit_node`) does not visit
         // a few template expression positions — notably `{@render fn(…)}`
         // arguments — so a reassignment buried in one (`{@render pill(() =>
