@@ -2796,70 +2796,96 @@ fn handle_export_named_decl(
                         let has_jsdoc_type =
                             leading_jsdoc_comment(raw_content, export.span.start as usize)
                                 .is_some_and(|d| d.contains("@type"));
-                        if is_prop
+                        let do_widen = is_prop
                             && (!has_default
                                 || has_type_annotation
                                 || has_boolean_init
-                                || has_jsdoc_type)
-                            && let Some(name) = binding_pattern_simple_name(&declarator.id)
-                        {
-                            let inject = format!(
-                                "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/",
-                            );
-                            let inject_pos = declarator.span.end + offset;
-                            str.append_left(inject_pos, &inject);
-                        }
+                                || has_jsdoc_type);
 
-                        // SvelteKit `+page.svelte` / `+layout.svelte`: inject
-                        // `import('./$types.js').*` annotations on the
-                        // well-known prop names and on `export const snapshot`.
-                        // Mirrors `emitKitType(...)` in the JS reference's
-                        // `handleVariableStatement`.
-                        if is_instance
-                            && classify_kit_route_file(basename).is_some()
-                            && !has_type_annotation
-                            && let Some(name) = binding_pattern_simple_name(&declarator.id)
-                        {
-                            let kit_layout = classify_kit_route_file(basename);
-                            let inject_type: Option<&str> = if !is_let {
-                                // `export const snapshot = ...`
-                                match name.as_str() {
-                                    "snapshot" => Some("import('./$types.js').Snapshot"),
-                                    _ => None,
+                        // SvelteKit `+page.svelte` / `+layout.svelte`: the
+                        // `import('./$types.js').*` annotation for well-known prop
+                        // names / `export const snapshot`. Computed before the
+                        // widener so the two combine into ONE ignore block in the
+                        // right order (`: KitType; x = any(x);`), not separate
+                        // out-of-order blocks. Mirrors `emitKitType`.
+                        let kit_type: Option<&str> = if is_instance && !has_type_annotation {
+                            binding_pattern_simple_name(&declarator.id).and_then(|name| {
+                                classify_kit_route_file(basename).and_then(|layout| {
+                                    if !is_let {
+                                        match name.as_str() {
+                                            "snapshot" => Some("import('./$types.js').Snapshot"),
+                                            _ => None,
+                                        }
+                                    } else {
+                                        match (name.as_str(), layout) {
+                                            ("data", true) => {
+                                                Some("import('./$types.js').LayoutData")
+                                            }
+                                            ("data", false) => {
+                                                Some("import('./$types.js').PageData")
+                                            }
+                                            ("form", false) => {
+                                                Some("import('./$types.js').ActionData")
+                                            }
+                                            ("params", true) => {
+                                                Some("import('./$types.js').LayoutProps['params']")
+                                            }
+                                            ("params", false) => {
+                                                Some("import('./$types.js').PageProps['params']")
+                                            }
+                                            _ => None,
+                                        }
+                                    }
+                                })
+                            })
+                        } else {
+                            None
+                        };
+
+                        if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+                            let use_jsdoc = emit_jsdoc && !is_ts;
+                            let (id_start, id_end) = match &declarator.id {
+                                oxc::BindingPattern::BindingIdentifier(id) => {
+                                    (id.span.start + offset, id.span.end + offset)
                                 }
-                            } else {
-                                // `export let data | form | params`
-                                match (name.as_str(), kit_layout) {
-                                    ("data", Some(true)) => {
-                                        Some("import('./$types.js').LayoutData")
-                                    }
-                                    ("data", Some(false)) => Some("import('./$types.js').PageData"),
-                                    ("form", Some(false)) => {
-                                        Some("import('./$types.js').ActionData")
-                                    }
-                                    ("params", Some(true)) => {
-                                        Some("import('./$types.js').LayoutProps['params']")
-                                    }
-                                    ("params", Some(false)) => {
-                                        Some("import('./$types.js').PageProps['params']")
-                                    }
-                                    _ => None,
-                                }
+                                _ => (declarator.span.end + offset, declarator.span.end + offset),
                             };
-                            if let Some(kit_type) = inject_type
-                                && let oxc::BindingPattern::BindingIdentifier(id) = &declarator.id
+                            let widen_pos = declarator.span.end + offset;
+                            if do_widen
+                                && let Some(kit) = kit_type
+                                && !use_jsdoc
                             {
-                                let name_start = id.span.start + offset;
-                                let name_end = id.span.end + offset;
-                                if emit_jsdoc && !is_ts {
-                                    let inject = format!("/** @type {{{}}} */ ", kit_type);
-                                    str.append_left(name_start, &inject);
-                                } else {
-                                    let inject = format!(
-                                        "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
-                                        kit_type
+                                // Combined: type annotation + widener, one block.
+                                str.append_left(
+                                    id_end,
+                                    &format!(
+                                        "/*\u{03A9}ignore_start\u{03A9}*/: {kit}; {name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                    ),
+                                );
+                            } else {
+                                if do_widen {
+                                    str.append_left(
+                                        widen_pos,
+                                        &format!(
+                                            "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                        ),
                                     );
-                                    str.append_left(name_end, &inject);
+                                }
+                                if let Some(kit) = kit_type {
+                                    if use_jsdoc {
+                                        str.append_left(
+                                            id_start,
+                                            &format!("/** @type {{{}}} */ ", kit),
+                                        );
+                                    } else {
+                                        str.append_left(
+                                            id_end,
+                                            &format!(
+                                                "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
+                                                kit
+                                            ),
+                                        );
+                                    }
                                 }
                             }
                         }
