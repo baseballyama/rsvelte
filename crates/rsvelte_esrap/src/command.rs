@@ -2,7 +2,7 @@
 //!
 //! A faithful port of the command model in esrap's `src/index.js` /
 //! `src/context.js`. Visitors don't write strings directly; they push
-//! [`Command`]s onto a buffer, and [`print`] flattens that buffer into the
+//! [`Command`]s onto a buffer, and the [`print()`] function flattens that buffer into the
 //! final source text. The indirection is what lets a visitor build a child
 //! layout, [`measure`](crate::context::Context::measure) it, and only then
 //! decide whether to emit it on one line or break it across several — esrap's
