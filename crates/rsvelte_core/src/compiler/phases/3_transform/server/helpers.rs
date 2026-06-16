@@ -2021,16 +2021,29 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
 
     for line in script.lines() {
         if let Some(ref mut import_lines) = current_import {
-            // We're inside a multi-line import, accumulate lines
-            import_lines.push(line.to_string());
+            // We're inside a multi-line import. The closing line may carry
+            // trailing statements after the import terminator; split them off.
             let trimmed = line.trim();
-            if trimmed.contains(';')
+            let closes = trimmed.contains(';')
                 || trimmed.ends_with('\'')
                 || trimmed.ends_with('"')
-                || trimmed.ends_with('`')
-            {
-                imports.push(import_lines.join("\n"));
-                current_import = None;
+                || trimmed.ends_with('`');
+            if closes {
+                if let Some((import_part, remainder)) = split_leading_import(trimmed) {
+                    import_lines.push(import_part.to_string());
+                    imports.push(import_lines.join("\n"));
+                    current_import = None;
+                    if !remainder.trim().is_empty() {
+                        rest.push_str(remainder);
+                        rest.push('\n');
+                    }
+                } else {
+                    import_lines.push(line.to_string());
+                    imports.push(import_lines.join("\n"));
+                    current_import = None;
+                }
+            } else {
+                import_lines.push(line.to_string());
             }
         } else {
             let trimmed = line.trim();
@@ -2042,7 +2055,21 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
                             || trimmed.ends_with('"')
                             || trimmed.ends_with('`')))
                 {
-                    imports.push(trimmed.to_string());
+                    // The line begins with a *complete* import statement. It may,
+                    // however, carry additional statements on the same physical
+                    // line (e.g. `import x from 'm'; const a = 1;`). Split the
+                    // import off and route the remainder through `rest` so those
+                    // trailing statements are transformed normally instead of
+                    // being swallowed into the import string.
+                    if let Some((import_part, remainder)) = split_leading_import(trimmed) {
+                        imports.push(import_part.to_string());
+                        if !remainder.trim().is_empty() {
+                            rest.push_str(remainder);
+                            rest.push('\n');
+                        }
+                    } else {
+                        imports.push(trimmed.to_string());
+                    }
                 } else {
                     current_import = Some(vec![line.to_string()]);
                 }
@@ -2067,6 +2094,62 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
     } else {
         (imports, rest)
     }
+}
+
+/// Split a `trimmed` line containing a leading/just-completed import statement
+/// into `(import_statement, remainder)` when the line carries additional code
+/// after the import terminator on the same physical line — e.g.
+/// `import x from 'm'; const a = 1;` → `("import x from 'm';", " const a = 1;")`.
+///
+/// Returns `None` when the whole line is just the import (nothing meaningful
+/// follows), so callers can keep their existing behaviour for that case.
+fn split_leading_import(trimmed: &str) -> Option<(&str, &str)> {
+    let end = import_statement_end(trimmed)?;
+    if end >= trimmed.len() {
+        return None;
+    }
+    let (import_part, remainder) = trimmed.split_at(end);
+    if remainder.trim().is_empty() {
+        None
+    } else {
+        Some((import_part, remainder))
+    }
+}
+
+/// Find the byte index at which the leading import statement in `s` ends.
+///
+/// String literals (single/double quotes and template backticks) are skipped
+/// honouring backslash escapes, so a `;` inside a module specifier is ignored.
+/// If a top-level `;` is found it terminates the statement (index just past it).
+/// Otherwise — ASI — the statement ends just past the last completed top-level
+/// string literal (the module specifier). Returns `None` if neither is present
+/// (incomplete import; let the caller fall back to its default handling).
+fn import_statement_end(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut i = 0usize;
+    let mut last_string_end: Option<usize> = None;
+    while i < bytes.len() {
+        match bytes[i] {
+            b';' => return Some(i + 1),
+            q @ (b'\'' | b'"' | b'`') => {
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == q {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                last_string_end = Some(i);
+            }
+            _ => i += 1,
+        }
+    }
+    last_string_end
 }
 
 /// Check whether `trimmed` is a complete *side-effect* import statement —
