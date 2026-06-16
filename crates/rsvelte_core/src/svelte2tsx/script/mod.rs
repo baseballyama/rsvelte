@@ -4096,6 +4096,55 @@ fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
     Some(source[open..p].to_string())
 }
 
+/// True when the source has a `<script context="module">` / `<script module>` tag.
+fn has_module_script(source: &str) -> bool {
+    find_module_script_span(source).is_some()
+}
+
+/// Locate the module `<script>` tag, returning `(body_start, body_end)` — the
+/// byte range of its inner content (between `>` and `</script>`).
+fn find_module_script_span(source: &str) -> Option<(usize, usize)> {
+    let bytes = source.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = source[search..].find("<script") {
+        let tag_start = search + rel;
+        // Find the end of the opening tag `>`.
+        let gt = match source[tag_start..].find('>') {
+            Some(g) => tag_start + g,
+            None => return None,
+        };
+        let open_tag = &source[tag_start..gt];
+        // `module` either as a bare attribute or `context="module"` / `context='module'`.
+        let is_module = open_tag.contains("context=\"module\"")
+            || open_tag.contains("context='module'")
+            || open_tag
+                .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '=')
+                .any(|tok| tok == "module");
+        if is_module && !open_tag.starts_with("<scripts") {
+            let body_start = gt + 1;
+            let body_end = source[body_start..]
+                .find("</script")
+                .map(|e| body_start + e)
+                .unwrap_or(bytes.len());
+            return Some((body_start, body_end));
+        }
+        search = gt + 1;
+    }
+    None
+}
+
+/// Blank the inner content of the module `<script>` so a byte-level store scan
+/// never sees module-internal `$name` references.
+fn blank_module_script_body(source: &str, buf: &mut [u8]) {
+    if let Some((start, end)) = find_module_script_span(source) {
+        for b in &mut buf[start..end] {
+            if *b != b'\n' && *b != b'\r' {
+                *b = b' ';
+            }
+        }
+    }
+}
+
 fn collect_store_references(source: &str) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
@@ -4106,8 +4155,13 @@ fn collect_store_references(source: &str) -> HashSet<String> {
     // real reference (official builds stores from parsed expressions, never
     // comments), so e.g. a `<!-- … `$derived` … -->` migration-task comment
     // must not make a local `derived` variable look like a store subscription.
+    // The module script's own `$name` references are NOT auto-subscriptions —
+    // official `svelte2tsx` only runs the `Stores` walker over the instance
+    // script + template, never the module script body. So a `<script module>`
+    // that internally reads `$foo` must not make `foo` look like a store.
     let blanked;
-    let source: &str = if source.contains("<!--") {
+    let needs_blank = source.contains("<!--") || has_module_script(source);
+    let source: &str = if needs_blank {
         let mut buf = source.as_bytes().to_vec();
         let mut j = 0usize;
         while let Some(rel) = source[j..].find("<!--") {
@@ -4123,6 +4177,7 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             }
             j = end;
         }
+        blank_module_script_body(source, &mut buf);
         blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
         &blanked
     } else {
@@ -4175,13 +4230,15 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             i = end;
             continue;
         }
-        // A core rune used as a member call — `$state.raw(…)`, `$derived.by(…)`,
-        // `$effect.pre(…)` — is a rune, not a store auto-subscription, so it must
-        // not contribute a `let $derived = __sveltets_2_store_get(derived)` when a
-        // binding named `derived` exists. (A bare `$state` / `$state(…)` can still
-        // be a store sub of a `state` binding, so only the `.`-member form is
-        // excluded here.)
-        if matches!(full, "$state" | "$derived" | "$effect") && bytes.get(end) == Some(&b'.') {
+        // Rune-call exclusion (mirror `processInstanceScriptContent.ts` `is_rune`):
+        // `$props`/`$state`/`$derived` immediately called as `<name> = $state(…)`
+        // is the rune, not a store sub — but ONLY when the declared binding name
+        // includes the rune's base (`let state = $state()` → rune; `let count =
+        // $state()` → still a `state` store access).
+        if matches!(full, "$state" | "$props" | "$derived")
+            && next_non_ws_is_paren(bytes, end)
+            && is_self_named_rune_decl(source, bytes, pos, &full[1..])
+        {
             i = end;
             continue;
         }
@@ -4189,6 +4246,64 @@ fn collect_store_references(source: &str) -> HashSet<String> {
         i = end;
     }
     stores
+}
+
+/// True when the first non-whitespace byte at/after `from` is `(`.
+fn next_non_ws_is_paren(bytes: &[u8], from: usize) -> bool {
+    let mut k = from;
+    while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+        k += 1;
+    }
+    bytes.get(k) == Some(&b'(')
+}
+
+/// Approximates upstream's `ts.isVariableDeclaration(parent.parent) &&
+/// parent.parent.name.getText().includes(text.slice(1))`: walk back from the
+/// rune's `$` over `= ` to the binding pattern, and test whether that binding
+/// text contains the rune base name.
+fn is_self_named_rune_decl(source: &str, bytes: &[u8], dollar_pos: usize, base: &str) -> bool {
+    let mut k = dollar_pos;
+    while k > 0 && bytes[k - 1].is_ascii_whitespace() {
+        k -= 1;
+    }
+    if k == 0 || bytes[k - 1] != b'=' {
+        return false;
+    }
+    let eq = k - 1;
+    // Reject compound/comparison operators (`==`, `<=`, `+=`, …); a plain `=` only.
+    if eq > 0
+        && matches!(
+            bytes[eq - 1],
+            b'=' | b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' | b'~'
+        )
+    {
+        return false;
+    }
+    // Walk back to the declaration boundary, collecting the binding region.
+    let mut start = eq;
+    let mut depth = 0i32;
+    while start > 0 {
+        let c = bytes[start - 1];
+        match c {
+            b'}' | b']' | b')' => depth += 1,
+            b'{' | b'[' | b'(' => {
+                if depth == 0 {
+                    break;
+                }
+                depth -= 1;
+            }
+            b';' | b',' | b'\n' if depth == 0 => break,
+            _ => {}
+        }
+        start -= 1;
+    }
+    let lhs = source[start..eq].trim();
+    let lhs = lhs
+        .strip_prefix("let")
+        .or_else(|| lhs.strip_prefix("const"))
+        .or_else(|| lhs.strip_prefix("var"))
+        .unwrap_or(lhs);
+    lhs.contains(base)
 }
 
 /// Pre-pass: collect EVERY top-level declared binding name in the instance
@@ -4412,19 +4527,9 @@ fn inject_store_subscriptions_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
-    let mut accessed_stores = collect_store_references(source);
+    let accessed_stores = collect_store_references(source);
     if accessed_stores.is_empty() {
         return;
-    }
-
-    for stmt in program.body.iter() {
-        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-            for declarator in var_decl.declarations.iter() {
-                if let Some(rune_base_name) = detect_rune_variable(declarator) {
-                    accessed_stores.remove(&rune_base_name);
-                }
-            }
-        }
     }
 
     let mut import_store_names: Vec<String> = Vec::new();
@@ -4664,19 +4769,9 @@ fn inject_store_subscriptions_vars_only_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
-    let mut accessed_stores = collect_store_references(source);
+    let accessed_stores = collect_store_references(source);
     if accessed_stores.is_empty() {
         return;
-    }
-
-    for stmt in program.body.iter() {
-        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-            for declarator in var_decl.declarations.iter() {
-                if let Some(rune_base_name) = detect_rune_variable(declarator) {
-                    accessed_stores.remove(&rune_base_name);
-                }
-            }
-        }
     }
 
     for stmt in program.body.iter() {
@@ -4703,50 +4798,6 @@ fn inject_store_subscriptions_vars_only_with_program(
             }
         }
     }
-}
-
-/// Check if a variable declarator is a rune pattern like `let state = $state(0)`.
-///
-/// Returns the rune base name (e.g., "state" from "$state") if the pattern matches:
-/// 1. The initializer is a call to `$props`, `$state`, or `$derived`
-/// 2. The variable name contains the rune's base name (without `$`)
-///
-/// This mirrors the JS svelte2tsx logic that prevents rune calls from being
-/// treated as store accesses.
-fn detect_rune_variable(declarator: &oxc::VariableDeclarator) -> Option<String> {
-    let init = declarator.init.as_ref()?;
-    let call = match init {
-        oxc::Expression::CallExpression(call) => call,
-        _ => return None,
-    };
-    let callee_name = match &call.callee {
-        oxc::Expression::Identifier(id) => id.name.as_str(),
-        _ => return None,
-    };
-
-    // Only check the three rune names that the JS implementation checks
-    if !matches!(callee_name, "$props" | "$state" | "$derived") {
-        return None;
-    }
-
-    let rune_base = &callee_name[1..]; // Strip the '$' prefix
-
-    // Check if the variable declaration name contains the rune's base name
-    let decl_text = get_binding_pattern_text(&declarator.id);
-    if decl_text.contains(rune_base) {
-        Some(rune_base.to_string())
-    } else {
-        None
-    }
-}
-
-/// Get a textual representation of a binding pattern for rune detection.
-///
-/// For simple identifiers, returns the name.
-/// For destructuring patterns, returns a concatenation of all names.
-fn get_binding_pattern_text(pattern: &oxc::BindingPattern) -> String {
-    let names = extract_all_names_from_binding_pattern(pattern);
-    names.join(",")
 }
 
 /// Extract variable names from the body of a labeled statement (`$: name = ...`).
