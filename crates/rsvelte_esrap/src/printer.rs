@@ -487,6 +487,23 @@ impl<'opt> Printer<'opt> {
                 self.print_expression(unparen(&s.argument), ctx);
                 ctx.write(";");
             }
+            Statement::DoWhileStatement(s) => {
+                ctx.write("do ");
+                self.print_statement(&s.body, ctx);
+                ctx.write(" while (");
+                self.print_expression(unparen(&s.test), ctx);
+                ctx.write(");");
+            }
+            Statement::ExportAllDeclaration(s) => {
+                ctx.write("export *");
+                if let Some(exported) = &s.exported {
+                    ctx.write(" as ");
+                    ctx.write(module_export_name_str(exported));
+                }
+                ctx.write(" from ");
+                ctx.write(self.string_literal(&s.source));
+                ctx.write(";");
+            }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
@@ -1064,6 +1081,16 @@ impl<'opt> Printer<'opt> {
             Expression::ArrowFunctionExpression(a) => self.arrow_function(a, ctx),
             Expression::FunctionExpression(f) => self.function(f, ctx),
             Expression::ClassExpression(c) => self.class_node(c, ctx),
+            Expression::PrivateFieldExpression(m) => {
+                self.child_with_parens(&m.object, 19, ctx);
+                ctx.write(if m.optional { "?." } else { "." });
+                ctx.write(format!("#{}", m.field.name));
+            }
+            Expression::MetaProperty(m) => {
+                ctx.write(m.meta.name.as_str());
+                ctx.write(".");
+                ctx.write(m.property.name.as_str());
+            }
             Expression::AwaitExpression(a) => {
                 // `await ` + arg, parenthesised below await's precedence (17).
                 ctx.write("await ");
@@ -1204,7 +1231,115 @@ impl<'opt> Printer<'opt> {
             AssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
             AssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
             AssignmentTarget::ComputedMemberExpression(m) => self.computed_member(m, ctx),
+            AssignmentTarget::PrivateFieldExpression(m) => {
+                self.child_with_parens(&m.object, 19, ctx);
+                ctx.write(if m.optional { "?." } else { "." });
+                ctx.write(format!("#{}", m.field.name));
+            }
+            AssignmentTarget::ArrayAssignmentTarget(a) => {
+                ctx.write("[");
+                let mut items: Vec<SeqItem> = a
+                    .elements
+                    .iter()
+                    .map(|el| {
+                        let mut child = ctx.child();
+                        if let Some(t) = el {
+                            self.assignment_target_maybe_default(t, &mut child);
+                        }
+                        let multiline = child.multiline;
+                        SeqItem {
+                            ctx: child,
+                            multiline,
+                            obj_or_array: false,
+                        }
+                    })
+                    .collect();
+                if let Some(rest) = &a.rest {
+                    let mut child = ctx.child();
+                    child.write("...");
+                    self.assignment_target(&rest.target, &mut child);
+                    let multiline = child.multiline;
+                    items.push(SeqItem {
+                        ctx: child,
+                        multiline,
+                        obj_or_array: false,
+                    });
+                }
+                assemble_sequence(items, false, ",", true, ctx);
+                ctx.write("]");
+            }
+            AssignmentTarget::ObjectAssignmentTarget(o) => {
+                ctx.write("{");
+                let mut items: Vec<SeqItem> = o
+                    .properties
+                    .iter()
+                    .map(|p| {
+                        let mut child = ctx.child();
+                        self.assignment_target_property(p, &mut child);
+                        let multiline = child.multiline;
+                        SeqItem {
+                            ctx: child,
+                            multiline,
+                            obj_or_array: false,
+                        }
+                    })
+                    .collect();
+                if let Some(rest) = &o.rest {
+                    let mut child = ctx.child();
+                    child.write("...");
+                    self.assignment_target(&rest.target, &mut child);
+                    let multiline = child.multiline;
+                    items.push(SeqItem {
+                        ctx: child,
+                        multiline,
+                        obj_or_array: false,
+                    });
+                }
+                assemble_sequence(items, true, ",", true, ctx);
+                ctx.write("}");
+            }
             _ => self.unsupported("AssignmentTarget", ctx),
+        }
+    }
+
+    fn assignment_target_maybe_default(
+        &mut self,
+        target: &AssignmentTargetMaybeDefault,
+        ctx: &mut Context,
+    ) {
+        match target {
+            AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
+                self.assignment_target(&d.binding, ctx);
+                ctx.write(" = ");
+                self.print_expression(unparen(&d.init), ctx);
+            }
+            _ => match target.as_assignment_target() {
+                Some(t) => self.assignment_target(t, ctx),
+                None => self.unsupported("AssignmentTargetMaybeDefault", ctx),
+            },
+        }
+    }
+
+    fn assignment_target_property(&mut self, prop: &AssignmentTargetProperty, ctx: &mut Context) {
+        match prop {
+            AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
+                ctx.write(p.binding.name.as_str());
+                if let Some(init) = &p.init {
+                    ctx.write(" = ");
+                    self.print_expression(unparen(init), ctx);
+                }
+            }
+            AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
+                if p.computed {
+                    ctx.write("[");
+                    self.property_key(&p.name, ctx);
+                    ctx.write("]: ");
+                } else {
+                    self.property_key(&p.name, ctx);
+                    ctx.write(": ");
+                }
+                self.assignment_target_maybe_default(&p.binding, ctx);
+            }
         }
     }
 
@@ -1530,26 +1665,29 @@ fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
 
 fn statement_kind(stmt: &Statement) -> &'static str {
     match stmt {
-        Statement::FunctionDeclaration(_) => "FunctionDeclaration",
-        Statement::ClassDeclaration(_) => "ClassDeclaration",
-        Statement::ImportDeclaration(_) => "ImportDeclaration",
-        Statement::ExportNamedDeclaration(_) => "ExportNamedDeclaration",
-        Statement::ExportDefaultDeclaration(_) => "ExportDefaultDeclaration",
-        Statement::IfStatement(_) => "IfStatement",
-        Statement::ForStatement(_) => "ForStatement",
-        Statement::WhileStatement(_) => "WhileStatement",
+        Statement::SwitchStatement(_) => "SwitchStatement",
+        Statement::TryStatement(_) => "TryStatement",
+        Statement::DoWhileStatement(_) => "DoWhileStatement",
+        Statement::ForInStatement(_) => "ForInStatement",
+        Statement::ForOfStatement(_) => "ForOfStatement",
+        Statement::LabeledStatement(_) => "LabeledStatement",
+        Statement::ExportAllDeclaration(_) => "ExportAllDeclaration",
+        Statement::DebuggerStatement(_) => "DebuggerStatement",
+        Statement::WithStatement(_) => "WithStatement",
         _ => "Statement",
     }
 }
 
 fn expression_kind(expr: &Expression) -> &'static str {
     match expr {
-        Expression::ArrowFunctionExpression(_) => "ArrowFunctionExpression",
-        Expression::FunctionExpression(_) => "FunctionExpression",
-        Expression::NewExpression(_) => "NewExpression",
-        Expression::TemplateLiteral(_) => "TemplateLiteral",
-        Expression::AwaitExpression(_) => "AwaitExpression",
-        Expression::UpdateExpression(_) => "UpdateExpression",
+        Expression::TaggedTemplateExpression(_) => "TaggedTemplateExpression",
+        Expression::YieldExpression(_) => "YieldExpression",
+        Expression::MetaProperty(_) => "MetaProperty",
+        Expression::ImportExpression(_) => "ImportExpression",
+        Expression::PrivateFieldExpression(_) => "PrivateFieldExpression",
+        Expression::PrivateInExpression(_) => "PrivateInExpression",
+        Expression::RegExpLiteral(_) => "RegExpLiteral",
+        Expression::Super(_) => "Super",
         _ => "Expression",
     }
 }
@@ -1751,6 +1889,24 @@ mod tests {
         assert_eq!(
             print_ok("foo(a, () => { b(); });"),
             "foo(a, () => {\n\tb();\n});"
+        );
+    }
+
+    #[test]
+    fn destructuring_assignment() {
+        assert_eq!(print_ok("[a, b] = arr;"), "[a, b] = arr;");
+        assert_eq!(print_ok("({ a, b: c } = o);"), "({ a, b: c } = o);");
+        assert_eq!(print_ok("[a, ...rest] = arr;"), "[a, ...rest] = arr;");
+        assert_eq!(print_ok("({ a = 1 } = o);"), "({ a = 1 } = o);");
+    }
+
+    #[test]
+    fn private_and_meta() {
+        assert_eq!(print_ok("this.#x;"), "this.#x;");
+        assert_eq!(print_ok("export * from 'x';"), "export * from 'x';");
+        assert_eq!(
+            print_ok("export * as ns from 'x';"),
+            "export * as ns from 'x';"
         );
     }
 
