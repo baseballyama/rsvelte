@@ -6159,7 +6159,11 @@ fn build_component_directive_suffix(attributes: &[Attribute], source: &str) -> V
     for attr in attributes {
         match attr {
             Attribute::TransitionDirective(t) => {
-                let s = match t.expression.as_ref().map(|e| get_expression_text(e, source)) {
+                let s = match t
+                    .expression
+                    .as_ref()
+                    .map(|e| get_expression_text(e, source))
+                {
                     Some(expr) => format!(
                         "__sveltets_2_ensureTransition({}({},({})));",
                         t.name, map_tag, expr
@@ -6169,7 +6173,11 @@ fn build_component_directive_suffix(attributes: &[Attribute], source: &str) -> V
                 segs_push_lit(&mut out, &s);
             }
             Attribute::AnimateDirective(a) => {
-                let s = match a.expression.as_ref().map(|e| get_expression_text(e, source)) {
+                let s = match a
+                    .expression
+                    .as_ref()
+                    .map(|e| get_expression_text(e, source))
+                {
                     Some(expr) => format!(
                         "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove,({})));",
                         a.name, map_tag, expr

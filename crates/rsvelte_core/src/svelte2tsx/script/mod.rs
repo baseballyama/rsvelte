@@ -376,10 +376,9 @@ impl ExportedNames {
             // required — a plain `export let x` with no default and no type
             // annotation (`required = !initializer`). A typed or defaulted /
             // optional export (or any non-`let` export) forces the cast.
-            let dont_add_type_def = self
-                .get_ordered()
-                .iter()
-                .all(|(_, info)| info.type_annotation.is_none() && info.is_let && !info.has_default);
+            let dont_add_type_def = self.get_ordered().iter().all(|(_, info)| {
+                info.type_annotation.is_none() && info.is_let && !info.has_default
+            });
             if is_ts && !dont_add_type_def {
                 // For TS files, add `as {name1?: type, ...}` type assertion
                 let type_entries: Vec<String> = self
