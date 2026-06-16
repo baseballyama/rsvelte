@@ -40,7 +40,13 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = Number(args[args.indexOf('--max-print') + 1] || 20);
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
-const BASELINE_PATH = path.join(CORPUS, 'known-failures.json');
+// --baseline <path> selects an alternate ratchet file. The default is the
+// svelte/svelte.dev base corpus; the ecosystem corpus (collect --eco-only)
+// passes its own eco-known-failures.json so the two tracks ratchet separately.
+const BASELINE_PATH = path.resolve(
+	CORPUS,
+	args.indexOf('--baseline') !== -1 ? args[args.indexOf('--baseline') + 1] : 'known-failures.json',
+);
 
 // ---- oxfmt normalization ---------------------------------------------------
 

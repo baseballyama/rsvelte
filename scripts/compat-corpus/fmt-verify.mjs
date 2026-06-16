@@ -27,10 +27,15 @@ const FMT = path.join(CORPUS, 'fmt');
 const ORACLE = path.join(FMT, 'oracle');
 const ACTUAL = path.join(FMT, 'actual');
 const META_PATH = path.join(FMT, 'meta.json');
-const BASELINE_PATH = path.join(CORPUS, 'fmt-known-failures.json');
 const REPORT_PATH = path.join(CORPUS, 'fmt-report.json');
 
 const args = process.argv.slice(2);
+// --baseline <path> selects an alternate ratchet file (see verify.mjs); the
+// ecosystem corpus uses eco-fmt-known-failures.json.
+const BASELINE_PATH = path.resolve(
+	CORPUS,
+	args.indexOf('--baseline') !== -1 ? args[args.indexOf('--baseline') + 1] : 'fmt-known-failures.json',
+);
 const MAX_PRINT = args.includes('--max-print') ? Number(args[args.indexOf('--max-print') + 1]) || 20 : 20;
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict');
