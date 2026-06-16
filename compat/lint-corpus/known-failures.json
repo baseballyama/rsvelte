@@ -1,8 +1,4 @@
 [
-	"eslint-plugin-svelte/docs-svelte-kit/src/lib/sidemenu/UlMenu.svelte|+svelte/consistent-selector-style\t40:4\tSelector should select by element type instead of class",
-	"eslint-plugin-svelte/docs-svelte-kit/src/lib/sidemenu/UlMenu.svelte|+svelte/consistent-selector-style\t46:4\tSelector should select by element type instead of class",
-	"eslint-plugin-svelte/docs-svelte-kit/src/lib/sidemenu/UlMenu.svelte|+svelte/consistent-selector-style\t49:9\tSelector should select by element type instead of class",
-	"eslint-plugin-svelte/docs-svelte-kit/src/lib/sidemenu/UlMenu.svelte|+svelte/consistent-selector-style\t53:2\tSelector should select by element type instead of class",
 	"eslint-plugin-svelte/docs-svelte-kit/src/routes/+layout.svelte|+svelte/max-attributes-per-line\t47:23\t'' should be on a new line.",
 	"eslint-plugin-svelte/docs-svelte-kit/src/routes/+layout.svelte|-svelte/html-self-closing\t43:9\tDisallow self-closing on HTML elements.",
 	"eslint-plugin-svelte/docs-svelte-kit/src/routes/+layout.svelte|-svelte/max-attributes-per-line\t47:23\t'fileInfo' should be on a new line.",
