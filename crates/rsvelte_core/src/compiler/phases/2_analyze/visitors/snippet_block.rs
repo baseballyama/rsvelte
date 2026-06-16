@@ -600,6 +600,34 @@ fn check_hoistable(
     param_names: &FxHashSet<String>,
     context: &VisitorContext,
 ) -> bool {
+    // `{@const x = …}` declarations create local bindings that are in scope for the
+    // whole fragment. A later reference to `x` is therefore local (declared inside
+    // the snippet, function_depth >= snippet), NOT an instance-level reference, so
+    // it must not block hoisting — mirrors upstream `can_hoist_snippet`'s
+    // `binding.scope.function_depth >= scope.function_depth` skip. (Each const's
+    // own initializer is still checked individually in the ConstTag arm below.)
+    let mut local_params = param_names.clone();
+    for node in nodes {
+        if let TemplateNode::ConstTag(tag) = node {
+            let json = tag.declaration.as_json();
+            if let Some(obj) = json.as_object()
+                && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+            {
+                for d in decls {
+                    if let Some(id) = d.get("id")
+                        && let Some(names) = extract_pattern_names(id)
+                    {
+                        for n in names {
+                            local_params.insert(n);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let param_names = &local_params;
+
     for node in nodes {
         match node {
             // Static content - always OK

@@ -364,17 +364,21 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Track each block index usage for proper callback parameter generation.
             // When the index variable is referenced during body traversal, we need
             // to include it in the render callback parameters.
-            if let Some(ref idx_name) = context.state.each_index_name
-                && name == idx_name
-            {
+            let current_idx_name = context.state.each_index_name.as_deref();
+            if current_idx_name == Some(name.as_str()) {
                 context.state.each_index_used.set(true);
             }
             // Also check ancestor each-block index names (for nested each blocks).
             // When an ancestor's index variable is used inside a nested each block body,
-            // we need to mark the ancestor's index as used too.
+            // we need to mark the ancestor's index as used too — UNLESS the current
+            // each shadows that ancestor with the same index name (e.g.
+            // `{#each a as x, i (i)}{#each b as y, i (i)}…{/each}{/each}`): a read of
+            // `i` in the inner body refers to the inner `i` only, so the outer `i`
+            // (still on the ancestor stack under the same name) must NOT be marked.
             for (ancestor_idx_name, ancestor_used_flag) in &context.state.ancestor_each_index_names
             {
-                if name == ancestor_idx_name {
+                if name == ancestor_idx_name && Some(ancestor_idx_name.as_str()) != current_idx_name
+                {
                     ancestor_used_flag.set(true);
                 }
             }
