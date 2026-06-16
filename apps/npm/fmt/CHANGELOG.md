@@ -1,5 +1,24 @@
 # @rsvelte/fmt
 
+## 0.3.14
+
+### Patch Changes
+
+- f06709c: Improve Svelte-structure formatting parity with prettier-plugin-svelte: strip
+  quotes around single-mustache attribute values (`attr="{expr}"` → `attr={expr}`),
+  reorder top-level sections into canonical order (`svelteSortOrder`: options →
+  module script → instance script → markup → styles), and trim child boundary
+  whitespace for components and block elements while keeping an edge space for
+  inline/custom elements. Verified by the new full-corpus formatter-parity gate
+  (`scripts/compat-corpus` fmt track).
+- eea9a5a: Fix a regression where a `{@const}` tag carrying a TypeScript type annotation
+  (`{@const name: Type = value}`, e.g. an exhaustiveness check
+  `{@const _: never = column}`) failed with `script parse failed`. The collapse
+  path was formatting the tag body as a bare expression (`(name: Type = value);`),
+  which is not valid; it is now formatted as the TS variable declaration it
+  actually is (`const name: Type = value;`) using the same TS-aware parse path as
+  `<script lang="ts">`, so the type annotation is parsed and preserved.
+
 ## 0.3.13
 
 ### Patch Changes
