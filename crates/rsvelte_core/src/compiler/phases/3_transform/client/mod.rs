@@ -2379,7 +2379,12 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                     import_lines.push(trimmed[..end].to_string());
                     imports.push(import_lines.join("\n"));
                     current_import = None;
-                    rest.push(trimmed[end..].to_string());
+                    // The remainder may itself begin with further imports packed
+                    // on the same line; peel them all before routing the rest.
+                    let remainder = peel_leading_imports(&trimmed[end..], &mut imports);
+                    if !remainder.trim().is_empty() {
+                        rest.push(remainder);
+                    }
                 } else {
                     import_lines.push(line.to_string());
                     imports.push(import_lines.join("\n"));
@@ -2400,17 +2405,15 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                             || trimmed.ends_with('`')))
                 {
                     // The line begins with a *complete* import statement but may
-                    // carry trailing statements on the same physical line
-                    // (`import x from 'm'; const a = 1;`). Split the import off so
-                    // the remainder is transformed normally instead of swallowed.
-                    if let Some(end) = import_statement_end(trimmed)
-                        && end < trimmed.len()
-                        && !trimmed[end..].trim().is_empty()
-                    {
-                        imports.push(trimmed[..end].to_string());
-                        rest.push(trimmed[end..].to_string());
-                    } else {
-                        imports.push(line.to_string());
+                    // carry additional imports and/or statements on the same
+                    // physical line (`import a from 'x';import b from 'y';` or
+                    // `import x from 'm'; const a = 1;`). Peel every packed import
+                    // so each is hoisted, then route any trailing non-import code
+                    // through `rest` so it is transformed normally instead of
+                    // being swallowed into the import string.
+                    let remainder = peel_leading_imports(trimmed, &mut imports);
+                    if !remainder.trim().is_empty() {
+                        rest.push(remainder);
                     }
                 } else {
                     // Multi-line import starts here
@@ -2473,6 +2476,26 @@ fn import_statement_end(s: &str) -> Option<usize> {
         }
     }
     last_string_end
+}
+
+/// Peel every complete leading `import` statement off `s`, pushing each onto
+/// `imports`, and return the remaining tail (front-trimmed).
+///
+/// Handles several imports packed onto one physical line, e.g.
+/// `import a from 'x';import b from 'y';` → both hoisted, empty tail. Stops at
+/// the first non-import token or an *incomplete* import (one that continues on a
+/// following line) and returns it so the caller can route it.
+fn peel_leading_imports(s: &str, imports: &mut Vec<String>) -> String {
+    let mut cur = s.trim_start();
+    while cur.starts_with("import ") || cur.starts_with("import{") {
+        let Some(end) = import_statement_end(cur) else {
+            break;
+        };
+        let (import_part, remainder) = cur.split_at(end);
+        imports.push(import_part.trim().to_string());
+        cur = remainder.trim_start();
+    }
+    cur.to_string()
 }
 
 fn is_complete_side_effect_import(trimmed: &str) -> bool {

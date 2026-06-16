@@ -98,3 +98,33 @@ fn server_derived_override_is_setter_call() {
         "derived override must not compile to `x() = 99`:\n{out}"
     );
 }
+
+// Two imports packed onto one physical line — both must be hoisted, not have
+// the second swallowed into `rest` (regression from the print/formatting corpus).
+const TWO_IMPORTS_ONE_LINE: &str = "<script>import { setLocale } from '$lib/x';import { m } from '$lib/y';</script><h1>{m.hi()}</h1>";
+
+#[test]
+fn server_two_imports_one_line_both_hoisted() {
+    let out = server(TWO_IMPORTS_ONE_LINE);
+    assert!(
+        out.contains("import { setLocale } from '$lib/x'"),
+        "first import missing:\n{out}"
+    );
+    assert!(
+        out.contains("import { m } from '$lib/y'"),
+        "second import missing/not hoisted:\n{out}"
+    );
+}
+
+#[test]
+fn client_two_imports_one_line_both_hoisted() {
+    let out = client(TWO_IMPORTS_ONE_LINE);
+    assert!(
+        out.contains("import { setLocale } from '$lib/x'"),
+        "first import missing:\n{out}"
+    );
+    assert!(
+        out.contains("import { m } from '$lib/y'"),
+        "second import missing/not hoisted:\n{out}"
+    );
+}
