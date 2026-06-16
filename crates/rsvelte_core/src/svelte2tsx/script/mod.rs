@@ -45,6 +45,8 @@ pub struct ExportedNames {
     pub bindable_props: Vec<String>,
     /// JSDoc type text found before $props() (e.g., "{{ a: number, b: string }}")
     pub props_jsdoc_type: Option<String>,
+    /// Whether a legacy `type $$Props` / `interface $$Props` is declared.
+    pub uses_dollar_props_type: bool,
     /// Whether `$$Slots` type/interface is declared in the script
     pub has_slots_type: bool,
     /// Whether `$$Events` type/interface is declared in the script
@@ -145,6 +147,7 @@ impl ExportedNames {
             has_component_props_typedef: false,
             bindable_props: Vec::new(),
             props_jsdoc_type: None,
+            uses_dollar_props_type: false,
             has_slots_type: false,
             has_events_type: false,
             type_already_inserted: false,
@@ -345,6 +348,41 @@ impl ExportedNames {
                 };
             }
             return format!("{{{}}}", entries.join(" , "));
+        }
+        // Legacy `$$Props` type/interface (TS only): mirror official's
+        // `uses$$Props` branch — wrap the props in `__sveltets_2_ensureRightProps`
+        // and assert against `$$Props` (with non-`let` exports `& `-joined in).
+        // Reference: ExportedNames.ts createPropsStr uses$$Props branch.
+        if self.uses_dollar_props_type && is_ts {
+            let type_entry = |en: &str, info: &ExportedNameInfo| -> String {
+                let optional = if info.has_default || !info.is_let { "?" } else { "" };
+                match &info.type_annotation {
+                    Some(ta) => format!("{}{}: {}", en, optional, ta),
+                    None => format!("{}{}: typeof {}", en, optional, info.local_name),
+                }
+            };
+            let lets: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| info.is_let)
+                .map(|(en, info)| type_entry(en, info))
+                .collect();
+            let others: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| !info.is_let)
+                .map(|(en, info)| type_entry(en, info))
+                .collect();
+            let others_prefix = if others.is_empty() {
+                String::new()
+            } else {
+                format!("{{{}}} & ", others.join(","))
+            };
+            return format!(
+                "{{ ...__sveltets_2_ensureRightProps<{{{}}}>(__sveltets_2_any(\"\") as $$Props)}} as {}$$Props",
+                lets.join(","),
+                others_prefix
+            );
         }
         // In JS (non-TS) files the props object omits the `as {…}` type assert
         // (`dontAddTypeDef`), so a captured leading JSDoc `/** @type {…} */` is
@@ -1063,6 +1101,8 @@ pub fn process_instance_script(
                         exported_names.has_slots_type = true;
                     } else if name == "$$Events" {
                         exported_names.has_events_type = true;
+                    } else if name == "$$Props" {
+                        exported_names.uses_dollar_props_type = true;
                     }
                     exported_names.instance_type_names.insert(name.clone());
                     if !is_special_type_name(&name) {
@@ -1088,6 +1128,8 @@ pub fn process_instance_script(
                         exported_names.has_slots_type = true;
                     } else if name == "$$Events" {
                         exported_names.has_events_type = true;
+                    } else if name == "$$Props" {
+                        exported_names.uses_dollar_props_type = true;
                     }
                     exported_names.instance_type_names.insert(name.clone());
                     if !is_special_type_name(&name) {
