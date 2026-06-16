@@ -13,6 +13,7 @@
 //! precisely rather than emit wrong output.
 
 use oxc_ast::ast::*;
+use oxc_span::GetSpan;
 use oxc_syntax::operator::UnaryOperator;
 
 use crate::context::Context;
@@ -28,6 +29,74 @@ pub struct Printer<'opt> {
     /// Set by the first unsupported node encountered; printing continues so the
     /// harness gets a single representative miss per file.
     pub missing: Option<Unsupported>,
+    /// Source-order comments to interleave, and the cursor into them. esrap
+    /// threads comments positionally (leading before a node, trailing on a
+    /// node's last line) rather than attaching them to AST nodes.
+    comments: Vec<Cmt>,
+    comment_index: usize,
+    /// Byte offsets of each line start, for offset→line lookups when placing
+    /// comments. Empty when printing without comments.
+    line_starts: Vec<u32>,
+}
+
+/// Byte offsets at which each source line begins (line 1 starts at 0).
+pub fn line_starts(source: &str) -> Vec<u32> {
+    let mut starts = vec![0];
+    for (i, b) in source.bytes().enumerate() {
+        if b == b'\n' {
+            starts.push(i as u32 + 1);
+        }
+    }
+    starts
+}
+
+/// A comment to interleave, pre-resolved to byte offsets, 1-based line numbers,
+/// and its delimiter-stripped value (so [`Printer::write_comment`] can rebuild
+/// it exactly as esrap does, re-indenting multi-line block bodies).
+#[derive(Debug, Clone)]
+pub struct Cmt {
+    pub start: u32,
+    pub end: u32,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub block: bool,
+    pub value: String,
+}
+
+/// Resolve a program's oxc comments into [`Cmt`]s in source order. `source` is
+/// the text the program was parsed from (for the comment bodies + line numbers).
+pub fn build_comments(program: &Program<'_>, source: &str) -> Vec<Cmt> {
+    let starts = line_starts(source);
+    let line_of = |offset: u32| -> u32 {
+        // 1-based line: number of line starts <= offset.
+        starts.partition_point(|&s| s <= offset) as u32
+    };
+
+    program
+        .comments
+        .iter()
+        .map(|c| {
+            let (start, end) = (c.span.start, c.span.end);
+            let raw = &source[start as usize..end as usize];
+            let block = !matches!(c.kind, oxc_ast::ast::CommentKind::Line);
+            let value = if block {
+                raw.strip_prefix("/*")
+                    .and_then(|s| s.strip_suffix("*/"))
+                    .unwrap_or(raw)
+                    .to_string()
+            } else {
+                raw.strip_prefix("//").unwrap_or(raw).to_string()
+            };
+            Cmt {
+                start,
+                end,
+                start_line: line_of(start),
+                end_line: line_of(end),
+                block,
+                value,
+            }
+        })
+        .collect()
 }
 
 /// esrap's `EXPRESSIONS_PRECEDENCE`, keyed by oxc `Expression` kind. Higher
@@ -157,7 +226,143 @@ impl<'opt> Printer<'opt> {
         Self {
             options,
             missing: None,
+            comments: Vec::new(),
+            comment_index: 0,
+            line_starts: Vec::new(),
         }
+    }
+
+    /// A printer that interleaves `comments` (see [`build_comments`]).
+    /// `line_starts` is the table from [`line_starts`].
+    pub fn with_comments(
+        options: &'opt PrintOptions,
+        comments: Vec<Cmt>,
+        line_starts: Vec<u32>,
+    ) -> Self {
+        Self {
+            options,
+            missing: None,
+            comments,
+            comment_index: 0,
+            line_starts,
+        }
+    }
+
+    /// 1-based line of a byte offset (number of line starts at/before it).
+    fn line_of(&self, offset: u32) -> u32 {
+        self.line_starts.partition_point(|&s| s <= offset) as u32
+    }
+
+    // ----- comments ---------------------------------------------------------
+
+    /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
+    /// body across `newline`s so its interior re-indents to the current level.
+    fn write_comment(&mut self, cmt: &Cmt, ctx: &mut Context) {
+        if !cmt.block {
+            ctx.write(format!("//{}", cmt.value));
+            return;
+        }
+        ctx.write("/*");
+        let mut multiline = false;
+        for (i, line) in cmt.value.split('\n').enumerate() {
+            if i > 0 {
+                ctx.newline();
+                multiline = true;
+            }
+            ctx.write(line.to_string());
+        }
+        ctx.write("*/");
+        if multiline {
+            ctx.newline();
+        }
+    }
+
+    /// esrap's `flush_comments_until`: emit every pending comment that starts
+    /// before `to` (byte offset / `to_line`). The `from_line` margin rule adds a
+    /// blank line before a detached leading comment block.
+    fn flush_comments_until(
+        &mut self,
+        ctx: &mut Context,
+        to: u32,
+        to_line: u32,
+        from_line: Option<u32>,
+        pad: bool,
+    ) {
+        let mut first = true;
+        while self.comment_index < self.comments.len() {
+            let cmt = self.comments[self.comment_index].clone();
+            if cmt.start >= to {
+                break;
+            }
+            if first
+                && let Some(from_line) = from_line
+                && cmt.start_line > from_line
+            {
+                ctx.margin();
+                ctx.newline();
+            }
+            first = false;
+            self.write_comment(&cmt, ctx);
+            if cmt.end_line < to_line {
+                ctx.newline();
+            } else if pad {
+                ctx.write(" ");
+            }
+            self.comment_index += 1;
+        }
+    }
+
+    /// esrap's `flush_trailing_comments`: emit comments on the same line as a
+    /// node's end (`// trailing`), provided they fall before `next`.
+    fn flush_trailing_comments(
+        &mut self,
+        ctx: &mut Context,
+        prev_end_line: u32,
+        next: Option<u32>,
+    ) {
+        while self.comment_index < self.comments.len() {
+            let cmt = self.comments[self.comment_index].clone();
+            let fits = cmt.start_line == prev_end_line && next.is_none_or(|n| cmt.end < n);
+            if !fits {
+                break;
+            }
+            ctx.write(" ");
+            self.write_comment(&cmt, ctx);
+            self.comment_index += 1;
+            if cmt.block {
+                continue;
+            }
+            ctx.newline();
+            break;
+        }
+    }
+
+    /// esrap's `reset_comment_index`: re-sync the cursor to the first comment
+    /// at/after `node_start` (so a nested body doesn't replay earlier comments).
+    fn reset_comment_index(&mut self, node_start: u32) {
+        let cur = self.comments.get(self.comment_index);
+        let prev = self
+            .comment_index
+            .checked_sub(1)
+            .and_then(|i| self.comments.get(i));
+        let synced =
+            cur.is_some_and(|c| c.start >= node_start) && prev.is_none_or(|p| p.start < node_start);
+        if synced {
+            return;
+        }
+        self.comment_index = self
+            .comments
+            .iter()
+            .position(|c| c.start >= node_start)
+            .unwrap_or(self.comments.len());
+    }
+
+    /// The `_` wildcard's leading flush: emit comments positioned before `node`.
+    fn flush_leading(&mut self, ctx: &mut Context, node_start: u32, node_start_line: u32) {
+        if self.comments.is_empty() {
+            return;
+        }
+        self.flush_comments_until(ctx, node_start, node_start_line, None, true);
     }
 
     fn unsupported(&mut self, kind: &'static str, ctx: &mut Context) {
@@ -172,37 +377,66 @@ impl<'opt> Printer<'opt> {
     // ----- statements -------------------------------------------------------
 
     pub fn print_program(&mut self, program: &Program, ctx: &mut Context) {
-        self.body(&program.body, ctx);
+        let span = program.span();
+        self.body(&program.body, span.start, span.end, ctx);
     }
 
     /// esrap's `body`: statements on their own lines, with a blank line between
-    /// two multiline statements or a change of statement kind.
-    fn body(&mut self, statements: &[Statement], ctx: &mut Context) {
+    /// two multiline statements or a change of statement kind, interleaving
+    /// leading (before each statement), trailing (same-line), and end-of-body
+    /// comments. `body_end` is the byte offset that closes the body (program
+    /// end, or the `}` of a block).
+    fn body(
+        &mut self,
+        statements: &[Statement],
+        body_start: u32,
+        body_end: u32,
+        ctx: &mut Context,
+    ) {
+        let non_empty: Vec<&Statement> = statements
+            .iter()
+            .filter(|s| !matches!(s, Statement::EmptyStatement(_)))
+            .collect();
+        // Re-sync to the body's own start so a leading comment that precedes the
+        // first statement (e.g. a file header) isn't skipped over.
+        self.reset_comment_index(body_start);
+
         let mut prev: Option<(std::mem::Discriminant<Statement>, bool)> = None;
-        for stmt in statements {
-            if matches!(stmt, Statement::EmptyStatement(_)) {
-                continue;
-            }
+        for (i, stmt) in non_empty.iter().enumerate() {
             let mut child = ctx.child();
             self.print_statement(stmt, &mut child);
 
             if let Some((prev_disc, prev_multiline)) = prev {
-                if child.multiline || prev_multiline || std::mem::discriminant(stmt) != prev_disc {
+                if child.multiline || prev_multiline || std::mem::discriminant(*stmt) != prev_disc {
                     ctx.margin();
                 }
                 ctx.newline();
             }
             let multiline = child.multiline;
             ctx.append(child);
-            prev = Some((std::mem::discriminant(stmt), multiline));
+
+            let end_line = self.line_of(stmt.span().end);
+            let next = non_empty.get(i + 1).map(|s| s.span().start);
+            self.flush_trailing_comments(ctx, end_line, next);
+
+            prev = Some((std::mem::discriminant(*stmt), multiline));
         }
-        // A trailing newline closes the body (matches esrap when loc is present).
-        if !statements.is_empty() {
+
+        if !non_empty.is_empty() {
+            // A trailing newline closes the body (no-op at top level — nothing
+            // follows to flush it), then any comments after the last statement.
             ctx.newline();
+            if !self.comments.is_empty() {
+                let from_line = non_empty.last().map(|s| self.line_of(s.span().end));
+                self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
+            }
         }
     }
 
     fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context) {
+        // esrap's `_` wildcard: emit comments positioned before this node first.
+        let start = stmt.span().start;
+        self.flush_leading(ctx, start, self.line_of(start));
         match stmt {
             Statement::ExpressionStatement(s) => {
                 // esrap wraps a leading object/function-expression statement in
@@ -234,7 +468,10 @@ impl<'opt> Printer<'opt> {
                 }
                 ctx.write(";");
             }
-            Statement::BlockStatement(b) => self.block(&b.body, ctx),
+            Statement::BlockStatement(b) => {
+                let span = b.span();
+                self.block(&b.body, span.start, span.end, ctx)
+            }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
@@ -406,10 +643,10 @@ impl<'opt> Printer<'opt> {
     /// and only break it across lines when it has real content (so an empty body
     /// stays `{}`). The `Newline`s are idempotent flags, so body's trailing
     /// newline and the closing one collapse to a single line break before `}`.
-    fn block(&mut self, body: &[Statement], ctx: &mut Context) {
+    fn block(&mut self, body: &[Statement], body_start: u32, body_end: u32, ctx: &mut Context) {
         ctx.write("{");
         let mut child = ctx.child();
-        self.body(body, &mut child);
+        self.body(body, body_start, body_end, &mut child);
         if !child.empty() {
             ctx.indent();
             ctx.newline();
@@ -456,6 +693,9 @@ impl<'opt> Printer<'opt> {
     // ----- expressions ------------------------------------------------------
 
     fn print_expression(&mut self, expr: &Expression, ctx: &mut Context) {
+        // esrap's `_` wildcard: emit comments positioned before this node first.
+        let start = expr.span().start;
+        self.flush_leading(ctx, start, self.line_of(start));
         match expr {
             Expression::ParenthesizedExpression(p) => self.print_expression(&p.expression, ctx),
             Expression::ChainExpression(c) => match &c.expression {
@@ -904,6 +1144,62 @@ mod tests {
             "unsupported node: {missing:?} for {src:?}"
         );
         out
+    }
+
+    fn print_with_comments_ok(src: &str) -> String {
+        let allocator = Allocator::default();
+        let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
+        assert!(
+            ret.diagnostics.is_empty(),
+            "parse error: {:?}",
+            ret.diagnostics
+        );
+        let opts = PrintOptions::default();
+        let comments = build_comments(&ret.program, src);
+        let mut printer = Printer::with_comments(&opts, comments, line_starts(src));
+        let mut ctx = Context::new();
+        printer.print_program(&ret.program, &mut ctx);
+        let out = crate::command::print(&ctx.into_commands(), &opts.indent);
+        assert!(
+            printer.missing.is_none(),
+            "unsupported node: {:?}",
+            printer.missing
+        );
+        out
+    }
+
+    #[test]
+    fn comments_leading_line() {
+        assert_eq!(
+            print_with_comments_ok("// hi\nconst x = 1;"),
+            "// hi\nconst x = 1;"
+        );
+    }
+
+    #[test]
+    fn comments_leading_block() {
+        assert_eq!(
+            print_with_comments_ok("/* a */\nconst x = 1;"),
+            "/* a */\nconst x = 1;"
+        );
+    }
+
+    #[test]
+    fn comments_trailing_line() {
+        assert_eq!(
+            print_with_comments_ok("const x = 1; // tail"),
+            "const x = 1; // tail"
+        );
+    }
+
+    #[test]
+    fn comments_between_statements() {
+        // A comment before the second statement gets a blank line ahead of it
+        // (esrap's margin rule), because the statement it leads becomes multiline.
+        assert_eq!(
+            print_with_comments_ok("const a = 1;\n// c\nconst b = 2;"),
+            "const a = 1;\n\n// c\nconst b = 2;"
+        );
     }
 
     #[test]
