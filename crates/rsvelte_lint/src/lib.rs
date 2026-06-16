@@ -23,6 +23,9 @@ pub mod context;
 pub mod diagnostic;
 pub mod engine;
 pub mod line_index;
+// `--print-eslint-config` / `--list-rules`: builds on `registered_rule_metas`
+// (which chains the native-only source-scan meta rules), so it is native-only.
+#[cfg(feature = "native")]
 pub mod presets;
 pub mod registry;
 pub mod rule;
@@ -30,7 +33,10 @@ pub mod rules;
 pub mod scope;
 pub mod script;
 pub mod suppression;
+// Source-scan helpers used only by the native-only meta rules above.
+#[cfg(feature = "native")]
 pub mod svelte_scan;
+pub mod type_backend;
 pub mod visitor;
 
 // `--config-from-eslint` importer (OXC). Excluded from the wasm build.

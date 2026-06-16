@@ -442,9 +442,48 @@ identifier is recorded as a reference **without** `is_self_declaration`, so an
 unused-binding rule must exclude `declaration_start` or `scope_builder.rs` must
 set the self flag. Both are pinned by `scope.rs` tests.
 
+### Wave 3 — type-aware path — landed (Gate 0 realized)
+
+The typed path is now implemented and exercised end-to-end against a real
+`tsgo`, not just gated. Concretely:
+
+- **Forward span→TSX mapping (Gate 0 / Risk R1)** — implemented additively as
+  `MagicString::forward_segments()` (chunk-graph walk over verbatim regions),
+  surfaced as `Svelte2TsxResult::forward_map` + `map_offset_forward()`. Verified
+  byte-exact by `crates/rsvelte_core/tests/svelte2tsx_forward_map.rs`. For the
+  props rules we additionally inject a **universal anchor**
+  (`ReturnType<typeof $$render>["props"]`) into the overlay so the
+  fully-resolved props type is queryable without knowing the user's type name —
+  the emit-time-anchor approach the doc prescribed, robust to
+  extends/intersection/generics/imports.
+- **Type-backend seam** — `rsvelte_lint::type_backend::{TypeBackend, TypeFacts}`:
+  the type-aware rule logic lives in `rsvelte_lint` (so it is unit-tested against
+  a mock backend, corsa-free) and consumes `probe_props()` / `probe_expr(span)`.
+- **corsa/tsgo backend** — `crates/rsvelte_lint_types` (its OWN workspace; see its
+  Cargo.toml header) implements `TypeBackend` over a `corsa::ProjectSession`
+  driving `tsgo`. It is **not** a member of the root workspace because the
+  `corsa-bind` submodule is private (CI cannot clone it) and a path dep — even
+  optional — would break the default build. Built/tested locally only. This is
+  the doc's "fail-open in editor / gated spike, not in CI" stance made concrete.
+- **Rules wired** — `svelte/no-unused-props::diagnostics_typed` (extends /
+  intersection / generics / imported / nested object props) and
+  `svelte/no-navigation-without-resolve::diagnostics_typed` (the
+  `expressionIsAllowedType` `ResolvedPathname` / nullish check, threaded through
+  `is_value_allowed`). Both flipped to `type_aware: true`. Validated end-to-end
+  by `rsvelte_lint_types`'s `type_aware_e2e` / `nav_type_aware_e2e` tests.
+
+Remaining typed follow-ups (tracked, not blocking): `no-unused-props` options
+edge cases (`checkImportedTypes` symbol-origin tracking via `SymbolResponse.declarations`,
+`ignore*-patterns` exact ESLint semantics, the index-signature-unused message,
+`custom-config-combination`); `require-event-prefix` typed path for imported
+Props types (its local-type fixtures already pass syntactically); Gate 1
+serial-probe latency measurement; the warm-session daemon (Wave 4); the
+serial-probe concurrency bridge (R3); and CLI integration (the CLI cannot depend
+on the private backend, so type-aware linting runs via `rsvelte_lint_types`).
+
 ### Not yet started
 
 - **Scope rule port** — the ~19 plugin scope rules onto `scope.rs` (plumbing + R9 audit are done; the `scope_builder.rs` self-flag work above is the first task).
 - **`no-useless-mustaches`** — needs attribute-position mustache handling + the conditional autofix (string-escape classification, HTML-entity encoding).
 - Remaining Wave 1 tail: minimal **LSP** diagnostics path.
-- **Waves 3–5 (gated)** — the typed-rule spike (Gate 0/1, corsa), daemon/watch, and the `parseForESLint` compat shim remain as specified above; none are started, and the typed path stays gated behind the forward-anchor + serial-probe spikes.
+- **Waves 4–5 (gated)** — daemon/watch and the `parseForESLint` compat shim remain as specified above; the Gate-1 serial-probe latency measurement and the rayon→single-session concurrency bridge (R3) are still open.

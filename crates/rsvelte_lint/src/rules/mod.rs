@@ -7,7 +7,14 @@ pub mod button_has_type;
 pub mod comment_directive;
 pub mod consistent_selector_style;
 pub mod derived_has_same_inputs_outputs;
+// Source-scan "meta" rules: these run only in the native `runner::lint_source`
+// pipeline (they produce `rsvelte_core::svelte_check::Diagnostic` and use the
+// `compile`-based `validator`), never in the wasm `lint` export (which is
+// `run_native_rules`-only). Native-gated so the wasm build stays free of the
+// native-only `svelte_check` / `validator` deps.
+#[cfg(feature = "native")]
 pub mod experimental_require_slot_types;
+#[cfg(feature = "native")]
 pub mod experimental_require_strict_events;
 pub mod first_attribute_linebreak;
 pub mod html_closing_bracket_new_line;
@@ -59,6 +66,7 @@ pub mod no_trailing_spaces;
 pub mod no_unknown_style_directive_property;
 pub mod no_unnecessary_state_wrap;
 pub mod no_unused_class_name;
+#[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod no_unused_props;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
@@ -70,7 +78,9 @@ pub mod prefer_style_directive;
 pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
 pub mod require_each_key;
+#[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod require_event_dispatcher_types;
+#[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod require_event_prefix;
 pub mod require_optimized_style_attribute;
 pub mod require_store_callbacks_use_set_param;
@@ -81,7 +91,9 @@ pub mod shorthand_directive;
 pub mod sort_attributes;
 pub mod spaced_html_comment;
 pub mod store_refs;
+#[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod valid_compile;
 pub mod valid_each_key;
 pub mod valid_prop_names_in_kit_pages;
+#[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod valid_style_parse;

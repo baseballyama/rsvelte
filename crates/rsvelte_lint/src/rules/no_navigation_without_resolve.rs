@@ -14,9 +14,15 @@
 //! Each `goto`/`pushState`/`replaceState`/link can be turned off via options.
 
 use std::collections::{HashMap, HashSet};
+// `Path` + the `svelte_check` `Diagnostic` are only used by the native-only
+// `diagnostics_typed` (the type-aware path); the syntactic `Rule` below is wasm-safe.
+#[cfg(feature = "native")]
+use std::path::Path;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::ast::template::Root;
+#[cfg(feature = "native")]
+use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 use serde_json::Value;
 
 use crate::context::LintContext;
@@ -32,7 +38,7 @@ static META: RuleMeta = RuleMeta {
         runes_only: false,
         legacy_only: false,
     },
-    type_aware: false,
+    type_aware: true,
     docs: "Disallow navigation without resolve()",
     options_schema: Some(
         r#"{ "type": "object", "properties": {
@@ -323,15 +329,33 @@ fn expression_starts_with_fragment(expr: &Value) -> bool {
 }
 
 /// Core allow-check, mirroring upstream `isValueAllowed`.
+/// Predicate answering whether an expression's resolved TYPE makes it an
+/// allowed navigation target (a `$app/types` `ResolvedPathname`, or — when the
+/// position permits nullish — a `null`/`undefined` type). The native rule passes
+/// a `|_, _| false` stub (no type info); the type-aware path
+/// ([`diagnostics_typed`]) backs it with a checker probe. This is upstream's
+/// `expressionIsAllowedType`.
+type AllowedTypeFn<'a> = dyn Fn(&Value, AllowConfig) -> bool + 'a;
+
 fn is_value_allowed(
     expr: &Value,
     config: AllowConfig,
     im: &Imports,
     var_inits: &HashMap<String, Value>,
+    allowed_type: &AllowedTypeFn,
     depth: u32,
 ) -> bool {
     if depth > 64 {
         return false;
+    }
+
+    // The expression's own resolved TYPE (checker-backed; stubbed in the native
+    // path) is checked first, so an identifier/member typed as `ResolvedPathname`
+    // (or nullish) is recognized before any syntactic var-init resolution
+    // rewrites it to its initializer. Mirrors upstream calling
+    // `expressionIsAllowedType` on the original node.
+    if allowed_type(expr, config) {
+        return true;
     }
 
     // Identifier: try resolving variable init, then fall through to other checks.
@@ -340,17 +364,20 @@ fn is_value_allowed(
         // `undefined` is handled below via expressionIsNullish, but resolve it
         // here via var_inits first if there's a shadowing declaration.
         if let Some(init) = var_inits.get(name) {
-            return is_value_allowed(init, config, im, var_inits, depth + 1);
+            return is_value_allowed(init, config, im, var_inits, allowed_type, depth + 1);
         }
-        // No known init — fall through to the nullish / resolve checks below.
+        // No known init — fall through to the nullish / resolve / type checks.
     }
 
     // ConditionalExpression: BOTH branches must be allowed.
     if node_type(expr) == Some("ConditionalExpression") {
         let cons = expr.get("consequent");
         let alt = expr.get("alternate");
-        return cons.is_some_and(|c| is_value_allowed(c, config, im, var_inits, depth + 1))
-            && alt.is_some_and(|a| is_value_allowed(a, config, im, var_inits, depth + 1));
+        return cons
+            .is_some_and(|c| is_value_allowed(c, config, im, var_inits, allowed_type, depth + 1))
+            && alt.is_some_and(|a| {
+                is_value_allowed(a, config, im, var_inits, allowed_type, depth + 1)
+            });
     }
 
     // Remaining checks (mirrors the big `if` in upstream):
@@ -482,65 +509,242 @@ fn call_kind(node: &Value, im: &Imports) -> Option<NavKind> {
     }
 }
 
-#[derive(Default)]
-pub struct NoNavigationWithoutResolve;
+/// Check an href attribute node. Returns true if the URL is not allowed.
+fn check_href(
+    attr: &Value,
+    config: AllowConfig,
+    im: &Imports,
+    var_inits: &HashMap<String, Value>,
+    allowed_type: &AllowedTypeFn,
+) -> bool {
+    let value = attr.get("value");
+    let Some(value) = value else { return false };
 
-impl NoNavigationWithoutResolve {
-    /// Check an href attribute node. Returns `Some((start, end))` of the
-    /// attribute node if the URL is not allowed (for reporting).
-    fn check_href(
-        &self,
-        attr: &Value,
-        config: AllowConfig,
-        im: &Imports,
-        var_inits: &HashMap<String, Value>,
-    ) -> bool {
-        let value = attr.get("value");
-        let Some(value) = value else { return false };
-
-        // Value is an array → `href="..."` (Text) or `href={...}` (ExpressionTag in array).
-        if let Some(arr) = value.as_array() {
-            let Some(first) = arr.first() else {
-                return false;
-            };
-            if node_type(first) == Some("Text") {
-                let data = first
-                    .get("data")
-                    .or_else(|| first.get("raw"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                // Static text: not allowed if not absolute and not fragment.
-                let text_allowed = (config.allow_absolute && url_is_absolute(data))
-                    || (config.allow_fragment && url_is_fragment(data));
-                return !text_allowed;
-            }
-            if node_type(first) == Some("ExpressionTag") {
-                return self.check_href_expr_tag(first, config, im, var_inits);
-            }
-            return false;
-        }
-
-        // Value is a single ExpressionTag → `href={...}`.
-        if node_type(value) == Some("ExpressionTag") {
-            return self.check_href_expr_tag(value, config, im, var_inits);
-        }
-
-        false
-    }
-
-    fn check_href_expr_tag(
-        &self,
-        expr_tag: &Value,
-        config: AllowConfig,
-        im: &Imports,
-        var_inits: &HashMap<String, Value>,
-    ) -> bool {
-        let Some(expr) = expr_tag.get("expression") else {
+    // Value is an array → `href="..."` (Text) or `href={...}` (ExpressionTag in array).
+    if let Some(arr) = value.as_array() {
+        let Some(first) = arr.first() else {
             return false;
         };
-        !is_value_allowed(expr, config, im, var_inits, 0)
+        if node_type(first) == Some("Text") {
+            let data = first
+                .get("data")
+                .or_else(|| first.get("raw"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            // Static text: not allowed if not absolute and not fragment.
+            let text_allowed = (config.allow_absolute && url_is_absolute(data))
+                || (config.allow_fragment && url_is_fragment(data));
+            return !text_allowed;
+        }
+        if node_type(first) == Some("ExpressionTag") {
+            return check_href_expr_tag(first, config, im, var_inits, allowed_type);
+        }
+        return false;
     }
+
+    // Value is a single ExpressionTag → `href={...}`.
+    if node_type(value) == Some("ExpressionTag") {
+        return check_href_expr_tag(value, config, im, var_inits, allowed_type);
+    }
+
+    false
 }
+
+fn check_href_expr_tag(
+    expr_tag: &Value,
+    config: AllowConfig,
+    im: &Imports,
+    var_inits: &HashMap<String, Value>,
+    allowed_type: &AllowedTypeFn,
+) -> bool {
+    let Some(expr) = expr_tag.get("expression") else {
+        return false;
+    };
+    !is_value_allowed(expr, config, im, var_inits, allowed_type, 0)
+}
+
+/// Collect navigation findings from the serialized component JSON. Shared by the
+/// native rule ([`NoNavigationWithoutResolve::check_root`], `allowed_type` =
+/// stub) and the type-aware path ([`diagnostics_typed`], `allowed_type` =
+/// checker-backed).
+fn collect_nav_reports(
+    json: &Value,
+    ignore_goto: bool,
+    ignore_links: bool,
+    ignore_push: bool,
+    ignore_replace: bool,
+    allowed_type: &AllowedTypeFn,
+) -> Vec<(u32, u32, &'static str)> {
+    let im = collect_imports(json);
+    let var_inits = collect_var_inits(json);
+    let mut reports: Vec<(u32, u32, &'static str)> = Vec::new();
+
+    walk_js(json, |node, _| match node_type(node) {
+        Some("CallExpression") => {
+            let kind = call_kind(node, &im);
+            let Some(kind) = kind else { return };
+            let args = node.get("arguments").and_then(Value::as_array);
+            let Some(arg0) = args.and_then(|a| a.first()) else {
+                return;
+            };
+            let is_spread = node_type(arg0) == Some("SpreadElement");
+            // goto: no allowEmpty; pushState/replaceState: allowEmpty.
+            let (not_allowed_goto, not_allowed_shallow) = if is_spread {
+                (true, true)
+            } else {
+                let basic = !is_value_allowed(
+                    arg0,
+                    AllowConfig::default(),
+                    &im,
+                    &var_inits,
+                    allowed_type,
+                    0,
+                );
+                let shallow = !is_value_allowed(
+                    arg0,
+                    AllowConfig {
+                        allow_empty: true,
+                        ..AllowConfig::default()
+                    },
+                    &im,
+                    &var_inits,
+                    allowed_type,
+                    0,
+                );
+                (basic, shallow)
+            };
+            let hit = match kind {
+                NavKind::Goto if !ignore_goto => not_allowed_goto.then_some(GOTO_MSG),
+                NavKind::Push if !ignore_push => not_allowed_shallow.then_some(PUSH_MSG),
+                NavKind::Replace if !ignore_replace => not_allowed_shallow.then_some(REPLACE_MSG),
+                _ => None,
+            };
+            if let Some(msg) = hit
+                && let Some((s, e)) = span(arg0)
+            {
+                reports.push((s, e, msg));
+            }
+        }
+        Some("RegularElement") if !ignore_links => {
+            if node.get("name").and_then(Value::as_str) != Some("a") {
+                return;
+            }
+            let attrs = node
+                .get("attributes")
+                .and_then(Value::as_array)
+                .map(|a| a.as_slice())
+                .unwrap_or(&[]);
+            if has_rel_external(attrs, &var_inits) {
+                return;
+            }
+            let link_config = AllowConfig {
+                allow_absolute: true,
+                allow_fragment: true,
+                allow_nullish: true,
+                allow_empty: false,
+            };
+            for attr in attrs {
+                if node_type(attr) == Some("Attribute")
+                    && attr.get("name").and_then(Value::as_str) == Some("href")
+                    && check_href(attr, link_config, &im, &var_inits, allowed_type)
+                    && let Some((s, e)) = span(attr)
+                {
+                    reports.push((s, e, LINK_MSG));
+                }
+            }
+        }
+        _ => {}
+    });
+
+    reports
+}
+
+/// Type-aware variant of the navigation rule: identical detection, but the
+/// `expressionIsAllowedType` predicate is backed by checker probes via
+/// `backend`, so a `goto`/`pushState`/`replaceState` argument or `<a href>`
+/// value typed as `$app/types` `ResolvedPathname` (or nullish, for links) is
+/// recognized as allowed. Unblocks the `*-resolved-pathname` / nullish fixtures.
+#[cfg(feature = "native")]
+pub fn diagnostics_typed(
+    source: &str,
+    file: &Path,
+    config: &crate::config::LintConfig,
+    backend: &mut dyn crate::type_backend::TypeBackend,
+) -> Vec<Diagnostic> {
+    let severity = config.resolve_code(META.name, META.default_severity);
+    if severity == Severity::Off {
+        return Vec::new();
+    }
+    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+        return Vec::new();
+    };
+    let li = crate::line_index::LineIndex::new(source);
+
+    let opts = config.options_for(META.name);
+    // The options are a variadic array; the conventional single options object
+    // is `options[0]`.
+    let opt0 = opts.and_then(|v| match v {
+        Value::Array(a) => a.first(),
+        other => Some(other),
+    });
+    let ignore = |key: &str| -> bool {
+        opt0.and_then(|o| o.get(key)).and_then(Value::as_bool) == Some(true)
+    };
+    let ignore_goto = ignore("ignoreGoto");
+    let ignore_links = ignore("ignoreLinks");
+    let ignore_push = ignore("ignorePushState");
+    let ignore_replace = ignore("ignoreReplaceState");
+
+    let backend = std::cell::RefCell::new(backend);
+    let reports = with_serialize_arena(&root.arena, || {
+        let Some(json) = serde_json::to_value(&root).ok() else {
+            return Vec::new();
+        };
+        // Probe only identifier / member expressions (where a branded/nullish
+        // type can live), and only the syntactic checks already failed.
+        let allowed_type = |expr: &Value, cfg: AllowConfig| -> bool {
+            if !matches!(
+                node_type(expr),
+                Some("Identifier") | Some("MemberExpression")
+            ) {
+                return false;
+            }
+            let Some((s, _)) = span(expr) else {
+                return false;
+            };
+            let Some(facts) = backend.borrow_mut().probe_expr(s) else {
+                return false;
+            };
+            if facts.type_text_contains("ResolvedPathname") {
+                return true;
+            }
+            cfg.allow_nullish && facts.is_nullish()
+        };
+        collect_nav_reports(
+            &json,
+            ignore_goto,
+            ignore_links,
+            ignore_push,
+            ignore_replace,
+            &allowed_type,
+        )
+    });
+
+    reports
+        .into_iter()
+        .map(|(s, e, msg)| Diagnostic {
+            file: file.to_path_buf(),
+            severity: crate::validator::to_dsev(severity),
+            range: crate::validator::range_from_byte(&li, s, e),
+            message: msg.to_string(),
+            code: Some(META.name.to_string()),
+            source: "svelte",
+        })
+        .collect()
+}
+
+#[derive(Default)]
+pub struct NoNavigationWithoutResolve;
 
 impl Rule for NoNavigationWithoutResolve {
     fn meta(&self) -> &'static RuleMeta {
@@ -552,90 +756,23 @@ impl Rule for NoNavigationWithoutResolve {
         else {
             return;
         };
-        let im = collect_imports(&json);
-        let var_inits = collect_var_inits(&json);
 
         let opts = ctx.option0();
         let ignore = |key: &str| -> bool {
             opts.and_then(|o| o.get(key)).and_then(Value::as_bool) == Some(true)
         };
-        let ignore_goto = ignore("ignoreGoto");
-        let ignore_links = ignore("ignoreLinks");
-        let ignore_push = ignore("ignorePushState");
-        let ignore_replace = ignore("ignoreReplaceState");
 
-        let mut reports: Vec<(u32, u32, &'static str)> = Vec::new();
-
-        walk_js(&json, |node, _| match node_type(node) {
-            Some("CallExpression") => {
-                let kind = call_kind(node, &im);
-                let Some(kind) = kind else { return };
-                let args = node.get("arguments").and_then(Value::as_array);
-                let Some(arg0) = args.and_then(|a| a.first()) else {
-                    return;
-                };
-                let is_spread = node_type(arg0) == Some("SpreadElement");
-                // goto: no allowEmpty; pushState/replaceState: allowEmpty.
-                let (not_allowed_goto, not_allowed_shallow) = if is_spread {
-                    (true, true)
-                } else {
-                    let basic = !is_value_allowed(arg0, AllowConfig::default(), &im, &var_inits, 0);
-                    let shallow = !is_value_allowed(
-                        arg0,
-                        AllowConfig {
-                            allow_empty: true,
-                            ..AllowConfig::default()
-                        },
-                        &im,
-                        &var_inits,
-                        0,
-                    );
-                    (basic, shallow)
-                };
-                let hit = match kind {
-                    NavKind::Goto if !ignore_goto => not_allowed_goto.then_some(GOTO_MSG),
-                    NavKind::Push if !ignore_push => not_allowed_shallow.then_some(PUSH_MSG),
-                    NavKind::Replace if !ignore_replace => {
-                        not_allowed_shallow.then_some(REPLACE_MSG)
-                    }
-                    _ => None,
-                };
-                if let Some(msg) = hit
-                    && let Some((s, e)) = span(arg0)
-                {
-                    reports.push((s, e, msg));
-                }
-            }
-            Some("RegularElement") if !ignore_links => {
-                if node.get("name").and_then(Value::as_str) != Some("a") {
-                    return;
-                }
-                let attrs = node
-                    .get("attributes")
-                    .and_then(Value::as_array)
-                    .map(|a| a.as_slice())
-                    .unwrap_or(&[]);
-                if has_rel_external(attrs, &var_inits) {
-                    return;
-                }
-                let link_config = AllowConfig {
-                    allow_absolute: true,
-                    allow_fragment: true,
-                    allow_nullish: true,
-                    allow_empty: false,
-                };
-                for attr in attrs {
-                    if node_type(attr) == Some("Attribute")
-                        && attr.get("name").and_then(Value::as_str) == Some("href")
-                        && self.check_href(attr, link_config, &im, &var_inits)
-                        && let Some((s, e)) = span(attr)
-                    {
-                        reports.push((s, e, LINK_MSG));
-                    }
-                }
-            }
-            _ => {}
-        });
+        // No type backend in the native walk: `expressionIsAllowedType` is a
+        // stub. The type-aware path is `diagnostics_typed`.
+        let no_types = |_: &Value, _: AllowConfig| false;
+        let reports = collect_nav_reports(
+            &json,
+            ignore("ignoreGoto"),
+            ignore("ignoreLinks"),
+            ignore("ignorePushState"),
+            ignore("ignoreReplaceState"),
+            &no_types,
+        );
 
         for (s, e, msg) in reports {
             ctx.report(s, e, msg);

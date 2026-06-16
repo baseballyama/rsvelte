@@ -118,6 +118,31 @@ pub struct Svelte2TsxResult {
     pub exported_names: ExportedNames,
     /// Events declared by the component.
     pub events: ComponentEvents,
+    /// Forward-mapping segments `(original_start, original_end, generated_start)`
+    /// for verbatim-copied (unedited) regions, in generated order. Lets a
+    /// type-aware consumer map an original Svelte byte offset forward to the
+    /// generated TSX offset for a `get_type_at_position` probe. See
+    /// [`crate::svelte2tsx::magic_string::MagicString::forward_segments`].
+    /// Empty unless the chunk graph yields verbatim regions; reflects the
+    /// pre-import-rewrite chunk layout.
+    pub forward_map: Vec<(u32, u32, u32)>,
+}
+
+impl Svelte2TsxResult {
+    /// Map an original Svelte source byte offset forward to the generated TSX
+    /// byte offset, using [`Self::forward_map`]. Returns `None` when the offset
+    /// falls in synthesized output (no verbatim copy) or outside every segment.
+    pub fn map_offset_forward(&self, original_offset: u32) -> Option<u32> {
+        // Segments are in generated order, not sorted by original offset
+        // (the emitter can move ranges), so a linear scan is required. The
+        // count is small (one per verbatim chunk) and lookups are few.
+        for &(o_start, o_end, g_start) in &self.forward_map {
+            if original_offset >= o_start && original_offset < o_end {
+                return Some(g_start + (original_offset - o_start));
+            }
+        }
+        None
+    }
 }
 
 // =============================================================================
@@ -2177,6 +2202,10 @@ pub fn svelte2tsx(
         })
         .to_json();
 
+    // Forward-mapping segments for verbatim regions, captured from the chunk
+    // graph (consistent with the source-map generation above).
+    let forward_map = str.forward_segments();
+
     let mut code = str.to_string();
 
     // Final post-pass: rewrite `../`-relative import specifiers in the
@@ -2196,6 +2225,7 @@ pub fn svelte2tsx(
         map: Some(source_map),
         exported_names,
         events,
+        forward_map,
     })
 }
 

@@ -4,7 +4,10 @@
 //! of day-one coverage comes from the validator wrap
 //! ([`validator`](crate::validator)), not from these.
 
-use crate::rule::{Rule, RuleMeta};
+use crate::rule::Rule;
+// `RuleMeta` is only referenced by the native-only meta-rule listing below.
+#[cfg(feature = "native")]
+use crate::rule::RuleMeta;
 use crate::rules::{
     button_has_type::ButtonHasType, no_at_debug_tags::NoAtDebugTags, no_at_html_tags::NoAtHtmlTags,
     no_companion_module::NoCompanionModuleShadow, no_dupe_else_if_blocks::NoDupeElseIfBlocks,
@@ -26,6 +29,7 @@ use crate::rules::{
 /// the ESLint-disable config, and the compat oracle all derive their rule
 /// universe from it, so a rule added to either registry is automatically
 /// surfaced everywhere (and subjected to upstream-fixture parity).
+#[cfg(feature = "native")]
 pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
     all_rules()
         .iter()
@@ -39,6 +43,7 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
 /// after the walk rather than via a per-node [`Rule`] hook (so they live outside
 /// [`all_rules`] / [`all_script_rules`]). Currently just `comment-directive`,
 /// whose unused-directive reporting is wired into [`crate::runner::lint_source`].
+#[cfg(feature = "native")]
 pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
     [
         &crate::rules::comment_directive::META,
