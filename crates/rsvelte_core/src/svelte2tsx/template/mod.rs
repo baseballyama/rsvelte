@@ -2791,6 +2791,22 @@ fn handle_component(
     // Restored at the end for following siblings.
     let saved_outer_slot = counter.slot_inst.take();
 
+    // Nested named-slot routing: a static `slot="x"` component reached through a
+    // parent component's default-slot body (e.g. inside `{#if}` / `{#each}`) is
+    // wrapped in the parent's `$$slot_def["x"]` block — same as the direct-child
+    // path, mirroring how `handle_regular_element` routes nested slotted elements.
+    // The `named_slot_component_close` guard avoids re-entering when we are
+    // already the routed inner `handle_component` call.
+    if !counter.named_slot_component_close
+        && let Some(ref inst) = saved_outer_slot
+        && get_slot_attr_value(&comp.attributes, source).is_some()
+    {
+        let inst = inst.clone();
+        handle_named_slot_component(comp, &inst, source, options, str, counter, depth);
+        counter.slot_inst = saved_outer_slot;
+        return;
+    }
+
     // When processed as a named-slot child, suppress the component-name
     // reference at the close (the caller emits it outside this component's block).
     let named_slot_close = std::mem::take(&mut counter.named_slot_component_close);
@@ -2879,7 +2895,10 @@ fn handle_component(
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
 
     // Build attribute/props segments (excluding on: and let: directives).
-    let mut attr_segs = build_component_props_segments(&comp.attributes, source);
+    // When this component is named-slot-routed (`named_slot_close`), its static
+    // `slot="…"` attribute is consumed by the `$$slot_def[…]` wrapper, so drop it
+    // from the props object; otherwise (root, or dynamic `slot={…}`) keep it.
+    let mut attr_segs = build_component_props_segments(&comp.attributes, source, named_slot_close);
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     let attrs_empty_before_pad = segs_is_empty(&attr_segs);
@@ -4860,7 +4879,11 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
 /// shape — single value-or-empty leading space, `let:` spacers — but
 /// surfaces every expression as a `Seg::Src` so the eventual
 /// `emit_segmented_overwrite` keeps the per-character source map.
-fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec<Seg> {
+fn build_component_props_segments(
+    attributes: &[Attribute],
+    source: &str,
+    drop_slot: bool,
+) -> Vec<Seg> {
     let mut inner: Vec<Seg> = Vec::new();
     let mut has_on_directives = false;
     let mut let_count = 0u32;
@@ -4877,7 +4900,11 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
     for attr in attributes {
         match attr {
             Attribute::Attribute(node) => {
-                if node.name == "slot" {
+                // `slot="foo"` stays a normal `slot` prop on the component
+                // EXCEPT when the component is being named-slot-routed by its
+                // parent (static `slot=` inside a parent component), where the
+                // attribute is consumed by the `$$slot_def[...]` wrapper.
+                if node.name == "slot" && drop_slot {
                     continue;
                 }
                 // is_element=false: --* attrs get __sveltets_2_cssProp wrapping
