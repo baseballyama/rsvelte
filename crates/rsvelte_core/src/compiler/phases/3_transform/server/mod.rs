@@ -7,6 +7,7 @@
 pub(crate) mod await_save_ast;
 pub mod bridge;
 pub mod build;
+pub(crate) mod derived_reads_ast;
 pub(crate) mod esrap_layout;
 pub(crate) mod evaluate;
 pub mod helpers;
