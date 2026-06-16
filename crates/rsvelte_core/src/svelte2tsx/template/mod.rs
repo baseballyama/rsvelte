@@ -6186,6 +6186,25 @@ fn find_opening_tag_end(source: &str, start: u32, element_end: u32) -> u32 {
                 }
             }
             None => {
+                // Inside an expression value (`{ … }`), skip JS comments so a
+                // quote within them (`// don't` / `/* don't */`) doesn't start a
+                // fake string and throw off the brace tracking — which would make
+                // this return the wrong `>` and overwrite past the tag.
+                if brace_depth > 0 && ch == b'/' && i + 1 < end {
+                    if bytes[i + 1] == b'/' {
+                        while i < end && bytes[i] != b'\n' {
+                            i += 1;
+                        }
+                        continue;
+                    } else if bytes[i + 1] == b'*' {
+                        i += 2;
+                        while i + 1 < end && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                            i += 1;
+                        }
+                        i += 2; // skip the closing `*/`
+                        continue;
+                    }
+                }
                 if ch == b'"' || ch == b'\'' || ch == b'`' {
                     in_string = Some(ch);
                 } else if ch == b'{' {

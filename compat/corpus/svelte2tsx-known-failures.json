@@ -1,7 +1,6 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2023-03-09-zero-config-type-safety.md/8.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/search/+page.svelte",
-	"svelte.dev/packages/repl/src/lib/Editor/Editor.svelte",
 	"svelte.dev/packages/repl/src/lib/Input/ComponentSelector.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte",
