@@ -4728,10 +4728,10 @@ fn inject_store_subscriptions_with_program(
 
     collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
 
-    // Order the store-subscription declarations by first `$store` use in source
-    // (official emits them in walk order), not alphabetically. Dedup preserving
-    // that order.
-    import_store_names.sort_by_key(|n| source.find(&format!("${}", n)).unwrap_or(usize::MAX));
+    // Official `attachStoreValueDeclarationOfImportsToRenderFn` iterates
+    // `importStatements` in IMPORT-DECLARATION order (not first-`$store`-use
+    // order), which is exactly the collection order here (instance imports in
+    // program order, then module imports). Just dedup preserving that order.
     {
         let mut seen = std::collections::HashSet::new();
         import_store_names.retain(|n| seen.insert(n.clone()));
