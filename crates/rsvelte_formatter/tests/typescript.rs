@@ -276,3 +276,27 @@ fn plain_script_valid_js_is_untouched_by_fallback() {
         "{out}"
     );
 }
+
+#[test]
+fn const_tag_inline_not_overbroken() {
+    // Regression for #973 fix: `{@const}` bodies that fit must stay inline
+    // (oxfmt/prettier keeps them on one line). The const-declaration parse path
+    // must not double-count the `const ;` wrapper against the width budget.
+    let src = "{#each xs as post, i}\n  {@const show_comma = post.authors.length > 2 && i < post.authors.length - 1}\n{/each}\n";
+    let out =
+        rsvelte_formatter::format(src, &rsvelte_formatter::FormatOptions::default()).expect("ok");
+    assert!(
+        out.contains(
+            "{@const show_comma = post.authors.length > 2 && i < post.authors.length - 1}"
+        ),
+        "const tag was wrongly broken:\n{out}"
+    );
+
+    let src2 = "{#if box}\n  {@const { area, volume } = calculate(box.width, box.height, constant)}\n{/if}\n";
+    let out2 =
+        rsvelte_formatter::format(src2, &rsvelte_formatter::FormatOptions::default()).expect("ok");
+    assert!(
+        out2.contains("{@const { area, volume } = calculate(box.width, box.height, constant)}"),
+        "destructuring const tag was wrongly broken:\n{out2}"
+    );
+}

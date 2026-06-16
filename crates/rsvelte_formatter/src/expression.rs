@@ -1405,10 +1405,14 @@ fn format_const_declaration(
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
     let full_width = options.js.line_width.value() as usize;
-    // Narrow by the markup lead plus the `{@const ` prefix + closing `}` so a
-    // break decision lands where it will once the declaration is spliced back
-    // into the tag.
-    let narrowed = full_width.saturating_sub(lead + "{@const ".len() + 1);
+    // Narrow so the JS formatter's break decision lands where it will once the
+    // declaration is spliced back into the tag. The body is measured by the JS
+    // formatter as `const <body>;`, which already accounts for `const ` (6) +
+    // `;` (1); the real rendered affixes are `{@const ` (8) + `}` (1). So beyond
+    // the markup `lead`, only the affix delta `(8 - 6) + (1 - 1) = 2` must be
+    // subtracted — subtracting the full `{@const }` width here would
+    // double-count `const ;` and wrongly break tags that fit inline.
+    let narrowed = full_width.saturating_sub(lead + 2);
     let line_width =
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
 
