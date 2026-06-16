@@ -69,6 +69,12 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `ts` field in JavaScript Parser.
     pub(crate) ts: bool,
+    /// Parse `<script>` content as TypeScript even without `lang="ts"`, WITHOUT
+    /// affecting template-expression parsing. Used by the svelte2tsx pipeline,
+    /// which (like official svelte2tsx on acorn-typescript) always parses scripts
+    /// TS-aware while keeping template expressions (e.g. snippet params)
+    /// lang-respecting. The compiler leaves this `false`.
+    pub(crate) script_ts: bool,
     /// Whether attributes are currently being parsed for a top-level
     /// `<script>` / `<style>` tag. Upstream reads these with
     /// `read_static_attribute` (element.js `is_top_level_script_or_style`),
@@ -192,6 +198,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             pending_leading_comments: Vec::new(),
             ts,
+            script_ts: false,
             in_root_script_or_style: false,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
@@ -226,6 +233,7 @@ impl<'a> Parser<'a> {
         }
 
         self.ts = options.force_typescript || Self::detect_typescript_mode(source);
+        self.script_ts = false;
         self.in_root_script_or_style = false;
         self.instance_script = None;
         self.module_script = None;

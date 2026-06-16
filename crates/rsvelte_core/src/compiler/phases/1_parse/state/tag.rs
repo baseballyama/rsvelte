@@ -2024,19 +2024,14 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
 
-                // Check for invalid call patterns (apply, bind, call)
+                // `render_tag_invalid_call_expression` (snippet via `.apply`/
+                // `.bind`/`.call`) is an ANALYSIS-phase error in official Svelte
+                // (`2-analyze/visitors/RenderTag.js`), NOT a parse error — the
+                // parser accepts the call expression. Our `2_analyze/visitors/
+                // render_tag.rs` performs the precise AST-based check, so we must
+                // not reject it here at parse time (svelte2tsx, which only parses,
+                // would otherwise diverge from official by erroring).
                 let trimmed = expr_content.trim();
-                if memchr::memmem::find(trimmed.as_bytes(), b".apply(").is_some()
-                    || memchr::memmem::find(trimmed.as_bytes(), b".bind(").is_some()
-                    || memchr::memmem::find(trimmed.as_bytes(), b".call(").is_some()
-                {
-                    return Err(crate::error::ParseError::svelte(
-                        "render_tag_invalid_call_expression",
-                        "Calling a snippet function using apply, bind or call is not allowed",
-                        (expr_start, expr_start),
-                    ));
-                }
-
                 let expression = self.parse_js_expression(trimmed, expr_start);
 
                 Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {

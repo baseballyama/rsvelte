@@ -16,7 +16,6 @@ use oxc_ast::ast as oxc;
 use oxc_ast_visit::Visit;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
-use regex::Regex;
 
 use crate::ast::template::Script;
 
@@ -46,6 +45,8 @@ pub struct ExportedNames {
     pub bindable_props: Vec<String>,
     /// JSDoc type text found before $props() (e.g., "{{ a: number, b: string }}")
     pub props_jsdoc_type: Option<String>,
+    /// Whether a legacy `type $$Props` / `interface $$Props` is declared.
+    pub uses_dollar_props_type: bool,
     /// Whether `$$Slots` type/interface is declared in the script
     pub has_slots_type: bool,
     /// Whether `$$Events` type/interface is declared in the script
@@ -146,6 +147,7 @@ impl ExportedNames {
             has_component_props_typedef: false,
             bindable_props: Vec::new(),
             props_jsdoc_type: None,
+            uses_dollar_props_type: false,
             has_slots_type: false,
             has_events_type: false,
             type_already_inserted: false,
@@ -347,6 +349,45 @@ impl ExportedNames {
             }
             return format!("{{{}}}", entries.join(" , "));
         }
+        // Legacy `$$Props` type/interface (TS only): mirror official's
+        // `uses$$Props` branch — wrap the props in `__sveltets_2_ensureRightProps`
+        // and assert against `$$Props` (with non-`let` exports `& `-joined in).
+        // Reference: ExportedNames.ts createPropsStr uses$$Props branch.
+        if self.uses_dollar_props_type && is_ts {
+            let type_entry = |en: &str, info: &ExportedNameInfo| -> String {
+                let optional = if info.has_default || !info.is_let {
+                    "?"
+                } else {
+                    ""
+                };
+                match &info.type_annotation {
+                    Some(ta) => format!("{}{}: {}", en, optional, ta),
+                    None => format!("{}{}: typeof {}", en, optional, info.local_name),
+                }
+            };
+            let lets: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| info.is_let)
+                .map(|(en, info)| type_entry(en, info))
+                .collect();
+            let others: Vec<String> = self
+                .get_ordered()
+                .iter()
+                .filter(|(_, info)| !info.is_let)
+                .map(|(en, info)| type_entry(en, info))
+                .collect();
+            let others_prefix = if others.is_empty() {
+                String::new()
+            } else {
+                format!("{{{}}} & ", others.join(","))
+            };
+            return format!(
+                "{{ ...__sveltets_2_ensureRightProps<{{{}}}>(__sveltets_2_any(\"\") as $$Props)}} as {}$$Props",
+                lets.join(","),
+                others_prefix
+            );
+        }
         // In JS (non-TS) files the props object omits the `as {…}` type assert
         // (`dontAddTypeDef`), so a captured leading JSDoc `/** @type {…} */` is
         // emitted before the prop — mirrors official `createReturnElements`.
@@ -372,7 +413,15 @@ impl ExportedNames {
             }
         } else {
             let base = format!("{{{}}}", entries.join(" , "));
-            if is_ts {
+            // Mirror official `dontAddTypeDef` (ExportedNames.ts createPropsStr):
+            // omit the `as {…}` cast entirely when every export is untyped AND
+            // required — a plain `export let x` with no default and no type
+            // annotation (`required = !initializer`). A typed or defaulted /
+            // optional export (or any non-`let` export) forces the cast.
+            let dont_add_type_def = self.get_ordered().iter().all(|(_, info)| {
+                info.type_annotation.is_none() && info.is_let && !info.has_default
+            });
+            if is_ts && !dont_add_type_def {
                 // For TS files, add `as {name1?: type, ...}` type assertion
                 let type_entries: Vec<String> = self
                     .get_ordered()
@@ -831,10 +880,11 @@ pub fn process_instance_script(
         for (stmt_index, stmt) in program.body.iter().enumerate() {
             match stmt {
                 oxc::Statement::VariableDeclaration(var_decl) => {
-                    let is_let = matches!(
-                        var_decl.kind,
-                        oxc::VariableDeclarationKind::Let | oxc::VariableDeclarationKind::Var
-                    );
+                    // Mirror official `isLet = flags === NodeFlags.Let`: only a
+                    // `let` binding is a reactive prop. `var`/`const` are exports
+                    // (`export var x` / `export { v }` where `v` is var/const go
+                    // into the `exports:` return, not `props:`).
+                    let is_let = matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
@@ -879,6 +929,25 @@ pub fn process_instance_script(
                                     ),
                                 },
                             );
+                        } else {
+                            // Destructured bindings (`let { a, c } = …`) are not a
+                            // single simple name, but each name can still be
+                            // re-exported via `export { a, c }`. Record them as
+                            // possible exports so the specifier handler resolves
+                            // the correct `is_let` (a `let` destructure → prop).
+                            for name in &names {
+                                possible_exports.insert(
+                                    name.clone(),
+                                    PossibleExport {
+                                        is_let,
+                                        has_init: declarator.init.is_some(),
+                                        has_type_annotation: false,
+                                        decl_end: declarator.span.end,
+                                        type_annotation_text: None,
+                                        doc: None,
+                                    },
+                                );
+                            }
                         }
                     }
                 }
@@ -958,11 +1027,10 @@ pub fn process_instance_script(
                     if let Some(ref decl) = export.declaration {
                         match decl {
                             oxc::Declaration::VariableDeclaration(var_decl) => {
-                                let is_let = matches!(
-                                    var_decl.kind,
-                                    oxc::VariableDeclarationKind::Let
-                                        | oxc::VariableDeclarationKind::Var
-                                );
+                                // Only `let` is a reactive prop; `var`/`const` are
+                                // exports (mirror official isLet === NodeFlags.Let).
+                                let is_let =
+                                    matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                                 for declarator in var_decl.declarations.iter() {
                                     let names =
                                         extract_all_names_from_binding_pattern(&declarator.id);
@@ -1005,10 +1073,22 @@ pub fn process_instance_script(
                                 if let Some(ref id) = func.id {
                                     declared_names.insert(id.name.to_string());
                                 }
+                                // Runes inside an exported function body still
+                                // put the component in runes mode.
+                                if let Some(ref body) = func.body {
+                                    let scope = scope_with_params(&declared_names, &func.params);
+                                    if detect_rune_in_nested_body(&body.statements, &scope) {
+                                        exported_names.set_uses_runes(true);
+                                    }
+                                }
                             }
                             oxc::Declaration::ClassDeclaration(class) => {
                                 if let Some(ref id) = class.id {
                                     declared_names.insert(id.name.to_string());
+                                }
+                                // `export class C { x = $state(0) }` → runes mode.
+                                if detect_rune_in_class_body(class, &declared_names) {
+                                    exported_names.set_uses_runes(true);
                                 }
                             }
                             _ => {}
@@ -1022,6 +1102,8 @@ pub fn process_instance_script(
                         exported_names.has_slots_type = true;
                     } else if name == "$$Events" {
                         exported_names.has_events_type = true;
+                    } else if name == "$$Props" {
+                        exported_names.uses_dollar_props_type = true;
                     }
                     exported_names.instance_type_names.insert(name.clone());
                     if !is_special_type_name(&name) {
@@ -1047,6 +1129,8 @@ pub fn process_instance_script(
                         exported_names.has_slots_type = true;
                     } else if name == "$$Events" {
                         exported_names.has_events_type = true;
+                    } else if name == "$$Props" {
+                        exported_names.uses_dollar_props_type = true;
                     }
                     exported_names.instance_type_names.insert(name.clone());
                     if !is_special_type_name(&name) {
@@ -2616,10 +2700,8 @@ fn handle_export_named_decl(
         match decl {
             oxc::Declaration::VariableDeclaration(var_decl) => {
                 let kind = var_decl.kind;
-                let is_let = matches!(
-                    kind,
-                    oxc::VariableDeclarationKind::Var | oxc::VariableDeclarationKind::Let
-                );
+                // Only `let` is a reactive prop; `var`/`const` are exports.
+                let is_let = matches!(kind, oxc::VariableDeclarationKind::Let);
                 let is_prop = is_instance && is_let;
                 let num_declarators = var_decl.declarations.len();
                 for (decl_idx, declarator) in var_decl.declarations.iter().enumerate() {
@@ -3312,8 +3394,29 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
             let scope = scope_with_params(declared_names, &func.params);
             detect_rune_in_nested_body(&body.statements, &scope)
         }),
+        // A `class` nested in a function/block body — its method bodies and
+        // field initializers can still reference rune globals (e.g.
+        // `function bar() { class Foo { foo = $state(0) } }`). Mirror the
+        // top-level ClassDeclaration scan.
+        oxc::Statement::ClassDeclaration(class) => detect_rune_in_class_body(class, declared_names),
         _ => false,
     }
+}
+
+/// Scan a class body's method bodies and property initializers for rune globals.
+fn detect_rune_in_class_body(class: &oxc::Class, declared_names: &HashSet<String>) -> bool {
+    class.body.body.iter().any(|member| match member {
+        oxc::ClassElement::MethodDefinition(method) => method
+            .value
+            .body
+            .as_ref()
+            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::ClassElement::PropertyDefinition(prop) => prop
+            .value
+            .as_ref()
+            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        _ => false,
+    })
 }
 
 /// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
@@ -3762,16 +3865,19 @@ fn collect_props_rune_info(
                 // (not a nested destructure, which is a non-identifier).
                 match &prop.value {
                     oxc::BindingPattern::AssignmentPattern(assign) => {
-                        if binding_pattern_simple_name(&assign.left).is_none() {
+                        let Some(local_name) = binding_pattern_simple_name(&assign.left) else {
                             // Complex binding (nested destructure) → unknown
                             has_unknown_props = true;
                             continue;
-                        }
+                        };
                         let inferred_type = infer_type_from_default(&assign.right, raw_content);
                         let (bindable, _) = is_bindable_call(&assign.right, raw_content);
                         prop_types.push((key.clone(), true, inferred_type));
                         if bindable {
-                            bindable_names.push(key);
+                            // The bindable marker statement uses the LOCAL binding
+                            // name, not the prop key: `{ count: definedCount =
+                            // $bindable() }` → `definedCount;`.
+                            bindable_names.push(local_name);
                         }
                     }
                     oxc::BindingPattern::BindingIdentifier(_) => {
@@ -4096,6 +4202,55 @@ fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
     Some(source[open..p].to_string())
 }
 
+/// True when the source has a `<script context="module">` / `<script module>` tag.
+fn has_module_script(source: &str) -> bool {
+    find_module_script_span(source).is_some()
+}
+
+/// Locate the module `<script>` tag, returning `(body_start, body_end)` — the
+/// byte range of its inner content (between `>` and `</script>`).
+fn find_module_script_span(source: &str) -> Option<(usize, usize)> {
+    let bytes = source.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = source[search..].find("<script") {
+        let tag_start = search + rel;
+        // Find the end of the opening tag `>`.
+        let gt = match source[tag_start..].find('>') {
+            Some(g) => tag_start + g,
+            None => return None,
+        };
+        let open_tag = &source[tag_start..gt];
+        // `module` either as a bare attribute or `context="module"` / `context='module'`.
+        let is_module = open_tag.contains("context=\"module\"")
+            || open_tag.contains("context='module'")
+            || open_tag
+                .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '=')
+                .any(|tok| tok == "module");
+        if is_module && !open_tag.starts_with("<scripts") {
+            let body_start = gt + 1;
+            let body_end = source[body_start..]
+                .find("</script")
+                .map(|e| body_start + e)
+                .unwrap_or(bytes.len());
+            return Some((body_start, body_end));
+        }
+        search = gt + 1;
+    }
+    None
+}
+
+/// Blank the inner content of the module `<script>` so a byte-level store scan
+/// never sees module-internal `$name` references.
+fn blank_module_script_body(source: &str, buf: &mut [u8]) {
+    if let Some((start, end)) = find_module_script_span(source) {
+        for b in &mut buf[start..end] {
+            if *b != b'\n' && *b != b'\r' {
+                *b = b' ';
+            }
+        }
+    }
+}
+
 fn collect_store_references(source: &str) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
@@ -4106,8 +4261,13 @@ fn collect_store_references(source: &str) -> HashSet<String> {
     // real reference (official builds stores from parsed expressions, never
     // comments), so e.g. a `<!-- … `$derived` … -->` migration-task comment
     // must not make a local `derived` variable look like a store subscription.
+    // The module script's own `$name` references are NOT auto-subscriptions —
+    // official `svelte2tsx` only runs the `Stores` walker over the instance
+    // script + template, never the module script body. So a `<script module>`
+    // that internally reads `$foo` must not make `foo` look like a store.
     let blanked;
-    let source: &str = if source.contains("<!--") {
+    let needs_blank = source.contains("<!--") || has_module_script(source);
+    let source: &str = if needs_blank {
         let mut buf = source.as_bytes().to_vec();
         let mut j = 0usize;
         while let Some(rel) = source[j..].find("<!--") {
@@ -4123,6 +4283,7 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             }
             j = end;
         }
+        blank_module_script_body(source, &mut buf);
         blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
         &blanked
     } else {
@@ -4175,10 +4336,91 @@ fn collect_store_references(source: &str) -> HashSet<String> {
             i = end;
             continue;
         }
+        // Rune-call exclusion (mirror `processInstanceScriptContent.ts` `is_rune`):
+        // `$props`/`$state`/`$derived` immediately called as `<name> = $state(…)`
+        // is the rune, not a store sub — but ONLY when the declared binding name
+        // includes the rune's base (`let state = $state()` → rune; `let count =
+        // $state()` → still a `state` store access).
+        if matches!(full, "$state" | "$props" | "$derived")
+            && next_non_ws_is_paren(bytes, end)
+            && is_self_named_rune_decl(source, bytes, pos, &full[1..])
+        {
+            i = end;
+            continue;
+        }
         stores.insert(source[next..end].to_string());
         i = end;
     }
     stores
+}
+
+/// True when the first non-whitespace byte at/after `from` is `(`.
+fn next_non_ws_is_paren(bytes: &[u8], from: usize) -> bool {
+    let mut k = from;
+    while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+        k += 1;
+    }
+    bytes.get(k) == Some(&b'(')
+}
+
+/// Approximates upstream's `ts.isVariableDeclaration(parent.parent) &&
+/// parent.parent.name.getText().includes(text.slice(1))`: walk back from the
+/// rune's `$` over `= ` to the binding pattern, and test whether that binding
+/// text contains the rune base name.
+fn is_self_named_rune_decl(source: &str, bytes: &[u8], dollar_pos: usize, base: &str) -> bool {
+    let mut k = dollar_pos;
+    while k > 0 && bytes[k - 1].is_ascii_whitespace() {
+        k -= 1;
+    }
+    if k == 0 || bytes[k - 1] != b'=' {
+        return false;
+    }
+    let eq = k - 1;
+    // Reject compound/comparison operators (`==`, `<=`, `+=`, …); a plain `=` only.
+    if eq > 0
+        && matches!(
+            bytes[eq - 1],
+            b'=' | b'!'
+                | b'<'
+                | b'>'
+                | b'+'
+                | b'-'
+                | b'*'
+                | b'/'
+                | b'%'
+                | b'&'
+                | b'|'
+                | b'^'
+                | b'~'
+        )
+    {
+        return false;
+    }
+    // Walk back to the declaration boundary, collecting the binding region.
+    let mut start = eq;
+    let mut depth = 0i32;
+    while start > 0 {
+        let c = bytes[start - 1];
+        match c {
+            b'}' | b']' | b')' => depth += 1,
+            b'{' | b'[' | b'(' => {
+                if depth == 0 {
+                    break;
+                }
+                depth -= 1;
+            }
+            b';' | b',' | b'\n' if depth == 0 => break,
+            _ => {}
+        }
+        start -= 1;
+    }
+    let lhs = source[start..eq].trim();
+    let lhs = lhs
+        .strip_prefix("let")
+        .or_else(|| lhs.strip_prefix("const"))
+        .or_else(|| lhs.strip_prefix("var"))
+        .unwrap_or(lhs);
+    lhs.contains(base)
 }
 
 /// Pre-pass: collect EVERY top-level declared binding name in the instance
@@ -4402,19 +4644,9 @@ fn inject_store_subscriptions_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
-    let mut accessed_stores = collect_store_references(source);
+    let accessed_stores = collect_store_references(source);
     if accessed_stores.is_empty() {
         return;
-    }
-
-    for stmt in program.body.iter() {
-        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-            for declarator in var_decl.declarations.iter() {
-                if let Some(rune_base_name) = detect_rune_variable(declarator) {
-                    accessed_stores.remove(&rune_base_name);
-                }
-            }
-        }
     }
 
     let mut import_store_names: Vec<String> = Vec::new();
@@ -4497,10 +4729,10 @@ fn inject_store_subscriptions_with_program(
 
     collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
 
-    // Order the store-subscription declarations by first `$store` use in source
-    // (official emits them in walk order), not alphabetically. Dedup preserving
-    // that order.
-    import_store_names.sort_by_key(|n| source.find(&format!("${}", n)).unwrap_or(usize::MAX));
+    // Official `attachStoreValueDeclarationOfImportsToRenderFn` iterates
+    // `importStatements` in IMPORT-DECLARATION order (not first-`$store`-use
+    // order), which is exactly the collection order here (instance imports in
+    // program order, then module imports). Just dedup preserving that order.
     {
         let mut seen = std::collections::HashSet::new();
         import_store_names.retain(|n| seen.insert(n.clone()));
@@ -4575,26 +4807,13 @@ fn collect_module_script_import_stores(
     if !source.contains("<script") {
         return;
     }
-    // Cache the regex once across calls. The previous implementation
-    // compiled it on every call, which was measurable overhead given the
-    // benchmark's 3000+ files.
-    use std::sync::LazyLock;
-    static MODULE_PATTERN: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"<script[^>]*context\s*=\s*["']module["'][^>]*>"#).unwrap());
-    let module_match = match MODULE_PATTERN.find(source) {
-        Some(m) => m,
+    // Locate the module script body. `find_module_script_span` matches BOTH
+    // `<script context="module">` and the Svelte 5 `<script module>` shorthand
+    // (the old regex only matched the `context=` form, so `<script module>`
+    // imports used as stores were never injected).
+    let (content_start, close_tag) = match find_module_script_span(source) {
+        Some(span) => span,
         None => return,
-    };
-
-    let content_start = module_match.end();
-
-    // Find </script> closing tag
-    let close_tag = match source[content_start..].find("</script>") {
-        Some(pos) => content_start + pos,
-        None => match source[content_start..].find("</Script>") {
-            Some(pos) => content_start + pos,
-            None => return,
-        },
     };
 
     let raw_content = &source[content_start..close_tag];
@@ -4654,19 +4873,9 @@ fn inject_store_subscriptions_vars_only_with_program(
     source: &str,
     str: &mut MagicString,
 ) {
-    let mut accessed_stores = collect_store_references(source);
+    let accessed_stores = collect_store_references(source);
     if accessed_stores.is_empty() {
         return;
-    }
-
-    for stmt in program.body.iter() {
-        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-            for declarator in var_decl.declarations.iter() {
-                if let Some(rune_base_name) = detect_rune_variable(declarator) {
-                    accessed_stores.remove(&rune_base_name);
-                }
-            }
-        }
     }
 
     for stmt in program.body.iter() {
@@ -4693,50 +4902,6 @@ fn inject_store_subscriptions_vars_only_with_program(
             }
         }
     }
-}
-
-/// Check if a variable declarator is a rune pattern like `let state = $state(0)`.
-///
-/// Returns the rune base name (e.g., "state" from "$state") if the pattern matches:
-/// 1. The initializer is a call to `$props`, `$state`, or `$derived`
-/// 2. The variable name contains the rune's base name (without `$`)
-///
-/// This mirrors the JS svelte2tsx logic that prevents rune calls from being
-/// treated as store accesses.
-fn detect_rune_variable(declarator: &oxc::VariableDeclarator) -> Option<String> {
-    let init = declarator.init.as_ref()?;
-    let call = match init {
-        oxc::Expression::CallExpression(call) => call,
-        _ => return None,
-    };
-    let callee_name = match &call.callee {
-        oxc::Expression::Identifier(id) => id.name.as_str(),
-        _ => return None,
-    };
-
-    // Only check the three rune names that the JS implementation checks
-    if !matches!(callee_name, "$props" | "$state" | "$derived") {
-        return None;
-    }
-
-    let rune_base = &callee_name[1..]; // Strip the '$' prefix
-
-    // Check if the variable declaration name contains the rune's base name
-    let decl_text = get_binding_pattern_text(&declarator.id);
-    if decl_text.contains(rune_base) {
-        Some(rune_base.to_string())
-    } else {
-        None
-    }
-}
-
-/// Get a textual representation of a binding pattern for rune detection.
-///
-/// For simple identifiers, returns the name.
-/// For destructuring patterns, returns a concatenation of all names.
-fn get_binding_pattern_text(pattern: &oxc::BindingPattern) -> String {
-    let names = extract_all_names_from_binding_pattern(pattern);
-    names.join(",")
 }
 
 /// Extract variable names from the body of a labeled statement (`$: name = ...`).
