@@ -91,7 +91,7 @@ fn single_pass(source: &str, store_subs: &[String], prop_store_names: &[String])
     MODULE_STORE_MEMBER_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

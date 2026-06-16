@@ -3729,7 +3729,7 @@ pub(super) fn transform_state_vars_ast(
         let source_type = SourceType::mjs();
         let parsed = Parser::new(alloc, script, source_type).parse();
 
-        if parsed.panicked || !parsed.errors.is_empty() {
+        if parsed.panicked || !parsed.diagnostics.is_empty() {
             // Parse error - fall back to text-based transform
             return None;
         }

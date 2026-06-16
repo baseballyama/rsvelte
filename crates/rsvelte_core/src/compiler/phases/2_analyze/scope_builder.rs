@@ -608,7 +608,7 @@ impl<'a> ScopeBuilder<'a> {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
             let ret = OxcParser::new(&alloc, content, source_type).parse();
-            if ret.errors.is_empty() {
+            if ret.diagnostics.is_empty() {
                 self.process_program(&ret.program);
             }
         });

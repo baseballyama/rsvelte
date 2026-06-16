@@ -54,17 +54,17 @@ smallvec = { version = "1.13", features = ["serde"] }
 rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
-oxc_allocator = "0.134"
-oxc_parser = "0.134"
-oxc_ast = { version = "0.134", features = ["serialize"] }
-oxc_span = "0.134"
-oxc_diagnostics = "0.134"
-oxc_codegen = "0.134"
-oxc_syntax = "0.134"
-oxc_semantic = "0.134"
+oxc_allocator = "0.136"
+oxc_parser = "0.136"
+oxc_ast = { version = "0.136", features = ["serialize"] }
+oxc_span = "0.136"
+oxc_diagnostics = "0.136"
+oxc_codegen = "0.136"
+oxc_syntax = "0.136"
+oxc_semantic = "0.136"
 
 # SPIKE: oxc_formatter is publish=false in oxc; pull via git from main HEAD
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "44ae845fe19d3700128e50e7e61d98c7a85f3f47" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
 
 # Error handling
 thiserror = "2.0"
@@ -112,7 +112,7 @@ console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
-oxc_ast_visit = "0.134"
+oxc_ast_visit = "0.136"
 
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]

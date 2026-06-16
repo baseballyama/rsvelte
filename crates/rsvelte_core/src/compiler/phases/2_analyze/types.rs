@@ -488,7 +488,7 @@ pub fn strip_typescript(source: &str) -> String {
     let parser = Parser::new(&allocator, source, source_type);
     let result = parser.parse();
 
-    if !result.errors.is_empty() {
+    if !result.diagnostics.is_empty() {
         // If parsing fails, return original source and let downstream handle errors
         return source.to_string();
     }
@@ -625,7 +625,7 @@ pub fn blank_typescript(source: &str) -> String {
     let parser = Parser::new(&allocator, source, source_type);
     let result = parser.parse();
 
-    if !result.errors.is_empty() {
+    if !result.diagnostics.is_empty() {
         return source.to_string();
     }
 

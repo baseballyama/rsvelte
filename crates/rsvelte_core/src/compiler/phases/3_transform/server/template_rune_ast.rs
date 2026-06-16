@@ -68,7 +68,7 @@ fn single_pass(source: &str) -> Option<String> {
         // shape OXC expects. `mjs()` is permissive enough; on parse
         // failure we just return None and the caller keeps the source.
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

@@ -56,7 +56,7 @@ pub fn transform_rest_prop_member_access_ast(
     MODULE_REST_PROP_MEMBER_ACCESS_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

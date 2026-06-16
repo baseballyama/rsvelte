@@ -42,7 +42,7 @@ fn extract(allocator: &Allocator, source: &str) -> Vec<(String, Severity)> {
     // (CJS `module.exports = [...]`) if the module parse errors.
     for source_type in [SourceType::mjs(), SourceType::cjs()] {
         let ret = Parser::new(allocator, source, source_type).parse();
-        if ret.errors.is_empty() {
+        if ret.diagnostics.is_empty() {
             let mut collector = Collector { rules: Vec::new() };
             collector.visit_program(&ret.program);
             return collector.rules;
