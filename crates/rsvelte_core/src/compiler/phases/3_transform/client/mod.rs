@@ -1013,20 +1013,9 @@ fn transform_client_with_visitors(
         }
     }
 
-    // Add $props.id() declaration if needed
-    // Reference: transform-client.js line 588
-    if let Some(ref props_id_name) = analysis.props_id {
-        // const id = $.props_id();
-        component_body.push(b::const_decl(
-            &context.arena,
-            props_id_name,
-            b::call(
-                &context.arena,
-                b::member_path(&context.arena, "$.props_id"),
-                vec![],
-            ),
-        ));
-    }
+    // (props_id is inserted at the very front of the component body at the end
+    // of assembly — see below. Upstream unshifts it last so it becomes the
+    // first line of the component, before `$.push`.)
 
     // Add CSS styles injection if needed
     if analysis.css.has_css && analysis.inject_styles {
@@ -1646,6 +1635,25 @@ fn transform_client_with_visitors(
                 },
             ));
         }
+    }
+
+    // Add $props.id() declaration at the very front of the component body.
+    // Reference: transform-client.js lines 577-580 — upstream unshifts this last,
+    // so it must be the first line of the component (needed for hydration), i.e.
+    // BEFORE `$.push(...)`.
+    if let Some(ref props_id_name) = analysis.props_id {
+        component_body.insert(
+            0,
+            b::const_decl(
+                &context.arena,
+                props_id_name,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.props_id"),
+                    vec![],
+                ),
+            ),
+        );
     }
 
     // Build component function parameters
