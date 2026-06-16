@@ -72,6 +72,13 @@ MINE="$(printf '%s\n' "$ALL_TARGETS" | awk -v s="$SHARD" -v t="$TOTAL" '(NR-1) %
 # Assemble a single cargo nextest invocation. `--test <name>` selects integration
 # targets; the `-p` set scopes them. Names are workspace-unique, so listing every
 # package the shard touches is unambiguous.
+#
+# Only integration-test *binaries* are partitioned here. The `--lib` / `--bins`
+# `#[cfg(test)]` unit tests run in their own `test-unit` job — folding them onto
+# one shard made that shard link its ~52 integration binaries *plus* every
+# crate's unit-test binary at once, and the extra concurrent links exhausted the
+# runner's memory (linker SIGBUS). Keeping the shards integration-only makes all
+# three uniform (~52 binaries each, the load shards 2/3 already linked cleanly).
 ARGS=""
 for name in $(printf '%s\n' "$MINE" | cut -f2); do
   ARGS="$ARGS --test $name"
@@ -80,22 +87,8 @@ for pkg in $(printf '%s\n' "$MINE" | cut -f1 | sort -u); do
   ARGS="$ARGS -p $pkg"
 done
 
-# Unit tests (`--lib` / `--bins` `#[cfg(test)]` modules) run once, on shard 1.
-# `--lib`/`--bins` apply to the selected `-p` packages, so shard 1 must scope
-# every workspace package to cover all crates' unit tests.
-if [ "$SHARD" -eq 1 ]; then
-  ARGS="$ARGS --lib --bins"
-  for pkg in $(
-    cargo metadata --no-deps --format-version 1 \
-      | jq -r '.packages[] | select(.targets[].kind | index("test")) | .name' | sort -u
-  ); do
-    case " $ARGS " in *" -p $pkg "*) : ;; *) ARGS="$ARGS -p $pkg" ;; esac
-  done
-fi
-
 echo "::group::Shard ${SHARD}/${TOTAL} selection"
 printf '%s\n' "$MINE"
-[ "$SHARD" -eq 1 ] && echo "(+ workspace --lib --bins unit tests)"
 echo "cargo nextest run --profile ci$ARGS -E '$RUN_FILTER'"
 echo "::endgroup::"
 

@@ -285,11 +285,13 @@ jobs:
         #
         # The script partitions the integration-test *binaries* across shards so
         # each compiles only its ~1/3 (the build, not the run, is the cost here —
-        # see the matrix comment and the script header). It also runs the lib /
-        # bin unit tests once (shard 1) and applies the dedicated-job exclusion
-        # filter. `generate_compatibility_report` is `#[ignore]`d (reporting-only)
-        # and covered by the `compatibility-report` job. nextest runs no doctests;
-        # this workspace has none.
+        # see the matrix comment and the script header) and applies the
+        # dedicated-job exclusion filter. `--lib` unit tests run in the separate
+        # `test-unit` job; the heavy fan-outs in `test-runtime` /
+        # `test-thread-safety` / `test-fmt-corpus`. `generate_compatibility_report`
+        # is `#[ignore]`d (reporting-only) and covered by the
+        # `compatibility-report` job. nextest runs no doctests; this workspace has
+        # none.
         run: bash scripts/ci/run-test-shard.sh ${{ matrix.shard }} 3
         timeout-minutes: 30
         env:
@@ -462,6 +464,51 @@ jobs:
         env:
           RUST_MIN_STACK: '33554432'
 
+  # The `--lib` (`#[cfg(test)]`) unit tests run here, isolated from the `test`
+  # shards (which now build integration-test *binaries* only — see
+  # scripts/ci/run-test-shard.sh). Folding the unit tests onto one shard made it
+  # build that shard's ~52 integration binaries *plus* every crate's unit-test
+  # binary at once, and the extra concurrent links exhausted the runner's memory
+  # (linker SIGBUS). A dedicated `--lib` job keeps the three shards uniform and
+  # links far fewer binaries here. `--bins` is intentionally omitted: no `[[bin]]`
+  # target has a `#[test]`, and `cargo clippy --all-targets` already compile-checks
+  # them. The unit tests are pure logic (no generated fixtures / Node / oxfmt), so
+  # — like test-thread-safety — only a shallow `svelte` submodule (build.rs version
+  # string) is needed.
+  test-unit:
+    name: Test unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: false
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          # Share (read-only) the `test` job's warm dependency cache.
+          shared-key: test
+          save-if: 'false'
+
+      - name: Run workspace unit tests
+        run: cargo nextest run --profile ci --lib
+        timeout-minutes: 15
+        env:
+          RUST_MIN_STACK: '33554432'
+
   # The two svelte.dev formatter-parity corpus tests (~100 s each: they format
   # every .svelte file + markdown code block from svelte.dev and diff against an
   # oxfmt oracle) are the bulk job's other long pole. Isolate them the same way:
@@ -549,7 +596,7 @@ jobs:
   # needs a protection-rule change. Fails if any of them failed or was cancelled.
   tests:
     name: Tests
-    needs: [test, test-runtime, test-thread-safety, test-fmt-corpus]
+    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -558,15 +605,17 @@ jobs:
         shell: bash
         env:
           BULK: ${{ needs.test.result }}
+          UNIT: ${{ needs.test-unit.result }}
           RUNTIME: ${{ needs.test-runtime.result }}
           THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
           FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
         run: |
           echo "test (shards): $BULK"
+          echo "test-unit: $UNIT"
           echo "test-runtime: $RUNTIME"
           echo "test-thread-safety: $THREAD_SAFETY"
           echo "test-fmt-corpus: $FMT_CORPUS"
-          if [[ "$BULK" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" ]]; then
+          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" ]]; then
             echo "::error::One or more test jobs did not succeed."
             exit 1
           fi
