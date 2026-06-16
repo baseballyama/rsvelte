@@ -124,6 +124,53 @@ fn non_ts_component_does_not_parse_ts_syntax() {
     );
 }
 
+// ─── #973: `{@const}` with a TypeScript type annotation ──────────────────
+//
+// A `{@const}` declaration is a `const` variable declaration with an optional
+// TS type annotation (`{@const _: never = x}`). The parity burndown (#906)
+// parsed the body as a bare assignment expression, which rejected the `: Type`
+// ("script parse failed"). Parsing it as a `const` declaration fixes that.
+
+#[test]
+fn const_tag_typed_annotation_round_trips() {
+    for markup in [
+        "<div>\n  {#if true}\n    {@const _: never = x}\n  {/if}\n</div>",
+        "<div>\n  {#if true}\n    {@const name: Type = value}\n  {/if}\n</div>",
+        "<div>\n  {#if true}\n    {@const n: number = 1}\n  {/if}\n</div>",
+    ] {
+        let out = fmt_ts(markup);
+        // Each typed declaration must survive verbatim (no annotation drop, no
+        // parse error).
+        let decl = markup
+            .lines()
+            .find(|l| l.contains("{@const"))
+            .unwrap()
+            .trim();
+        assert!(out.contains(decl), "expected `{decl}` from:\n{out}");
+    }
+}
+
+#[test]
+fn const_tag_typed_destructuring_round_trips() {
+    let out = fmt_ts("<div>\n  {#if true}\n    {@const { a, b }: Point = obj}\n  {/if}\n</div>");
+    assert!(out.contains("{@const { a, b }: Point = obj}"), "{out}");
+}
+
+#[test]
+fn const_tag_untyped_still_normalizes() {
+    // The fix must not regress untyped `{@const}` — quotes still normalize and
+    // the declaration round-trips in both JS and TS components.
+    let out = format(
+        "<div>\n  {#if true}\n    {@const foo = 'bar'}\n  {/if}\n</div>",
+        &FormatOptions::default(),
+    )
+    .expect("format ok");
+    assert!(out.contains("{@const foo = \"bar\"}"), "{out}");
+
+    let out_ts = fmt_ts("<div>\n  {#if true}\n    {@const y = x}\n  {/if}\n</div>");
+    assert!(out_ts.contains("{@const y = x}"), "{out_ts}");
+}
+
 // ─── #946: `>` inside a `generics` attribute value must not split the body ──
 
 #[test]
