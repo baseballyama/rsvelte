@@ -3626,7 +3626,10 @@ fn handle_named_slot_svelte_fragment(
     }
 
     str.overwrite(el.start, opening_tag_end, &opener);
-    process_fragment_inplace(&el.fragment, source, options, str, counter, depth);
+    // `<svelte:fragment slot=…>` emits its own `createElement("svelte:fragment")`,
+    // so it is an element nesting level — children (their `$$_<name><depth>`
+    // instance vars) are at depth + 1.
+    process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
     str.overwrite(closing_tag_start, el.end, " }}");
 }
 
