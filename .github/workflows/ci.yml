@@ -151,7 +151,18 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          submodules: true
+          submodules: false
+
+      # Shallow, selective submodule init instead of `submodules: true`: the
+      # shards only need `svelte` (build.rs version string + generated fixtures),
+      # `language-tools` (svelte2tsx + svelte-check golden tests), and
+      # `eslint-plugin-svelte` (the `eslint_plugin_oracle` fixtures; it soft-skips
+      # when absent, but we keep coverage). The big unused ones — typescript-go
+      # (~534 MB), vize, corsa-bind, and svelte.dev (only the now-removed
+      # fmt-corpus step read it) — are skipped, cutting checkout from ~45 s to
+      # ~15 s on the macOS runners.
+      - name: Checkout needed submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/eslint-plugin-svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
