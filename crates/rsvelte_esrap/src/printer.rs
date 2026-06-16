@@ -473,6 +473,7 @@ impl<'opt> Printer<'opt> {
                 self.block(&b.body, span.start, span.end, ctx)
             }
             Statement::FunctionDeclaration(f) => self.function(f, ctx),
+            Statement::ClassDeclaration(c) => self.class_node(c, ctx),
             Statement::IfStatement(s) => self.if_statement(s, ctx),
             Statement::ForStatement(s) => self.for_statement(s, ctx),
             Statement::WhileStatement(s) => {
@@ -603,10 +604,7 @@ impl<'opt> Printer<'opt> {
                 // No trailing `;` after a function declaration.
                 self.function(f, ctx);
             }
-            ExportDefaultDeclarationKind::ClassDeclaration(_) => {
-                self.unsupported("ClassDeclaration", ctx);
-                ctx.write(";");
-            }
+            ExportDefaultDeclarationKind::ClassDeclaration(c) => self.class_node(c, ctx),
             other => {
                 if let Some(expr) = other.as_expression() {
                     self.print_expression(unparen(expr), ctx);
@@ -650,6 +648,7 @@ impl<'opt> Printer<'opt> {
                 ctx.write(";");
             }
             Declaration::FunctionDeclaration(f) => self.function(f, ctx),
+            Declaration::ClassDeclaration(c) => self.class_node(c, ctx),
             _ => self.unsupported("Declaration", ctx),
         }
     }
@@ -679,6 +678,122 @@ impl<'opt> Printer<'opt> {
             }
             None => ctx.write("{}"),
         }
+    }
+
+    /// esrap's `ClassDeclaration|ClassExpression`: `class [id ][extends sup ]{…}`.
+    fn class_node(&mut self, node: &Class, ctx: &mut Context) {
+        ctx.write("class ");
+        if let Some(id) = &node.id {
+            ctx.write(id.name.as_str());
+            ctx.write(" ");
+        }
+        if let Some(super_class) = &node.super_class {
+            ctx.write("extends ");
+            self.child_with_parens(super_class, 19, ctx);
+            ctx.write(" ");
+        }
+        self.class_body(&node.body, ctx);
+    }
+
+    /// Lay out class members one-per-line, with a blank line between two
+    /// multiline members or a change of member kind (esrap's `body` rule).
+    fn class_body(&mut self, body: &ClassBody, ctx: &mut Context) {
+        ctx.write("{");
+        let mut child = ctx.child();
+        let mut prev: Option<(std::mem::Discriminant<ClassElement>, bool)> = None;
+        for element in &body.body {
+            if matches!(element, ClassElement::TSIndexSignature(_)) {
+                continue;
+            }
+            let mut member = child.child();
+            self.class_element(element, &mut member);
+            if let Some((prev_disc, prev_multiline)) = prev {
+                if member.multiline
+                    || prev_multiline
+                    || std::mem::discriminant(element) != prev_disc
+                {
+                    child.margin();
+                }
+                child.newline();
+            }
+            let multiline = member.multiline;
+            child.append(member);
+            prev = Some((std::mem::discriminant(element), multiline));
+        }
+        if !child.empty() {
+            ctx.indent();
+            ctx.newline();
+            ctx.append(child);
+            ctx.dedent();
+            ctx.newline();
+        }
+        ctx.write("}");
+    }
+
+    fn class_element(&mut self, element: &ClassElement, ctx: &mut Context) {
+        match element {
+            ClassElement::MethodDefinition(m) => self.method_definition(m, ctx),
+            ClassElement::PropertyDefinition(p) => self.property_definition(p, ctx),
+            ClassElement::StaticBlock(b) => {
+                ctx.write("static ");
+                let span = b.span();
+                self.block(&b.body, span.start, span.end, ctx);
+            }
+            _ => self.unsupported("ClassElement", ctx),
+        }
+    }
+
+    fn method_definition(&mut self, node: &MethodDefinition, ctx: &mut Context) {
+        if node.r#static {
+            ctx.write("static ");
+        }
+        match node.kind {
+            MethodDefinitionKind::Get => ctx.write("get "),
+            MethodDefinitionKind::Set => ctx.write("set "),
+            _ => {}
+        }
+        if node.value.r#async {
+            ctx.write("async ");
+        }
+        if node.value.generator {
+            ctx.write("*");
+        }
+        if node.computed {
+            ctx.write("[");
+            self.property_key(&node.key, ctx);
+            ctx.write("]");
+        } else {
+            self.property_key(&node.key, ctx);
+        }
+        ctx.write("(");
+        self.formal_parameters(&node.value.params, ctx);
+        ctx.write(")");
+        ctx.write(" ");
+        match &node.value.body {
+            Some(body) => {
+                let span = body.span();
+                self.block(&body.statements, span.start, span.end, ctx);
+            }
+            None => ctx.write("{}"),
+        }
+    }
+
+    fn property_definition(&mut self, node: &PropertyDefinition, ctx: &mut Context) {
+        if node.r#static {
+            ctx.write("static ");
+        }
+        if node.computed {
+            ctx.write("[");
+            self.property_key(&node.key, ctx);
+            ctx.write("]");
+        } else {
+            self.property_key(&node.key, ctx);
+        }
+        if let Some(value) = &node.value {
+            ctx.write(" = ");
+            self.print_expression(unparen(value), ctx);
+        }
+        ctx.write(";");
     }
 
     fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context) {
@@ -947,6 +1062,8 @@ impl<'opt> Printer<'opt> {
             Expression::AssignmentExpression(a) => self.assignment_expression(a, ctx),
             Expression::ConditionalExpression(c) => self.conditional_expression(c, ctx),
             Expression::ArrowFunctionExpression(a) => self.arrow_function(a, ctx),
+            Expression::FunctionExpression(f) => self.function(f, ctx),
+            Expression::ClassExpression(c) => self.class_node(c, ctx),
             Expression::AwaitExpression(a) => {
                 // `await ` + arg, parenthesised below await's precedence (17).
                 ctx.write("await ");
@@ -1635,6 +1752,17 @@ mod tests {
             print_ok("foo(a, () => { b(); });"),
             "foo(a, () => {\n\tb();\n});"
         );
+    }
+
+    #[test]
+    fn classes() {
+        assert_eq!(print_ok("class A {}"), "class A {}");
+        assert_eq!(print_ok("const C = class {};"), "const C = class {};");
+        assert_eq!(
+            print_ok("class A extends B { m() {} }"),
+            "class A extends B {\n\tm() {}\n}"
+        );
+        assert_eq!(print_ok("class A { x = 1; }"), "class A {\n\tx = 1;\n}");
     }
 
     #[test]
