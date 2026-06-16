@@ -4034,13 +4034,25 @@ fn handle_svelte_dynamic_element(
         .as_ref()
         .map(|v| format!("const {} = ", v))
         .unwrap_or_default();
+    // `class:`/`style:` directives lower to statements after the createElement
+    // (`class:active={x}` → ` x;`), same as a regular element.
+    let class_style_suffix = segs_to_string(
+        &build_class_style_directive_suffix_segments(&el.attributes, source),
+        source,
+    );
     // ` <var=>svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
     // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
     // when directives add an extra scope).
     let create = |attrs: &str| {
         format!(
-            " {}svelteHTML.createElement({}{}, {{{}}});{}{}",
-            element_var_decl, tag_text, actions_arg, attrs, directive_suffix, bind_suffix
+            " {}svelteHTML.createElement({}{}, {{{}}});{}{}{}",
+            element_var_decl,
+            tag_text,
+            actions_arg,
+            attrs,
+            directive_suffix,
+            class_style_suffix,
+            bind_suffix
         )
     };
     if is_self_closing {
