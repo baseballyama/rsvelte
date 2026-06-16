@@ -1091,6 +1091,50 @@ pub fn process_instance_script(
                                     exported_names.set_uses_runes(true);
                                 }
                             }
+                            // `export type X = ...` / `export interface X { ... }`.
+                            //
+                            // In TypeScript these are still TypeAliasDeclaration /
+                            // InterfaceDeclaration nodes (the `export` is just a
+                            // modifier), so official svelte2tsx
+                            // (`HoistableInterfaces.analyzeInstanceScriptNode`)
+                            // treats them exactly like their non-exported forms —
+                            // they become hoist candidates and `instance_type_names`
+                            // entries. OXC instead wraps them in an
+                            // `ExportNamedDeclaration`, so we have to unwrap and
+                            // register the inner declaration here. Without this an
+                            // exported type that another (hoisted) interface depends
+                            // on stays trapped inside `$$render()` and goes out of
+                            // scope (#963).
+                            //
+                            // The candidate span starts at the `export` keyword so
+                            // the modifier travels with the declaration when it is
+                            // moved above `$$render()`, preserving the component's
+                            // public type surface.
+                            oxc::Declaration::TSTypeAliasDeclaration(type_alias) => {
+                                let name = type_alias.id.name.to_string();
+                                exported_names.instance_type_names.insert(name.clone());
+                                if !is_special_type_name(&name) {
+                                    candidates.push(HoistCandidate {
+                                        name,
+                                        rel_start: export.span.start,
+                                        rel_end: type_alias.span.end,
+                                    });
+                                }
+                            }
+                            oxc::Declaration::TSInterfaceDeclaration(iface) => {
+                                let name = iface.id.name.to_string();
+                                exported_names.instance_type_names.insert(name.clone());
+                                if !is_special_type_name(&name) {
+                                    candidates.push(HoistCandidate {
+                                        name,
+                                        rel_start: export.span.start,
+                                        rel_end: iface.span.end,
+                                    });
+                                }
+                                if is_dts_mode {
+                                    rewrite_interface_to_type_dts(iface, raw_content, offset, str);
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -1310,13 +1354,39 @@ pub fn process_instance_script(
         // including the early-exit `if (!this.props_interface.name) return;`
         // — without a `$props()` typed annotation there's nothing for the
         // hoisted types to feed, so we leave them in place.
-        if props_rune_info.is_some() {
+        if let Some(ref info) = props_rune_info {
+            // Determine the props-interface for gating. Mirrors official
+            // `HoistableInterfaces.analyze$propsRune` / `moveHoistableInterfaces`:
+            // when the `$props()` annotation is a bare named reference
+            // (`: Props`), that interface IS the props interface; otherwise the
+            // synthetic `$$ComponentProps` (built from the inline annotation) is.
+            // Either way, NOTHING is hoisted unless the props interface itself is
+            // hoistable — see `resolve_hoistable_type_decls`.
+            let props_named_ref: Option<String> = if info.is_named_type_reference {
+                info.type_text.as_ref().map(|t| {
+                    // `Props` or `Props<T>` → root name `Props`.
+                    t.split(|ch: char| !is_ident_char_for_str(ch))
+                        .find(|s| !s.is_empty())
+                        .unwrap_or("")
+                        .to_string()
+                })
+            } else {
+                None
+            };
+            let props_inline_type: Option<&str> =
+                if info.is_named_type_reference || !info.has_type_annotation {
+                    None
+                } else {
+                    info.type_text.as_deref()
+                };
             resolve_hoistable_type_decls(
                 &candidates,
                 raw_content,
                 offset,
                 exported_names,
                 script_generic_names,
+                props_named_ref.as_deref(),
+                props_inline_type,
             );
         }
 
@@ -1994,6 +2064,13 @@ fn resolve_hoistable_type_decls(
     offset: u32,
     exported_names: &mut ExportedNames,
     script_generic_names: &HashSet<String>,
+    // Name of the props interface when `$props()` is annotated with a bare named
+    // reference (`: Props` → `Some("Props")`).
+    props_named_ref: Option<&str>,
+    // The inline `$props()` annotation text when it is NOT a bare named reference
+    // (e.g. `: { item: Wrapper<L> }`). Used to build the synthetic
+    // `$$ComponentProps` props-interface dependency set.
+    props_inline_type: Option<&str>,
 ) {
     if candidates.is_empty() {
         return;
@@ -2169,6 +2246,86 @@ fn resolve_hoistable_type_decls(
                 progress = true;
             }
         }
+    }
+
+    // Gate the entire move on the props interface being hoistable. Mirrors
+    // `HoistableInterfaces.moveHoistableInterfaces`, which only moves anything
+    // when `hoistable.has(this.props_interface.name)` — if the props interface
+    // can't be hoisted (e.g. it references a `<script generics=...>` parameter),
+    // NOTHING is moved and every type/interface stays inside `function
+    // $$render<...>()` so the generic parameters remain in scope (#964).
+    let props_interface_hoistable = if let Some(named) = props_named_ref {
+        // Bare `: Props` reference. The props interface is the candidate named
+        // `Props`; it's hoistable iff that candidate was promoted.
+        candidates
+            .iter()
+            .position(|c| c.name == named)
+            .map(|idx| hoistable[idx])
+            // A named ref that isn't a local candidate (e.g. an imported type)
+            // doesn't constrain hoisting — nothing of ours references a generic
+            // through it, so fall back to "hoistable" and let per-candidate
+            // analysis decide.
+            .unwrap_or(true)
+    } else if let Some(inline) = props_inline_type {
+        // Synthetic `$$ComponentProps` built from the inline annotation. It's
+        // hoistable iff every type dependency is a hoistable candidate (or an
+        // outside reference such as an import) AND it doesn't reference a
+        // `<script generics=...>` parameter and has no disallowed value deps.
+        let (value_deps, type_deps) = collect_type_body_deps(
+            inline,
+            &candidate_names,
+            // No self-name for the synthetic interface.
+            "",
+            // No own generics on the synthetic props interface.
+            &HashSet::new(),
+            &exported_names.instance_value_names,
+            &exported_names.instance_import_names,
+        );
+        let mut ok = true;
+        // Generic references make the synthetic props interface non-hoistable.
+        if !script_generic_names.is_empty() {
+            for g in script_generic_names.iter() {
+                if has_whole_ident(inline, g) {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        if ok {
+            for dep in &type_deps {
+                if let Some(idx) = candidates.iter().position(|c| &c.name == dep)
+                    && (blocked[idx] || !hoistable[idx])
+                {
+                    ok = false;
+                    break;
+                }
+                // A type dep that isn't a local candidate is an outside
+                // reference (import / global) — fine to reference from a hoisted
+                // declaration.
+            }
+        }
+        if ok {
+            for v in &value_deps {
+                let resolved: &str = v.strip_prefix('$').filter(|s| !s.is_empty()).unwrap_or(v);
+                let in_instance_value = exported_names.instance_value_names.contains(resolved);
+                let in_instance_import = exported_names.instance_import_names.contains(resolved);
+                let in_module = exported_names.module_value_names.contains(resolved)
+                    || exported_names.module_import_names.contains(resolved);
+                if in_instance_value && !in_instance_import && !in_module {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        ok
+    } else {
+        // Whole-object / untyped `$props()` — no props interface to gate on, so
+        // preserve the previous behaviour of hoisting per-candidate.
+        true
+    };
+
+    if !props_interface_hoistable {
+        return;
     }
 
     let raw_bytes = raw_content.as_bytes();
@@ -2693,7 +2850,19 @@ fn handle_export_named_decl(
 
         // For instance scripts: remove the 'export ' keyword (replace with space).
         // For module scripts: keep the 'export' keyword (it's a real module export).
-        if is_instance && decl_start > node_start {
+        //
+        // Type-only declarations (`export type X` / `export interface X`) are the
+        // exception: official svelte2tsx keeps their `export` keyword (they're
+        // moved verbatim by `HoistableInterfaces` and re-surface as part of the
+        // component's type API), so stripping it here would both diverge from
+        // upstream and, once the declaration is hoisted above `$$render()`,
+        // leave a dangling space. Skip the strip for those.
+        let is_type_only_decl = matches!(
+            decl,
+            oxc::Declaration::TSTypeAliasDeclaration(_)
+                | oxc::Declaration::TSInterfaceDeclaration(_)
+        );
+        if is_instance && !is_type_only_decl && decl_start > node_start {
             str.overwrite(node_start, decl_start, " ");
         }
 
