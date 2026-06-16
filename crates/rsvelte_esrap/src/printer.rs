@@ -473,6 +473,19 @@ impl<'opt> Printer<'opt> {
                 self.block(&b.body, span.start, span.end, ctx)
             }
             Statement::FunctionDeclaration(f) => self.function(f, ctx),
+            Statement::IfStatement(s) => self.if_statement(s, ctx),
+            Statement::ForStatement(s) => self.for_statement(s, ctx),
+            Statement::WhileStatement(s) => {
+                ctx.write("while (");
+                self.print_expression(unparen(&s.test), ctx);
+                ctx.write(") ");
+                self.print_statement(&s.body, ctx);
+            }
+            Statement::ThrowStatement(s) => {
+                ctx.write("throw ");
+                self.print_expression(unparen(&s.argument), ctx);
+                ctx.write(";");
+            }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
@@ -668,6 +681,121 @@ impl<'opt> Printer<'opt> {
         }
     }
 
+    fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context) {
+        ctx.write("if (");
+        self.print_expression(unparen(&node.test), ctx);
+        ctx.write(") ");
+        self.print_statement(&node.consequent, ctx);
+        if let Some(alternate) = &node.alternate {
+            ctx.write(" else ");
+            self.print_statement(alternate, ctx);
+        }
+    }
+
+    fn for_statement(&mut self, node: &ForStatement, ctx: &mut Context) {
+        ctx.write("for (");
+        if let Some(init) = &node.init {
+            match init {
+                ForStatementInit::VariableDeclaration(d) => self.variable_declaration(d, ctx),
+                _ => {
+                    if let Some(e) = init.as_expression() {
+                        self.print_expression(unparen(e), ctx);
+                    }
+                }
+            }
+        }
+        ctx.write("; ");
+        if let Some(test) = &node.test {
+            self.print_expression(unparen(test), ctx);
+        }
+        ctx.write("; ");
+        if let Some(update) = &node.update {
+            self.print_expression(unparen(update), ctx);
+        }
+        ctx.write(") ");
+        self.print_statement(&node.body, ctx);
+    }
+
+    fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
+        ctx.write("{");
+        let mut items: Vec<SeqItem> = node
+            .properties
+            .iter()
+            .map(|p| {
+                let mut child = ctx.child();
+                self.binding_property(p, &mut child);
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array: false,
+                }
+            })
+            .collect();
+        if let Some(rest) = &node.rest {
+            let mut child = ctx.child();
+            child.write("...");
+            self.binding_pattern(&rest.argument, &mut child);
+            let multiline = child.multiline;
+            items.push(SeqItem {
+                ctx: child,
+                multiline,
+                obj_or_array: false,
+            });
+        }
+        assemble_sequence(items, true, ",", true, ctx);
+        ctx.write("}");
+    }
+
+    fn binding_property(&mut self, node: &BindingProperty, ctx: &mut Context) {
+        if node.shorthand {
+            self.binding_pattern(&node.value, ctx);
+            return;
+        }
+        if node.computed {
+            ctx.write("[");
+            self.property_key(&node.key, ctx);
+            ctx.write("]: ");
+        } else {
+            self.property_key(&node.key, ctx);
+            ctx.write(": ");
+        }
+        self.binding_pattern(&node.value, ctx);
+    }
+
+    fn array_pattern(&mut self, node: &ArrayPattern, ctx: &mut Context) {
+        ctx.write("[");
+        let mut items: Vec<SeqItem> = node
+            .elements
+            .iter()
+            .map(|el| {
+                let mut child = ctx.child();
+                if let Some(pattern) = el {
+                    self.binding_pattern(pattern, &mut child);
+                }
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array: false,
+                }
+            })
+            .collect();
+        if let Some(rest) = &node.rest {
+            let mut child = ctx.child();
+            child.write("...");
+            self.binding_pattern(&rest.argument, &mut child);
+            let multiline = child.multiline;
+            items.push(SeqItem {
+                ctx: child,
+                multiline,
+                obj_or_array: false,
+            });
+        }
+        assemble_sequence(items, false, ",", true, ctx);
+        ctx.write("]");
+    }
+
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
     fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context) {
         let mut items: Vec<SeqItem> = params
@@ -772,8 +900,8 @@ impl<'opt> Printer<'opt> {
                 ctx.write(" = ");
                 self.print_expression(unparen(&a.right), ctx);
             }
-            BindingPattern::ObjectPattern(_) => self.unsupported("ObjectPattern", ctx),
-            BindingPattern::ArrayPattern(_) => self.unsupported("ArrayPattern", ctx),
+            BindingPattern::ObjectPattern(o) => self.object_pattern(o, ctx),
+            BindingPattern::ArrayPattern(a) => self.array_pattern(a, ctx),
         }
     }
 
@@ -977,55 +1105,66 @@ impl<'opt> Printer<'opt> {
 
     fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
         ctx.write("[");
-        let elems: Vec<Option<&Expression>> = node
+        let items: Vec<SeqItem> = node
             .elements
             .iter()
-            .map(|e| match e {
-                ArrayExpressionElement::SpreadElement(_) => None, // handled below
-                ArrayExpressionElement::Elision(_) => None,
-                _ => e.as_expression(),
+            .map(|el| {
+                let mut child = ctx.child();
+                match el {
+                    ArrayExpressionElement::SpreadElement(s) => {
+                        child.write("...");
+                        self.print_expression(unparen(&s.argument), &mut child);
+                    }
+                    ArrayExpressionElement::Elision(_) => {}
+                    _ => {
+                        if let Some(e) = el.as_expression() {
+                            self.print_expression(unparen(e), &mut child);
+                        }
+                    }
+                }
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array: false,
+                }
             })
             .collect();
-        // Only the simple (no spread/elision) case is wired for now.
-        if node.elements.iter().any(|e| {
-            matches!(
-                e,
-                ArrayExpressionElement::SpreadElement(_) | ArrayExpressionElement::Elision(_)
-            )
-        }) {
-            self.unsupported("ArraySpreadOrElision", ctx);
-        } else {
-            for (i, el) in elems.iter().enumerate() {
-                if i > 0 {
-                    ctx.write(", ");
-                }
-                if let Some(e) = el {
-                    self.print_expression(unparen(e), ctx);
-                }
-            }
-        }
+        assemble_sequence(items, false, ",", true, ctx);
         ctx.write("]");
     }
 
     fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context) {
-        if node.properties.is_empty() {
-            ctx.write("{}");
-            return;
-        }
-        ctx.write("{ ");
-        for (i, prop) in node.properties.iter().enumerate() {
-            if i > 0 {
-                ctx.write(", ");
-            }
-            match prop {
-                ObjectPropertyKind::ObjectProperty(p) => self.object_property(p, ctx),
-                ObjectPropertyKind::SpreadProperty(s) => {
-                    ctx.write("...");
-                    self.print_expression(unparen(&s.argument), ctx);
+        ctx.write("{");
+        let items: Vec<SeqItem> = node
+            .properties
+            .iter()
+            .map(|prop| {
+                let mut child = ctx.child();
+                let obj_or_array = match prop {
+                    ObjectPropertyKind::ObjectProperty(p) => {
+                        self.object_property(p, &mut child);
+                        matches!(
+                            unparen(&p.value),
+                            Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
+                        )
+                    }
+                    ObjectPropertyKind::SpreadProperty(s) => {
+                        child.write("...");
+                        self.print_expression(unparen(&s.argument), &mut child);
+                        false
+                    }
+                };
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array,
                 }
-            }
-        }
-        ctx.write(" }");
+            })
+            .collect();
+        assemble_sequence(items, true, ",", true, ctx);
+        ctx.write("}");
     }
 
     fn object_property(&mut self, prop: &ObjectProperty, ctx: &mut Context) {
@@ -1070,6 +1209,10 @@ impl<'opt> Printer<'opt> {
     }
 
     fn sequence_arguments(&mut self, args: &[Argument], ctx: &mut Context) {
+        // NOTE: call arguments use esrap's bespoke layout (the final argument can
+        // be multiline without forcing the others to wrap), which the generic
+        // `sequence` does not model — so this stays single-line for now. Wiring
+        // the proper call-arg layout is a follow-up.
         for (i, arg) in args.iter().enumerate() {
             if i > 0 {
                 ctx.write(", ");
@@ -1079,13 +1222,10 @@ impl<'opt> Printer<'opt> {
                     ctx.write("...");
                     self.print_expression(unparen(&s.argument), ctx);
                 }
-                _ => {
-                    if let Some(e) = arg.as_expression() {
-                        self.print_expression(unparen(e), ctx);
-                    } else {
-                        self.unsupported("Argument", ctx);
-                    }
-                }
+                _ => match arg.as_expression() {
+                    Some(e) => self.print_expression(unparen(e), ctx),
+                    None => self.unsupported("Argument", ctx),
+                },
             }
         }
     }
@@ -1422,6 +1562,31 @@ mod tests {
         assert_eq!(print_ok("new Foo(1, 2);"), "new Foo(1, 2);");
         assert_eq!(print_ok("x++;"), "x++;");
         assert_eq!(print_ok("--obj.count;"), "--obj.count;");
+    }
+
+    #[test]
+    fn control_flow() {
+        assert_eq!(print_ok("if (a) b; else c;"), "if (a) b; else c;");
+        assert_eq!(print_ok("while (a) b;"), "while (a) b;");
+        assert_eq!(
+            print_ok("for (let i = 0; i < n; i++) f();"),
+            "for (let i = 0; i < n; i++) f();"
+        );
+        assert_eq!(print_ok("throw new Error('x');"), "throw new Error('x');");
+    }
+
+    #[test]
+    fn destructuring_patterns() {
+        assert_eq!(print_ok("const { a, b: c } = o;"), "const { a, b: c } = o;");
+        assert_eq!(print_ok("const [x, y] = arr;"), "const [x, y] = arr;");
+        assert_eq!(
+            print_ok("const { a, ...rest } = o;"),
+            "const { a, ...rest } = o;"
+        );
+        assert_eq!(
+            print_ok("function f({ a = 1 }) {}"),
+            "function f({ a = 1 }) {}"
+        );
     }
 
     #[test]

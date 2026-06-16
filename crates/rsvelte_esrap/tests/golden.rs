@@ -23,7 +23,7 @@ use rsvelte_esrap::{PrintOptions, command, context::Context};
 
 /// The exact-match floor. Raise this as visitor coverage grows; CI fails if a
 /// change drops below it, so the printer can only get more conformant.
-const EXACT_FLOOR: usize = 33;
+const EXACT_FLOOR: usize = 56;
 
 fn samples_dir() -> Option<PathBuf> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
