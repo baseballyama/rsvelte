@@ -28,8 +28,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
+
+use super::super::shared::ast_rewrite::{self, Edit};
 
 thread_local! {
     static SSR_TEMPLATE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -46,59 +48,35 @@ pub fn transform_template_rune_ast(source: &str) -> Option<String> {
         return None;
     }
 
-    // Nested cases (`$state.snapshot($state.eager(x))`) need the
-    // outer rewrite to use the *already-rewritten* inner text.
-    // Same fixed-point strategy as the other AST helpers.
-    let mut current: Option<String> = None;
-    loop {
-        let src = current.as_deref().unwrap_or(source);
-        match single_pass(src) {
-            None => break,
-            Some(rewritten) => current = Some(rewritten),
-        }
-    }
-    current
-}
-
-fn single_pass(source: &str) -> Option<String> {
-    SSR_TEMPLATE_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        // Template expressions don't have module-level imports/exports
-        // syntax inside them, but parsing them as a Program is the
-        // shape OXC expects. `mjs()` is permissive enough; on parse
-        // failure we just return None and the caller keeps the source.
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = TemplateRuneCollector {
-            source,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
+    // Nested cases (`$state.snapshot($state.eager(x))`) need the outer
+    // rewrite to use the *already-rewritten* inner text — the shared
+    // fixed-point driver re-parses each pass's output. These rewrites
+    // never nest spans, so no innermost-only deferral is needed.
+    ast_rewrite::fixed_point(source, |src| {
+        ast_rewrite::rewrite_once(
+            &SSR_TEMPLATE_ALLOC,
+            src,
+            // Template expressions have no module-level import/export
+            // syntax, but parsing as a Program is the shape OXC expects;
+            // `mjs()` is permissive enough.
+            SourceType::mjs(),
+            ParseOptions::default(),
+            false,
+            |program| {
+                let mut collector = TemplateRuneCollector {
+                    source: src,
+                    replacements: Vec::new(),
+                };
+                collector.visit_program(program);
+                collector.replacements
+            },
+        )
     })
 }
 
 struct TemplateRuneCollector<'src> {
     source: &'src str,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'src> Visit<'a> for TemplateRuneCollector<'src> {
