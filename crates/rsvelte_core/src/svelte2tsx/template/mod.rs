@@ -514,19 +514,6 @@ pub fn process_template_inplace(
     let mut counter = Counter::new();
     // depth 0 = root fragment; elements and components increment it for their children
     process_fragment_inplace(fragment, source, _options, str, &mut counter, 0);
-
-    // Blank out any trailing whitespace-only content after the last template node.
-    // This prevents stray newlines from the source appearing between the template
-    // output and the appended async wrapper closing `};`.
-    if let Some(last_node) = fragment.nodes.last() {
-        let last_end = last_node.end() as usize;
-        if last_end < source.len() {
-            let trailing = &source[last_end..];
-            if !trailing.is_empty() && trailing.chars().all(|c| c.is_whitespace()) {
-                str.overwrite(last_end as u32, source.len() as u32, "");
-            }
-        }
-    }
 }
 
 /// Collect slot and event information from the template AST.
@@ -2498,7 +2485,7 @@ fn handle_snippet_block_inner(
         )
     } else if use_ts_syntax {
         format!(
-            "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            " const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
             name_text, type_params_str, params_text
         )
     } else {
@@ -6565,11 +6552,10 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
         // Empty props: `{}` (no space)
         String::new()
     } else {
-        // Slot props go inside `{<props>}` — JS reference preserves source
-        // whitespace via MagicString positions, but our concatenated output
-        // doesn't have a position, so omit the leading space and let the
-        // relaxed compare normalise any source-whitespace differences.
-        result
+        // Slot props go inside `{<props>}`. Official preserves the source
+        // whitespace between `<slot` and the first attribute (always at least
+        // one space) as a leading space after `{`, e.g. `{ "message":… }`.
+        format!(" {result}")
     }
 }
 
