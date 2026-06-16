@@ -559,6 +559,39 @@ fn collect_info_from_fragment(
     }
 }
 
+/// Collect forwarded-event + slot-let info for a special element, using
+/// `event_mapper` (`mapWindowEvent` / `mapBodyEvent` / `mapElementEvent`) for
+/// its handler-less `on:` directives.
+fn collect_special_element_info(
+    el: &crate::ast::template::SvelteElement,
+    event_mapper: &str,
+    source: &str,
+    info: &mut TemplateInfo,
+    scope: &mut Vec<(String, String)>,
+    enclosing: Option<&str>,
+) {
+    for attr in &el.attributes {
+        if let Attribute::OnDirective(on) = attr
+            && on.expression.is_none()
+        {
+            let event_name = on.name.to_string();
+            let event_value = format!("__sveltets_2_{}('{}')", event_mapper, event_name);
+            if !info
+                .element_events
+                .iter()
+                .any(|(n, v)| n == &event_name && v == &event_value)
+            {
+                info.element_events.push((event_name, event_value));
+            }
+        }
+    }
+    let pushed = push_slotted_child_lets(&el.attributes, enclosing, source, scope);
+    collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+    for _ in 0..pushed {
+        scope.pop();
+    }
+}
+
 /// `enclosing` is the name of the nearest ancestor component, used to build
 /// `let:`-forwarding slot reflections (`__sveltets_2_instanceOf(<Comp>).$$slot_def[…]`).
 fn collect_info_from_node(
@@ -617,39 +650,22 @@ fn collect_info_from_node(
                 scope.pop();
             }
         }
-        TemplateNode::SvelteBody(el)
-        | TemplateNode::SvelteDocument(el)
+        // Forwarded events on `<svelte:window>` / `<svelte:body>` map to
+        // `mapWindowEvent` / `mapBodyEvent` (official getEventDefExpressionForNonComponent);
+        // every other special element uses `mapElementEvent`.
+        TemplateNode::SvelteWindow(el) => {
+            collect_special_element_info(el, "mapWindowEvent", source, info, scope, enclosing);
+        }
+        TemplateNode::SvelteBody(el) => {
+            collect_special_element_info(el, "mapBodyEvent", source, info, scope, enclosing);
+        }
+        TemplateNode::SvelteDocument(el)
         | TemplateNode::SvelteFragment(el)
         | TemplateNode::SvelteBoundary(el)
         | TemplateNode::SvelteHead(el)
         | TemplateNode::SvelteOptions(el)
-        | TemplateNode::SvelteSelf(el)
-        | TemplateNode::SvelteWindow(el) => {
-            // Also collect forwarded events from special elements
-            for attr in &el.attributes {
-                if let Attribute::OnDirective(on) = attr
-                    && on.expression.is_none()
-                {
-                    let event_name = on.name.to_string();
-                    let event_value = format!("__sveltets_2_mapElementEvent('{}')", event_name);
-                    // Dedup by (name, value): the SAME source type for an event
-                    // (e.g. two `<button on:click>`) collapses to one entry, but
-                    // distinct sources for the same name (element + component
-                    // forward) are both kept so they can be `unionType`-combined.
-                    if !info
-                        .element_events
-                        .iter()
-                        .any(|(n, v)| n == &event_name && v == &event_value)
-                    {
-                        info.element_events.push((event_name, event_value));
-                    }
-                }
-            }
-            let pushed = push_slotted_child_lets(&el.attributes, enclosing, source, scope);
-            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
-            for _ in 0..pushed {
-                scope.pop();
-            }
+        | TemplateNode::SvelteSelf(el) => {
+            collect_special_element_info(el, "mapElementEvent", source, info, scope, enclosing);
         }
         TemplateNode::Component(comp) => {
             // Forwarded component events (`<Inner on:bar />`, no handler) surface

@@ -27,7 +27,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-multiple/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment-let-in-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/deconflict-globals/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-1/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
