@@ -30,6 +30,9 @@ pub mod rules;
 pub mod scope;
 pub mod script;
 pub mod suppression;
+// Native-only: a source-scan helper shared exclusively by the validator-backed
+// meta-rules (`valid_compile`, `require_event_*`, …), all gated behind `native`.
+#[cfg(feature = "native")]
 pub mod svelte_scan;
 pub mod visitor;
 

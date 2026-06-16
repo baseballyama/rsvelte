@@ -40,17 +40,25 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
 /// [`all_rules`] / [`all_script_rules`]). Currently just `comment-directive`,
 /// whose unused-directive reporting is wired into [`crate::runner::lint_source`].
 pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
-    [
-        &crate::rules::comment_directive::META,
-        &crate::rules::valid_compile::META,
-        &crate::rules::valid_style_parse::META,
-        &crate::rules::experimental_require_slot_types::META,
-        &crate::rules::experimental_require_strict_events::META,
-        &crate::rules::require_event_dispatcher_types::META,
-        &crate::rules::require_event_prefix::META,
-        &crate::rules::no_unused_props::META,
-    ]
-    .into_iter()
+    let metas: Vec<&'static RuleMeta> = vec![&crate::rules::comment_directive::META];
+    // The validator-backed meta-rules reuse `crate::validator` /
+    // `rsvelte_core::svelte_check`, which are native-only, so they ship only in
+    // the native build (excluded from the wasm playground bundle).
+    #[cfg(feature = "native")]
+    let metas = {
+        let mut metas = metas;
+        metas.extend([
+            &crate::rules::valid_compile::META,
+            &crate::rules::valid_style_parse::META,
+            &crate::rules::experimental_require_slot_types::META,
+            &crate::rules::experimental_require_strict_events::META,
+            &crate::rules::require_event_dispatcher_types::META,
+            &crate::rules::require_event_prefix::META,
+            &crate::rules::no_unused_props::META,
+        ]);
+        metas
+    };
+    metas.into_iter()
 }
 
 /// Construct the full set of native rules.
