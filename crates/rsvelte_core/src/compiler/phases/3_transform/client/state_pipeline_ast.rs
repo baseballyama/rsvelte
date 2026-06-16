@@ -39,13 +39,14 @@ use std::cell::RefCell;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType};
 use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
 use oxc_syntax::symbol::SymbolId;
 use rustc_hash::FxHashSet;
 
+use super::ast_rewrite::{self, Edit};
 use super::expression_utils::{
     expression_needs_proxy_with_scope, needs_compound_assignment_parens,
 };
@@ -54,8 +55,6 @@ use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_un
 thread_local! {
     static STATE_PIPELINE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
-
-const MAX_FIXED_POINT_ITERS: usize = 16;
 
 /// Run the combined assigns + reads pipeline on `source`. Returns
 /// `Some(rewritten)` when any change was made, `None` otherwise.
@@ -92,25 +91,16 @@ pub fn transform_state_pipeline_ast(
         return None;
     }
 
-    let mut current = source.to_string();
-    let mut any_changed = false;
-    for _ in 0..MAX_FIXED_POINT_ITERS {
-        match single_pass(
-            &current,
+    ast_rewrite::fixed_point(source, |src| {
+        single_pass(
+            src,
             state_vars,
             raw_state_vars,
             is_runes,
             non_proxy_vars,
             &effective_read_names,
-        ) {
-            Some(next) => {
-                current = next;
-                any_changed = true;
-            }
-            None => break,
-        }
-    }
-    if any_changed { Some(current) } else { None }
+        )
+    })
 }
 
 fn single_pass(
@@ -121,78 +111,52 @@ fn single_pass(
     non_proxy_vars: &[String],
     effective_read_names: &[String],
 ) -> Option<String> {
-    STATE_PIPELINE_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
-            .with_options(ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        let program: &Program = allocator.alloc(parser_ret.program);
-        let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
-        let semantic = &semantic_ret.semantic;
-        let state_var_symbols = find_state_var_symbols(semantic, state_vars);
+    ast_rewrite::with_program(
+        &STATE_PIPELINE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |program| {
+            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+            let semantic = &semantic_ret.semantic;
+            let state_var_symbols = find_state_var_symbols(semantic, state_vars);
 
-        let mut visitor = PipelineVisitor {
-            source,
-            semantic,
-            state_vars,
-            raw_state_vars,
-            is_runes,
-            non_proxy_vars,
-            effective_read_names,
-            state_var_symbols,
-            read_replacements: Vec::new(),
-            assigns_replacements: Vec::new(),
-            skip_spans: FxHashSet::default(),
-        };
-        visitor.visit_program(program);
+            let mut visitor = PipelineVisitor {
+                source,
+                semantic,
+                state_vars,
+                raw_state_vars,
+                is_runes,
+                non_proxy_vars,
+                effective_read_names,
+                state_var_symbols,
+                read_replacements: Vec::new(),
+                assigns_replacements: Vec::new(),
+                skip_spans: FxHashSet::default(),
+            };
+            visitor.visit_program(program);
 
-        // Final replacements: assigns spans take precedence — reads
-        // that fall within an assigns span have already been
-        // incorporated into the assigns rewrite, drop them.
-        let assigns = visitor.assigns_replacements;
-        let reads: Vec<(u32, u32, String)> = visitor
-            .read_replacements
-            .into_iter()
-            .filter(|(s, e, _)| {
-                !assigns
-                    .iter()
-                    .any(|(as_s, as_e, _)| *s >= *as_s && *e <= *as_e)
-            })
-            .collect();
+            // Final replacements: assigns spans take precedence — reads
+            // that fall within an assigns span have already been
+            // incorporated into the assigns rewrite, drop them.
+            let assigns = visitor.assigns_replacements;
+            let reads: Vec<Edit> = visitor
+                .read_replacements
+                .into_iter()
+                .filter(|(s, e, _)| {
+                    !assigns
+                        .iter()
+                        .any(|(as_s, as_e, _)| *s >= *as_s && *e <= *as_e)
+                })
+                .collect();
 
-        let mut all: Vec<(u32, u32, String)> = assigns.into_iter().chain(reads).collect();
-        if all.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        // Innermost-only across all replacements — handles nested
-        // assignments via fixed-point.
-        let spans: Vec<(u32, u32)> = all.iter().map(|r| (r.0, r.1)).collect();
-        all.retain(|(s, e, _)| {
-            !spans
-                .iter()
-                .any(|(s2, e2)| (*s2 > *s && *e2 <= *e) || (*s2 >= *s && *e2 < *e))
-        });
-        if all.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        all.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &all {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+            let all: Vec<Edit> = assigns.into_iter().chain(reads).collect();
+            ast_rewrite::splice(source, all, true)
+        },
+    )
 }
 
 struct PipelineVisitor<'a, 'sem> {
@@ -208,9 +172,9 @@ struct PipelineVisitor<'a, 'sem> {
     /// Collected as the visitor walks; filtered post-walk to drop
     /// any that fall within an assigns span (those are
     /// incorporated into the assigns rewrite directly).
-    read_replacements: Vec<(u32, u32, String)>,
+    read_replacements: Vec<Edit>,
     /// Assignment / update wraps.
-    assigns_replacements: Vec<(u32, u32, String)>,
+    assigns_replacements: Vec<Edit>,
     /// Identifier spans claimed by a parent handler — used so the
     /// `visit_identifier_reference` bare-read path doesn't fire on
     /// LHS of assignments, update targets, first arg of $.set /

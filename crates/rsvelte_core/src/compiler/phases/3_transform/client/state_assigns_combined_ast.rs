@@ -45,13 +45,14 @@ use std::cell::RefCell;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType};
 use oxc_syntax::operator::{AssignmentOperator, UpdateOperator};
 use oxc_syntax::symbol::SymbolId;
 use rustc_hash::FxHashSet;
 
+use super::ast_rewrite::{self, Edit};
 use super::expression_utils::{
     expression_needs_proxy_with_scope, needs_compound_assignment_parens,
 };
@@ -60,8 +61,6 @@ use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_un
 thread_local! {
     static STATE_ASSIGNS_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
-
-const MAX_FIXED_POINT_ITERS: usize = 16;
 
 /// Run the combined simple + compound + update assignment pass on
 /// `source`. Returns `Some(rewritten)` if anything changed, `None`
@@ -91,24 +90,9 @@ pub fn transform_state_assigns_ast(
         return None;
     }
 
-    let mut current = source.to_string();
-    let mut any_changed = false;
-    for _ in 0..MAX_FIXED_POINT_ITERS {
-        match single_pass(
-            &current,
-            state_vars,
-            raw_state_vars,
-            is_runes,
-            non_proxy_vars,
-        ) {
-            Some(next) => {
-                current = next;
-                any_changed = true;
-            }
-            None => break,
-        }
-    }
-    if any_changed { Some(current) } else { None }
+    ast_rewrite::fixed_point(source, |src| {
+        single_pass(src, state_vars, raw_state_vars, is_runes, non_proxy_vars)
+    })
 }
 
 fn single_pass(
@@ -118,64 +102,34 @@ fn single_pass(
     is_runes: bool,
     non_proxy_vars: &[String],
 ) -> Option<String> {
-    STATE_ASSIGNS_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
-            .with_options(ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        let program: &Program = allocator.alloc(parser_ret.program);
-        let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
-        let semantic = &semantic_ret.semantic;
-        let state_var_symbols = find_state_var_symbols(semantic, state_vars);
+    ast_rewrite::with_program(
+        &STATE_ASSIGNS_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |program| {
+            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+            let semantic = &semantic_ret.semantic;
+            let state_var_symbols = find_state_var_symbols(semantic, state_vars);
 
-        let mut collector = CombinedCollector {
-            source,
-            semantic,
-            state_vars,
-            raw_state_vars,
-            is_runes,
-            non_proxy_vars,
-            state_var_symbols,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(program);
+            let mut collector = CombinedCollector {
+                source,
+                semantic,
+                state_vars,
+                raw_state_vars,
+                is_runes,
+                non_proxy_vars,
+                state_var_symbols,
+                replacements: Vec::new(),
+            };
+            collector.visit_program(program);
 
-        let mut replacements = collector.replacements;
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Innermost-only per pass — nested wraps get picked up on
-        // the next fixed-point iteration once their inner contents
-        // are no longer assignments/updates.
-        let spans: Vec<(u32, u32)> = replacements.iter().map(|r| (r.0, r.1)).collect();
-        replacements.retain(|(s, e, _)| {
-            !spans
-                .iter()
-                .any(|(s2, e2)| (*s2 > *s && *e2 <= *e) || (*s2 >= *s && *e2 < *e))
-        });
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+            ast_rewrite::splice(source, collector.replacements, true)
+        },
+    )
 }
 
 struct CombinedCollector<'a, 'sem> {
@@ -186,7 +140,7 @@ struct CombinedCollector<'a, 'sem> {
     is_runes: bool,
     non_proxy_vars: &'a [String],
     state_var_symbols: FxHashSet<SymbolId>,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {

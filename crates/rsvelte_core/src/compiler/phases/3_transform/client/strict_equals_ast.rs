@@ -21,9 +21,11 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
 use oxc_syntax::operator::BinaryOperator;
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     /// Reuse one OXC allocator per thread across calls; matches the
@@ -76,47 +78,26 @@ fn contains_strict_op(s: &str) -> bool {
 /// outer rewrites are deferred to the next iteration so they see the
 /// rewritten inner text. Returns `None` when nothing changed.
 fn single_pass(source: &str, is_ts: bool) -> Option<String> {
-    MODULE_STRICT_EQ_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let source_type = if is_ts {
-            SourceType::ts().with_module(true)
-        } else {
-            SourceType::mjs()
-        };
-        let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            // Parse error — keep the source untouched. Module scripts
-            // that don't parse here would already fail elsewhere; the
-            // strict-equals rewrite isn't responsible for surfacing
-            // that error.
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = StrictEqualsCollector {
-            source,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Replacements collected here never overlap (we only emit
-        // leaf-level rewrites), so sorting by start desc + splicing
-        // is correct.
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+    let source_type = if is_ts {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::mjs()
+    };
+    ast_rewrite::rewrite_once(
+        &MODULE_STRICT_EQ_ALLOC,
+        source,
+        source_type,
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = StrictEqualsCollector {
+                source,
+                replacements: Vec::new(),
+            };
+            collector.visit_program(program);
+            collector.replacements
+        },
+    )
 }
 
 /// Per-call AST visitor: collects `(start, end, replacement_string)`
@@ -126,7 +107,7 @@ fn single_pass(source: &str, is_ts: bool) -> Option<String> {
 /// iteration in the caller.
 struct StrictEqualsCollector<'src> {
     source: &'src str,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'src> Visit<'a> for StrictEqualsCollector<'src> {

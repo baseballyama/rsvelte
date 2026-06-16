@@ -63,12 +63,13 @@ use std::cell::RefCell;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use oxc_syntax::symbol::SymbolId;
 use rustc_hash::FxHashSet;
 
+use super::ast_rewrite;
 use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
 
 thread_local! {
@@ -210,51 +211,46 @@ pub fn transform_state_reads_ast(
     };
     let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
 
-    STATE_READS_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, &parse_source, SourceType::mjs())
-            .with_options(ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        let program: &Program = allocator.alloc(parser_ret.program);
-        let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
-        let semantic = &semantic_ret.semantic;
-        let effective_names: Vec<String> = effective.iter().map(|s| s.to_string()).collect();
-        let state_var_symbols = find_state_var_symbols(semantic, &effective_names);
+    ast_rewrite::with_program(
+        &STATE_READS_ALLOC,
+        &parse_source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |program| {
+            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+            let semantic = &semantic_ret.semantic;
+            let effective_names: Vec<String> = effective.iter().map(|s| s.to_string()).collect();
+            let state_var_symbols = find_state_var_symbols(semantic, &effective_names);
 
-        let mut collector = StateReadsCollector {
-            semantic,
-            effective: &effective,
-            effective_names: &effective_names,
-            state_var_symbols,
-            replacements: Vec::new(),
-            skip_spans: FxHashSet::default(),
-        };
-        collector.visit_program(program);
+            let mut collector = StateReadsCollector {
+                semantic,
+                effective: &effective,
+                effective_names: &effective_names,
+                state_var_symbols,
+                replacements: Vec::new(),
+                skip_spans: FxHashSet::default(),
+            };
+            collector.visit_program(program);
 
-        let mut replacements = collector.replacements;
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
+            let mut replacements = collector.replacements;
+            if replacements.is_empty() {
+                return None;
+            }
 
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            let s = (*start as i32 - span_offset) as usize;
-            let e = (*end as i32 - span_offset) as usize;
-            out.replace_range(s..e, rewrite);
-        }
+            replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
+            let mut out = source.to_string();
+            for (start, end, rewrite) in &replacements {
+                let s = (*start as i32 - span_offset) as usize;
+                let e = (*end as i32 - span_offset) as usize;
+                out.replace_range(s..e, rewrite);
+            }
 
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+            Some(out)
+        },
+    )
 }
 
 struct StateReadsCollector<'a, 'sem> {
