@@ -24,7 +24,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-slot/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-const-same-block/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/store-directive/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",
 	"svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte",

@@ -4360,6 +4360,24 @@ fn collect_store_references(source: &str) -> HashSet<String> {
                 i = next;
                 continue;
             }
+            // `use:$store` / `transition:$x` / `in:$x` / `out:$x` / `animate:$x`
+            // — the `$name` is a DIRECTIVE NAME (in an element opener), not a
+            // store auto-subscription. Official collects template stores from
+            // expression VALUES, never directive names.
+            if prev == b':' {
+                let kw_end = pos - 1;
+                let mut k = kw_end;
+                while k > 0 && bytes[k - 1].is_ascii_lowercase() {
+                    k -= 1;
+                }
+                let kw = &source[k..kw_end];
+                let boundary_ok =
+                    k == 0 || matches!(bytes[k - 1], b' ' | b'\t' | b'\n' | b'\r' | b'<');
+                if boundary_ok && matches!(kw, "use" | "transition" | "in" | "out" | "animate") {
+                    i = next;
+                    continue;
+                }
+            }
         }
         if !(nb.is_ascii_alphabetic() || nb == b'_') {
             i = next;
