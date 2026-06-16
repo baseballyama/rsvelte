@@ -61,8 +61,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-array-holes/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/store-directive/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/svelte-element-css-hash/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-as-expression/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/typescript-non-null-expression/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/bindings-readonly/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",

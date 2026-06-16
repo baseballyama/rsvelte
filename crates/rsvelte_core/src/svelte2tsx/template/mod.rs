@@ -900,7 +900,15 @@ fn collect_slot_prop_entries(
                         for part in parts {
                             match part {
                                 AttributeValuePart::Text(t) => {
-                                    lit.push_str(&t.raw.replace('`', "\\`").replace('$', "\\$"));
+                                    // Escape backslash first so `\n` / `\t` in raw
+                                    // text (e.g. a Windows path) stay literal inside
+                                    // the template literal, then backtick and `$`. H-091.
+                                    lit.push_str(
+                                        &t.raw
+                                            .replace('\\', "\\\\")
+                                            .replace('`', "\\`")
+                                            .replace('$', "\\$"),
+                                    );
                                 }
                                 AttributeValuePart::ExpressionTag(e) => {
                                     let _ = write!(
@@ -5393,6 +5401,30 @@ fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> O
     Some(out)
 }
 
+/// Extend an expression's end to cover a trailing TS postfix (`as T`,
+/// `satisfies T`, `!`) that the parser narrowed out of the expression span.
+/// `scan_end` is the enclosing `{…}` directive/attribute end; the closing `}`
+/// is found by scanning back from it (so braces inside the type — `as { x }` —
+/// don't confuse it). Returns the original `expr_end` when no postfix follows.
+fn extend_expr_end_with_ts_postfix(source: &str, expr_end: u32, scan_end: u32) -> u32 {
+    let bytes = source.as_bytes();
+    let mut c = scan_end as usize;
+    while c > expr_end as usize && bytes.get(c - 1) != Some(&b'}') {
+        c -= 1;
+    }
+    let close = c.saturating_sub(1);
+    let tail = source.get(expr_end as usize..close).unwrap_or("").trim_start();
+    if close > expr_end as usize
+        && (tail.starts_with("as ")
+            || tail.starts_with("satisfies ")
+            || tail.starts_with('!'))
+    {
+        close as u32
+    } else {
+        expr_end
+    }
+}
+
 /// Structured-bake variant of [`format_bind_directive`].
 fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
@@ -5407,6 +5439,9 @@ fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg
         segs_push_src(&mut out, ss, se);
         segs_push_lit(&mut out, ")");
     } else if let Some((s, e)) = get_expression_range(&bind.expression) {
+        // Keep a trailing TS postfix (`bind:value={binding!}` → `binding!`,
+        // `… as number}` → `… as number`) that the parser narrowed off.
+        let e = extend_expr_end_with_ts_postfix(source, e, bind.end);
         segs_push_src(&mut out, s, e);
     } else {
         segs_push_lit(&mut out, get_expression_text(&bind.expression, source));
@@ -5774,7 +5809,17 @@ fn build_bind_directive_suffix(
         let expr_text = get_expression_text(&bind.expression, source);
         if bind.name == "this" {
             if let Some(var) = element_var {
-                let _ = write!(out, "{} = {};", expr_text, var);
+                // A trailing TS postfix on the bind expression
+                // (`bind:this={el as HTMLElement}`) moves onto the RHS var:
+                // `el = $$_var as HTMLElement;` (mirrors Binding.ts appending
+                // `[end, expression.end]` after the assignment).
+                let postfix = get_expression_range(&bind.expression)
+                    .map(|(_, e)| {
+                        let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                        &source[e as usize..ee as usize]
+                    })
+                    .unwrap_or("");
+                let _ = write!(out, "{} = {}{};", expr_text, var, postfix);
             }
         } else if bind.name == "group" && parent_tag == "input" {
             // `bind:group` on `<input>` only gets a type-widening
