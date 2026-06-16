@@ -5624,13 +5624,19 @@ fn build_class_style_directive_suffix_segments(attributes: &[Attribute], source:
                         }
                     },
                     AttributeValue::Sequence(parts) => {
-                        // Multi-part: a template literal where each text run is
-                        // blanked to a single space and each `{expr}` is kept.
+                        // Multi-part: a template literal. Official blanks each
+                        // static text run to ONLY its whitespace chars (the
+                        // element processing overwrites the non-whitespace), so
+                        // `rgb({c}, 0, 0)` → `` ` ${c}  ` `` (", 0, 0)" keeps its
+                        // two spaces). A run with no whitespace collapses to a
+                        // single space.
                         segs_push_lit(&mut out, "`");
                         for part in parts {
                             match part {
-                                AttributeValuePart::Text(_) => {
-                                    segs_push_lit(&mut out, " ");
+                                AttributeValuePart::Text(t) => {
+                                    let ws: String =
+                                        t.data.chars().filter(|c| c.is_whitespace()).collect();
+                                    segs_push_lit(&mut out, if ws.is_empty() { " " } else { &ws });
                                 }
                                 AttributeValuePart::ExpressionTag(expr) => {
                                     segs_push_lit(&mut out, "${");
