@@ -5359,12 +5359,15 @@ fn format_attribute_node_segments(
             for part in parts {
                 match part {
                     AttributeValuePart::Text(text) => {
-                        // Official slices the raw source verbatim into the
-                        // template literal (no escaping of `\`), so a single
-                        // backslash stays single (`back\slash`). Only escape the
-                        // template-literal delimiters that would otherwise break
-                        // it (`` ` `` and `${`).
-                        let escaped = text.raw.replace('`', "\\`").replace("${", "\\${");
+                        // Escape backslash first so `\n` / `\t` in raw text
+                        // (e.g. a Windows path like `C:\temp\new`) stay literal
+                        // inside the template literal, then escape the
+                        // template-literal delimiters (`` ` `` and `${`). H-091.
+                        let escaped = text
+                            .raw
+                            .replace('\\', "\\\\")
+                            .replace('`', "\\`")
+                            .replace("${", "\\${");
                         segs_push_lit(&mut inner, &escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
@@ -5413,11 +5416,12 @@ fn extend_expr_end_with_ts_postfix(source: &str, expr_end: u32, scan_end: u32) -
         c -= 1;
     }
     let close = c.saturating_sub(1);
-    let tail = source.get(expr_end as usize..close).unwrap_or("").trim_start();
+    let tail = source
+        .get(expr_end as usize..close)
+        .unwrap_or("")
+        .trim_start();
     if close > expr_end as usize
-        && (tail.starts_with("as ")
-            || tail.starts_with("satisfies ")
-            || tail.starts_with('!'))
+        && (tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!'))
     {
         close as u32
     } else {
@@ -5877,8 +5881,9 @@ fn any_bind_needs_element_var(attributes: &[Attribute], source: &str) -> bool {
 /// goes through `sanitizePropName` (so `svelte:document` → `svelte_document`).
 fn element_var_base_name(name: &str) -> String {
     match name {
-        "svelte:options" | "svelte:head" | "svelte:window" | "svelte:body"
-        | "svelte:fragment" => format!("svelte{}", &name["svelte:".len()..]),
+        "svelte:options" | "svelte:head" | "svelte:window" | "svelte:body" | "svelte:fragment" => {
+            format!("svelte{}", &name["svelte:".len()..])
+        }
         "svelte:element" => "svelteelement".to_string(),
         "slot" => "slot".to_string(),
         _ => sanitize_tag_for_var(name),
