@@ -97,38 +97,27 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-  # macOS is dropped from the PR matrix to keep PR feedback fast — it
-  # consistently runs ~2x slower than Linux for identical work and the
-  # platform-specific failure modes (PATH, line endings, dylib loading)
-  # are already covered by `rsvelte_capi` and the `Release` workflow.
-  # macOS still runs on every push to `main` and on demand via the
-  # `macos-ci` label, so regressions are caught before the next release.
-  set-test-matrix:
-    name: Set Test matrix
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    outputs:
-      os: ${{ steps.matrix.outputs.os }}
-    steps:
-      - id: matrix
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "push" \
-                || "${{ contains(github.event.pull_request.labels.*.name, 'macos-ci') }}" == "true" ]]; then
-            echo 'os=["ubuntu-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
-          else
-            echo 'os=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-          fi
-
   test:
     name: Test
-    needs: set-test-matrix
+    # macOS is dropped from the PR matrix to keep PR feedback fast — it
+    # consistently runs ~2x slower than Linux for identical work and the
+    # platform-specific failure modes (PATH, line endings, dylib loading) are
+    # already covered by `rsvelte_capi` and the `Release` workflow. macOS still
+    # runs on every push to `main` and on demand via the `macos-ci` label, so
+    # regressions are caught before the next release.
+    #
+    # The OS list is computed inline rather than in a separate `set-test-matrix`
+    # job: that job added a full job's queue + startup (~1 min) to the serial
+    # path before any shard could begin. The expression below is evaluated at
+    # workflow-parse time, so the shards start immediately. (On a `push` event
+    # `github.event.pull_request` is null; `contains(null.*.name, …)` is a
+    # well-defined `false`, and the `push` term short-circuits anyway.)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
+        os: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'macos-ci')) && fromJSON('["ubuntu-latest","macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
         # This job runs the *fast bulk* of the suite, split across 3 runners.
         # The test *execution* is trivial (~8 s/shard); the wall time is almost
         # entirely compiling+linking the ~159 integration-test binaries against
