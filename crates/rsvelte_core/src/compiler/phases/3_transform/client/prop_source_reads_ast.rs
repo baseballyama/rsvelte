@@ -58,11 +58,12 @@ use std::cell::RefCell;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use rustc_hash::FxHashSet;
 
+use super::ast_rewrite;
 use super::scope_analysis::is_locally_shadowed;
 
 thread_local! {
@@ -122,51 +123,46 @@ pub fn wrap_prop_source_reads_ast(
     };
     let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
 
-    PROP_READ_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, &parse_source, SourceType::mjs())
-            .with_options(ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        let program: &Program = allocator.alloc(parser_ret.program);
-        let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
-        let semantic = &semantic_ret.semantic;
+    ast_rewrite::with_program(
+        &PROP_READ_ALLOC,
+        &parse_source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |program| {
+            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+            let semantic = &semantic_ret.semantic;
 
-        let mut collector = PropReadCollector {
-            semantic,
-            prop_vars,
-            non_bindable_prop_vars,
-            replacements: Vec::new(),
-            skip_spans: FxHashSet::default(),
-        };
-        collector.visit_program(program);
+            let mut collector = PropReadCollector {
+                semantic,
+                prop_vars,
+                non_bindable_prop_vars,
+                replacements: Vec::new(),
+                skip_spans: FxHashSet::default(),
+            };
+            collector.visit_program(program);
 
-        if collector.replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
+            if collector.replacements.is_empty() {
+                return None;
+            }
 
-        // Sort by span start descending; apply right-to-left to
-        // the ORIGINAL source (adjusting for the synthetic `(`
-        // prefix when in paren-wrap mode).
-        let mut replacements = collector.replacements;
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            let s = (*start as i32 - span_offset) as usize;
-            let e = (*end as i32 - span_offset) as usize;
-            out.replace_range(s..e, rewrite);
-        }
+            // Sort by span start descending; apply right-to-left to
+            // the ORIGINAL source (adjusting for the synthetic `(`
+            // prefix when in paren-wrap mode).
+            let mut replacements = collector.replacements;
+            replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
+            let mut out = source.to_string();
+            for (start, end, rewrite) in &replacements {
+                let s = (*start as i32 - span_offset) as usize;
+                let e = (*end as i32 - span_offset) as usize;
+                out.replace_range(s..e, rewrite);
+            }
 
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+            Some(out)
+        },
+    )
 }
 
 struct PropReadCollector<'a, 'sem> {

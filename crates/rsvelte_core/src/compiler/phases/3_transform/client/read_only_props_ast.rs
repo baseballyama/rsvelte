@@ -46,11 +46,12 @@ use std::cell::RefCell;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use rustc_hash::FxHashSet;
 
+use super::ast_rewrite;
 use super::props_transforms::is_valid_js_identifier;
 use super::scope_analysis::is_locally_shadowed;
 
@@ -99,47 +100,42 @@ pub fn transform_read_only_props_ast(
     };
     let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
 
-    READ_ONLY_PROPS_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, &parse_source, SourceType::mjs())
-            .with_options(ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-        let program: &Program = allocator.alloc(parser_ret.program);
-        let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
-        let semantic = &semantic_ret.semantic;
+    ast_rewrite::with_program(
+        &READ_ONLY_PROPS_ALLOC,
+        &parse_source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        |program| {
+            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
+            let semantic = &semantic_ret.semantic;
 
-        let mut collector = ReadOnlyPropsCollector {
-            semantic,
-            read_only_props,
-            replacements: Vec::new(),
-            skip_spans: FxHashSet::default(),
-        };
-        collector.visit_program(program);
+            let mut collector = ReadOnlyPropsCollector {
+                semantic,
+                read_only_props,
+                replacements: Vec::new(),
+                skip_spans: FxHashSet::default(),
+            };
+            collector.visit_program(program);
 
-        let mut replacements = collector.replacements;
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
+            let mut replacements = collector.replacements;
+            if replacements.is_empty() {
+                return None;
+            }
 
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            let s = (*start as i32 - span_offset) as usize;
-            let e = (*end as i32 - span_offset) as usize;
-            out.replace_range(s..e, rewrite);
-        }
+            replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
+            let mut out = source.to_string();
+            for (start, end, rewrite) in &replacements {
+                let s = (*start as i32 - span_offset) as usize;
+                let e = (*end as i32 - span_offset) as usize;
+                out.replace_range(s..e, rewrite);
+            }
 
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+            Some(out)
+        },
+    )
 }
 
 /// See `state_reads_ast::contains_top_level_semicolon`. Duplicated
