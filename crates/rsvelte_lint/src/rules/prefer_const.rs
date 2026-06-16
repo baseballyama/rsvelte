@@ -61,6 +61,68 @@ fn init_rune_callee(init: &Value) -> Option<&str> {
     }
 }
 
+/// Walk a serialized template fragment and record every binding name that is
+/// the target of an assignment (`x = …`, `x += …`) or update (`x++`) whose
+/// left-hand side is a plain `Identifier`. Member/element targets (`x.y = …`)
+/// are mutations, not reassignments, so they are ignored — matching the core
+/// `prefer-const` rule, which only bails on a write reference to the binding
+/// itself. Used to cover template positions the compiler scope walk skips
+/// (e.g. `{@render}` arguments).
+fn collect_template_reassignments(source: &str, out: &mut HashSet<String>) {
+    // Re-parse (cheap; the analyzed `ComponentAnalysis` keeps only the scope
+    // tree, not the template AST) and serialize the template fragment so the
+    // assignment walk runs over the ESTree expressions inside every tag. The
+    // fragment's JS expressions live in the parse arena, which must be installed
+    // for the duration of the serialize.
+    use rsvelte_core::ast::arena::with_serialize_arena;
+    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+        return;
+    };
+    let Some(value) =
+        with_serialize_arena(&root.arena, || serde_json::to_value(&root.fragment).ok())
+    else {
+        return;
+    };
+    walk_assignments(&value, out);
+}
+
+fn walk_assignments(value: &Value, out: &mut HashSet<String>) {
+    match value {
+        Value::Object(map) => {
+            match map.get("type").and_then(Value::as_str) {
+                Some("AssignmentExpression") => {
+                    if let Some(name) = map
+                        .get("left")
+                        .filter(|l| node_type(l) == Some("Identifier"))
+                        .and_then(ident_name)
+                    {
+                        out.insert(name.to_string());
+                    }
+                }
+                Some("UpdateExpression") => {
+                    if let Some(name) = map
+                        .get("argument")
+                        .filter(|a| node_type(a) == Some("Identifier"))
+                        .and_then(ident_name)
+                    {
+                        out.insert(name.to_string());
+                    }
+                }
+                _ => {}
+            }
+            for child in map.values() {
+                walk_assignments(child, out);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                walk_assignments(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Collect the bound Identifier leaves of a declarator `id` pattern.
 fn collect_pattern_idents<'a>(id: &'a Value, out: &mut Vec<&'a Value>) {
     match node_type(id) {
@@ -121,13 +183,22 @@ impl ScriptRule for PreferConst {
         let Some(analysis) = crate::scope::analyze_scope(ctx.source()) else {
             return;
         };
-        let reassigned: HashSet<&str> = analysis
+        let mut reassigned: HashSet<String> = analysis
             .root
             .bindings
             .iter()
             .filter(|b| b.reassigned)
-            .map(|b| b.name.as_str())
+            .map(|b| b.name.clone())
             .collect();
+        // The compiler's scope walk (`scope_builder::visit_node`) does not visit
+        // a few template expression positions — notably `{@render fn(…)}`
+        // arguments — so a reassignment buried in one (`{@render pill(() =>
+        // (filter = 'all'))}`) never sets `binding.reassigned`, and the binding
+        // would be mis-reported as const-able. svelte-eslint-parser walks the
+        // whole AST, so the core rule sees the write. Recover parity by scanning
+        // the template for `name = …` / `name++` whose LHS is a plain
+        // identifier, and folding those names into the not-const-able set.
+        collect_template_reassignments(ctx.source(), &mut reassigned);
 
         let opts = ctx.option0();
         let excluded: Vec<String> = opts
