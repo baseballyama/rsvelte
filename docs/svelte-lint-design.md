@@ -465,21 +465,32 @@ The typed path is now implemented and exercised end-to-end against a real
   `corsa-bind` submodule is private (CI cannot clone it) and a path dep — even
   optional — would break the default build. Built/tested locally only. This is
   the doc's "fail-open in editor / gated spike, not in CI" stance made concrete.
-- **Rules wired** — `svelte/no-unused-props::diagnostics_typed` (extends /
-  intersection / generics / imported / nested object props) and
-  `svelte/no-navigation-without-resolve::diagnostics_typed` (the
-  `expressionIsAllowedType` `ResolvedPathname` / nullish check, threaded through
-  `is_value_allowed`). Both flipped to `type_aware: true`. Validated end-to-end
-  by `rsvelte_lint_types`'s `type_aware_e2e` / `nav_type_aware_e2e` tests.
+- **Rules wired** — `svelte/no-unused-props::diagnostics_typed` and
+  `svelte/no-navigation-without-resolve::diagnostics_typed`
+  (`expressionIsAllowedType` `ResolvedPathname` / nullish check, threaded through
+  `is_value_allowed`). Both flipped to `type_aware: true`.
 
-Remaining typed follow-ups (tracked, not blocking): `no-unused-props` options
-edge cases (`checkImportedTypes` symbol-origin tracking via `SymbolResponse.declarations`,
-`ignore*-patterns` exact ESLint semantics, the index-signature-unused message,
-`custom-config-combination`); `require-event-prefix` typed path for imported
-Props types (its local-type fixtures already pass syntactically); Gate 1
-serial-probe latency measurement; the warm-session daemon (Wave 4); the
-serial-probe concurrency bridge (R3); and CLI integration (the CLI cannot depend
-on the private backend, so type-aware linting runs via `rsvelte_lint_types`).
+- **`no-unused-props` — full upstream fidelity.** A faithful port of upstream's
+  recursive `checkUnusedProperties` over an on-demand type-graph API
+  (`TypeBackend::{props_type, type_meta, type_props}`, exposing per-property
+  origin via `SymbolResponse.declarations` → `isInternalProperty`, base types,
+  index signatures, and `ObjectFlags.Class`). Covers ALL options:
+  `checkImportedTypes` (skip unused imported-origin props by default),
+  `ignorePropertyPatterns` / `ignoreTypePatterns` (with exact `toRegExp`
+  semantics — a plain string is exact-match, only `/…/` is a regex),
+  `allowUnusedNestedProperties`, nested recursion into named/imported types,
+  `isClassType` skipping, and the unused-index-signature message. **All 76
+  upstream `no-unused-props` fixtures pass** via the corsa e2e oracle
+  (`rsvelte_lint_types::tests::no_unused_props_fixtures`); the rule logic also
+  has corsa-free mock-graph unit tests in CI. The flat `probe_props` path is
+  retained as a degraded fallback for backends without graph support.
+
+Remaining typed follow-ups (tracked, not blocking): `require-event-prefix` typed
+path for imported Props types (its local-type fixtures already pass
+syntactically); Gate 1 serial-probe latency measurement; the warm-session daemon
+(Wave 4); the serial-probe concurrency bridge (R3); and CLI integration (the CLI
+cannot depend on the private backend, so type-aware linting runs via
+`rsvelte_lint_types`).
 
 ### Not yet started
 

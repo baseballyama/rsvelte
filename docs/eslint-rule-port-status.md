@@ -52,9 +52,19 @@ These are intentionally not yet ported; each needs work outside "add a rule".
 > `extends`/intersection/generics/imported/nested props (no-unused-props) and the
 > `$app/types` `ResolvedPathname`/nullish type allowance (no-navigation), proven
 > end-to-end against `tsgo` by that crate's `*_e2e` tests. See
-> `docs/svelte-lint-design.md` → "Wave 3 — type-aware path — landed". The
-> remaining option-origin edge cases (`checkImportedTypes`, `ignore*Patterns`
-> exact semantics, index-signature message) are tracked follow-ups.
+> `docs/svelte-lint-design.md` → "Wave 3 — type-aware path — landed".
+>
+> **`no-unused-props` is now a complete port** of upstream's recursive
+> `checkUnusedProperties` over a type-graph API
+> (`TypeBackend::{props_type, type_meta, type_props}`): `checkImportedTypes`
+> (per-property origin via `SymbolResponse.declarations`),
+> `ignorePropertyPatterns` / `ignoreTypePatterns` (exact `toRegExp` semantics —
+> plain strings are exact-match, only `/…/` is a regex), `allowUnusedNestedProperties`,
+> nested recursion into named/imported types, `isClassType` skipping, and the
+> unused-index-signature message. **All 76 upstream fixtures pass** via
+> `rsvelte_lint_types`'s `no_unused_props_fixtures` oracle (plus corsa-free
+> mock-graph unit tests). Remaining follow-up: a `require-event-prefix` typed
+> path for imported Props types (its local-type fixtures already pass).
 
 Three of the six rules upstream files under "type-aware" need **no** type checker
 — they only check for the *presence* of TS syntax — and are ported as

@@ -16,14 +16,16 @@
 //! See the crate `Cargo.toml` header for why this lives outside the main
 //! workspace.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use corsa_client::api::{
-    ApiMode, ApiSpawnConfig, FileChangeSummary, FileChanges, ProjectSession, TypeProbeOptions,
+    ApiMode, ApiSpawnConfig, FileChangeSummary, FileChanges, ProjectSession, TypeHandle,
+    TypeProbeOptions,
 };
 use corsa_runtime::block_on;
 use rsvelte_core::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
-use rsvelte_lint::type_backend::{TypeBackend, TypeFacts};
+use rsvelte_lint::type_backend::{PropMeta, TypeBackend, TypeFacts, TypeId, TypeMeta};
 
 mod resolver;
 pub use resolver::resolve_tsgo;
@@ -80,6 +82,16 @@ const TSCONFIG: &str = r#"{
 }
 "#;
 
+/// TypeScript `ObjectFlags.Class` (`1 << 0`) — set on class *instance* types.
+const OBJECT_FLAGS_CLASS: u32 = 1;
+
+/// An interned type: its `corsa` handle (absent when unresolved) and the
+/// `ObjectFlags` bitset captured when it was first seen.
+struct TypeSlot {
+    handle: Option<TypeHandle>,
+    object_flags: u32,
+}
+
 /// A corsa/tsgo-backed [`TypeBackend`] for a single Svelte component.
 pub struct CorsaTypeBackend {
     session: ProjectSession,
@@ -97,6 +109,13 @@ pub struct CorsaTypeBackend {
     /// On-disk path of the virtual document (removed on drop).
     virtual_path: PathBuf,
     closed: bool,
+    /// Interned `corsa` types, indexed by [`TypeId`]. A `None` handle is a type
+    /// that could not be resolved (yields no metadata).
+    types: Vec<TypeSlot>,
+    /// Dedup map: handle string → [`TypeId`].
+    type_index: HashMap<String, TypeId>,
+    /// Memoized result of [`Self::props_type`].
+    props_type_cache: Option<Option<TypeId>>,
 }
 
 impl CorsaTypeBackend {
@@ -182,7 +201,70 @@ impl CorsaTypeBackend {
             virtual_wire,
             virtual_path,
             closed: false,
+            types: Vec::new(),
+            type_index: HashMap::new(),
+            props_type_cache: None,
         })
+    }
+
+    /// Intern a type (handle + `ObjectFlags`) into a stable [`TypeId`], deduping
+    /// by handle string. `None` handle ⇒ an unresolved type.
+    fn intern(&mut self, handle: Option<TypeHandle>, object_flags: u32) -> TypeId {
+        if let Some(h) = &handle {
+            if let Some(&id) = self.type_index.get(h.as_str()) {
+                return id;
+            }
+            let id = self.types.len() as TypeId;
+            self.type_index.insert(h.as_str().to_string(), id);
+            self.types.push(TypeSlot {
+                handle: Some(h.clone()),
+                object_flags,
+            });
+            id
+        } else {
+            let id = self.types.len() as TypeId;
+            self.types.push(TypeSlot {
+                handle: None,
+                object_flags,
+            });
+            id
+        }
+    }
+
+    fn handle_of(&self, id: TypeId) -> Option<TypeHandle> {
+        self.types.get(id as usize).and_then(|s| s.handle.clone())
+    }
+
+    fn object_flags_of(&self, id: TypeId) -> u32 {
+        self.types
+            .get(id as usize)
+            .map(|s| s.object_flags)
+            .unwrap_or(0)
+    }
+
+    /// Resolve the props type handle from the injected anchor.
+    fn compute_props_type(&mut self) -> Option<TypeId> {
+        let offset = self.props_anchor?;
+        let utf16 = byte_to_utf16(&self.tsx, offset);
+        let file = self.virtual_wire.clone();
+        let mut resp: Option<(TypeHandle, u32)> = None;
+        if let Some(sym) = block_on(self.session.get_symbol_at_position(file.clone(), utf16))
+            .ok()
+            .flatten()
+        {
+            resp = block_on(self.session.get_type_of_symbol(sym.id))
+                .ok()
+                .flatten()
+                .map(|t| (t.id, t.object_flags.unwrap_or(0)));
+        }
+        if resp.is_none() {
+            resp = block_on(self.session.get_type_at_position(file, utf16))
+                .ok()
+                .flatten()
+                .map(|t| (t.id, t.object_flags.unwrap_or(0)));
+        }
+        let (handle, flags) = resp?;
+        Some(self.intern(Some(handle), flags))
     }
 
     fn probe(&self, generated_offset: u32, load_property_types: bool) -> Option<TypeFacts> {
@@ -232,6 +314,108 @@ impl TypeBackend for CorsaTypeBackend {
         let generated = map_offset_forward(&self.forward_map, svelte_offset)?;
         self.probe(generated, false)
     }
+
+    fn props_type(&mut self) -> Option<TypeId> {
+        if let Some(cached) = self.props_type_cache {
+            return cached;
+        }
+        let computed = self.compute_props_type();
+        self.props_type_cache = Some(computed);
+        computed
+    }
+
+    fn type_meta(&mut self, t: TypeId) -> Option<TypeMeta> {
+        let handle = self.handle_of(t)?;
+        let text =
+            block_on(self.session.type_to_string(handle.clone(), None, None)).unwrap_or_default();
+        let snap = self.session.snapshot().handle.clone();
+        let proj = self.session.project_handle();
+        let has_index_signature = block_on(self.session.client().get_index_infos_of_type(
+            snap.clone(),
+            proj.clone(),
+            handle.clone(),
+        ))
+        .map(|infos| {
+            infos
+                .iter()
+                .any(|i| !type_texts_are_any(&i.value_type.texts))
+        })
+        .unwrap_or(false);
+        let bases =
+            block_on(self.session.client().get_base_types(snap, proj, handle)).unwrap_or_default();
+        let base_type_ids = bases
+            .into_iter()
+            .map(|t| self.intern(Some(t.id), t.object_flags.unwrap_or(0)))
+            .collect();
+        Some(TypeMeta {
+            text,
+            has_index_signature,
+            is_class: self.object_flags_of(t) & OBJECT_FLAGS_CLASS != 0,
+            base_type_ids,
+        })
+    }
+
+    fn type_props(&mut self, t: TypeId) -> Vec<PropMeta> {
+        let Some(handle) = self.handle_of(t) else {
+            return Vec::new();
+        };
+        let props = block_on(self.session.get_properties_of_type(handle)).unwrap_or_default();
+        let mut out = Vec::with_capacity(props.len());
+        for sym in props {
+            let decl_paths: Vec<String> = sym
+                .declarations
+                .iter()
+                .filter_map(|d| node_handle_path(d.as_str()))
+                .collect();
+            let is_local = !decl_paths.is_empty()
+                && decl_paths.iter().all(|p| same_file(p, &self.virtual_wire));
+            let is_builtin = decl_paths.first().is_some_and(|p| is_lib_path(p));
+            let ptype = block_on(self.session.get_type_of_symbol(sym.id))
+                .ok()
+                .flatten();
+            let type_id = self.intern(
+                ptype.as_ref().map(|t| t.id.clone()),
+                ptype.as_ref().and_then(|t| t.object_flags).unwrap_or(0),
+            );
+            out.push(PropMeta {
+                name: sym.name.as_str().to_string(),
+                is_local,
+                is_builtin,
+                type_id,
+            });
+        }
+        out
+    }
+}
+
+/// Whether rendered type texts denote `any` (so an index signature with this
+/// value type is "any-typed" and ignored, mirroring upstream `isAnyType`).
+fn type_texts_are_any(texts: &[impl AsRef<str>]) -> bool {
+    !texts.is_empty() && texts.iter().all(|t| t.as_ref() == "any")
+}
+
+/// Extract the source-file path from a `corsa` [`NodeHandle`] string. The wire
+/// form is `<pos>.<kind>.<path>` (numeric components then the path, which begins
+/// at the first non-numeric/non-`.` character — i.e. the leading `/` of an
+/// absolute path). `NodeHandle::parse()` assumes a 3-number layout that the
+/// current worker doesn't emit, so we strip the numeric prefix directly.
+fn node_handle_path(h: &str) -> Option<String> {
+    let path = h.trim_start_matches(|c: char| c.is_ascii_digit() || c == '.');
+    (!path.is_empty()).then(|| path.to_string())
+}
+
+/// Compare two file paths for `isInternalProperty`. The worker lowercases paths
+/// (and macOS is case-insensitive), so compare case-insensitively.
+fn same_file(a: &str, b: &str) -> bool {
+    a.eq_ignore_ascii_case(b)
+}
+
+/// Heuristic for `isBuiltInProperty`: a property declared in TypeScript's
+/// bundled lib (`lib.*.d.ts`) or the `typescript`/native-preview lib dir.
+fn is_lib_path(p: &str) -> bool {
+    p.contains("node_modules/typescript/lib/")
+        || p.contains("native-preview")
+        || (p.contains("/lib.") && p.ends_with(".d.ts"))
 }
 
 impl Drop for CorsaTypeBackend {
