@@ -2973,6 +2973,9 @@ fn handle_component(
             &comp.attributes,
             source,
         ));
+        // transition:/in:/out:/animate: on a component lower to
+        // `__sveltets_2_ensure{Transition,Animation}(name(undefined.mapElementTag("undefined")…))`.
+        opener_segs.extend(build_component_directive_suffix(&comp.attributes, source));
     }
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
@@ -4895,20 +4898,17 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
                 // for Elements (never InlineComponents), so on a component they
                 // contribute nothing — not even a lowered statement.
             }
-            Attribute::TransitionDirective(transition) => {
-                if let Some(s) = format_transition_directive(transition, source) {
-                    segs_push_lit(&mut inner, &s);
-                }
-            }
-            Attribute::UseDirective(use_dir) => {
-                if let Some(s) = format_use_directive(use_dir, source) {
-                    segs_push_lit(&mut inner, &s);
-                }
+            Attribute::TransitionDirective(_) | Attribute::UseDirective(_) => {
+                // transition:/in:/out:/use: on a component are not props — they
+                // lower to `__sveltets_2_ensureTransition(...)` statements after
+                // the `new …({...})` call (see build_component_directive_suffix).
             }
             Attribute::LetDirective(_) => {
                 let_count += 1;
             }
-            Attribute::AnimateDirective(_) => {}
+            Attribute::AnimateDirective(_) => {
+                // animate: lowers to an ensureAnimation suffix, not a prop.
+            }
             Attribute::AttachTag(attach) => {
                 let part = format_attach_tag_segments(attach, source);
                 extend_segs(&mut inner, part);
@@ -6073,6 +6073,45 @@ fn format_transition_directive(transition: &TransitionDirective, source: &str) -
             transition.name, ""
         ))
     }
+}
+
+/// Lower `transition:`/`in:`/`out:`/`animate:` directives on a COMPONENT to
+/// the suffix statements official emits after `new …({...})`. There is no real
+/// element, so the element-tag expression is `undefined.mapElementTag("undefined")`
+/// (mirrors upstream Element wrapping a component). `use:` is intentionally not
+/// emitted — it is a compile error on a component.
+fn build_component_directive_suffix(attributes: &[Attribute], source: &str) -> Vec<Seg> {
+    let map_tag = "undefined.mapElementTag(\"undefined\")";
+    let mut out: Vec<Seg> = Vec::new();
+    for attr in attributes {
+        match attr {
+            Attribute::TransitionDirective(t) => {
+                let s = match t.expression.as_ref().map(|e| get_expression_text(e, source)) {
+                    Some(expr) => format!(
+                        "__sveltets_2_ensureTransition({}({},({})));",
+                        t.name, map_tag, expr
+                    ),
+                    None => format!("__sveltets_2_ensureTransition({}({}));", t.name, map_tag),
+                };
+                segs_push_lit(&mut out, &s);
+            }
+            Attribute::AnimateDirective(a) => {
+                let s = match a.expression.as_ref().map(|e| get_expression_text(e, source)) {
+                    Some(expr) => format!(
+                        "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove,({})));",
+                        a.name, map_tag, expr
+                    ),
+                    None => format!(
+                        "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove));",
+                        a.name, map_tag
+                    ),
+                };
+                segs_push_lit(&mut out, &s);
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 /// Legacy V5-style use formatter — see `format_transition_directive`.
