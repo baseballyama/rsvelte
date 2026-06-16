@@ -178,7 +178,22 @@ fn skip_braces(bytes: &[u8], start: usize) -> usize {
 /// Transform `await expr` patterns inside an expression to use `$.save()`.
 /// Converts: `await expr` -> `(await $.save(expr))()`
 /// This handles multiple await expressions within the same expression.
+///
+/// Prefers the AST-based rewrite (`await_save_ast`), which reads each
+/// operand's extent from its parsed span and therefore can't mis-bound the
+/// operand the way a hand-rolled scanner does (e.g. swallowing a ternary's
+/// `: alternate` — issue #1036 bug 2). Falls back to the legacy byte scanner
+/// only when the expression doesn't parse cleanly as a standalone expression.
 pub(crate) fn transform_await_to_save(expr: &str) -> String {
+    if let Some(out) = super::await_save_ast::transform_await_to_save_ast(expr) {
+        return out;
+    }
+    transform_await_to_save_textual(expr)
+}
+
+/// Legacy byte-scanning implementation of [`transform_await_to_save`], kept as
+/// a fallback for inputs that don't parse as a standalone expression.
+fn transform_await_to_save_textual(expr: &str) -> String {
     let bytes = expr.as_bytes();
     let len = bytes.len();
     let mut result = String::with_capacity(len + 20);

@@ -4,6 +4,7 @@
 //!
 //! This module is organized to match the Svelte compiler structure.
 
+pub(crate) mod await_save_ast;
 pub mod bridge;
 pub mod build;
 pub(crate) mod esrap_layout;
