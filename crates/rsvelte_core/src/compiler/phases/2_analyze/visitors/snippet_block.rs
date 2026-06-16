@@ -139,11 +139,19 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
 /// binding.scope.function_depth to determine hoistability.
 fn can_hoist_snippet(snippet: &SnippetBlock, context: &VisitorContext) -> bool {
     // Collect ALL parameter names from the snippet (including destructured names)
-    let param_names: FxHashSet<String> = snippet
+    let mut param_names: FxHashSet<String> = snippet
         .parameters
         .iter()
         .flat_map(extract_all_param_names)
         .collect();
+
+    // A snippet may render ITSELF recursively (`{#snippet S}…{@render S(…)}…`).
+    // Such a self-reference must not block hoisting — mirrors upstream's
+    // `visited` set, which marks the snippet binding and `continue`s. Treat the
+    // snippet's own name as a local (hoistable) name.
+    if let Some(self_name) = super::shared::snippets::get_snippet_name(snippet) {
+        param_names.insert(self_name);
+    }
 
     // Check if the body only references parameters and module-level bindings
     check_hoistable(&snippet.body.nodes, &param_names, context)
@@ -997,6 +1005,15 @@ fn is_identifier_hoistable(
     context: &VisitorContext,
 ) -> bool {
     if param_names.contains(name) {
+        return true;
+    }
+
+    // A reference to another snippet that itself can be hoisted is fine — the
+    // referenced snippet will live at module scope too. Mirrors upstream's
+    // recursive `can_hoist_snippet(snippet_scope, …)` for `SnippetBlock` bindings.
+    // (`hoisted_snippets` is populated as snippets are analyzed in document order,
+    // so this resolves references to already-analyzed earlier snippets.)
+    if context.analysis.template.hoisted_snippets.contains(name) {
         return true;
     }
 
