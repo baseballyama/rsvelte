@@ -8442,10 +8442,23 @@ impl<'a> ServerCodeGenerator<'a> {
                 "{}{}{}($$renderer, $.spread_props([",
                 inner_indent, name, call_syntax
             );
-            for item in props_and_spreads {
+            // Upstream `push_prop` appends the bind getter/setter pairs into the
+            // LAST props group when it is a plain props object, so a trailing
+            // `data-x=""` attribute shares one object with the bindings. Mirror
+            // that by folding the last props group into the bindings object below
+            // (otherwise rsvelte emits a spurious separate `{ "data-x": "" }`).
+            let last_is_props =
+                matches!(props_and_spreads.last(), Some(ComponentPropItem::Props(_)));
+            let last_idx = props_and_spreads.len().saturating_sub(1);
+            let mut merged_last_props: Vec<String> = Vec::new();
+            for (i, item) in props_and_spreads.iter().enumerate() {
                 match item {
                     ComponentPropItem::Props(props) => {
-                        let _ = writeln!(code, "{}\t{{ {} }},", inner_indent, props.join(", "));
+                        if last_is_props && i == last_idx {
+                            merged_last_props = props.clone();
+                        } else {
+                            let _ = writeln!(code, "{}\t{{ {} }},", inner_indent, props.join(", "));
+                        }
                     }
                     ComponentPropItem::Spread(expr) => {
                         let _ = writeln!(code, "{}\t{},", inner_indent, expr);
@@ -8453,6 +8466,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
             let _ = writeln!(code, "{}\t{{", inner_indent);
+            for p in &merged_last_props {
+                let _ = writeln!(code, "{}\t\t{},", inner_indent, p);
+            }
 
             let binding_count = bindings.len();
             let has_extras = has_true_snippets
