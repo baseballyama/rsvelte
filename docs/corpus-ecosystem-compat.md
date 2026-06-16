@@ -14,48 +14,56 @@ skipped as noise — they carry non-Svelte doc tooling like flowbite's
 
 ## Snapshot
 
-Measured on origin/main @ `fbdbd52` against the projects' `main` branches,
-svelte `5.56.3`. `match` = byte-identical after the corpus's normalization
-contract; `error-parity` = both sides reject identically.
+Measured against the projects' `main` branches, svelte `5.56.3`. `match` =
+byte-identical after the corpus's normalization contract; `error-parity` = both
+sides reject identically.
 
 | Track | match / total | compat |
 |---|---|---|
-| **Compiler** (CSR + SSR byte-equality) | 3064 / 3751 | **81.7 %** |
+| **Compiler** (CSR + SSR byte-equality) | 3497 / 3751 | **93.2 %** |
 | **svelte2tsx** (TSX byte-equality) | 3524 / 3635 | **96.9 %** |
 | **Formatter** (oxfmt + prettier-plugin-svelte oracle) | 3412 / 3635 | **93.9 %** |
+
+The compiler track rose from an initial **81.7 %** (3064) after the SSR/CSR
+output fixes below; `eco-known-failures.json` ratcheted from 689 → 254.
 
 `error-mismatch` is essentially zero on real files (compiler: 1, svelte2tsx: 0)
 — i.e. rsvelte never spuriously accepts/rejects a real shipped component, only
 its *output* diverges.
 
-### Per project
+### Per project (compiler track)
 
-| Project | Compiler | svelte2tsx | Formatter |
-|---|---|---|---|
-| bits-ui | 54.2 % | 96.1 % | 97.4 % |
-| flowbite-svelte | 91.2 % | 97.5 % | 87.7 % |
-| melt-ui | 77.4 % | 95.3 % | 95.3 % |
-| shadcn-svelte | 85.6 % | 96.9 % | 97.3 % |
+| Project | before | after |
+|---|---|---|
+| bits-ui | 54.2 % | **91.1 %** |
+| flowbite-svelte | 91.2 % | **92.2 %** |
+| melt-ui | 77.4 % | **77.4 %** |
+| shadcn-svelte | 85.6 % | **95.6 %** |
 
-## Dominant divergences (burn-down order)
+## Fixed in this burn-down (81.7 % → 93.2 %)
 
-### Compiler (686 real-file js-mismatches)
-Two root causes account for ~58 % of all compiler divergences:
+1. **`$props.id()` emission order** — emit `const uid = $.props_id();` as the
+   component's first line (before `$.push` on the client). Drove bits-ui.
+2. **Namespaced / member-expression components with snippets** — a dynamic
+   `<DropdownMenu.Trigger>` keeps its `{#snippet}` `function` declarations
+   *outside* the `if (X.Y) { … }` hydration guard (both the bindingless and
+   `bind:` server paths), matching upstream `build_inline_component`.
+3. **Render-tag spread argument** — `{@render child({ …, ...rest })}` memoizes
+   into a `$.derived` (upstream sets `has_call` for `SpreadElement`).
+4. **`children` snippet → `default` $$slots key** (no spurious `children: true`).
+5. **Spread-props object merging** — snippet/`$$slots` props and bind getter/setter
+   pairs fold into the last props object rather than a separate trailing `{}`.
+6. **Typed `$props()` rest** — exclude `$$slots`/`$$events` (detect + TS-annotation
+   strip + brace-aware multiline collapse that survives template-literal `}`).
+7. **`$.stringify` elision** for a `$props.id()` interpolation in component props.
+8. **Arrow-parens** — never strip required parens after `??`/`||`/`&&`.
 
-1. **Namespaced / member-expression components** (~221) — `<DropdownMenu.Item>`,
-   `<RangeCalendar.Root>`, … rsvelte wraps the component call in an existence
-   guard `if (DropdownMenu.Item) { … }`; the official compiler calls it
-   directly. This is the single biggest cluster and spans every project.
-2. **`$props.id()` emission order** (~177) — official emits
-   `const uid = $.props_id();` *before* `$.push($$props, true)`; rsvelte emits it
-   *after*. Drives bits-ui's low score (it uses `$props.id()` in nearly every
-   component).
-3. **`{@const}`-in-snippet** (a handful) — a `{@render child(...)}` snippet whose
-   body opens with a `{@const}` is wrapped by the official compiler in an extra
-   `{ let $0 = $.derived(...); $.snippet(...); }` block; rsvelte flattens it.
-
-Fixing (1) + (2) alone would lift compiler real-file compat from 81.7 % to
-~92 % and bits-ui from 54 % to >90 %.
+### Remaining (254 known failures)
+A long tail across ~250 single-entry clusters. Notable remaining root causes:
+`$derived.by(() => { … })` multi-line brace miscounting (produces an extra `})`
+→ ~10 unparsable outputs), the keyed-`{#each … as x, i (i)}` index param emitted
+even when `i` is used only in the key, and assorted one-off string/marker diffs.
+melt-ui (77 %) is the lowest project and its remaining cases are mostly these.
 
 ### svelte2tsx (111 real-file ts-mismatches)
 No dominant cause — a long tail across ~51 clusters. The largest are the
