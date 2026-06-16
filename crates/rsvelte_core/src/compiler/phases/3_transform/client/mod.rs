@@ -6,7 +6,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/`.
 
 use std::fmt::Write as _;
-mod ast_rewrite;
+pub(crate) use super::shared::ast_rewrite;
 mod ast_state_transform;
 mod class_transforms;
 mod console_dev_ast;
