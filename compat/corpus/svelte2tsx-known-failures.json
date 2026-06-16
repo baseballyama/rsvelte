@@ -44,7 +44,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-slot/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/attribute-spread-reactivitiy/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter-2/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/class-state-derived-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-const-same-block/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",

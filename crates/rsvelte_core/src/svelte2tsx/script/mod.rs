@@ -1014,10 +1014,22 @@ pub fn process_instance_script(
                                 if let Some(ref id) = func.id {
                                     declared_names.insert(id.name.to_string());
                                 }
+                                // Runes inside an exported function body still
+                                // put the component in runes mode.
+                                if let Some(ref body) = func.body {
+                                    let scope = scope_with_params(&declared_names, &func.params);
+                                    if detect_rune_in_nested_body(&body.statements, &scope) {
+                                        exported_names.set_uses_runes(true);
+                                    }
+                                }
                             }
                             oxc::Declaration::ClassDeclaration(class) => {
                                 if let Some(ref id) = class.id {
                                     declared_names.insert(id.name.to_string());
+                                }
+                                // `export class C { x = $state(0) }` → runes mode.
+                                if detect_rune_in_class_body(class, &declared_names) {
+                                    exported_names.set_uses_runes(true);
                                 }
                             }
                             _ => {}
