@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/fmt",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "description": "Rust-powered Svelte + JS/TS/CSS formatter CLI — formats .svelte in-process and dispatches everything else to oxfmt",
   "license": "MIT",
   "repository": {

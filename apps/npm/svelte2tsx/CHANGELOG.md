@@ -1,5 +1,55 @@
 # @rsvelte/svelte2tsx
 
+## 0.1.18
+
+### Patch Changes
+
+- d9eb4be: svelte2tsx output-parity (corpus): the compat-corpus now also checks svelte2tsx
+  TSX output against the official tool over every component source, and several
+  systematic port divergences are fixed:
+
+  - `derive_component_name` matches the official `classNameFromFilename` exactly
+    (scule `pascalCase`/`splitByCase` + the JS `substr(-1)` last-char quirk).
+  - `__sveltets_*` component/instance variable names use the component's nesting
+    depth (matching `computeDepth()`), reusing one number per depth instead of a
+    per-name counter; names are `sanitizePropName`-cleaned before reversing.
+  - Runes-mode detection now matches official `isRunesMode()` — `$state` /
+    `$derived` / `$effect` globals, `$props()`, explicit `<svelte:options runes>`,
+    top-level await, and await in template expressions all select runes output
+    (`__sveltets_2_fn_component`, `__sveltets_$$bindings(...)`).
+
+- fbdbd52: Fix two `--tsgo` / svelte-check overlay scoping bugs where an instance-`<script>`
+  type declaration was relocated out of the scope where the rest of the script
+  referenced it, producing spurious "Cannot find name" errors (official
+  svelte-check reports 0 errors):
+
+  - #963: an instance `export type` / `export interface` referenced by a hoisted
+    `Props` interface is now registered as a hoist candidate (with its `export`
+    keyword preserved) so it travels with the interface and stays in scope.
+  - #964: a local generic `type` alias no longer knocks the component's
+    `generics=` parameters out of scope. Hoisting is now gated on the props
+    interface itself being hoistable (mirroring upstream
+    `HoistableInterfaces.moveHoistableInterfaces`); when it references a component
+    generic, nothing is hoisted out of `function $$render<…>()`, keeping the
+    generics in scope for local aliases.
+
+- ab617b0: svelte2tsx output-parity (corpus burndown, follow-up): further port divergences fixed so rsvelte's svelte2tsx matches the official tool:
+
+  - `render_tag_invalid_call_expression` (snippet via `.apply`/`.bind`/`.call`) is deferred to the analysis phase like official Svelte, instead of being rejected at parse time — svelte2tsx (parse-only) no longer errors on templates official tolerates.
+  - `<script>` content is parsed as TypeScript regardless of `lang="ts"` (matching official svelte2tsx on acorn-typescript), so TS-only script syntax such as `let x: typeof C<any>` no longer fails the parse; template expressions stay lang-respecting.
+  - Trailing TypeScript postfixes on `{#each}` collection expressions (`{#each x! as i}`, `{#each [...] as const as i}`) are preserved instead of being dropped.
+
+- 4cb9c5e: Continue svelte2tsx output-parity burndown: widen JSDoc `/** @type */` props;
+  preserve element-opener comments (re-attached as leading attribute comments),
+  any leading block comment as a prop doc, and leading/trailing comments inside
+  expression tags; emit the leading export doc on `props … as { … }` type
+  entries; combine the SvelteKit `data: PageData` annotation with the prop
+  type-widener into one ignore block; emit the synthetic `children` prop on
+  `<svelte:component>` even with `let:` directives and drop the duplicate let-var
+  statement on named-slot elements; and stop treating a `$name` in a
+  `use:`/`transition:`/`in:`/`out:`/`animate:` directive name as a store
+  subscription.
+
 ## 0.1.17
 
 ### Patch Changes
