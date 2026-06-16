@@ -172,10 +172,12 @@ const SKIP: &[&str] = &[
     "valid-style-parse/invalid/invalid-css01",
     "valid-style-parse/invalid/invalid-scss01",
     // `no-navigation-without-resolve` fixtures that require the TypeScript type
-    // checker (`tsTools`) to determine whether an identifier is typed as
-    // `ResolvedPathname`, `null`, or `undefined` from `$app/types`. Without TS
-    // support these valid cases produce false positives — the rule is
-    // `type_aware: false`, so we skip the TS-type-dependent fixtures.
+    // checker to determine whether an identifier is typed as `ResolvedPathname`,
+    // `null`, or `undefined` from `$app/types`. This oracle exercises the
+    // CORSA-FREE native path (CI cannot clone the private corsa submodule), so
+    // these stay skipped here; the type-aware path that resolves them is covered
+    // end-to-end against a real `tsgo` by `rsvelte_lint_types`'s
+    // `nav_type_aware_e2e` tests (rule logic: `no_navigation_without_resolve::diagnostics_typed`).
     "no-navigation-without-resolve/valid/goto-resolved-pathname01",
     "no-navigation-without-resolve/valid/goto-resolved-pathname02",
     "no-navigation-without-resolve/valid/pushState-resolved-pathname01",
@@ -235,9 +237,15 @@ const SKIP: &[&str] = &[
     // template walker.
     "indent/valid/declaration-tag",
     // ── svelte/no-unused-props skips ───────────────────────────────────────
-    // Requires TypeScript type checker (extends, intersections, generics,
-    // imported types, index signatures, nested property checking, custom
-    // config options).
+    // Requires the TypeScript type checker (extends, intersections, generics,
+    // imported types, index signatures, nested property checking, custom config
+    // options). Skipped on this corsa-free native path; the type-aware path
+    // (`no_unused_props::diagnostics_typed`) is covered end-to-end against a real
+    // `tsgo` by `rsvelte_lint_types`'s `type_aware_e2e` tests for the
+    // type-resolution cases (extends / intersection / nested). The remaining
+    // options-origin edge cases (`checkImportedTypes` symbol-origin,
+    // `ignore*-patterns`, `index-signature` message, `custom-config-combination`)
+    // are tracked as follow-ups in docs/svelte-lint-design.md.
     "no-unused-props/invalid/extends-unused",
     "no-unused-props/invalid/generic-props-unused",
     "no-unused-props/invalid/ignore-external-type",

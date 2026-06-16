@@ -31,6 +31,7 @@ pub mod scope;
 pub mod script;
 pub mod suppression;
 pub mod svelte_scan;
+pub mod type_backend;
 pub mod visitor;
 
 // `--config-from-eslint` importer (OXC). Excluded from the wasm build.

@@ -1,10 +1,18 @@
 //! `svelte/no-unused-props` — report Props members that are never read.
 //!
-//! **Scope (LOCAL-FLAT only):**
-//! - Local `interface Props { … }` or `type Props = { … }` without `extends`,
-//!   intersection (`&`), generics, or imported member types.
-//! - Destructure form (`const { a, b }: Props = $props()`) and
-//!   whole-object form (`const props: Props = $props()`).
+//! Two paths share the usage-check + reporting logic ([`report_unused`]),
+//! differing only in how the *declared* property set is resolved:
+//!
+//! - [`diagnostics`] (syntactic, no type backend) — **LOCAL-FLAT only**: a local
+//!   `interface Props { … }` / `type Props = { … }` without `extends`,
+//!   intersection (`&`), generics, or imported members.
+//! - [`diagnostics_typed`] (type-aware, via [`crate::type_backend::TypeBackend`])
+//!   — the fully-resolved property set from the TypeScript checker, covering
+//!   `extends`, intersections, generics, imported types, and nested object
+//!   props. Backed by `tsgo` in the `rsvelte_lint_types` crate.
+//!
+//! Both handle the destructure form (`const { a, b }: Props = $props()`) and
+//! the whole-object form (`const props: Props = $props()`).
 
 use std::path::Path;
 
@@ -25,12 +33,199 @@ pub static META: RuleMeta = RuleMeta {
         runes_only: false,
         legacy_only: false,
     },
-    type_aware: false,
+    type_aware: true,
     docs: "report Props properties that are never read",
     options_schema: Some(
         r#"[{"type":"object","properties":{"checkImportedTypes":{"type":"boolean"},"ignoreTypePatterns":{"type":"array","items":{"type":"string"}},"ignorePropertyPatterns":{"type":"array","items":{"type":"string"}},"allowUnusedNestedProperties":{"type":"boolean"}},"additionalProperties":false}]"#,
     ),
 };
+
+/// Type-aware variant of [`diagnostics`]: instead of resolving the Props type
+/// body syntactically (which only works for local, flat types), the
+/// fully-resolved property set is obtained from the TypeScript checker via
+/// `backend`. This covers `extends`, intersection (`&`), generics, imported
+/// types, and nested object props — the cases the syntactic path skips.
+///
+/// The "used" detection and report location are identical to the syntactic
+/// path (shared via [`report_unused`]); only the *declared* set differs.
+pub fn diagnostics_typed(
+    source: &str,
+    file: &Path,
+    config: &LintConfig,
+    backend: &mut dyn crate::type_backend::TypeBackend,
+) -> Vec<Diagnostic> {
+    let severity = config.resolve_code(META.name, META.default_severity);
+    if severity == Severity::Off || !script_is_ts(source) {
+        return Vec::new();
+    }
+
+    // Parsed options (see `options_schema`).
+    let opts = config.options_for(META.name);
+    let ignore_prop_patterns = compile_patterns(option_str_list(opts, "ignorePropertyPatterns"));
+    let ignore_type_patterns = compile_patterns(option_str_list(opts, "ignoreTypePatterns"));
+    let allow_unused_nested = option_bool(opts, "allowUnusedNestedProperties").unwrap_or(false);
+
+    let li = LineIndex::new(source);
+    let mut out = Vec::new();
+
+    // The props type is a component-level fact; probe once.
+    let Some(facts) = backend.probe_props() else {
+        return Vec::new();
+    };
+    if facts.property_names.is_empty() {
+        return Vec::new();
+    }
+
+    for block in script_blocks(source) {
+        if block.open_tag_attrs.contains("module") {
+            continue;
+        }
+        let content = &source[block.content_start..block.content_end];
+        let blanked = blank_comments(content);
+
+        let Some(props_info) = find_props_info(content, &blanked, block.content_start) else {
+            continue;
+        };
+        // A rest element captures the remaining props, so nothing is "unused".
+        if matches!(
+            &props_info.form,
+            PropForm::Destructure { has_rest: true, .. }
+        ) {
+            continue;
+        }
+
+        // Declared = resolved property names, minus any matched by an ignore
+        // pattern (by property name, or by the rendered text of its type).
+        let declared: Vec<String> = facts
+            .property_names
+            .iter()
+            .filter(|name| {
+                if matches_any(&ignore_prop_patterns, name) {
+                    return false;
+                }
+                if !ignore_type_patterns.is_empty()
+                    && let Some(types) = facts.property_type(name)
+                    && types.iter().any(|t| matches_any(&ignore_type_patterns, t))
+                {
+                    return false;
+                }
+                true
+            })
+            .cloned()
+            .collect();
+
+        report_unused(
+            &props_info.form,
+            &declared,
+            source,
+            file,
+            severity,
+            &li,
+            &mut out,
+        );
+
+        // Nested object props (whole-object form only): for a declared object
+        // prop that is itself accessed (`props.user`), report members of the
+        // nested object that are never read (`props.user.x`). Mirrors upstream's
+        // default `allowUnusedNestedProperties: false`.
+        if !allow_unused_nested
+            && let PropForm::WholeObject {
+                var_name,
+                var_abs_offset,
+            } = &props_info.form
+            && !has_whole_object_spread(source, var_name)
+        {
+            for name in &declared {
+                // Only recurse into props that are accessed at the top level.
+                if !whole_object_member_used(source, var_name, name) {
+                    continue;
+                }
+                let Some(types) = facts.property_type(name) else {
+                    continue;
+                };
+                // The checker renders an object prop's type as an object literal
+                // `{ a: T; b: U }`; parse its member names.
+                let Some(nested) = types
+                    .iter()
+                    .find(|t| t.trim_start().starts_with('{'))
+                    .and_then(|t| parse_prop_members(t, 0))
+                else {
+                    continue;
+                };
+                let owner = format!("{}.{}", var_name, name);
+                for nested_name in &nested {
+                    if matches_any(&ignore_prop_patterns, nested_name) {
+                        continue;
+                    }
+                    if !whole_object_member_used(source, &owner, nested_name) {
+                        let abs = *var_abs_offset as u32;
+                        out.push(Diagnostic {
+                            file: file.to_path_buf(),
+                            severity: to_dsev(severity),
+                            range: range_from_byte(&li, abs, abs),
+                            message: format!(
+                                "'{}' in '{}' is an unused property.",
+                                nested_name, name
+                            ),
+                            code: Some(META.name.to_string()),
+                            source: "svelte",
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    out
+}
+
+/// Compile a list of ESLint-style string patterns into regexes. A pattern
+/// wrapped in `/…/` is unwrapped to its inner source; otherwise it is used
+/// verbatim. Invalid patterns are dropped.
+fn compile_patterns(pats: Vec<String>) -> Vec<regex::Regex> {
+    pats.into_iter()
+        .filter_map(|p| {
+            let src = if p.len() >= 2 && p.starts_with('/') && p.ends_with('/') {
+                &p[1..p.len() - 1]
+            } else {
+                p.as_str()
+            };
+            regex::Regex::new(src).ok()
+        })
+        .collect()
+}
+
+fn matches_any(patterns: &[regex::Regex], s: &str) -> bool {
+    patterns.iter().any(|re| re.is_match(s))
+}
+
+fn option_str_list(opts: Option<&serde_json::Value>, key: &str) -> Vec<String> {
+    opts.and_then(first_option_object)
+        .and_then(|o| o.get(key))
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn option_bool(opts: Option<&serde_json::Value>, key: &str) -> Option<bool> {
+    opts.and_then(first_option_object)
+        .and_then(|o| o.get(key))
+        .and_then(|v| v.as_bool())
+}
+
+fn first_option_object(
+    v: &serde_json::Value,
+) -> Option<&serde_json::Map<String, serde_json::Value>> {
+    match v {
+        serde_json::Value::Array(a) => a.first().and_then(|o| o.as_object()),
+        serde_json::Value::Object(o) => Some(o),
+        _ => None,
+    }
+}
 
 pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
@@ -105,60 +300,88 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
             continue;
         }
 
-        // 5. Check usage.
-        match &props_info.form {
-            PropForm::Destructure {
-                pattern_open_brace_abs,
-                pattern_text,
-                ..
-            } => {
-                let destructured = parse_destructure_props(pattern_text);
-                for member_name in &members {
-                    if !destructured.contains(member_name.as_str()) {
-                        let abs = *pattern_open_brace_abs as u32;
-                        out.push(Diagnostic {
-                            file: file.to_path_buf(),
-                            severity: to_dsev(severity),
-                            range: range_from_byte(&li, abs, abs),
-                            message: format!("'{}' is an unused Props property.", member_name),
-                            code: Some(META.name.to_string()),
-                            source: "svelte",
-                        });
-                    }
+        // 5. Check usage and report (flat members, local-type path).
+        report_unused(
+            &props_info.form,
+            &members,
+            source,
+            file,
+            severity,
+            &li,
+            &mut out,
+        );
+    }
+
+    out
+}
+
+/// Report unused members for a resolved `$props()` declaration form. Shared by
+/// the syntactic ([`diagnostics`]) and type-aware ([`diagnostics_typed`]) paths
+/// — only the source of `members` differs.
+#[allow(clippy::too_many_arguments)]
+fn report_unused(
+    form: &PropForm,
+    members: &[String],
+    source: &str,
+    file: &Path,
+    severity: Severity,
+    li: &LineIndex,
+    out: &mut Vec<Diagnostic>,
+) {
+    match form {
+        PropForm::Destructure {
+            pattern_open_brace_abs,
+            pattern_text,
+            ..
+        } => {
+            let destructured = parse_destructure_props(pattern_text);
+            for member_name in members {
+                if !destructured.contains(member_name.as_str()) {
+                    let abs = *pattern_open_brace_abs as u32;
+                    out.push(Diagnostic {
+                        file: file.to_path_buf(),
+                        severity: to_dsev(severity),
+                        range: range_from_byte(li, abs, abs),
+                        message: format!("'{}' is an unused Props property.", member_name),
+                        code: Some(META.name.to_string()),
+                        source: "svelte",
+                    });
                 }
             }
-            PropForm::WholeObject {
-                var_name,
-                var_abs_offset,
-            } => {
-                // Skip if the var is spread (whole object), e.g. {...props} or ...props.
-                if has_whole_object_spread(source, var_name) {
-                    continue;
-                }
-                for member_name in &members {
-                    let dot_pat = format!("{}.{}", var_name, member_name);
-                    let sq_pat = format!("{}['{}']", var_name, member_name);
-                    let dq_pat = format!("{}[\"{}\"]", var_name, member_name);
-                    let used = source.contains(dot_pat.as_str())
-                        || source.contains(sq_pat.as_str())
-                        || source.contains(dq_pat.as_str());
-                    if !used {
-                        let abs = *var_abs_offset as u32;
-                        out.push(Diagnostic {
-                            file: file.to_path_buf(),
-                            severity: to_dsev(severity),
-                            range: range_from_byte(&li, abs, abs),
-                            message: format!("'{}' is an unused Props property.", member_name),
-                            code: Some(META.name.to_string()),
-                            source: "svelte",
-                        });
-                    }
+        }
+        PropForm::WholeObject {
+            var_name,
+            var_abs_offset,
+        } => {
+            // Skip if the var is spread (whole object), e.g. {...props} or ...props.
+            if has_whole_object_spread(source, var_name) {
+                return;
+            }
+            for member_name in members {
+                if !whole_object_member_used(source, var_name, member_name) {
+                    let abs = *var_abs_offset as u32;
+                    out.push(Diagnostic {
+                        file: file.to_path_buf(),
+                        severity: to_dsev(severity),
+                        range: range_from_byte(li, abs, abs),
+                        message: format!("'{}' is an unused Props property.", member_name),
+                        code: Some(META.name.to_string()),
+                        source: "svelte",
+                    });
                 }
             }
         }
     }
+}
 
-    out
+/// Whether `var_name.member` (or its bracket forms) is read anywhere in source.
+fn whole_object_member_used(source: &str, var_name: &str, member: &str) -> bool {
+    let dot_pat = format!("{}.{}", var_name, member);
+    let sq_pat = format!("{}['{}']", var_name, member);
+    let dq_pat = format!("{}[\"{}\"]", var_name, member);
+    source.contains(dot_pat.as_str())
+        || source.contains(sq_pat.as_str())
+        || source.contains(dq_pat.as_str())
 }
 
 /// Check if the variable `var_name` appears in a whole-object spread context in
@@ -622,5 +845,100 @@ mod tests {
         assert!(has_whole_object_spread("bar(...props)", "props"));
         // `...props.foo` is a member spread, not a whole-object spread.
         assert!(!has_whole_object_spread("baz({ ...props.foo })", "props"));
+    }
+
+    use crate::type_backend::{TypeBackend, TypeFacts};
+    use std::path::PathBuf;
+
+    /// A backend returning a fixed resolved props type — stands in for the
+    /// checker so the typed rule logic is testable without `corsa`/`tsgo`.
+    struct MockProps(TypeFacts);
+    impl TypeBackend for MockProps {
+        fn probe_props(&mut self) -> Option<TypeFacts> {
+            Some(self.0.clone())
+        }
+        fn probe_expr(&mut self, _off: u32) -> Option<TypeFacts> {
+            None
+        }
+    }
+
+    fn facts(names: &[&str], types: &[&str]) -> TypeFacts {
+        TypeFacts {
+            type_texts: vec!["Props".into()],
+            property_names: names.iter().map(|s| s.to_string()).collect(),
+            property_types: types.iter().map(|s| vec![s.to_string()]).collect(),
+        }
+    }
+
+    fn typed(src: &str, mut backend: MockProps) -> Vec<String> {
+        let cfg = LintConfig::recommended().with_override(META.name, Severity::Warn);
+        diagnostics_typed(src, &PathBuf::from("T.svelte"), &cfg, &mut backend)
+            .into_iter()
+            .map(|d| d.message)
+            .collect()
+    }
+
+    #[test]
+    fn typed_flat_resolves_inherited_props() {
+        // Mirrors `extends-unused`: the checker reports id/type/role/name/email;
+        // id/type/name are used; role/email are not.
+        let src = "<script lang=\"ts\">\n\tinterface Props { x: 0 }\n\tlet props: Props = $props();\n\tconsole.log(props.id, props.type, props.name);\n</script>";
+        let msgs = typed(
+            src,
+            MockProps(facts(
+                &["id", "type", "role", "name", "email"],
+                &["string", "string", "string", "string", "string"],
+            )),
+        );
+        assert!(msgs.contains(&"'role' is an unused Props property.".to_string()));
+        assert!(msgs.contains(&"'email' is an unused Props property.".to_string()));
+        assert_eq!(msgs.len(), 2, "got {msgs:?}");
+    }
+
+    #[test]
+    fn typed_destructure_form() {
+        let src = "<script lang=\"ts\">\n\tlet { name, age }: Props = $props();\n\tconsole.log(name, age);\n</script>";
+        let msgs = typed(
+            src,
+            MockProps(facts(
+                &["name", "age", "role"],
+                &["string", "number", "string"],
+            )),
+        );
+        assert_eq!(
+            msgs,
+            vec!["'role' is an unused Props property.".to_string()]
+        );
+    }
+
+    #[test]
+    fn typed_nested_object_prop() {
+        // Mirrors `nested-unused`: props.user.name used, props.user.location not.
+        let src = "<script lang=\"ts\">\n\tlet props: Props = $props();\n\tconsole.log(props.user.name);\n</script>";
+        let msgs = typed(
+            src,
+            MockProps(facts(&["user"], &["{ name: string; location: string; }"])),
+        );
+        assert_eq!(
+            msgs,
+            vec!["'location' in 'user' is an unused property.".to_string()]
+        );
+    }
+
+    #[test]
+    fn typed_ignore_property_patterns() {
+        let src = "<script lang=\"ts\">\n\tconst { bar }: Props = $props();\n</script>";
+        let cfg = LintConfig::from_json_str(
+            r#"{ "rules": { "svelte/no-unused-props": ["warn", { "ignorePropertyPatterns": ["^skip_"] }] } }"#,
+        )
+        .unwrap();
+        let mut backend = MockProps(facts(&["bar", "skip_me"], &["string", "string"]));
+        let msgs: Vec<String> =
+            diagnostics_typed(src, &PathBuf::from("T.svelte"), &cfg, &mut backend)
+                .into_iter()
+                .map(|d| d.message)
+                .collect();
+        // `skip_me` is filtered out; `bar` is used → no findings.
+        assert!(msgs.is_empty(), "got {msgs:?}");
     }
 }

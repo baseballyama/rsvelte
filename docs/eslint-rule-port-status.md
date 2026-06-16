@@ -40,6 +40,22 @@ These are intentionally not yet ported; each needs work outside "add a rule".
 
 ### Type-aware family
 
+> **Update — the type-aware backend has landed.** The syntactic descriptions
+> below remain the **corsa-free** path (what CI builds and the oracle exercises).
+> On top of them, a real TypeScript-checker path now exists: a `TypeBackend`
+> seam in `rsvelte_lint` (`type_backend.rs`) consumed by
+> `no_unused_props::diagnostics_typed` and
+> `no_navigation_without_resolve::diagnostics_typed`, backed by a
+> `corsa::ProjectSession`/`tsgo` implementation in the isolated
+> `crates/rsvelte_lint_types` crate (outside the workspace — the `corsa-bind`
+> submodule is private, so CI cannot build it). It resolves
+> `extends`/intersection/generics/imported/nested props (no-unused-props) and the
+> `$app/types` `ResolvedPathname`/nullish type allowance (no-navigation), proven
+> end-to-end against `tsgo` by that crate's `*_e2e` tests. See
+> `docs/svelte-lint-design.md` → "Wave 3 — type-aware path — landed". The
+> remaining option-origin edge cases (`checkImportedTypes`, `ignore*Patterns`
+> exact semantics, index-signature message) are tracked follow-ups.
+
 Three of the six rules upstream files under "type-aware" need **no** type checker
 — they only check for the *presence* of TS syntax — and are ported as
 cross-cutting (template + script) source-scan meta-paths in

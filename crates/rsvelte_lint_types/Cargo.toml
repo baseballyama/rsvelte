@@ -1,0 +1,68 @@
+# rsvelte_lint_types — the type-aware lint backend (corsa/tsgo).
+#
+# This crate is DELIBERATELY ITS OWN WORKSPACE (note the `[workspace]` table
+# below) and is NOT a member of the root rsvelte workspace. Reason: it depends
+# on `corsa` via a path into the PRIVATE `submodules/corsa-bind` submodule
+# (`git@github.com:ubugeeei-prod/corsa-bind`). A path dependency — even an
+# optional one — is resolved by Cargo at metadata time, so listing it in the
+# root workspace would break `cargo build` / CI for everyone who cannot clone
+# that private submodule. Isolating it keeps the default build and CI 100%
+# corsa-free; this crate is built/tested only locally, where corsa-bind +
+# typescript-go are available. This is the Wave-3 "gated spike" of
+# docs/svelte-lint-design.md made runnable.
+#
+# Because it is a separate workspace root, it must re-declare the workspace keys
+# the path-dep crates (rsvelte_core / rsvelte_lint) reference via
+# `[lints] workspace = true`, plus the oxc `[patch.crates-io]` those crates rely
+# on for type unification. Keep the patch rev in sync with the root Cargo.toml
+# when oxc is bumped (see the "Renovate oxc unified bump" note).
+
+[package]
+name = "rsvelte_lint_types"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+rsvelte_lint = { path = "../rsvelte_lint", default-features = false, features = ["native"] }
+rsvelte_core = { path = "../rsvelte_core", default-features = false, features = ["native"] }
+corsa_client = { path = "../../submodules/corsa-bind/src/core/corsa_client" }
+corsa_runtime = { path = "../../submodules/corsa-bind/src/core/corsa_runtime" }
+
+[dev-dependencies]
+serde_yaml = "0.9"
+
+[lints]
+workspace = true
+
+# --- isolated workspace root (see header) -----------------------------------
+
+[workspace]
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"
+format_push_string = "deny"
+too_many_arguments = "allow"
+type_complexity = "allow"
+
+# Mirror the root workspace's oxc unification patch so the path-dep rsvelte
+# crates build with the same oxc rev. MUST match crates/../Cargo.toml.
+[patch.crates-io]
+oxc_allocator          = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_parser             = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_ast                = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_ast_macros         = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_ast_visit          = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_span               = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_diagnostics        = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_codegen            = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_syntax             = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_semantic           = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_regular_expression = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_ecmascript         = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_estree             = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_str                = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
+oxc_data_structures    = { git = "https://github.com/oxc-project/oxc", rev = "37a34a128fa81a37955c38783b7d3474aadb84a6" }
