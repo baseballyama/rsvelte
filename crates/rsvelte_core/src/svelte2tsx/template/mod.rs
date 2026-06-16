@@ -3548,10 +3548,16 @@ fn handle_named_slot_element(
 
     // Build the let variable expressions (for class: directives referencing let vars)
     let let_var_exprs = build_let_var_expressions(&let_directives, source);
+    // class:/style: directives lower to statements after createElement
+    // (`class:bar` → ` bar;`), same as a regular element.
+    let class_style_suffix = segs_to_string(
+        &build_class_style_directive_suffix_segments(&el.attributes, source),
+        source,
+    );
 
     let opener = format!(
-        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}",
-        block_open, el.name, attrs_str, let_var_exprs
+        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}{}",
+        block_open, el.name, attrs_str, class_style_suffix, let_var_exprs
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -3721,12 +3727,9 @@ fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) -> Str
             Attribute::OnDirective(on) => {
                 parts.push(format_on_directive(on, source));
             }
-            Attribute::ClassDirective(class) => {
-                // For named slots, class directives using let vars become just the var name
-                parts.push(format_class_directive(class, source));
-            }
-            Attribute::StyleDirective(style) => {
-                parts.push(format_style_directive(style, source));
+            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
+                // class:/style: are not props — they lower to statements after
+                // createElement (see the suffix in handle_named_slot_element).
             }
             Attribute::TransitionDirective(transition) => {
                 if let Some(s) = format_transition_directive(transition, source) {
