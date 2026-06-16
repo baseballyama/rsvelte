@@ -20,13 +20,21 @@
 # is total by construction (no binary is silently dropped) and automatically
 # absorbs newly added `tests/*.rs` files with no edits here.
 #
+# IMPORTANT: all of a shard's targets are selected in a SINGLE `cargo nextest
+# run`. Splitting them across several `cargo` invocations (e.g. one per package)
+# makes cargo re-resolve features per invocation and rebuild shared dependencies
+# (the oxc graph) between them — feature thrashing that is dramatically *slower*
+# than building everything once. Test-target names are unique across the
+# workspace (checked: `… | sort | uniq -d` is empty), so a single invocation
+# listing every `-p`/`--test` has no cross-crate `--test NAME` ambiguity.
+#
 # Coverage is identical to the previous count-partitioned job: every test that
 # ran before still runs in exactly one shard, and the heavy fan-out suites keep
 # running in their dedicated jobs (see the exclusion list / RUN_FILTER below).
 #
 # Portability: must run on the GitHub macOS runners' stock /bin/bash 3.2, so no
 # `declare -A` / `mapfile` (bash 4+) and no `grep -P` (absent on BSD grep) — the
-# partition + grouping is done in awk.
+# partition is done in awk.
 #
 # Usage: run-test-shard.sh <shard 1-based> <total shards>
 set -euo pipefail
@@ -61,28 +69,35 @@ fi
 # This shard's targets: 0-based stable index, modulo partition.
 MINE="$(printf '%s\n' "$ALL_TARGETS" | awk -v s="$SHARD" -v t="$TOTAL" '(NR-1) % t == s-1')"
 
-echo "::group::Shard ${SHARD}/${TOTAL} target assignment"
-printf '%s\n' "$MINE"
-[ "$SHARD" -eq 1 ] && echo "(+ workspace --lib --bins unit tests)"
-echo "::endgroup::"
-
-rc=0
-
-# Run each package's slice in its own invocation: this avoids cross-crate
-# `--test NAME` ambiguity (a name present in two crates would otherwise build in
-# both), and the shared target dir means each crate lib still compiles once and
-# is reused across invocations. `|| rc=1` preserves the suite's "surface every
-# failure" behaviour across packages rather than bailing on the first.
+# Assemble a single cargo nextest invocation. `--test <name>` selects integration
+# targets; the `-p` set scopes them. Names are workspace-unique, so listing every
+# package the shard touches is unambiguous.
+ARGS=""
+for name in $(printf '%s\n' "$MINE" | cut -f2); do
+  ARGS="$ARGS --test $name"
+done
 for pkg in $(printf '%s\n' "$MINE" | cut -f1 | sort -u); do
-  args="$(printf '%s\n' "$MINE" | awk -F'\t' -v p="$pkg" '$1==p{printf " --test %s", $2}')"
-  # shellcheck disable=SC2086 -- intentional word-splitting of the --test list
-  cargo nextest run --profile ci -p "$pkg" $args -E "$RUN_FILTER" || rc=1
+  ARGS="$ARGS -p $pkg"
 done
 
-# Unit tests (`--lib` / `--bins` `#[cfg(test)]` modules across every crate) run
-# once, on shard 1, so they aren't duplicated across shards.
+# Unit tests (`--lib` / `--bins` `#[cfg(test)]` modules) run once, on shard 1.
+# `--lib`/`--bins` apply to the selected `-p` packages, so shard 1 must scope
+# every workspace package to cover all crates' unit tests.
 if [ "$SHARD" -eq 1 ]; then
-  cargo nextest run --profile ci --lib --bins -E "$RUN_FILTER" || rc=1
+  ARGS="$ARGS --lib --bins"
+  for pkg in $(
+    cargo metadata --no-deps --format-version 1 \
+      | jq -r '.packages[] | select(.targets[].kind | index("test")) | .name' | sort -u
+  ); do
+    case " $ARGS " in *" -p $pkg "*) : ;; *) ARGS="$ARGS -p $pkg" ;; esac
+  done
 fi
 
-exit "$rc"
+echo "::group::Shard ${SHARD}/${TOTAL} selection"
+printf '%s\n' "$MINE"
+[ "$SHARD" -eq 1 ] && echo "(+ workspace --lib --bins unit tests)"
+echo "cargo nextest run --profile ci$ARGS -E '$RUN_FILTER'"
+echo "::endgroup::"
+
+# shellcheck disable=SC2086 -- intentional word-splitting of the assembled args
+exec cargo nextest run --profile ci $ARGS -E "$RUN_FILTER"
