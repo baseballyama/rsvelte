@@ -3312,8 +3312,34 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
             let scope = scope_with_params(declared_names, &func.params);
             detect_rune_in_nested_body(&body.statements, &scope)
         }),
+        // A `class` nested in a function/block body — its method bodies and
+        // field initializers can still reference rune globals (e.g.
+        // `function bar() { class Foo { foo = $state(0) } }`). Mirror the
+        // top-level ClassDeclaration scan.
+        oxc::Statement::ClassDeclaration(class) => {
+            detect_rune_in_class_body(class, declared_names)
+        }
         _ => false,
     }
+}
+
+/// Scan a class body's method bodies and property initializers for rune globals.
+fn detect_rune_in_class_body(
+    class: &oxc::Class,
+    declared_names: &HashSet<String>,
+) -> bool {
+    class.body.body.iter().any(|member| match member {
+        oxc::ClassElement::MethodDefinition(method) => method
+            .value
+            .body
+            .as_ref()
+            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::ClassElement::PropertyDefinition(prop) => prop
+            .value
+            .as_ref()
+            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        _ => false,
+    })
 }
 
 /// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
