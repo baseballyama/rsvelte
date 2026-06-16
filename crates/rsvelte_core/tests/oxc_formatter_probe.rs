@@ -18,9 +18,9 @@ fn formats_unformatted_js() {
     let parser_ret = Parser::new(&allocator, source, SourceType::default()).parse();
 
     assert!(
-        parser_ret.errors.is_empty(),
+        parser_ret.diagnostics.is_empty(),
         "parse errors: {:?}",
-        parser_ret.errors
+        parser_ret.diagnostics
     );
 
     let formatted = format_program(

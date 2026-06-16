@@ -66,7 +66,7 @@ fn normalize_script_with_oxc(js: &str, indent_level: usize) -> String {
         let source_type = SourceType::mjs();
         let parsed = Parser::new(&alloc, &stripped, source_type).parse();
 
-        if !parsed.errors.is_empty() {
+        if !parsed.diagnostics.is_empty() {
             // OXC parse failed - return original code
             return js.to_string();
         }

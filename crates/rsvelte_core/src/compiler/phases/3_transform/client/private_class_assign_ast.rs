@@ -108,13 +108,13 @@ fn single_pass(
             .parse();
 
         const CLASS_PREFIX: &str = "class _Dummy_ {\n";
-        let (parse_str_owned, span_offset): (Option<String>, u32) = if !parser_ret.errors.is_empty()
-        {
-            let wrapped = format!("{}{}\n}}", CLASS_PREFIX, source);
-            (Some(wrapped), CLASS_PREFIX.len() as u32)
-        } else {
-            (None, 0u32)
-        };
+        let (parse_str_owned, span_offset): (Option<String>, u32) =
+            if !parser_ret.diagnostics.is_empty() {
+                let wrapped = format!("{}{}\n}}", CLASS_PREFIX, source);
+                (Some(wrapped), CLASS_PREFIX.len() as u32)
+            } else {
+                (None, 0u32)
+            };
 
         let parse_str: &str = match &parse_str_owned {
             Some(s) => s.as_str(),
@@ -128,7 +128,7 @@ fn single_pass(
                     ..ParseOptions::default()
                 })
                 .parse();
-            if !ret.errors.is_empty() {
+            if !ret.diagnostics.is_empty() {
                 *cell.borrow_mut() = allocator;
                 return None;
             }

@@ -39,7 +39,7 @@ pub fn transform_derived_by_ast(source: &str, is_ts: bool) -> Option<String> {
             SourceType::mjs()
         };
         let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

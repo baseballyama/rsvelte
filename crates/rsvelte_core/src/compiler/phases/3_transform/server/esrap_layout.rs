@@ -63,7 +63,7 @@ pub(crate) fn reflow_template_expr(expr: &str) -> String {
     let multiline = LAYOUT_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let ret = Parser::new(&allocator, &wrapped, SourceType::mjs()).parse();
-        let result = if ret.errors.is_empty() {
+        let result = if ret.diagnostics.is_empty() {
             let mut walker = Walker {
                 src: &wrapped,
                 forced: false,

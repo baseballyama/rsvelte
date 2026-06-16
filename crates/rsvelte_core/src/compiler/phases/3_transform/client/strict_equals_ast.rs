@@ -84,7 +84,7 @@ fn single_pass(source: &str, is_ts: bool) -> Option<String> {
             SourceType::mjs()
         };
         let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             // Parse error — keep the source untouched. Module scripts
             // that don't parse here would already fail elsewhere; the
             // strict-equals rewrite isn't responsible for surfacing

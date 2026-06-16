@@ -88,7 +88,7 @@ fn single_pass(
     MODULE_STATE_SET_REACTIVE_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }
