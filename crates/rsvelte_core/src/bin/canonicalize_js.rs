@@ -33,7 +33,7 @@ fn main() {
     let source_type = SourceType::mjs();
     let parsed = Parser::new(&allocator, &input, source_type).parse();
 
-    if parsed.panicked || !parsed.errors.is_empty() {
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
         // Parse failure: fall back to whitespace-collapsed text so two
         // formatting-only different inputs still compare close.
         let normalized = normalize_whitespace(&input);

@@ -56,7 +56,7 @@ pub fn strip_rune_generic_params_ast(source: &str, is_ts: bool) -> Option<String
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let parser_ret =
             Parser::new(&allocator, source, SourceType::ts().with_module(true)).parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

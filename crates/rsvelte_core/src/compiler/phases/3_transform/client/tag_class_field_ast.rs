@@ -53,7 +53,7 @@ pub fn wrap_state_derived_with_tag_class_fields_ast(source: &str) -> Option<Stri
                 ..ParseOptions::default()
             })
             .parse();
-        if !parser_ret.errors.is_empty() {
+        if !parser_ret.diagnostics.is_empty() {
             *cell.borrow_mut() = allocator;
             return None;
         }

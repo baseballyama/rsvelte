@@ -32,7 +32,7 @@ fn try_canonicalize(code: &str) -> Option<String> {
     let allocator = Allocator::new();
     let source_type = SourceType::mjs();
     let parsed = Parser::new(&allocator, &code, source_type).parse();
-    if parsed.panicked || !parsed.errors.is_empty() {
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
         return None;
     }
     let options = CodegenOptions {
