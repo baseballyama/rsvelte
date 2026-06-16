@@ -91,14 +91,17 @@ fn collect_node_edits(
             push_debug_tag(source, tag.start, tag.end, &tag.identifiers, options, edits)?;
         }
         TemplateNode::ConstTag(tag) => {
-            // `{@const x = e}` — the declaration is an assignment expression
-            // (`x = e`); format it like any content expression so quotes /
-            // spacing normalize (`{@const foo = 'bar'}` → `{@const foo = "bar"}`).
-            push_tag_form(
+            // `{@const x = e}` — the declaration is a `const` variable
+            // declaration (the parser records its full source span, *including*
+            // any TypeScript type annotation, on `tag.declaration`). Format it
+            // as a `const` declaration so a type annotation like
+            // `{@const _: never = x}` parses (a bare assignment-expression parse
+            // would reject the `: Type`), while quotes / spacing still normalize
+            // (`{@const foo = 'bar'}` → `{@const foo = "bar"}`).
+            push_const_tag(
                 source,
                 tag.start,
                 tag.end,
-                "@const",
                 &tag.declaration,
                 depth,
                 options,
@@ -471,6 +474,38 @@ fn push_tag_form(
     }
     let formatted = format_content_expression(slice, options, depth)?;
     edits.push((tag_start, tag_end, format!("{{{keyword} {formatted}}}")));
+    Ok(())
+}
+
+/// Replace `{@const <decl>}` by formatting `<decl>` as the body of a `const`
+/// variable declaration.
+///
+/// Unlike [`push_tag_form`], the body is parsed as `const <decl>;` rather than
+/// as a bare expression, so a TypeScript type annotation on the binding
+/// (`{@const _: never = x}`, `{@const name: Type = value}`) parses and round
+/// trips. The declaration's source span (recorded by the parser) covers the
+/// whole body including the annotation.
+fn push_const_tag(
+    source: &str,
+    tag_start: u32,
+    tag_end: u32,
+    decl: &Expression,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let (Some(start), Some(end)) = (decl.start(), decl.end()) else {
+        return Ok(());
+    };
+    let slice = source
+        .get(start as usize..end as usize)
+        .ok_or_else(|| FormatError::Parse("const declaration span out of bounds".into()))?
+        .trim();
+    if slice.is_empty() {
+        return Ok(());
+    }
+    let formatted = format_const_declaration(slice, options, depth)?;
+    edits.push((tag_start, tag_end, format!("{{@const {formatted}}}")));
     Ok(())
 }
 
@@ -1324,6 +1359,77 @@ fn format_content_expression(
     } else {
         formatted
     };
+    if !formatted.contains('\n') {
+        return Ok(formatted);
+    }
+    let prefix = if options.js.indent_style.is_tab() {
+        "\t".repeat(depth)
+    } else {
+        " ".repeat(lead)
+    };
+    Ok(crate::reindent::reindent(&formatted, &prefix, true))
+}
+
+/// Format the body of a `{@const <decl>}` tag — the `<decl>` is the body of a
+/// `const` variable declaration (`<binding>[: Type] = <init>`).
+///
+/// The body is parsed as `const <decl>;` (TypeScript when `options.typescript`)
+/// so a type annotation parses, then the `const ` prefix and trailing `;` are
+/// sliced back off, leaving the formatted declaration body. Width handling
+/// mirrors [`format_content_expression`]: the body is formatted at indent 0 and
+/// the wrap width narrowed by the markup `depth`, then continuation lines are
+/// re-indented to that depth.
+fn format_const_declaration(
+    decl_source: &str,
+    options: &FormatOptions,
+    depth: usize,
+) -> Result<String, FormatError> {
+    let allocator = Allocator::default();
+    let source_type = if options.typescript {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+
+    let wrapped = format!("const {decl_source};");
+    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.diagnostics.is_empty() {
+        return Err(FormatError::ScriptParse(format!(
+            "{:?}",
+            parser_ret.diagnostics
+        )));
+    }
+
+    let indent_width = options.js.indent_width.value() as usize;
+    let lead = depth * indent_width;
+    let full_width = options.js.line_width.value() as usize;
+    // Narrow so the JS formatter's break decision lands where it will once the
+    // declaration is spliced back into the tag. The body is measured by the JS
+    // formatter as `const <body>;`, which already accounts for `const ` (6) +
+    // `;` (1); the real rendered affixes are `{@const ` (8) + `}` (1). So beyond
+    // the markup `lead`, only the affix delta `(8 - 6) + (1 - 1) = 2` must be
+    // subtracted — subtracting the full `{@const }` width here would
+    // double-count `const ;` and wrongly break tags that fit inline.
+    let narrowed = full_width.saturating_sub(lead + 2);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+
+    let mut js = options.js.clone();
+    js.line_width = line_width;
+    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
+
+    // Output shape: `const <decl>;\n`. Strip the leading `const ` and the
+    // trailing `;` to recover the declaration body.
+    let s = formatted.trim_end();
+    let s = s.strip_prefix("const ").unwrap_or(s);
+    let s = s.strip_suffix(';').unwrap_or(s);
+    let formatted = s.trim_end().to_string();
+
     if !formatted.contains('\n') {
         return Ok(formatted);
     }
