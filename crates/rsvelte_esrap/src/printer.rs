@@ -51,7 +51,7 @@ pub fn line_starts(source: &str) -> Vec<u32> {
 }
 
 /// A comment to interleave, pre-resolved to byte offsets, 1-based line numbers,
-/// and its delimiter-stripped value (so [`Printer::write_comment`] can rebuild
+/// and its delimiter-stripped value (so `Printer::write_comment` can rebuild
 /// it exactly as esrap does, re-indenting multi-line block bodies).
 #[derive(Debug, Clone)]
 pub struct Cmt {
