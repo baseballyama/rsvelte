@@ -1174,6 +1174,41 @@ impl<'opt> Printer<'opt> {
             ctx.write(val.name.as_str());
             return;
         }
+        // Method / accessor shorthand: `key() {}`, `get key() {}`, `*key() {}`.
+        if (prop.method || prop.kind != PropertyKind::Init)
+            && let Expression::FunctionExpression(f) = &prop.value
+        {
+            match prop.kind {
+                PropertyKind::Get => ctx.write("get "),
+                PropertyKind::Set => ctx.write("set "),
+                PropertyKind::Init => {}
+            }
+            if f.r#async {
+                ctx.write("async ");
+            }
+            if f.generator {
+                ctx.write("*");
+            }
+            if prop.computed {
+                ctx.write("[");
+                self.property_key(&prop.key, ctx);
+                ctx.write("]");
+            } else {
+                self.property_key(&prop.key, ctx);
+            }
+            ctx.write("(");
+            self.formal_parameters(&f.params, ctx);
+            ctx.write(")");
+            ctx.write(" ");
+            match &f.body {
+                Some(body) => {
+                    let span = body.span();
+                    self.block(&body.statements, span.start, span.end, ctx);
+                }
+                None => ctx.write("{}"),
+            }
+            return;
+        }
         if prop.computed {
             ctx.write("[");
             self.property_key(&prop.key, ctx);
@@ -1599,6 +1634,18 @@ mod tests {
         assert_eq!(
             print_ok("foo(a, () => { b(); });"),
             "foo(a, () => {\n\tb();\n});"
+        );
+    }
+
+    #[test]
+    fn object_methods() {
+        assert_eq!(
+            print_ok("const o = { f() {}, g() {} };"),
+            "const o = { f() {}, g() {} };"
+        );
+        assert_eq!(
+            print_ok("const o = { get x() {}, set x(v) {} };"),
+            "const o = { get x() {}, set x(v) {} };"
         );
     }
 
