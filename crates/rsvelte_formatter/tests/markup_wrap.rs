@@ -221,3 +221,94 @@ fn short_function_binding_stays_inline_without_parens() {
     );
     assert_eq!(fmt_at_width(&out, 80), out, "must be idempotent");
 }
+
+// ─── #971: value wrap budget subtracts the value's rendered `{` column ───
+//
+// The attribute/directive value's wrap budget must account for the actual
+// column its leading `{` lands at (indent + `name=` + `{`) and the trailing
+// `}`, not just the nesting indent. Otherwise a value up to ~len(name) wide
+// over printWidth wrongly stays inline and emits a line that exceeds the
+// width. Each case below is asserted byte-for-byte against oxfmt(svelte:true).
+
+/// Assert no rendered line exceeds the print width (visual / East-Asian).
+fn assert_no_line_exceeds(out: &str, width: usize) {
+    for (i, line) in out.lines().enumerate() {
+        let w = unicode_width::UnicodeWidthStr::width(line);
+        assert!(
+            w <= width,
+            "line {} is {} cols > printWidth {}:\n{:?}\nfull:\n{}",
+            i + 1,
+            w,
+            width,
+            line,
+            out
+        );
+    }
+}
+
+#[test]
+fn attribute_value_wraps_by_rendered_brace_column() {
+    // The DefinitionListItem repro from #971: at printWidth 100 the value
+    // (`description={…}`, 81-col expr) fits the indent-only budget (92) but its
+    // true rendered line is 103 cols, so oxfmt breaks the ternary. rsvelte must
+    // match byte-for-byte and emit no line > 100.
+    let src = "<div>\n  <div>\n    <div>\n      <DefinitionListItem\n        term=\"最終ログイン\"\n        description={user.lastAccessedAt ? formatDateInOrganizationTimezone(user.lastAccessedAt) : '-'}\n      />\n    </div>\n  </div>\n</div>\n";
+    let out = fmt_at_width(src, 100);
+    let expected = "<div>\n  <div>\n    <div>\n      <DefinitionListItem\n        term=\"最終ログイン\"\n        description={user.lastAccessedAt\n          ? formatDateInOrganizationTimezone(user.lastAccessedAt)\n          : \"-\"}\n      />\n    </div>\n  </div>\n</div>";
+    assert_eq!(out, expected, "value ternary must break (#971):\n{out}");
+    assert_no_line_exceeds(&out, 100);
+    assert_eq!(fmt_at_width(&out, 100), out, "must be idempotent");
+}
+
+#[test]
+fn content_mustache_wraps_by_rendered_column() {
+    // A content mustache shifted right by leading text must break at its own
+    // top-level operator so no line exceeds the width (#971 sibling case).
+    let src = "<div>some text content here {user.lastAccessedAt ? formatDateInOrganizationTimezone(user.lastAccessedAt) : '-'}</div>\n";
+    let out = fmt_at_width(src, 100);
+    let expected = "<div>\n  some text content here {user.lastAccessedAt\n    ? formatDateInOrganizationTimezone(user.lastAccessedAt)\n    : \"-\"}\n</div>";
+    assert_eq!(out, expected, "content mustache must break (#971):\n{out}");
+    assert_no_line_exceeds(&out, 100);
+}
+
+#[test]
+fn directive_value_stays_inline_when_it_fits() {
+    // class:/style: directive values that fit (98/97 cols at indent 2) must
+    // stay inline, matching oxfmt — the prefix narrowing must not over-wrap.
+    let class_src = "<div class:active={user.lastAccessedAt ? formatDateInOrganizationTimezone(user.lastAccessedAt) : '-'}></div>\n";
+    let class_out = fmt_at_width(class_src, 100);
+    let class_expected = "<div\n  class:active={user.lastAccessedAt ? formatDateInOrganizationTimezone(user.lastAccessedAt) : \"-\"}\n></div>";
+    assert_eq!(class_out, class_expected, "class directive:\n{class_out}");
+    assert_no_line_exceeds(&class_out, 100);
+
+    let style_src = "<div style:width={user.lastAccessedAt ? formatDateInOrganizationTimezone(user.lastAccessedAt) : '-'}></div>\n";
+    let style_out = fmt_at_width(style_src, 100);
+    let style_expected = "<div\n  style:width={user.lastAccessedAt ? formatDateInOrganizationTimezone(user.lastAccessedAt) : \"-\"}\n></div>";
+    assert_eq!(style_out, style_expected, "style directive:\n{style_out}");
+    assert_no_line_exceeds(&style_out, 100);
+}
+
+#[test]
+fn on_directive_arrow_handler_breaks_by_prefix() {
+    // An arrow handler whose body overflows the value line must break after the
+    // `=>` and land its body one indent in, matching oxfmt (#971 sibling case).
+    let src = "<button on:click={() => doSomethingQuiteLong(withAnArgument, andAnother, andYetAnotherOne)}>x</button>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<button\n  on:click={() =>\n    doSomethingQuiteLong(withAnArgument, andAnother, andYetAnotherOne)}\n  >x</button\n>";
+    assert_eq!(out, expected, "on:click arrow must break (#971):\n{out}");
+    assert_no_line_exceeds(&out, 80);
+}
+
+#[test]
+fn quoted_string_embedded_expr_breaks_by_rendered_column() {
+    // An expression embedded in a quoted attribute string must break its call
+    // args when the rendered line overflows, matching oxfmt (#971 sibling).
+    let src = "<div style=\"width: {computeWidthBasedOnSomeVeryLongComputationFunctionCallHere(a, b)}px;\"></div>\n";
+    let out = fmt_at_width(src, 80);
+    let expected = "<div\n  style=\"width: {computeWidthBasedOnSomeVeryLongComputationFunctionCallHere(\n    a,\n    b,\n  )}px;\"\n></div>";
+    assert_eq!(
+        out, expected,
+        "quoted embedded expr must break (#971):\n{out}"
+    );
+    assert_no_line_exceeds(&out, 80);
+}
