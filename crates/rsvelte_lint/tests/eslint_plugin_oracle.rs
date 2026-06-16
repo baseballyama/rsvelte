@@ -65,6 +65,10 @@ const NO_FIXTURE_RULES: &[&str] = &[
     // inline in `tests/src/rules/comment-directive.ts`. Covered by
     // `crate::rules::comment_directive` unit tests + `tests/comment_directive.rs`.
     "svelte/comment-directive",
+    // `no-companion-module-shadow` is an rsvelte-only rule (issue #800) with no
+    // upstream eslint-plugin-svelte fixture dir. Covered by the inline
+    // `crate::rules::no_companion_module` unit tests.
+    "svelte/no-companion-module-shadow",
 ];
 
 /// Meta-rules whose findings come from the whole-component compile / source-scan

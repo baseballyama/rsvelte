@@ -24,6 +24,7 @@ pub mod no_add_event_listener;
 pub mod no_at_const_tags;
 pub mod no_at_debug_tags;
 pub mod no_at_html_tags;
+pub mod no_companion_module;
 pub mod no_dom_manipulating;
 pub mod no_dupe_else_if_blocks;
 pub mod no_dupe_on_directives;

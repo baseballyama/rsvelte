@@ -4,6 +4,8 @@
 //! fixes intact). Compiler/validator findings are layered on top by the
 //! native-only [`runner`](crate::runner).
 
+use std::path::Path;
+
 use rsvelte_core::ast::arena::with_serialize_arena;
 use rsvelte_core::{ParseOptions, parse};
 use serde_json::Value;
@@ -16,8 +18,16 @@ use crate::rule::{RuleMeta, Severity};
 use crate::script::{ScriptKind, ScriptRule};
 use crate::visitor::{EnabledRule, LintVisitor};
 
-/// Run every enabled native rule over `source`, returning raw findings.
-pub fn run_native_rules(source: &str, filename: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
+/// Run every enabled native rule over `source`, returning raw findings. `path`
+/// is the file being linted when known (`None` for in-memory / wasm linting);
+/// filesystem-aware rules (e.g. `svelte/no-companion-module-shadow`) use it and
+/// no-op when it is `None`.
+pub fn run_native_rules(
+    source: &str,
+    filename: &str,
+    config: &LintConfig,
+    path: Option<&Path>,
+) -> Vec<LintDiagnostic> {
     let rules = all_rules();
     let enabled: Vec<EnabledRule> = rules
         .iter()
@@ -41,7 +51,7 @@ pub fn run_native_rules(source: &str, filename: &str, config: &LintConfig) -> Ve
     let Ok(root) = parse(source, ParseOptions::default()) else {
         return Vec::new();
     };
-    let mut ctx = LintContext::new(config, source, filename);
+    let mut ctx = LintContext::new(config, source, filename).with_path(path);
     // Re-install the arena pointer so that `Expression::Typed::as_json()` can
     // resolve arena-indexed children while the visitor walks the template.
     // The pointer was cleared when `parse()` dropped its `SerializeArenaGuard`.

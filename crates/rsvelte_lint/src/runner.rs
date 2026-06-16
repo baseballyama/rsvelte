@@ -43,7 +43,7 @@ pub fn lint_source(
             let mut diags = crate::validator::validator_diagnostics(source, file, options, config);
 
             // 2. Native rule engine — single shared DFS over the template AST.
-            for d in run_native_rules(source, &filename, config) {
+            for d in run_native_rules(source, &filename, config, Some(file)) {
                 diags.push(d.to_output(file, &line_index));
             }
 
@@ -162,7 +162,7 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
             crate::engine::run_script_rules_module(source, &filename, ts, config)
         }
         crate::engine::SourceKind::Svelte => {
-            let mut d = run_native_rules(source, &filename, config);
+            let mut d = run_native_rules(source, &filename, config, Some(file));
             d.extend(run_script_rules(source, &filename, config));
             d.extend(crate::scope::scope_diagnostics(source, config));
             d
@@ -196,7 +196,8 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     // Each fix is kept as a unit (Vec<TextEdit>) to mirror ESLint's per-diagnostic
     // atomic conflict resolution: if the merged range of a fix conflicts with the
     // already-consumed range, the ENTIRE fix is dropped.
-    let mut fixes: Vec<Vec<TextEdit>> = run_native_rules(source, "", config)
+    // Fixes never come from filesystem-aware rules, so no path is threaded here.
+    let mut fixes: Vec<Vec<TextEdit>> = run_native_rules(source, "", config, None)
         .into_iter()
         .chain(run_script_rules(source, "", config))
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))

@@ -7,9 +7,10 @@
 use crate::rule::{Rule, RuleMeta};
 use crate::rules::{
     button_has_type::ButtonHasType, no_at_debug_tags::NoAtDebugTags, no_at_html_tags::NoAtHtmlTags,
-    no_dupe_else_if_blocks::NoDupeElseIfBlocks, no_dupe_on_directives::NoDupeOnDirectives,
-    no_dupe_style_properties::NoDupeStyleProperties, no_dupe_use_directives::NoDupeUseDirectives,
-    no_inspect::NoInspect, no_not_function_handler::NoNotFunctionHandler,
+    no_companion_module::NoCompanionModuleShadow, no_dupe_else_if_blocks::NoDupeElseIfBlocks,
+    no_dupe_on_directives::NoDupeOnDirectives, no_dupe_style_properties::NoDupeStyleProperties,
+    no_dupe_use_directives::NoDupeUseDirectives, no_inspect::NoInspect,
+    no_not_function_handler::NoNotFunctionHandler,
     no_object_in_text_mustaches::NoObjectInTextMustaches,
     no_raw_special_elements::NoRawSpecialElements,
     no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
@@ -63,6 +64,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoDupeStyleProperties),
         Box::new(NoObjectInTextMustaches),
         Box::new(NoRestrictedHtmlElements),
+        Box::new(NoCompanionModuleShadow),
         Box::new(NoDupeOnDirectives),
         Box::new(NoDupeUseDirectives),
         Box::new(NoRawSpecialElements),

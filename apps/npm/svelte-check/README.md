@@ -86,6 +86,10 @@ Highlights:
 
 If you hit a diagnostic the official `svelte-check` produces and this one doesn't (or vice-versa), please [open an issue](https://github.com/baseballyama/rsvelte/issues) with a minimal repro.
 
+## Known limitations
+
+- **Same-name `Foo.svelte.ts` / `Foo.svelte.js` companion next to `Foo.svelte`** ([#800](https://github.com/baseballyama/rsvelte/issues/800)). When a module file shares a component's base name, `import … from './Foo.svelte'` resolves to the companion instead of the component, so the component's default export and `<script module>` named exports are reported missing (`has no default export`, `Circular definition of import alias`, `declares 'X' locally, but it is not exported`). This is standard TypeScript relative-module resolution — `tsc` and `tsgo` behave identically — and the official `svelte-check` only avoids it via a TypeScript language-server plugin (`resolveModuleNameLiterals`) that the native `tsgo` binary does not support. **Workaround:** don't put a same-name companion next to a component — give shared module-context code a distinct name (e.g. `foo-helpers.ts`), or import the component's `<script module>` exports directly from `./Foo.svelte`. The [`rsvelte_lint`](../../crates/rsvelte_lint) linter ships an opt-in `svelte/no-companion-module-shadow` rule (off by default) that flags this pattern so you catch it before it surprises you.
+
 ## Performance
 
 `rsvelte-check` is part of the [rsvelte](https://github.com/baseballyama/rsvelte) project. The underlying compiler runs **2.1× faster single-threaded** and **15.8× faster multi-threaded** than the official JS compiler on a 3,654-file corpus. The TypeScript pass via `tsgo` dominates wall-clock time on most projects; the Svelte side rarely registers.

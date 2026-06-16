@@ -106,8 +106,9 @@ pub fn lint(source: &str, filename: &str) -> String {
         }),
     }
 
-    // 2. Native rules (template walk) + script-AST rules.
-    let native = run_native_rules(source, filename, &config)
+    // 2. Native rules (template walk) + script-AST rules. No filesystem in
+    // wasm, so no path is threaded (any filesystem-aware rule no-ops here).
+    let native = run_native_rules(source, filename, &config, None)
         .into_iter()
         .chain(crate::engine::run_script_rules(source, filename, &config));
     for d in native {
