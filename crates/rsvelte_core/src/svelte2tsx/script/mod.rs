@@ -4399,8 +4399,12 @@ fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
     while p > 0 && bytes[p - 1].is_ascii_whitespace() {
         p -= 1;
     }
-    // Require a block comment terminator `*/` right there.
-    if p < 2 || &source[p - 2..p] != "*/" {
+    // Require a block comment terminator `*/` right there. `p` is a valid char
+    // boundary (it was stepped back only over ASCII whitespace), but the two
+    // bytes ending at `p` may land inside a multi-byte char (e.g. a `─` in a
+    // preceding comment), so test with `ends_with` instead of slicing — a raw
+    // `source[p - 2..p]` would panic on a non-char-boundary index.
+    if !source[..p].ends_with("*/") {
         return None;
     }
     // Find the matching `/*` opener. Official `getDoc` captures ANY leading
