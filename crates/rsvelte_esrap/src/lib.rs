@@ -64,14 +64,18 @@ impl Default for PrintOptions {
     }
 }
 
-/// Print `program` to JavaScript with the default options.
-pub fn print(program: &Program<'_>) -> String {
-    print_with(program, &PrintOptions::default())
+/// Print `program` to JavaScript with the default options, interleaving the
+/// program's comments. `source` is the text it was parsed from (needed for the
+/// comment bodies and line numbers).
+pub fn print(program: &Program<'_>, source: &str) -> String {
+    print_with(program, source, &PrintOptions::default())
 }
 
-/// Print `program` to JavaScript with explicit options.
-pub fn print_with(program: &Program<'_>, options: &PrintOptions) -> String {
-    let mut printer = printer::Printer::new(options);
+/// Print `program` to JavaScript with explicit options, interleaving comments.
+pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
+    let comments = printer::build_comments(program, source);
+    let mut printer =
+        printer::Printer::with_comments(options, comments, printer::line_starts(source));
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     command::print(&ctx.into_commands(), &options.indent)
