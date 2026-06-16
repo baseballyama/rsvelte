@@ -19,8 +19,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_DERIVED_BY_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -31,37 +33,26 @@ thread_local! {
 pub fn transform_derived_by_ast(source: &str, is_ts: bool) -> Option<String> {
     memchr::memmem::find(source.as_bytes(), b"$derived.by")?;
 
-    MODULE_DERIVED_BY_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let source_type = if is_ts {
+    ast_rewrite::rewrite_once(
+        &MODULE_DERIVED_BY_ALLOC,
+        source,
+        if is_ts {
             SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
-        };
-        let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = DerivedByCollector { spans: Vec::new() };
-        collector.visit_program(&parser_ret.program);
-        let mut spans = collector.spans;
-
-        if spans.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        spans.sort_by_key(|s| std::cmp::Reverse(s.0));
-        let mut out = source.to_string();
-        for (start, end) in &spans {
-            out.replace_range(*start as usize..*end as usize, "$.derived");
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+        },
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = DerivedByCollector { spans: Vec::new() };
+            collector.visit_program(program);
+            collector
+                .spans
+                .into_iter()
+                .map(|(start, end)| (start, end, "$.derived".to_string()))
+                .collect::<Vec<Edit>>()
+        },
+    )
 }
 
 struct DerivedByCollector {

@@ -25,8 +25,10 @@ use std::cell::RefCell;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
-use oxc_parser::{ParseOptions, Parser};
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType, Span};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static CLASS_TAG_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -45,38 +47,23 @@ pub fn wrap_state_derived_with_tag_class_fields_ast(source: &str) -> Option<Stri
     }
     memchr::memmem::find(source.as_bytes(), b"class ")?;
 
-    CLASS_TAG_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
-            .with_options(ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            })
-            .parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut replacements = Vec::new();
-        for stmt in &parser_ret.program.body {
-            walk_statement_for_classes(stmt, source, &mut replacements);
-        }
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+    ast_rewrite::rewrite_once(
+        &CLASS_TAG_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        false,
+        |program| {
+            let mut replacements: Vec<Edit> = Vec::new();
+            for stmt in &program.body {
+                walk_statement_for_classes(stmt, source, &mut replacements);
+            }
+            replacements
+        },
+    )
 }
 
 fn walk_statement_for_classes<'a>(

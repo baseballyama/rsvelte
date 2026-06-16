@@ -28,10 +28,12 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::AssignmentOperator;
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_LOCAL_ASSIGN_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -47,42 +49,30 @@ pub fn transform_local_assign_ast(source: &str, var_name: &str) -> Option<String
     memchr::memchr(b'=', source.as_bytes())?;
     memchr::memmem::find(source.as_bytes(), var_name.as_bytes())?;
 
-    MODULE_LOCAL_ASSIGN_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = LocalAssignCollector {
-            source,
-            var_name,
-            matches: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-
-        if collector.matches.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Match the text version: only the FIRST occurrence (smallest start).
-        collector.matches.sort_by_key(|r| r.0);
-        let (start, end, rewrite) = collector.matches.remove(0);
-
-        let mut out = source.to_string();
-        out.replace_range(start as usize..end as usize, &rewrite);
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+    ast_rewrite::rewrite_once(
+        &MODULE_LOCAL_ASSIGN_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = LocalAssignCollector {
+                source,
+                var_name,
+                matches: Vec::new(),
+            };
+            collector.visit_program(program);
+            // Match the text version: only the FIRST occurrence (smallest start).
+            collector.matches.sort_by_key(|r| r.0);
+            collector.matches.into_iter().take(1).collect()
+        },
+    )
 }
 
 struct LocalAssignCollector<'a> {
     source: &'a str,
     var_name: &'a str,
-    matches: Vec<(u32, u32, String)>,
+    matches: Vec<Edit>,
 }
 
 impl<'a, 'ast> Visit<'ast> for LocalAssignCollector<'a> {

@@ -26,8 +26,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_STRIP_GENERICS_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -52,38 +54,24 @@ pub fn strip_rune_generic_params_ast(source: &str, is_ts: bool) -> Option<String
         return None;
     }
 
-    MODULE_STRIP_GENERICS_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret =
-            Parser::new(&allocator, source, SourceType::ts().with_module(true)).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = StripGenericsCollector {
-            spans_to_strip: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut spans = collector.spans_to_strip;
-
-        if spans.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        // Spans are guaranteed non-overlapping (each is the type-args
-        // region of a distinct call); right-to-left splice preserves
-        // offsets.
-        spans.sort_by_key(|s| std::cmp::Reverse(s.0));
-        let mut out = source.to_string();
-        for (start, end) in &spans {
-            out.replace_range(*start as usize..*end as usize, "");
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+    ast_rewrite::rewrite_once(
+        &MODULE_STRIP_GENERICS_ALLOC,
+        source,
+        SourceType::ts().with_module(true),
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = StripGenericsCollector {
+                spans_to_strip: Vec::new(),
+            };
+            collector.visit_program(program);
+            collector
+                .spans_to_strip
+                .into_iter()
+                .map(|(start, end)| (start, end, String::new()))
+                .collect::<Vec<Edit>>()
+        },
+    )
 }
 
 struct StripGenericsCollector {

@@ -35,9 +35,11 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
 use oxc_syntax::operator::UpdateOperator;
+
+use super::ast_rewrite::{self, Edit};
 
 thread_local! {
     static MODULE_REACTIVE_UPDATE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -63,44 +65,30 @@ pub fn transform_reactive_update_ast(
         return None;
     }
 
-    MODULE_REACTIVE_UPDATE_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let parser_ret = Parser::new(&allocator, source, SourceType::mjs()).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = ReactiveUpdateCollector {
-            prop_vars,
-            state_vars,
-            non_reactive_state_vars,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+    ast_rewrite::rewrite_once(
+        &MODULE_REACTIVE_UPDATE_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = ReactiveUpdateCollector {
+                prop_vars,
+                state_vars,
+                non_reactive_state_vars,
+                replacements: Vec::new(),
+            };
+            collector.visit_program(program);
+            collector.replacements
+        },
+    )
 }
 
 struct ReactiveUpdateCollector<'a> {
     prop_vars: &'a [String],
     state_vars: &'a [String],
     non_reactive_state_vars: &'a [String],
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 #[derive(Clone, Copy)]

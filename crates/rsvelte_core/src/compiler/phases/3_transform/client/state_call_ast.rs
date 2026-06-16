@@ -36,9 +36,10 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_parser::Parser;
+use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
 
+use super::ast_rewrite::{self, Edit};
 use super::expression_utils::{collapse_to_single_line, expression_needs_proxy_with_scope};
 
 thread_local! {
@@ -57,43 +58,28 @@ pub fn transform_state_call_ast(
 ) -> Option<String> {
     memchr::memmem::find(source.as_bytes(), b"$state")?;
 
-    MODULE_STATE_CALL_ALLOC.with(|cell| {
-        let allocator = std::mem::take(&mut *cell.borrow_mut());
-        let source_type = if is_ts {
+    ast_rewrite::rewrite_once(
+        &MODULE_STATE_CALL_ALLOC,
+        source,
+        if is_ts {
             SourceType::ts().with_module(true)
         } else {
             SourceType::mjs()
-        };
-        let parser_ret = Parser::new(&allocator, source, source_type).parse();
-        if !parser_ret.diagnostics.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        let mut collector = StateCallCollector {
-            source,
-            non_reactive_vars,
-            non_proxy_vars,
-            current_var: None,
-            replacements: Vec::new(),
-        };
-        collector.visit_program(&parser_ret.program);
-        let mut replacements = collector.replacements;
-
-        if replacements.is_empty() {
-            *cell.borrow_mut() = allocator;
-            return None;
-        }
-
-        replacements.sort_by_key(|r| std::cmp::Reverse(r.0));
-        let mut out = source.to_string();
-        for (start, end, rewrite) in &replacements {
-            out.replace_range(*start as usize..*end as usize, rewrite);
-        }
-
-        *cell.borrow_mut() = allocator;
-        Some(out)
-    })
+        },
+        ParseOptions::default(),
+        false,
+        |program| {
+            let mut collector = StateCallCollector {
+                source,
+                non_reactive_vars,
+                non_proxy_vars,
+                current_var: None,
+                replacements: Vec::new(),
+            };
+            collector.visit_program(program);
+            collector.replacements
+        },
+    )
 }
 
 /// Stateful visitor — `current_var` tracks the binding name being
@@ -105,7 +91,7 @@ struct StateCallCollector<'a, 'src> {
     non_reactive_vars: &'a [String],
     non_proxy_vars: &'a [String],
     current_var: Option<String>,
-    replacements: Vec<(u32, u32, String)>,
+    replacements: Vec<Edit>,
 }
 
 impl<'a, 'src, 'ast> Visit<'ast> for StateCallCollector<'a, 'src> {
