@@ -69,8 +69,12 @@ impl NoSpacesAroundEqualSignsInAttribute {
         let tail = ctx.slice(ke, node_end);
         let eq_len = eq_source_len(tail);
         let eq_src = &tail[..eq_len];
-        // Only report when whitespace is present in the eq region.
-        if !eq_src.chars().any(|c| c.is_whitespace()) {
+        // The rule is about spaces *around an equal sign*: only report when the
+        // region actually contains a `=`. A shorthand attribute written with
+        // inner spaces (`{ id }`) has a whitespace-only eq region (the key scan
+        // stops at the space after `{`) but no `=`, so upstream — which measures
+        // the gap between the key node and the value node — never reports it.
+        if !eq_src.contains('=') || !eq_src.chars().any(|c| c.is_whitespace()) {
             return;
         }
         let eq_end = ke + eq_len as u32;

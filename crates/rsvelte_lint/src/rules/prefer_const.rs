@@ -116,7 +116,7 @@ impl ScriptRule for PreferConst {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
+    fn check_program(&self, ctx: &mut LintContext, program: &Value, kind: ScriptKind) {
         // Reassignment info from the analyzed scope (reliable per the R9 audit).
         let Some(analysis) = crate::scope::analyze_scope(ctx.source()) else {
             return;
@@ -145,9 +145,23 @@ impl ScriptRule for PreferConst {
             == Some("all");
 
         let mut reports: Vec<(u32, u32, String, Option<u32>)> = Vec::new();
-        walk_js(program, |node, _| {
+        walk_js(program, |node, ancestors| {
             if node_type(node) != Some("VariableDeclaration")
                 || node.get("kind").and_then(Value::as_str) != Some("let")
+            {
+                return;
+            }
+
+            // Legacy component props (`export let x`) are never converted to
+            // `const`: svelte-eslint-parser records a synthetic write reference
+            // for the parent-set value, so the core `prefer-const` rule skips
+            // them. Mirror that by skipping a `let` declaration whose immediate
+            // parent is an `ExportNamedDeclaration` in the **instance** script
+            // (in a `<script module>` block, or runes `$props()` destructuring,
+            // the same shape isn't a prop — those stay subject to the rule via
+            // `excludedRunes`).
+            if kind == ScriptKind::Instance
+                && ancestors.last().and_then(|p| node_type(p)) == Some("ExportNamedDeclaration")
             {
                 return;
             }

@@ -288,59 +288,35 @@ fn process_attrs(
 }
 
 /// Process the value of `class="..."` or `class={expr}` etc.
+///
+/// Mirrors upstream's two independent passes over the attribute value:
+/// 1. `findClassesInAttribute` — every **literal** chunk is whitespace-split
+///    into exact class names (regardless of any adjacent expression).
+/// 2. each **expression** chunk contributes an affix derived from the
+///    expression *itself* (`extractExpression{Prefix,Suffix}Literal`), NOT the
+///    surrounding static text; an expression with no literal prefix *and* no
+///    literal suffix (e.g. a bare `{level}`) marks the whole class selection
+///    universal, which suppresses every class-selector report.
 fn process_class_value(value: &AttributeValue, elem: ElemId, sel: &mut TemplateSelections) {
     match value {
         AttributeValue::Sequence(parts) => {
-            // Collect leading text (potential prefix) and trailing text (suffix)
-            // around any expression part. If there are multiple text or expression
-            // parts, handle them conservatively.
-            let mut has_expr = false;
-            let mut prefix_text: Option<String> = None;
-            let mut suffix_text: Option<String> = None;
-            let mut pure_texts: Vec<String> = Vec::new();
-
             for part in parts {
                 match part {
                     AttributeValuePart::Text(t) => {
-                        if !has_expr {
-                            // Text before any expression → static class names OR prefix.
-                            pure_texts.push(t.data.to_string());
-                            prefix_text = Some(t.data.to_string());
-                        } else {
-                            // Text after an expression → suffix.
-                            suffix_text = Some(t.data.to_string());
+                        for name in t.data.split_whitespace() {
+                            if !name.is_empty() {
+                                sel.class.add_exact(name, elem);
+                            }
                         }
                     }
-                    AttributeValuePart::ExpressionTag(_) => {
-                        has_expr = true;
-                    }
-                }
-            }
-
-            if !has_expr {
-                // Pure static text: split on whitespace to get class names.
-                for text in &pure_texts {
-                    for name in text.split_whitespace() {
-                        if !name.is_empty() {
-                            sel.class.add_exact(name, elem);
+                    AttributeValuePart::ExpressionTag(et) => {
+                        match extract_affix(et.expression.as_json()) {
+                            Affix::Universal => sel.class.universal_selector = true,
+                            Affix::Known { prefix, suffix } => {
+                                sel.class.add_affix(prefix, suffix, elem)
+                            }
                         }
                     }
-                }
-            } else {
-                // Mixed: expression with optional prefix/suffix text.
-                let pfx = prefix_text
-                    .as_deref()
-                    .map(|t| t.trim())
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_string);
-                let sfx = suffix_text
-                    .as_deref()
-                    .map(|t| t.trim())
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_string);
-                match (pfx, sfx) {
-                    (None, None) => sel.class.universal_selector = true,
-                    (p, s) => sel.class.add_affix(p, s, elem),
                 }
             }
         }
@@ -365,52 +341,26 @@ fn process_id_value(
 ) {
     match value {
         AttributeValue::Sequence(parts) => {
-            let mut has_expr = false;
-            let mut prefix_text: Option<String> = None;
-            let mut suffix_text: Option<String> = None;
-            let mut text_val: Option<String> = None;
-
+            // Mirrors upstream: each literal chunk is an exact id, each
+            // expression chunk contributes an affix from the expression itself
+            // (a bare expression with no literal prefix/suffix → universal).
             for part in parts {
                 match part {
                     AttributeValuePart::Text(t) => {
-                        if !has_expr {
-                            text_val = Some(t.data.to_string());
-                            prefix_text = Some(t.data.to_string());
-                        } else {
-                            suffix_text = Some(t.data.to_string());
+                        let id_val = t.data.trim();
+                        if !id_val.is_empty() {
+                            sel.id.add_exact(id_val, elem);
+                            sel.occ.insert(elem, elem_occ);
                         }
                     }
-                    AttributeValuePart::ExpressionTag(_) => {
-                        has_expr = true;
-                    }
-                }
-            }
-
-            if !has_expr {
-                // Static id value.
-                if let Some(id_val) = text_val {
-                    let id_val = id_val.trim();
-                    if !id_val.is_empty() {
-                        sel.id.add_exact(id_val, elem);
-                        sel.occ.insert(elem, elem_occ);
-                    }
-                }
-            } else {
-                let pfx = prefix_text
-                    .as_deref()
-                    .map(|t| t.trim())
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_string);
-                let sfx = suffix_text
-                    .as_deref()
-                    .map(|t| t.trim())
-                    .filter(|s| !s.is_empty())
-                    .map(str::to_string);
-                match (pfx, sfx) {
-                    (None, None) => sel.id.universal_selector = true,
-                    (p, s) => {
-                        sel.id.add_affix(p, s, elem);
-                        sel.occ.insert(elem, elem_occ);
+                    AttributeValuePart::ExpressionTag(et) => {
+                        match extract_affix(et.expression.as_json()) {
+                            Affix::Universal => sel.id.universal_selector = true,
+                            Affix::Known { prefix, suffix } => {
+                                sel.id.add_affix(prefix, suffix, elem);
+                                sel.occ.insert(elem, elem_occ);
+                            }
+                        }
                     }
                 }
             }
