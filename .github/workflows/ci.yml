@@ -129,19 +129,24 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.set-test-matrix.outputs.os) }}
-        # This job runs the *fast bulk* of the suite, split across 3 runners with
-        # nextest's count partitioning. The heaviest single `#[test]` functions —
-        # each fans out over 1000+ fixtures internally (runtime legacy/runes, the
-        # compile_module thread-safety stress test, and the two svelte.dev fmt
-        # corpus parity tests at ~100 s each) — are excluded here (see the
-        # `Run tests` filter) and run in their own dedicated jobs (`test-runtime`,
-        # `test-thread-safety`, `test-fmt-corpus`) that compile only their own
-        # test binary, so their long execution floors don't sit behind this job's
-        # full ~2 min workspace build. count-partitioning is weight-blind, so
-        # keeping the heavy tests out is what makes these shards balanced. Every
-        # test still runs (here or in a dedicated job) with full iteration counts
-        # — coverage is unchanged. The `Tests` gate job joins them into one
-        # required status check.
+        # This job runs the *fast bulk* of the suite, split across 3 runners.
+        # The test *execution* is trivial (~8 s/shard); the wall time is almost
+        # entirely compiling+linking the ~159 integration-test binaries against
+        # the large `rsvelte_core` rlib. `cargo nextest run` builds *every*
+        # binary regardless of which tests a `-E` filter runs, so the old
+        # count-partition (split the *run*, build everything 3×) left the build
+        # floor — the real bottleneck — paid three times over.
+        #
+        # `scripts/ci/run-test-shard.sh` instead partitions the *binaries* across
+        # shards (cargo target selection from the authoritative `cargo metadata`
+        # list), so each shard compiles only its ~1/3 and the per-shard build
+        # floor drops roughly 3×. The heaviest single `#[test]` functions — each
+        # fans out over 1000+ fixtures internally (runtime legacy/runes, the
+        # compile_module thread-safety stress test, the two svelte.dev fmt corpus
+        # parity tests at ~100 s each) — still run in their own dedicated jobs
+        # (`test-runtime`, `test-thread-safety`, `test-fmt-corpus`). Coverage is
+        # unchanged: every test runs in exactly one shard or dedicated job. The
+        # `Tests` gate job joins them into one required status check.
         shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -273,25 +278,19 @@ jobs:
           OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
       - name: Run tests
-        # `--all-features` would enable `napi`, which only links cleanly when
-        # loaded from Node.js — `cargo test` would otherwise hit `rust-lld:
-        # error: undefined symbol: napi_*` on Linux. Default features cover
-        # everything we want exercised in CI (native runtime, parallelism).
+        # Default features only: `--all-features` would enable `napi`, which only
+        # links cleanly when loaded from Node.js (`cargo test` would otherwise hit
+        # `rust-lld: error: undefined symbol: napi_*` on Linux). Default features
+        # cover everything we exercise in CI (native runtime, parallelism).
         #
-        # nextest schedules all tests across all binaries in one pool (vs
-        # `cargo test`'s serial per-binary harness). The `generate_compatibility_report`
-        # test is `#[ignore]`d (reporting-only, re-runs the whole suite) and is
-        # covered by the dedicated `compatibility-report` job below, so it stays
-        # out of this run. nextest does not run doctests; this workspace has none.
-        #
-        # The heavy fan-out tests are excluded and run in their own jobs
-        # (`test-runtime`, `test-thread-safety`, `test-fmt-corpus`).
-        # `--partition count:<shard>/3` then splits the remaining
-        # (uniform-weight) tests evenly across the 3 shards.
-        run: >-
-          cargo nextest run --profile ci
-          -E 'not (test(/test_runtime_legacy/) | test(/test_runtime_runes/) | test(/compile_module_is_thread_safe_under_reuse/) | binary(svelte_dev_markdown) | binary(svelte_dev_corpus))'
-          --partition count:${{ matrix.shard }}/3
+        # The script partitions the integration-test *binaries* across shards so
+        # each compiles only its ~1/3 (the build, not the run, is the cost here —
+        # see the matrix comment and the script header). It also runs the lib /
+        # bin unit tests once (shard 1) and applies the dedicated-job exclusion
+        # filter. `generate_compatibility_report` is `#[ignore]`d (reporting-only)
+        # and covered by the `compatibility-report` job. nextest runs no doctests;
+        # this workspace has none.
+        run: bash scripts/ci/run-test-shard.sh ${{ matrix.shard }} 3
         timeout-minutes: 30
         env:
           # Some fixtures (notably the compatibility_report harness) walk
