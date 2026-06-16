@@ -31,48 +31,83 @@ pub(crate) fn collapse_pure_text_elements(
     // markup that rsvelte's (Svelte-faithful) parser rejects but the oxfmt oracle
     // accepts, e.g. stripping the parens off `{(/regex/).test(x)}` to a `{/…}`
     // expression that looks like a block close.
-    let Ok(root) = parse(out, ParseOptions::default()) else {
+    // Re-parse the formatted output in the same dialect the document was formatted
+    // in. A TS document (incl. one that reached TS via the formatter's force-TS
+    // fallback) emits TS, so a JS-only re-parse would fail and silently skip
+    // collapse; forcing TS here keeps collapse working for those files.
+    let parse_opts = ParseOptions {
+        force_typescript: options.typescript,
+        ..ParseOptions::default()
+    };
+    let Ok(root) = parse(out, parse_opts) else {
         return Ok(out.to_string());
     };
     let line_width = options.js.line_width.value() as usize;
 
+    // `tree` always reflects `result`. Each pass re-parses ONLY after it actually
+    // edits the text — a pass that makes no edits leaves the string (and thus its
+    // AST) unchanged, so the next pass reuses the same tree instead of paying for
+    // a redundant full re-parse. The re-parse is the dominant cost of this whole
+    // post-pass, so skipping the no-op ones keeps the common case to a single
+    // extra parse (or zero, when nothing collapses).
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
     collect(out, &root.fragment, line_width, options, &mut edits);
-    let result = if edits.is_empty() {
-        out.to_string()
-    } else {
-        apply_edits(out, edits)
-    };
+    let mut result = out.to_string();
+    let mut tree = root;
+    if !edits.is_empty() {
+        result = apply_edits(&result, edits);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
+
+    // 1.5-th pass: run a targeted `try_fill_mixed` sweep on block elements whose
+    // mixed inline children were just collapsed by the first pass. Example: a
+    // `<div>` containing `A\n  B\n  <span>\n  C\n  </span>\n  E\n  F` could not
+    // be prose-reflowed in pass 1 because the `<span>` was still multi-line at
+    // that point. After the span's collapse edit the div's content is now
+    // single-line elements surrounded by multi-line text, so a targeted second
+    // fill-mixed sweep can reflow it to `A B\n  <span> C D </span>\n  E F`.
+    // This pass intentionally skips try_collapse / try_hug_mixed so it doesn't
+    // disturb elements that were already correctly hugged by pass 1.
+    let mut edits1b: Vec<(u32, u32, String)> = Vec::new();
+    collect_fill_mixed_only(&result, &tree.fragment, line_width, options, &mut edits1b);
+    if !edits1b.is_empty() {
+        result = apply_edits(&result, edits1b);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
 
     // Second pass: the hug/break edits above may leave a long expression mustache
-    // on an overflowing line (a hugged element's trailing `{a.b().c()}`). Re-parse
-    // and member-chain-break those in place — this can't run in the first pass
+    // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
+    // Member-chain-break those in place — this can't run in the first pass
     // because the hug edit that creates the overflowing line owns the element and
     // suppresses recursion into it.
-    let Ok(root2) = parse(&result, ParseOptions::default()) else {
-        return Ok(result);
-    };
     let mut edits2: Vec<(u32, u32, String)> = Vec::new();
-    collect_content_tag_breaks(&result, &root2.fragment, line_width, options, &mut edits2);
-    let result = if edits2.is_empty() {
-        result
-    } else {
-        apply_edits(&result, edits2)
-    };
+    collect_content_tag_breaks(&result, &tree.fragment, line_width, options, &mut edits2);
+    if !edits2.is_empty() {
+        result = apply_edits(&result, edits2);
+    }
 
     // Third pass: `<pre>` / `<textarea>` whose content contains a block. rsvelte
     // otherwise leaves their whole subtree verbatim, but oxfmt formats the block
     // bodies (space-indented) + embedded JS while keeping element-direct
     // whitespace as raw tabs. Re-format those subtrees with that hybrid rule.
-    let Ok(root3) = parse(&result, ParseOptions::default()) else {
-        return Ok(result);
-    };
-    let mut edits3: Vec<(u32, u32, String)> = Vec::new();
-    collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
-    if edits3.is_empty() {
-        return Ok(result);
+    // This pass only ever touches `<pre>`/`<textarea>`, so skip its re-parse
+    // entirely unless one is present in the output.
+    if (result.contains("<pre") || result.contains("<textarea"))
+        && let Ok(root3) = parse(&result, parse_opts)
+    {
+        let mut edits3: Vec<(u32, u32, String)> = Vec::new();
+        collect_pre_block_reformats(&result, &root3.fragment, 0, options, &mut edits3);
+        if !edits3.is_empty() {
+            result = apply_edits(&result, edits3);
+        }
     }
-    Ok(apply_edits(&result, edits3))
+    Ok(result)
 }
 
 /// Whether a fragment (recursively) contains a control-flow block — the trigger
@@ -428,10 +463,112 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         0,
     );
     if !flat.contains('\n') && indent_cols + flat.width() <= line_width {
-        return None; // fits flat — leave as-is
+        // Fits on one line — collapse to the flat form. The input run may itself
+        // be multi-line (e.g. root-level prose written one word per line), and
+        // prettier reflows prose that fits onto a single line, so we must emit the
+        // flat text rather than leaving the broken input untouched.
+        return (flat != whole).then_some((s as u32, e as u32, flat));
     }
     let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
     (printed != whole).then_some((s as u32, e as u32, printed))
+}
+
+/// Targeted second-pass: only try `try_fill_mixed` on block elements whose
+/// mixed inline children were just collapsed by pass 1. Skips `try_collapse`,
+/// `try_hug_mixed`, and `try_break_content_tag_block` so it does not disturb
+/// elements already correctly laid out by pass 1 (e.g. hugged inline elements
+/// or single-content-tag blocks).
+fn collect_fill_mixed_only(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(elem) => {
+                // `<pre>` / `<textarea>` preserve their content verbatim — never
+                // reflow them or recurse into their (whitespace-significant)
+                // descendants.
+                if is_whitespace_preserving(elem.name.as_str()) {
+                    continue;
+                }
+                // Only apply fill-mixed to block-display elements — inline
+                // elements were already handled (or correctly skipped) by pass 1.
+                if is_block_display(elem.name.as_str())
+                    && let Some(edit) = try_fill_mixed(
+                        out,
+                        elem.name.as_str(),
+                        elem.start,
+                        elem.end,
+                        &elem.fragment,
+                        line_width,
+                        options,
+                    )
+                {
+                    edits.push(edit);
+                    continue; // edit owns this element, don't recurse
+                }
+                collect_fill_mixed_only(out, &elem.fragment, line_width, options, edits);
+            }
+            TemplateNode::Component(c) => {
+                collect_fill_mixed_only(out, &c.fragment, line_width, options, edits);
+            }
+            TemplateNode::TitleElement(t) => {
+                collect_fill_mixed_only(out, &t.fragment, line_width, options, edits);
+            }
+            TemplateNode::SvelteBody(s)
+            | TemplateNode::SvelteDocument(s)
+            | TemplateNode::SvelteFragment(s)
+            | TemplateNode::SvelteBoundary(s)
+            | TemplateNode::SvelteHead(s)
+            | TemplateNode::SvelteOptions(s)
+            | TemplateNode::SvelteSelf(s)
+            | TemplateNode::SvelteWindow(s) => {
+                collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
+            }
+            TemplateNode::SvelteComponent(c) => {
+                collect_fill_mixed_only(out, &c.fragment, line_width, options, edits);
+            }
+            TemplateNode::SvelteElement(e) => {
+                collect_fill_mixed_only(out, &e.fragment, line_width, options, edits);
+            }
+            TemplateNode::IfBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.consequent, line_width, options, edits);
+                if let Some(alt) = &blk.alternate {
+                    collect_fill_mixed_only(out, alt, line_width, options, edits);
+                }
+            }
+            TemplateNode::EachBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.body, line_width, options, edits);
+                if let Some(fb) = &blk.fallback {
+                    collect_fill_mixed_only(out, fb, line_width, options, edits);
+                }
+            }
+            TemplateNode::AwaitBlock(blk) => {
+                if let Some(f) = &blk.pending {
+                    collect_fill_mixed_only(out, f, line_width, options, edits);
+                }
+                if let Some(f) = &blk.then {
+                    collect_fill_mixed_only(out, f, line_width, options, edits);
+                }
+                if let Some(f) = &blk.catch {
+                    collect_fill_mixed_only(out, f, line_width, options, edits);
+                }
+            }
+            TemplateNode::KeyBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.fragment, line_width, options, edits);
+            }
+            TemplateNode::SnippetBlock(blk) => {
+                collect_fill_mixed_only(out, &blk.body, line_width, options, edits);
+            }
+            TemplateNode::SlotElement(s) => {
+                collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn collect(
@@ -511,6 +648,23 @@ fn collect(
                     options,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_break_block_overflow(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_break_block_multiline_content(
+                    out,
+                    elem.name.as_str(),
+                    elem.start,
+                    elem.end,
+                    &elem.fragment,
+                ) {
+                    edits.push(edit);
                 } else {
                     collect(out, &elem.fragment, line_width, options, edits);
                 }
@@ -571,6 +725,19 @@ fn collect(
                     line_width,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) =
+                    try_strip_trailing_slot_space(out, s.start, s.end, &s.fragment)
+                {
+                    edits.push(edit);
                 } else {
                     collect(out, &s.fragment, line_width, options, edits);
                 }
@@ -592,14 +759,55 @@ fn collect(
             TemplateNode::SvelteHead(s)
             | TemplateNode::SvelteBody(s)
             | TemplateNode::SvelteDocument(s)
-            | TemplateNode::SvelteFragment(s)
             | TemplateNode::SvelteOptions(s)
-            | TemplateNode::SvelteSelf(s)
             | TemplateNode::SvelteWindow(s) => {
                 collect(out, &s.fragment, line_width, options, edits)
             }
+            TemplateNode::SvelteFragment(s) | TemplateNode::SvelteSelf(s) => {
+                if let Some(edit) = try_collapse(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &s.fragment, line_width, options, edits);
+                }
+            }
             TemplateNode::SvelteComponent(c) => {
-                collect(out, &c.fragment, line_width, options, edits)
+                if let Some(edit) = try_collapse(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else if let Some(edit) = try_hug_mixed(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &c.fragment, line_width, options, edits);
+                }
             }
             TemplateNode::SvelteElement(e) => {
                 if let Some(edit) = try_collapse(
@@ -703,6 +911,14 @@ fn try_collapse(
     let had_trail = raw.ends_with([' ', '\t', '\n', '\r']);
     let collapsed = raw.split_whitespace().collect::<Vec<_>>().join(" ");
 
+    // Components (`<Button>`, `<Foo.Bar>`, `<svelte:*>`) and block-display
+    // elements are NOT whitespace-sensitive: boundary whitespace between the tag
+    // and text is dropped entirely (`<Button> hi </Button>` → `<Button>hi</Button>`).
+    // Known inline elements and unknown custom elements (`<span>`, `<my-widget>`)
+    // keep a single edge space (the CSS whitespace model). Mirrors
+    // prettier-plugin-svelte's inline-vs-block child whitespace handling.
+    let trims_edge = trims_edge_whitespace(tag) || is_component_tag(tag);
+
     // Empty element (whitespace-only body): collapse to `<tag></tag>` — the
     // close tag glues directly to the `>`, dropping the body whitespace. This
     // holds even when the open tag wrapped across lines (`<svelte:boundary\n
@@ -717,7 +933,7 @@ fn try_collapse(
     let mut one_line = String::with_capacity(whole.len());
     one_line.push_str(open);
     if !collapsed.is_empty() {
-        let edge = !trims_edge_whitespace(tag); // inline-ish keeps an edge space
+        let edge = !trims_edge; // inline-ish keeps an edge space
         if edge && had_lead {
             one_line.push(' ');
         }
@@ -761,10 +977,53 @@ fn try_collapse(
     // does NOT start/end with whitespace). When the content is separated from
     // the tags by whitespace (`<button>\n  click me\n</button>`), prettier
     // block-breaks instead, so fall through to the block-break path below.
+    // Hug eligibility is about whitespace-injection when the open tag wraps, not
+    // about the one-line edge space: components hug like inline elements
+    // (`<Message kind="info"\n  >text</Message\n>`), so use the inline predicate
+    // here, not the component-inclusive `trims_edge`.
     if !trims_edge_whitespace(tag) && !had_lead && !had_trail {
-        if open.contains('\n') || !open.ends_with('>') {
+        if !open.ends_with('>') {
             return None;
         }
+        if open.contains('\n') {
+            // Multi-line open tag (attributes wrapped): the open tag was produced
+            // by `render_multi_line` with `hug_open=true`, so the `>` is already
+            // glued to the last attribute line.  Check whether the last attribute
+            // line + `>` + content + `</tag` fits within the print width.
+            //
+            // We find the last line of the open tag by locating the last `\n` in
+            // `open`; that line starts right after the `\n`.
+            let last_line_start = open.rfind('\n').map_or(0, |i| i + 1);
+            let last_open_line = &open[last_line_start..]; // includes trailing `>`
+            let last_line_width = last_open_line.width() + collapsed.width() + 2 + tag.width();
+            if last_line_width <= line_width {
+                // Fits: keep the `>` glued to the last attribute line.
+                let result = format!("{open}{collapsed}</{tag}\n{indent}>");
+                return (result != whole).then_some((start, end, result));
+            }
+            // Doesn't fit: move `>` to a new line at the attribute indent
+            // so the content starts on an indented line: `  >content</tag\n>`.
+            let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
+            if hug_width > line_width {
+                return None;
+            }
+            let open_no_bracket = &open[..open.len() - 1];
+            let hug = format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{indent}>");
+            return (hug != whole).then_some((start, end, hug));
+        }
+        // Same-line hug: `<a href="…">text</a\n>` — content stays on the open
+        // tag's line. Try this first; only fall through to the inner-indent form
+        // when the same-line layout overflows the print width.
+        // `column` is the number of columns before the element (the indent), and
+        // `open` does NOT include that leading indent — so the total line width
+        // is `column + open.width() + collapsed.width() + 2 + tag.width()`.
+        let same_line_width = column + open.width() + collapsed.width() + 2 + tag.width();
+        if same_line_width <= line_width {
+            let result = format!("{open}{collapsed}</{tag}\n{indent}>");
+            return (result != whole).then_some((start, end, result));
+        }
+        // Inner-indent hug: open tag wraps so `>` moves to the next indented line
+        // and content glues directly to it: `<a\n  href="…"\n  >text</a\n>`.
         let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
         if hug_width > line_width {
             return None;
@@ -907,8 +1166,27 @@ fn is_whitespace_preserving(tag: &str) -> bool {
 /// plus the `display:contents` elements `<slot>` / `<svelte:boundary>`, which
 /// prettier / oxfmt also edge-trim (`<slot> x </slot>` → `<slot>x</slot>`).
 /// Everything else (inline, inline-block, table-cell, …) keeps one edge space.
+///
+/// Note: `<svelte:element>` is NOT listed here — it is a non-block dynamic
+/// element that prettier treats like an inline/component element for hugging
+/// purposes (shouldHugStart/End return true when content is directly adjacent).
+/// Its edge whitespace is still trimmed via `is_component_tag` in the `trims_edge`
+/// computation, so one-line edge spaces are suppressed without blocking hug.
 fn trims_edge_whitespace(tag: &str) -> bool {
-    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary" | "svelte:element")
+    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary")
+}
+
+/// Whether `tag` names a Svelte component (or component-like element) rather
+/// than a plain HTML element: a capitalized name (`Button`), a member access
+/// (`Foo.Bar`), or a `svelte:*` special element. prettier treats these as not
+/// whitespace-sensitive, so their child boundary whitespace is dropped (no edge
+/// space) — unlike unknown lowercase custom elements (`<my-widget>`).
+fn is_component_tag(tag: &str) -> bool {
+    // A `svelte:*` special element, or a name whose first segment is capitalized:
+    // a plain component (`Button`) or a member-access component (`Foo.Bar`) both
+    // start with an uppercase letter. A lowercase dotted name (`foo.bar`) is not a
+    // component, so don't match on `.` alone.
+    tag.starts_with("svelte:") || tag.chars().next().is_some_and(|c| c.is_ascii_uppercase())
 }
 
 /// If `node` is a huggable display:inline element — single line, simple text
@@ -1168,9 +1446,66 @@ fn try_break_content_tag_block(
     let open = out.get(s..cs)?;
     let close = out.get(ce..e)?;
     let span = out.get(cs..ce)?; // the content tag, e.g. `{@html …}`
-    if open.contains('\n') || span.contains('\n') || span.len() <= kw_lead + kw_trail {
+    if span.contains('\n') || span.len() <= kw_lead + kw_trail {
         return None;
     }
+
+    // When the open tag is multi-line (attributes wrapped), the content tag
+    // should break to its own indented line — prettier puts `>` on its own
+    // line at the element's indent level, then the content at child indent,
+    // then the close tag at the element's indent. This handles:
+    //   <p
+    //     transition:foo
+    //   >{thing}</p>  →  <p\n    transition:foo\n  >\n    {thing}\n  </p>
+    if open.contains('\n') {
+        if !open.ends_with('>') {
+            return None;
+        }
+        // Determine the element's indent by finding the line start of `start`.
+        let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+        let indent = out.get(line_start..s)?;
+        if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+            return None;
+        }
+        let inner_indent = format!("{indent}  ");
+        // The last line of `open` ends with `>`, e.g. `    >`.
+        // When the `>` is already on its own line (the last line of `open` is
+        // purely whitespace + `>`), prettier's block-element behaviour always
+        // breaks the content onto its own indented line rather than gluing it to
+        // the `>` — matching how prettier formats `<p\n  attr\n>{expr}</p>`.
+        // Only skip breaking when the `>` is glued to the last attribute (hug_open
+        // form), where the last line contains more than just `>`.
+        let open_last_line = open.rsplit('\n').next().unwrap_or(open);
+        let gt_on_own_line = open_last_line.trim_start_matches([' ', '\t']) == ">";
+        if !gt_on_own_line {
+            let glued_width = open_last_line.width() + span.width() + close.width();
+            if glued_width <= line_width {
+                return None; // fits on the attr+`>` line — leave as-is
+            }
+        }
+        // Break: remove the trailing `>` from the open, put `>` on a new line,
+        // then the content, then close.
+        // Use `trim_end()` (not just spaces/tabs) so that the trailing `\n    `
+        // before the `>` is also removed — otherwise the format string's `\n`
+        // prefix would produce a double-newline (blank line) between the last
+        // attribute and the `>`.
+        let open_without_gt = open[..open.len() - 1].trim_end();
+        let inner = span.get(kw_lead..span.len() - kw_trail)?.trim();
+        let width = line_width.saturating_sub(inner_indent.width() + kw_lead + kw_trail);
+        let wrapped = crate::expression::reformat_content_at_width(
+            inner,
+            options,
+            width,
+            inner_indent.width(),
+        )
+        .ok()?;
+        let kw_prefix = &span[..kw_lead];
+        let new_tag = format!("{kw_prefix}{wrapped}}}");
+        let broken =
+            format!("{open_without_gt}\n{indent}>\n{inner_indent}{new_tag}\n{indent}{close}");
+        return (broken != whole).then_some((start, end, broken));
+    }
+
     let column = current_column(out, start);
     if column + open.width() + span.width() + close.width() <= line_width {
         return None; // fits on one line
@@ -1192,6 +1527,238 @@ fn try_break_content_tag_block(
     let new_tag = format!("{kw_prefix}{wrapped}}}");
     let broken = format!("{open}\n{inner_indent}{new_tag}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))
+}
+
+/// Break a block-display element whose ENTIRE content (any combination of
+/// expression tags, text, block nodes) is currently inline (the span has no
+/// newline) but the whole line overflows 80 cols.
+///
+/// prettier-plugin-svelte's fill/group layout always breaks a block element's
+/// content to its own indented line when the one-line form overflows:
+///
+///   <p>{_0}{_1}…{_40}</p>  →  <p>\n    {_0}{_1}…{_40}\n  </p>
+///   <div>{#each …}{/each}</div>  →  <div>\n  {#each …}{/each}\n</div>
+///
+/// This is the last-resort break: only fires when `try_collapse`, `try_fill_mixed`,
+/// `try_hug_mixed`, and `try_break_content_tag_block` all declined.
+fn try_break_block_overflow(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    if !is_block_display(tag) {
+        return None;
+    }
+
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+
+    // Only act on elements that are currently all inline.
+    if whole.contains('\n') {
+        return None;
+    }
+
+    // prettier-plugin-svelte's `forceBreakContent`: a block-display element whose
+    // fragment contains any control-flow block child (IfBlock, EachBlock, AwaitBlock,
+    // KeyBlock, SnippetBlock) ALWAYS breaks its content onto a new indented line —
+    // even when the whole element fits in 80 columns. This mirrors prettier's
+    // `breakParent` / `forceBreakContent` mechanism where Svelte flow-control
+    // blocks generate `hardline` separators that force the enclosing group to break.
+    let has_flow_block_child = fragment.nodes.iter().any(|n| {
+        matches!(
+            n,
+            TemplateNode::IfBlock(_)
+                | TemplateNode::EachBlock(_)
+                | TemplateNode::AwaitBlock(_)
+                | TemplateNode::KeyBlock(_)
+                | TemplateNode::SnippetBlock(_)
+        )
+    });
+
+    if !has_flow_block_child {
+        // Must overflow.
+        let column = current_column(out, start);
+        if column + whole.width() <= line_width {
+            return None;
+        }
+    }
+
+    // Need at least one non-whitespace child.
+    let first_child = fragment
+        .nodes
+        .iter()
+        .find(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+    let last_child = fragment
+        .nodes
+        .iter()
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+
+    let first_start = node_start(first_child) as usize;
+    let last_end = node_end(last_child) as usize;
+
+    // open tag = element start up to first meaningful child.
+    let open = out.get(s..first_start)?;
+    // close tag = last meaningful child end to element end.
+    let close = out.get(last_end..e)?;
+    // content = everything from first to last meaningful child (inclusive).
+    let content = out.get(first_start..last_end)?;
+
+    if open.is_empty() || close.is_empty() || content.is_empty() {
+        return None;
+    }
+    // The open tag must end with `>` (no multi-line open).
+    if !open.ends_with('>') {
+        return None;
+    }
+    // Content must be fully inline (no newlines).
+    if content.contains('\n') {
+        return None;
+    }
+
+    // Derive element indent from the text before `start` on the same line.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+
+    let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
+    (broken != whole).then_some((start, end, broken))
+}
+
+/// Break a block-display element whose content is multi-line but the content
+/// is still "glued" to the open and/or close tag (i.e., no newline immediately
+/// after `>` or before `</tag>`). This happens when an ExpressionTag or child
+/// element had its content reformatted to span multiple lines AFTER the indent
+/// pass already ran — so the element's outer `>content</tag>` boundary was
+/// never re-laid out.
+///
+/// Example:
+///   `<p>{x1 +\n    x2 + ... x32}</p>`
+/// becomes:
+///   `<p>\n  {x1 +\n    x2 + ... x32}\n</p>`
+///
+/// Only fires when:
+/// - The element is block-display.
+/// - The whole element is multi-line.
+/// - The open tag is single-line (no newline before `>`).
+/// - The content starts on the same line as `>` (no `\n` right after `>`).
+/// - The close tag is on the same line as the last content character.
+fn try_break_block_multiline_content(
+    out: &str,
+    tag: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+) -> Option<(u32, u32, String)> {
+    if !is_block_display(tag) {
+        return None;
+    }
+
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+
+    // Only act on elements that already have newlines (multi-line content).
+    if !whole.contains('\n') {
+        return None;
+    }
+
+    // Need at least one non-whitespace child.
+    let first_child = fragment
+        .nodes
+        .iter()
+        .find(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+    let last_child = fragment
+        .nodes
+        .iter()
+        .rfind(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))?;
+
+    let first_start = node_start(first_child) as usize;
+    let last_end = node_end(last_child) as usize;
+
+    // open tag = element start up to first meaningful child.
+    let open = out.get(s..first_start)?;
+    // close tag = last meaningful child end to element end.
+    let close = out.get(last_end..e)?;
+    // content = everything from first to last meaningful child (inclusive).
+    let content = out.get(first_start..last_end)?;
+
+    if open.is_empty() || close.is_empty() || content.is_empty() {
+        return None;
+    }
+    // Open tag must be single-line and end with `>`.
+    if open.contains('\n') || !open.ends_with('>') {
+        return None;
+    }
+    // Content must be multi-line (otherwise try_break_block_overflow handles it).
+    if !content.contains('\n') {
+        return None;
+    }
+    // The content must start on the SAME line as `>` (otherwise it's already broken).
+    // Check: the char immediately after `>` is NOT a newline.
+    if out.as_bytes().get(first_start) == Some(&b'\n') {
+        return None;
+    }
+    // The close tag must start on the SAME line as the last content char.
+    if out.as_bytes().get(last_end) == Some(&b'\n') {
+        return None;
+    }
+
+    // Derive element indent from the text before `start` on the same line.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
+
+    let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
+    (broken != whole).then_some((start, end, broken))
+}
+
+/// Strip trailing whitespace from a `<slot>` element's inline content.
+/// prettier-plugin-svelte trims trailing edge whitespace for component-like elements:
+///   `<slot><!-- placeholder--> </slot>` → `<slot><!-- placeholder--></slot>`
+///   `<slot><!-- note--> foobar </slot>` → `<slot><!-- note--> foobar</slot>`
+fn try_strip_trailing_slot_space(
+    out: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+) -> Option<(u32, u32, String)> {
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    if whole.contains('\n') {
+        return None; // only collapse inline slots
+    }
+    // The last child must be a Text node (possibly whitespace-only, possibly with content).
+    let last = fragment.nodes.last()?;
+    let TemplateNode::Text(t) = last else {
+        return None;
+    };
+    if t.data.is_empty() {
+        return None;
+    }
+    // The rendered text in `out` for this node's span.
+    let ts = node_start(last) as usize;
+    let te = node_end(last) as usize;
+    let rendered = out.get(ts..te)?;
+    if rendered.is_empty() {
+        return None;
+    }
+    let trimmed = rendered.trim_end();
+    // Only act if there actually IS trailing whitespace to remove.
+    if trimmed.len() == rendered.len() {
+        return None;
+    }
+    // Build replacement: open..content_before_trailing_ws + trimmed_text + close_tag.
+    let close = out.get(te..e)?;
+    let replacement = format!("{}{}{}", &out[s..ts], trimmed, close);
+    (replacement != whole).then_some((start, end, replacement))
 }
 
 /// Hug-break an inline element whose mixed inline content (expression tags /
@@ -1248,17 +1815,26 @@ fn try_hug_mixed(
     if raw.starts_with([' ', '\t', '\r', '\n']) || raw.ends_with([' ', '\t', '\r', '\n']) {
         return None;
     }
-    // Only act on currently-one-line content; multi-line content is left alone
-    // (its exact reflow needs the full element-group model).
-    if raw.contains('\n') {
-        return None;
-    }
     let column = current_column(out, start);
 
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
     if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
         return None;
+    }
+
+    // When the content is already multi-line (e.g. a child element whose
+    // attributes wrapped), prettier still applies the hug form: `>` glues
+    // to the content's first character and the closing `</tag` sits before
+    // the final `>`. Since the content is multi-line the element obviously
+    // doesn't fit on one line, so we skip straight to the hug transform.
+    // Only handle single-line open tags here; multi-line open tags are
+    // handled by the `open.contains('\n')` branch below.
+    if raw.contains('\n') && !open.contains('\n') {
+        let inner_indent = format!("{indent}  ");
+        let open_no_bracket = &open[..open.len() - 1];
+        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        return (result != whole).then_some((start, end, result));
     }
 
     // A multi-line open tag means markup already attribute-wrapped it. prettier's
@@ -1352,7 +1928,6 @@ fn try_fill_mixed(
     if !has_non_text {
         return None; // pure text is handled by try_collapse
     }
-
     let content_start = node_start(fragment.nodes.first()?) as usize;
     let content_end = node_end(fragment.nodes.last()?) as usize;
     let open = out.get(s..content_start)?;
@@ -1410,6 +1985,20 @@ fn try_fill_mixed(
         .iter()
         .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
     if !has_text_word && !flat.contains('\n') {
+        // For block-display elements that are ALREADY on one source line but have
+        // leading/trailing SPACE (not newline) boundary whitespace, collapse to
+        // one line and strip the boundary whitespace — prettier's block element
+        // trimming behavior.
+        // E.g. `<p> {@html raw1} {@html raw2} </p>` → `<p>{@html raw1} {@html raw2}</p>`.
+        // Multi-line source (boundary whitespace is newline + indent) is left alone —
+        // the indent pass owns those elements.
+        if is_block_display(tag) && (had_lead || had_trail) && !raw.contains('\n') {
+            let element_one_line = column + open.width() + flat.width() + close.width();
+            if element_one_line <= line_width {
+                let one_line = format!("{open}{flat}{close}");
+                return (one_line != whole).then_some((start, end, one_line));
+            }
+        }
         return None;
     }
 
@@ -1418,6 +2007,19 @@ fn try_fill_mixed(
         // A block element whose flat element line overflows puts its content on
         // its own line; an inline element would instead hug, so leave those.
         if element_one_line <= line_width || !is_block_display(tag) {
+            // Even when the element fits on one line, if it's a block-display
+            // element with leading/trailing space boundary whitespace (but NOT
+            // newline-separated — that's indented multi-line content), collapse
+            // to the space-trimmed one-line form.
+            // E.g. `<p> {a} {b} : {c} : </p>` → `<p>{a} {b} : {c} :</p>`.
+            if is_block_display(tag)
+                && (had_lead || had_trail)
+                && !raw.contains('\n')
+                && element_one_line <= line_width
+            {
+                let one_line = format!("{open}{flat}{close}");
+                return (one_line != whole).then_some((start, end, one_line));
+            }
             return None;
         }
     }

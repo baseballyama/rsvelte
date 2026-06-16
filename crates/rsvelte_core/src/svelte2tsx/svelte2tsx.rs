@@ -200,18 +200,299 @@ impl Svelte2TsxError {
 /// let result = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap();
 /// println!("{}", result.code);
 /// ```
+/// Replace the content of every `<style …>…</style>` with spaces (newlines and
+/// carriage returns preserved) so the parser never CSS-parses it. Works at the
+/// BYTE level so the result is exactly the same length as `source` — every AST
+/// offset still indexes the original source. Case-insensitive on the tag name.
+fn blank_style_content(source: &str) -> String {
+    let mut bytes = source.as_bytes().to_vec();
+    let lower = source.to_ascii_lowercase();
+    let lb = lower.as_bytes();
+    let mut search = 0usize;
+    while let Some(rel) = lower[search..].find("<style") {
+        let tag_start = search + rel;
+        // Must be the `<style` element, not e.g. `<styled`.
+        let after = lb.get(tag_start + 6).copied();
+        if !matches!(
+            after,
+            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+        ) {
+            search = tag_start + 6;
+            continue;
+        }
+        let Some(gt_rel) = lower[tag_start..].find('>') else {
+            break;
+        };
+        let content_start = tag_start + gt_rel + 1;
+        // Self-closing `<style/>` → no content to blank.
+        if content_start >= 2 && lb[content_start - 2] == b'/' {
+            search = content_start;
+            continue;
+        }
+        let Some(close_rel) = lower[content_start..].find("</style") else {
+            break;
+        };
+        let content_end = content_start + close_rel;
+        for b in &mut bytes[content_start..content_end] {
+            if *b != b'\n' && *b != b'\r' {
+                *b = b' ';
+            }
+        }
+        search = content_end;
+    }
+    String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
+}
+
+/// Validate that every `{@debug …}` argument is a plain identifier, returning a
+/// template error otherwise — mirrors svelte's parse-time check (rsvelte's lives
+/// in the analyze DebugTag visitor, which svelte2tsx doesn't run).
+fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::{Fragment, TemplateNode as N};
+
+    fn arg_is_identifier(expr: &crate::ast::js::Expression, source: &str) -> bool {
+        match expr.node_type() {
+            Some("Identifier") => true,
+            Some(_) => false,
+            // Lazy/unresolved expression: accept only a bare identifier token.
+            None => match (expr.start(), expr.end()) {
+                (Some(s), Some(e))
+                    if (s as usize) < (e as usize) && (e as usize) <= source.len() =>
+                {
+                    let t = source[s as usize..e as usize].trim();
+                    let mut chars = t.chars();
+                    match chars.next() {
+                        Some(c0) if c0.is_alphabetic() || c0 == '_' || c0 == '$' => {
+                            chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                        }
+                        _ => false,
+                    }
+                }
+                _ => false,
+            },
+        }
+    }
+
+    fn check_fragment(frag: &Fragment, source: &str) -> Result<(), Svelte2TsxError> {
+        for node in &frag.nodes {
+            check_node(node, source)?;
+        }
+        Ok(())
+    }
+
+    fn check_node(node: &N, source: &str) -> Result<(), Svelte2TsxError> {
+        match node {
+            N::DebugTag(tag) => {
+                for id in &tag.identifiers {
+                    if !arg_is_identifier(id, source) {
+                        return Err(Svelte2TsxError::Template(
+                            "{@debug ...} arguments must be identifiers, not arbitrary expressions"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
+            N::RegularElement(e) => check_fragment(&e.fragment, source)?,
+            N::Component(c) => check_fragment(&c.fragment, source)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, source)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, source)?,
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, source)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, source)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, source)?,
+            N::IfBlock(b) => {
+                check_fragment(&b.consequent, source)?;
+                if let Some(alt) = &b.alternate {
+                    check_fragment(alt, source)?;
+                }
+            }
+            N::EachBlock(b) => {
+                check_fragment(&b.body, source)?;
+                if let Some(fb) = &b.fallback {
+                    check_fragment(fb, source)?;
+                }
+            }
+            N::KeyBlock(b) => check_fragment(&b.fragment, source)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, source)?,
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    check_fragment(f, source)?;
+                }
+                if let Some(f) = &b.then {
+                    check_fragment(f, source)?;
+                }
+                if let Some(f) = &b.catch {
+                    check_fragment(f, source)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    check_fragment(&ast.fragment, source)
+}
+
+/// Validate `<svelte:window/body/document/head/options>` placement and
+/// uniqueness, mirroring svelte's PARSE-time `svelte_meta_duplicate` /
+/// `svelte_meta_invalid_placement` checks (1-parse/state/element.js). rsvelte's
+/// compiler defers these to phase-2 analysis, which svelte2tsx skips — but
+/// official svelte2tsx parses with svelte and so rejects these at parse. Each
+/// of these five "root-only meta tags" must appear at most once and only as a
+/// direct child of the component root (not inside any element or block).
+fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::{Fragment, TemplateNode as N};
+    use std::collections::HashSet;
+
+    // `<svelte:element>` requires a `this` attribute with a value. svelte's
+    // parser stores it as the element's `tag` expression; a missing / valueless
+    // `this` leaves an empty span. Official svelte2tsx rejects it.
+    fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression, source: &str) -> bool {
+        match (tag.start(), tag.end()) {
+            (Some(s), Some(e)) if (s as usize) < (e as usize) && (e as usize) <= source.len() => {
+                source[s as usize..e as usize].trim().is_empty()
+            }
+            _ => true,
+        }
+    }
+
+    fn meta_name(node: &N) -> Option<&str> {
+        match node {
+            N::SvelteWindow(e)
+            | N::SvelteBody(e)
+            | N::SvelteDocument(e)
+            | N::SvelteHead(e)
+            | N::SvelteOptions(e) => Some(e.name.as_str()),
+            _ => None,
+        }
+    }
+
+    fn check_fragment(
+        frag: &Fragment,
+        at_root: bool,
+        seen: &mut HashSet<String>,
+        source: &str,
+    ) -> Result<(), Svelte2TsxError> {
+        for node in &frag.nodes {
+            check_node(node, at_root, seen, source)?;
+        }
+        Ok(())
+    }
+
+    fn check_node(
+        node: &N,
+        at_root: bool,
+        seen: &mut HashSet<String>,
+        source: &str,
+    ) -> Result<(), Svelte2TsxError> {
+        if let N::SvelteElement(e) = node
+            && dynamic_element_tag_is_empty(&e.tag, source)
+        {
+            return Err(Svelte2TsxError::Template(
+                "`<svelte:element>` must have a 'this' attribute with a value".to_string(),
+            ));
+        }
+        if let Some(name) = meta_name(node) {
+            if !at_root {
+                return Err(Svelte2TsxError::Template(format!(
+                    "`<{}>` tags cannot be inside elements or blocks",
+                    name
+                )));
+            }
+            if !seen.insert(name.to_string()) {
+                return Err(Svelte2TsxError::Template(format!(
+                    "A component can only have one `<{}>` element",
+                    name
+                )));
+            }
+        }
+        // Recurse into children — anything nested below this node is no longer
+        // at root level.
+        match node {
+            N::RegularElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::Component(c) => check_fragment(&c.fragment, false, seen, source)?,
+            N::SvelteComponent(c) => check_fragment(&c.fragment, false, seen, source)?,
+            N::SvelteElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::TitleElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::SlotElement(e) => check_fragment(&e.fragment, false, seen, source)?,
+            N::IfBlock(b) => {
+                check_fragment(&b.consequent, false, seen, source)?;
+                if let Some(alt) = &b.alternate {
+                    check_fragment(alt, false, seen, source)?;
+                }
+            }
+            N::EachBlock(b) => {
+                check_fragment(&b.body, false, seen, source)?;
+                if let Some(fb) = &b.fallback {
+                    check_fragment(fb, false, seen, source)?;
+                }
+            }
+            N::KeyBlock(b) => check_fragment(&b.fragment, false, seen, source)?,
+            N::SnippetBlock(b) => check_fragment(&b.body, false, seen, source)?,
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    check_fragment(f, false, seen, source)?;
+                }
+                if let Some(f) = &b.then {
+                    check_fragment(f, false, seen, source)?;
+                }
+                if let Some(f) = &b.catch {
+                    check_fragment(f, false, seen, source)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    let mut seen = HashSet::new();
+    check_fragment(&ast.fragment, true, &mut seen, source)
+}
+
 pub fn svelte2tsx(
     source: &str,
     options: Svelte2TsxOptions,
 ) -> Result<Svelte2TsxResult, Svelte2TsxError> {
-    // Step 1: Parse the Svelte source using the existing parser
+    // Step 1: Parse the Svelte source using the existing parser.
+    //
+    // Blank out `<style>` CONTENT before parsing (equal-length, newlines kept,
+    // so every AST offset still lines up with the original `source`). svelte2tsx
+    // does the same (utils/htmlxparser.ts: "Svelte tries to parse style/script
+    // tags which doesn't play well with typescript, so we blank them out") — the
+    // CSS is irrelevant to the TSX output (it's dropped anyway), and parsing it
+    // would surface CSS-only errors (e.g. doc placeholders like `div { ... }`)
+    // that the official tool never sees, breaking error-parity. The `<script>`
+    // is NOT blanked — rsvelte needs it (it processes the instance script from
+    // the parsed AST, unlike svelte2tsx which re-parses scripts separately).
+    let parse_source = blank_style_content(source);
     let parse_options = ParseOptions {
         modern: true,
         loose: false,
         skip_expression_loc: false,
         defer_script_parse: false,
+        force_typescript: false,
     };
-    let ast = phase1_parse::parse(source, parse_options)?;
+    let ast = phase1_parse::parse(&parse_source, parse_options)?;
+
+    // svelte rejects `{@debug expr}` whose arguments are not plain identifiers
+    // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does
+    // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
+    // replicate it here to preserve error-parity with official svelte2tsx.
+    validate_debug_tag_arguments(&ast, source)?;
+    validate_meta_element_placement(&ast, source)?;
 
     // Step 2: Determine component name from filename
     let component_name = derive_component_name(&options.filename);
@@ -300,8 +581,12 @@ pub fn svelte2tsx(
         exported_names.set_uses_runes(true);
     }
 
-    // Step 7.5: Early slot detection (before script tag overwrites)
-    let has_slot_elements = source.contains("<slot") || source.contains("<slot>");
+    // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
+    // naive `source.contains("<slot")` matches `<slot>` inside string literals
+    // such as a custom element's `shadowRoot.innerHTML = '…<slot>…'`, which are
+    // not real template slots). Official emits the `__sveltets_createSlot`
+    // helper / treats the component as slotted only for real `<slot>` elements.
+    let has_slot_elements = fragment_has_slot_element(&ast.fragment);
 
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
@@ -1299,28 +1584,14 @@ pub fn svelte2tsx(
             }
         }
 
-        // Blank out trailing whitespace after </script> that is not part
-        // of any template content. Must be done BEFORE moves, since the
-        // overwrite walks the linked list.
-        if (script_end as usize) < source.len() {
-            let bytes = source.as_bytes();
-            let mut trailing_end = script_end;
-            while (trailing_end as usize) < bytes.len() {
-                let b = bytes[trailing_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    trailing_end += 1;
-                } else {
-                    break;
-                }
-            }
-            let has_template_node_after_script = ast.fragment.nodes.iter().any(|node| {
-                let ns = node_start_pos(node);
-                ns >= script_end && ns < trailing_end
-            });
-            if !has_template_node_after_script && trailing_end > script_end {
-                str.overwrite(script_end, trailing_end, "");
-            }
-        }
+        // NOTE: the trailing whitespace after `</script>` is intentionally
+        // left in place. Official svelte2tsx's `createRenderFunction` overwrites
+        // only `</script>` itself and then `str.append('};')` + the return
+        // string at the very end, leaving the source's trailing newline between
+        // `async () => {` and the closing `};`. For a template-less component
+        // that yields `async () => {\n};`; blanking the newline here produced
+        // `async () => {};`, which diverged for the await-error fixtures whose
+        // output oxfmt cannot reformat (so only blank-line stripping applies).
     }
 
     // Phase 3: Move scripts to their target positions (after all overwrites)
@@ -1444,12 +1715,10 @@ pub fn svelte2tsx(
 
     // Append the closing of async wrapper, return statement, and component export
     let use_partial_with_any = uses_dollar_props || uses_dollar_rest_props;
-    let props_str = if use_partial_with_any {
-        // When $$props or $$restProps is used, props is just an empty object
-        "{}".to_string()
-    } else {
-        exported_names.create_props_str(options.is_ts_file)
-    };
+    // `$$props`/`$$restProps` only flattens the props type to `{}` when there
+    // are NO explicitly-declared props; named `export let`s are still listed
+    // (mirrors official `createPropsStr(uses$$propsOr$$restProps)`).
+    let props_str = exported_names.create_props_str(options.is_ts_file, use_partial_with_any);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     // Determine effective accessors setting: from options OR <svelte:options accessors>
     let effective_accessors = options.accessors
@@ -1489,6 +1758,11 @@ pub fn svelte2tsx(
         }
         format!("{{{}}}", slot_parts.join(", "))
     };
+
+    // Scan the whole component (instance script + template handlers) for
+    // `dispatch("name", …)` call sites of any untyped `createEventDispatcher()`
+    // so they surface in the events return.
+    events.collect_dispatched_events(source);
 
     // Build events string from template info and component events
     let events_str = {
@@ -1627,7 +1901,16 @@ pub fn svelte2tsx(
         }
         SvelteVersion::V5 => {
             let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
-            if exported_names.is_runes_mode() {
+            // `__sveltets_2_fn_component` is only used for a runes component with
+            // NO slots and NO events; a runes component that forwards events
+            // (`on:click`) or has slots falls through to the isomorphic-component
+            // path, exactly like a legacy component (mirrors official
+            // addComponentExport: `isRunesMode() && !usesSlots && !hasEvents`).
+            // "No events" must also account for forwarded element/component
+            // events (`<div on:click>` / `<Inner on:bar/>`), which live in
+            // `template_info.element_events`, not `events`.
+            let has_any_events = !events.is_empty() || !template_info.element_events.is_empty();
+            if exported_names.is_runes_mode() && !has_any_events && !has_slot_elements {
                 if !use_ts_syntax {
                     // JS files with emitJsDoc: use `export const` and JSDoc typedef.
                     // Reference: addComponentExport.ts `addSimpleComponentExport`,
@@ -1682,6 +1965,7 @@ pub fn svelte2tsx(
                         &raw_bindings,
                         &exports_return,
                         has_slot_elements,
+                        !events.is_empty(),
                     );
                 } else {
                     // Runes mode, TS syntax, no generics — the most common path.
@@ -1778,10 +2062,20 @@ pub fn svelte2tsx(
                 } else {
                     String::new()
                 };
+                // When the component has no props (and can't take arbitrary
+                // props via $$props/$$restProps), official drops the
+                // `ReturnType<…['props']> &` prefix, leaving just the
+                // events/slots members. Mirrors `createPropsStr`'s
+                // `!canHaveAnyProp && hasNoProps()` branch.
+                let props_prefix = if exported_names.has_no_props() && !uses_dollar_props {
+                    String::new()
+                } else {
+                    format!("ReturnType<__sveltets_Render<{}>['props']> & ", gn)
+                };
                 let _ = writeln!(
                     closing,
-                    "    <{}>(internal: unknown, props: ReturnType<__sveltets_Render<{}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
-                    gp, gn, gn, slots_children_suffix, gn
+                    "    <{}>(internal: unknown, props: {}{{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
+                    gp, props_prefix, gn, slots_children_suffix, gn
                 );
                 let _ = writeln!(
                     closing,
@@ -1899,6 +2193,7 @@ fn emit_runes_generics_component(
     raw_bindings: &str,
     exports_return: &str,
     has_slot_elements: bool,
+    has_events: bool,
 ) {
     let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
     let _ = writeln!(
@@ -1929,14 +2224,25 @@ fn emit_runes_generics_component(
         closing,
         "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
-    let slots_children_suffix = if has_slot_elements {
-        format!(", $$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>, children?: any")
-    } else {
-        String::new()
-    };
+    // Mirror official addComponentExport: `$$events?` is only included when the
+    // component has events (or, in legacy mode, always — but this is the runes
+    // path, so just `has_events`). `$$slots?`/`children?` only when slotted.
+    let mut events_slots_parts: Vec<String> = Vec::new();
+    if has_events {
+        events_slots_parts.push(format!(
+            "$$events?: ReturnType<__sveltets_Render<{gn}>['events']>"
+        ));
+    }
+    if has_slot_elements {
+        events_slots_parts.push(format!(
+            "$$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>"
+        ));
+        events_slots_parts.push("children?: any".to_string());
+    }
+    let events_slots_inner = events_slots_parts.join(", ");
     let _ = writeln!(
         closing,
-        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
+        "    <{gp}>(internal: unknown, props: ReturnType<__sveltets_Render<{gn}>['props']> & {{{events_slots_inner}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
     );
     let _ = writeln!(
         closing,
@@ -2099,8 +2405,13 @@ fn extract_component_documentation(fragment: &crate::ast::template::Fragment) ->
                 // Extract the documentation text after @component
                 let after_tag = data.strip_prefix("@component").unwrap();
 
-                // If the text after @component starts with a newline, it's multiline
-                let is_multiline = after_tag.contains('\n');
+                // Official trims the whole doc *before* deciding single- vs
+                // multi-line (`componentDocumentation = data.replace('@component',
+                // '').trim()`, then `if (!doc.includes('\n'))`). So a comment
+                // whose only newlines surround a single line of text (e.g.
+                // `<!--@component\nText\n-->`) is emitted as a single-line
+                // `/** Text */`. Check the trimmed content for newlines.
+                let is_multiline = after_tag.trim().contains('\n');
 
                 if is_multiline {
                     // Collect all lines after @component
@@ -3281,6 +3592,17 @@ mod scule_tests {
     }
 }
 
+// NOTE on runes detection: svelte2tsx deliberately uses its OWN runes heuristic
+// (the `detect_*`/`ExportedNames::is_runes_mode` machinery) rather than the
+// compiler's authoritative `ComponentAnalysis::runes` flag. The two genuinely
+// DIVERGE: the compiler treats `$host` / `$inspect` / `$bindable` (and certain
+// shadowing/scope cases) as runes — semantically correct — but official
+// `svelte2tsx`'s `hasRunesGlobals` only counts `$state` / `$derived` / `$effect`
+// (plus `$props` / explicit / top-level await). Since this port targets
+// byte-parity with official `svelte2tsx`, it must mirror svelte2tsx's narrower
+// definition; wiring in the compiler flag was measured to REGRESS the corpus
+// (it over-detects runes for ~24 `$host`-only / shadowed-derived components).
+
 /// Detect whether the component uses Svelte 5 runes mode.
 ///
 /// Checks for the presence of `$props()`, `$state()`, `$derived()`, etc. in script content,
@@ -3333,6 +3655,49 @@ fn fragment_has_template_await(
 }
 
 /// Check a single template node for `{await ...}` patterns, recursing into children.
+/// True if the template fragment contains a real `<slot>` element anywhere
+/// (recursing through elements, components, control-flow blocks, and snippets).
+/// AST-based replacement for a naive `source.contains("<slot")` scan.
+fn fragment_has_slot_element(fragment: &crate::ast::template::Fragment) -> bool {
+    fragment.nodes.iter().any(node_has_slot_element)
+}
+
+fn node_has_slot_element(node: &crate::ast::template::TemplateNode) -> bool {
+    use crate::ast::template::TemplateNode as N;
+    match node {
+        N::SlotElement(_) => true,
+        N::RegularElement(e) => fragment_has_slot_element(&e.fragment),
+        N::Component(c) => fragment_has_slot_element(&c.fragment),
+        N::SvelteComponent(c) => fragment_has_slot_element(&c.fragment),
+        N::SvelteElement(e) => fragment_has_slot_element(&e.fragment),
+        N::TitleElement(e) => fragment_has_slot_element(&e.fragment),
+        N::SvelteHead(e)
+        | N::SvelteFragment(e)
+        | N::SvelteBody(e)
+        | N::SvelteWindow(e)
+        | N::SvelteDocument(e)
+        | N::SvelteBoundary(e)
+        | N::SvelteOptions(e)
+        | N::SvelteSelf(e) => fragment_has_slot_element(&e.fragment),
+        N::IfBlock(b) => {
+            fragment_has_slot_element(&b.consequent)
+                || b.alternate.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        N::EachBlock(b) => {
+            fragment_has_slot_element(&b.body)
+                || b.fallback.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        N::KeyBlock(b) => fragment_has_slot_element(&b.fragment),
+        N::SnippetBlock(b) => fragment_has_slot_element(&b.body),
+        N::AwaitBlock(b) => {
+            b.pending.as_ref().is_some_and(fragment_has_slot_element)
+                || b.then.as_ref().is_some_and(fragment_has_slot_element)
+                || b.catch.as_ref().is_some_and(fragment_has_slot_element)
+        }
+        _ => false,
+    }
+}
+
 fn template_node_has_await(
     node: &crate::ast::template::TemplateNode,
     source: &str,
@@ -3380,10 +3745,15 @@ fn template_node_has_await(
             expression_is_await(&block.expression, source, arena)
                 || fragment_has_template_await(&block.fragment, source, arena)
         }
-        // NOTE: SnippetBlock — awaits inside snippets do NOT force runes on the
-        // parent component (they are async in their own context). Mirror the
-        // 2_analyze `node_check_features` which skips SnippetBlock for await.
-        TemplateNode::SnippetBlock(_) => false,
+        // SnippetBlock: official svelte2tsx's `isRunes` sets true for an
+        // AwaitExpression whose ancestor path has no function-expression node —
+        // a SnippetBlock is NOT such a node, so an `await` inside a snippet body
+        // (e.g. `{#snippet}{@const x = await …}{/snippet}`) DOES force runes.
+        // (This is svelte2tsx-specific; the compiler's 2_analyze skips snippets,
+        // but this detector mirrors svelte2tsx, not the compiler.)
+        TemplateNode::SnippetBlock(block) => {
+            fragment_has_template_await(&block.body, source, arena)
+        }
         // AwaitBlock ({#await expr}) — the `expression` could itself contain an
         // await (e.g. `{#await await promise}`). Also recurse into the pending /
         // then / catch sub-fragments since they can contain nested {await ...}
@@ -3467,12 +3837,15 @@ fn attr_has_await(
     use crate::ast::template::Attribute;
     use crate::ast::template::AttributeValue;
     use crate::ast::template::AttributeValuePart;
-    // Only plain AttributeNode can carry await in its value; directives,
-    // SpreadAttribute, etc., don't have ExpressionTag values.
-    let Attribute::Attribute(attr_node) = attr else {
-        return false;
-    };
-    match &attr_node.value {
+
+    // Mirror official's template walk, which sets `isRunes` on ANY top-level
+    // `AwaitExpression` regardless of which attribute/directive it lives in
+    // (e.g. `class:x={await y}`, `style:c={await z}`, `use:a={await b}`,
+    // `bind:v={await w}`). Previously only plain attributes were checked, so
+    // an await confined to a directive failed to flip runes mode and the
+    // `bindings:` field was emitted in legacy (`""`) instead of runes
+    // (`__sveltets_$$bindings('')`) form.
+    let value_has_await = |value: &AttributeValue| match value {
         AttributeValue::Expression(expr_tag) => {
             expression_is_await(&expr_tag.expression, source, arena)
         }
@@ -3484,6 +3857,24 @@ fn attr_has_await(
             }
         }),
         AttributeValue::True(_) => false,
+    };
+    let opt_expr_has_await = |expr: &Option<crate::ast::js::Expression>| {
+        expr.as_ref()
+            .is_some_and(|e| expression_is_await(e, source, arena))
+    };
+
+    match attr {
+        Attribute::Attribute(attr_node) => value_has_await(&attr_node.value),
+        Attribute::SpreadAttribute(s) => expression_is_await(&s.expression, source, arena),
+        Attribute::AttachTag(t) => expression_is_await(&t.expression, source, arena),
+        Attribute::ClassDirective(d) => expression_is_await(&d.expression, source, arena),
+        Attribute::BindDirective(d) => expression_is_await(&d.expression, source, arena),
+        Attribute::StyleDirective(d) => value_has_await(&d.value),
+        Attribute::OnDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::TransitionDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::AnimateDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::UseDirective(d) => opt_expr_has_await(&d.expression),
+        Attribute::LetDirective(_) => false,
     }
 }
 
@@ -3630,9 +4021,13 @@ fn template_node_has_rune_global(
             expression_references_rune_global(&block.expression, source, arena)
                 || fragment_has_template_rune_global(&block.fragment, source, arena)
         }
-        // SnippetBlock — mirror `detect_await_in_template` which also skips snippets.
-        // Snippets have their own scope and their globals are tracked separately.
-        TemplateNode::SnippetBlock(_) => false,
+        // SnippetBlock: official's global collection (checkGlobalsForRunes via
+        // implicitStoreValues) walks the whole component including snippet
+        // bodies, so a rune call inside a snippet (`{#snippet}{@const x =
+        // $derived(…)}{/snippet}`) forces runes mode. Recurse into the body.
+        TemplateNode::SnippetBlock(block) => {
+            fragment_has_template_rune_global(&block.body, source, arena)
+        }
         TemplateNode::AwaitBlock(block) => {
             expression_references_rune_global(&block.expression, source, arena)
                 || block
@@ -3703,6 +4098,20 @@ fn template_node_has_rune_global(
         // via `implicitStoreValues` just like any other template expression.
         TemplateNode::AttachTag(tag) => {
             expression_references_rune_global(&tag.expression, source, arena)
+        }
+        // `{@const x = $derived(…)}` and `{let x = $state(0), …}` carry rune
+        // calls in their declaration; official collects their globals like any
+        // other template expression, so a runes-only component with no script
+        // (only template declaration tags) still enters runes mode. The
+        // declaration is a `VariableDeclaration` (which the typed/JSON rune
+        // walkers don't descend into), so scan the tag's source slice directly.
+        TemplateNode::ConstTag(tag) => {
+            let (s, e) = (tag.start as usize, tag.end as usize);
+            s < e && e <= source.len() && lazy_slice_references_rune_global(&source[s..e])
+        }
+        TemplateNode::DeclarationTag(tag) => {
+            let (s, e) = (tag.start as usize, tag.end as usize);
+            s < e && e <= source.len() && lazy_slice_references_rune_global(&source[s..e])
         }
         _ => false,
     }
@@ -4032,6 +4441,24 @@ fn js_node_references_rune_global(
         JsNode::AssignmentExpression { right, .. } => {
             js_node_references_rune_global(arena.get_js_node(*right), arena)
         }
+
+        // VariableDeclaration / VariableDeclarator: recurse into each
+        // declarator's initializer — e.g. `const state = $state({…})` inside an
+        // event-handler arrow body (`onsubmit={e => { const s = $state(…) }}`).
+        JsNode::VariableDeclaration { declarations, .. } => {
+            let decls = arena.get_js_children(*declarations);
+            decls
+                .iter()
+                .any(|d| js_node_references_rune_global(d, arena))
+        }
+        JsNode::VariableDeclarator { init, .. } => init
+            .map(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
+            .unwrap_or(false),
+
+        // ReturnStatement / IfStatement bodies can also host rune calls.
+        JsNode::ReturnStatement { argument, .. } => argument
+            .map(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
+            .unwrap_or(false),
 
         // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
         // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.

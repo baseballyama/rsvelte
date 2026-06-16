@@ -117,6 +117,10 @@ pub struct ExportedNameInfo {
     pub is_prop: bool,
     pub is_let: bool,
     pub is_named_export: bool,
+    /// Leading JSDoc `/** @type {…} */` comment on the export declaration,
+    /// preserved in the legacy `props: { … }` return (mirrors official's
+    /// `value.doc`).
+    pub doc: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -126,6 +130,9 @@ struct PossibleExport {
     has_type_annotation: bool,
     decl_end: u32,
     type_annotation_text: Option<String>,
+    /// Leading JSDoc `/** @type {…} */` on the declaration, for
+    /// `export { x as y }` (the doc lives on the `let x` declaration).
+    doc: Option<String>,
 }
 
 impl ExportedNames {
@@ -200,6 +207,7 @@ impl ExportedNames {
                 is_prop,
                 is_let: false,
                 is_named_export: false,
+                doc: None,
             },
         );
     }
@@ -225,6 +233,7 @@ impl ExportedNames {
                 is_prop,
                 is_let,
                 is_named_export,
+                doc: None,
             },
         );
     }
@@ -255,6 +264,29 @@ impl ExportedNames {
     pub fn has(&self, name: &str) -> bool {
         self.names.contains_key(name)
     }
+    /// True if `local` is the *local* (source-declared) name of any export.
+    /// Unlike `has`, this matches through aliases: `export { v1 as a1 }`
+    /// is keyed by `a1`, but its local name is `v1`.
+    pub fn has_local(&self, local: &str) -> bool {
+        self.names.values().any(|info| info.local_name == local)
+    }
+    /// Mirror official `hasNoProps()`: runes mode → no `$props` type/comment;
+    /// legacy → no exports.
+    pub fn has_no_props(&self) -> bool {
+        if self.is_runes_mode() {
+            self.props_type_text.is_none()
+                && !self.has_component_props_typedef
+                && self.props_jsdoc_type.is_none()
+        } else {
+            self.names.is_empty()
+        }
+    }
+    /// Attach the leading JSDoc comment to an exported name (by export key).
+    pub fn set_doc(&mut self, name: &str, doc: String) {
+        if let Some(info) = self.names.get_mut(name) {
+            info.doc = Some(doc);
+        }
+    }
     pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
         self.names.get(name)
     }
@@ -264,7 +296,7 @@ impl ExportedNames {
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
-    pub fn create_props_str(&self, is_ts: bool) -> String {
+    pub fn create_props_str(&self, is_ts: bool, uses_dollar_props: bool) -> String {
         if self.is_runes_mode() {
             // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
             if self.has_component_props_typedef && self.props_type_text.is_some() {
@@ -289,14 +321,20 @@ impl ExportedNames {
                 return format!("/** @type {} */({{}})", jsdoc_type);
             }
 
-            // Otherwise, list the prop entries from $props() destructuring
-            // In runes mode, named exports (export { x as y }) are NOT props
-            let entries: Vec<String> = self
-                .get_ordered()
-                .iter()
-                .filter(|(_, info)| info.is_prop && !info.is_named_export)
-                .map(|(en, info)| format!("{}: {}", en, info.local_name))
-                .collect();
+            // Otherwise, list the prop entries from $props() destructuring.
+            // In runes mode, props ONLY come from a `$props()` call; a stray
+            // `export let foo` is not a prop (it's a runes-mode error), so
+            // without a `$props()` call there are no props. Named exports
+            // (`export { x as y }`) are likewise not props.
+            let entries: Vec<String> = if self.has_props_rune {
+                self.get_ordered()
+                    .iter()
+                    .filter(|(_, info)| info.is_prop && !info.is_named_export)
+                    .map(|(en, info)| format!("{}: {}", en, info.local_name))
+                    .collect()
+            } else {
+                Vec::new()
+            };
             if entries.is_empty() {
                 // Reference: addComponentExport.ts `props()` function —
                 // runes mode with no props: TS uses `{} as Record<string, never>`,
@@ -309,16 +347,25 @@ impl ExportedNames {
             }
             return format!("{{{}}}", entries.join(" , "));
         }
+        // In JS (non-TS) files the props object omits the `as {…}` type assert
+        // (`dontAddTypeDef`), so a captured leading JSDoc `/** @type {…} */` is
+        // emitted before the prop — mirrors official `createReturnElements`.
         let entries: Vec<String> = self
             .get_ordered()
             .iter()
-            .map(|(en, info)| format!("{}: {}", en, info.local_name))
+            .map(|(en, info)| match (&info.doc, is_ts) {
+                (Some(doc), false) => format!("{} {}: {}", doc, en, info.local_name),
+                _ => format!("{}: {}", en, info.local_name),
+            })
             .collect();
         if entries.is_empty() {
-            // Reference: ExportedNames.ts createPropsStr —
-            // non-runes mode with no props: TS uses `{} as Record<string, never>`,
+            // Reference: ExportedNames.ts createPropsStr — non-runes mode with
+            // no props. When `$$props`/`$$restProps` is used, props flattens to
+            // a bare `{}`; otherwise TS uses `{} as Record<string, never>` and
             // JS uses `/** @type {Record<string, never>} */ ({})`.
-            if is_ts {
+            if uses_dollar_props {
+                "{}".to_string()
+            } else if is_ts {
                 "{} as Record<string, never>".to_string()
             } else {
                 "/** @type {Record<string, never>} */ ({})".to_string()
@@ -393,10 +440,16 @@ impl ExportedNames {
                     }
                 })
                 .collect();
-            // In runes mode, include values in the exports object
+            // In runes mode, include values in the exports object — but ONLY for
+            // exports that carry an explicit type annotation. Official's value
+            // call is `createReturnElements(others, false, /*onlyTyped*/ true)`,
+            // which skips any entry without `value.type`. Untyped exports
+            // (`let count = $state(0)`) therefore yield an empty value object,
+            // with the names appearing only in the `as any as { … }` cast.
             let val_str = if self.is_runes_mode() {
                 let val_entries: Vec<String> = others
                     .iter()
+                    .filter(|(_, info)| info.type_annotation.is_some())
                     .map(|(en, info)| format!("{}: {}", en, info.local_name))
                     .collect();
                 val_entries.join(",")
@@ -533,6 +586,11 @@ pub struct ComponentEvents {
     /// Generic type text from `createEventDispatcher<Type>()`, if any.
     /// Used to generate `{...__sveltets_2_toEventTypings<Type>()}` in the events return.
     pub dispatcher_generic_type: Option<String>,
+    /// Names of locally-created, *untyped* event dispatchers
+    /// (`const dispatch = createEventDispatcher()`). Their `dispatch("name")`
+    /// call sites are scanned across the whole component to populate the
+    /// `events: { name: __sveltets_2_customEvent }` return.
+    pub dispatcher_names: Vec<String>,
 }
 
 /// Metadata about a single component event.
@@ -551,6 +609,7 @@ impl ComponentEvents {
             events: HashMap::new(),
             forwards_all_events: false,
             dispatcher_generic_type: None,
+            dispatcher_names: Vec::new(),
         }
     }
 
@@ -575,6 +634,61 @@ impl ComponentEvents {
     /// Check if there are any events declared.
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
+    }
+
+    /// Scan `source` for `<dispatcher>("eventName", …)` call sites of every
+    /// recorded untyped dispatcher and add each event name. Mirrors official
+    /// `ComponentEventsFromEventsMap`, which walks the component for dispatcher
+    /// calls and records the first string-literal argument. A lightweight
+    /// lexical scan suffices here: find the dispatcher identifier as a word,
+    /// require the next non-space char to be `(`, then read a single quoted
+    /// string-literal first argument.
+    pub fn collect_dispatched_events(&mut self, source: &str) {
+        let names = self.dispatcher_names.clone();
+        let bytes = source.as_bytes();
+        let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
+        for disp in &names {
+            let dn = disp.as_bytes();
+            let mut from = 0usize;
+            while let Some(rel) = source[from..].find(disp.as_str()) {
+                let idx = from + rel;
+                from = idx + 1;
+                // Word boundary: not part of a longer identifier / member access.
+                if idx > 0 && (is_ident(bytes[idx - 1]) || bytes[idx - 1] == b'.') {
+                    continue;
+                }
+                let mut p = idx + dn.len();
+                if p < bytes.len() && is_ident(bytes[p]) {
+                    continue;
+                }
+                while p < bytes.len() && (bytes[p] == b' ' || bytes[p] == b'\t') {
+                    p += 1;
+                }
+                if p >= bytes.len() || bytes[p] != b'(' {
+                    continue;
+                }
+                p += 1;
+                while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+                    p += 1;
+                }
+                if p >= bytes.len() || (bytes[p] != b'"' && bytes[p] != b'\'' && bytes[p] != b'`') {
+                    continue;
+                }
+                let quote = bytes[p];
+                p += 1;
+                let name_start = p;
+                while p < bytes.len() && bytes[p] != quote {
+                    p += 1;
+                }
+                if p < bytes.len() {
+                    let evt = &source[name_start..p];
+                    // Only simple identifier-ish names (skip interpolated/dynamic).
+                    if !evt.is_empty() && !self.events.contains_key(evt) {
+                        self.add(evt.to_string(), None, false);
+                    }
+                }
+            }
+        }
     }
 
     /// Get event entries for the return statement.
@@ -759,6 +873,10 @@ pub fn process_instance_script(
                                     has_type_annotation: declarator.type_annotation.is_some(),
                                     decl_end: declarator.span.end,
                                     type_annotation_text: ta_text,
+                                    doc: leading_jsdoc_comment(
+                                        raw_content,
+                                        var_decl.span.start as usize,
+                                    ),
                                 },
                             );
                         }
@@ -793,10 +911,14 @@ pub fn process_instance_script(
                     // any undeclared `$state`/`$derived`/`$effect` reference.
                     // Mirror that here by recursively scanning the body.
                     // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                    if let Some(ref body) = func.body
-                        && detect_rune_in_nested_body(&body.statements, &declared_names)
-                    {
-                        exported_names.set_uses_runes(true);
+                    if let Some(ref body) = func.body {
+                        // Add the function's params to the scope so a rune name
+                        // shadowed by a param (`function bar($derived){ … }`) is
+                        // treated as that param, not a rune.
+                        let scope = scope_with_params(&declared_names, &func.params);
+                        if detect_rune_in_nested_body(&body.statements, &scope) {
+                            exported_names.set_uses_runes(true);
+                        }
                     }
                 }
                 oxc::Statement::ClassDeclaration(class) => {
@@ -870,6 +992,10 @@ pub fn process_instance_script(
                                                     .is_some(),
                                                 decl_end: declarator.span.end,
                                                 type_annotation_text: ta_text,
+                                                doc: leading_jsdoc_comment(
+                                                    raw_content,
+                                                    var_decl.span.start as usize,
+                                                ),
                                             },
                                         );
                                     }
@@ -1003,7 +1129,10 @@ pub fn process_instance_script(
                     // Check if any declarator in this statement is exported
                     let any_exported = var_decl.declarations.iter().any(|d| {
                         if let Some(name) = binding_pattern_simple_name(&d.id) {
-                            exported_names.has(&name)
+                            // Match through aliases: `export { v1 as a1 }` keys
+                            // the entry by `a1`, so `has(v1)` is false — check
+                            // the local name too.
+                            exported_names.has(&name) || exported_names.has_local(&name)
                         } else {
                             false
                         }
@@ -1017,6 +1146,35 @@ pub fn process_instance_script(
                                 .map(|p| decl_end_rel + p as u32)
                                 .unwrap_or(decl_end_rel);
                             str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
+                        }
+                        // Mirror official `propTypeAssertToUserDefined`, which is
+                        // invoked on the *whole* declaration list when any of its
+                        // bindings is exported by reference and wraps EVERY
+                        // widening-eligible declarator — including siblings that
+                        // are not themselves exported. The exported declarators
+                        // are already wrapped in the export-specifier handling
+                        // (Case 2), so here we only cover the non-exported
+                        // siblings to avoid double-wrapping.
+                        for d in var_decl.declarations.iter() {
+                            let Some(name) = binding_pattern_simple_name(&d.id) else {
+                                continue;
+                            };
+                            if exported_names.has(&name) || exported_names.has_local(&name) {
+                                continue;
+                            }
+                            // Match handleTypeAssertion's widening condition:
+                            // no initializer, OR a boolean-literal initializer
+                            // (TS narrows `let x = false` to `false`), OR a type
+                            // annotation.
+                            let widen = d.init.is_none()
+                                || matches!(d.init, Some(oxc::Expression::BooleanLiteral(_)))
+                                || d.type_annotation.is_some();
+                            if widen {
+                                let inject = format!(
+                                    "/*\u{03A9}ignore_start\u{03A9}*/;{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                );
+                                str.append_left(d.span.end + offset, &inject);
+                            }
                         }
                     }
                 }
@@ -2501,6 +2659,17 @@ fn handle_export_named_decl(
                             info.type_annotation = Some(ta_text.clone());
                         }
 
+                        // Preserve a leading JSDoc `/** @type {…} */` on the
+                        // export so it round-trips into the legacy props return
+                        // (`props: { /** @type {boolean} */ visible: visible }`),
+                        // mirroring official's `value.doc`.
+                        if let Some(name) = binding_pattern_simple_name(&declarator.id)
+                            && let Some(doc) =
+                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                        {
+                            exported_names.set_doc(&name, doc);
+                        }
+
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
                         // This splits them into separate `let` statements,
@@ -2627,9 +2796,10 @@ fn handle_export_named_decl(
             let is_let = possible.map(|p| p.is_let).unwrap_or(false);
             let has_init = possible.map(|p| p.has_init).unwrap_or(true);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
+            let doc = possible.and_then(|p| p.doc.clone());
             let is_prop = is_instance && is_let;
             exported_names.add_full(
-                exported,
+                exported.clone(),
                 local.clone(),
                 has_init,
                 type_ann,
@@ -2637,6 +2807,11 @@ fn handle_export_named_decl(
                 is_let,
                 true,
             );
+            // The JSDoc lives on the `let x` declaration; carry it onto the
+            // export so it round-trips into the legacy props return.
+            if let Some(doc) = doc {
+                exported_names.set_doc(&exported, doc);
+            }
             // Inject __sveltets_2_any for exported variables that either:
             // 1. Have no initializer (export { x } where x has no default)
             // 2. Have a type annotation (export { x } where x: Type = value)
@@ -2666,6 +2841,21 @@ fn handle_export_named_decl(
 /// - `$: ({ a } = expr)` (destructure, existing) → `$: ({ a } = __sveltets_2_invalidate(() => expr))`
 /// - `$: { ... }` (block) → `;() => {$: { ... }}`
 /// - `$: expr` (expression) → `;() => {$: expr}`
+/// True if a reactive assignment's LHS qualifies for the
+/// `__sveltets_2_invalidate(() => …)` RHS wrap — i.e. it is a plain Identifier,
+/// an object destructuring target, or an array destructuring target. Mirrors
+/// official `isAssignmentBinaryExpr`'s `isIdentifier(left) ||
+/// isObjectLiteralExpression(left) || isArrayLiteralExpression(left)`. A
+/// member-expression target (`foo.bar`) does NOT qualify.
+fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
+    matches!(
+        target,
+        oxc::AssignmentTarget::AssignmentTargetIdentifier(_)
+            | oxc::AssignmentTarget::ObjectAssignmentTarget(_)
+            | oxc::AssignmentTarget::ArrayAssignmentTarget(_)
+    )
+}
+
 fn handle_reactive_statement(
     labeled: &oxc::LabeledStatement,
     offset: u32,
@@ -2685,8 +2875,24 @@ fn handle_reactive_statement(
                 other => other,
             };
 
-            if let oxc::Expression::AssignmentExpression(assign) = expr {
-                if matches!(assign.operator, oxc::AssignmentOperator::Assign) {
+            // Official only applies the `__sveltets_2_invalidate(() => …)` RHS
+            // wrap when the labeled statement is a plain `=` assignment whose
+            // LHS is an Identifier / object pattern / array pattern
+            // (`isAssignmentBinaryExpr` in `utils/tsAst.ts`). Member-expression
+            // LHS (`$: foo.bar = …`) and compound operators (`$: x *= 2`) do
+            // NOT qualify — those are wrapped whole in `;() => {$: …}` like any
+            // other reactive statement (`handleReactiveStatement`'s else branch).
+            let qualifies_for_invalidate = matches!(
+                expr,
+                oxc::Expression::AssignmentExpression(assign)
+                    if matches!(assign.operator, oxc::AssignmentOperator::Assign)
+                        && is_invalidate_assignment_target(&assign.left)
+            );
+
+            if let oxc::Expression::AssignmentExpression(assign) = expr
+                && qualifies_for_invalidate
+            {
+                {
                     // Get the LHS names
                     let lhs_names = extract_names_from_assignment_target(&assign.left);
 
@@ -2800,7 +3006,10 @@ fn handle_reactive_statement(
                     // else: keep `$:` as-is, RHS is already wrapped
                 }
             } else {
-                // Non-assignment expression: `$: console.log(x)` → `;() => {$: console.log(x)}`
+                // Non-qualifying reactive statement — a non-assignment
+                // expression (`$: console.log(x)`), a member-LHS assignment
+                // (`$: foo.bar = x`), or a compound operator (`$: x *= 2`).
+                // All are wrapped whole: `;() => {$: …}`.
                 let label_colon_end = labeled.label.span.end + 1;
                 let label_colon_abs = label_colon_end + offset;
                 str.overwrite(label_start, label_colon_abs, ";() => {$:");
@@ -2831,12 +3040,84 @@ fn handle_reactive_statement(
     }
 }
 
+/// The official svelte2tsx `is_rune` quirk: a `$state(...)`/`$derived(...)`/
+/// `$props(...)` call that is the *direct* initializer of a variable
+/// declaration whose binding name (source text) **includes** the rune base
+/// name (`state`/`derived`/`props`) is treated as the canonical rune form and
+/// is therefore NOT counted as a store-access global — so it does not, on its
+/// own, switch the component into runes mode.
+///
+/// Reference: `processInstanceScriptContent.ts` `handleIdentifier`:
+/// ```text
+/// const is_rune =
+///   (text === '$props' || text === '$derived' || text === '$state') &&
+///   ts.isCallExpression(parent) &&
+///   ts.isVariableDeclaration(parent.parent) &&
+///   parent.parent.name.getText().includes(text.slice(1));
+/// ```
+///
+/// Returns the base rune call when the init is the excluded canonical form, so
+/// callers can still scan its *arguments* for nested rune globals (which keep
+/// their own non-VariableDeclaration parent and so are not excluded).
+fn excluded_rune_init<'a>(
+    init: &'a oxc::Expression,
+    id: &oxc::BindingPattern,
+) -> Option<&'a oxc::CallExpression<'a>> {
+    let oxc::Expression::CallExpression(call) = init else {
+        return None;
+    };
+    let oxc::Expression::Identifier(callee) = &call.callee else {
+        return None;
+    };
+    let base = match callee.name.as_str() {
+        "$state" => "state",
+        "$derived" => "derived",
+        "$props" => "props",
+        _ => return None,
+    };
+    if binding_name_contains(id, base) {
+        Some(call)
+    } else {
+        None
+    }
+}
+
+/// True if any identifier bound by `pattern` contains `needle` as a substring.
+/// Mirrors official's `name.getText().includes(base)` for the common simple /
+/// destructuring cases.
+fn binding_name_contains(pattern: &oxc::BindingPattern, needle: &str) -> bool {
+    extract_all_names_from_binding_pattern(pattern)
+        .iter()
+        .any(|n| n.contains(needle))
+}
+
+/// Scan a rune call's arguments for nested rune globals (used when the call
+/// itself is the excluded canonical form but its arguments may still contain
+/// runes, e.g. `let derived1 = $derived($state(0))`).
+fn detect_rune_in_call_args(call: &oxc::CallExpression, declared_names: &HashSet<String>) -> bool {
+    call.arguments.iter().any(|arg| match arg {
+        oxc::Argument::SpreadElement(spread) => {
+            detect_rune_in_expr(&spread.argument, declared_names)
+        }
+        _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+    })
+}
+
 fn detect_runes_call(
     declarator: &oxc::VariableDeclarator,
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
     if let Some(ref init) = declarator.init {
+        // Apply the official `is_rune` exclusion: the canonical
+        // `let stateX = $state(...)` form does not, by itself, trigger runes
+        // mode — but nested runes in the arguments still do.
+        if let Some(call) = excluded_rune_init(init, &declarator.id) {
+            if detect_rune_in_call_args(call, declared_names) {
+                exported_names.set_uses_runes(true);
+            }
+            return;
+        }
         // `detect_rune_in_expr` subsumes `detect_rune_global_call_expr`: it
         // fast-paths to the top-level check first, then recurses into nested
         // function/arrow bodies. This catches patterns like:
@@ -2870,10 +3151,12 @@ fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet
                 oxc::Expression::Identifier(id)
                     if matches!(id.name.as_str(), "$state" | "$derived" | "$effect") =>
                 {
-                    // Exclude store subscriptions: if `state` is declared (imported),
-                    // `$state` is a store auto-sub, not a rune.
+                    // Not a rune if either the store base (`$state` is a
+                    // store-sub of a declared `state`) OR the full `$state`
+                    // identifier itself is declared (e.g. shadowed by a param
+                    // named `$derived`).
                     let base = &id.name[1..]; // "$state" -> "state"
-                    !declared_names.contains(base)
+                    !declared_names.contains(base) && !declared_names.contains(id.name.as_str())
                 }
                 // Member call: $state.raw(...), $effect.pre(...), etc.
                 // The object identifier must be $state/$derived/$effect.
@@ -2883,6 +3166,7 @@ fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet
                     {
                         let base = &obj.name[1..];
                         !declared_names.contains(base)
+                            && !declared_names.contains(obj.name.as_str())
                     } else {
                         false
                     }
@@ -2942,9 +3226,16 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
             detect_rune_in_expr(&es.expression, declared_names)
         }
         oxc::Statement::VariableDeclaration(var_decl) => var_decl.declarations.iter().any(|d| {
-            d.init
-                .as_ref()
-                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+            d.init.as_ref().is_some_and(|e| {
+                // Same `is_rune` exclusion as the top-level pass: the canonical
+                // `let stateX = $state(...)` form is not a runes-globals trigger,
+                // but nested runes in the arguments still are.
+                if let Some(call) = excluded_rune_init(e, &d.id) {
+                    detect_rune_in_call_args(call, declared_names)
+                } else {
+                    detect_rune_in_expr(e, declared_names)
+                }
+            })
         }),
         oxc::Statement::ReturnStatement(ret) => ret
             .argument
@@ -2994,16 +3285,58 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
         oxc::Statement::LabeledStatement(labeled) => {
             detect_rune_in_stmt(&labeled.body, declared_names)
         }
-        oxc::Statement::FunctionDeclaration(func) => func
-            .body
-            .as_ref()
-            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::Statement::ForOfStatement(f) => {
+            detect_rune_in_expr(&f.right, declared_names)
+                || detect_rune_in_stmt(&f.body, declared_names)
+        }
+        oxc::Statement::ForInStatement(f) => {
+            detect_rune_in_expr(&f.right, declared_names)
+                || detect_rune_in_stmt(&f.body, declared_names)
+        }
+        oxc::Statement::TryStatement(t) => {
+            detect_rune_in_nested_body(&t.block.body, declared_names)
+                || t.handler
+                    .as_ref()
+                    .is_some_and(|h| detect_rune_in_nested_body(&h.body.body, declared_names))
+                || t.finalizer
+                    .as_ref()
+                    .is_some_and(|f| detect_rune_in_nested_body(&f.body, declared_names))
+        }
+        oxc::Statement::SwitchStatement(s) => s.cases.iter().any(|c| {
+            c.test
+                .as_ref()
+                .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+                || detect_rune_in_nested_body(&c.consequent, declared_names)
+        }),
+        oxc::Statement::FunctionDeclaration(func) => func.body.as_ref().is_some_and(|body| {
+            let scope = scope_with_params(declared_names, &func.params);
+            detect_rune_in_nested_body(&body.statements, &scope)
+        }),
         _ => false,
     }
 }
 
 /// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
 /// (including member variants) anywhere inside the given expression tree.
+/// Clone `base` and add a function's parameter names, so a `$state`/`$derived`/
+/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived(x) }`)
+/// is treated as a store-sub / call of the param, not a rune. Mirrors official's
+/// scope-aware global resolution.
+fn scope_with_params(base: &HashSet<String>, params: &oxc::FormalParameters) -> HashSet<String> {
+    let mut s = base.clone();
+    let mut tmp: Vec<String> = Vec::new();
+    for p in params.items.iter() {
+        collect_binding_names(&p.pattern, &mut tmp);
+    }
+    if let Some(rest) = &params.rest {
+        collect_binding_names(&rest.rest.argument, &mut tmp);
+    }
+    for n in tmp {
+        s.insert(n);
+    }
+    s
+}
+
 fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
     // Fast-path: check if this expression itself is a rune call.
     if detect_rune_global_call_expr(expr, declared_names) {
@@ -3023,20 +3356,19 @@ fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>)
                 })
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
-            // ArrowFunctionExpression.body is Box<FunctionBody> (a struct, not an enum).
-            // When `arrow.expression == true`, the body has one statement wrapping the
-            // expression; either way, recursing into `.statements` is safe and correct.
-            detect_rune_in_nested_body(&arrow.body.statements, declared_names)
+            let scope = scope_with_params(declared_names, &arrow.params);
+            detect_rune_in_nested_body(&arrow.body.statements, &scope)
         }
-        oxc::Expression::FunctionExpression(func) => func
-            .body
-            .as_ref()
-            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
+        oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
+            let scope = scope_with_params(declared_names, &func.params);
+            detect_rune_in_nested_body(&body.statements, &scope)
+        }),
         oxc::Expression::ClassExpression(class) => {
             class.body.body.iter().any(|member| match member {
                 oxc::ClassElement::MethodDefinition(method) => {
                     method.value.body.as_ref().is_some_and(|body| {
-                        detect_rune_in_nested_body(&body.statements, declared_names)
+                        let scope = scope_with_params(declared_names, &method.value.params);
+                        detect_rune_in_nested_body(&body.statements, &scope)
                     })
                 }
                 oxc::ClassElement::PropertyDefinition(prop) => prop
@@ -3093,6 +3425,29 @@ fn detect_rune_in_expr(expr: &oxc::Expression, declared_names: &HashSet<String>)
         oxc::Expression::UnaryExpression(unary) => {
             detect_rune_in_expr(&unary.argument, declared_names)
         }
+        oxc::Expression::NewExpression(new_expr) => {
+            // e.g. `new class Counter { constructor() { this.x = $state(0) } }`
+            // or `new Foo($derived(...))`.
+            detect_rune_in_expr(&new_expr.callee, declared_names)
+                || new_expr.arguments.iter().any(|arg| match arg {
+                    oxc::Argument::SpreadElement(spread) => {
+                        detect_rune_in_expr(&spread.argument, declared_names)
+                    }
+                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
+                })
+        }
+        oxc::Expression::TemplateLiteral(tpl) => tpl
+            .expressions
+            .iter()
+            .any(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::Expression::TaggedTemplateExpression(tagged) => {
+            detect_rune_in_expr(&tagged.tag, declared_names)
+                || tagged
+                    .quasi
+                    .expressions
+                    .iter()
+                    .any(|e| detect_rune_in_expr(e, declared_names))
+        }
         oxc::Expression::AwaitExpression(aw) => detect_rune_in_expr(&aw.argument, declared_names),
         oxc::Expression::YieldExpression(y) => y
             .argument
@@ -3136,9 +3491,12 @@ fn detect_create_event_dispatcher(
                 let type_text = raw_content[start..end].to_string();
                 events.dispatcher_generic_type = Some(type_text);
             }
+        } else if let Some(name) = binding_pattern_simple_name(&declarator.id) {
+            // Untyped dispatcher: record its name so `dispatch("name")` call
+            // sites (anywhere in the component, incl. template handlers) can be
+            // scanned to populate the events return.
+            events.dispatcher_names.push(name);
         }
-        // Also detect dispatch('eventName') calls for individual events
-        // (but that requires analyzing all call sites, which we skip here)
     }
 }
 
@@ -3715,11 +4073,61 @@ const SVELTE_RUNES: &[&str] = &[
 /// - Reserved names (`$$props`, `$$restProps`, `$$slots`)
 /// - Member access like `obj.$store` (preceded by `.`)
 /// - String literals like `'$store'` or `"$store"` (preceded by `'` or `"`)
+/// Return the leading `/** … */` JSDoc comment immediately before `before`
+/// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
+fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
+    let bytes = source.as_bytes();
+    let before = before.min(bytes.len());
+    // Skip whitespace immediately before the declaration.
+    let mut p = before;
+    while p > 0 && bytes[p - 1].is_ascii_whitespace() {
+        p -= 1;
+    }
+    // Require a block comment terminator `*/` right there.
+    if p < 2 || &source[p - 2..p] != "*/" {
+        return None;
+    }
+    // Find the matching `/**` (JSDoc) opener.
+    let open = source[..p].rfind("/**")?;
+    // Ensure the `/**` is the opener for THIS `*/` (no intervening `*/`).
+    if source[open..p - 2].contains("*/") {
+        return None;
+    }
+    Some(source[open..p].to_string())
+}
+
 fn collect_store_references(source: &str) -> HashSet<String> {
     // Hand-rolled byte-level scan. The previous implementation compiled a
     // regex on every call; using `memchr` to jump between `$` bytes is
     // dramatically faster on the common script-free template (one SIMD
     // pass returns `None`) and avoids per-match string allocations.
+    //
+    // HTML comments are blanked first: a `$name` inside `<!-- … -->` is not a
+    // real reference (official builds stores from parsed expressions, never
+    // comments), so e.g. a `<!-- … `$derived` … -->` migration-task comment
+    // must not make a local `derived` variable look like a store subscription.
+    let blanked;
+    let source: &str = if source.contains("<!--") {
+        let mut buf = source.as_bytes().to_vec();
+        let mut j = 0usize;
+        while let Some(rel) = source[j..].find("<!--") {
+            let start = j + rel;
+            let end = source[start..]
+                .find("-->")
+                .map(|e| start + e + 3)
+                .unwrap_or(buf.len());
+            for b in &mut buf[start..end] {
+                if *b != b'\n' && *b != b'\r' {
+                    *b = b' ';
+                }
+            }
+            j = end;
+        }
+        blanked = String::from_utf8(buf).unwrap_or_else(|_| source.to_string());
+        &blanked
+    } else {
+        source
+    };
     let mut stores = HashSet::new();
     let bytes = source.as_bytes();
     let len = bytes.len();
@@ -4089,8 +4497,14 @@ fn inject_store_subscriptions_with_program(
 
     collect_module_script_import_stores(source, &accessed_stores, &mut import_store_names);
 
-    import_store_names.sort();
-    import_store_names.dedup();
+    // Order the store-subscription declarations by first `$store` use in source
+    // (official emits them in walk order), not alphabetically. Dedup preserving
+    // that order.
+    import_store_names.sort_by_key(|n| source.find(&format!("${}", n)).unwrap_or(usize::MAX));
+    {
+        let mut seen = std::collections::HashSet::new();
+        import_store_names.retain(|n| seen.insert(n.clone()));
+    }
     if !import_store_names.is_empty() {
         let name_refs: Vec<&str> = import_store_names.iter().map(|s| s.as_str()).collect();
         let store_decls = create_store_declarations(&name_refs);
