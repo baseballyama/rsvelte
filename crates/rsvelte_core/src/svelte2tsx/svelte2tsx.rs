@@ -3395,9 +3395,7 @@ fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
                 expr_contains_await_deep(&sp.argument)
             }
             oxc_ast::ast::ArrayExpressionElement::Elision(_) => false,
-            other => other
-                .as_expression()
-                .is_some_and(expr_contains_await_deep),
+            other => other.as_expression().is_some_and(expr_contains_await_deep),
         }),
 
         // Everything else (literals, identifiers, `this`, …) cannot contain await.
@@ -4285,15 +4283,13 @@ fn attr_has_rune_global(
     }
 }
 
-/// Returns `true` if `name` is one of the three rune-global identifiers.
-#[inline]
+// Rune base names (`state`/`derived`/`effect`) that are SHADOWED by an
+// instance-script variable of the same name. Official `getGlobals()` removes
+// declared variables, so `$state.snapshot(state)` where `state` is declared
+// is a store auto-subscription, NOT a `$state` rune — the component stays
+// legacy. Set (read-only) for the duration of `detect_rune_global_in_template`
+// on this thread and cleared right after; never accumulated across calls.
 thread_local! {
-    /// Rune base names (`state`/`derived`/`effect`) that are SHADOWED by an
-    /// instance-script variable of the same name. Official `getGlobals()` removes
-    /// declared variables, so `$state.snapshot(state)` where `state` is declared
-    /// is a store auto-subscription, NOT a `$state` rune — the component stays
-    /// legacy. Set (read-only) for the duration of `detect_rune_global_in_template`
-    /// on this thread and cleared right after; never accumulated across calls.
     static SHADOWED_RUNE_BASES: std::cell::RefCell<std::collections::HashSet<String>> =
         std::cell::RefCell::new(std::collections::HashSet::new());
 }
@@ -4302,6 +4298,9 @@ fn rune_base_is_shadowed(base: &str) -> bool {
     SHADOWED_RUNE_BASES.with(|s| s.borrow().contains(base))
 }
 
+/// Returns `true` if `name` is one of the three rune-global identifiers and is
+/// not shadowed by a declared instance variable.
+#[inline]
 fn is_rune_global_name(name: &str) -> bool {
     matches!(name, "$state" | "$derived" | "$effect") && !rune_base_is_shadowed(&name[1..])
 }

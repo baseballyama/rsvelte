@@ -5454,7 +5454,11 @@ fn format_attribute_node_segments(
                 let quote = if !has_backtick {
                     '`'
                 } else {
-                    match text.start.checked_sub(1).map(|i| source.as_bytes()[i as usize]) {
+                    match text
+                        .start
+                        .checked_sub(1)
+                        .map(|i| source.as_bytes()[i as usize])
+                    {
                         Some(b'\'') => '\'',
                         _ => '"',
                     }
@@ -5463,8 +5467,8 @@ fn format_attribute_node_segments(
                 let mut inner: Vec<Seg> = Vec::new();
                 segs_push_lit(&mut inner, &format!("\"{}\":{}", name, quote));
                 if needs_escape {
-                    let json = serde_json::to_string(data)
-                        .unwrap_or_else(|_| format!("\"{}\"", data));
+                    let json =
+                        serde_json::to_string(data).unwrap_or_else(|_| format!("\"{}\"", data));
                     segs_push_lit(&mut inner, &json[1..json.len() - 1]);
                 } else {
                     segs_push_src(&mut inner, text.start, text.end);

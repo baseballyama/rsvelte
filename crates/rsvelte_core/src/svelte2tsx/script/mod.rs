@@ -355,7 +355,11 @@ impl ExportedNames {
         // Reference: ExportedNames.ts createPropsStr uses$$Props branch.
         if self.uses_dollar_props_type && is_ts {
             let type_entry = |en: &str, info: &ExportedNameInfo| -> String {
-                let optional = if info.has_default || !info.is_let { "?" } else { "" };
+                let optional = if info.has_default || !info.is_let {
+                    "?"
+                } else {
+                    ""
+                };
                 match &info.type_annotation {
                     Some(ta) => format!("{}{}: {}", en, optional, ta),
                     None => format!("{}{}: typeof {}", en, optional, info.local_name),
@@ -880,8 +884,7 @@ pub fn process_instance_script(
                     // `let` binding is a reactive prop. `var`/`const` are exports
                     // (`export var x` / `export { v }` where `v` is var/const go
                     // into the `exports:` return, not `props:`).
-                    let is_let =
-                        matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
+                    let is_let = matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
@@ -1026,10 +1029,8 @@ pub fn process_instance_script(
                             oxc::Declaration::VariableDeclaration(var_decl) => {
                                 // Only `let` is a reactive prop; `var`/`const` are
                                 // exports (mirror official isLet === NodeFlags.Let).
-                                let is_let = matches!(
-                                    var_decl.kind,
-                                    oxc::VariableDeclarationKind::Let
-                                );
+                                let is_let =
+                                    matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                                 for declarator in var_decl.declarations.iter() {
                                     let names =
                                         extract_all_names_from_binding_pattern(&declarator.id);
