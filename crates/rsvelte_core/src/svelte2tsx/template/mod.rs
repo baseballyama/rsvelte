@@ -579,12 +579,11 @@ fn collect_info_from_node(
             // `__sveltets_createSlot("{foo}", …)` call which keeps the raw text.
             let slot_name = slot_name_for_type(&el.attributes);
             let slot_props = collect_slot_prop_entries(&el.attributes, source, scope);
-            let entry = info.slots.entry(slot_name).or_default();
-            for prop in slot_props {
-                if !entry.contains(&prop) {
-                    entry.push(prop);
-                }
-            }
+            // Official `SlotHandler.handleSlot` does `this.slots.set(name, …)`:
+            // a later `<slot name=X>` REPLACES the earlier def for X (it does not
+            // accumulate), so two `<slot key="a"/><slot key="b"/>` yield only the
+            // last one's props.
+            info.slots.insert(slot_name, slot_props);
             collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
             for _ in 0..pushed {
                 scope.pop();
