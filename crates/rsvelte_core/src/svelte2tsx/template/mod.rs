@@ -1166,15 +1166,39 @@ fn handle_comment(comment: &Comment, str: &mut MagicString) {
 ///
 /// Overwrites `{` with empty and `}` with `;` so the expression is preserved
 /// as a statement: `{count}` → `count;`
+/// Comments (from the per-compile set) whose source range lies fully within
+/// `[start, end)`, sorted by start. Used to preserve `{/* c */ expr}` comments.
+fn comments_in_opener_range(start: u32, end: u32) -> Vec<(u32, u32)> {
+    if start >= end {
+        return Vec::new();
+    }
+    ELEMENT_OPENER_COMMENTS.with(|c| {
+        let mut v: Vec<(u32, u32)> = c
+            .borrow()
+            .iter()
+            .copied()
+            .filter(|&(s, e)| s >= start && e <= end)
+            .collect();
+        v.sort_by_key(|&(s, _)| s);
+        v
+    })
+}
+
 fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString) {
     if expr.start >= expr.end {
         return;
     }
 
     if let Some((expr_start, expr_end)) = get_expression_range(&expr.expression) {
-        // Overwrite the opening `{` (everything before the expression)
-        if expr.start < expr_start {
-            str.overwrite(expr.start, expr_start, "");
+        // Leading: keep any `{/* c */ expr}` comments between the `{` and the
+        // expression (official preserves them, stripping only the `{` and a
+        // wrapping `(`). Strip from `{` up to the first such comment.
+        let lead_keep = comments_in_opener_range(expr.start, expr_start)
+            .first()
+            .map(|&(cs, _)| cs)
+            .unwrap_or(expr_start);
+        if expr.start < lead_keep {
+            str.overwrite(expr.start, lead_keep, "");
         }
         // The parser narrows the expression span past a trailing TS postfix —
         // `name as string`, `x satisfies T`, `x!`. Those must be PRESERVED
@@ -1199,8 +1223,25 @@ fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicStri
             tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!');
         if is_ts_postfix && close > expr_end as usize {
             str.overwrite((close - 1) as u32, expr.end, ";");
-        } else if expr_end < expr.end {
-            str.overwrite(expr_end, expr.end, ";");
+        } else {
+            // Trailing: keep any `{expr /* c */}` comments between the expression
+            // and `}` (emit `;` right after the expression, strip a wrapping `)`
+            // and the `}`).
+            let trailing = comments_in_opener_range(expr_end, close.saturating_sub(1) as u32);
+            match (trailing.first(), trailing.last()) {
+                (Some(&(first_cs, _)), Some(&(_, last_ce))) => {
+                    if expr_end < first_cs {
+                        str.overwrite(expr_end, first_cs, "; ");
+                    }
+                    if last_ce < expr.end {
+                        str.overwrite(last_ce, expr.end, "");
+                    }
+                }
+                _ if expr_end < expr.end => {
+                    str.overwrite(expr_end, expr.end, ";");
+                }
+                _ => {}
+            }
         }
     } else {
         // Fallback: overwrite the whole thing with a space
