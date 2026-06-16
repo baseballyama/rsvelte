@@ -543,7 +543,7 @@ pub fn collect_template_info(fragment: &Fragment, source: &str) -> TemplateInfo 
     // `slots: { … }` return reflects the element type. Mirrors official
     // `SlotHandler.getResolveExpressionStr` (EachBlock → unwrapArr).
     let mut scope: Vec<(String, String)> = Vec::new();
-    collect_info_from_fragment(fragment, source, &mut info, &mut scope);
+    collect_info_from_fragment(fragment, source, &mut info, &mut scope, None);
     info
 }
 
@@ -552,17 +552,21 @@ fn collect_info_from_fragment(
     source: &str,
     info: &mut TemplateInfo,
     scope: &mut Vec<(String, String)>,
+    enclosing: Option<&str>,
 ) {
     for node in &fragment.nodes {
-        collect_info_from_node(node, source, info, scope);
+        collect_info_from_node(node, source, info, scope, enclosing);
     }
 }
 
+/// `enclosing` is the name of the nearest ancestor component, used to build
+/// `let:`-forwarding slot reflections (`__sveltets_2_instanceOf(<Comp>).$$slot_def[…]`).
 fn collect_info_from_node(
     node: &TemplateNode,
     source: &str,
     info: &mut TemplateInfo,
     scope: &mut Vec<(String, String)>,
+    enclosing: Option<&str>,
 ) {
     match node {
         TemplateNode::SlotElement(el) => {
@@ -577,7 +581,7 @@ fn collect_info_from_node(
                     entry.push(prop);
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info, scope);
+            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
         }
         TemplateNode::RegularElement(el) => {
             // Collect forwarded events (on:event without handler)
@@ -601,7 +605,11 @@ fn collect_info_from_node(
                     }
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info, scope);
+            let pushed = push_slotted_child_lets(&el.attributes, enclosing, source, scope);
+            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            for _ in 0..pushed {
+                scope.pop();
+            }
         }
         TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
@@ -631,7 +639,11 @@ fn collect_info_from_node(
                     }
                 }
             }
-            collect_info_from_fragment(&el.fragment, source, info, scope);
+            let pushed = push_slotted_child_lets(&el.attributes, enclosing, source, scope);
+            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
+            for _ in 0..pushed {
+                scope.pop();
+            }
         }
         TemplateNode::Component(comp) => {
             // Forwarded component events (`<Inner on:bar />`, no handler) surface
@@ -659,15 +671,23 @@ fn collect_info_from_node(
                     }
                 }
             }
-            collect_info_from_fragment(&comp.fragment, source, info, scope);
+            // `let:` directives directly on the component bind its DEFAULT slot.
+            let pushed =
+                push_let_reflection_scope(&comp.attributes, &comp.name, "default", source, scope);
+            // Inside the component, it becomes the enclosing component for any
+            // `slot="…"` children that carry their own `let:` directives.
+            collect_info_from_fragment(&comp.fragment, source, info, scope, Some(&comp.name));
+            for _ in 0..pushed {
+                scope.pop();
+            }
         }
         TemplateNode::SvelteComponent(comp) => {
-            collect_info_from_fragment(&comp.fragment, source, info, scope);
+            collect_info_from_fragment(&comp.fragment, source, info, scope, enclosing);
         }
         TemplateNode::IfBlock(block) => {
-            collect_info_from_fragment(&block.consequent, source, info, scope);
+            collect_info_from_fragment(&block.consequent, source, info, scope, enclosing);
             if let Some(ref alt) = block.alternate {
-                collect_info_from_fragment(alt, source, info, scope);
+                collect_info_from_fragment(alt, source, info, scope, enclosing);
             }
         }
         TemplateNode::EachBlock(block) => {
@@ -687,40 +707,95 @@ fn collect_info_from_node(
             } else {
                 false
             };
-            collect_info_from_fragment(&block.body, source, info, scope);
+            collect_info_from_fragment(&block.body, source, info, scope, enclosing);
             if pushed {
                 scope.pop();
             }
             if let Some(ref fallback) = block.fallback {
-                collect_info_from_fragment(fallback, source, info, scope);
+                collect_info_from_fragment(fallback, source, info, scope, enclosing);
             }
         }
         TemplateNode::AwaitBlock(block) => {
             if let Some(ref pending) = block.pending {
-                collect_info_from_fragment(pending, source, info, scope);
+                collect_info_from_fragment(pending, source, info, scope, enclosing);
             }
             if let Some(ref then) = block.then {
-                collect_info_from_fragment(then, source, info, scope);
+                collect_info_from_fragment(then, source, info, scope, enclosing);
             }
             if let Some(ref catch) = block.catch {
-                collect_info_from_fragment(catch, source, info, scope);
+                collect_info_from_fragment(catch, source, info, scope, enclosing);
             }
         }
         TemplateNode::KeyBlock(block) => {
-            collect_info_from_fragment(&block.fragment, source, info, scope);
+            collect_info_from_fragment(&block.fragment, source, info, scope, enclosing);
         }
         TemplateNode::SnippetBlock(block) => {
-            collect_info_from_fragment(&block.body, source, info, scope);
+            collect_info_from_fragment(&block.body, source, info, scope, enclosing);
         }
         TemplateNode::TitleElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info, scope);
+            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
         }
         TemplateNode::SvelteElement(el) => {
-            collect_info_from_fragment(&el.fragment, source, info, scope);
+            collect_info_from_fragment(&el.fragment, source, info, scope, enclosing);
         }
         // Leaf nodes don't have children to recurse into
         _ => {}
     }
+}
+
+/// Push `let:`-forwarding slot reflections onto the template scope.
+///
+/// For a `let:x` directive associated with component `<C>`'s slot `slot_name`,
+/// any later reference to the bound name inside the slotted content resolves to
+/// `__sveltets_2_instanceOf(C).$$slot_def["<slot>"].x` instead of the bare name.
+/// Mirrors official `SlotHandler.resolveLet` / `getResolveExpressionStrForLet`.
+/// Returns how many entries were pushed (to pop afterwards).
+fn push_let_reflection_scope(
+    attributes: &[Attribute],
+    component: &str,
+    slot_name: &str,
+    source: &str,
+    scope: &mut Vec<(String, String)>,
+) -> usize {
+    let mut pushed = 0;
+    for ld in get_let_directives(attributes) {
+        // The locally bound name: `let:name={n}` binds `n`; shorthand `let:name`
+        // binds `name`. The reflected property is always the directive name.
+        let binding = ld
+            .expression
+            .as_ref()
+            .and_then(|e| expression_simple_identifier(e, source))
+            .unwrap_or_else(|| ld.name.to_string());
+        let value = format!(
+            "__sveltets_2_instanceOf({}).$$slot_def[\"{}\"].{}",
+            component, slot_name, ld.name
+        );
+        scope.push((binding, value));
+        pushed += 1;
+    }
+    pushed
+}
+
+/// For a slotted child (`<svelte:fragment slot="x" let:y>` / `<div slot="x"
+/// let:y>`) inside an `enclosing` component, push `let:` reflections keyed to
+/// that component's slot. The slot name is the element's static `slot="…"`
+/// attribute (or `"default"`). No-op when there is no enclosing component or no
+/// `let:` directives.
+fn push_slotted_child_lets(
+    attributes: &[Attribute],
+    enclosing: Option<&str>,
+    source: &str,
+    scope: &mut Vec<(String, String)>,
+) -> usize {
+    let Some(component) = enclosing else {
+        return 0;
+    };
+    if get_let_directives(attributes).is_empty() {
+        return 0;
+    }
+    let slot_name =
+        get_slot_attr_value(attributes, source).unwrap_or_else(|| "default".to_string());
+    push_let_reflection_scope(attributes, component, &slot_name, source, scope)
 }
 
 /// Collect slot prop entries from a <slot> element's attributes.
