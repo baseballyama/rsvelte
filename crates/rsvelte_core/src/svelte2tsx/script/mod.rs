@@ -4202,9 +4202,11 @@ fn leading_jsdoc_comment(source: &str, before: usize) -> Option<String> {
     if p < 2 || &source[p - 2..p] != "*/" {
         return None;
     }
-    // Find the matching `/**` (JSDoc) opener.
-    let open = source[..p].rfind("/**")?;
-    // Ensure the `/**` is the opener for THIS `*/` (no intervening `*/`).
+    // Find the matching `/*` opener. Official `getDoc` captures ANY leading
+    // block comment (MultiLineCommentTrivia), not just `/**` JSDoc — so a plain
+    // `/* … */` before an export is preserved on the prop too.
+    let open = source[..p].rfind("/*")?;
+    // Ensure the `/*` is the opener for THIS `*/` (no intervening `*/`).
     if source[open..p - 2].contains("*/") {
         return None;
     }

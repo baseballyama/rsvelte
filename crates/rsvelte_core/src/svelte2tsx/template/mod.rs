@@ -5274,12 +5274,79 @@ fn transform_attribute_case(name: &str, tag: &str, is_element: bool) -> String {
     }
 }
 
+thread_local! {
+    /// Source ranges of comments found inside element opening tags (between
+    /// attributes), set per-compile so attribute emission can re-attach them as
+    /// leading comments. Mirrors official `attr.leadingComments`.
+    static ELEMENT_OPENER_COMMENTS: std::cell::RefCell<Vec<(u32, u32)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Set the element-opener comment ranges for the current compile (read-only).
+pub(crate) fn set_element_opener_comments(ranges: Vec<(u32, u32)>) {
+    ELEMENT_OPENER_COMMENTS.with(|c| *c.borrow_mut() = ranges);
+}
+
+/// Clear the element-opener comment ranges after a compile.
+pub(crate) fn clear_element_opener_comments() {
+    ELEMENT_OPENER_COMMENTS.with(|c| c.borrow_mut().clear());
+}
+
+/// Build the leading-comment prefix segs for an attribute starting at
+/// `attr_start`: any comments immediately before it (only whitespace between)
+/// become `[\n]?<comment-source>…\n` (mirrors official getLeadingComment +
+/// getLeadingCommentTransformation). Empty when there are none.
+fn leading_attr_comment_segs(attr_start: u32, source: &str) -> Vec<Seg> {
+    ELEMENT_OPENER_COMMENTS.with(|c| {
+        let comments = c.borrow();
+        if comments.is_empty() {
+            return Vec::new();
+        }
+        let mut leading: Vec<(u32, u32)> = Vec::new();
+        let mut search_end = attr_start;
+        loop {
+            let cand = comments
+                .iter()
+                .copied()
+                .filter(|&(_, e)| {
+                    e <= search_end
+                        && source
+                            .get(e as usize..search_end as usize)
+                            .is_some_and(|s| s.chars().all(|ch| ch.is_whitespace()))
+                })
+                .max_by_key(|&(_, e)| e);
+            match cand {
+                Some((cs, ce)) => {
+                    leading.push((cs, ce));
+                    search_end = cs;
+                }
+                None => break,
+            }
+        }
+        if leading.is_empty() {
+            return Vec::new();
+        }
+        leading.reverse();
+        let mut out = Vec::new();
+        for (cs, ce) in &leading {
+            let region = &source[cs.saturating_sub(100) as usize..*cs as usize];
+            if region.trim_end_matches([' ', '\t']).ends_with('\n') {
+                segs_push_lit(&mut out, "\n");
+            }
+            segs_push_src(&mut out, *cs, *ce);
+        }
+        segs_push_lit(&mut out, "\n");
+        out
+    })
+}
+
 fn format_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
     is_element: bool,
     tag: &str,
 ) -> Option<Vec<Seg>> {
+    let leading = leading_attr_comment_segs(node.start, source);
     let is_data_attr =
         is_element && node.name.starts_with("data-") && !node.name.starts_with("data-sveltekit-");
     let is_css_prop = !is_element && node.name.starts_with("--");
@@ -5291,27 +5358,33 @@ fn format_attribute_node_segments(
     // Helper: prepend/append the wrapper literals around a segment list that
     // already represents the `"name":value` content (no trailing comma).
     // Returns the final list with the trailing comma appended.
+    // Leading comments go INSIDE the data-*/css-prop wrapper (right after `{`),
+    // or directly before the `name:value` for a plain attribute — mirroring
+    // official `getLeadingCommentTransformation` placement on the attribute.
     let wrap_segs = |mut inner: Vec<Seg>| -> Vec<Seg> {
         if is_data_attr {
-            let mut out = Vec::with_capacity(inner.len() + 2);
+            let mut out = Vec::with_capacity(inner.len() + leading.len() + 2);
             segs_push_lit(&mut out, "...__sveltets_2_empty({");
+            out.extend(leading.iter().cloned());
             out.append(&mut inner);
             segs_push_lit(&mut out, "}),");
             out
         } else if is_css_prop {
-            let mut out = Vec::with_capacity(inner.len() + 2);
+            let mut out = Vec::with_capacity(inner.len() + leading.len() + 2);
             segs_push_lit(&mut out, "...__sveltets_2_cssProp({");
+            out.extend(leading.iter().cloned());
             out.append(&mut inner);
             segs_push_lit(&mut out, "}),");
             out
         } else {
-            let mut out = inner;
+            let mut out = leading.clone();
+            out.append(&mut inner);
             segs_push_lit(&mut out, ",");
             out
         }
     };
 
-    let mut out: Vec<Seg> = Vec::new();
+    let mut out: Vec<Seg> = leading.clone();
 
     match &node.value {
         AttributeValue::True(_) => {

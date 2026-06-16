@@ -778,8 +778,12 @@ pub fn svelte2tsx(
     let uses_dollar_rest_props = source.contains("$$restProps");
     let uses_dollar_slots = source.contains("$$slots");
 
-    // Step 9: Process template nodes in-place via MagicString
+    // Step 9: Process template nodes in-place via MagicString. Publish the
+    // element-opener comment ranges first so attribute emission can re-attach
+    // them as leading comments (mirrors official `attr.leadingComments`).
+    template::set_element_opener_comments(ast.comments.iter().map(|c| (c.start, c.end)).collect());
     template::process_template_inplace(&ast.fragment, source, &options, &mut str);
+    template::clear_element_opener_comments();
 
     // Step 9.1: Hoist top-level `{#snippet}` blocks.
     //
