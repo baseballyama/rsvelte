@@ -68,7 +68,6 @@
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/server-side-rendering/samples/bindings-readonly/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",
-	"svelte/packages/svelte/tests/validator/samples/a11y-role-supports-aria-props/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/animation-on-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte",

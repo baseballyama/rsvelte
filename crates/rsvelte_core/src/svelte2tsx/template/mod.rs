@@ -4842,13 +4842,11 @@ fn build_component_props_segments(attributes: &[Attribute], source: &str) -> Vec
             Attribute::OnDirective(_) => {
                 has_on_directives = true;
             }
-            Attribute::ClassDirective(class) => {
-                let part = format_class_directive_segments(class, source);
-                extend_segs(&mut inner, part);
-            }
-            Attribute::StyleDirective(style) => {
-                let part = format_style_directive_segments(style, source);
-                extend_segs(&mut inner, part);
+            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
+                // `class:`/`style:` directives are element-only. Official
+                // `htmlxtojsx_v2` calls the Class/StyleDirective handlers solely
+                // for Elements (never InlineComponents), so on a component they
+                // contribute nothing — not even a lowered statement.
             }
             Attribute::TransitionDirective(transition) => {
                 if let Some(s) = format_transition_directive(transition, source) {
@@ -5283,6 +5281,7 @@ fn format_attribute_node_segments(
                 && parts.len() == 1
                 && let AttributeValuePart::Text(text) = &parts[0]
                 && is_number_only_attribute(name)
+                && !text.data.trim().is_empty()
                 && is_js_numeric(&text.data)
             {
                 segs_push_lit(&mut out, &format!("\"{}\":", name));
