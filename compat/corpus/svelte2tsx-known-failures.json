@@ -42,7 +42,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-const-same-block/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-array-holes/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/store-directive/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",

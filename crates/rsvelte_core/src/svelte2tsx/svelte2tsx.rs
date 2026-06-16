@@ -583,7 +583,7 @@ pub fn svelte2tsx(
     //   `exportedNames.checkGlobalsForRunes(implicitStoreValues.getGlobals())`
     // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
     //   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
-    if detect_rune_global_in_template(&ast, source) {
+    if detect_rune_global_in_template(&ast, source, &exported_names.instance_value_names) {
         exported_names.set_uses_runes(true);
     }
 
@@ -3974,7 +3974,11 @@ fn expression_is_await(
 /// Fast-path: returns `false` immediately when none of the three magic words
 /// appear as a word boundary in the raw source.  The AST walk is only done when
 /// a quick substring match succeeds.
-fn detect_rune_global_in_template(ast: &Root, source: &str) -> bool {
+fn detect_rune_global_in_template(
+    ast: &Root,
+    source: &str,
+    instance_value_names: &std::collections::HashSet<String>,
+) -> bool {
     // Fast path: if neither $state, $derived, nor $effect appears in the source
     // as a word start, bail immediately.  These identifiers always start with `$`
     // so a simple substring check is conservative (won't false-positive on
@@ -3983,7 +3987,20 @@ fn detect_rune_global_in_template(ast: &Root, source: &str) -> bool {
         return false;
     }
 
-    fragment_has_template_rune_global(&ast.fragment, source, &ast.arena)
+    // Populate the shadowed-rune set: a `state`/`derived`/`effect` declared as an
+    // instance variable makes the matching `$`-rune a store sub, not a rune.
+    SHADOWED_RUNE_BASES.with(|s| {
+        let mut set = s.borrow_mut();
+        set.clear();
+        for base in ["state", "derived", "effect"] {
+            if instance_value_names.contains(base) {
+                set.insert(base.to_string());
+            }
+        }
+    });
+    let result = fragment_has_template_rune_global(&ast.fragment, source, &ast.arena);
+    SHADOWED_RUNE_BASES.with(|s| s.borrow_mut().clear());
+    result
 }
 
 /// Recursively walk a template fragment checking for rune-global references.
@@ -4251,8 +4268,23 @@ fn attr_has_rune_global(
 
 /// Returns `true` if `name` is one of the three rune-global identifiers.
 #[inline]
+thread_local! {
+    /// Rune base names (`state`/`derived`/`effect`) that are SHADOWED by an
+    /// instance-script variable of the same name. Official `getGlobals()` removes
+    /// declared variables, so `$state.snapshot(state)` where `state` is declared
+    /// is a store auto-subscription, NOT a `$state` rune — the component stays
+    /// legacy. Set (read-only) for the duration of `detect_rune_global_in_template`
+    /// on this thread and cleared right after; never accumulated across calls.
+    static SHADOWED_RUNE_BASES: std::cell::RefCell<std::collections::HashSet<String>> =
+        std::cell::RefCell::new(std::collections::HashSet::new());
+}
+
+fn rune_base_is_shadowed(base: &str) -> bool {
+    SHADOWED_RUNE_BASES.with(|s| s.borrow().contains(base))
+}
+
 fn is_rune_global_name(name: &str) -> bool {
-    matches!(name, "$state" | "$derived" | "$effect")
+    matches!(name, "$state" | "$derived" | "$effect") && !rune_base_is_shadowed(&name[1..])
 }
 
 /// Check whether an Expression node references a `$state`/`$derived`/`$effect` global.
@@ -4632,6 +4664,11 @@ fn json_references_rune_global(v: &serde_json::Value, depth: u8) -> bool {
 /// and must NOT trigger runes mode.
 fn lazy_slice_references_rune_global(slice: &str) -> bool {
     for candidate in &["$state", "$derived", "$effect"] {
+        // A rune whose base is shadowed by a declared instance var is a store
+        // sub, not a rune (see SHADOWED_RUNE_BASES).
+        if rune_base_is_shadowed(&candidate[1..]) {
+            continue;
+        }
         let mut search_from = 0;
         while let Some(rel) = slice[search_from..].find(candidate) {
             let idx = search_from + rel;
