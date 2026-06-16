@@ -259,6 +259,25 @@ fn transform_await_to_save_textual(expr: &str) -> String {
     result
 }
 
+/// Resolve the end of an `await` operand at keyword position `kw_pos`, using
+/// the AST-derived `arg_ends` map when available and falling back to the
+/// byte scanner [`find_await_arg_end`] otherwise. `arg_ends` maps each
+/// `await` keyword offset to its operand end (see `await_save_ast::await_arg_ends`).
+fn await_arg_end_for_keyword(
+    arg_ends: &Option<Vec<(u32, u32)>>,
+    kw_pos: usize,
+    bytes: &[u8],
+    arg_start: usize,
+    len: usize,
+) -> usize {
+    if let Some(ends) = arg_ends
+        && let Some(&(_, end)) = ends.iter().find(|&&(start, _)| start as usize == kw_pos)
+    {
+        return end as usize;
+    }
+    find_await_arg_end(bytes, arg_start, len)
+}
+
 /// Find the end of an `await` argument expression.
 ///
 /// `await` has unary-expression precedence, so it only binds to the
@@ -2628,6 +2647,9 @@ fn try_extract_spread_await(
     let mut i = 0;
     let mut result = String::with_capacity(len);
 
+    // Operand extents from the parsed AST (see `extract_all_awaits`).
+    let arg_ends = super::await_save_ast::await_arg_ends(expr);
+
     while i < len {
         // Skip string literals
         if matches!(bytes[i], b'\'' | b'"' | b'`') {
@@ -2660,7 +2682,8 @@ fn try_extract_spread_await(
                     {
                         arg_start += 1;
                     }
-                    let arg_end = find_await_arg_end(bytes, arg_start, len);
+                    // `k` is the `await` keyword offset.
+                    let arg_end = await_arg_end_for_keyword(&arg_ends, k, bytes, arg_start, len);
                     let arg = &expr[arg_start..arg_end];
 
                     let var_name = format!("$${}", *var_counter);
@@ -2694,6 +2717,14 @@ fn extract_all_awaits(
     let mut result = String::with_capacity(len);
     let mut i = 0;
 
+    // Operand extents from the parsed AST, keyed by the `await` keyword
+    // position. Bounding each operand by its `AwaitExpression` span instead of
+    // the hand-rolled `find_await_arg_end` scanner removes the "forgot an
+    // operator" bug class (e.g. a ternary `:` swallowed into the operand —
+    // issue #1036). Falls back to the scanner when the expression doesn't
+    // parse as a standalone expression.
+    let arg_ends = super::await_save_ast::await_arg_ends(expr);
+
     while i < len {
         // Skip string literals
         if matches!(bytes[i], b'\'' | b'"' | b'`') {
@@ -2717,7 +2748,7 @@ fn extract_all_awaits(
                 while arg_start < len && matches!(bytes[arg_start], b' ' | b'\t' | b'\n' | b'\r') {
                     arg_start += 1;
                 }
-                let arg_end = find_await_arg_end(bytes, arg_start, len);
+                let arg_end = await_arg_end_for_keyword(&arg_ends, i, bytes, arg_start, len);
                 let arg = &expr[arg_start..arg_end];
 
                 let var_name = format!("$${}", *var_counter);

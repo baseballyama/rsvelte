@@ -83,6 +83,46 @@ fn transform_with(allocator: &Allocator, expr: &str) -> Option<String> {
     Some(emit_range(expr, &collector.awaits, 0, expr.len() as u32))
 }
 
+/// Map every `await` keyword position in `expr` to the byte offset where its
+/// operand ends, derived from the parsed `AwaitExpression` spans. Returns
+/// `None` when the expression doesn't parse cleanly (caller falls back to the
+/// textual `find_await_arg_end`) or contains no `await`.
+///
+/// Unlike [`transform_await_to_save_ast`], this includes awaits inside nested
+/// function / arrow bodies: the byte-loop callers (`extract_all_awaits`,
+/// `try_extract_spread_await`) scan every textual `await`, so the lookup must
+/// resolve any of them. The key is the `await` keyword offset (the
+/// `AwaitExpression` span start), which is robust to a parenthesized operand
+/// (`await (x)`) where the argument node starts past the `(`.
+pub(crate) fn await_arg_ends(expr: &str) -> Option<Vec<(u32, u32)>> {
+    AWAIT_SAVE_ALLOC.with(|cell| {
+        let allocator = std::mem::take(&mut *cell.borrow_mut());
+        let out = collect_arg_ends(&allocator, expr);
+        *cell.borrow_mut() = allocator;
+        out
+    })
+}
+
+fn collect_arg_ends(allocator: &Allocator, expr: &str) -> Option<Vec<(u32, u32)>> {
+    let source_type = SourceType::ts().with_module(true);
+    let parsed = Parser::new(allocator, expr, source_type)
+        .with_options(ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        })
+        .parse();
+    if !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let mut collector = AllAwaitCollector { ends: Vec::new() };
+    collector.visit_program(&parsed.program);
+    if collector.ends.is_empty() {
+        None
+    } else {
+        Some(collector.ends)
+    }
+}
+
 /// Emit `source[lo..hi]`, wrapping each top-level `await` operand within the
 /// range. An `await` is "top-level within the range" when it is not nested
 /// inside an earlier wrapped operand — `emit_range` advances its cursor past
@@ -144,6 +184,20 @@ impl<'a> Visit<'a> for AwaitCollector {
     }
 }
 
+/// Collects `(await_keyword_start, arg_end)` for every `AwaitExpression`,
+/// including those inside nested function / arrow bodies.
+struct AllAwaitCollector {
+    ends: Vec<(u32, u32)>,
+}
+
+impl<'a> Visit<'a> for AllAwaitCollector {
+    fn visit_await_expression(&mut self, await_expr: &AwaitExpression<'a>) {
+        self.ends
+            .push((await_expr.span.start, await_expr.argument.span().end));
+        walk::walk_await_expression(self, await_expr);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,6 +249,26 @@ mod tests {
     #[test]
     fn no_await_returns_none() {
         assert!(transform_await_to_save_ast("a ? b : c").is_none());
+    }
+
+    #[test]
+    fn arg_ends_bounds_operand_before_ternary_colon() {
+        // `...await fn({a:1}) : x` — the operand ends at the call's `)`, not at
+        // the ternary `:` (issue #1036 in the attribute-extraction path).
+        let expr = "cond ? await fn({ a: 1 }) : undefined";
+        let kw = expr.find("await").unwrap() as u32;
+        let ends = await_arg_ends(expr).unwrap();
+        let (_, end) = ends.iter().find(|&&(s, _)| s == kw).unwrap();
+        // operand text is `fn({ a: 1 })`
+        assert_eq!(&expr[kw as usize + 6..*end as usize], "fn({ a: 1 })");
+    }
+
+    #[test]
+    fn arg_ends_includes_nested_function_awaits() {
+        let expr = "fn(async () => await inner())";
+        let ends = await_arg_ends(expr).unwrap();
+        // the await inside the nested arrow is present
+        assert_eq!(ends.len(), 1);
     }
 
     #[test]
