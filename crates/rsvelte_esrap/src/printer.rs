@@ -472,6 +472,7 @@ impl<'opt> Printer<'opt> {
                 let span = b.span();
                 self.block(&b.body, span.start, span.end, ctx)
             }
+            Statement::FunctionDeclaration(f) => self.function(f, ctx),
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
@@ -585,9 +586,9 @@ impl<'opt> Printer<'opt> {
     fn export_default_declaration(&mut self, node: &ExportDefaultDeclaration, ctx: &mut Context) {
         ctx.write("export default ");
         match &node.declaration {
-            ExportDefaultDeclarationKind::FunctionDeclaration(_) => {
+            ExportDefaultDeclarationKind::FunctionDeclaration(f) => {
                 // No trailing `;` after a function declaration.
-                self.unsupported("FunctionDeclaration", ctx);
+                self.function(f, ctx);
             }
             ExportDefaultDeclarationKind::ClassDeclaration(_) => {
                 self.unsupported("ClassDeclaration", ctx);
@@ -635,7 +636,93 @@ impl<'opt> Printer<'opt> {
                 self.variable_declaration(d, ctx);
                 ctx.write(";");
             }
+            Declaration::FunctionDeclaration(f) => self.function(f, ctx),
             _ => self.unsupported("Declaration", ctx),
+        }
+    }
+
+    /// esrap's `FunctionDeclaration|FunctionExpression`:
+    /// `[async ]function[* ] id(params) { body }`.
+    fn function(&mut self, node: &Function, ctx: &mut Context) {
+        if node.r#async {
+            ctx.write("async ");
+        }
+        ctx.write(if node.generator {
+            "function* "
+        } else {
+            "function "
+        });
+        if let Some(id) = &node.id {
+            ctx.write(id.name.as_str());
+        }
+        ctx.write("(");
+        self.formal_parameters(&node.params, ctx);
+        ctx.write(")");
+        ctx.write(" ");
+        match &node.body {
+            Some(body) => {
+                let span = body.span();
+                self.block(&body.statements, span.start, span.end, ctx);
+            }
+            None => ctx.write("{}"),
+        }
+    }
+
+    /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
+    fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context) {
+        let mut items: Vec<SeqItem> = params
+            .items
+            .iter()
+            .map(|p| {
+                let mut child = ctx.child();
+                self.binding_pattern(&p.pattern, &mut child);
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array: false,
+                }
+            })
+            .collect();
+        if let Some(rest) = &params.rest {
+            let mut child = ctx.child();
+            child.write("...");
+            self.binding_pattern(&rest.rest.argument, &mut child);
+            let multiline = child.multiline;
+            items.push(SeqItem {
+                ctx: child,
+                multiline,
+                obj_or_array: false,
+            });
+        }
+        assemble_sequence(items, false, ",", true, ctx);
+    }
+
+    /// esrap's `ArrowFunctionExpression`: `[async ](params) => body`, wrapping an
+    /// object concise body in parens so it isn't read as a block.
+    fn arrow_function(&mut self, node: &ArrowFunctionExpression, ctx: &mut Context) {
+        if node.r#async {
+            ctx.write("async ");
+        }
+        ctx.write("(");
+        self.formal_parameters(&node.params, ctx);
+        ctx.write(")");
+        ctx.write(" => ");
+        if node.expression {
+            // Concise body: a single `ExpressionStatement` holds the expression.
+            if let Some(Statement::ExpressionStatement(es)) = node.body.statements.first() {
+                let inner = unparen(&es.expression);
+                if matches!(inner, Expression::ObjectExpression(_)) {
+                    ctx.write("(");
+                    self.print_expression(inner, ctx);
+                    ctx.write(")");
+                } else {
+                    self.print_expression(inner, ctx);
+                }
+            }
+        } else {
+            let span = node.body.span();
+            self.block(&node.body.statements, span.start, span.end, ctx);
         }
     }
 
@@ -731,6 +818,29 @@ impl<'opt> Printer<'opt> {
             Expression::ObjectExpression(o) => self.object_expression(o, ctx),
             Expression::AssignmentExpression(a) => self.assignment_expression(a, ctx),
             Expression::ConditionalExpression(c) => self.conditional_expression(c, ctx),
+            Expression::ArrowFunctionExpression(a) => self.arrow_function(a, ctx),
+            Expression::AwaitExpression(a) => {
+                // `await ` + arg, parenthesised below await's precedence (17).
+                ctx.write("await ");
+                self.child_with_parens(&a.argument, 17, ctx);
+            }
+            Expression::NewExpression(n) => {
+                ctx.write("new ");
+                self.child_with_parens(&n.callee, 19, ctx);
+                ctx.write("(");
+                self.sequence_arguments(&n.arguments, ctx);
+                ctx.write(")");
+            }
+            Expression::UpdateExpression(u) => {
+                let op = u.operator.as_str();
+                if u.prefix {
+                    ctx.write(op.to_string());
+                    self.simple_assignment_target(&u.argument, ctx);
+                } else {
+                    self.simple_assignment_target(&u.argument, ctx);
+                    ctx.write(op.to_string());
+                }
+            }
             Expression::SequenceExpression(s) => {
                 for (i, e) in s.expressions.iter().enumerate() {
                     if i > 0 {
@@ -831,9 +941,21 @@ impl<'opt> Printer<'opt> {
     }
 
     fn assignment_expression(&mut self, node: &AssignmentExpression, ctx: &mut Context) {
+        // esrap visits both sides without adding parens.
         self.assignment_target(&node.left, ctx);
         ctx.write(format!(" {} ", node.operator.as_str()));
-        self.child_with_parens(&node.right, 3, ctx);
+        self.print_expression(unparen(&node.right), ctx);
+    }
+
+    /// A `SimpleAssignmentTarget` (the operand of `++`/`--`, a subset of
+    /// `AssignmentTarget`).
+    fn simple_assignment_target(&mut self, target: &SimpleAssignmentTarget, ctx: &mut Context) {
+        match target {
+            SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
+            SimpleAssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
+            SimpleAssignmentTarget::ComputedMemberExpression(m) => self.computed_member(m, ctx),
+            _ => self.unsupported("SimpleAssignmentTarget", ctx),
+        }
     }
 
     fn assignment_target(&mut self, target: &AssignmentTarget, ctx: &mut Context) {
@@ -1278,6 +1400,28 @@ mod tests {
             "export { a as b } from 'x';"
         );
         assert_eq!(print_ok("export const x = 1;"), "export const x = 1;");
+    }
+
+    #[test]
+    fn functions_and_arrows() {
+        assert_eq!(
+            print_ok("function f(a, b) { return a; }"),
+            "function f(a, b) {\n\treturn a;\n}"
+        );
+        assert_eq!(
+            print_ok("const g = (x) => x + 1;"),
+            "const g = (x) => x + 1;"
+        );
+        assert_eq!(
+            print_ok("const h = () => ({ a: 1 });"),
+            "const h = () => ({ a: 1 });"
+        );
+        assert_eq!(print_ok("async function a() {}"), "async function a() {}");
+        assert_eq!(print_ok("function r(...xs) {}"), "function r(...xs) {}");
+        assert_eq!(print_ok("const e = await f();"), "const e = await f();");
+        assert_eq!(print_ok("new Foo(1, 2);"), "new Foo(1, 2);");
+        assert_eq!(print_ok("x++;"), "x++;");
+        assert_eq!(print_ok("--obj.count;"), "--obj.count;");
     }
 
     #[test]
