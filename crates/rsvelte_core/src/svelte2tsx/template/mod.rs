@@ -514,19 +514,6 @@ pub fn process_template_inplace(
     let mut counter = Counter::new();
     // depth 0 = root fragment; elements and components increment it for their children
     process_fragment_inplace(fragment, source, _options, str, &mut counter, 0);
-
-    // Blank out any trailing whitespace-only content after the last template node.
-    // This prevents stray newlines from the source appearing between the template
-    // output and the appended async wrapper closing `};`.
-    if let Some(last_node) = fragment.nodes.last() {
-        let last_end = last_node.end() as usize;
-        if last_end < source.len() {
-            let trailing = &source[last_end..];
-            if !trailing.is_empty() && trailing.chars().all(|c| c.is_whitespace()) {
-                str.overwrite(last_end as u32, source.len() as u32, "");
-            }
-        }
-    }
 }
 
 /// Collect slot and event information from the template AST.
@@ -1166,15 +1153,39 @@ fn handle_comment(comment: &Comment, str: &mut MagicString) {
 ///
 /// Overwrites `{` with empty and `}` with `;` so the expression is preserved
 /// as a statement: `{count}` → `count;`
+/// Comments (from the per-compile set) whose source range lies fully within
+/// `[start, end)`, sorted by start. Used to preserve `{/* c */ expr}` comments.
+fn comments_in_opener_range(start: u32, end: u32) -> Vec<(u32, u32)> {
+    if start >= end {
+        return Vec::new();
+    }
+    ELEMENT_OPENER_COMMENTS.with(|c| {
+        let mut v: Vec<(u32, u32)> = c
+            .borrow()
+            .iter()
+            .copied()
+            .filter(|&(s, e)| s >= start && e <= end)
+            .collect();
+        v.sort_by_key(|&(s, _)| s);
+        v
+    })
+}
+
 fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString) {
     if expr.start >= expr.end {
         return;
     }
 
     if let Some((expr_start, expr_end)) = get_expression_range(&expr.expression) {
-        // Overwrite the opening `{` (everything before the expression)
-        if expr.start < expr_start {
-            str.overwrite(expr.start, expr_start, "");
+        // Leading: keep any `{/* c */ expr}` comments between the `{` and the
+        // expression (official preserves them, stripping only the `{` and a
+        // wrapping `(`). Strip from `{` up to the first such comment.
+        let lead_keep = comments_in_opener_range(expr.start, expr_start)
+            .first()
+            .map(|&(cs, _)| cs)
+            .unwrap_or(expr_start);
+        if expr.start < lead_keep {
+            str.overwrite(expr.start, lead_keep, "");
         }
         // The parser narrows the expression span past a trailing TS postfix —
         // `name as string`, `x satisfies T`, `x!`. Those must be PRESERVED
@@ -1199,8 +1210,25 @@ fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicStri
             tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!');
         if is_ts_postfix && close > expr_end as usize {
             str.overwrite((close - 1) as u32, expr.end, ";");
-        } else if expr_end < expr.end {
-            str.overwrite(expr_end, expr.end, ";");
+        } else {
+            // Trailing: keep any `{expr /* c */}` comments between the expression
+            // and `}` (emit `;` right after the expression, strip a wrapping `)`
+            // and the `}`).
+            let trailing = comments_in_opener_range(expr_end, close.saturating_sub(1) as u32);
+            match (trailing.first(), trailing.last()) {
+                (Some(&(first_cs, _)), Some(&(_, last_ce))) => {
+                    if expr_end < first_cs {
+                        str.overwrite(expr_end, first_cs, "; ");
+                    }
+                    if last_ce < expr.end {
+                        str.overwrite(last_ce, expr.end, "");
+                    }
+                }
+                _ if expr_end < expr.end => {
+                    str.overwrite(expr_end, expr.end, ";");
+                }
+                _ => {}
+            }
         }
     } else {
         // Fallback: overwrite the whole thing with a space
@@ -1455,6 +1483,11 @@ fn handle_if_block(
         str.append_left(consequent_start, "{");
     }
 
+    // Hoist inner snippets above sibling `{@const}`/`{let}` / elements that
+    // reference them (a `{@const xx = test}` before its `{#snippet test}` in the
+    // same block needs `test` declared first), as in the each-body path.
+    hoist_snippet_blocks(&block.consequent, source, str);
+
     // Process children (blocks don't increment depth)
     process_fragment_inplace(&block.consequent, source, options, str, counter, depth);
 
@@ -1510,6 +1543,8 @@ fn handle_if_block(
             // Overwrite {:else} with `} else {`
             str.overwrite(consequent_end, alternate_start, "} else {");
 
+            // Hoist alternate-branch snippets above sibling declarations too.
+            hoist_snippet_blocks(alternate, source, str);
             // Process alternate children
             process_fragment_inplace(alternate, source, options, str, counter, depth);
 
@@ -2450,7 +2485,7 @@ fn handle_snippet_block_inner(
         )
     } else if use_ts_syntax {
         format!(
-            "  const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
+            " const {}/*\u{03A9}ignore_position\u{03A9}*/ = {}({})/*\u{03A9}ignore_start\u{03A9}*/: ReturnType<import('svelte').Snippet>/*\u{03A9}ignore_end\u{03A9}*/ => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
             name_text, type_params_str, params_text
         )
     } else {
@@ -2526,6 +2561,25 @@ fn handle_regular_element(
     // does), so they fall through to the normal element path.
     if el.name == "style" {
         str.remove(el.start, el.end);
+        return;
+    }
+
+    // Official svelte2tsx switches the opener on the *tag name*, not the AST node
+    // type: any element named `slot` emits `__sveltets_createSlot(...)`. The parser
+    // only produces a `SlotElement` for `<slot>` outside a `<template
+    // shadowrootmode>`; inside one it is a `RegularElement` (mirroring upstream's
+    // `parent_is_shadowroot_template` check), yet svelte2tsx still lowers it to a
+    // slot. Route those through the same slot handler.
+    if el.name == "slot" {
+        let slot = SlotElement {
+            start: el.start,
+            end: el.end,
+            name: el.name.clone(),
+            name_loc: el.name_loc,
+            attributes: el.attributes.clone(),
+            fragment: el.fragment.clone(),
+        };
+        handle_slot_element(&slot, source, options, str, counter, depth);
         return;
     }
 
@@ -3559,18 +3613,18 @@ fn handle_named_slot_element(
 
     let opening_tag_end = find_opening_tag_end(source, el.start, el.end);
 
-    // Build the let variable expressions (for class: directives referencing let vars)
-    let let_var_exprs = build_let_var_expressions(&let_directives, source);
     // class:/style: directives lower to statements after createElement
-    // (`class:bar` → ` bar;`), same as a regular element.
+    // (`class:bar` → ` bar;`), same as a regular element. The `let:` binding
+    // itself is consumed by the `$$slot_def[…]` destructure above (and any use
+    // in the body emits its own reference), so it is NOT re-emitted here.
     let class_style_suffix = segs_to_string(
         &build_class_style_directive_suffix_segments(&el.attributes, source),
         source,
     );
 
     let opener = format!(
-        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}{}",
-        block_open, el.name, attrs_str, class_style_suffix, let_var_exprs
+        "{}{{ svelteHTML.createElement(\"{}\", {{{}}});{}",
+        block_open, el.name, attrs_str, class_style_suffix
     );
     str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -3832,7 +3886,10 @@ fn handle_svelte_component(
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     let let_directives_scomp = get_let_directives(&comp.attributes);
     let has_lets_scomp = !let_directives_scomp.is_empty();
-    if is_svelte5 && has_children && !has_lets_scomp {
+    // Emit the synthetic `children` prop whenever there is default-slot content,
+    // even alongside `let:` directives — matching handle_component (which has no
+    // such guard). The `let:` destructure is emitted independently below.
+    if is_svelte5 && has_children {
         let children_text = "children:() => { return __sveltets_2_any(0); },";
         let trimmed = attrs_str.trim_start();
         if trimmed.is_empty() {
@@ -5274,12 +5331,79 @@ fn transform_attribute_case(name: &str, tag: &str, is_element: bool) -> String {
     }
 }
 
+thread_local! {
+    /// Source ranges of comments found inside element opening tags (between
+    /// attributes), set per-compile so attribute emission can re-attach them as
+    /// leading comments. Mirrors official `attr.leadingComments`.
+    static ELEMENT_OPENER_COMMENTS: std::cell::RefCell<Vec<(u32, u32)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Set the element-opener comment ranges for the current compile (read-only).
+pub(crate) fn set_element_opener_comments(ranges: Vec<(u32, u32)>) {
+    ELEMENT_OPENER_COMMENTS.with(|c| *c.borrow_mut() = ranges);
+}
+
+/// Clear the element-opener comment ranges after a compile.
+pub(crate) fn clear_element_opener_comments() {
+    ELEMENT_OPENER_COMMENTS.with(|c| c.borrow_mut().clear());
+}
+
+/// Build the leading-comment prefix segs for an attribute starting at
+/// `attr_start`: any comments immediately before it (only whitespace between)
+/// become `[\n]?<comment-source>…\n` (mirrors official getLeadingComment +
+/// getLeadingCommentTransformation). Empty when there are none.
+fn leading_attr_comment_segs(attr_start: u32, source: &str) -> Vec<Seg> {
+    ELEMENT_OPENER_COMMENTS.with(|c| {
+        let comments = c.borrow();
+        if comments.is_empty() {
+            return Vec::new();
+        }
+        let mut leading: Vec<(u32, u32)> = Vec::new();
+        let mut search_end = attr_start;
+        loop {
+            let cand = comments
+                .iter()
+                .copied()
+                .filter(|&(_, e)| {
+                    e <= search_end
+                        && source
+                            .get(e as usize..search_end as usize)
+                            .is_some_and(|s| s.chars().all(|ch| ch.is_whitespace()))
+                })
+                .max_by_key(|&(_, e)| e);
+            match cand {
+                Some((cs, ce)) => {
+                    leading.push((cs, ce));
+                    search_end = cs;
+                }
+                None => break,
+            }
+        }
+        if leading.is_empty() {
+            return Vec::new();
+        }
+        leading.reverse();
+        let mut out = Vec::new();
+        for (cs, ce) in &leading {
+            let region = &source[cs.saturating_sub(100) as usize..*cs as usize];
+            if region.trim_end_matches([' ', '\t']).ends_with('\n') {
+                segs_push_lit(&mut out, "\n");
+            }
+            segs_push_src(&mut out, *cs, *ce);
+        }
+        segs_push_lit(&mut out, "\n");
+        out
+    })
+}
+
 fn format_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
     is_element: bool,
     tag: &str,
 ) -> Option<Vec<Seg>> {
+    let leading = leading_attr_comment_segs(node.start, source);
     let is_data_attr =
         is_element && node.name.starts_with("data-") && !node.name.starts_with("data-sveltekit-");
     let is_css_prop = !is_element && node.name.starts_with("--");
@@ -5291,27 +5415,33 @@ fn format_attribute_node_segments(
     // Helper: prepend/append the wrapper literals around a segment list that
     // already represents the `"name":value` content (no trailing comma).
     // Returns the final list with the trailing comma appended.
+    // Leading comments go INSIDE the data-*/css-prop wrapper (right after `{`),
+    // or directly before the `name:value` for a plain attribute — mirroring
+    // official `getLeadingCommentTransformation` placement on the attribute.
     let wrap_segs = |mut inner: Vec<Seg>| -> Vec<Seg> {
         if is_data_attr {
-            let mut out = Vec::with_capacity(inner.len() + 2);
+            let mut out = Vec::with_capacity(inner.len() + leading.len() + 2);
             segs_push_lit(&mut out, "...__sveltets_2_empty({");
+            out.extend(leading.iter().cloned());
             out.append(&mut inner);
             segs_push_lit(&mut out, "}),");
             out
         } else if is_css_prop {
-            let mut out = Vec::with_capacity(inner.len() + 2);
+            let mut out = Vec::with_capacity(inner.len() + leading.len() + 2);
             segs_push_lit(&mut out, "...__sveltets_2_cssProp({");
+            out.extend(leading.iter().cloned());
             out.append(&mut inner);
             segs_push_lit(&mut out, "}),");
             out
         } else {
-            let mut out = inner;
+            let mut out = leading.clone();
+            out.append(&mut inner);
             segs_push_lit(&mut out, ",");
             out
         }
     };
 
-    let mut out: Vec<Seg> = Vec::new();
+    let mut out: Vec<Seg> = leading.clone();
 
     match &node.value {
         AttributeValue::True(_) => {
@@ -6441,11 +6571,10 @@ fn build_slot_props_string(attributes: &[Attribute], source: &str) -> String {
         // Empty props: `{}` (no space)
         String::new()
     } else {
-        // Slot props go inside `{<props>}` — JS reference preserves source
-        // whitespace via MagicString positions, but our concatenated output
-        // doesn't have a position, so omit the leading space and let the
-        // relaxed compare normalise any source-whitespace differences.
-        result
+        // Slot props go inside `{<props>}`. Official preserves the source
+        // whitespace between `<slot` and the first attribute (always at least
+        // one space) as a leading space after `{`, e.g. `{ "message":… }`.
+        format!(" {result}")
     }
 }
 
