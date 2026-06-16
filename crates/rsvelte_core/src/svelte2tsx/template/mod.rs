@@ -2575,7 +2575,7 @@ fn handle_regular_element(
             start: el.start,
             end: el.end,
             name: el.name.clone(),
-            name_loc: el.name_loc.clone(),
+            name_loc: el.name_loc,
             attributes: el.attributes.clone(),
             fragment: el.fragment.clone(),
         };
