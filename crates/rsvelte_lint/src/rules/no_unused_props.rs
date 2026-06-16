@@ -1,6 +1,6 @@
 //! `svelte/no-unused-props` — report Props members that are never read.
 //!
-//! Two paths share the usage-check + reporting logic ([`report_unused`]),
+//! Two paths share the usage-check + reporting logic (`report_unused`),
 //! differing only in how the *declared* property set is resolved:
 //!
 //! - [`diagnostics`] (syntactic, no type backend) — **LOCAL-FLAT only**: a local
@@ -47,7 +47,7 @@ pub static META: RuleMeta = RuleMeta {
 /// types, and nested object props — the cases the syntactic path skips.
 ///
 /// The "used" detection and report location are identical to the syntactic
-/// path (shared via [`report_unused`]); only the *declared* set differs.
+/// path (shared via `report_unused`); only the *declared* set differs.
 pub fn diagnostics_typed(
     source: &str,
     file: &Path,
