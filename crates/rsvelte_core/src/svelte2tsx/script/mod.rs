@@ -838,10 +838,12 @@ pub fn process_instance_script(
         for (stmt_index, stmt) in program.body.iter().enumerate() {
             match stmt {
                 oxc::Statement::VariableDeclaration(var_decl) => {
-                    let is_let = matches!(
-                        var_decl.kind,
-                        oxc::VariableDeclarationKind::Let | oxc::VariableDeclarationKind::Var
-                    );
+                    // Mirror official `isLet = flags === NodeFlags.Let`: only a
+                    // `let` binding is a reactive prop. `var`/`const` are exports
+                    // (`export var x` / `export { v }` where `v` is var/const go
+                    // into the `exports:` return, not `props:`).
+                    let is_let =
+                        matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                     for declarator in var_decl.declarations.iter() {
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
@@ -886,6 +888,25 @@ pub fn process_instance_script(
                                     ),
                                 },
                             );
+                        } else {
+                            // Destructured bindings (`let { a, c } = …`) are not a
+                            // single simple name, but each name can still be
+                            // re-exported via `export { a, c }`. Record them as
+                            // possible exports so the specifier handler resolves
+                            // the correct `is_let` (a `let` destructure → prop).
+                            for name in &names {
+                                possible_exports.insert(
+                                    name.clone(),
+                                    PossibleExport {
+                                        is_let,
+                                        has_init: declarator.init.is_some(),
+                                        has_type_annotation: false,
+                                        decl_end: declarator.span.end,
+                                        type_annotation_text: None,
+                                        doc: None,
+                                    },
+                                );
+                            }
                         }
                     }
                 }
@@ -965,10 +986,11 @@ pub fn process_instance_script(
                     if let Some(ref decl) = export.declaration {
                         match decl {
                             oxc::Declaration::VariableDeclaration(var_decl) => {
+                                // Only `let` is a reactive prop; `var`/`const` are
+                                // exports (mirror official isLet === NodeFlags.Let).
                                 let is_let = matches!(
                                     var_decl.kind,
                                     oxc::VariableDeclarationKind::Let
-                                        | oxc::VariableDeclarationKind::Var
                                 );
                                 for declarator in var_decl.declarations.iter() {
                                     let names =
@@ -2635,10 +2657,8 @@ fn handle_export_named_decl(
         match decl {
             oxc::Declaration::VariableDeclaration(var_decl) => {
                 let kind = var_decl.kind;
-                let is_let = matches!(
-                    kind,
-                    oxc::VariableDeclarationKind::Var | oxc::VariableDeclarationKind::Let
-                );
+                // Only `let` is a reactive prop; `var`/`const` are exports.
+                let is_let = matches!(kind, oxc::VariableDeclarationKind::Let);
                 let is_prop = is_instance && is_let;
                 let num_declarators = var_decl.declarations.len();
                 for (decl_idx, declarator) in var_decl.declarations.iter().enumerate() {

@@ -27,7 +27,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-multiple/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-1/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escape-template-literals/main.svelte",
@@ -54,6 +53,5 @@
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte"
+	"svelte/packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte"
 ]
