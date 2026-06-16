@@ -70,7 +70,6 @@
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte",
 	"svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/animation-on-component/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte",

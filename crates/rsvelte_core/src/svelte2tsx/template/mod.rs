@@ -2958,6 +2958,13 @@ fn handle_component(
         // the relocated `{#snippet}` props can be appended inside it; the trailer
         // (which closes the object) is emitted after the moves (see below).
         opener_segs.push(Seg::Lit(trailer_lit.clone()));
+        // `style:`/`class:` directives on a component aren't props — official
+        // still type-checks their values via lowered statements appended after
+        // the `new …({...})` call (e.g. `__sveltets_2_ensureType(String, Number, …)`).
+        opener_segs.extend(build_class_style_directive_suffix_segments(
+            &comp.attributes,
+            source,
+        ));
     }
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, comp.start, opening_tag_end, &opener_segs);
