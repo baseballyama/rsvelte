@@ -16,7 +16,6 @@ use oxc_ast::ast as oxc;
 use oxc_ast_visit::Visit;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
-use regex::Regex;
 
 use crate::ast::template::Script;
 
@@ -4746,26 +4745,13 @@ fn collect_module_script_import_stores(
     if !source.contains("<script") {
         return;
     }
-    // Cache the regex once across calls. The previous implementation
-    // compiled it on every call, which was measurable overhead given the
-    // benchmark's 3000+ files.
-    use std::sync::LazyLock;
-    static MODULE_PATTERN: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"<script[^>]*context\s*=\s*["']module["'][^>]*>"#).unwrap());
-    let module_match = match MODULE_PATTERN.find(source) {
-        Some(m) => m,
+    // Locate the module script body. `find_module_script_span` matches BOTH
+    // `<script context="module">` and the Svelte 5 `<script module>` shorthand
+    // (the old regex only matched the `context=` form, so `<script module>`
+    // imports used as stores were never injected).
+    let (content_start, close_tag) = match find_module_script_span(source) {
+        Some(span) => span,
         None => return,
-    };
-
-    let content_start = module_match.end();
-
-    // Find </script> closing tag
-    let close_tag = match source[content_start..].find("</script>") {
-        Some(pos) => content_start + pos,
-        None => match source[content_start..].find("</Script>") {
-            Some(pos) => content_start + pos,
-            None => return,
-        },
     };
 
     let raw_content = &source[content_start..close_tag];

@@ -37,7 +37,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/html-entities-inside-component-slot/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/inline-style-directive-string-variable-kebab-case/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/inline-style-directive-string-variable/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/store-imported-module/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-derived-destructured/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-derived-invalidation-during-init/Child.svelte",
