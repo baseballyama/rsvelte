@@ -3,7 +3,6 @@
 	"svelte.dev/apps/svelte.dev/src/routes/search/+page.svelte",
 	"svelte.dev/packages/repl/src/lib/Input/ComponentSelector.svelte",
 	"svelte.dev/packages/site-kit/src/lib/search/SearchBox.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte",
@@ -38,7 +37,6 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-binding-this/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-class-directive/Link.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escape-template-literals/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte",
@@ -72,13 +70,11 @@
 	"svelte/packages/svelte/tests/validator/samples/animation-on-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/slot-attribute-component/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/transition-on-component/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte"
+	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte"
 ]

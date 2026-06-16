@@ -3970,13 +3970,33 @@ fn handle_svelte_dynamic_element(
     // action declarations (in `directive_prefix`) are in scope: ` {<prefix>{ … }}`.
     let inner_open = if needs_inner_block { "{" } else { "" };
     let inner_close = if needs_inner_block { "}" } else { "" };
-    // ` svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
+    // `bind:this` / one-way bindings on `<svelte:element>` need the
+    // `const $$_svelteelement<depth> = createElement(...)` form so the binding
+    // assignment can reference it. Mirrors regular-element / Element.ts lowering.
+    let needs_element_var = any_bind_needs_element_var(&el.attributes, source);
+    let element_var = if needs_element_var {
+        Some(format!("$$_{}{}", element_var_base_name(&el.name), depth))
+    } else {
+        None
+    };
+    let bind_suffix = build_bind_directive_suffix(
+        &el.attributes,
+        source,
+        element_var.as_deref(),
+        &el.name,
+        options.is_ts_file,
+    );
+    let element_var_decl = element_var
+        .as_ref()
+        .map(|v| format!("const {} = ", v))
+        .unwrap_or_default();
+    // ` <var=>svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
     // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
     // when directives add an extra scope).
     let create = |attrs: &str| {
         format!(
-            " svelteHTML.createElement({}{}, {{{}}});{}",
-            tag_text, actions_arg, attrs, directive_suffix
+            " {}svelteHTML.createElement({}{}, {{{}}});{}{}",
+            element_var_decl, tag_text, actions_arg, attrs, directive_suffix, bind_suffix
         )
     };
     if is_self_closing {
@@ -4433,24 +4453,30 @@ fn handle_svelte_special_element(
             str.append_left(el.end, "}");
         }
     } else {
-        // `bind:` directives on a special element (e.g. `<svelte:window
-        // bind:scrollY={y}>`) keep their `"bind:name":expr` prop AND get a
-        // generic type-widener appended after the createElement call:
-        // `/*Ωignore*/() => expr = __sveltets_2_any(null);/*Ωignore*/`. These are
-        // not real DOM element bindings, so the one-way `.prop` form is never
-        // used. Mirrors upstream Binding.ts (generic branch).
-        let mut bind_suffix = String::new();
-        for attr in &el.attributes {
-            if let Attribute::BindDirective(bind) = attr
-                && bind.name != "this"
-            {
-                let expr_text = get_expression_text(&bind.expression, source);
-                let _ = write!(
-                    bind_suffix,
-                    "/*\u{03A9}ignore_start\u{03A9}*/() => {expr_text} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/"
-                );
-            }
-        }
+        // `bind:` directives on a special element use the same lowering as a
+        // regular element: `bind:this` and one-way bindings (`clientWidth`, …)
+        // need a `const $$_<name><depth> = createElement(...)` so the binding
+        // assignment (`foo = $$_<name><depth>.clientWidth;` / `target =
+        // $$_<name><depth>;`) can reference it; other two-way bindings get the
+        // generic `() => expr = __sveltets_2_any(null)` widener. Mirrors
+        // upstream Element.ts + Binding.ts.
+        let needs_element_var = any_bind_needs_element_var(&el.attributes, source);
+        let element_var = if needs_element_var {
+            Some(format!("$$_{}{}", element_var_base_name(&el.name), depth))
+        } else {
+            None
+        };
+        let bind_suffix = build_bind_directive_suffix(
+            &el.attributes,
+            source,
+            element_var.as_deref(),
+            &el.name,
+            options.is_ts_file,
+        );
+        let element_var_decl = element_var
+            .as_ref()
+            .map(|v| format!("const {} = ", v))
+            .unwrap_or_default();
         // `use:` / `transition:` / `animate:` directives on a special element
         // (e.g. `<svelte:body use:tooltip={…}>`) become the same V4-style
         // action/transition emission as on a regular element: an
@@ -4485,13 +4511,19 @@ fn handle_svelte_special_element(
         // declarations), closed by a matching extra `}` after the children.
         let opener = if directive_prefix.is_empty() {
             format!(
-                " {{ svelteHTML.createElement(\"{}\", {{{}}});{}{}",
-                el.name, attrs_str, bind_suffix, directive_suffix
+                " {{ {}svelteHTML.createElement(\"{}\", {{{}}});{}{}",
+                element_var_decl, el.name, attrs_str, bind_suffix, directive_suffix
             )
         } else {
             format!(
-                " {{{}{{ svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
-                directive_prefix, el.name, actions_arg, attrs_str, bind_suffix, directive_suffix
+                " {{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
+                directive_prefix,
+                element_var_decl,
+                el.name,
+                actions_arg,
+                attrs_str,
+                bind_suffix,
+                directive_suffix
             )
         };
         str.overwrite(el.start, opening_tag_end, &opener);
@@ -5791,6 +5823,21 @@ fn any_bind_needs_element_var(attributes: &[Attribute], source: &str) -> bool {
                 && (b.name == "this"
                     || get_set_binding_ranges(&b.expression, source).is_none()))
     })
+}
+
+/// The `$$_<base><depth>` element-variable base for a tag, mirroring official
+/// `Element.ts`'s constructor: the colon-bearing special elements
+/// (`svelte:window` → `sveltewindow`, …) drop the colon; `svelte:element` →
+/// `svelteelement`; `slot` → `slot`; everything else (including `svelte:document`)
+/// goes through `sanitizePropName` (so `svelte:document` → `svelte_document`).
+fn element_var_base_name(name: &str) -> String {
+    match name {
+        "svelte:options" | "svelte:head" | "svelte:window" | "svelte:body"
+        | "svelte:fragment" => format!("svelte{}", &name["svelte:".len()..]),
+        "svelte:element" => "svelteelement".to_string(),
+        "slot" => "slot".to_string(),
+        _ => sanitize_tag_for_var(name),
+    }
 }
 
 /// Sanitize an HTML/SVG tag name for use as a JavaScript identifier:
