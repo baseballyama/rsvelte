@@ -681,6 +681,24 @@ fn collect(
                     None,
                 ) {
                     edits.push(edit);
+                } else if fragment_has_prose_word(&c.fragment)
+                    && let Some(edit) = try_fill_mixed(
+                        out,
+                        c.name.as_str(),
+                        c.start,
+                        c.end,
+                        &c.fragment,
+                        line_width,
+                        options,
+                    )
+                {
+                    // A component whose body is prose text interspersed with inline
+                    // children (`<P>… <em>…</em> …</P>`) is word-filled like a block
+                    // element. Gate on an actual text word so components that merely
+                    // hold element children separated by whitespace
+                    // (`<Trigger><span/> <span/></Trigger>`) keep their per-child
+                    // layout (recursion below) instead of being inlined.
+                    edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
                     out,
                     c.name.as_str(),
@@ -2288,6 +2306,18 @@ fn build_open_attr_doc(
         Doc::Text(format!("<{tag}")),
         Doc::Indent(vec![Doc::Group(group_parts)]),
     ]))
+}
+
+/// Whether a fragment's direct children contain at least one prose text word —
+/// a `Text` node with a non-whitespace run. Used to gate the component prose
+/// fill: only a component whose body interleaves real text with inline children
+/// (`<P>… <em>…</em> …</P>`) is word-filled; one that merely holds element
+/// children separated by whitespace keeps its per-child layout.
+fn fragment_has_prose_word(fragment: &Fragment) -> bool {
+    fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()))
 }
 
 /// Source span of an attribute, mirroring `markup::attribute_span`.
