@@ -507,9 +507,42 @@ impl<'opt> Printer<'opt> {
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
             Statement::ExportNamedDeclaration(d) => self.export_named_declaration(d, ctx),
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
+            Statement::LabeledStatement(s) => {
+                ctx.write(s.label.name.as_str());
+                ctx.write(": ");
+                self.print_statement(&s.body, ctx);
+            }
+            Statement::ForInStatement(s) => {
+                ctx.write("for (");
+                self.for_statement_left(&s.left, ctx);
+                ctx.write(" in ");
+                self.print_expression(unparen(&s.right), ctx);
+                ctx.write(") ");
+                self.print_statement(&s.body, ctx);
+            }
+            Statement::ForOfStatement(s) => {
+                ctx.write("for ");
+                if s.r#await {
+                    ctx.write("await ");
+                }
+                ctx.write("(");
+                self.for_statement_left(&s.left, ctx);
+                ctx.write(" of ");
+                self.print_expression(unparen(&s.right), ctx);
+                ctx.write(") ");
+                self.print_statement(&s.body, ctx);
+            }
+            Statement::TryStatement(s) => self.try_statement(s, ctx),
+            Statement::DebuggerStatement(_) => ctx.write("debugger;"),
             Statement::EmptyStatement(_) => {}
-            Statement::BreakStatement(_) => ctx.write("break;"),
-            Statement::ContinueStatement(_) => ctx.write("continue;"),
+            Statement::BreakStatement(s) => match &s.label {
+                Some(l) => ctx.write(format!("break {};", l.name)),
+                None => ctx.write("break;"),
+            },
+            Statement::ContinueStatement(s) => match &s.label {
+                Some(l) => ctx.write(format!("continue {};", l.name)),
+                None => ctx.write("continue;"),
+            },
             other => self.unsupported(statement_kind(other), ctx),
         }
     }
@@ -848,6 +881,41 @@ impl<'opt> Printer<'opt> {
         self.print_statement(&node.body, ctx);
     }
 
+    /// The binding of a `for…in` / `for…of` head: a declaration or a target.
+    fn for_statement_left(&mut self, left: &ForStatementLeft, ctx: &mut Context) {
+        match left {
+            ForStatementLeft::VariableDeclaration(d) => self.variable_declaration(d, ctx),
+            _ => match left.as_assignment_target() {
+                Some(t) => self.assignment_target(t, ctx),
+                None => self.unsupported("ForStatementLeft", ctx),
+            },
+        }
+    }
+
+    /// esrap's `TryStatement`: `try {…}` + optional `catch (p) {…}` + `finally {…}`.
+    fn try_statement(&mut self, node: &TryStatement, ctx: &mut Context) {
+        ctx.write("try ");
+        let span = node.block.span();
+        self.block(&node.block.body, span.start, span.end, ctx);
+        if let Some(handler) = &node.handler {
+            ctx.write(" ");
+            if let Some(param) = &handler.param {
+                ctx.write("catch (");
+                self.binding_pattern(&param.pattern, ctx);
+                ctx.write(") ");
+            } else {
+                ctx.write("catch ");
+            }
+            let span = handler.body.span();
+            self.block(&handler.body.body, span.start, span.end, ctx);
+        }
+        if let Some(finalizer) = &node.finalizer {
+            ctx.write(" finally ");
+            let span = finalizer.span();
+            self.block(&finalizer.body, span.start, span.end, ctx);
+        }
+    }
+
     fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
         ctx.write("{");
         let mut items: Vec<SeqItem> = node
@@ -1134,6 +1202,22 @@ impl<'opt> Printer<'opt> {
                 ctx.write("await ");
                 self.child_with_parens(&a.argument, 17, ctx);
             }
+            Expression::Super(_) => ctx.write("super"),
+            Expression::YieldExpression(y) => {
+                ctx.write(if y.delegate { "yield*" } else { "yield" });
+                if let Some(arg) = &y.argument {
+                    ctx.write(" ");
+                    self.print_expression(unparen(arg), ctx);
+                }
+            }
+            Expression::RegExpLiteral(r) => match &r.raw {
+                Some(raw) => ctx.write(raw.as_str()),
+                None => ctx.write(format!("/{}/{}", r.regex.pattern.text, r.regex.flags)),
+            },
+            Expression::TaggedTemplateExpression(t) => {
+                self.print_expression(unparen(&t.tag), ctx);
+                self.template_literal(&t.quasi, ctx);
+            }
             Expression::NewExpression(n) => {
                 ctx.write("new ");
                 self.child_with_parens(&n.callee, 19, ctx);
@@ -1260,6 +1344,11 @@ impl<'opt> Printer<'opt> {
             SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
             SimpleAssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
             SimpleAssignmentTarget::ComputedMemberExpression(m) => self.computed_member(m, ctx),
+            SimpleAssignmentTarget::PrivateFieldExpression(m) => {
+                self.child_with_parens(&m.object, 19, ctx);
+                ctx.write(if m.optional { "?." } else { "." });
+                ctx.write(format!("#{}", m.field.name));
+            }
             _ => self.unsupported("SimpleAssignmentTarget", ctx),
         }
     }
@@ -1989,6 +2078,26 @@ mod tests {
             "for (let i = 0; i < n; i++) f();"
         );
         assert_eq!(print_ok("throw new Error('x');"), "throw new Error('x');");
+    }
+
+    #[test]
+    fn more_statements() {
+        assert_eq!(
+            print_ok("outer: for (const x of xs) break outer;"),
+            "outer: for (const x of xs) break outer;"
+        );
+        assert_eq!(print_ok("for (const x of xs) f(x);"), "for (const x of xs) f(x);");
+        assert_eq!(print_ok("for (const k in o) f(k);"), "for (const k in o) f(k);");
+        assert_eq!(print_ok("try { a(); } catch (e) { b(); }"), "try {\n\ta();\n} catch (e) {\n\tb();\n}");
+        assert_eq!(print_ok("try { a(); } finally { c(); }"), "try {\n\ta();\n} finally {\n\tc();\n}");
+        assert_eq!(print_ok("debugger;"), "debugger;");
+    }
+
+    #[test]
+    fn more_expressions() {
+        assert_eq!(print_ok("const r = /ab+c/gi;"), "const r = /ab+c/gi;");
+        assert_eq!(print_ok("const s = tag`a${x}b`;"), "const s = tag`a${x}b`;");
+        assert_eq!(print_ok("function* g() { yield 1; yield* h(); }"), "function* g() {\n\tyield 1;\n\tyield* h();\n}");
     }
 
     #[test]
