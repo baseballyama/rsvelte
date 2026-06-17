@@ -4544,6 +4544,15 @@ fn extract_names_from_binding_pattern(
                     }
                 }
             }
+            // Handle rest element: `{ a, ...rest }` — recurse into `rest`
+            if let Some(rest) = &obj_pat.rest {
+                extract_names_from_binding_pattern(
+                    &rest.argument,
+                    exported_names,
+                    has_default,
+                    is_prop,
+                );
+            }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
             for el in arr_pat.elements.iter().flatten() {
@@ -4565,6 +4574,15 @@ fn extract_names_from_binding_pattern(
                         );
                     }
                 }
+            }
+            // Handle rest element: `[a, ...rest]` — recurse into `rest`
+            if let Some(rest) = &arr_pat.rest {
+                extract_names_from_binding_pattern(
+                    &rest.argument,
+                    exported_names,
+                    has_default,
+                    is_prop,
+                );
             }
         }
         oxc::BindingPattern::AssignmentPattern(assign) => {
@@ -4619,6 +4637,17 @@ fn extract_names_from_binding_pattern_full(
                     }
                 }
             }
+            // Handle rest element: `{ a, ...rest }` — recurse into `rest`
+            if let Some(rest) = &obj_pat.rest {
+                extract_names_from_binding_pattern_full(
+                    &rest.argument,
+                    exported_names,
+                    has_default,
+                    is_prop,
+                    is_let,
+                    is_named_export,
+                );
+            }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
             for el in arr_pat.elements.iter().flatten() {
@@ -4644,6 +4673,17 @@ fn extract_names_from_binding_pattern_full(
                         );
                     }
                 }
+            }
+            // Handle rest element: `[a, ...rest]` — recurse into `rest`
+            if let Some(rest) = &arr_pat.rest {
+                extract_names_from_binding_pattern_full(
+                    &rest.argument,
+                    exported_names,
+                    has_default,
+                    is_prop,
+                    is_let,
+                    is_named_export,
+                );
             }
         }
         oxc::BindingPattern::AssignmentPattern(assign) => {

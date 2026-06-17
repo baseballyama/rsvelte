@@ -4293,11 +4293,13 @@ fn handle_slot_element(
     // Official emits a leading space inside a non-empty props object
     // (`{ "message":… }`); empty stays `{}`. oxfmt normalises this for valid
     // output, but a top-level-await slot is emitted raw, where the space matters.
+    // Note: `build_slot_props_string` already prepends a space to non-empty
+    // results, so we must NOT add another space here in the format string.
     let slot_props = build_slot_props_string(&el.attributes, source);
     let slot_props_obj = if slot_props.is_empty() {
         "{}".to_string()
     } else {
-        format!("{{ {}}}", slot_props)
+        format!("{{{}}}", slot_props)
     };
 
     // Build the slot call

@@ -1166,11 +1166,43 @@ pub fn svelte2tsx(
                 let comments_raw = &source[abs_comments_start as usize..abs_import_start as usize];
                 let import_raw = &source[abs_import_start as usize..abs_end as usize];
 
-                let comment_lines: Vec<&str> = comments_raw
-                    .lines()
-                    .map(|line| line.trim())
-                    .filter(|line| !line.is_empty())
-                    .collect();
+                // Collect leading comment lines while preserving block-comment
+                // interior indentation verbatim.  The JS reference (`moveNode`)
+                // uses `str.move()` which copies source text byte-for-byte, so
+                // `/* … */` inner lines must retain their original leading spaces.
+                // Only the opener line (`/*...`) is fully trimmed (leading indent
+                // is dropped; trailing spaces after `/*` are stripped); all other
+                // block-comment lines are preserved as-is.  Lines that are purely
+                // whitespace outside a block comment are filtered out.
+                let comment_lines: Vec<String> = {
+                    let mut lines: Vec<String> = Vec::new();
+                    let mut in_block = false;
+                    for line in comments_raw.lines() {
+                        if in_block {
+                            // Preserve interior indentation verbatim.
+                            if line.contains("*/") {
+                                in_block = false;
+                            }
+                            lines.push(line.to_string());
+                        } else {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() {
+                                continue; // skip whitespace-only lines
+                            }
+                            if trimmed.starts_with("/*") {
+                                // Block-comment opener: trim fully so the
+                                // leading indent and any trailing spaces after
+                                // `/*` are dropped (e.g. `  /*  ` → `/*`).
+                                in_block = !trimmed.contains("*/");
+                                lines.push(trimmed.to_string());
+                            } else {
+                                // Line comment (`//`) or other: fully trim.
+                                lines.push(trimmed.to_string());
+                            }
+                        }
+                    }
+                    lines
+                };
 
                 // Was the last comment on the same line as the `import`
                 // keyword? True when `comments_raw`'s final line is not

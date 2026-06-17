@@ -1,18 +1,13 @@
 [
 	"bits-ui/packages/bits-ui/src/lib/bits/command/components/command.svelte",
-	"flowbite-svelte/src/routes/blocks/utils/Toc.svelte",
-	"flowbite-svelte/src/routes/utils/Toc.svelte",
 	"melt-ui/docs/src/components/motion.svelte",
 	"melt-ui/docs/src/previews/tabs.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/remove-blocks-whitespace/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-4/A.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/A.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/async-slot/Child.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte"
 ]
