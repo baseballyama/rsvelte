@@ -474,14 +474,16 @@ impl<'opt> Printer<'opt> {
             prev = Some((std::mem::discriminant(*stmt), multiline));
         }
 
-        if !non_empty.is_empty() {
-            // A trailing newline closes the body (no-op at top level — nothing
-            // follows to flush it), then any comments after the last statement.
-            ctx.newline();
-            if !self.comments.is_empty() {
-                let from_line = non_empty.last().map(|s| self.line_of(s.span().end));
-                self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
-            }
+        // esrap's body tail (`if (node.loc)`) runs unconditionally: a trailing
+        // newline closes the body (a no-op flag at top level — nothing follows
+        // to flush it), then any comments up to the body end. Doing this even
+        // for an empty body emits an interior comment inside an otherwise empty
+        // block (`() => { /* x */ }`); the lone pending newline keeps the block
+        // `empty()`, so a comment-free `{}` is unaffected.
+        ctx.newline();
+        if !self.comments.is_empty() {
+            let from_line = non_empty.last().map(|s| self.line_of(s.span().end));
+            self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
         }
     }
 
