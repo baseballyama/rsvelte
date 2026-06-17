@@ -16,8 +16,16 @@ priority, most user-visible bug). `FN` = oracle reports, rsvelte silent.
 
 ## Snapshot
 
-**556 divergences across 36 rules** (down from a raw 17,896 / a post-scoping
-745). Already fixed and merged: `prefer-const` (export-prop, `{@render}`-arg
+**416 divergences** (down from 556 at the start of this burn-down pass; a raw
+17,896 / a post-scoping 745 before that). Cleared this pass:
+- **Cluster E (inline config)** — honor inline `/* eslint <rule>: … */` comments.
+- **Cluster F (`this={…}`)** — `<svelte:element>`/`<svelte:component>` `this`
+  spliced into the attribute list for `max-attributes-per-line`.
+- **Cluster G (browser globals)** — oracle now declares a curated browser-global
+  environment so the rule is actually exercised (was a harness gap, not a rsvelte
+  bug). See `docs/lint-corpus-harness-findings.md`.
+
+Already fixed in earlier passes: `prefer-const` (export-prop, `{@render}`-arg
 writes, robustness to analysis errors + bind/destructuring/redeclaration),
 `no-spaces-around-equal-signs` (shorthand), `consistent-selector-style`
 (dynamic-class affixes), `max-attributes-per-line` (shorthand name),

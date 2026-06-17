@@ -36,11 +36,39 @@ const MESSAGE: &str =
     "disallow exporting load functions in `*.svelte` module in SvelteKit page components.";
 
 /// Whether this file is a SvelteKit route file that the rule should run on.
-fn is_kit_route_file(filename: &str) -> bool {
-    matches!(
+///
+/// Mirrors upstream's `svelteKitFileType` check: only applies when the file
+/// is under a `routes` directory inside an `src` folder (default `src/routes`).
+/// Files named `+page.svelte` etc. that live outside any `src/routes/` path
+/// (e.g., test fixtures under an unrelated directory) are silently skipped
+/// just as the oracle does.
+///
+/// When the path has no parent directory component (e.g. `path = "+page.svelte"`
+/// in tests or wasm contexts), we fall back to the filename-only gate so that
+/// oracle/unit-tests that pass just a bare filename still exercise the rule.
+fn is_kit_route_file(ctx: &LintContext) -> bool {
+    let filename = ctx.filename();
+    if !matches!(
         filename,
         "+page.svelte" | "+layout.svelte" | "+error.svelte"
-    )
+    ) {
+        return false;
+    }
+    // Require the file to be under a `src/routes` directory segment, matching
+    // upstream's `filePath.startsWith(path.join(projectRootDir, "src/routes"))`.
+    if let Some(path) = ctx.path() {
+        // If there is no parent directory (the path is a bare filename), treat
+        // it as if it's in the right place — this preserves oracle-test behavior.
+        if path.parent().is_none_or(|p| p == std::path::Path::new("")) {
+            return true;
+        }
+        let path_str = path.to_string_lossy();
+        // Accept `/…/src/routes/…` or a path starting with `src/routes/`.
+        path_str.contains("/src/routes/") || path_str.starts_with("src/routes/")
+    } else {
+        // No filesystem path (wasm / in-memory): fall back to filename-only gate.
+        true
+    }
 }
 
 #[derive(Default)]
@@ -57,7 +85,7 @@ impl ScriptRule for NoExportLoadInSvelteModuleInKitPages {
             return;
         }
 
-        if !is_kit_route_file(ctx.filename()) {
+        if !is_kit_route_file(ctx) {
             return;
         }
 

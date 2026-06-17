@@ -8,7 +8,7 @@ use rsvelte_core::svelte_check::diagnostic::Diagnostic;
 
 use crate::config::LintConfig;
 use crate::diagnostic::{LintDiagnostic, TextEdit};
-use crate::engine::{run_native_rules, run_script_rules};
+use crate::engine::{run_native_rules, run_script_rules, run_script_rules_with_path};
 use crate::line_index::LineIndex;
 use crate::suppression::Suppressions;
 
@@ -53,7 +53,9 @@ pub fn lint_source(
             }
 
             // 2a. Script-AST rules — walk the `<script>` ESTree program(s).
-            for d in run_script_rules(source, &filename, config) {
+            // Thread the full path so path-gated rules (e.g. SvelteKit route
+            // file detection) can check whether the file lives under src/routes.
+            for d in run_script_rules_with_path(source, &filename, config, Some(file)) {
                 diags.push(d.to_output(file, &line_index));
             }
 
@@ -172,7 +174,12 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
         }
         crate::engine::SourceKind::Svelte => {
             let mut d = run_native_rules(source, &filename, config, Some(file));
-            d.extend(run_script_rules(source, &filename, config));
+            d.extend(run_script_rules_with_path(
+                source,
+                &filename,
+                config,
+                Some(file),
+            ));
             d.extend(crate::scope::scope_diagnostics(source, config));
             d
         }
