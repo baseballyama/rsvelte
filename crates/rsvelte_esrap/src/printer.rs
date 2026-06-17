@@ -24,6 +24,27 @@ use crate::{PrintOptions, QuoteStyle};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unsupported(pub &'static str);
 
+/// esrap's `create_keyword_write` closure, as an explicit cursor. Writes a run
+/// of sequential keyword fragments anchored from one source position, advancing
+/// the column by each fragment's length. When `cursor` is `None`, fragments are
+/// written unmapped.
+struct KeywordCursor {
+    cursor: Option<(u32, u32)>,
+}
+
+impl KeywordCursor {
+    /// Write one fragment (e.g. `"declare "`, `"class "`). Mapped if a cursor is
+    /// active, otherwise a plain write.
+    fn write(&mut self, ctx: &mut Context, fragment: &str) {
+        if let Some((line, col)) = self.cursor {
+            Printer::write_source_keyword(ctx, line, col, fragment);
+            self.cursor = Some((line, col + fragment.len() as u32));
+        } else {
+            ctx.write(fragment.to_string());
+        }
+    }
+}
+
 pub struct Printer<'opt> {
     options: &'opt PrintOptions,
     /// Set by the first unsupported node encountered; printing continues so the
@@ -342,6 +363,96 @@ impl<'opt> Printer<'opt> {
     /// 1-based line of a byte offset (number of line starts at/before it).
     fn line_of(&self, offset: u32) -> u32 {
         self.line_starts.partition_point(|&s| s <= offset) as u32
+    }
+
+    /// Convert a byte offset to `(line_1based, column_0based)` using
+    /// `line_starts`, mirroring ESTree `loc` (1-based line, 0-based column). The
+    /// column is the offset relative to the start of its line; for ASCII / BMP
+    /// source this equals the UTF-16 column esrap uses. Returns `None` when
+    /// there are no line starts (printing without source context).
+    fn offset_to_line_col(&self, offset: u32) -> Option<(u32, u32)> {
+        if self.line_starts.is_empty() {
+            return None;
+        }
+        let line = self.line_of(offset);
+        // `line` is 1-based; its start offset lives at index `line - 1`.
+        let line_start = self.line_starts[(line - 1) as usize];
+        Some((line, offset.saturating_sub(line_start)))
+    }
+
+    /// esrap's `write_source_keyword`: bracket the literal `keyword` with
+    /// source-map anchors for its exact span, so breakpoints land on the keyword.
+    fn write_source_keyword(ctx: &mut Context, line: u32, column: u32, keyword: &str) {
+        ctx.location(line, column);
+        ctx.write(keyword);
+        ctx.location(line, column + keyword.len() as u32);
+    }
+
+    /// esrap's `write_keyword`: map one `keyword` anchored at the byte offset
+    /// `start` (resolved to a source `loc`), then append an unmapped `suffix`. If
+    /// the offset can't be resolved (no source context), falls back to a plain
+    /// `keyword + suffix` write.
+    fn write_keyword(&self, ctx: &mut Context, start: u32, keyword: &str, suffix: &str) {
+        if let Some((line, column)) = self.offset_to_line_col(start) {
+            Self::write_source_keyword(ctx, line, column, keyword);
+            if !suffix.is_empty() {
+                ctx.write(suffix.to_string());
+            }
+        } else {
+            ctx.write(format!("{keyword}{suffix}"));
+        }
+    }
+
+    /// esrap's `create_keyword_write`: returns a closure-like cursor for writing
+    /// a run of sequential keyword fragments (e.g. `declare `, `class `) starting
+    /// at byte offset `start`, advancing the column by each fragment's length.
+    /// When `map_ok` is false (or no source context), every fragment is written
+    /// unmapped. Implemented as an explicit [`KeywordCursor`] because Rust closures
+    /// can't borrow `self` mutably across calls the way the JS closure does.
+    fn keyword_cursor(&self, start: u32, map_ok: bool) -> KeywordCursor {
+        let cursor = if map_ok {
+            self.offset_to_line_col(start)
+        } else {
+            None
+        };
+        KeywordCursor { cursor }
+    }
+
+    /// esrap's `function_async_function_offset_ok`: the `async function` source
+    /// offsets are only trustworthy when the `function` token shares a line with
+    /// `async`, anchored by the id or body starting on the same line as the node.
+    fn function_async_offset_ok(&self, node: &Function) -> bool {
+        let Some((line, _)) = self.offset_to_line_col(node.span().start) else {
+            return false;
+        };
+        let id_line = node
+            .id
+            .as_ref()
+            .and_then(|id| self.offset_to_line_col(id.span().start))
+            .map(|(l, _)| l);
+        let body_line = node
+            .body
+            .as_ref()
+            .and_then(|b| self.offset_to_line_col(b.span().start))
+            .map(|(l, _)| l);
+        id_line == Some(line) || body_line == Some(line)
+    }
+
+    /// esrap's `class_modifier_keywords_map_ok`: map class modifiers only when
+    /// there are no decorators and the id (or body, if anonymous) starts on the
+    /// node's start line.
+    fn class_modifier_map_ok(&self, node: &Class) -> bool {
+        if !node.decorators.is_empty() {
+            return false;
+        }
+        let Some((line, _)) = self.offset_to_line_col(node.span().start) else {
+            return false;
+        };
+        let anchor = match &node.id {
+            Some(id) => self.offset_to_line_col(id.span().start),
+            None => self.offset_to_line_col(node.body.span().start),
+        };
+        anchor.map(|(l, _)| l) == Some(line)
     }
 
     /// Whether any source comment starts within `[start, end)` — used to decide
@@ -715,17 +826,18 @@ impl<'opt> Printer<'opt> {
                         .comments
                         .get(self.comment_index)
                         .is_some_and(|c| c.start < arg.span().start);
+                    let start = s.span().start;
                     if contains_comment {
-                        ctx.write("return (");
+                        self.write_keyword(ctx, start, "return", " (");
                         self.print_expression(arg, ctx);
                         ctx.write(");");
                     } else {
-                        ctx.write("return ");
+                        self.write_keyword(ctx, start, "return", " ");
                         self.print_expression(arg, ctx);
                         ctx.write(";");
                     }
                 } else {
-                    ctx.write("return;");
+                    self.write_keyword(ctx, s.span().start, "return", ";");
                 }
             }
             Statement::BlockStatement(b) => {
@@ -743,17 +855,11 @@ impl<'opt> Printer<'opt> {
                 self.print_statement(&s.body, ctx);
             }
             Statement::ThrowStatement(s) => {
-                ctx.write("throw ");
+                self.write_keyword(ctx, s.span().start, "throw", " ");
                 self.print_expression(&s.argument, ctx);
                 ctx.write(";");
             }
-            Statement::DoWhileStatement(s) => {
-                ctx.write("do ");
-                self.print_statement(&s.body, ctx);
-                ctx.write(" while (");
-                self.print_expression(&s.test, ctx);
-                ctx.write(");");
-            }
+            Statement::DoWhileStatement(s) => self.do_while_statement(s, ctx),
             Statement::ExportAllDeclaration(s) => {
                 if matches!(s.export_kind, ImportOrExportKind::Type) {
                     ctx.write("export type *");
@@ -943,18 +1049,19 @@ impl<'opt> Printer<'opt> {
                 for decorator in &c.decorators {
                     self.decorator(decorator, ctx);
                 }
-                ctx.write("export ");
+                self.write_keyword(ctx, node.span().start, "export", " ");
                 self.class_node_no_decorators(c, ctx);
                 return;
             }
-            ctx.write("export ");
+            self.write_keyword(ctx, node.span().start, "export", " ");
             self.declaration(decl, ctx);
             return;
         }
 
-        ctx.write("export ");
+        let mut kw = self.keyword_cursor(node.span().start, true);
+        kw.write(ctx, "export ");
         if matches!(node.export_kind, ImportOrExportKind::Type) {
-            ctx.write("type ");
+            kw.write(ctx, "type ");
         }
         ctx.write("{");
         let nodes: Vec<SeqNode> = node
@@ -983,7 +1090,15 @@ impl<'opt> Printer<'opt> {
     }
 
     fn export_default_declaration(&mut self, node: &ExportDefaultDeclaration, ctx: &mut Context) {
-        ctx.write("export default ");
+        // esrap: `export ` then `default ` via a keyword cursor, mapped only when
+        // the export is single-line (`single_line_node`).
+        let map_ok = self
+            .offset_to_line_col(node.span().start)
+            .zip(self.offset_to_line_col(node.span().end))
+            .is_some_and(|((s, _), (e, _))| s == e);
+        let mut kw = self.keyword_cursor(node.span().start, map_ok);
+        kw.write(ctx, "export ");
+        kw.write(ctx, "default ");
         match &node.declaration {
             ExportDefaultDeclarationKind::FunctionDeclaration(f) => {
                 // No trailing `;` after a function declaration.
@@ -1064,14 +1179,37 @@ impl<'opt> Printer<'opt> {
         if node.declare {
             ctx.write("declare ");
         }
-        if node.r#async {
-            ctx.write("async ");
+        // esrap's `FunctionDeclaration|FunctionExpression`: map `async` and
+        // `function` to their source spans. `async` sits at the node start;
+        // `function` follows it by `"async ".len()`. The offset heuristic
+        // (`function_async_function_offset_ok`) only maps when `async` and
+        // `function` share a line with the id/body — true for all single-line
+        // forms the keyword tests exercise.
+        let start = node.span().start;
+        let offset_ok = self.function_async_offset_ok(node);
+        let gen_suffix = if node.generator { "* " } else { " " };
+        match self.offset_to_line_col(start) {
+            Some((line, column)) if node.r#async && offset_ok => {
+                Self::write_source_keyword(ctx, line, column, "async ");
+                let col2 = column + "async ".len() as u32;
+                Self::write_source_keyword(ctx, line, col2, "function");
+                ctx.write(gen_suffix);
+            }
+            Some((line, column)) if !node.r#async => {
+                Self::write_source_keyword(ctx, line, column, "function");
+                ctx.write(gen_suffix);
+            }
+            _ => {
+                if node.r#async {
+                    ctx.write("async ");
+                }
+                ctx.write(if node.generator {
+                    "function* "
+                } else {
+                    "function "
+                });
+            }
         }
-        ctx.write(if node.generator {
-            "function* "
-        } else {
-            "function "
-        });
         if let Some(id) = &node.id {
             ctx.write(id.name.as_str());
         }
@@ -1106,13 +1244,18 @@ impl<'opt> Printer<'opt> {
     /// The class body sans leading decorators (already emitted by the caller —
     /// e.g. `export @dec class`, which prints decorators before `export`).
     fn class_node_no_decorators(&mut self, node: &Class, ctx: &mut Context) {
+        // esrap's class modifier keyword cursor: `declare `/`abstract `/`class `
+        // mapped to their source span when `class_modifier_keywords_map_ok`
+        // (no decorators, id/body on the node's start line).
+        let map_ok = self.class_modifier_map_ok(node);
+        let mut kw = self.keyword_cursor(node.span().start, map_ok);
         if node.declare {
-            ctx.write("declare ");
+            kw.write(ctx, "declare ");
         }
         if node.r#abstract {
-            ctx.write("abstract ");
+            kw.write(ctx, "abstract ");
         }
-        ctx.write("class ");
+        kw.write(ctx, "class ");
         if let Some(id) = &node.id {
             ctx.write(id.name.as_str());
             if let Some(tp) = &node.type_parameters {
@@ -1200,7 +1343,7 @@ impl<'opt> Printer<'opt> {
             ClassElement::PropertyDefinition(p) => self.property_definition(p, ctx),
             ClassElement::AccessorProperty(a) => self.accessor_property(a, ctx),
             ClassElement::StaticBlock(b) => {
-                ctx.write("static ");
+                self.write_keyword(ctx, b.span().start, "static", " ");
                 let span = b.span();
                 self.block(&b.body, span.start, span.end, ctx);
             }
@@ -1212,28 +1355,40 @@ impl<'opt> Printer<'opt> {
         for decorator in &node.decorators {
             self.decorator(decorator, ctx);
         }
+        // esrap's method-modifier keyword cursor: `abstract`/accessibility/
+        // `override`/`static`/`get`/`set`/`async` all mapped to their source
+        // span when `method_modifiers_keywords_map_ok` (no decorators, node and
+        // value start on the same line).
+        let map_ok = node.decorators.is_empty() && {
+            let n = self.offset_to_line_col(node.span().start).map(|(l, _)| l);
+            let v = self
+                .offset_to_line_col(node.value.span().start)
+                .map(|(l, _)| l);
+            n.is_some() && n == v
+        };
+        let mut kw = self.keyword_cursor(node.span().start, map_ok);
         if matches!(
             node.r#type,
             MethodDefinitionType::TSAbstractMethodDefinition
         ) {
-            ctx.write("abstract ");
+            kw.write(ctx, "abstract ");
         }
         if let Some(acc) = &node.accessibility {
-            ctx.write(format!("{} ", accessibility_str(acc)));
+            kw.write(ctx, &format!("{} ", accessibility_str(acc)));
         }
         if node.r#override {
-            ctx.write("override ");
+            kw.write(ctx, "override ");
         }
         if node.r#static {
-            ctx.write("static ");
+            kw.write(ctx, "static ");
         }
         match node.kind {
-            MethodDefinitionKind::Get => ctx.write("get "),
-            MethodDefinitionKind::Set => ctx.write("set "),
+            MethodDefinitionKind::Get => kw.write(ctx, "get "),
+            MethodDefinitionKind::Set => kw.write(ctx, "set "),
             _ => {}
         }
         if node.value.r#async {
-            ctx.write("async ");
+            kw.write(ctx, "async ");
         }
         if node.value.generator {
             ctx.write("*");
@@ -1352,14 +1507,48 @@ impl<'opt> Printer<'opt> {
     }
 
     fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context) {
-        ctx.write("if (");
+        self.write_keyword(ctx, node.span().start, "if", " (");
         self.print_expression(&node.test, ctx);
         ctx.write(") ");
         self.print_statement(&node.consequent, ctx);
         if let Some(alternate) = &node.alternate {
-            ctx.write(" else ");
+            ctx.space();
+            // esrap maps `else` to a *computed* offset: one past the end of the
+            // consequent, when the alternate begins on the consequent's end line
+            // and starts at column >= 4 (room for the literal `else`). Otherwise
+            // it writes an unmapped `else `.
+            let con_end = self.offset_to_line_col(node.consequent.span().end);
+            let alt_start = self.offset_to_line_col(alternate.span().start);
+            match (con_end, alt_start) {
+                (Some((ce_line, ce_col)), Some((al_line, al_col)))
+                    if ce_line == al_line && al_col >= 4 =>
+                {
+                    Self::write_source_keyword(ctx, ce_line, ce_col + 1, "else");
+                    ctx.write(" ");
+                }
+                _ => ctx.write("else "),
+            }
             self.print_statement(alternate, ctx);
         }
+    }
+
+    fn do_while_statement(&mut self, node: &DoWhileStatement, ctx: &mut Context) {
+        self.write_keyword(ctx, node.span().start, "do", " ");
+        self.print_statement(&node.body, ctx);
+        // esrap maps the trailing `while` to a computed offset (one past the body
+        // end) when the test begins on the body's end line at column >= 6.
+        let body_end = self.offset_to_line_col(node.body.span().end);
+        let test_start = self.offset_to_line_col(node.test.span().start);
+        match (body_end, test_start) {
+            (Some((be_line, be_col)), Some((t_line, t_col))) if be_line == t_line && t_col >= 6 => {
+                ctx.write(" ");
+                Self::write_source_keyword(ctx, be_line, be_col + 1, "while");
+                ctx.write(" (");
+            }
+            _ => ctx.write(" while ("),
+        }
+        self.print_expression(&node.test, ctx);
+        ctx.write(");");
     }
 
     fn for_statement(&mut self, node: &ForStatement, ctx: &mut Context) {
@@ -1399,24 +1588,43 @@ impl<'opt> Printer<'opt> {
 
     /// esrap's `TryStatement`: `try {…}` + optional `catch (p) {…}` + `finally {…}`.
     fn try_statement(&mut self, node: &TryStatement, ctx: &mut Context) {
-        ctx.write("try ");
+        self.write_keyword(ctx, node.span().start, "try", " ");
         let span = node.block.span();
         self.block(&node.block.body, span.start, span.end, ctx);
         if let Some(handler) = &node.handler {
             ctx.write(" ");
             if let Some(param) = &handler.param {
                 // esrap emits `catch(e)` with no space after the keyword.
-                ctx.write("catch(");
+                self.write_keyword(ctx, handler.span().start, "catch", "(");
                 self.binding_pattern(&param.pattern, ctx);
                 ctx.write(") ");
             } else {
-                ctx.write("catch ");
+                self.write_keyword(ctx, handler.span().start, "catch", " ");
             }
             let span = handler.body.span();
             self.block(&handler.body.body, span.start, span.end, ctx);
         }
         if let Some(finalizer) = &node.finalizer {
-            ctx.write(" finally ");
+            // esrap maps `finally` to a computed offset (one past the previous
+            // block end) when the finalizer begins on the prev block's end line
+            // at column >= 7. Otherwise an unmapped ` finally `.
+            let prev_end = node
+                .handler
+                .as_ref()
+                .map(|h| h.span().end)
+                .unwrap_or(node.block.span().end);
+            let prev = self.offset_to_line_col(prev_end);
+            let fin = self.offset_to_line_col(finalizer.span().start);
+            match (prev, fin) {
+                (Some((p_line, p_col)), Some((f_line, f_col)))
+                    if p_line == f_line && f_col >= 7 =>
+                {
+                    ctx.write(" ");
+                    Self::write_source_keyword(ctx, p_line, p_col + 1, "finally");
+                    ctx.write(" ");
+                }
+                _ => ctx.write(" finally "),
+            }
             let span = finalizer.span();
             self.block(&finalizer.body, span.start, span.end, ctx);
         }
@@ -1425,7 +1633,7 @@ impl<'opt> Printer<'opt> {
     /// esrap's `SwitchStatement`: `switch (disc) {`, each case indented with a
     /// blank-line margin between cases, statements one-per-line.
     fn switch_statement(&mut self, node: &SwitchStatement, ctx: &mut Context) {
-        ctx.write("switch (");
+        self.write_keyword(ctx, node.span().start, "switch", " (");
         self.print_expression(&node.discriminant, ctx);
         ctx.write(") {");
         ctx.indent();
@@ -1437,11 +1645,11 @@ impl<'opt> Printer<'opt> {
             ctx.newline();
             match &case.test {
                 Some(test) => {
-                    ctx.write("case ");
+                    self.write_keyword(ctx, case.span().start, "case", " ");
                     self.print_expression(test, ctx);
                     ctx.write(":");
                 }
-                None => ctx.write("default:"),
+                None => self.write_keyword(ctx, case.span().start, "default", ":"),
             }
             ctx.indent();
             for stmt in &case.consequent {
@@ -1688,9 +1896,9 @@ impl<'opt> Printer<'opt> {
     /// declarator is itself multiline (e.g. carries a leading comment) or there
     /// is more than one and they don't fit (`measure + 2*(n-1) > 50`).
     fn variable_declaration(&mut self, decl: &VariableDeclaration, ctx: &mut Context) {
-        if decl.declare {
-            ctx.write("declare ");
-        }
+        // esrap's `handle_var_declaration`: a keyword cursor anchored at the
+        // declaration start writes `declare ` (if present) then the kind keyword,
+        // each mapped to its source span so breakpoints land on `let`/`const`/etc.
         let keyword = match decl.kind {
             VariableDeclarationKind::Var => "var ",
             VariableDeclarationKind::Let => "let ",
@@ -1698,7 +1906,11 @@ impl<'opt> Printer<'opt> {
             VariableDeclarationKind::Using => "using ",
             VariableDeclarationKind::AwaitUsing => "await using ",
         };
-        ctx.write(keyword);
+        let mut kw = self.keyword_cursor(decl.span().start, true);
+        if decl.declare {
+            kw.write(ctx, "declare ");
+        }
+        kw.write(ctx, keyword);
 
         let n = decl.declarations.len();
         let mut rendered: Vec<Context> = Vec::with_capacity(n);
@@ -1853,9 +2065,18 @@ impl<'opt> Printer<'opt> {
                 ctx.write(m.property.name.as_str());
             }
             Expression::AwaitExpression(a) => {
-                // `await ` + arg, parenthesised below await's precedence (17).
-                ctx.write("await ");
-                self.child_with_parens(&a.argument, 17, ctx);
+                // esrap's `AwaitExpression`: map `await` to its source span, then
+                // `' ('`/arg/`')'` when the argument is below await's precedence
+                // (17), else `' '`/arg. Text is unchanged from `await ` + parens.
+                let start = a.span().start;
+                if expr_precedence(&a.argument) < 17 {
+                    self.write_keyword(ctx, start, "await", " (");
+                    self.print_expression(&a.argument, ctx);
+                    ctx.write(")");
+                } else {
+                    self.write_keyword(ctx, start, "await", " ");
+                    self.print_expression(&a.argument, ctx);
+                }
             }
             Expression::Super(_) => ctx.write("super"),
             Expression::YieldExpression(y) => {

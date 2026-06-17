@@ -80,3 +80,36 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     printer.print_program(program, &mut ctx);
     command::print(&ctx.into_commands(), &options.indent)
 }
+
+/// Print `program` to JavaScript with the default options, returning both the
+/// code and decoded source-map mappings. The emitted code is byte-identical to
+/// [`print`] — `Location` anchors only carry mapping data, they never add text.
+pub fn print_with_map(program: &Program<'_>, source: &str) -> PrintWithMap {
+    print_with_map_opts(program, source, &PrintOptions::default())
+}
+
+/// The decoded result of [`print_with_map`].
+#[derive(Debug, Clone)]
+pub struct PrintWithMap {
+    /// The generated source text (identical to what [`print_with`] returns).
+    pub code: String,
+    /// Source-map mappings: one entry per generated line, each a list of
+    /// `[generated_column, source_index, source_line_0based, source_column_0based]`
+    /// segments. Matches esrap's `sourceMapEncodeMappings: false` shape.
+    pub mappings: Vec<Vec<command::Segment>>,
+}
+
+/// Like [`print_with_map`] but with explicit options.
+pub fn print_with_map_opts(
+    program: &Program<'_>,
+    source: &str,
+    options: &PrintOptions,
+) -> PrintWithMap {
+    let comments = printer::build_comments(program, source);
+    let mut printer =
+        printer::Printer::with_comments(options, comments, printer::line_starts(source));
+    let mut ctx = context::Context::new();
+    printer.print_program(program, &mut ctx);
+    let (code, mappings) = command::flatten_with_map(&ctx.into_commands(), &options.indent);
+    PrintWithMap { code, mappings }
+}
