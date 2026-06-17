@@ -1004,6 +1004,12 @@ impl<'opt> Printer<'opt> {
             .map(|p| {
                 let mut child = ctx.child();
                 self.binding_pattern(&p.pattern, &mut child);
+                // Default value: oxc stores parameter defaults on
+                // `FormalParameter::initializer`, not as an `AssignmentPattern`.
+                if let Some(init) = &p.initializer {
+                    child.write(" = ");
+                    self.print_expression(unparen(init), &mut child);
+                }
                 let multiline = child.multiline;
                 SeqItem {
                     ctx: child,
@@ -2091,6 +2097,12 @@ mod tests {
         assert_eq!(print_ok("try { a(); } catch (e) { b(); }"), "try {\n\ta();\n} catch (e) {\n\tb();\n}");
         assert_eq!(print_ok("try { a(); } finally { c(); }"), "try {\n\ta();\n} finally {\n\tc();\n}");
         assert_eq!(print_ok("debugger;"), "debugger;");
+    }
+
+    #[test]
+    fn param_defaults() {
+        assert_eq!(print_ok("function f(a = 1, b) {}"), "function f(a = 1, b) {}");
+        assert_eq!(print_ok("const g = (x = 2) => x;"), "const g = (x = 2) => x;");
     }
 
     #[test]
