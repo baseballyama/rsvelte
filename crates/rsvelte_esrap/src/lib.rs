@@ -139,7 +139,7 @@ pub fn print_with_hooks(
 
 /// Print `program` to JavaScript with the default options, returning both the
 /// code and decoded source-map mappings. The emitted code is byte-identical to
-/// [`print`] — `Location` anchors only carry mapping data, they never add text.
+/// [`print()`] — `Location` anchors only carry mapping data, never add text.
 pub fn print_with_map(program: &Program<'_>, source: &str) -> PrintWithMap {
     print_with_map_opts(program, source, &PrintOptions::default())
 }
