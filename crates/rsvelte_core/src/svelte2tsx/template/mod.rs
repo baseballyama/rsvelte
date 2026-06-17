@@ -4944,7 +4944,16 @@ fn build_component_props_string(attributes: &[Attribute], source: &str) -> Strin
                     let (s, e) = expr_range.unwrap();
                     parts.push(format!("{},", &source[s as usize..e as usize]));
                 } else {
-                    let expr_text = get_expression_text(&bind.expression, source);
+                    // Preserve a trailing TS postfix (`bind:value={value as string}`) —
+                    // the parser narrows it out of the expression span so we must extend
+                    // manually (mirrors upstream Binding.ts using `attr.expression.end`
+                    // which includes the full TSAsExpression span).
+                    let expr_text = if let Some((s, e)) = get_expression_range(&bind.expression) {
+                        let extended = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(&bind.expression, source)
+                    };
                     parts.push(format!("{}:{},", bind.name, expr_text));
                 }
             }
@@ -5084,7 +5093,10 @@ fn build_component_props_segments(
                     segs_push_src(&mut inner, ss, se);
                     segs_push_lit(&mut inner, ")");
                 } else if let Some((s, e)) = get_expression_range(&bind.expression) {
-                    segs_push_src(&mut inner, s, e);
+                    // Preserve a trailing TS postfix (`bind:value={value as string}`)
+                    // the parser narrowed out of the expression span.
+                    let extended = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                    segs_push_src(&mut inner, s, extended);
                 } else {
                     segs_push_lit(&mut inner, get_expression_text(&bind.expression, source));
                 }
@@ -5703,15 +5715,30 @@ fn format_attribute_node_segments(
 }
 
 /// Structured-bake variant of [`format_spread_attribute`].
+/// When a trailing TS postfix is present the spread operand is parenthesised:
+/// `{...expr as T}` → `...(expr as T),` (mirrors upstream Spread.ts + paren rule).
 fn format_spread_attribute_segments(spread: &SpreadAttribute, source: &str) -> Option<Vec<Seg>> {
     let mut out = Vec::new();
-    segs_push_lit(&mut out, "...");
     if let Some((s, e)) = get_expression_range(&spread.expression) {
-        segs_push_src(&mut out, s, e);
+        let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
+        if extended > e {
+            // Has TS postfix — wrap in parens.
+            segs_push_lit(&mut out, "...(");
+            segs_push_src(&mut out, s, e);
+            // The postfix text (e.g. " as T") is a literal because it's outside
+            // the expression's AST span; include it then close the paren.
+            segs_push_lit(&mut out, &source[e as usize..extended as usize]);
+            segs_push_lit(&mut out, "),");
+        } else {
+            segs_push_lit(&mut out, "...");
+            segs_push_src(&mut out, s, e);
+            segs_push_lit(&mut out, ",");
+        }
     } else {
+        segs_push_lit(&mut out, "...");
         segs_push_lit(&mut out, get_expression_text(&spread.expression, source));
+        segs_push_lit(&mut out, ",");
     }
-    segs_push_lit(&mut out, ",");
     Some(out)
 }
 
@@ -6015,8 +6042,23 @@ fn format_slot_prop_node(node: &AttributeNode, source: &str) -> Option<String> {
     }
 }
 
-/// Format a spread attribute: `{...props}` → `...props,`
+/// Format a spread attribute: `{...expr}` → `...expr,`, or `{...expr as T}` → `...(expr as T),`.
+/// When a trailing TS postfix (`as T`, `satisfies T`, `!`) is present the
+/// spread operand must be parenthesised — `...expr as T` is a parse error in
+/// TSX, but `...(expr as T)` is valid (mirrors upstream Spread.ts slicing
+/// `[node.start+1, node.end-1]` and Element/InlineComponent context).
 fn format_spread_attribute(spread: &SpreadAttribute, source: &str) -> Option<String> {
+    if let Some((s, e)) = get_expression_range(&spread.expression) {
+        let extended = extend_expr_end_with_ts_postfix(source, e, spread.end);
+        if extended > e {
+            // Has TS postfix — wrap in parens so `...expr as T` becomes `...(expr as T)`.
+            let postfix = &source[e as usize..extended as usize];
+            let expr_text = &source[s as usize..e as usize];
+            return Some(format!("...({}{postfix}),", expr_text));
+        }
+        let expr_text = &source[s as usize..e as usize];
+        return Some(format!("...{},", expr_text));
+    }
     let expr_text = get_expression_text(&spread.expression, source);
     Some(format!("...{},", expr_text))
 }
@@ -6338,10 +6380,16 @@ fn build_directive_prefix_suffix(
     for attr in attributes {
         match attr {
             Attribute::UseDirective(use_dir) => {
-                let expr = use_dir
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source));
+                // Preserve trailing TS postfix on param expression
+                // (`use:action={params as ParamsType}` mirrors Transition.ts / Action.ts).
+                let expr = use_dir.expression.as_ref().map(|e| {
+                    if let Some((s, ex)) = get_expression_range(e) {
+                        let extended = extend_expr_end_with_ts_postfix(source, ex, use_dir.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(e, source)
+                    }
+                });
                 let id = format!("$$action_{}", action_count);
                 action_count += 1;
                 if let Some(expr_text) = expr {
@@ -6359,17 +6407,28 @@ fn build_directive_prefix_suffix(
                 }
             }
             Attribute::TransitionDirective(t) => {
-                let expr = t
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source));
+                // Preserve trailing TS postfix on param expression
+                // (`transition:fade={params as ParamsType}` mirrors Transition.ts).
+                let expr = t.expression.as_ref().map(|e| {
+                    if let Some((s, ex)) = get_expression_range(e) {
+                        let extended = extend_expr_end_with_ts_postfix(source, ex, t.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(e, source)
+                    }
+                });
                 suffix.push_str(&format_transition_directive_v4(&t.name, expr, tag));
             }
             Attribute::AnimateDirective(a) => {
-                let expr = a
-                    .expression
-                    .as_ref()
-                    .map(|e| get_expression_text(e, source));
+                // Preserve trailing TS postfix on param expression.
+                let expr = a.expression.as_ref().map(|e| {
+                    if let Some((s, ex)) = get_expression_range(e) {
+                        let extended = extend_expr_end_with_ts_postfix(source, ex, a.end);
+                        &source[s as usize..extended as usize]
+                    } else {
+                        get_expression_text(e, source)
+                    }
+                });
                 suffix.push_str(&format_animate_directive_v4(&a.name, expr, tag));
             }
             _ => {}
