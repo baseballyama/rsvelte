@@ -28,6 +28,11 @@ target
 # target in CI, staged into the matching platform package, never committed)
 /apps/npm/vite-plugin-svelte-native-*/rsvelte.node
 
+# Stray top-level npm/ dir. Published packages live under apps/npm/ — a
+# top-level npm/ only ever appears when a napi build dumps its host-platform
+# .node there (the napi-rs default `npmDir`). Never a real source dir here.
+/npm/
+
 # rsvelte-fmt platform binaries (staged into per-platform npm packages by the
 # release workflow; never committed)
 /apps/npm/fmt-*/rsvelte-fmt
