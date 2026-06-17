@@ -83,6 +83,43 @@ fn transform_with(allocator: &Allocator, expr: &str) -> Option<String> {
     Some(emit_range(expr, &collector.awaits, 0, expr.len() as u32))
 }
 
+/// Whether `expr` contains an expression-level `await` — one that is *not*
+/// nested inside a function / arrow body (those belong to a different async
+/// region). Returns `None` when `expr` doesn't parse as a standalone module,
+/// so the caller can fall back to the textual scanner.
+///
+/// Mirrors `helpers::expr_contains_await`'s nesting semantics via real AST
+/// scoping instead of a byte scan with hand-rolled `function`/`=>` body
+/// skipping. Callers should keep a cheap `memmem("await")` pre-check before
+/// calling this (parsing is only worth it when the word is actually present).
+pub(crate) fn contains_top_level_await(expr: &str) -> Option<bool> {
+    AWAIT_SAVE_ALLOC.with(|cell| {
+        let allocator = std::mem::take(&mut *cell.borrow_mut());
+        let out = contains_with(&allocator, expr);
+        *cell.borrow_mut() = allocator;
+        out
+    })
+}
+
+fn contains_with(allocator: &Allocator, expr: &str) -> Option<bool> {
+    let source_type = SourceType::ts().with_module(true);
+    let parsed = Parser::new(allocator, expr, source_type)
+        .with_options(ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        })
+        .parse();
+    if !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let mut collector = AwaitCollector {
+        function_depth: 0,
+        awaits: Vec::new(),
+    };
+    collector.visit_program(&parsed.program);
+    Some(!collector.awaits.is_empty())
+}
+
 /// Map every `await` keyword position in `expr` to the byte offset where its
 /// operand ends, derived from the parsed `AwaitExpression` spans. Returns
 /// `None` when the expression doesn't parse cleanly (caller falls back to the
@@ -201,6 +238,31 @@ impl<'a> Visit<'a> for AllAwaitCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn contains_top_level_await_basic() {
+        assert_eq!(contains_top_level_await("await foo()"), Some(true));
+        assert_eq!(contains_top_level_await("foo + bar"), Some(false));
+    }
+
+    #[test]
+    fn contains_top_level_await_ignores_nested_function() {
+        // The await belongs to a nested arrow's async region, not the top level.
+        assert_eq!(
+            contains_top_level_await("fn(async () => await inner())"),
+            Some(false)
+        );
+        // But a top-level await alongside a nested one still counts.
+        assert_eq!(
+            contains_top_level_await("await outer(async () => await inner())"),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn contains_top_level_await_unparseable_is_none() {
+        assert_eq!(contains_top_level_await("await ((("), None);
+    }
 
     #[test]
     fn ternary_consequent_await_keeps_alternate_outside_save() {
