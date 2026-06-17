@@ -1448,10 +1448,11 @@ pub fn svelte2tsx(
                 // `\ntype $$ComponentProps = ` and `;` were already added via
                 // `prepend_right`/`append_left` in `apply_props_typedef`.
                 // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
-                if let Some((s, e)) = exported_names.props_type_arg_hoist {
-                    if s < e && (e as usize) <= source.len() {
-                        str.move_range(s, e, sp);
-                    }
+                if let Some((s, e)) = exported_names.props_type_arg_hoist
+                    && s < e
+                    && (e as usize) <= source.len()
+                {
+                    str.move_range(s, e, sp);
                 }
                 // Move `$$Generic<X>`-referenced types. Mirrors the JS
                 // reference's `nodesToMove` path (`moveNode`) — uses
@@ -1660,10 +1661,11 @@ pub fn svelte2tsx(
                 // `\ntype $$ComponentProps = ` and `;` were already added via
                 // `prepend_right`/`append_left` in `apply_props_typedef`.
                 // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
-                if let Some((s, e)) = exported_names.props_type_arg_hoist {
-                    if s < e && (e as usize) <= source.len() {
-                        str.move_range(s, e, sp);
-                    }
+                if let Some((s, e)) = exported_names.props_type_arg_hoist
+                    && s < e
+                    && (e as usize) <= source.len()
+                {
+                    str.move_range(s, e, sp);
                 }
                 // Move `$$Generic<X>`-referenced types. Mirrors the JS
                 // reference's `nodesToMove` path (`moveNode`) — uses
@@ -3236,8 +3238,14 @@ fn is_snippet_module_hoistable(
     // adds the un-prefixed `name` to `disallowed_values` via
     // `addDisallowed(getAccessedStores())`, so any `$name` whose underlying
     // `name` is bound in the instance script (value OR import) also blocks.
-    for ident in lexical_identifiers_in_expressions(body_text) {
-        if params_set.contains(&ident) {
+    // Collect the snippet body's expression-context identifiers ONCE — we use
+    // `lexical_identifiers_in_expressions` (only identifiers inside `{...}`
+    // blocks) rather than the general `lexical_identifiers` to avoid false
+    // positives from HTML attribute names like `data-state` (where `state`
+    // follows a `-` and is not a JS reference). Both checks below iterate it.
+    let body_idents = lexical_identifiers_in_expressions(body_text);
+    for ident in &body_idents {
+        if params_set.contains(ident) {
             continue;
         }
         if let Some(stripped) = ident.strip_prefix('$')
@@ -3256,8 +3264,8 @@ fn is_snippet_module_hoistable(
             }
         }
 
-        if exported_names.instance_value_names.contains(&ident)
-            && !exported_names.instance_import_names.contains(&ident)
+        if exported_names.instance_value_names.contains(ident)
+            && !exported_names.instance_import_names.contains(ident)
         {
             return false;
         }
@@ -3269,21 +3277,17 @@ fn is_snippet_module_hoistable(
     // `$bindable`, etc. always land in `accessedStores`).  If any such base name `X` appears
     // as a plain identifier in the snippet body's EXPRESSION context, hoisting is blocked.
     //
-    // We use `lexical_identifiers_in_expressions` (only identifiers inside `{...}` blocks)
-    // rather than the general `lexical_identifiers` to avoid false positives from HTML
-    // attribute names like `data-state` (where `state` follows `-` and is not a JS reference).
-    //
     // E.g. `{#snippet Tree}` that contains `{#snippet child({ props })}` has `props` inside
     // a `{...}` expression block.  Meanwhile `$props()` in the instance script means `props`
     // is in `disallowed_values` (JS) / `instance_script_loose_dollar_names` (Rust). → blocked.
     if !exported_names.instance_script_loose_dollar_names.is_empty() {
-        for ident in lexical_identifiers_in_expressions(body_text) {
-            if params_set.contains(&ident) {
+        for ident in &body_idents {
+            if params_set.contains(ident) {
                 continue;
             }
             if exported_names
                 .instance_script_loose_dollar_names
-                .contains(&ident)
+                .contains(ident)
             {
                 return false;
             }
@@ -3412,8 +3416,12 @@ fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
             }
         }
         let expr_end = i.saturating_sub(1); // don't include the closing `}`
-        if expr_start < expr_end {
-            let expr_text = &text[expr_start..expr_end];
+        // `text.get(..)` rather than direct slicing: on a (parser-rejected)
+        // unterminated `{` whose body ends mid-multibyte-char, `expr_end` could
+        // land off a char boundary — fall through instead of panicking.
+        if expr_start < expr_end
+            && let Some(expr_text) = text.get(expr_start..expr_end)
+        {
             for tok in lexical_identifiers(expr_text) {
                 out.push(tok);
             }
@@ -5071,6 +5079,76 @@ fn lazy_slice_references_rune_global(slice: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
+
+    fn set(names: &[&str]) -> HashSet<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn typeof_local_value_blocks_hoist_but_import_does_not() {
+        // `typeof Button` where Button is imported → hoistable (false).
+        let imports = set(&["Button"]);
+        assert!(!type_text_typeof_references_local_value(
+            "ComponentProps<typeof Button>",
+            &set(&[]),
+            &imports,
+            &set(&[]),
+        ));
+        // `typeof localVal` where localVal is an instance-script value → block (true).
+        assert!(type_text_typeof_references_local_value(
+            "typeof localVal",
+            &set(&["localVal"]),
+            &set(&[]),
+            &set(&[]),
+        ));
+        // No `typeof` at all → false.
+        assert!(!type_text_typeof_references_local_value(
+            "{ a: string; b: number }",
+            &set(&["localVal"]),
+            &set(&[]),
+            &set(&[]),
+        ));
+        // A module-scope import via `typeof` is also hoistable (false).
+        assert!(!type_text_typeof_references_local_value(
+            "typeof ModuleThing",
+            &set(&[]),
+            &set(&[]),
+            &set(&["ModuleThing"]),
+        ));
+    }
+
+    #[test]
+    fn lexical_identifiers_in_expressions_only_reads_brace_blocks() {
+        // Identifiers inside `{...}` are returned; HTML attribute names like
+        // `data-state` (outside braces) are not — avoids false hoist-blocks.
+        let got = lexical_identifiers_in_expressions("<div data-state={open}>{value}</div>");
+        assert!(got.contains(&"open".to_string()), "{got:?}");
+        assert!(got.contains(&"value".to_string()), "{got:?}");
+        assert!(
+            !got.contains(&"state".to_string()),
+            "attr name skipped: {got:?}"
+        );
+        assert!(
+            !got.contains(&"data".to_string()),
+            "attr name skipped: {got:?}"
+        );
+        // Strings inside an expression are skipped; nested braces are balanced.
+        let got2 = lexical_identifiers_in_expressions("{ f({ a: 'literal' }) }");
+        assert!(got2.contains(&"f".to_string()), "{got2:?}");
+        assert!(got2.contains(&"a".to_string()), "{got2:?}");
+        assert!(
+            !got2.contains(&"literal".to_string()),
+            "string skipped: {got2:?}"
+        );
+    }
+
+    #[test]
+    fn lexical_identifiers_in_expressions_no_panic_on_unterminated_brace() {
+        // Defensive: an unterminated `{` ending mid-multibyte must not panic.
+        let _ = lexical_identifiers_in_expressions("{ x = \u{1F600}");
+        let _ = lexical_identifiers_in_expressions("{\u{30A2}");
+    }
 
     #[test]
     fn test_derive_component_name() {

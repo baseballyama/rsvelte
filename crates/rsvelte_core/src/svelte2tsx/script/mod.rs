@@ -5599,6 +5599,112 @@ mod tests {
     use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
     #[test]
+    fn is_ts_structural_keyword_matches_keywords_not_type_names() {
+        // Declaration / operator / control-flow keywords + primitive type
+        // keywords are structural and never user type-reference names.
+        for kw in [
+            "type",
+            "interface",
+            "keyof",
+            "infer",
+            "readonly",
+            "extends",
+            "typeof",
+            "satisfies",
+            "string",
+            "number",
+            "boolean",
+            "return",
+            "null",
+        ] {
+            assert!(is_ts_structural_keyword(kw), "{kw} should be structural");
+        }
+        // Real user-defined type/interface names must NOT be treated as keywords.
+        for name in ["Props", "InputType", "ComponentProps", "MyType", "T"] {
+            assert!(
+                !is_ts_structural_keyword(name),
+                "{name} should not be structural"
+            );
+        }
+    }
+
+    #[test]
+    fn collect_loose_dollar_names_strips_dollar_skips_comments_strings_members() {
+        // Base names of every `$X` (rune-filter intentionally NOT applied —
+        // mirrors upstream's broken `is_rune`), but skipping comments, string
+        // literals, member access, and `$$`-prefixed forms.
+        let got = collect_loose_dollar_names_from_script(
+            "let x = $state(0);\n\
+             // $commented\n\
+             const s = '$stringy';\n\
+             foo.$member;\n\
+             $$props;\n\
+             const d = $derived($state);",
+        );
+        assert!(got.contains("state"), "$state base captured: {got:?}");
+        assert!(got.contains("derived"), "$derived base captured: {got:?}");
+        assert!(!got.contains("commented"), "line comment skipped: {got:?}");
+        assert!(!got.contains("stringy"), "string literal skipped: {got:?}");
+        assert!(!got.contains("member"), "member access skipped: {got:?}");
+        assert!(!got.contains("props"), "$$-prefixed skipped: {got:?}");
+    }
+
+    #[test]
+    fn imported_props_type_hoists_nothing_above_render() {
+        // `}: ImportedProps = $props()` where `ImportedProps` is imported (not a
+        // local interface) must NOT hoist any type above `function $$render()`
+        // — upstream `analyze$propsRune`'s `interface_map.get(name)` misses an
+        // imported name, so `moveHoistableInterfaces` early-returns. Guards the
+        // `unwrap_or(false)` props-interface gate in `resolve_hoistable_type_decls`.
+        let source = "<script lang=\"ts\">\n\
+            import type { ImportedProps } from './types';\n\
+            type Local = { a: number };\n\
+            let { x }: ImportedProps = $props();\n\
+            </script>\n\
+            <div>{x}</div>";
+        let out = svelte2tsx(source, Svelte2TsxOptions::default())
+            .expect("svelte2tsx ok")
+            .code;
+        // `type Local` stays inside $$render → appears AFTER `function $$render`.
+        let render_pos = out.find("function $$render").expect("has $$render");
+        let local_pos = out.find("type Local").expect("emits Local");
+        assert!(
+            local_pos > render_pos,
+            "type Local must stay inside $$render (not hoisted above it):\n{out}"
+        );
+    }
+
+    #[test]
+    fn props_type_arg_inline_synthesises_component_props_without_imports() {
+        // `$props<{ ... }>()` type-argument form, in a component with NO import
+        // statements (exercises the no-imports branch's duplicated
+        // `props_type_arg_hoist` move_range). The inline object type is moved
+        // out to `type $$ComponentProps = …` above `function $$render()` and the
+        // call is rewritten to `$props<… $$ComponentProps …>()`.
+        let source = "<script lang=\"ts\">\n\
+            let { x } = $props<{ x: number }>();\n\
+            </script>\n\
+            <p>{x}</p>";
+        let out = svelte2tsx(source, Svelte2TsxOptions::default())
+            .expect("svelte2tsx ok")
+            .code;
+        assert!(
+            out.contains("type $$ComponentProps = { x: number }"),
+            "synthesises the alias:\n{out}"
+        );
+        let type_pos = out.find("type $$ComponentProps").unwrap();
+        let render_pos = out.find("function $$render").unwrap();
+        assert!(
+            type_pos < render_pos,
+            "alias hoisted above $$render:\n{out}"
+        );
+        assert!(
+            out.contains("$props<") && out.contains("$$ComponentProps"),
+            "call rewritten to reference the alias:\n{out}"
+        );
+    }
+
+    #[test]
     fn collect_type_body_deps_handles_multibyte_before_ident() {
         // Regression for #719: the `typeof` lookbehind sliced `&body[j - 6..j]`
         // with raw byte arithmetic, which panicked when a multibyte (CJK)

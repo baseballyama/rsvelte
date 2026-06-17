@@ -6909,6 +6909,41 @@ mod tests {
     use crate::ast::template::Fragment;
 
     #[test]
+    fn extend_expr_end_covers_trailing_ts_postfix() {
+        // The parser narrows the expression span to `val` (`expr_end` = index 4,
+        // just after `l`); `scan_end` is the directive `}`+1. The helper scans
+        // back to the `}` and, when an `as`/`satisfies`/`!` postfix sits between
+        // `expr_end` and `}`, extends the end to just before `}`.
+
+        // `{val as T}` → end at index 9 (the `}`), covering ` as T`.
+        let src = "{val as T}";
+        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 9);
+
+        // `{val!}` → non-null `!` absorbed, end at index 5 (the `}`).
+        let src = "{val!}";
+        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 5);
+
+        // `{val satisfies T}` → `satisfies T` absorbed.
+        let src = "{val satisfies T}";
+        assert_eq!(
+            extend_expr_end_with_ts_postfix(src, 4, src.len() as u32),
+            16
+        );
+
+        // `{val}` → no postfix, end unchanged.
+        let src = "{val}";
+        assert_eq!(extend_expr_end_with_ts_postfix(src, 4, src.len() as u32), 4);
+
+        // `as { x: T }` — braces inside the cast type don't confuse the close
+        // scan (it stops at the OUTER `}` nearest `scan_end`).
+        let src = "{val as {x: T}}";
+        assert_eq!(
+            extend_expr_end_with_ts_postfix(src, 4, src.len() as u32),
+            14
+        );
+    }
+
+    #[test]
     fn test_process_empty_template() {
         let fragment = Fragment::default();
         let options = Svelte2TsxOptions::default();
