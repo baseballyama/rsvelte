@@ -167,11 +167,17 @@ fn collect_node_edits(
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
                 trim_trailing_ws_before_close_brace(source, effective_end, edits);
+                // Expand an inline-empty body `{#if cond} {/if}` →
+                // `{#if cond}\n\n{/if}` (prettier-plugin-svelte's behaviour for
+                // invalid empty blocks). When the body already has a newline, the
+                // indent pass's `empty_forced_body` logic handles it instead.
+                expand_inline_empty_block_body(&current.consequent, depth, options, edits);
                 collect_template_edits(source, &current.consequent, child_depth, options, edits)?;
                 match &current.alternate {
                     Some(alt) => match crate::indent::else_if_branch(alt) {
                         Some(chained) => current = chained,
                         None => {
+                            expand_inline_empty_block_body(alt, depth, options, edits);
                             collect_template_edits(source, alt, child_depth, options, edits)?;
                             break;
                         }
@@ -398,6 +404,8 @@ fn collect_node_edits(
             let effective_end = push_bare_expression(source, &blk.expression, options, edits)?;
             // Trim `{#key expr }` → `{#key expr}`.
             trim_trailing_ws_before_close_brace(source, effective_end, edits);
+            // Expand inline-empty body `{#key expr} {/key}` → blank-line form.
+            expand_inline_empty_block_body(&blk.fragment, depth, options, edits);
             collect_template_edits(source, &blk.fragment, child_depth, options, edits)?;
         }
         TemplateNode::SnippetBlock(blk) => {
@@ -729,6 +737,53 @@ fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<
     if widened { Some((start, end)) } else { None }
 }
 
+/// If `frag` is a block body that contains ONLY inline-whitespace (no newline)
+/// text nodes — e.g. `{#if true} {/if}` — expand each such text node to a blank
+/// line (`\n\n{parent_indent}`) so the output becomes:
+/// ```text
+/// {#if true}
+///
+/// {/if}
+/// ```
+/// This mirrors prettier-plugin-svelte's behaviour for "invalid empty" blocks.
+/// The `depth` is the block's nesting depth (the body renders at `depth + 1`);
+/// `parent_indent` is the indent for the closing tag line.
+///
+/// Only fires when the fragment consists SOLELY of whitespace-only text nodes
+/// with no newline — i.e. the source had an inline empty body (`{#if} {/if}`).
+/// A block that already has a newline in the body text is handled by the
+/// indent pass's `empty_forced_body` logic instead.
+fn expand_inline_empty_block_body(
+    frag: &rsvelte_core::ast::template::Fragment,
+    depth: usize,
+    options: &crate::options::FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    // Only act when EVERY node is a whitespace-only text without a newline.
+    let all_inline_ws = frag.nodes.iter().all(|n| {
+        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
+            if t.data.trim().is_empty() && !t.data.contains('\n'))
+    });
+    if !all_inline_ws || frag.nodes.is_empty() {
+        return;
+    }
+    let parent_indent = if depth == 0 {
+        String::new()
+    } else {
+        let indent_width = options.js.indent_width.value() as usize;
+        if options.js.indent_style.is_tab() {
+            "\t".repeat(depth)
+        } else {
+            " ".repeat(depth * indent_width)
+        }
+    };
+    for node in &frag.nodes {
+        if let rsvelte_core::ast::template::TemplateNode::Text(t) = node {
+            edits.push((t.start, t.end, format!("\n\n{parent_indent}")));
+        }
+    }
+}
+
 /// Returns `true` when the pending fragment of an `{#await}` block is **present**
 /// but contains only whitespace — i.e., the block was written in the expanded form
 /// `{#await expr}\n{:then value}` with nothing between the headers.
@@ -1017,16 +1072,28 @@ pub(crate) fn format_directive_value_extra(
     if inner.is_empty() {
         return Ok(None);
     }
+    // When the brace interior starts with a `/* … */` block comment, the
+    // comment would be silently dropped by OXC's parser+formatter (OXC
+    // attaches the comment to the AST but does not always re-emit it).
+    // Prettier-plugin-svelte preserves the comment verbatim in such cases,
+    // so we return the raw source slice unchanged rather than formatting it.
+    if inner.starts_with("/*") {
+        return Ok(Some(inner.to_string()));
+    }
     Ok(Some(format_attribute_value_expression(
         inner, options, attr_depth, extra,
     )?))
 }
 
 /// Locate a directive value's `{ … }` braces and return the raw inner source.
-/// The opening brace is found by a whitespace-only back-scan from the
+/// The opening brace is found by a whitespace-and-comment back-scan from the
 /// expression start; the closing brace is the byte just before `value_end`
 /// (the directive node's `end`). Returns `None` when the braces can't be
 /// located (e.g. a shorthand `bind:value` with no value).
+///
+/// The back-scan skips `/* … */` block comments so that a leading comment
+/// like `bind:value={/** ( */ expr}` is correctly included in the returned
+/// inner source rather than causing `None` to be returned (#Bug-D).
 fn directive_brace_inner<'a>(
     source: &'a str,
     expr: &Expression,
@@ -1042,7 +1109,9 @@ fn directive_brace_inner<'a>(
     }
     let close = end - 1;
 
-    // Opening brace: whitespace-only back-scan from the expression start.
+    // Opening brace: whitespace-and-block-comment back-scan from the expression
+    // start.  This handles cases like `bind:value={/** ( */ expr}` where a
+    // leading `/* … */` comment sits between the `{` and the expression node.
     let mut open = None;
     let mut i = expr_start as usize;
     while i > 0 {
@@ -1052,6 +1121,28 @@ fn directive_brace_inner<'a>(
             b'{' => {
                 open = Some(i);
                 break;
+            }
+            // Skip over a `/* … */` block comment by scanning backward to the
+            // matching `/*`.  If we find `*/` at position i, scan leftward for
+            // `/*`.
+            b'/' if i > 0 && bytes.get(i.wrapping_sub(1)) == Some(&b'*') => {
+                // We are at the `/` of `*/`; move to the `*`.
+                i -= 1; // now at `*` of `*/`
+                // Scan backward until we find `/*`.
+                loop {
+                    if i < 2 {
+                        break;
+                    }
+                    i -= 1;
+                    if bytes[i] == b'*' && bytes.get(i.wrapping_sub(1)) == Some(&b'/') {
+                        i -= 1; // now at the `/` of `/*`
+                        break;
+                    }
+                }
+                // `i` is now at the `/` of `/*` (or we hit the start of string).
+                // Continue the outer loop which will decrement `i` again, skipping
+                // the `/*` open.
+                continue;
             }
             _ => break,
         }
@@ -1101,6 +1192,12 @@ pub(crate) fn format_function_binding(
     };
     let inner = inner.trim();
     if inner.is_empty() {
+        return Ok(None);
+    }
+    // When the brace interior has a leading `/* … */` comment, fall back to
+    // `None` so the caller uses the normal directive-value path (which now also
+    // returns the raw source for leading-comment values via `format_directive_value_extra`).
+    if inner.starts_with("/*") {
         return Ok(None);
     }
 
@@ -1213,13 +1310,69 @@ fn format_expr_core(
     single_line: bool,
 ) -> Result<String, FormatError> {
     let allocator = Allocator::default();
-    let source_type = if options.typescript {
-        SourceType::ts()
+
+    // The wrapper and source type used to parse the expression snippet vary
+    // depending on whether the file is TypeScript and whether the expression
+    // contains `await`:
+    //
+    // Case A — TypeScript + contains `await`:
+    //   Use `const _rsvelte_x_ = (expr);` with `SourceType::ts().with_module(true)`.
+    //
+    //   `with_module(true)` is required so `await` is always a keyword: in
+    //   `Unambiguous` mode a snippet without `import`/`export` is classified as
+    //   a Script where `await` is a regular identifier, so `await(expr)` would
+    //   be emitted as a call expression instead of an await expression.
+    //
+    //   The `const` wrapper (instead of `(expr);`) prevents OXC from wrapping
+    //   a nested-await member expression across multiple lines.  When the same
+    //   expression appears as a top-level expression statement, OXC breaks the
+    //   member chain (`(await (await a.nested).one);` → multi-line); as a
+    //   `const` initializer OXC keeps it inline.  The const wrapper is ONLY
+    //   used when `await` is present, so that the `+20` line-width compensation
+    //   (see below) is not applied to non-await expressions that have nested
+    //   multi-line content (e.g., object literals with long string properties)
+    //   where the compensation would prevent correct inner property breaking.
+    //
+    //   The const-wrapper prefix is exactly 20 characters (`const _rsvelte_x_ = `).
+    //   We pass `line_width + 20` to the formatter so OXC's break decision is
+    //   based on `len(expr)` rather than `20 + len(expr)`.  This compensation
+    //   is accurate for single-line expressions (the await case) but would
+    //   over-compensate for objects/arrays with continuation lines — which is
+    //   why it is only applied when the expression contains `await`.
+    //
+    // Case B — TypeScript, no `await`:
+    //   Use `(expr);` with `SourceType::ts().with_module(true)`.
+    //   `with_module(true)` ensures consistent TS parsing (e.g., type casts),
+    //   but since there is no `await` the expression statement wrapper doesn't
+    //   cause the multi-line wrapping problem, so no const wrapper is needed.
+    //
+    // Case C — JavaScript:
+    //   Use `(expr);` with `SourceType::default()` (Unambiguous).
+    //   JavaScript template expressions cannot contain `await` as a keyword
+    //   (template tags are synchronous), so no special handling is needed.
+    const TS_CONST_PREFIX: &str = "const _rsvelte_x_ = ";
+    // TS_CONST_PREFIX.len() == 20
+    const TS_CONST_PREFIX_LEN: u16 = 20;
+
+    let expr_has_await = options.typescript && expr_source.contains("await");
+
+    let (wrapped, source_type, use_const_wrapper) = if expr_has_await {
+        // Case A: TS + await — use const wrapper to avoid multi-line breaking
+        let wrapped = format!("{TS_CONST_PREFIX}({expr_source});");
+        let source_type = SourceType::ts().with_module(true);
+        (wrapped, source_type, true)
+    } else if options.typescript {
+        // Case B: TS, no await — plain paren wrapper, still ESM for consistency
+        let wrapped = format!("({expr_source});");
+        let source_type = SourceType::ts().with_module(true);
+        (wrapped, source_type, false)
     } else {
-        SourceType::default()
+        // Case C: JS
+        let wrapped = format!("({expr_source});");
+        let source_type = SourceType::default();
+        (wrapped, source_type, false)
     };
 
-    let wrapped = format!("({expr_source});");
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
@@ -1230,21 +1383,34 @@ fn format_expr_core(
         )));
     }
 
-    // Detect a top-level sequence (comma) expression before `program` is
-    // borrowed by `format_program`. oxc_formatter intentionally re-adds the
-    // outer parens of a top-level `SequenceExpression` (its `NeedsParentheses`
-    // impl returns true for an `ExpressionStatement` parent), and
-    // prettier-plugin-svelte keeps them — so `{((a = 1), '')}` must stay
-    // parenthesized. Stripping them below would wrongly emit `{(a = 1), ''}`
-    // (#799). Every other expression keeps the normal outer-paren strip.
-    let is_top_sequence = matches!(
-        parser_ret.program.body.first(),
-        Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
-            if matches!(stmt.expression, oxc_ast::ast::Expression::SequenceExpression(_))
-    );
+    // Detect a top-level sequence (comma) expression — only needed for the JS
+    // `(expr);` wrapper.  For the TS const wrapper, OXC naturally keeps the
+    // parens that make a sequence expression valid in a const initializer
+    // (`const _rsvelte_x_ = (a, b);`), so no extra detection is required.
+    //
+    // For the JS wrapper, oxc_formatter intentionally re-adds the outer parens
+    // of a top-level `SequenceExpression` (its `NeedsParentheses` impl returns
+    // true for an `ExpressionStatement` parent), and prettier-plugin-svelte
+    // keeps them — so `{((a = 1), '')}` must stay parenthesized. Stripping
+    // them below would wrongly emit `{(a = 1), ''}` (#799).
+    let is_top_sequence = !use_const_wrapper
+        && matches!(
+            parser_ret.program.body.first(),
+            Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+                if matches!(stmt.expression, oxc_ast::ast::Expression::SequenceExpression(_))
+        );
 
     let mut js = options.js.clone();
-    js.line_width = line_width;
+    // Compensate for the const-wrapper prefix: tell OXC the line is `prefix_len`
+    // characters wider than the target so its break decision is based on the
+    // expression length alone.
+    if use_const_wrapper {
+        let lw = line_width.value().saturating_add(TS_CONST_PREFIX_LEN);
+        js.line_width =
+            oxc_formatter_core::LineWidth::try_from(lw).unwrap_or(options.js.line_width);
+    } else {
+        js.line_width = line_width;
+    }
     if single_line {
         js.expand = oxc_formatter::Expand::Never;
     }
@@ -1254,23 +1420,87 @@ fn format_expr_core(
         .into_code();
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
-    // prettier-plugin-svelte keeps exactly ONE set of outer parens around a
-    // top-level sequence (comma) expression in both mustache/attribute values
-    // AND block headers (`{#if (a, b)}`). Normalise to exactly one pair by
-    // stripping all redundant outer pairs then re-wrapping once. (#799)
-    if is_top_sequence {
-        let mut inner = s.trim();
-        loop {
-            let stripped = strip_outer_parens(inner).trim();
-            if stripped == inner {
-                break;
-            }
-            inner = stripped;
+
+    let result = if use_const_wrapper {
+        // Strip the `const _rsvelte_x_ = ` prefix that was added as a wrapper.
+        // OXC may strip the inner parens we added (e.g. `(expr)` → `expr`) or
+        // keep them when needed for disambiguation (e.g. sequence expressions
+        // `(a, b)` stay parenthesized inside a const initializer).
+        //
+        // Two cases depending on whether OXC kept the expression inline:
+        //
+        // Inline: `const _rsvelte_x_ = expr` → strip the `prefix ` (with space).
+        //
+        // Multiline: `const _rsvelte_x_ =\n  firstLine\n  continuation`
+        //   → strip `const _rsvelte_x_ =\n` and trim leading whitespace from the
+        //   first continuation line (OXC indents at 2 spaces), yielding
+        //   `firstLine\n  continuation` — the same shape the old `(expr);` wrapper
+        //   produced after outer-paren stripping.
+        if let Some(rest) = s.strip_prefix(TS_CONST_PREFIX) {
+            // Inline case: `const _rsvelte_x_ = expr`
+            rest.to_string()
+        } else if let Some(rest) = s.strip_prefix("const _rsvelte_x_ =\n") {
+            // Multiline case: value on next line(s), indented by OXC
+            rest.trim_start().to_string()
+        } else {
+            // Fallback (shouldn't occur): return unchanged
+            s.to_string()
         }
-        Ok(format!("({inner})"))
     } else {
-        Ok(strip_outer_parens(s).trim().to_string())
+        // prettier-plugin-svelte keeps exactly ONE set of outer parens around a
+        // top-level sequence (comma) expression in both mustache/attribute values
+        // AND block headers (`{#if (a, b)}`). Normalise to exactly one pair by
+        // stripping all redundant outer pairs then re-wrapping once. (#799)
+        if is_top_sequence {
+            let mut inner = s.trim();
+            loop {
+                let stripped = strip_outer_parens(inner).trim();
+                if stripped == inner {
+                    break;
+                }
+                inner = stripped;
+            }
+            format!("({inner})")
+        } else {
+            strip_outer_parens(s).trim().to_string()
+        }
+    };
+    // OXC (0.136) omits the space after the `await` keyword when the argument
+    // is a parenthesized expression — e.g. `await(expr)` instead of the
+    // canonical `await (expr)`. Prettier / oxfmt always emit a space after
+    // `await`, so insert one where it's missing.  We only fix `await(` since
+    // `await` is a reserved keyword in async contexts; it cannot be a plain
+    // function name in Svelte template expressions.
+    let result = insert_await_space(&result);
+    Ok(result)
+}
+
+/// Insert a space between the `await` keyword and a following `(` when the
+/// OXC formatter omitted it.  Walks the string and replaces every `await(`
+/// sequence (where `await` is preceded by a word boundary) with `await (`.
+fn insert_await_space(s: &str) -> String {
+    if !s.contains("await(") {
+        return s.to_string();
     }
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(s.len() + 4);
+    let mut i = 0;
+    while i < bytes.len() {
+        // Look for the pattern `await(` where `await` is not preceded by an
+        // identifier character (so we don't match `notawait(`).
+        if i + 6 <= bytes.len()
+            && &bytes[i..i + 6] == b"await("
+            && (i == 0
+                || !matches!(bytes[i - 1], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$'))
+        {
+            out.push_str("await (");
+            i += 6;
+        } else {
+            out.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    out
 }
 
 /// Format an attribute / directive value expression (`bind:value={ … }`) at

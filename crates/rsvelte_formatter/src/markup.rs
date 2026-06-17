@@ -1538,8 +1538,24 @@ fn render_spread(
     options: &FormatOptions,
     attr_depth: usize,
 ) -> Result<String, FormatError> {
-    let inner =
-        format_expression_at(source, &spread.expression, options, attr_depth)?.unwrap_or_default();
+    // Read the raw source between `{...` and `}` so that a TypeScript cast
+    // like `{...restProps as any}` is preserved verbatim — the parser narrows
+    // the expression span down to just the identifier, silently dropping `as T`.
+    // This mirrors the `format_directive_value` approach for directive TS casts
+    // (#682).  Fall back to the AST-expression path when the source braces can't
+    // be located.
+    let raw_inner = source
+        .get(spread.start as usize..spread.end as usize)
+        .and_then(|s| {
+            // Strip leading `{...` (4 bytes) and trailing `}` (1 byte).
+            s.strip_prefix("{...").and_then(|s| s.strip_suffix('}'))
+        })
+        .map(str::trim);
+    let inner = if let Some(raw) = raw_inner.filter(|s| !s.is_empty()) {
+        crate::expression::format_attribute_value_expression(raw, options, attr_depth, 0)?
+    } else {
+        format_expression_at(source, &spread.expression, options, attr_depth)?.unwrap_or_default()
+    };
     Ok(format!("{{...{inner}}}"))
 }
 
