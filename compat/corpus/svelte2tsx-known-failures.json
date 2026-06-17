@@ -1,5 +1,4 @@
 [
-	"bits-ui/docs/src/routes/(docs)/sink/combobox.svelte",
 	"bits-ui/packages/bits-ui/src/lib/bits/command/components/command.svelte",
 	"flowbite-svelte/src/lib/forms/radio/Radio.svelte",
 	"flowbite-svelte/src/lib/forms/radio/RadioButton.svelte",
@@ -16,7 +15,6 @@
 	"melt-ui/docs/src/previews/tabs.svelte",
 	"shadcn-svelte/docs/src/lib/registry/blocks/dashboard-01/components/data-table.svelte",
 	"shadcn-svelte/docs/src/lib/registry/blocks/sidebar-11/components/app-sidebar.svelte",
-	"shadcn-svelte/docs/src/lib/registry/ui/input/input.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/remove-blocks-whitespace/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",

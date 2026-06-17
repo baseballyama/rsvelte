@@ -2051,6 +2051,16 @@ fn collect_type_body_deps(
             if ident == self_name || generics.contains(ident) {
                 continue;
             }
+            // TypeScript / JS structural keywords (e.g. the `type` in
+            // `type X = …`) can never be type-reference identifiers, so skip
+            // them. Without this, a user binding named `type` (from e.g.
+            // `let { type, ...}: Props = $props()`) would appear in
+            // `instance_value_names` and the text-scanner would wrongly flag
+            // the `type` keyword in `type InputType = …` as a value_dep,
+            // blocking hoisting of `InputType` and transitively `Props`.
+            if is_ts_structural_keyword(ident) {
+                continue;
+            }
             // `typeof <ident>` lookbehind.
             let mut j = start;
             while j > 0 && matches!(bytes[j - 1], b' ' | b'\t' | b'\r' | b'\n') {
@@ -2096,6 +2106,97 @@ fn collect_type_body_deps(
         i += 1;
     }
     (value_deps, type_deps)
+}
+
+/// Returns `true` for TypeScript / JavaScript reserved keywords that can
+/// never be a user-defined type-reference or value-reference in the sense
+/// tracked by `collect_type_body_deps`. Mirrors what the TypeScript compiler
+/// does implicitly: when it walks the AST, only `TypeReferenceNode` and
+/// `TypeQueryNode` nodes contribute to deps; syntactic keyword tokens
+/// (`type`, `interface`, `keyof`, etc.) are never `TypeReferenceNode`s.
+///
+/// Without this guard a destructured binding named `type` (e.g.
+/// `let { type, ... }: Props = $props()`) ends up in `instance_value_names`
+/// and the text scanner — which can't distinguish the `type` keyword in
+/// `type InputType = Exclude<…>` from a reference to the binding — wrongly
+/// flags `InputType` (and transitively `Props`) as non-hoistable.
+#[inline]
+fn is_ts_structural_keyword(ident: &str) -> bool {
+    matches!(
+        ident,
+        // Declaration-header keywords that are syntactic, never type-refs.
+        "type"
+            | "interface"
+            | "enum"
+            | "namespace"
+            | "module"
+            | "declare"
+            | "abstract"
+            | "export"
+            | "import"
+            // Type-operator keywords.
+            | "keyof"
+            | "infer"
+            | "readonly"
+            | "unique"
+            | "is"
+            | "asserts"
+            | "satisfies"
+            // Control-flow / statement keywords — can't be type-ref identifiers.
+            | "extends"
+            | "implements"
+            | "new"
+            | "typeof"
+            | "instanceof"
+            | "void"
+            | "in"
+            | "of"
+            | "as"
+            | "from"
+            | "let"
+            | "const"
+            | "var"
+            | "function"
+            | "class"
+            | "return"
+            | "if"
+            | "else"
+            | "for"
+            | "while"
+            | "do"
+            | "switch"
+            | "case"
+            | "break"
+            | "continue"
+            | "try"
+            | "catch"
+            | "finally"
+            | "throw"
+            | "delete"
+            | "await"
+            | "async"
+            | "yield"
+            | "with"
+            | "static"
+            | "get"
+            | "set"
+            | "super"
+            | "this"
+            // Primitive/built-in type keywords (not user-defined names).
+            | "any"
+            | "unknown"
+            | "never"
+            | "object"
+            | "string"
+            | "number"
+            | "boolean"
+            | "symbol"
+            | "bigint"
+            | "null"
+            | "undefined"
+            | "true"
+            | "false"
+    )
 }
 
 #[inline]
