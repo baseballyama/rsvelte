@@ -171,10 +171,15 @@ fn expr_precedence(expr: &Expression) -> u8 {
         Expression::UpdateExpression(_) => 16,
         Expression::UnaryExpression(_) => 15,
         Expression::BinaryExpression(_) => 14,
+        // `as`/`satisfies` sit between binary and logical operators.
+        Expression::TSAsExpression(_) | Expression::TSSatisfiesExpression(_) => 13,
         Expression::LogicalExpression(_) => 12,
         Expression::ConditionalExpression(_) => 4,
         Expression::ArrowFunctionExpression(_) | Expression::AssignmentExpression(_) => 3,
         Expression::YieldExpression(_) => 2,
+        Expression::TSInstantiationExpression(_)
+        | Expression::TSNonNullExpression(_)
+        | Expression::TSTypeAssertion(_) => 18,
         // Parenthesised wrappers are unwrapped before precedence is consulted.
         Expression::ParenthesizedExpression(_) => 20,
         _ => 18,
@@ -210,6 +215,17 @@ fn binary_needs_parens(
     is_right: bool,
 ) -> bool {
     let parent_precedence = if parent_is_logical { 12 } else { 14 };
+
+    // A left-hand `as`/`satisfies` child only needs parens when the parent
+    // operator would otherwise swallow the trailing type (`**`, `&`, `|`).
+    if !is_right
+        && matches!(
+            child,
+            Expression::TSAsExpression(_) | Expression::TSSatisfiesExpression(_)
+        )
+    {
+        return parent_op == "**" || parent_op == "&" || parent_op == "|";
+    }
 
     // `??` cannot be mixed with `||`/`&&` without parentheses.
     if parent_is_logical && let Expression::LogicalExpression(c) = child {
@@ -269,6 +285,10 @@ fn arrow_concise_body_needs_wrap(body: &Expression) -> bool {
         Expression::ConditionalExpression(c) => {
             matches!(c.test, Expression::ObjectExpression(_))
         }
+        // `as` / `satisfies` / `!` don't change the leftmost token, so recurse.
+        Expression::TSAsExpression(e) => arrow_concise_body_needs_wrap(&e.expression),
+        Expression::TSSatisfiesExpression(e) => arrow_concise_body_needs_wrap(&e.expression),
+        Expression::TSNonNullExpression(e) => arrow_concise_body_needs_wrap(&e.expression),
         _ => false,
     }
 }
@@ -707,7 +727,11 @@ impl<'opt> Printer<'opt> {
                 ctx.write(");");
             }
             Statement::ExportAllDeclaration(s) => {
-                ctx.write("export *");
+                if matches!(s.export_kind, ImportOrExportKind::Type) {
+                    ctx.write("export type *");
+                } else {
+                    ctx.write("export *");
+                }
                 if let Some(exported) = &s.exported {
                     ctx.write(" as ");
                     ctx.write(module_export_name_str(exported));
@@ -762,7 +786,22 @@ impl<'opt> Printer<'opt> {
                 Some(l) => ctx.write(format!("continue {};", l.name)),
                 None => ctx.write("continue;"),
             },
-            other => self.unsupported(statement_kind(other), ctx),
+            Statement::TSTypeAliasDeclaration(d) => self.type_alias_declaration(d, ctx),
+            Statement::TSInterfaceDeclaration(d) => self.interface_declaration(d, ctx),
+            Statement::TSEnumDeclaration(d) => self.enum_declaration(d, ctx),
+            Statement::TSModuleDeclaration(d) => self.module_declaration(d, ctx),
+            Statement::TSGlobalDeclaration(d) => self.global_declaration(d, ctx),
+            Statement::TSImportEqualsDeclaration(d) => self.import_equals_declaration(d, ctx),
+            Statement::TSExportAssignment(d) => {
+                ctx.write("export = ");
+                self.print_expression(&d.expression, ctx);
+                ctx.write(";");
+            }
+            Statement::TSNamespaceExportDeclaration(d) => {
+                ctx.write("export as namespace ");
+                ctx.write(d.id.name.as_str());
+                ctx.write(";");
+            }
         }
     }
 
@@ -773,6 +812,8 @@ impl<'opt> Printer<'opt> {
             ctx.write(";");
             return;
         }
+
+        let import_type = matches!(node.import_kind, ImportOrExportKind::Type);
 
         let mut default_spec = None;
         let mut namespace_spec = None;
@@ -786,6 +827,9 @@ impl<'opt> Printer<'opt> {
         }
 
         ctx.write("import ");
+        if import_type {
+            ctx.write("type ");
+        }
         if let Some(d) = default_spec {
             ctx.write(d.local.name.as_str());
             if namespace_spec.is_some() || !named.is_empty() {
@@ -843,6 +887,9 @@ impl<'opt> Printer<'opt> {
     }
 
     fn import_specifier(&mut self, node: &ImportSpecifier, ctx: &mut Context) {
+        if matches!(node.import_kind, ImportOrExportKind::Type) {
+            ctx.write("type ");
+        }
         // esrap only emits the `imported as local` form when both sides are
         // identifiers whose names differ; otherwise just the local binding.
         let imported = match &node.imported {
@@ -861,12 +908,27 @@ impl<'opt> Printer<'opt> {
 
     fn export_named_declaration(&mut self, node: &ExportNamedDeclaration, ctx: &mut Context) {
         if let Some(decl) = &node.declaration {
+            // A class declaration's decorators are printed *before* `export`.
+            if let Declaration::ClassDeclaration(c) = decl
+                && !c.decorators.is_empty()
+            {
+                for decorator in &c.decorators {
+                    self.decorator(decorator, ctx);
+                }
+                ctx.write("export ");
+                self.class_node_no_decorators(c, ctx);
+                return;
+            }
             ctx.write("export ");
             self.declaration(decl, ctx);
             return;
         }
 
-        ctx.write("export {");
+        ctx.write("export ");
+        if matches!(node.export_kind, ImportOrExportKind::Type) {
+            ctx.write("type ");
+        }
+        ctx.write("{");
         let nodes: Vec<SeqNode> = node
             .specifiers
             .iter()
@@ -900,6 +962,9 @@ impl<'opt> Printer<'opt> {
                 self.function(f, ctx);
             }
             ExportDefaultDeclarationKind::ClassDeclaration(c) => self.class_node(c, ctx),
+            ExportDefaultDeclarationKind::TSInterfaceDeclaration(d) => {
+                self.interface_declaration(d, ctx)
+            }
             other => {
                 if let Some(expr) = other.as_expression() {
                     self.print_expression(expr, ctx);
@@ -934,6 +999,9 @@ impl<'opt> Printer<'opt> {
     }
 
     fn export_specifier(&mut self, node: &ExportSpecifier, ctx: &mut Context) {
+        if matches!(node.export_kind, ImportOrExportKind::Type) {
+            ctx.write("type ");
+        }
         let local = module_export_name_str(&node.local);
         let exported = module_export_name_str(&node.exported);
         ctx.write(local);
@@ -953,13 +1021,21 @@ impl<'opt> Printer<'opt> {
             }
             Declaration::FunctionDeclaration(f) => self.function(f, ctx),
             Declaration::ClassDeclaration(c) => self.class_node(c, ctx),
-            _ => self.unsupported("Declaration", ctx),
+            Declaration::TSTypeAliasDeclaration(d) => self.type_alias_declaration(d, ctx),
+            Declaration::TSInterfaceDeclaration(d) => self.interface_declaration(d, ctx),
+            Declaration::TSEnumDeclaration(d) => self.enum_declaration(d, ctx),
+            Declaration::TSModuleDeclaration(d) => self.module_declaration(d, ctx),
+            Declaration::TSGlobalDeclaration(d) => self.global_declaration(d, ctx),
+            Declaration::TSImportEqualsDeclaration(d) => self.import_equals_declaration(d, ctx),
         }
     }
 
     /// esrap's `FunctionDeclaration|FunctionExpression`:
     /// `[async ]function[* ] id(params) { body }`.
     fn function(&mut self, node: &Function, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
         if node.r#async {
             ctx.write("async ");
         }
@@ -971,32 +1047,92 @@ impl<'opt> Printer<'opt> {
         if let Some(id) = &node.id {
             ctx.write(id.name.as_str());
         }
+        if let Some(tp) = &node.type_parameters {
+            self.type_parameter_declaration(tp, ctx);
+        }
         ctx.write("(");
-        self.formal_parameters(&node.params, ctx);
+        self.formal_parameters_with_this(&node.params, node.this_param.as_deref(), ctx);
         ctx.write(")");
-        ctx.write(" ");
+        if let Some(rt) = &node.return_type {
+            self.type_annotation(rt, ctx);
+        }
+        // A `declare function`/overload has no body — esrap emits `;`.
         match &node.body {
             Some(body) => {
+                ctx.write(" ");
                 let span = body.span();
                 self.block(&body.statements, span.start, span.end, ctx);
             }
-            None => ctx.write("{}"),
+            None => ctx.write(";"),
         }
     }
 
     /// esrap's `ClassDeclaration|ClassExpression`: `class [id ][extends sup ]{…}`.
     fn class_node(&mut self, node: &Class, ctx: &mut Context) {
+        for decorator in &node.decorators {
+            self.decorator(decorator, ctx);
+        }
+        self.class_node_no_decorators(node, ctx);
+    }
+
+    /// The class body sans leading decorators (already emitted by the caller —
+    /// e.g. `export @dec class`, which prints decorators before `export`).
+    fn class_node_no_decorators(&mut self, node: &Class, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
+        if node.r#abstract {
+            ctx.write("abstract ");
+        }
         ctx.write("class ");
         if let Some(id) = &node.id {
             ctx.write(id.name.as_str());
+            if let Some(tp) = &node.type_parameters {
+                self.type_parameter_declaration(tp, ctx);
+            }
+            ctx.write(" ");
+        } else if let Some(tp) = &node.type_parameters {
+            self.type_parameter_declaration(tp, ctx);
             ctx.write(" ");
         }
         if let Some(super_class) = &node.super_class {
             ctx.write("extends ");
             self.child_with_parens(super_class, 19, ctx);
+            if let Some(ta) = &node.super_type_arguments {
+                self.type_parameter_instantiation(ta, ctx);
+            }
             ctx.write(" ");
         }
+        if !node.implements.is_empty() {
+            ctx.write("implements");
+            let nodes: Vec<SeqNode> = node
+                .implements
+                .iter()
+                .map(|imp| {
+                    let span = imp.span();
+                    SeqNode {
+                        start: Some(span.start),
+                        end: Some(span.end),
+                        obj_or_array: false,
+                        is_elision: false,
+                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                            p.print_type_name(&imp.expression, child);
+                            if let Some(ta) = &imp.type_arguments {
+                                p.type_parameter_instantiation(ta, child);
+                            }
+                        }),
+                    }
+                })
+                .collect();
+            self.sequence(nodes, Some(node.body.span().start), true, ",", true, ctx);
+        }
         self.class_body(&node.body, ctx);
+    }
+
+    fn decorator(&mut self, node: &Decorator, ctx: &mut Context) {
+        ctx.write("@");
+        self.print_expression(&node.expression, ctx);
+        ctx.newline();
     }
 
     /// esrap's `BlockStatement|ClassBody`: route class members through the shared
@@ -1034,6 +1170,7 @@ impl<'opt> Printer<'opt> {
         match element {
             ClassElement::MethodDefinition(m) => self.method_definition(m, ctx),
             ClassElement::PropertyDefinition(p) => self.property_definition(p, ctx),
+            ClassElement::AccessorProperty(a) => self.accessor_property(a, ctx),
             ClassElement::StaticBlock(b) => {
                 ctx.write("static ");
                 let span = b.span();
@@ -1044,6 +1181,21 @@ impl<'opt> Printer<'opt> {
     }
 
     fn method_definition(&mut self, node: &MethodDefinition, ctx: &mut Context) {
+        for decorator in &node.decorators {
+            self.decorator(decorator, ctx);
+        }
+        if matches!(
+            node.r#type,
+            MethodDefinitionType::TSAbstractMethodDefinition
+        ) {
+            ctx.write("abstract ");
+        }
+        if let Some(acc) = &node.accessibility {
+            ctx.write(format!("{} ", accessibility_str(acc)));
+        }
+        if node.r#override {
+            ctx.write("override ");
+        }
         if node.r#static {
             ctx.write("static ");
         }
@@ -1065,22 +1217,51 @@ impl<'opt> Printer<'opt> {
         } else {
             self.property_key(&node.key, ctx);
         }
+        if node.optional {
+            ctx.write("?");
+        }
+        if let Some(tp) = &node.value.type_parameters {
+            self.type_parameter_declaration(tp, ctx);
+        }
         ctx.write("(");
         self.formal_parameters(&node.value.params, ctx);
         ctx.write(")");
+        if let Some(rt) = &node.value.return_type {
+            self.type_annotation(rt, ctx);
+        }
         ctx.write(" ");
-        match &node.value.body {
-            Some(body) => {
-                let span = body.span();
-                self.block(&body.statements, span.start, span.end, ctx);
-            }
-            None => ctx.write("{}"),
+        // esrap: an abstract method has no body — it emits only the trailing
+        // space from `context.write(' ')`, leaving `abstract get a() `.
+        if let Some(body) = &node.value.body {
+            let span = body.span();
+            self.block(&body.statements, span.start, span.end, ctx);
         }
     }
 
     fn property_definition(&mut self, node: &PropertyDefinition, ctx: &mut Context) {
+        for decorator in &node.decorators {
+            self.decorator(decorator, ctx);
+        }
+        if let Some(acc) = &node.accessibility {
+            ctx.write(format!("{} ", accessibility_str(acc)));
+        }
+        if matches!(
+            node.r#type,
+            PropertyDefinitionType::TSAbstractPropertyDefinition
+        ) {
+            ctx.write("abstract ");
+        }
+        if node.declare {
+            ctx.write("declare ");
+        }
+        if node.r#override {
+            ctx.write("override ");
+        }
         if node.r#static {
             ctx.write("static ");
+        }
+        if node.readonly {
+            ctx.write("readonly ");
         }
         if node.computed {
             ctx.write("[");
@@ -1088,6 +1269,52 @@ impl<'opt> Printer<'opt> {
             ctx.write("]");
         } else {
             self.property_key(&node.key, ctx);
+        }
+        if node.optional {
+            ctx.write("?");
+        }
+        if node.definite {
+            ctx.write("!");
+        }
+        if let Some(ann) = &node.type_annotation {
+            self.type_annotation(ann, ctx);
+        }
+        if let Some(value) = &node.value {
+            ctx.write(" = ");
+            self.print_expression(value, ctx);
+        }
+        ctx.write(";");
+    }
+
+    fn accessor_property(&mut self, node: &AccessorProperty, ctx: &mut Context) {
+        for decorator in &node.decorators {
+            self.decorator(decorator, ctx);
+        }
+        if let Some(acc) = &node.accessibility {
+            ctx.write(format!("{} ", accessibility_str(acc)));
+        }
+        if matches!(
+            node.r#type,
+            AccessorPropertyType::TSAbstractAccessorProperty
+        ) {
+            ctx.write("abstract ");
+        }
+        if node.r#static {
+            ctx.write("static ");
+        }
+        ctx.write("accessor ");
+        if node.computed {
+            ctx.write("[");
+            self.property_key(&node.key, ctx);
+            ctx.write("]");
+        } else {
+            self.property_key(&node.key, ctx);
+        }
+        if node.definite {
+            ctx.write("!");
+        }
+        if let Some(ann) = &node.type_annotation {
+            self.type_annotation(ann, ctx);
         }
         if let Some(value) = &node.value {
             ctx.write(" = ");
@@ -1291,29 +1518,68 @@ impl<'opt> Printer<'opt> {
 
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
     fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context) {
-        let mut nodes: Vec<SeqNode> = params
-            .items
-            .iter()
-            .map(|param| {
-                let span = param.span();
-                SeqNode {
-                    start: Some(span.start),
-                    end: Some(span.end),
-                    obj_or_array: false,
-                    is_elision: false,
-                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                        p.binding_pattern(&param.pattern, child);
-                        // Default value: oxc stores parameter defaults on
-                        // `FormalParameter::initializer`, not as an
-                        // `AssignmentPattern`.
-                        if let Some(init) = &param.initializer {
-                            child.write(" = ");
-                            p.print_expression(init, child);
-                        }
-                    }),
-                }
-            })
-            .collect();
+        self.formal_parameters_with_this(params, None, ctx);
+    }
+
+    /// As [`Self::formal_parameters`], but with a leading `this: T` parameter —
+    /// esrap (from an acorn AST) sees `this` as the first ordinary parameter.
+    fn formal_parameters_with_this(
+        &mut self,
+        params: &FormalParameters,
+        this_param: Option<&TSThisParameter>,
+        ctx: &mut Context,
+    ) {
+        let mut nodes: Vec<SeqNode> = Vec::new();
+        if let Some(tp) = this_param {
+            let span = tp.span;
+            nodes.push(SeqNode {
+                start: Some(span.start),
+                end: Some(span.end),
+                obj_or_array: false,
+                is_elision: false,
+                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    child.write("this");
+                    if let Some(ann) = &tp.type_annotation {
+                        p.type_annotation(ann, child);
+                    }
+                }),
+            });
+        }
+        nodes.extend(params.items.iter().map(|param| {
+            let span = param.span();
+            SeqNode {
+                start: Some(span.start),
+                end: Some(span.end),
+                obj_or_array: false,
+                is_elision: false,
+                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    // TS parameter properties (`constructor(private readonly x: T)`).
+                    if let Some(acc) = &param.accessibility {
+                        child.write(format!("{} ", accessibility_str(acc)));
+                    }
+                    if param.readonly {
+                        child.write("readonly ");
+                    }
+                    if param.r#override {
+                        child.write("override ");
+                    }
+                    p.binding_pattern(&param.pattern, child);
+                    if param.optional {
+                        child.write("?");
+                    }
+                    if let Some(ann) = &param.type_annotation {
+                        p.type_annotation(ann, child);
+                    }
+                    // Default value: oxc stores parameter defaults on
+                    // `FormalParameter::initializer`, not as an
+                    // `AssignmentPattern`.
+                    if let Some(init) = &param.initializer {
+                        child.write(" = ");
+                        p.print_expression(init, child);
+                    }
+                }),
+            }
+        }));
         if let Some(rest) = &params.rest {
             let span = rest.span();
             nodes.push(SeqNode {
@@ -1324,6 +1590,9 @@ impl<'opt> Printer<'opt> {
                 render: Box::new(move |p: &mut Printer, child: &mut Context| {
                     child.write("...");
                     p.binding_pattern(&rest.rest.argument, child);
+                    if let Some(ann) = &rest.type_annotation {
+                        p.type_annotation(ann, child);
+                    }
                 }),
             });
         }
@@ -1340,9 +1609,15 @@ impl<'opt> Printer<'opt> {
         if node.r#async {
             ctx.write("async ");
         }
+        if let Some(tp) = &node.type_parameters {
+            self.type_parameter_declaration(tp, ctx);
+        }
         ctx.write("(");
         self.formal_parameters(&node.params, ctx);
         ctx.write(")");
+        if let Some(rt) = &node.return_type {
+            self.type_annotation(rt, ctx);
+        }
         ctx.write(" => ");
         if node.expression {
             // Concise body: a single `ExpressionStatement` holds the expression.
@@ -1385,6 +1660,9 @@ impl<'opt> Printer<'opt> {
     /// declarator is itself multiline (e.g. carries a leading comment) or there
     /// is more than one and they don't fit (`measure + 2*(n-1) > 50`).
     fn variable_declaration(&mut self, decl: &VariableDeclaration, ctx: &mut Context) {
+        if decl.declare {
+            ctx.write("declare ");
+        }
         let keyword = match decl.kind {
             VariableDeclarationKind::Var => "var ",
             VariableDeclarationKind::Let => "let ",
@@ -1405,6 +1683,12 @@ impl<'opt> Printer<'opt> {
             let start = declarator.span().start;
             self.flush_leading(&mut child, start, self.line_of(start));
             self.binding_pattern(&declarator.id, &mut child);
+            if declarator.definite {
+                child.write("!");
+            }
+            if let Some(ann) = &declarator.type_annotation {
+                self.type_annotation(ann, &mut child);
+            }
             if let Some(init) = &declarator.init {
                 child.write(" = ");
                 self.print_expression(init, &mut child);
@@ -1573,6 +1857,30 @@ impl<'opt> Printer<'opt> {
                     self.print_expression(options, ctx);
                 }
                 ctx.write(")");
+            }
+            Expression::TSAsExpression(e) => {
+                self.child_with_parens(&e.expression, 13, ctx);
+                ctx.write(" as ");
+                self.print_type(&e.type_annotation, ctx);
+            }
+            Expression::TSSatisfiesExpression(e) => {
+                self.child_with_parens(&e.expression, 13, ctx);
+                ctx.write(" satisfies ");
+                self.print_type(&e.type_annotation, ctx);
+            }
+            Expression::TSNonNullExpression(e) => {
+                self.child_with_parens(&e.expression, 18, ctx);
+                ctx.write("!");
+            }
+            Expression::TSTypeAssertion(e) => {
+                ctx.write("<");
+                self.print_type(&e.type_annotation, ctx);
+                ctx.write(">");
+                self.child_with_parens(&e.expression, 18, ctx);
+            }
+            Expression::TSInstantiationExpression(e) => {
+                self.print_expression(&e.expression, ctx);
+                self.type_parameter_instantiation(&e.type_arguments, ctx);
             }
             other => self.unsupported(expression_kind(other), ctx),
         }
@@ -2108,6 +2416,627 @@ impl<'opt> Printer<'opt> {
         ctx.write(")");
     }
 
+    // ----- TypeScript types -------------------------------------------------
+
+    /// esrap's `TSTypeAnnotation`: `: ` + the type.
+    fn type_annotation(&mut self, node: &TSTypeAnnotation, ctx: &mut Context) {
+        ctx.write(": ");
+        self.print_type(&node.type_annotation, ctx);
+    }
+
+    /// esrap's `TSTypeParameterInstantiation`: `<a, b>`.
+    fn type_parameter_instantiation(
+        &mut self,
+        node: &TSTypeParameterInstantiation,
+        ctx: &mut Context,
+    ) {
+        ctx.write("<");
+        for (i, p) in node.params.iter().enumerate() {
+            if i > 0 {
+                ctx.write(", ");
+            }
+            self.print_type(p, ctx);
+        }
+        ctx.write(">");
+    }
+
+    /// esrap's `TSTypeParameterDeclaration`: `<T, U extends V = W>`.
+    fn type_parameter_declaration(&mut self, node: &TSTypeParameterDeclaration, ctx: &mut Context) {
+        ctx.write("<");
+        for (i, p) in node.params.iter().enumerate() {
+            if i > 0 {
+                ctx.write(", ");
+            }
+            self.type_parameter(p, ctx);
+        }
+        ctx.write(">");
+    }
+
+    fn type_parameter(&mut self, node: &TSTypeParameter, ctx: &mut Context) {
+        ctx.write(node.name.name.as_str());
+        if let Some(constraint) = &node.constraint {
+            ctx.write(" extends ");
+            self.print_type(constraint, ctx);
+        }
+        if let Some(default) = &node.default {
+            ctx.write(" = ");
+            self.print_type(default, ctx);
+        }
+    }
+
+    /// esrap's `TSTypeName` (`IdentifierReference` / `TSQualifiedName`).
+    fn print_type_name(&mut self, name: &TSTypeName, ctx: &mut Context) {
+        match name {
+            TSTypeName::IdentifierReference(id) => ctx.write(id.name.as_str()),
+            TSTypeName::QualifiedName(q) => {
+                self.print_type_name(&q.left, ctx);
+                ctx.write(".");
+                ctx.write(q.right.name.as_str());
+            }
+            TSTypeName::ThisExpression(_) => ctx.write("this"),
+        }
+    }
+
+    /// The core type dispatcher (esrap's TS type visitors).
+    fn print_type(&mut self, ty: &TSType, ctx: &mut Context) {
+        match ty {
+            TSType::TSAnyKeyword(_) => ctx.write("any"),
+            TSType::TSBigIntKeyword(_) => ctx.write("bigint"),
+            TSType::TSBooleanKeyword(_) => ctx.write("boolean"),
+            TSType::TSIntrinsicKeyword(_) => ctx.write("intrinsic"),
+            TSType::TSNeverKeyword(_) => ctx.write("never"),
+            TSType::TSNullKeyword(_) => ctx.write("null"),
+            TSType::TSNumberKeyword(_) => ctx.write("number"),
+            TSType::TSObjectKeyword(_) => ctx.write("object"),
+            TSType::TSStringKeyword(_) => ctx.write("string"),
+            TSType::TSSymbolKeyword(_) => ctx.write("symbol"),
+            TSType::TSUndefinedKeyword(_) => ctx.write("undefined"),
+            TSType::TSUnknownKeyword(_) => ctx.write("unknown"),
+            TSType::TSVoidKeyword(_) => ctx.write("void"),
+            TSType::TSThisType(_) => ctx.write("this"),
+            TSType::TSArrayType(t) => {
+                self.print_type(&t.element_type, ctx);
+                ctx.write("[]");
+            }
+            TSType::TSParenthesizedType(t) => {
+                ctx.write("(");
+                self.print_type(&t.type_annotation, ctx);
+                ctx.write(")");
+            }
+            TSType::TSTypeReference(t) => {
+                self.print_type_name(&t.type_name, ctx);
+                if let Some(ta) = &t.type_arguments {
+                    self.type_parameter_instantiation(ta, ctx);
+                }
+            }
+            TSType::TSTypeLiteral(t) => self.type_literal(t, ctx),
+            TSType::TSUnionType(t) => {
+                // No trailing newline so a following `=>` stays on the line.
+                let nodes = self.type_seq_nodes(&t.types);
+                self.sequence(nodes, Some(t.span.end), false, " |", false, ctx);
+            }
+            TSType::TSIntersectionType(t) => {
+                let nodes = self.type_seq_nodes(&t.types);
+                self.sequence(nodes, Some(t.span.end), false, " &", false, ctx);
+            }
+            TSType::TSConditionalType(t) => {
+                self.print_type(&t.check_type, ctx);
+                ctx.write(" extends ");
+                self.print_type(&t.extends_type, ctx);
+                ctx.write(" ? ");
+                self.print_type(&t.true_type, ctx);
+                ctx.write(" : ");
+                self.print_type(&t.false_type, ctx);
+            }
+            TSType::TSIndexedAccessType(t) => {
+                self.print_type(&t.object_type, ctx);
+                ctx.write("[");
+                self.print_type(&t.index_type, ctx);
+                ctx.write("]");
+            }
+            TSType::TSInferType(t) => {
+                ctx.write("infer ");
+                self.type_parameter(&t.type_parameter, ctx);
+            }
+            TSType::TSLiteralType(t) => self.ts_literal(&t.literal, ctx),
+            TSType::TSTypeOperatorType(t) => {
+                ctx.write(format!("{} ", ts_type_operator_str(t.operator)));
+                self.print_type(&t.type_annotation, ctx);
+            }
+            TSType::TSTypeQuery(t) => {
+                ctx.write("typeof ");
+                match &t.expr_name {
+                    TSTypeQueryExprName::TSImportType(it) => self.import_type(it, ctx),
+                    TSTypeQueryExprName::IdentifierReference(id) => ctx.write(id.name.as_str()),
+                    TSTypeQueryExprName::QualifiedName(q) => {
+                        self.print_type_name(&q.left, ctx);
+                        ctx.write(".");
+                        ctx.write(q.right.name.as_str());
+                    }
+                    TSTypeQueryExprName::ThisExpression(_) => ctx.write("this"),
+                }
+                if let Some(ta) = &t.type_arguments {
+                    self.type_parameter_instantiation(ta, ctx);
+                }
+            }
+            TSType::TSTypePredicate(t) => {
+                if t.asserts {
+                    ctx.write("asserts ");
+                }
+                match &t.parameter_name {
+                    TSTypePredicateName::Identifier(id) => ctx.write(id.name.as_str()),
+                    TSTypePredicateName::This(_) => ctx.write("this"),
+                }
+                if let Some(ann) = &t.type_annotation {
+                    ctx.write(" is ");
+                    self.print_type(&ann.type_annotation, ctx);
+                }
+            }
+            TSType::TSTupleType(t) => {
+                ctx.write("[");
+                let nodes = self.tuple_element_seq_nodes(&t.element_types);
+                self.sequence(nodes, Some(t.span.end), false, ",", true, ctx);
+                ctx.write("]");
+            }
+            TSType::TSNamedTupleMember(t) => self.named_tuple_member(t, ctx),
+            TSType::TSFunctionType(t) => {
+                if let Some(tp) = &t.type_parameters {
+                    self.type_parameter_declaration(tp, ctx);
+                }
+                ctx.write("(");
+                self.formal_parameters(&t.params, ctx);
+                ctx.write(") => ");
+                self.print_type(&t.return_type.type_annotation, ctx);
+            }
+            TSType::TSConstructorType(t) => {
+                if t.r#abstract {
+                    ctx.write("abstract ");
+                }
+                ctx.write("new ");
+                if let Some(tp) = &t.type_parameters {
+                    self.type_parameter_declaration(tp, ctx);
+                }
+                ctx.write("(");
+                self.formal_parameters(&t.params, ctx);
+                ctx.write(") => ");
+                self.print_type(&t.return_type.type_annotation, ctx);
+            }
+            TSType::TSImportType(t) => self.import_type(t, ctx),
+            TSType::TSMappedType(t) => self.mapped_type(t, ctx),
+            TSType::TSTemplateLiteralType(t) => {
+                ctx.write("`");
+                for (i, inner) in t.types.iter().enumerate() {
+                    let raw = t.quasis[i].value.raw.as_str();
+                    ctx.write(format!("{raw}${{"));
+                    self.print_type(inner, ctx);
+                    ctx.write("}");
+                    if raw.contains('\n') {
+                        ctx.multiline = true;
+                    }
+                }
+                if let Some(last) = t.quasis.last() {
+                    ctx.write(format!("{}`", last.value.raw));
+                }
+            }
+            other => self.unsupported(ts_type_kind(other), ctx),
+        }
+    }
+
+    /// esrap's `TSImportType`: `import('src')[.qualifier]`. (Type-argument
+    /// support is unused by the samples.)
+    fn import_type(&mut self, node: &TSImportType, ctx: &mut Context) {
+        ctx.write("import(");
+        ctx.write(self.string_literal(&node.source));
+        ctx.write(")");
+        if let Some(qualifier) = &node.qualifier {
+            ctx.write(".");
+            self.import_type_qualifier(qualifier, ctx);
+        }
+    }
+
+    fn import_type_qualifier(&mut self, q: &TSImportTypeQualifier, ctx: &mut Context) {
+        match q {
+            TSImportTypeQualifier::Identifier(id) => ctx.write(id.name.as_str()),
+            TSImportTypeQualifier::QualifiedName(qn) => {
+                self.import_type_qualifier(&qn.left, ctx);
+                ctx.write(".");
+                ctx.write(qn.right.name.as_str());
+            }
+        }
+    }
+
+    /// esrap's `TSNamedTupleMember`: `label[?]: type`.
+    fn named_tuple_member(&mut self, node: &TSNamedTupleMember, ctx: &mut Context) {
+        ctx.write(node.label.name.as_str());
+        if node.optional {
+            ctx.write("?");
+        }
+        ctx.write(": ");
+        self.tuple_element(&node.element_type, ctx);
+    }
+
+    fn tuple_element(&mut self, el: &TSTupleElement, ctx: &mut Context) {
+        match el {
+            TSTupleElement::TSOptionalType(t) => {
+                self.print_type(&t.type_annotation, ctx);
+                ctx.write("?");
+            }
+            TSTupleElement::TSRestType(t) => {
+                ctx.write("...");
+                self.print_type(&t.type_annotation, ctx);
+            }
+            _ => {
+                if let Some(ty) = el.as_ts_type() {
+                    self.print_type(ty, ctx);
+                }
+            }
+        }
+    }
+
+    /// esrap's `TSMappedType`: `{[K in C]: T}` (no inner spaces).
+    fn mapped_type(&mut self, node: &TSMappedType, ctx: &mut Context) {
+        ctx.write("{");
+        if let Some(readonly) = node.readonly {
+            ctx.write(mapped_modifier_prefix(readonly, "readonly"));
+        }
+        ctx.write("[");
+        ctx.write(node.key.name.as_str());
+        ctx.write(" in ");
+        self.print_type(&node.constraint, ctx);
+        if let Some(name_type) = &node.name_type {
+            ctx.write(" as ");
+            self.print_type(name_type, ctx);
+        }
+        ctx.write("]");
+        if let Some(optional) = node.optional {
+            ctx.write(mapped_modifier_prefix(optional, "?"));
+        }
+        if let Some(ann) = &node.type_annotation {
+            ctx.write(": ");
+            self.print_type(ann, ctx);
+        }
+        ctx.write("}");
+    }
+
+    /// esrap's `TSTypeLiteral`: `{ ` + `;`-separated members + ` }`.
+    fn type_literal(&mut self, node: &TSTypeLiteral, ctx: &mut Context) {
+        ctx.write("{ ");
+        let nodes = self.signature_seq_nodes(&node.members);
+        self.sequence(nodes, Some(node.span.end), false, ";", true, ctx);
+        ctx.write(" }");
+    }
+
+    fn ts_literal(&mut self, lit: &TSLiteral, ctx: &mut Context) {
+        match lit {
+            TSLiteral::BooleanLiteral(b) => ctx.write(if b.value { "true" } else { "false" }),
+            TSLiteral::NumericLiteral(n) => ctx
+                .write(literal_raw(n.raw.as_ref().map(|a| a.as_str()), || {
+                    n.value.to_string()
+                })),
+            TSLiteral::BigIntLiteral(n) => ctx
+                .write(literal_raw(n.raw.as_ref().map(|a| a.as_str()), || {
+                    format!("{}n", n.value)
+                })),
+            TSLiteral::StringLiteral(s) => ctx.write(self.string_literal(s)),
+            TSLiteral::TemplateLiteral(t) => self.template_literal(t, ctx),
+            TSLiteral::UnaryExpression(u) => self.unary_expression(u, ctx),
+        }
+    }
+
+    /// Build [`SeqNode`]s for a list of types (union/intersection).
+    fn type_seq_nodes<'p>(&self, types: &'p [TSType<'p>]) -> Vec<SeqNode<'p>> {
+        types
+            .iter()
+            .map(|ty| {
+                let span = ty.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
+                    obj_or_array: false,
+                    is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.print_type(ty, child);
+                    }),
+                }
+            })
+            .collect()
+    }
+
+    fn tuple_element_seq_nodes<'p>(&self, els: &'p [TSTupleElement<'p>]) -> Vec<SeqNode<'p>> {
+        els.iter()
+            .map(|el| {
+                let span = el.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
+                    obj_or_array: false,
+                    is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.tuple_element(el, child);
+                    }),
+                }
+            })
+            .collect()
+    }
+
+    fn signature_seq_nodes<'p>(&self, members: &'p [TSSignature<'p>]) -> Vec<SeqNode<'p>> {
+        members
+            .iter()
+            .map(|m| {
+                let span = m.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
+                    obj_or_array: false,
+                    is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.signature(m, child);
+                    }),
+                }
+            })
+            .collect()
+    }
+
+    /// esrap's `TSSignature` visitors (members of an interface / type literal).
+    fn signature(&mut self, sig: &TSSignature, ctx: &mut Context) {
+        match sig {
+            TSSignature::TSPropertySignature(s) => {
+                if s.readonly {
+                    ctx.write("readonly ");
+                }
+                if s.computed {
+                    ctx.write("[");
+                    self.property_key(&s.key, ctx);
+                    ctx.write("]");
+                } else {
+                    self.property_key(&s.key, ctx);
+                }
+                if s.optional {
+                    ctx.write("?");
+                }
+                if let Some(ann) = &s.type_annotation {
+                    self.type_annotation(ann, ctx);
+                }
+            }
+            TSSignature::TSIndexSignature(s) => {
+                if s.readonly {
+                    ctx.write("readonly ");
+                }
+                ctx.write("[");
+                for (i, param) in s.parameters.iter().enumerate() {
+                    if i > 0 {
+                        ctx.write(", ");
+                    }
+                    ctx.write(param.name.as_str());
+                    self.type_annotation(&param.type_annotation, ctx);
+                }
+                ctx.write("]");
+                self.type_annotation(&s.type_annotation, ctx);
+            }
+            TSSignature::TSMethodSignature(s) => {
+                if s.computed {
+                    ctx.write("[");
+                    self.property_key(&s.key, ctx);
+                    ctx.write("]");
+                } else {
+                    self.property_key(&s.key, ctx);
+                }
+                if s.optional {
+                    ctx.write("?");
+                }
+                if let Some(tp) = &s.type_parameters {
+                    self.type_parameter_declaration(tp, ctx);
+                }
+                ctx.write("(");
+                self.formal_parameters(&s.params, ctx);
+                ctx.write(")");
+                if let Some(rt) = &s.return_type {
+                    self.type_annotation(rt, ctx);
+                }
+            }
+            TSSignature::TSCallSignatureDeclaration(s) => {
+                if let Some(tp) = &s.type_parameters {
+                    self.type_parameter_declaration(tp, ctx);
+                }
+                ctx.write("(");
+                self.formal_parameters(&s.params, ctx);
+                ctx.write(")");
+                if let Some(rt) = &s.return_type {
+                    self.type_annotation(rt, ctx);
+                }
+            }
+            TSSignature::TSConstructSignatureDeclaration(s) => {
+                ctx.write("new");
+                if let Some(tp) = &s.type_parameters {
+                    self.type_parameter_declaration(tp, ctx);
+                }
+                ctx.write("(");
+                self.formal_parameters(&s.params, ctx);
+                ctx.write(")");
+                if let Some(rt) = &s.return_type {
+                    self.type_annotation(rt, ctx);
+                }
+            }
+        }
+    }
+
+    // ----- TypeScript declarations ------------------------------------------
+
+    fn type_alias_declaration(&mut self, node: &TSTypeAliasDeclaration, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
+        ctx.write("type ");
+        ctx.write(node.id.name.as_str());
+        if let Some(tp) = &node.type_parameters {
+            self.type_parameter_declaration(tp, ctx);
+        }
+        ctx.write(" = ");
+        self.print_type(&node.type_annotation, ctx);
+        ctx.write(";");
+    }
+
+    fn interface_declaration(&mut self, node: &TSInterfaceDeclaration, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
+        ctx.write("interface ");
+        ctx.write(node.id.name.as_str());
+        if let Some(tp) = &node.type_parameters {
+            self.type_parameter_declaration(tp, ctx);
+        }
+        if !node.extends.is_empty() {
+            ctx.write(" extends ");
+            let nodes: Vec<SeqNode> = node
+                .extends
+                .iter()
+                .map(|h| {
+                    let span = h.span();
+                    SeqNode {
+                        start: Some(span.start),
+                        end: Some(span.end),
+                        obj_or_array: false,
+                        is_elision: false,
+                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                            p.print_expression(&h.expression, child);
+                            if let Some(ta) = &h.type_arguments {
+                                p.type_parameter_instantiation(ta, child);
+                            }
+                        }),
+                    }
+                })
+                .collect();
+            self.sequence(nodes, Some(node.body.span().start), false, ",", true, ctx);
+        }
+        ctx.write(" {");
+        // esrap's `TSInterfaceBody`: `;`-separated members with padding.
+        let nodes = self.signature_seq_nodes(&node.body.body);
+        self.sequence(nodes, Some(node.body.span().end), true, ";", true, ctx);
+        ctx.write("}");
+    }
+
+    fn enum_declaration(&mut self, node: &TSEnumDeclaration, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
+        if node.r#const {
+            ctx.write("const ");
+        }
+        ctx.write("enum ");
+        ctx.write(node.id.name.as_str());
+        ctx.write(" {");
+        ctx.indent();
+        ctx.newline();
+        let nodes: Vec<SeqNode> = node
+            .body
+            .members
+            .iter()
+            .map(|m| {
+                let span = m.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
+                    obj_or_array: false,
+                    is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.enum_member(m, child);
+                    }),
+                }
+            })
+            .collect();
+        self.sequence(nodes, Some(node.span.end), false, ",", true, ctx);
+        ctx.dedent();
+        ctx.newline();
+        ctx.write("}");
+    }
+
+    fn enum_member(&mut self, node: &TSEnumMember, ctx: &mut Context) {
+        match &node.id {
+            TSEnumMemberName::Identifier(id) => ctx.write(id.name.as_str()),
+            TSEnumMemberName::String(s) => ctx.write(self.string_literal(s)),
+            TSEnumMemberName::ComputedString(s) => {
+                ctx.write("[");
+                ctx.write(self.string_literal(s));
+                ctx.write("]");
+            }
+            TSEnumMemberName::ComputedTemplateString(t) => {
+                ctx.write("[");
+                self.template_literal(t, ctx);
+                ctx.write("]");
+            }
+        }
+        if let Some(init) = &node.initializer {
+            ctx.write(" = ");
+            self.print_expression(init, ctx);
+        }
+    }
+
+    fn module_declaration(&mut self, node: &TSModuleDeclaration, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
+        let kind = match node.kind {
+            TSModuleDeclarationKind::Module => "module ",
+            TSModuleDeclarationKind::Namespace => "namespace ",
+        };
+        ctx.write(kind);
+        match &node.id {
+            TSModuleDeclarationName::Identifier(id) => ctx.write(id.name.as_str()),
+            TSModuleDeclarationName::StringLiteral(s) => ctx.write(self.string_literal(s)),
+        }
+        match &node.body {
+            None => {}
+            Some(TSModuleDeclarationBody::TSModuleBlock(block)) => self.module_block(block, ctx),
+            Some(TSModuleDeclarationBody::TSModuleDeclaration(inner)) => {
+                // `namespace A.B {}` — esrap recurses into the nested decl.
+                ctx.write(".");
+                self.module_declaration(inner, ctx);
+            }
+        }
+    }
+
+    fn global_declaration(&mut self, node: &TSGlobalDeclaration, ctx: &mut Context) {
+        if node.declare {
+            ctx.write("declare ");
+        }
+        ctx.write("global");
+        self.module_block(&node.body, ctx);
+    }
+
+    /// esrap's `TSModuleBlock`: ` {` + indented body + `}`.
+    fn module_block(&mut self, node: &TSModuleBlock, ctx: &mut Context) {
+        ctx.write(" {");
+        ctx.indent();
+        ctx.newline();
+        let mut elems: Vec<BodyElem> = node.directives.iter().map(BodyElem::Directive).collect();
+        elems.extend(node.body.iter().map(BodyElem::Statement));
+        self.body_elems(&elems, node.span.start, node.span.end, ctx);
+        ctx.dedent();
+        ctx.newline();
+        ctx.write("}");
+    }
+
+    fn import_equals_declaration(&mut self, node: &TSImportEqualsDeclaration, ctx: &mut Context) {
+        ctx.write("import ");
+        ctx.write(node.id.name.as_str());
+        ctx.write(" = ");
+        match &node.module_reference {
+            TSModuleReference::ExternalModuleReference(r) => {
+                ctx.write("require(");
+                ctx.write(self.string_literal(&r.expression));
+                ctx.write(");");
+            }
+            TSModuleReference::IdentifierReference(id) => {
+                ctx.write(id.name.as_str());
+            }
+            TSModuleReference::QualifiedName(q) => {
+                self.print_type_name(&q.left, ctx);
+                ctx.write(".");
+                ctx.write(q.right.name.as_str());
+            }
+        }
+    }
+
     // ----- literals ---------------------------------------------------------
 
     fn string_literal(&self, s: &StringLiteral) -> String {
@@ -2181,6 +3110,40 @@ struct SeqNode<'p> {
     render: Box<dyn FnMut(&mut Printer<'_>, &mut Context) + 'p>,
 }
 
+fn accessibility_str(acc: &TSAccessibility) -> &'static str {
+    match acc {
+        TSAccessibility::Private => "private",
+        TSAccessibility::Protected => "protected",
+        TSAccessibility::Public => "public",
+    }
+}
+
+fn ts_type_operator_str(op: TSTypeOperatorOperator) -> &'static str {
+    match op {
+        TSTypeOperatorOperator::Keyof => "keyof",
+        TSTypeOperatorOperator::Unique => "unique",
+        TSTypeOperatorOperator::Readonly => "readonly",
+    }
+}
+
+/// The mapped-type modifier prefix: `+`/`-`/none before `readonly` / `?`.
+fn mapped_modifier_prefix(op: TSMappedTypeModifierOperator, keyword: &str) -> String {
+    match op {
+        TSMappedTypeModifierOperator::True => keyword.to_string(),
+        TSMappedTypeModifierOperator::Plus => format!("+{keyword}"),
+        TSMappedTypeModifierOperator::Minus => format!("-{keyword}"),
+    }
+}
+
+fn ts_type_kind(ty: &TSType) -> &'static str {
+    match ty {
+        TSType::JSDocNullableType(_) => "JSDocNullableType",
+        TSType::JSDocNonNullableType(_) => "JSDocNonNullableType",
+        TSType::JSDocUnknownType(_) => "JSDocUnknownType",
+        _ => "TSType",
+    }
+}
+
 fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
     match name {
         ModuleExportName::IdentifierName(n) => n.name.as_str(),
@@ -2240,21 +3203,6 @@ impl<'a, 'b> BodyElem<'a, 'b> {
             BodyElem::Statement(s) => printer.print_statement(s, ctx),
             BodyElem::ClassMember(e) => printer.class_element(e, ctx),
         }
-    }
-}
-
-fn statement_kind(stmt: &Statement) -> &'static str {
-    match stmt {
-        Statement::SwitchStatement(_) => "SwitchStatement",
-        Statement::TryStatement(_) => "TryStatement",
-        Statement::DoWhileStatement(_) => "DoWhileStatement",
-        Statement::ForInStatement(_) => "ForInStatement",
-        Statement::ForOfStatement(_) => "ForOfStatement",
-        Statement::LabeledStatement(_) => "LabeledStatement",
-        Statement::ExportAllDeclaration(_) => "ExportAllDeclaration",
-        Statement::DebuggerStatement(_) => "DebuggerStatement",
-        Statement::WithStatement(_) => "WithStatement",
-        _ => "Statement",
     }
 }
 

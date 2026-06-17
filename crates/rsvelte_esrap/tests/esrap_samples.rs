@@ -18,43 +18,14 @@
 /// Samples not yet byte-identical. Drive this to empty.
 const KNOWN_FAILURES: &[&str] = &[
     "jsx-basic",
-    "ts-abstract-class",
-    "ts-accessor-properties",
+    // oxc preserves explicit `ParenthesizedExpression` nodes that acorn (esrap's
+    // baseline) elides, so esrap's redundant-paren stripping around an
+    // `as`/`satisfies` operand (`(0 as number) + 1` → `0 as number + 1`,
+    // `() => ({ x }) as const` → `() => ({ x } as const)`) can't be reproduced
+    // without dropping source parens — a printer-wide change the golden corpus
+    // depends on not making.
     "ts-arrow-as-const-object",
-    "ts-arrow-function-long-return-type",
-    "ts-arrow-function-types",
-    "ts-as-expression",
     "ts-as-precedence",
-    "ts-class-extends-generic",
-    "ts-class-properties",
-    "ts-declare",
-    "ts-declare-module",
-    "ts-decorators",
-    "ts-decorators-class",
-    "ts-decorators-expression",
-    "ts-enums",
-    "ts-export",
-    "ts-generic-types",
-    "ts-implements",
-    "ts-import-type",
-    "ts-index-access-type",
-    "ts-infer-extends",
-    "ts-instantiation-expression",
-    "ts-interfaces",
-    "ts-keywords",
-    "ts-mapped-type",
-    "ts-module-declaration",
-    "ts-null-keyword",
-    "ts-object-patterns",
-    "ts-return-type",
-    "ts-satisfies-expression",
-    "ts-signatures",
-    "ts-simple-function-types",
-    "ts-simple-identifier-types",
-    "ts-typed-imports",
-    "ts-types",
-    "ts-undefined-keyword",
-    "ts-utility-types",
 ];
 
 use std::path::{Path, PathBuf};
