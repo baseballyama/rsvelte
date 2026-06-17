@@ -1701,7 +1701,30 @@ fn apply_props_typedef(
             "Record<string, never>".to_string()
         };
 
-        if is_ts {
+        // Only synthesise the `$$ComponentProps` alias + `: $$ComponentProps`
+        // annotation when there is something to type — i.e. at least one inferred
+        // prop OR a rest/unknown widening. Mirrors upstream ExportedNames.ts
+        // `if (props.length > 0 || withUnknown)` (line 384): when the inference
+        // yields `Record<string, never>` (e.g. a SvelteKit route file whose only
+        // props are non-kit names, or `let { x = $bindable() } = $props()` on a
+        // `+page.svelte`), upstream emits NOTHING — no alias, no annotation —
+        // leaving `$props()` untyped. The `$bindable()` ignore markers below are
+        // emitted regardless.
+        let emit_props_typedef = !type_entries.is_empty() || with_unknown;
+        if !emit_props_typedef {
+            // Inference collapsed to `Record<string, never>`, so no alias /
+            // annotation is emitted — but upstream still sets
+            // `this.$props.type = '$$ComponentProps'` (ExportedNames.ts line 383,
+            // outside the `props.length > 0 || withUnknown` guard), so the
+            // component's return type is `{} as any as $$ComponentProps`
+            // (TS) / `/** @type {$$ComponentProps} */({})` (JS) — identical to
+            // the whole-object/untyped `$props()` case handled above.
+            if is_ts {
+                exported_names.props_type_text = Some("$$ComponentProps".to_string());
+            } else {
+                exported_names.has_component_props_typedef = true;
+            }
+        } else if is_ts {
             // TS case: The type declaration `/*Ωignore_startΩ*/;type $$ComponentProps = { ... };/*Ωignore_endΩ*/`
             // will be inserted by svelte2tsx.rs as part of the $$render function body.
             // Here we only add `: $$ComponentProps` after the destructuring pattern `}`.
@@ -2291,11 +2314,14 @@ fn resolve_hoistable_type_decls(
             .iter()
             .position(|c| c.name == named)
             .map(|idx| hoistable[idx])
-            // A named ref that isn't a local candidate (e.g. an imported type)
-            // doesn't constrain hoisting — nothing of ours references a generic
-            // through it, so fall back to "hoistable" and let per-candidate
-            // analysis decide.
-            .unwrap_or(true)
+            // A bare `: Props` reference whose `Props` is NOT a local interface
+            // (an imported / global type) never sets `props_interface.name` in
+            // upstream `analyze$propsRune` (its `interface_map.get(name)` misses),
+            // so `moveHoistableInterfaces` hits its early `return` and hoists
+            // NOTHING — every type/interface stays inside `function $$render()`.
+            // Gate false to match (`$$Generic`-referenced types are still moved
+            // unconditionally by `hoist_dollar_generic_referenced_types`).
+            .unwrap_or(false)
     } else if let Some(inline) = props_inline_type {
         // Synthetic `$$ComponentProps` built from the inline annotation. It's
         // hoistable iff every type dependency is a hoistable candidate (or an
@@ -2349,9 +2375,15 @@ fn resolve_hoistable_type_decls(
         }
         ok
     } else {
-        // Whole-object / untyped `$props()` — no props interface to gate on, so
-        // preserve the previous behaviour of hoisting per-candidate.
-        true
+        // Whole-object / untyped `$props()` (incl. the auto-generated
+        // `$$ComponentProps`/`Record<…>` shapes) — there is no named props
+        // interface, so upstream `moveHoistableInterfaces` hits its early
+        // `if (!this.props_interface.name) return;` and hoists NOTHING; every
+        // type/interface stays inside `function $$render()`. `$$Generic`-
+        // referenced types are still hoisted unconditionally by the separate
+        // `hoist_dollar_generic_referenced_types` path, so gating here false
+        // does not strand a generic constraint.
+        false
     };
 
     if !props_interface_hoistable {
