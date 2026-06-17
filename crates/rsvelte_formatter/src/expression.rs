@@ -108,9 +108,17 @@ fn collect_node_edits(
                 edits,
             )?;
         }
-        TemplateNode::DeclarationTag(_) => {
-            // `{let x = e}` / `{const x = e}` — keyword-led VariableDeclaration;
-            // defer until statement formatting lands.
+        TemplateNode::DeclarationTag(tag) => {
+            // `{let x = e}` / `{const x = e}` — keyword-led VariableDeclaration.
+            push_declaration_tag(
+                source,
+                tag.start,
+                tag.end,
+                &tag.declaration,
+                depth,
+                options,
+                edits,
+            )?;
         }
         // For every element type, attribute lists (and `this={X}` on
         // `<svelte:component>` / `<svelte:element>`) are owned by the
@@ -480,8 +488,62 @@ fn push_tag_form(
     if slice.is_empty() {
         return Ok(());
     }
-    let formatted = format_content_expression(slice, options, depth)?;
+    // The expression starts after `{@<keyword> ` — account for those extra chars
+    // so OXC's break decision reflects the real rendered column.
+    // `{` (1) + `@` (1) + keyword.len() + ` ` (1) = keyword.len() + 3 (but `@` is
+    // part of the keyword string already for `@render`, `@html`, `@attach`).
+    // Actually the emitted tag is `{keyword} expr}` where keyword is e.g. `@render`,
+    // so the prefix is `{` + `@render` + ` ` = 1 + keyword.len() + 1.
+    let prefix_lead = 1 + keyword.len() + 1; // `{` + keyword + ` `
+    let formatted = format_content_expression_with_prefix(slice, options, depth, prefix_lead)?;
     edits.push((tag_start, tag_end, format!("{{{keyword} {formatted}}}")));
+    Ok(())
+}
+
+/// Format a `{let x = e}` / `{const x = e}` declaration tag (Svelte 5
+/// `DeclarationTag`) by formatting the entire source slice (including the
+/// keyword) as a variable-declaration statement.
+///
+/// Unlike `{@const}`, the keyword (`let`/`const`) is part of the declaration
+/// and is stored in the source between `{` and `}`. We slice the whole body
+/// from source, parse it as `<body>;`, format with OXC (which normalises
+/// quote style, spacing, etc.), and re-wrap in `{ }`.
+fn push_declaration_tag(
+    source: &str,
+    tag_start: u32,
+    tag_end: u32,
+    decl: &Expression,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let (Some(start), Some(end)) = (decl.start(), decl.end()) else {
+        return Ok(());
+    };
+    // The AST records the VariableDeclaration span (which starts at the keyword).
+    // Walk backward from decl.start to the `{` to include any leading whitespace
+    // between `{` and the keyword that the AST span might exclude.
+    let tag_src = source
+        .get(tag_start as usize..tag_end as usize)
+        .unwrap_or("")
+        .trim();
+    // Slice from just after `{` to just before `}`.
+    let inner = tag_src
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or_else(|| {
+            // Fallback: use the declaration span directly.
+            source
+                .get(start as usize..end as usize)
+                .unwrap_or("")
+                .trim()
+        })
+        .trim();
+    if inner.is_empty() {
+        return Ok(());
+    }
+    let formatted = format_declaration_tag_body(inner, options, depth)?;
+    edits.push((tag_start, tag_end, format!("{{{formatted}}}")));
     Ok(())
 }
 
@@ -1320,25 +1382,27 @@ fn format_expr_core(
     //
     //   `with_module(true)` is required so `await` is always a keyword: in
     //   `Unambiguous` mode a snippet without `import`/`export` is classified as
-    //   a Script where `await` is a regular identifier, so `await(expr)` would
-    //   be emitted as a call expression instead of an await expression.
+    //   a Script where `await` is a regular identifier.
     //
-    //   The `const` wrapper (instead of `(expr);`) prevents OXC from wrapping
-    //   a nested-await member expression across multiple lines.  When the same
-    //   expression appears as a top-level expression statement, OXC breaks the
-    //   member chain (`(await (await a.nested).one);` → multi-line); as a
-    //   `const` initializer OXC keeps it inline.  The const wrapper is ONLY
-    //   used when `await` is present, so that the `+20` line-width compensation
-    //   (see below) is not applied to non-await expressions that have nested
-    //   multi-line content (e.g., object literals with long string properties)
-    //   where the compensation would prevent correct inner property breaking.
+    //   The `const` wrapper (instead of the plain `(expr);`) prevents OXC from
+    //   breaking a nested-await member chain across lines.  When the same
+    //   expression appears as a top-level ExpressionStatement, OXC breaks it
+    //   (`(await (await a.nested).one);` → multi-line); as a const initializer
+    //   OXC keeps it on one line.  The const wrapper is only used when `await`
+    //   is present to avoid applying the prefix-length compensation below to
+    //   non-await expressions with nested multi-line content (objects, arrays)
+    //   where the extra width would suppress correct inner breaking.
     //
     //   The const-wrapper prefix is exactly 20 characters (`const _rsvelte_x_ = `).
     //   We pass `line_width + 20` to the formatter so OXC's break decision is
-    //   based on `len(expr)` rather than `20 + len(expr)`.  This compensation
-    //   is accurate for single-line expressions (the await case) but would
-    //   over-compensate for objects/arrays with continuation lines — which is
-    //   why it is only applied when the expression contains `await`.
+    //   based on `len(expr)` rather than `20 + len(expr)`.  This offset is exact
+    //   for the single-line case (the only case that matters here — multi-line
+    //   await expressions inside Svelte templates are extremely rare and the
+    //   const-wrapper context keeps them inline anyway).
+    //
+    //   Note: OXC already emits a space after `await` when the argument is a
+    //   parenthesized expression (`await (x)`, not `await(x)`), so no post-pass
+    //   is needed.
     //
     // Case B — TypeScript, no `await`:
     //   Use `(expr);` with `SourceType::ts().with_module(true)`.
@@ -1465,42 +1529,7 @@ fn format_expr_core(
             strip_outer_parens(s).trim().to_string()
         }
     };
-    // OXC (0.136) omits the space after the `await` keyword when the argument
-    // is a parenthesized expression — e.g. `await(expr)` instead of the
-    // canonical `await (expr)`. Prettier / oxfmt always emit a space after
-    // `await`, so insert one where it's missing.  We only fix `await(` since
-    // `await` is a reserved keyword in async contexts; it cannot be a plain
-    // function name in Svelte template expressions.
-    let result = insert_await_space(&result);
     Ok(result)
-}
-
-/// Insert a space between the `await` keyword and a following `(` when the
-/// OXC formatter omitted it.  Walks the string and replaces every `await(`
-/// sequence (where `await` is preceded by a word boundary) with `await (`.
-fn insert_await_space(s: &str) -> String {
-    if !s.contains("await(") {
-        return s.to_string();
-    }
-    let bytes = s.as_bytes();
-    let mut out = String::with_capacity(s.len() + 4);
-    let mut i = 0;
-    while i < bytes.len() {
-        // Look for the pattern `await(` where `await` is not preceded by an
-        // identifier character (so we don't match `notawait(`).
-        if i + 6 <= bytes.len()
-            && &bytes[i..i + 6] == b"await("
-            && (i == 0
-                || !matches!(bytes[i - 1], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$'))
-        {
-            out.push_str("await (");
-            i += 6;
-        } else {
-            out.push(bytes[i] as char);
-            i += 1;
-        }
-    }
-    out
 }
 
 /// Format an attribute / directive value expression (`bind:value={ … }`) at
@@ -1553,8 +1582,7 @@ fn format_inline_expression(
     format_expr_core(expr_source, options, wide, true)
 }
 
-/// Format a content expression (`{expr}`, `{@html e}`, `{@render e()}`) that
-/// renders at markup nesting `depth`.
+/// Format a content expression (`{expr}`) that renders at markup nesting `depth`.
 ///
 /// The body is formatted at indent 0, so a wrap decision made against the full
 /// `line_width` ignores the `depth` levels of indent it will sit at once
@@ -1567,22 +1595,43 @@ fn format_content_expression(
     options: &FormatOptions,
     depth: usize,
 ) -> Result<String, FormatError> {
+    format_content_expression_with_prefix(expr_source, options, depth, 1)
+}
+
+/// Like [`format_content_expression`] but with an explicit `prefix_lead` that
+/// accounts for any extra characters before the expression on the same line.
+/// For a plain `{expr}`, `prefix_lead` is 1 (just the `{`). For `{@render e}`
+/// or `{@html e}`, the prefix is `{@render ` / `{@html ` (e.g. 9 / 7 chars),
+/// so `prefix_lead` should be `"{".len() + keyword.len() + " ".len()`.
+///
+/// This only affects the overflow re-check (the second `format_expr_core` call)
+/// — the first-pass width is the same as [`format_content_expression`] so that
+/// OXC's internal decision to expand objects/arrays is unchanged. The re-check
+/// detects when a single-line result would overflow once the full prefix is
+/// accounted for, and re-formats at the correct narrower width.
+fn format_content_expression_with_prefix(
+    expr_source: &str,
+    options: &FormatOptions,
+    depth: usize,
+    prefix_lead: usize,
+) -> Result<String, FormatError> {
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
     let full_width = options.js.line_width.value() as usize;
+    // First-pass width: same as format_content_expression (narrowed only by indent).
     let narrowed = full_width.saturating_sub(lead);
     let line_width =
         oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, line_width, false)?;
-    // A single-line value that overflows once the surrounding `{ }` are counted is
-    // a shallow expression (ternary / binary) prettier wraps at its top level;
-    // re-format narrowed by the braces so it breaks the same way. A value that is
-    // already multi-line (an arrow / object body) is left as-is (its continuation
-    // lines sit at `depth` with full width).
+    // Overflow re-check: a single-line result that overflows when the actual
+    // prefix (braces + keyword) is counted must be re-formatted at a narrower
+    // width so OXC breaks it the same way prettier-plugin-svelte does.
+    // `overhead` = prefix_lead (e.g. `{@render ` = 9) + 1 (closing `}`).
+    let overhead = prefix_lead + 1;
     let formatted = if !formatted.contains('\n')
-        && lead + 1 + UnicodeWidthStr::width(formatted.as_str()) + 1 > full_width
+        && lead + overhead + UnicodeWidthStr::width(formatted.as_str()) > full_width
     {
-        let narrowed2 = full_width.saturating_sub(lead + 2);
+        let narrowed2 = full_width.saturating_sub(lead + overhead);
         let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2 as u16)
             .unwrap_or(options.js.line_width);
         format_expr_core(expr_source, options, lw2, false)?
@@ -1669,6 +1718,71 @@ fn format_const_declaration(
         " ".repeat(lead)
     };
     Ok(crate::reindent::reindent(&formatted, &prefix, true))
+}
+
+/// Format the body of a `{let x = e}` / `{const x = e}` declaration tag.
+///
+/// The body already includes the keyword (`let`/`const`) and the full
+/// declaration, e.g. `let count = $state(0)` or
+/// `const label = 'count'`. Parse it as `<body>;` and format with OXC
+/// (which normalises quote style, spacing, etc.), then strip the trailing `;`.
+/// Width handling mirrors [`format_const_declaration`].
+fn format_declaration_tag_body(
+    body: &str,
+    options: &FormatOptions,
+    depth: usize,
+) -> Result<String, FormatError> {
+    let allocator = Allocator::default();
+    let source_type = if options.typescript {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+
+    // Append `;` so OXC parses it as a complete statement.
+    let wrapped = format!("{body};");
+    let parser_ret = Parser::new(&allocator, &wrapped, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !parser_ret.diagnostics.is_empty() {
+        // Parse failed (e.g. TS-only syntax on JS path, or something unusual).
+        // Return the source body unchanged rather than garbling it.
+        return Ok(body.to_string());
+    }
+
+    let indent_width = options.js.indent_width.value() as usize;
+    let lead = depth * indent_width;
+    let full_width = options.js.line_width.value() as usize;
+    // The emitted tag is `{<body>}` (1 + body_len + 1 = overhead 2).
+    // The JS formatter sees the statement `<body>;` and measures its length
+    // as `body_len + 1 (;)`. The real overhead is `{ }` = 2, so we subtract
+    // `lead + 2 - 1 = lead + 1` to make OXC's break threshold match the
+    // rendered column.
+    let narrowed = full_width.saturating_sub(lead + 1);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+
+    let mut js = options.js.clone();
+    js.line_width = line_width;
+    let formatted = format_program(&allocator, &parser_ret.program, js, None)
+        .print()
+        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+        .into_code();
+
+    // Strip the trailing `;\n` added by OXC.
+    let s = formatted.trim_end().trim_end_matches(';').trim_end();
+
+    if !s.contains('\n') {
+        return Ok(s.to_string());
+    }
+    // Multi-line declaration (L9 case: `let a = $state(0),\n  b = $derived(a * 2)`).
+    // Re-indent continuation lines to the tag's depth.
+    let prefix = if options.js.indent_style.is_tab() {
+        "\t".repeat(depth)
+    } else {
+        " ".repeat(lead)
+    };
+    Ok(crate::reindent::reindent(s, &prefix, true))
 }
 
 /// Splice a destructuring pattern's source span with its formatted
