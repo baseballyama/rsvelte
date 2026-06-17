@@ -90,6 +90,22 @@ pub struct ExportedNames {
     /// or interface that references an imported binding is still hoistable
     /// because the imported value resolves to a stable, module-scoped binding.
     pub instance_import_names: HashSet<String>,
+    /// Base names of `$X` references found in the instance script raw source,
+    /// WITHOUT applying the rune-exclusion filter.
+    ///
+    /// The official JS svelte2tsx's `processInstanceScriptContent` calls
+    /// `resolveStore` for every `$X` identifier in the instance script via
+    /// `pendingStoreResolutions`. Due to a broken `parent.parent` check in
+    /// `is_rune` (TypeScript AST nodes don't have parent pointers set), the
+    /// exclusion for `$props`/`$state`/`$derived` never fires in practice —
+    /// they ALL land in `accessedStores` and then `addDisallowed(...)` puts
+    /// their base names into `disallowed_values`. A snippet that references
+    /// plain `props` (e.g. from a nested `{#snippet child({ props })}`) will
+    /// therefore be blocked from module-scope hoisting.
+    ///
+    /// This field replicates that behaviour: populated by scanning the raw
+    /// instance script text for `$name` patterns without the rune filter.
+    pub instance_script_loose_dollar_names: HashSet<String>,
     /// Names declared at the top level of the module (`<script context="module">`)
     /// script. Used by the snippet hoist analyser: a reference to `$X` in a
     /// snippet body must block hoisting whenever `X` is bound anywhere in the
@@ -177,6 +193,7 @@ impl ExportedNames {
             hoistable_instance_type_names: HashSet::new(),
             props_type_arg_hoist: None,
             props_type_arg_hoist_ts: false,
+            instance_script_loose_dollar_names: HashSet::new(),
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -1394,6 +1411,21 @@ pub fn process_instance_script(
         // when the props type references an instance-scope binding.
         for name in declared_names.iter() {
             exported_names.instance_value_names.insert(name.clone());
+        }
+
+        // Collect loose `$name` references from the instance script WITHOUT the
+        // rune-exclusion filter.  The official JS svelte2tsx's `is_rune` check is
+        // broken at runtime (TypeScript parent pointers are not set) so ALL `$X`
+        // identifiers — including `$props`, `$bindable`, `$state` etc. — end up in
+        // `accessedStores`.  Their base names are then added to `disallowed_values`
+        // via `addDisallowed(implicitStoreValues.getAccessedStores())`, which causes
+        // snippets that reference `props` / `bindable` / etc. as plain identifiers
+        // (e.g. from a nested `{#snippet child({ props })}`) to be treated as
+        // non-hoistable.  Mirroring that behaviour here.
+        for name in collect_loose_dollar_names_from_script(raw_content) {
+            exported_names
+                .instance_script_loose_dollar_names
+                .insert(name);
         }
 
         // Unconditionally hoist instance-script type/interface declarations whose
@@ -4759,6 +4791,115 @@ fn blank_module_script_body(source: &str, buf: &mut [u8]) {
             }
         }
     }
+}
+
+/// Scan raw instance-script text for `$name` patterns WITHOUT applying the
+/// rune-call exclusion (`$props`/`$state`/`$derived`).
+///
+/// The official JS `processInstanceScriptContent` runs a TypeScript AST walker
+/// that calls `resolveStore` for every `$X` identifier.  The rune-exclusion
+/// (`is_rune`) check inside that walker is broken in practice because TypeScript
+/// source-file nodes don't have their `.parent` pointer set, causing
+/// `ts.isVariableDeclaration(parent.parent)` to always be `false`.  As a result
+/// ALL `$X` identifiers in the instance script — including `$props()`,
+/// `$bindable()` etc. — land in `accessedStores` / `disallowed_values`.
+///
+/// We replicate that behaviour here: scan the raw text and return every base
+/// name `X` for every `$X` token found, skipping only `$$`-prefixed forms and
+/// obvious non-identifiers (comments, strings, member accesses, etc.) but NOT
+/// applying the rune-name filter.
+fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let mut names = HashSet::new();
+    let mut i = 0usize;
+
+    // Simple comment/string skipper — matches the level of care in
+    // `collect_store_references`, which is the nearest sibling function.
+    while i < len {
+        // Skip line comments
+        if i + 1 < len && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        // Skip block comments
+        if i + 1 < len && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i += 2;
+            continue;
+        }
+        // Skip string literals (single and double quote, simple heuristic)
+        if bytes[i] == b'"' || bytes[i] == b'\'' || bytes[i] == b'`' {
+            let q = bytes[i];
+            i += 1;
+            while i < len && bytes[i] != q {
+                if bytes[i] == b'\\' {
+                    i += 1; // skip escaped char
+                }
+                i += 1;
+            }
+            i += 1;
+            continue;
+        }
+
+        if bytes[i] != b'$' {
+            i += 1;
+            continue;
+        }
+
+        let pos = i;
+        let next = pos + 1;
+        if next >= len {
+            break;
+        }
+        let nb = bytes[next];
+
+        // Skip `$$` (special identifiers like `$$props`)
+        if nb == b'$' {
+            i = next + 1;
+            continue;
+        }
+
+        // Skip member-access / string-key context
+        if pos > 0 {
+            let prev = bytes[pos - 1];
+            if prev == b'.'
+                || prev == b'\''
+                || prev == b'"'
+                || prev.is_ascii_alphanumeric()
+                || prev == b'_'
+            {
+                i = next;
+                continue;
+            }
+        }
+
+        // Must start a valid identifier
+        if !(nb.is_ascii_alphabetic() || nb == b'_') {
+            i = next;
+            continue;
+        }
+
+        let mut end = next + 1;
+        while end < len {
+            let b = bytes[end];
+            if b.is_ascii_alphanumeric() || b == b'_' {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+
+        let base = &text[next..end];
+        names.insert(base.to_string());
+        i = end;
+    }
+    names
 }
 
 fn collect_store_references(source: &str) -> HashSet<String> {

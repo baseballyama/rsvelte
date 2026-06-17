@@ -1351,6 +1351,18 @@ pub fn svelte2tsx(
                 part_a.push('\n');
             }
             part_a.push_str(&import_text);
+            // When there are hoistable snippets and a $$ComponentProps typedef to
+            // emit before $$render, the typedef must appear BEFORE the snippets in
+            // the output. Because snippets are moved to `sp` (after `part_a`) and
+            // `part_b` is placed after them, we append the typedef to `part_a` so
+            // it lands between the imports and the snippets. A `\n` separator is
+            // also added to match the blank line the JS reference produces.
+            let ts_component_props_in_part_a = !hoistable_snippet_ranges.is_empty()
+                && !ts_component_props_before_render.is_empty();
+            if ts_component_props_in_part_a {
+                part_a.push('\n');
+                part_a.push_str(&ts_component_props_before_render);
+            }
             let trailing_newline = if ts_component_props_inside_render.is_empty() {
                 "\n"
             } else {
@@ -1363,15 +1375,21 @@ pub fn svelte2tsx(
             // a `\n` prefix on part_b in that case.
             let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
                 && !ts_component_props_before_render.is_empty()
+                && !ts_component_props_in_part_a
             {
                 "\n"
             } else {
                 ""
             };
+            let part_b_component_props = if ts_component_props_in_part_a {
+                ""
+            } else {
+                &ts_component_props_before_render
+            };
             let part_b = format!(
                 "{}{}{}{}function $$render{}() {{{}{}{}",
                 part_b_prefix,
-                ts_component_props_before_render,
+                part_b_component_props,
                 template_comment,
                 async_prefix,
                 render_generics,
@@ -1559,18 +1577,32 @@ pub fn svelte2tsx(
             // No-imports branch: same split rationale as the imports branch
             // above — keep the synthesised `;type $$ComponentProps = ...;` in
             // part_b so it follows any hoisted type/interface declarations.
-            let part_a = String::from(";");
+            // When there are hoistable snippets, move it to part_a so it
+            // appears before them (mirrors the imports-branch behaviour).
+            let ts_component_props_in_part_a = !hoistable_snippet_ranges.is_empty()
+                && !ts_component_props_before_render.is_empty();
+            let mut part_a = String::from(";");
+            if ts_component_props_in_part_a {
+                part_a.push('\n');
+                part_a.push_str(&ts_component_props_before_render);
+            }
             let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
                 && !ts_component_props_before_render.is_empty()
+                && !ts_component_props_in_part_a
             {
                 "\n"
             } else {
                 ""
             };
+            let part_b_component_props = if ts_component_props_in_part_a {
+                ""
+            } else {
+                &ts_component_props_before_render
+            };
             let part_b = format!(
                 "{}{}{}{}function $$render{}() {{{}{}{}",
                 part_b_prefix,
-                ts_component_props_before_render,
+                part_b_component_props,
                 template_comment,
                 async_prefix,
                 render_generics,
@@ -3194,11 +3226,17 @@ fn is_snippet_module_hoistable(
     // instance-script value (and isn't an import or a snippet param) blocks
     // hoisting.
     //
+    // We use `lexical_identifiers_in_expressions` (identifiers inside `{...}` blocks)
+    // rather than `lexical_identifiers` to avoid false positives from HTML attribute
+    // NAMES like `data-state` (where `data` or `state` follow a `-` and are not JS
+    // references).  Periscopic's scope analysis only sees JS AST nodes, not attribute
+    // name strings, so this is the correct approximation.
+    //
     // `$name` references trigger auto-store subscription; the JS reference
     // adds the un-prefixed `name` to `disallowed_values` via
     // `addDisallowed(getAccessedStores())`, so any `$name` whose underlying
     // `name` is bound in the instance script (value OR import) also blocks.
-    for ident in lexical_identifiers(body_text) {
+    for ident in lexical_identifiers_in_expressions(body_text) {
         if params_set.contains(&ident) {
             continue;
         }
@@ -3217,12 +3255,41 @@ fn is_snippet_module_hoistable(
                 return false;
             }
         }
+
         if exported_names.instance_value_names.contains(&ident)
             && !exported_names.instance_import_names.contains(&ident)
         {
             return false;
         }
     }
+
+    // Additional check: JS reference's `addDisallowed(implicitStoreValues.getAccessedStores())`
+    // adds the base names of ALL `$X` identifiers found in the instance script (the `is_rune`
+    // filter is broken in JS due to TypeScript parent pointers not being set, so `$props`,
+    // `$bindable`, etc. always land in `accessedStores`).  If any such base name `X` appears
+    // as a plain identifier in the snippet body's EXPRESSION context, hoisting is blocked.
+    //
+    // We use `lexical_identifiers_in_expressions` (only identifiers inside `{...}` blocks)
+    // rather than the general `lexical_identifiers` to avoid false positives from HTML
+    // attribute names like `data-state` (where `state` follows `-` and is not a JS reference).
+    //
+    // E.g. `{#snippet Tree}` that contains `{#snippet child({ props })}` has `props` inside
+    // a `{...}` expression block.  Meanwhile `$props()` in the instance script means `props`
+    // is in `disallowed_values` (JS) / `instance_script_loose_dollar_names` (Rust). → blocked.
+    if !exported_names.instance_script_loose_dollar_names.is_empty() {
+        for ident in lexical_identifiers_in_expressions(body_text) {
+            if params_set.contains(&ident) {
+                continue;
+            }
+            if exported_names
+                .instance_script_loose_dollar_names
+                .contains(&ident)
+            {
+                return false;
+            }
+        }
+    }
+
     true
 }
 
@@ -3274,6 +3341,83 @@ fn lexical_identifiers(text: &str) -> Vec<String> {
             continue;
         }
         i += 1;
+    }
+    out
+}
+
+/// Extract identifiers that appear inside Svelte template expression blocks
+/// (`{...}` / `{#...}` / `{:...}` / `{/...}` / `{@...}`).
+///
+/// This is intentionally more conservative than `lexical_identifiers`: it only
+/// yields tokens found inside the `{ … }` delimiters of template tags, which
+/// is roughly what periscopic's JS AST scope analysis would see as free
+/// variables.  HTML attribute NAMES (e.g. the `state` in `data-state`) are
+/// outside these delimiters and therefore not returned, preventing false
+/// positives when checking `instance_script_loose_dollar_names`.
+fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+
+    while i < len {
+        if bytes[i] != b'{' {
+            i += 1;
+            continue;
+        }
+        // Found `{` — scan the delimited expression region.
+        i += 1; // skip `{`
+        let mut depth = 1usize;
+        let expr_start = i;
+        while i < len && depth > 0 {
+            let b = bytes[i];
+            match b {
+                b'{' => {
+                    depth += 1;
+                    i += 1;
+                }
+                b'}' => {
+                    depth -= 1;
+                    i += 1;
+                }
+                b'\'' | b'"' | b'`' => {
+                    let q = b;
+                    i += 1;
+                    while i < len && bytes[i] != q {
+                        if bytes[i] == b'\\' && i + 1 < len {
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    if i < len {
+                        i += 1;
+                    }
+                }
+                b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                    while i < len && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                }
+                b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                    i += 2;
+                    while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        i += 1;
+                    }
+                    i = (i + 2).min(len);
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+        let expr_end = i.saturating_sub(1); // don't include the closing `}`
+        if expr_start < expr_end {
+            let expr_text = &text[expr_start..expr_end];
+            for tok in lexical_identifiers(expr_text) {
+                out.push(tok);
+            }
+        }
     }
     out
 }
