@@ -1262,33 +1262,98 @@ fn render_single_expression_value(
     if inner_src.is_empty() {
         return Ok(format!("{}={{}}", node.name));
     }
-    // When the open tag wraps, a SHALLOW value (a ternary / binary / logical
-    // chain — no block body) is narrowed by the `name={` prefix so it breaks at
-    // its top level where prettier does, even when it already spans multiple
-    // lines. A value with a block body (an arrow handler / object / array) is
-    // left at the indent-only width: its continuation lines sit at the attribute
-    // indent with full width, so narrowing by the prefix would wrongly over-wrap.
+    // When the open tag wraps, attribute values are narrowed so OXC breaks them
+    // at the right column.  Two cases:
+    //
+    // SHALLOW value (a function call / ternary / binary / logical chain — anything
+    // that does NOT start with `{`/`[`/`function`/`=>`):
+    //   First format at indent-only width (no extra_lead) to get a reference result.
+    //   - If single-line: check whether the full attribute line (`indent + name={ +
+    //     value + }`) overflows; if so, re-format with `prefix` as `extra_lead` to
+    //     force a break at the right point.
+    //   - If multi-line AND the first line ends with `{` or `[` (an expanded
+    //     call-argument block): the continuation lines do NOT carry the `name={`
+    //     prefix, so return the wider-width result as-is — narrowing by `prefix`
+    //     would over-constrain inner expressions (e.g. `styles.fn({ prop: clsx(a,
+    //     b) })` would wrongly break `clsx(a, b)` even though it fits).
+    //   - If multi-line AND the first line does NOT end with `{`/`[` (a ternary,
+    //     binary, or member chain that wraps at an operator): re-format with
+    //     `prefix` as `extra_lead` so the break point matches prettier's output
+    //     (the operator-break lands at the narrower column).
+    //
+    // NOT-SHALLOW value (an arrow handler / object / array literal):
+    //   Format at indent-only width first.  If the result is still single-line but
+    //   the full line overflows:
+    //   - ARROW (`=>` present): re-format with `prefix - indent_width` as extra_lead
+    //     so the arrow body gets exactly one indent level of room.
+    //   - BLOCK-BODY (starts with `{` / `[` / `function`): re-format at
+    //     `narrowed = inline_len - 1` (one character narrower than the inline form)
+    //     to force the outer block to expand.  This is the minimal narrowing that
+    //     triggers expansion: OXC only wraps when the content exceeds the width, so
+    //     exactly `inline_len - 1` forces the outer `{…}` to split while giving the
+    //     inner content the widest possible budget (maximizing the chance that
+    //     nested calls like `styles.fn({ prop: clsx(a, b) })` stay on one line).
+    //     Using `prefix - indent_width` as extra_lead would over-narrow the budget
+    //     and wrongly break inner expressions for deep objects like
+    //     `classes={{ input: styles.fn({ prop: clsx(a, b) }) }}`.
     let prefix = visual_width(node.name.as_str()) + 2;
     let indent_width = options.js.indent_width.value() as usize;
-    let extra = if narrow_value && is_shallow_value(inner_src) {
-        prefix
-    } else {
-        0
-    };
-    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, extra)?;
-    // For arrow-function values (`onclick={() => ...}`), `is_shallow_value`
-    // returns false so `extra=0` above leaves the value unnarrowed.  But when
-    // the full line (indent + `name={` + value + `}`) overflows the print
-    // width, re-format with `prefix - indent_width` as `extra_lead` so the
-    // arrow breaks and its body line gets exactly one indent level of room —
-    // mirroring the directive path in `render_directive_value_narrow`.
-    let formatted = if narrow_value && !is_shallow_value(inner_src) && !formatted.contains('\n') {
+    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+    let formatted = if narrow_value {
         let indent_cols = attr_depth * indent_width;
         let line_width = options.js.line_width.value() as usize;
-        // `{` and `}` each count as 1 char
-        if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
-            let arrow_extra = prefix.saturating_sub(indent_width);
-            format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
+        if !formatted.contains('\n') {
+            // Single-line: check if the full rendered line overflows
+            // (`{` and `}` each count as 1 char around the expression)
+            if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
+                if is_shallow_value(inner_src) {
+                    format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+                } else if inner_src.contains("=>") {
+                    // Arrow function: narrow by prefix − one indent so the body
+                    // lands exactly one level deep.
+                    let arrow_extra = prefix.saturating_sub(indent_width);
+                    format_attribute_value_expression(
+                        inner_src,
+                        options,
+                        attr_depth,
+                        arrow_extra,
+                    )?
+                } else {
+                    // Block-body (object / array / function): force expansion by
+                    // formatting at exactly one char narrower than the inline form.
+                    // The `format_attribute_value_expression` API uses extra_lead,
+                    // so convert: narrowed = full_width − indent_cols − extra_lead,
+                    // meaning extra_lead = full_width − indent_cols − (inline_len − 1).
+                    let inline_len = visual_width(&formatted);
+                    // full_width − indent_cols is the budget without extra_lead
+                    let base_width = line_width.saturating_sub(indent_cols);
+                    // extra_lead that yields narrowed = inline_len − 1
+                    let extra_lead = base_width.saturating_sub(inline_len.saturating_sub(1));
+                    format_attribute_value_expression(
+                        inner_src,
+                        options,
+                        attr_depth,
+                        extra_lead,
+                    )?
+                }
+            } else {
+                formatted
+            }
+        } else if is_shallow_value(inner_src) {
+            // Multi-line shallow: check the first line to decide whether to
+            // re-format with extra_lead.
+            let first_line = formatted.lines().next().unwrap_or("").trim_end();
+            // If the first line ends with `{` or `[`, an inner block/array is
+            // being expanded — the continuation lines are inside that block and
+            // do NOT start at the attribute column with the `name={` prefix.
+            // Keep the wider-width result to avoid over-constraining inner exprs.
+            if first_line.ends_with('{') || first_line.ends_with('[') {
+                formatted
+            } else {
+                // First line ends at an operator or similar break point — the
+                // narrower width (with extra_lead) matches prettier's break placement.
+                format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+            }
         } else {
             formatted
         }
