@@ -215,13 +215,25 @@ fn child_binary_op(expr: &Expression) -> &'static str {
     }
 }
 
-/// Strip `ParenthesizedExpression` wrappers — esrap's input has no paren nodes;
-/// it recomputes them from precedence, so we work on the inner expression.
-fn unparen<'a, 'b>(mut expr: &'b Expression<'a>) -> &'b Expression<'a> {
-    while let Expression::ParenthesizedExpression(p) = expr {
-        expr = &p.expression;
+/// Whether a concise arrow body must be wrapped in parens (esrap's
+/// `arrow_concise_body_needs_wrap`). A body that is an object literal — or a
+/// compound whose leftmost token would otherwise be `{` — is ambiguous with a
+/// block body, so esrap parenthesizes it. Explicit `ParenthesizedExpression`
+/// bodies are printed faithfully by their own visitor and need no extra wrap.
+fn arrow_concise_body_needs_wrap(body: &Expression) -> bool {
+    match body {
+        Expression::ObjectExpression(_) => true,
+        Expression::AssignmentExpression(a) => {
+            matches!(a.left, AssignmentTarget::ObjectAssignmentTarget(_))
+        }
+        Expression::LogicalExpression(l) => {
+            matches!(l.left, Expression::ObjectExpression(_))
+        }
+        Expression::ConditionalExpression(c) => {
+            matches!(c.test, Expression::ObjectExpression(_))
+        }
+        _ => false,
     }
-    expr
 }
 
 impl<'opt> Printer<'opt> {
@@ -443,8 +455,10 @@ impl<'opt> Printer<'opt> {
         match stmt {
             Statement::ExpressionStatement(s) => {
                 // esrap wraps a leading object/function-expression statement in
-                // parens so it isn't parsed as a block/declaration.
-                let inner = unparen(&s.expression);
+                // parens so it isn't parsed as a block/declaration. The check is
+                // on the leftmost token, i.e. the immediate node type — an
+                // explicit paren node already starts with `(` and is safe.
+                let inner = &s.expression;
                 let needs_parens = matches!(
                     inner,
                     Expression::ObjectExpression(_) | Expression::FunctionExpression(_)
@@ -467,7 +481,7 @@ impl<'opt> Printer<'opt> {
                 ctx.write("return");
                 if let Some(arg) = &s.argument {
                     ctx.write(" ");
-                    self.print_expression(unparen(arg), ctx);
+                    self.print_expression(arg, ctx);
                 }
                 ctx.write(";");
             }
@@ -481,20 +495,20 @@ impl<'opt> Printer<'opt> {
             Statement::ForStatement(s) => self.for_statement(s, ctx),
             Statement::WhileStatement(s) => {
                 ctx.write("while (");
-                self.print_expression(unparen(&s.test), ctx);
+                self.print_expression(&s.test, ctx);
                 ctx.write(") ");
                 self.print_statement(&s.body, ctx);
             }
             Statement::ThrowStatement(s) => {
                 ctx.write("throw ");
-                self.print_expression(unparen(&s.argument), ctx);
+                self.print_expression(&s.argument, ctx);
                 ctx.write(";");
             }
             Statement::DoWhileStatement(s) => {
                 ctx.write("do ");
                 self.print_statement(&s.body, ctx);
                 ctx.write(" while (");
-                self.print_expression(unparen(&s.test), ctx);
+                self.print_expression(&s.test, ctx);
                 ctx.write(");");
             }
             Statement::ExportAllDeclaration(s) => {
@@ -519,7 +533,7 @@ impl<'opt> Printer<'opt> {
                 ctx.write("for (");
                 self.for_statement_left(&s.left, ctx);
                 ctx.write(" in ");
-                self.print_expression(unparen(&s.right), ctx);
+                self.print_expression(&s.right, ctx);
                 ctx.write(") ");
                 self.print_statement(&s.body, ctx);
             }
@@ -531,7 +545,7 @@ impl<'opt> Printer<'opt> {
                 ctx.write("(");
                 self.for_statement_left(&s.left, ctx);
                 ctx.write(" of ");
-                self.print_expression(unparen(&s.right), ctx);
+                self.print_expression(&s.right, ctx);
                 ctx.write(") ");
                 self.print_statement(&s.body, ctx);
             }
@@ -660,7 +674,7 @@ impl<'opt> Printer<'opt> {
             ExportDefaultDeclarationKind::ClassDeclaration(c) => self.class_node(c, ctx),
             other => {
                 if let Some(expr) = other.as_expression() {
-                    self.print_expression(unparen(expr), ctx);
+                    self.print_expression(expr, ctx);
                 } else {
                     self.unsupported("ExportDefault", ctx);
                 }
@@ -674,7 +688,7 @@ impl<'opt> Printer<'opt> {
         for (i, expr) in node.expressions.iter().enumerate() {
             let raw = node.quasis[i].value.raw.as_str();
             ctx.write(format!("{raw}${{"));
-            self.print_expression(unparen(expr), ctx);
+            self.print_expression(expr, ctx);
             ctx.write("}");
             // A newline *inside* the literal makes the enclosing context
             // multiline (esrap), which drives statement-margin decisions.
@@ -853,14 +867,14 @@ impl<'opt> Printer<'opt> {
         }
         if let Some(value) = &node.value {
             ctx.write(" = ");
-            self.print_expression(unparen(value), ctx);
+            self.print_expression(value, ctx);
         }
         ctx.write(";");
     }
 
     fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context) {
         ctx.write("if (");
-        self.print_expression(unparen(&node.test), ctx);
+        self.print_expression(&node.test, ctx);
         ctx.write(") ");
         self.print_statement(&node.consequent, ctx);
         if let Some(alternate) = &node.alternate {
@@ -876,18 +890,18 @@ impl<'opt> Printer<'opt> {
                 ForStatementInit::VariableDeclaration(d) => self.variable_declaration(d, ctx),
                 _ => {
                     if let Some(e) = init.as_expression() {
-                        self.print_expression(unparen(e), ctx);
+                        self.print_expression(e, ctx);
                     }
                 }
             }
         }
         ctx.write("; ");
         if let Some(test) = &node.test {
-            self.print_expression(unparen(test), ctx);
+            self.print_expression(test, ctx);
         }
         ctx.write("; ");
         if let Some(update) = &node.update {
-            self.print_expression(unparen(update), ctx);
+            self.print_expression(update, ctx);
         }
         ctx.write(") ");
         self.print_statement(&node.body, ctx);
@@ -1021,7 +1035,7 @@ impl<'opt> Printer<'opt> {
                 // `FormalParameter::initializer`, not as an `AssignmentPattern`.
                 if let Some(init) = &p.initializer {
                     child.write(" = ");
-                    self.print_expression(unparen(init), &mut child);
+                    self.print_expression(init, &mut child);
                 }
                 let multiline = child.multiline;
                 SeqItem {
@@ -1058,13 +1072,13 @@ impl<'opt> Printer<'opt> {
         if node.expression {
             // Concise body: a single `ExpressionStatement` holds the expression.
             if let Some(Statement::ExpressionStatement(es)) = node.body.statements.first() {
-                let inner = unparen(&es.expression);
-                if matches!(inner, Expression::ObjectExpression(_)) {
+                let body = &es.expression;
+                if arrow_concise_body_needs_wrap(body) {
                     ctx.write("(");
-                    self.print_expression(inner, ctx);
+                    self.print_expression(body, ctx);
                     ctx.write(")");
                 } else {
-                    self.print_expression(inner, ctx);
+                    self.print_expression(body, ctx);
                 }
             }
         } else {
@@ -1115,7 +1129,7 @@ impl<'opt> Printer<'opt> {
             self.binding_pattern(&declarator.id, &mut child);
             if let Some(init) = &declarator.init {
                 child.write(" = ");
-                self.print_expression(unparen(init), &mut child);
+                self.print_expression(init, &mut child);
             }
             total_measure += child.measure();
             any_multiline |= child.multiline;
@@ -1155,7 +1169,7 @@ impl<'opt> Printer<'opt> {
             BindingPattern::AssignmentPattern(a) => {
                 self.binding_pattern(&a.left, ctx);
                 ctx.write(" = ");
-                self.print_expression(unparen(&a.right), ctx);
+                self.print_expression(&a.right, ctx);
             }
             BindingPattern::ObjectPattern(o) => self.object_pattern(o, ctx),
             BindingPattern::ArrayPattern(a) => self.array_pattern(a, ctx),
@@ -1169,7 +1183,26 @@ impl<'opt> Printer<'opt> {
         let start = expr.span().start;
         self.flush_leading(ctx, start, self.line_of(start));
         match expr {
-            Expression::ParenthesizedExpression(p) => self.print_expression(&p.expression, ctx),
+            Expression::ParenthesizedExpression(p) => {
+                // esrap prints explicit paren nodes faithfully (its
+                // `ParenthesizedExpression` visitor): `(` + inner + `)`. The
+                // inner never re-adds parens since a paren node's precedence is
+                // treated as the top (20), so the parent never double-wraps.
+                //
+                // The one exception is a sequence: `(a, b)` parses as
+                // `Paren(Sequence)`, but esrap's `SequenceExpression` visitor
+                // already emits the surrounding parens. Printing this paren
+                // layer too would double them, so drop it and let the sequence
+                // supply its own. An explicit redundant `((a, b))` keeps its
+                // outer layer (whose child is the inner `Paren(Sequence)`).
+                if matches!(p.expression, Expression::SequenceExpression(_)) {
+                    self.print_expression(&p.expression, ctx);
+                } else {
+                    ctx.write("(");
+                    self.print_expression(&p.expression, ctx);
+                    ctx.write(")");
+                }
+            }
             Expression::ChainExpression(c) => match &c.expression {
                 ChainElement::CallExpression(call) => self.call_expression(call, ctx),
                 ChainElement::StaticMemberExpression(m) => self.static_member(m, ctx),
@@ -1226,7 +1259,7 @@ impl<'opt> Printer<'opt> {
                 ctx.write(if y.delegate { "yield*" } else { "yield" });
                 if let Some(arg) = &y.argument {
                     ctx.write(" ");
-                    self.print_expression(unparen(arg), ctx);
+                    self.print_expression(arg, ctx);
                 }
             }
             Expression::RegExpLiteral(r) => match &r.raw {
@@ -1234,7 +1267,7 @@ impl<'opt> Printer<'opt> {
                 None => ctx.write(format!("/{}/{}", r.regex.pattern.text, r.regex.flags)),
             },
             Expression::TaggedTemplateExpression(t) => {
-                self.print_expression(unparen(&t.tag), ctx);
+                self.print_expression(&t.tag, ctx);
                 self.template_literal(&t.quasi, ctx);
             }
             Expression::NewExpression(n) => {
@@ -1259,7 +1292,6 @@ impl<'opt> Printer<'opt> {
 
     /// Print `child` parenthesised iff its precedence is below `min`.
     fn child_with_parens(&mut self, child: &Expression, min: u8, ctx: &mut Context) {
-        let child = unparen(child);
         if expr_precedence(child) < min {
             ctx.write("(");
             self.print_expression(child, ctx);
@@ -1294,7 +1326,6 @@ impl<'opt> Printer<'opt> {
         is_right: bool,
         ctx: &mut Context,
     ) {
-        let child = unparen(child);
         if binary_needs_parens(child, parent_is_logical, parent_op, is_right) {
             ctx.write("(");
             self.print_expression(child, ctx);
@@ -1338,7 +1369,7 @@ impl<'opt> Printer<'opt> {
             ctx.write("?.");
         }
         ctx.write("[");
-        self.print_expression(unparen(&node.expression), ctx);
+        self.print_expression(&node.expression, ctx);
         ctx.write("]");
     }
 
@@ -1346,7 +1377,7 @@ impl<'opt> Printer<'opt> {
         // esrap visits both sides without adding parens.
         self.assignment_target(&node.left, ctx);
         ctx.write(format!(" {} ", node.operator.as_str()));
-        self.print_expression(unparen(&node.right), ctx);
+        self.print_expression(&node.right, ctx);
     }
 
     /// A `SimpleAssignmentTarget` (the operand of `++`/`--`, a subset of
@@ -1450,7 +1481,7 @@ impl<'opt> Printer<'opt> {
             AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
                 self.assignment_target(&d.binding, ctx);
                 ctx.write(" = ");
-                self.print_expression(unparen(&d.init), ctx);
+                self.print_expression(&d.init, ctx);
             }
             _ => match target.as_assignment_target() {
                 Some(t) => self.assignment_target(t, ctx),
@@ -1465,7 +1496,7 @@ impl<'opt> Printer<'opt> {
                 ctx.write(p.binding.name.as_str());
                 if let Some(init) = &p.init {
                     ctx.write(" = ");
-                    self.print_expression(unparen(init), ctx);
+                    self.print_expression(init, ctx);
                 }
             }
             AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
@@ -1490,9 +1521,9 @@ impl<'opt> Printer<'opt> {
         self.child_with_parens(&node.test, 5, ctx);
 
         let mut consequent = ctx.child();
-        self.print_expression(unparen(&node.consequent), &mut consequent);
+        self.print_expression(&node.consequent, &mut consequent);
         let mut alternate = ctx.child();
-        self.print_expression(unparen(&node.alternate), &mut alternate);
+        self.print_expression(&node.alternate, &mut alternate);
 
         let multiline = consequent.multiline
             || alternate.multiline
@@ -1525,12 +1556,12 @@ impl<'opt> Printer<'opt> {
                 match el {
                     ArrayExpressionElement::SpreadElement(s) => {
                         child.write("...");
-                        self.print_expression(unparen(&s.argument), &mut child);
+                        self.print_expression(&s.argument, &mut child);
                     }
                     ArrayExpressionElement::Elision(_) => {}
                     _ => {
                         if let Some(e) = el.as_expression() {
-                            self.print_expression(unparen(e), &mut child);
+                            self.print_expression(e, &mut child);
                         }
                     }
                 }
@@ -1555,7 +1586,7 @@ impl<'opt> Printer<'opt> {
             .iter()
             .map(|e| {
                 let mut child = ctx.child();
-                self.print_expression(unparen(e), &mut child);
+                self.print_expression(e, &mut child);
                 let multiline = child.multiline;
                 SeqItem {
                     ctx: child,
@@ -1579,13 +1610,13 @@ impl<'opt> Printer<'opt> {
                     ObjectPropertyKind::ObjectProperty(p) => {
                         self.object_property(p, &mut child);
                         matches!(
-                            unparen(&p.value),
+                            &p.value,
                             Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
                         )
                     }
                     ObjectPropertyKind::SpreadProperty(s) => {
                         child.write("...");
-                        self.print_expression(unparen(&s.argument), &mut child);
+                        self.print_expression(&s.argument, &mut child);
                         false
                     }
                 };
@@ -1655,7 +1686,7 @@ impl<'opt> Printer<'opt> {
             self.property_key(&prop.key, ctx);
             ctx.write(": ");
         }
-        self.print_expression(unparen(&prop.value), ctx);
+        self.print_expression(&prop.value, ctx);
     }
 
     fn property_key(&mut self, key: &PropertyKey, ctx: &mut Context) {
@@ -1669,7 +1700,7 @@ impl<'opt> Printer<'opt> {
                 })),
             _ => {
                 if let Some(e) = key.as_expression() {
-                    self.print_expression(unparen(e), ctx);
+                    self.print_expression(e, ctx);
                 } else {
                     self.unsupported("PropertyKey", ctx);
                 }
@@ -1692,10 +1723,10 @@ impl<'opt> Printer<'opt> {
             match arg {
                 Argument::SpreadElement(s) => {
                     child.write("...");
-                    self.print_expression(unparen(&s.argument), &mut child);
+                    self.print_expression(&s.argument, &mut child);
                 }
                 _ => match arg.as_expression() {
-                    Some(e) => self.print_expression(unparen(e), &mut child),
+                    Some(e) => self.print_expression(e, &mut child),
                     None => self.unsupported("Argument", &mut child),
                 },
             }
