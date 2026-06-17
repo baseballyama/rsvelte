@@ -37,6 +37,7 @@ use rsvelte_core::ast::template::{
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::find_this_attr_span;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/sort-attributes",
@@ -373,61 +374,6 @@ fn attr_range(a: &Attribute) -> (u32, u32) {
         Attribute::UseDirective(n) => (n.start, n.end),
         Attribute::LetDirective(n) => (n.start, n.end),
     }
-}
-
-/// Scan backward from `expr_start` to find the byte offset of the leading `t`
-/// in `this=` (for `<svelte:component this={...}>` / `<svelte:element this={...}>`).
-///
-/// The parser filters `this` out of `el.attributes` and stores only the inner
-/// expression in `el.expression` / `el.tag`.  We reconstruct the full attribute
-/// span here so the sort algorithm can treat `this` as a normal attribute.
-///
-/// Tolerant of optional whitespace around `=` and `{`, e.g. `this = { expr }`.
-///
-/// Returns `(attr_start, attr_end)` where `attr_start` is the byte offset of
-/// the `t` in `this` and `attr_end` is the byte past the closing `}`.
-fn find_this_attr_span(src_bytes: &[u8], expr_start: u32, expr_end: u32) -> Option<(u32, u32)> {
-    let mut pos = expr_start as usize;
-    if pos == 0 {
-        return None;
-    }
-    // Step back over optional whitespace before `{`
-    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        pos -= 1;
-    }
-    // Expect `{`
-    if pos == 0 || src_bytes[pos - 1] != b'{' {
-        return None;
-    }
-    pos -= 1;
-    // Step back over optional whitespace before `=`
-    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        pos -= 1;
-    }
-    // Expect `=`
-    if pos == 0 || src_bytes[pos - 1] != b'=' {
-        return None;
-    }
-    pos -= 1;
-    // Step back over optional whitespace before `this`
-    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        pos -= 1;
-    }
-    // Expect `this` backwards: pos-1=`s`, pos-2=`i`, pos-3=`h`, pos-4=`t`
-    if pos < 4 {
-        return None;
-    }
-    if src_bytes[pos - 1] != b's'
-        || src_bytes[pos - 2] != b'i'
-        || src_bytes[pos - 3] != b'h'
-        || src_bytes[pos - 4] != b't'
-    {
-        return None;
-    }
-    let attr_start = (pos - 4) as u32;
-    // The closing `}` is right after expr_end.
-    let attr_end = expr_end + 1;
-    Some((attr_start, attr_end))
 }
 
 // ─── Fix construction ─────────────────────────────────────────────────────────
