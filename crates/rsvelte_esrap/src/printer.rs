@@ -365,13 +365,18 @@ impl<'opt> Printer<'opt> {
     }
 
     /// esrap's `flush_trailing_comments`: emit comments on the same line as a
-    /// node's end (`// trailing`), provided they fall before `next`.
+    /// node's end (`// trailing`), provided they fall before `next`. Returns
+    /// `true` if a trailing `// line` comment (and its closing `newline()`) was
+    /// emitted — esrap propagates that newline into the surrounding context's
+    /// `multiline` via the next `append`, which the call-argument layout relies
+    /// on to force the wrapped one-arg-per-line form.
     fn flush_trailing_comments(
         &mut self,
         ctx: &mut Context,
         prev_end_line: u32,
         next: Option<u32>,
-    ) {
+    ) -> bool {
+        let mut emitted_line_newline = false;
         while self.comment_index < self.comments.len() {
             let cmt = self.comments[self.comment_index].clone();
             let fits = cmt.start_line == prev_end_line && next.is_none_or(|n| cmt.end < n);
@@ -385,8 +390,10 @@ impl<'opt> Printer<'opt> {
                 continue;
             }
             ctx.newline();
+            emitted_line_newline = true;
             break;
         }
+        emitted_line_newline
     }
 
     /// esrap's `reset_comment_index`: re-sync the cursor to the first comment
@@ -415,6 +422,116 @@ impl<'opt> Printer<'opt> {
             return;
         }
         self.flush_comments_until(ctx, node_start, node_start_line, None, true);
+    }
+
+    /// Port of esrap's `sequence` (`languages/ts/index.js`). Lays `nodes` out as
+    /// a separator-joined comma list, threading comments through the shared
+    /// `comment_index` cursor: each node is rendered, its separator written, and
+    /// its **trailing** comments flushed in source order (so a comment after a
+    /// node's separator — e.g. `foo: 1, /* c */ bar` — attaches to that node, not
+    /// as a leading comment of the next). After the layout, end-of-list comments
+    /// up to `until` are flushed.
+    ///
+    /// `until` is the byte offset that closes the list (e.g. the `}` / `]`); used
+    /// as the `next` boundary for the final node's trailing comments and as the
+    /// limit for the closing `flush_comments_until`.
+    fn sequence(
+        &mut self,
+        mut nodes: Vec<SeqNode<'_>>,
+        until: Option<u32>,
+        pad: bool,
+        separator: &str,
+        trailing_newline: bool,
+        parent: &mut Context,
+    ) {
+        let n = nodes.len();
+        let mut multiline = false;
+        let mut length: i64 = -1;
+
+        // Each node's start, for use as the *next* node's trailing-comment
+        // boundary (precomputed so the render loop can borrow `nodes` mutably).
+        let starts: Vec<Option<u32>> = nodes.iter().map(|node| node.start).collect();
+
+        // First pass — render each child, write its separator, then flush its
+        // trailing comments. This must interleave with rendering (not run after
+        // all children are built) because the single forward `comment_index`
+        // cursor would otherwise hand item[i]'s trailing comment to item[i+1] as
+        // a leading comment.
+        let mut items: Vec<SeqItem> = Vec::with_capacity(n);
+        for (i, node) in nodes.iter_mut().enumerate() {
+            let mut child = parent.child();
+            (node.render)(self, &mut child);
+
+            let node_multiline = child.multiline;
+
+            // esrap writes the separator for every non-final element, and also
+            // for a trailing elision (`[a, ,]`): `i < n-1 || !child`.
+            if i < n - 1 || node.is_elision {
+                child.write(separator);
+            }
+
+            // `next` boundary for this node's trailing comments: the next node's
+            // start, or `until` for the final node.
+            let next = if i == n - 1 { until } else { starts[i + 1] };
+            if let Some(end) = node.end {
+                self.flush_trailing_comments(&mut child, self.line_of(end), next);
+            }
+
+            length += child.measure() as i64 + 1;
+            multiline |= child.multiline;
+
+            items.push(SeqItem {
+                ctx: child,
+                multiline: node_multiline,
+                obj_or_array: node.obj_or_array,
+                is_elision: node.is_elision,
+            });
+        }
+
+        multiline |= length > 60;
+
+        if multiline {
+            parent.indent();
+            parent.newline();
+        } else if pad && length > 0 {
+            parent.write(" ");
+        }
+
+        let mut prev: Option<(bool, bool)> = None;
+        for item in items {
+            if let Some((prev_multiline, prev_obj)) = prev {
+                if prev_multiline && item.multiline && !(prev_obj && item.obj_or_array) {
+                    parent.margin();
+                }
+                if !item.is_elision {
+                    if multiline {
+                        parent.newline();
+                    } else {
+                        parent.write(" ");
+                    }
+                }
+            }
+            prev = Some((item.multiline, item.obj_or_array));
+            parent.append(item.ctx);
+        }
+
+        // esrap: flush_comments_until(context, lastNode.loc.end, until, false).
+        if let Some(until) = until {
+            let from_line = nodes
+                .last()
+                .and_then(|node| node.end)
+                .map(|e| self.line_of(e));
+            self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+        }
+
+        if multiline {
+            parent.dedent();
+            if trailing_newline {
+                parent.newline();
+            }
+        } else if pad && length > 0 {
+            parent.write(" ");
+        }
     }
 
     fn unsupported(&mut self, kind: &'static str, ctx: &mut Context) {
@@ -542,12 +659,26 @@ impl<'opt> Printer<'opt> {
                 ctx.write(";");
             }
             Statement::ReturnStatement(s) => {
-                ctx.write("return");
                 if let Some(arg) = &s.argument {
-                    ctx.write(" ");
-                    self.print_expression(arg, ctx);
+                    // esrap: when a comment sits between `return` and the
+                    // argument, wrap the argument in parens (`return (/*c*/ x);`)
+                    // so the comment can't be read as ending the statement.
+                    let contains_comment = self
+                        .comments
+                        .get(self.comment_index)
+                        .is_some_and(|c| c.start < arg.span().start);
+                    if contains_comment {
+                        ctx.write("return (");
+                        self.print_expression(arg, ctx);
+                        ctx.write(");");
+                    } else {
+                        ctx.write("return ");
+                        self.print_expression(arg, ctx);
+                        ctx.write(";");
+                    }
+                } else {
+                    ctx.write("return;");
                 }
-                ctx.write(";");
             }
             Statement::BlockStatement(b) => {
                 let span = b.span();
@@ -666,21 +797,22 @@ impl<'opt> Printer<'opt> {
         }
         if !named.is_empty() {
             ctx.write("{");
-            let items: Vec<SeqItem> = named
+            let nodes: Vec<SeqNode> = named
                 .iter()
                 .map(|s| {
-                    let mut child = ctx.child();
-                    self.import_specifier(s, &mut child);
-                    let multiline = child.multiline;
-                    SeqItem {
-                        ctx: child,
-                        multiline,
+                    let span = s.span();
+                    SeqNode {
+                        start: Some(span.start),
+                        end: Some(span.end),
                         obj_or_array: false,
                         is_elision: false,
+                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                            p.import_specifier(s, child);
+                        }),
                     }
                 })
                 .collect();
-            assemble_sequence(items, true, ",", true, ctx);
+            self.sequence(nodes, None, true, ",", true, ctx);
             ctx.write("}");
         }
         ctx.write(" from ");
@@ -735,22 +867,23 @@ impl<'opt> Printer<'opt> {
         }
 
         ctx.write("export {");
-        let items: Vec<SeqItem> = node
+        let nodes: Vec<SeqNode> = node
             .specifiers
             .iter()
             .map(|s| {
-                let mut child = ctx.child();
-                self.export_specifier(s, &mut child);
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+                let span = s.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.export_specifier(s, child);
+                    }),
                 }
             })
             .collect();
-        assemble_sequence(items, true, ",", true, ctx);
+        self.sequence(nodes, None, true, ",", true, ctx);
         ctx.write("}");
         if let Some(source) = &node.source {
             ctx.write(" from ");
@@ -866,31 +999,23 @@ impl<'opt> Printer<'opt> {
         self.class_body(&node.body, ctx);
     }
 
-    /// Lay out class members one-per-line, with a blank line between two
-    /// multiline members or a change of member kind (esrap's `body` rule).
+    /// esrap's `BlockStatement|ClassBody`: route class members through the shared
+    /// `body` machinery (one-per-line, blank line between two multiline members
+    /// or a change of member kind) so leading / trailing / end-of-body comments
+    /// are interleaved identically to a statement block.
     fn class_body(&mut self, body: &ClassBody, ctx: &mut Context) {
+        let span = body.span();
         ctx.write("{");
         let mut child = ctx.child();
-        let mut prev: Option<(std::mem::Discriminant<ClassElement>, bool)> = None;
-        for element in &body.body {
-            if matches!(element, ClassElement::TSIndexSignature(_)) {
-                continue;
-            }
-            let mut member = child.child();
-            self.class_element(element, &mut member);
-            if let Some((prev_disc, prev_multiline)) = prev {
-                if member.multiline
-                    || prev_multiline
-                    || std::mem::discriminant(element) != prev_disc
-                {
-                    child.margin();
-                }
-                child.newline();
-            }
-            let multiline = member.multiline;
-            child.append(member);
-            prev = Some((std::mem::discriminant(element), multiline));
-        }
+        let elems: Vec<BodyElem> = body
+            .body
+            .iter()
+            // esrap's `body` only skips `EmptyStatement`; TS index signatures are
+            // not statements and have no printer mapping here, so drop them.
+            .filter(|e| !matches!(e, ClassElement::TSIndexSignature(_)))
+            .map(BodyElem::ClassMember)
+            .collect();
+        self.body_elems(&elems, span.start, span.end, &mut child);
         if !child.empty() {
             ctx.indent();
             ctx.newline();
@@ -902,6 +1027,10 @@ impl<'opt> Printer<'opt> {
     }
 
     fn class_element(&mut self, element: &ClassElement, ctx: &mut Context) {
+        // esrap's `_` wildcard flushes any comment positioned before the member
+        // (e.g. a leading JSDoc block) before visiting it.
+        let start = element.span().start;
+        self.flush_leading(ctx, start, self.line_of(start));
         match element {
             ClassElement::MethodDefinition(m) => self.method_definition(m, ctx),
             ClassElement::PropertyDefinition(p) => self.property_definition(p, ctx),
@@ -1074,34 +1203,36 @@ impl<'opt> Printer<'opt> {
 
     fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
         ctx.write("{");
-        let mut items: Vec<SeqItem> = node
+        let mut nodes: Vec<SeqNode> = node
             .properties
             .iter()
-            .map(|p| {
-                let mut child = ctx.child();
-                self.binding_property(p, &mut child);
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+            .map(|prop| {
+                let span = prop.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.binding_property(prop, child);
+                    }),
                 }
             })
             .collect();
         if let Some(rest) = &node.rest {
-            let mut child = ctx.child();
-            child.write("...");
-            self.binding_pattern(&rest.argument, &mut child);
-            let multiline = child.multiline;
-            items.push(SeqItem {
-                ctx: child,
-                multiline,
+            let span = rest.span();
+            nodes.push(SeqNode {
+                start: Some(span.start),
+                end: Some(span.end),
                 obj_or_array: false,
                 is_elision: false,
+                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    child.write("...");
+                    p.binding_pattern(&rest.argument, child);
+                }),
             });
         }
-        assemble_sequence(items, true, ",", true, ctx);
+        self.sequence(nodes, Some(node.span().end), true, ",", true, ctx);
         ctx.write("}");
     }
 
@@ -1123,75 +1254,84 @@ impl<'opt> Printer<'opt> {
 
     fn array_pattern(&mut self, node: &ArrayPattern, ctx: &mut Context) {
         ctx.write("[");
-        let mut items: Vec<SeqItem> = node
+        let mut nodes: Vec<SeqNode> = node
             .elements
             .iter()
             .map(|el| {
-                let mut child = ctx.child();
-                if let Some(pattern) = el {
-                    self.binding_pattern(pattern, &mut child);
-                }
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+                let span = el.as_ref().map(|p| p.span());
+                SeqNode {
+                    start: span.map(|s| s.start),
+                    end: span.map(|s| s.end),
                     obj_or_array: false,
                     is_elision: el.is_none(),
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        if let Some(pattern) = el {
+                            p.binding_pattern(pattern, child);
+                        }
+                    }),
                 }
             })
             .collect();
         if let Some(rest) = &node.rest {
-            let mut child = ctx.child();
-            child.write("...");
-            self.binding_pattern(&rest.argument, &mut child);
-            let multiline = child.multiline;
-            items.push(SeqItem {
-                ctx: child,
-                multiline,
+            let span = rest.span();
+            nodes.push(SeqNode {
+                start: Some(span.start),
+                end: Some(span.end),
                 obj_or_array: false,
                 is_elision: false,
+                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    child.write("...");
+                    p.binding_pattern(&rest.argument, child);
+                }),
             });
         }
-        assemble_sequence(items, false, ",", true, ctx);
+        self.sequence(nodes, Some(node.span().end), false, ",", true, ctx);
         ctx.write("]");
     }
 
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
     fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context) {
-        let mut items: Vec<SeqItem> = params
+        let mut nodes: Vec<SeqNode> = params
             .items
             .iter()
-            .map(|p| {
-                let mut child = ctx.child();
-                self.binding_pattern(&p.pattern, &mut child);
-                // Default value: oxc stores parameter defaults on
-                // `FormalParameter::initializer`, not as an `AssignmentPattern`.
-                if let Some(init) = &p.initializer {
-                    child.write(" = ");
-                    self.print_expression(init, &mut child);
-                }
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+            .map(|param| {
+                let span = param.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.binding_pattern(&param.pattern, child);
+                        // Default value: oxc stores parameter defaults on
+                        // `FormalParameter::initializer`, not as an
+                        // `AssignmentPattern`.
+                        if let Some(init) = &param.initializer {
+                            child.write(" = ");
+                            p.print_expression(init, child);
+                        }
+                    }),
                 }
             })
             .collect();
         if let Some(rest) = &params.rest {
-            let mut child = ctx.child();
-            child.write("...");
-            self.binding_pattern(&rest.rest.argument, &mut child);
-            let multiline = child.multiline;
-            items.push(SeqItem {
-                ctx: child,
-                multiline,
+            let span = rest.span();
+            nodes.push(SeqNode {
+                start: Some(span.start),
+                end: Some(span.end),
                 obj_or_array: false,
                 is_elision: false,
+                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    child.write("...");
+                    p.binding_pattern(&rest.rest.argument, child);
+                }),
             });
         }
-        assemble_sequence(items, false, ",", true, ctx);
+        // esrap passes the closing `)` location as `until`, but the Rust caller
+        // already owns the parens around `formal_parameters`; there is no node
+        // span for the list itself, so no end-of-list comment flush is needed
+        // here (params rarely carry trailing comments in the corpus).
+        self.sequence(nodes, None, false, ",", true, ctx);
     }
 
     /// esrap's `ArrowFunctionExpression`: `[async ](params) => body`, wrapping an
@@ -1411,7 +1551,7 @@ impl<'opt> Printer<'opt> {
             Expression::NewExpression(n) => {
                 ctx.write("new ");
                 self.child_with_parens(&n.callee, 19, ctx);
-                self.call_arguments(&n.arguments, ctx);
+                self.call_arguments(&n.arguments, n.span().end, ctx);
             }
             Expression::UpdateExpression(u) => {
                 let op = u.operator.as_str();
@@ -1502,7 +1642,7 @@ impl<'opt> Printer<'opt> {
         if node.optional {
             ctx.write("?.");
         }
-        self.call_arguments(&node.arguments, ctx);
+        self.call_arguments(&node.arguments, node.span().end, ctx);
     }
 
     fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context) {
@@ -1556,68 +1696,72 @@ impl<'opt> Printer<'opt> {
             }
             AssignmentTarget::ArrayAssignmentTarget(a) => {
                 ctx.write("[");
-                let mut items: Vec<SeqItem> = a
+                let mut nodes: Vec<SeqNode> = a
                     .elements
                     .iter()
                     .map(|el| {
-                        let mut child = ctx.child();
-                        if let Some(t) = el {
-                            self.assignment_target_maybe_default(t, &mut child);
-                        }
-                        let multiline = child.multiline;
-                        SeqItem {
-                            ctx: child,
-                            multiline,
+                        let span = el.as_ref().map(|t| t.span());
+                        SeqNode {
+                            start: span.map(|s| s.start),
+                            end: span.map(|s| s.end),
                             obj_or_array: false,
                             is_elision: el.is_none(),
+                            render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                                if let Some(t) = el {
+                                    p.assignment_target_maybe_default(t, child);
+                                }
+                            }),
                         }
                     })
                     .collect();
                 if let Some(rest) = &a.rest {
-                    let mut child = ctx.child();
-                    child.write("...");
-                    self.assignment_target(&rest.target, &mut child);
-                    let multiline = child.multiline;
-                    items.push(SeqItem {
-                        ctx: child,
-                        multiline,
+                    let span = rest.span();
+                    nodes.push(SeqNode {
+                        start: Some(span.start),
+                        end: Some(span.end),
                         obj_or_array: false,
                         is_elision: false,
+                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                            child.write("...");
+                            p.assignment_target(&rest.target, child);
+                        }),
                     });
                 }
-                assemble_sequence(items, false, ",", true, ctx);
+                self.sequence(nodes, Some(a.span().end), false, ",", true, ctx);
                 ctx.write("]");
             }
             AssignmentTarget::ObjectAssignmentTarget(o) => {
                 ctx.write("{");
-                let mut items: Vec<SeqItem> = o
+                let mut nodes: Vec<SeqNode> = o
                     .properties
                     .iter()
-                    .map(|p| {
-                        let mut child = ctx.child();
-                        self.assignment_target_property(p, &mut child);
-                        let multiline = child.multiline;
-                        SeqItem {
-                            ctx: child,
-                            multiline,
+                    .map(|prop| {
+                        let span = prop.span();
+                        SeqNode {
+                            start: Some(span.start),
+                            end: Some(span.end),
                             obj_or_array: false,
                             is_elision: false,
+                            render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                                p.assignment_target_property(prop, child);
+                            }),
                         }
                     })
                     .collect();
                 if let Some(rest) = &o.rest {
-                    let mut child = ctx.child();
-                    child.write("...");
-                    self.assignment_target(&rest.target, &mut child);
-                    let multiline = child.multiline;
-                    items.push(SeqItem {
-                        ctx: child,
-                        multiline,
+                    let span = rest.span();
+                    nodes.push(SeqNode {
+                        start: Some(span.start),
+                        end: Some(span.end),
                         obj_or_array: false,
                         is_elision: false,
+                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                            child.write("...");
+                            p.assignment_target(&rest.target, child);
+                        }),
                     });
                 }
-                assemble_sequence(items, true, ",", true, ctx);
+                self.sequence(nodes, Some(o.span().end), true, ",", true, ctx);
                 ctx.write("}");
             }
             _ => self.unsupported("AssignmentTarget", ctx),
@@ -1700,33 +1844,33 @@ impl<'opt> Printer<'opt> {
 
     fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
         ctx.write("[");
-        let items: Vec<SeqItem> = node
+        let nodes: Vec<SeqNode> = node
             .elements
             .iter()
             .map(|el| {
-                let mut child = ctx.child();
-                match el {
-                    ArrayExpressionElement::SpreadElement(s) => {
-                        child.write("...");
-                        self.print_expression(&s.argument, &mut child);
-                    }
-                    ArrayExpressionElement::Elision(_) => {}
-                    _ => {
-                        if let Some(e) = el.as_expression() {
-                            self.print_expression(e, &mut child);
-                        }
-                    }
-                }
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+                let is_elision = matches!(el, ArrayExpressionElement::Elision(_));
+                let span = el.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
                     obj_or_array: false,
-                    is_elision: matches!(el, ArrayExpressionElement::Elision(_)),
+                    is_elision,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| match el {
+                        ArrayExpressionElement::SpreadElement(s) => {
+                            child.write("...");
+                            p.print_expression(&s.argument, child);
+                        }
+                        ArrayExpressionElement::Elision(_) => {}
+                        _ => {
+                            if let Some(e) = el.as_expression() {
+                                p.print_expression(e, child);
+                            }
+                        }
+                    }),
                 }
             })
             .collect();
-        assemble_sequence(items, false, ",", true, ctx);
+        self.sequence(nodes, Some(node.span().end), false, ",", true, ctx);
         ctx.write("]");
     }
 
@@ -1734,61 +1878,62 @@ impl<'opt> Printer<'opt> {
     /// comma list out with the shared `sequence` machinery.
     fn sequence_expression(&mut self, node: &SequenceExpression, ctx: &mut Context) {
         ctx.write("(");
-        let items: Vec<SeqItem> = node
+        let nodes: Vec<SeqNode> = node
             .expressions
             .iter()
             .map(|e| {
-                let mut child = ctx.child();
-                self.print_expression(e, &mut child);
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+                let span = e.span();
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        p.print_expression(e, child);
+                    }),
                 }
             })
             .collect();
-        assemble_sequence(items, false, ",", true, ctx);
+        self.sequence(nodes, Some(node.span().end), false, ",", true, ctx);
         ctx.write(")");
     }
 
     fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context) {
         ctx.write("{");
-        let items: Vec<SeqItem> = node
+        let nodes: Vec<SeqNode> = node
             .properties
             .iter()
             .map(|prop| {
-                let mut child = ctx.child();
-                // esrap's `sequence` visits each property through the `_`
-                // wildcard, which flushes any comment positioned before it
-                // (`{ /** doc */ key: … }`). Mirror that per property.
-                let start = prop.span().start;
-                self.flush_leading(&mut child, start, self.line_of(start));
-                let obj_or_array = match prop {
-                    ObjectPropertyKind::ObjectProperty(p) => {
-                        self.object_property(p, &mut child);
-                        matches!(
-                            &p.value,
-                            Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
-                        )
-                    }
-                    ObjectPropertyKind::SpreadProperty(s) => {
-                        child.write("...");
-                        self.print_expression(&s.argument, &mut child);
-                        false
-                    }
-                };
-                let multiline = child.multiline;
-                SeqItem {
-                    ctx: child,
-                    multiline,
+                let span = prop.span();
+                let obj_or_array = matches!(prop, ObjectPropertyKind::ObjectProperty(p)
+                if matches!(
+                    &p.value,
+                    Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
+                ));
+                SeqNode {
+                    start: Some(span.start),
+                    end: Some(span.end),
                     obj_or_array,
                     is_elision: false,
+                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        // esrap's `sequence` visits each property through the `_`
+                        // wildcard, which flushes any comment positioned before
+                        // it (`{ /** doc */ key: … }`). Mirror that per property.
+                        p.flush_leading(child, span.start, p.line_of(span.start));
+                        match prop {
+                            ObjectPropertyKind::ObjectProperty(prop) => {
+                                p.object_property(prop, child)
+                            }
+                            ObjectPropertyKind::SpreadProperty(s) => {
+                                child.write("...");
+                                p.print_expression(&s.argument, child);
+                            }
+                        }
+                    }),
                 }
             })
             .collect();
-        assemble_sequence(items, true, ",", true, ctx);
+        self.sequence(nodes, Some(node.span().end), true, ",", true, ctx);
         ctx.write("}");
     }
 
@@ -1873,24 +2018,33 @@ impl<'opt> Printer<'opt> {
     /// argument is itself multiline** — so a trailing function/array/object
     /// argument can span lines while the call stays on one line
     /// (`$.run([ … ])`, `foo(a, b, () => { … })`). Length is not a factor.
-    fn call_arguments(&mut self, args: &[Argument], ctx: &mut Context) {
+    fn call_arguments(&mut self, args: &[Argument], call_end: u32, ctx: &mut Context) {
         let n = args.len();
-        // Render each argument into its own context; non-final ones carry their
-        // trailing comma so the comma stays put whichever layout wins.
+
+        // Render each argument into its own context (non-final ones carry the
+        // trailing comma), flushing each arg's trailing comments in source order
+        // — esrap threads comments through the single `comment_index` cursor in
+        // its argument loop (`flush_trailing_comments(context, arg.loc.end, next)`).
         let mut rendered: Vec<Context> = Vec::with_capacity(n);
-        // esrap special case: a comment sitting *above* the final argument
-        // forces the whole call multiline (it sets the non-final context's
-        // `multiline`), so a `(\n\t// comment\n\targ\n)` layout is used instead
-        // of dangling the comment after `(`.
-        let mut force_wrap = false;
+
+        // esrap special case: a comment sitting *above* the final argument forces
+        // the whole sequence multiline (it sets the non-final `child_context`'s
+        // `multiline`), so a `(\n\t// comment\n\targ\n)` layout is used instead of
+        // dangling the comment after `(`.
+        let mut force_multiline = false;
+
         for (i, arg) in args.iter().enumerate() {
             let is_last = i == n - 1;
-            if is_last && let Some(c) = self.comments.get(self.comment_index) {
-                let arg_start = arg.span().start;
-                if c.start < arg_start && c.start_line < self.line_of(arg_start) {
-                    force_wrap = true;
-                }
+            let arg_start = arg.span().start;
+
+            if is_last
+                && let Some(c) = self.comments.get(self.comment_index)
+                && c.start < arg_start
+                && c.start_line < self.line_of(arg_start)
+            {
+                force_multiline = true;
             }
+
             let mut child = ctx.child();
             match arg {
                 Argument::SpreadElement(s) => {
@@ -1902,15 +2056,33 @@ impl<'opt> Printer<'opt> {
                     None => self.unsupported("Argument", &mut child),
                 },
             }
-            if i < n - 1 {
+            if !is_last {
                 child.write(",");
             }
+
+            let next = if is_last {
+                Some(call_end)
+            } else {
+                Some(args[i + 1].span().start)
+            };
+            let emitted_line =
+                self.flush_trailing_comments(&mut child, self.line_of(arg.span().end), next);
+            // esrap accumulates all non-final args in one `child_context` and
+            // `append`s a `join` context after each, which propagates the
+            // trailing line comment's pending newline into `child_context.multiline`
+            // and forces the wrapped layout. Mirror that per non-final arg.
+            if emitted_line && !is_last {
+                child.multiline = true;
+            }
+
             rendered.push(child);
         }
 
-        // Wrap iff any non-final argument went multiline, or the final argument
-        // carries a leading comment (the esrap special case above).
-        let wrap = force_wrap
+        // esrap forces the wrap only on the **non-final** args' multiline state
+        // (so a trailing multiline function/array/object argument keeps the call
+        // on one line). The force-multiline special case also only sets the
+        // non-final context.
+        let wrap = force_multiline
             || rendered
                 .iter()
                 .take(n.saturating_sub(1))
@@ -1994,66 +2166,19 @@ struct SeqItem {
     is_elision: bool,
 }
 
-/// Port of esrap's `sequence` (no-comment path): lay pre-rendered `items` out as
-/// a separator-joined list — single line when short, or indented one-per-line
-/// when any item is multiline or the total exceeds 60 columns. `pad` adds the
-/// surrounding spaces of `{ a, b }`.
-fn assemble_sequence(
-    mut items: Vec<SeqItem>,
-    pad: bool,
-    separator: &str,
-    trailing_newline: bool,
-    parent: &mut Context,
-) {
-    let n = items.len();
-    let mut multiline = false;
-    let mut length: i64 = -1;
-    for (i, item) in items.iter_mut().enumerate() {
-        // esrap writes the separator for every non-final element, and also for
-        // a trailing elision (`[a, ,]`): `i < n-1 || !child`.
-        if i < n - 1 || item.is_elision {
-            item.ctx.write(separator);
-        }
-        length += item.ctx.measure() as i64 + 1;
-        multiline |= item.multiline;
-    }
-    multiline |= length > 60;
-
-    if multiline {
-        parent.indent();
-        parent.newline();
-    } else if pad && length > 0 {
-        parent.write(" ");
-    }
-
-    let mut prev: Option<(bool, bool)> = None;
-    for item in items {
-        if let Some((prev_multiline, prev_obj)) = prev {
-            if prev_multiline && item.multiline && !(prev_obj && item.obj_or_array) {
-                parent.margin();
-            }
-            // esrap only emits the inter-element newline/space before a real
-            // element (`if (nodes[i])`), so a hole hugs the preceding comma.
-            if !item.is_elision {
-                if multiline {
-                    parent.newline();
-                } else {
-                    parent.write(" ");
-                }
-            }
-        }
-        prev = Some((item.multiline, item.obj_or_array));
-        parent.append(item.ctx);
-    }
-
-    if multiline {
-        parent.dedent();
-        if trailing_newline {
-            parent.newline();
-        }
-    } else if pad && length > 0 {
-        parent.write(" ");
-    }
+/// One node of a comma sequence, as fed to [`Printer::sequence`]. Carries the
+/// node's source span (so trailing comments can be flushed in source order) and
+/// a closure that renders it into a child context.
+struct SeqNode<'p> {
+    /// Node `loc.end` byte offset, or `None` for a synthetic node without a
+    /// span (no trailing-comment flush is attempted for it).
+    end: Option<u32>,
+    /// Node `loc.start` byte offset (the `next` boundary for the *previous*
+    /// node's trailing comments).
+    start: Option<u32>,
+    obj_or_array: bool,
+    is_elision: bool,
+    render: Box<dyn FnMut(&mut Printer<'_>, &mut Context) + 'p>,
 }
 
 fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
@@ -2064,10 +2189,12 @@ fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
     }
 }
 
-/// A member of a `body` sequence: either a leading directive or a statement.
+/// A member of a `body` sequence: a leading directive, a statement, or a class
+/// member (esrap's `ClassBody` shares the same `body` machinery as a block).
 enum BodyElem<'a, 'b> {
     Directive(&'b Directive<'a>),
     Statement(&'b Statement<'a>),
+    ClassMember(&'b ClassElement<'a>),
 }
 
 impl<'a, 'b> BodyElem<'a, 'b> {
@@ -2079,6 +2206,7 @@ impl<'a, 'b> BodyElem<'a, 'b> {
         match self {
             BodyElem::Directive(d) => d.span.start,
             BodyElem::Statement(s) => s.span().start,
+            BodyElem::ClassMember(e) => e.span().start,
         }
     }
 
@@ -2086,6 +2214,7 @@ impl<'a, 'b> BodyElem<'a, 'b> {
         match self {
             BodyElem::Directive(d) => d.span.end,
             BodyElem::Statement(s) => s.span().end,
+            BodyElem::ClassMember(e) => e.span().end,
         }
     }
 
@@ -2098,6 +2227,9 @@ impl<'a, 'b> BodyElem<'a, 'b> {
             (BodyElem::Statement(a), BodyElem::Statement(b)) => {
                 std::mem::discriminant(*a) == std::mem::discriminant(*b)
             }
+            (BodyElem::ClassMember(a), BodyElem::ClassMember(b)) => {
+                std::mem::discriminant(*a) == std::mem::discriminant(*b)
+            }
             _ => false,
         }
     }
@@ -2106,6 +2238,7 @@ impl<'a, 'b> BodyElem<'a, 'b> {
         match self {
             BodyElem::Directive(d) => printer.print_directive(d, ctx),
             BodyElem::Statement(s) => printer.print_statement(s, ctx),
+            BodyElem::ClassMember(e) => printer.class_element(e, ctx),
         }
     }
 }

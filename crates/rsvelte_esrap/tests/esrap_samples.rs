@@ -17,11 +17,6 @@
 
 /// Samples not yet byte-identical. Drive this to empty.
 const KNOWN_FAILURES: &[&str] = &[
-    "class-property",
-    "comment-block",
-    "comment-inline",
-    "comment-within-call-expression",
-    "jsdoc-indentation",
     "jsx-basic",
     "ts-abstract-class",
     "ts-accessor-properties",
