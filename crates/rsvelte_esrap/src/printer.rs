@@ -3522,18 +3522,19 @@ fn quote(value: &str, style: QuoteStyle) -> String {
         QuoteStyle::Single => '\'',
         QuoteStyle::Double => '"',
     };
+    // esrap's `quote` escapes only `\`, the quote char, `\n`, and `\r` — a literal
+    // tab is left as-is. Match it exactly (don't escape `\t`).
     let mut out = String::with_capacity(value.len() + 2);
     out.push(q);
     for ch in value.chars() {
         match ch {
             '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
             c if c == q => {
                 out.push('\\');
                 out.push(c);
             }
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
             c => out.push(c),
         }
     }
