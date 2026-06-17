@@ -63,13 +63,17 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
                     collect_init_identifiers(init, &mut refs);
                 }
             }
-            if let Some(ref idx_name) = context.state.each_index_name
+            let current_idx_name = context.state.each_index_name.as_deref();
+            if let Some(idx_name) = current_idx_name
                 && refs.iter().any(|r| r == idx_name)
             {
                 context.state.each_index_used.set(true);
             }
+            // Skip an ancestor index shadowed by the current each's same-named index
+            // (the `{@const}` ref resolves to the inner index, not the outer).
             for (anc_name, anc_used) in &context.state.ancestor_each_index_names {
-                if refs.iter().any(|r| r == anc_name) {
+                if Some(anc_name.as_str()) != current_idx_name && refs.iter().any(|r| r == anc_name)
+                {
                     anc_used.set(true);
                 }
             }

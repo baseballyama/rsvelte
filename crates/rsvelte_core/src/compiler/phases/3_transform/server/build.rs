@@ -7614,6 +7614,11 @@ impl<'a> ServerCodeGenerator<'a> {
         // (the no-children branch self-wraps; the children/snippets one does not).
         let comp_code_start = code.len();
 
+        // Set to true when a dynamic component's `if (Name) { … }` hydration guard
+        // has already been emitted inline (true-snippet branch), so the bridge must
+        // NOT wrap the whole snippet block in the guard again via `dynamic_wrap`.
+        let mut guard_inlined = false;
+
         if has_snippets || has_children {
             #[allow(clippy::type_complexity)]
             let (true_snippets, slot_children): (
@@ -7703,44 +7708,74 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 let slots_str = slots_entries.join(", ");
 
+                // Build the component call into a separate string so that, for a
+                // dynamic (member-expression) component, the call alone can be
+                // wrapped in the `if (Name) { … } else { … }` hydration guard while
+                // the snippet `function` declarations stay in the OUTER block,
+                // BEFORE the guard (mirrors upstream server `build_inline_component`,
+                // component.js lines 312-329).
+                let mut call_code = String::new();
                 if component_has_spreads {
                     // `<Child {...rest}>{#snippet …}…{/snippet}</Child>` must not
                     // drop the `{...rest}`. Emit
                     // `Child($$renderer, $.spread_props([…interleaved spreads/props…, { snippets, $$slots }]))`
                     // (issue #448, H-104/H-105).
                     let _ = writeln!(
-                        code,
+                        call_code,
                         "\t{}{}($$renderer, $.spread_props([",
                         name, call_syntax
                     );
-                    for item in props_and_spreads {
+                    // Upstream `push_prop` appends the snippet-name props and the
+                    // `$$slots` object into the LAST props group when it is a plain
+                    // props object (props_and_spreads.at(-1) is an array); only when
+                    // the last item is a spread do they start a fresh trailing
+                    // object. Mirror that so `{ …, popper, $$slots: {…} }` merges.
+                    let mut final_entries = props_after_spread.clone();
+                    final_entries.push(format!("$$slots: {{ {} }}", slots_str));
+                    let last_is_props =
+                        matches!(props_and_spreads.last(), Some(ComponentPropItem::Props(_)));
+                    let last_idx = props_and_spreads.len().saturating_sub(1);
+                    for (i, item) in props_and_spreads.iter().enumerate() {
                         match item {
                             ComponentPropItem::Props(props) => {
-                                let _ = writeln!(code, "\t\t{{ {} }},", props.join(", "));
+                                if last_is_props && i == last_idx {
+                                    let mut merged: Vec<String> = props.clone();
+                                    merged.extend(final_entries.iter().cloned());
+                                    let _ = writeln!(call_code, "\t\t{{ {} }},", merged.join(", "));
+                                } else {
+                                    let _ = writeln!(call_code, "\t\t{{ {} }},", props.join(", "));
+                                }
                             }
                             ComponentPropItem::Spread(expr) => {
-                                let _ = writeln!(code, "\t\t{},", expr);
+                                let _ = writeln!(call_code, "\t\t{},", expr);
                             }
                         }
                     }
-                    let mut final_entries = props_after_spread.clone();
-                    final_entries.push(format!("$$slots: {{ {} }}", slots_str));
-                    let _ = writeln!(code, "\t\t{{ {} }}", final_entries.join(", "));
-                    code.push_str("\t]));\n");
+                    if !last_is_props {
+                        let _ = writeln!(call_code, "\t\t{{ {} }}", final_entries.join(", "));
+                    }
+                    call_code.push_str("\t]));\n");
                 } else {
                     let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
                     all_props.extend(props_after_spread);
-                    let _ = write!(code, "\t{}{}($$renderer, {{ ", name, call_syntax);
+                    let _ = write!(call_code, "\t{}{}($$renderer, {{ ", name, call_syntax);
                     if all_props.is_empty() {
-                        let _ = writeln!(code, "$$slots: {{ {} }} }});", slots_str);
+                        let _ = writeln!(call_code, "$$slots: {{ {} }} }});", slots_str);
                     } else {
                         let _ = writeln!(
-                            code,
+                            call_code,
                             "{}, $$slots: {{ {} }} }});",
                             all_props.join(", "),
                             slots_str
                         );
                     }
+                }
+                if dynamic {
+                    // Guard only the call; snippet declarations above stay outside.
+                    code.push_str(&wrap_indented_call(&call_code, name, "\t"));
+                    guard_inlined = true;
+                } else {
+                    code.push_str(&call_code);
                 }
                 code.push_str("}\n");
             } else if has_slot_children && !has_children {
@@ -8304,7 +8339,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // hydration markers, so we no longer emit a leading `<!---->` or a
         // trailing `<!---->` for them. Static components still get the
         // trailing-marker treatment.
-        let dynamic_wrap = if dynamic {
+        let dynamic_wrap = if dynamic && !guard_inlined {
             Some(DynamicComponentWrap {
                 test: strip_outer_parens(name).to_string(),
                 has_css_props,
@@ -8354,6 +8389,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // hydration wrapper, so the call itself is always direct.
         let call_syntax = "";
 
+        // Set when a dynamic component's `if (Name) { … }` guard is emitted inline
+        // (true-snippet branch) so the bridge does not double-wrap via `dynamic_wrap`.
+        let mut guard_inlined = false;
+
         if has_spreads(props_and_spreads) {
             // `<Child bind:value={v} {...rest}>kids</Child>` (and the
             // snippet / named-slot variants) must keep the `kids` /
@@ -8393,15 +8432,33 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             let inner_indent = if has_true_snippets { "\t" } else { "" };
 
+            // Position where the component call begins (after any hoisted snippet
+            // function declarations) so a dynamic component's call can be wrapped
+            // in the `if (Name) { … }` guard while the snippets stay outside it.
+            let call_start = code.len();
+
             let _ = writeln!(
                 code,
                 "{}{}{}($$renderer, $.spread_props([",
                 inner_indent, name, call_syntax
             );
-            for item in props_and_spreads {
+            // Upstream `push_prop` appends the bind getter/setter pairs into the
+            // LAST props group when it is a plain props object, so a trailing
+            // `data-x=""` attribute shares one object with the bindings. Mirror
+            // that by folding the last props group into the bindings object below
+            // (otherwise rsvelte emits a spurious separate `{ "data-x": "" }`).
+            let last_is_props =
+                matches!(props_and_spreads.last(), Some(ComponentPropItem::Props(_)));
+            let last_idx = props_and_spreads.len().saturating_sub(1);
+            let mut merged_last_props: Vec<String> = Vec::new();
+            for (i, item) in props_and_spreads.iter().enumerate() {
                 match item {
                     ComponentPropItem::Props(props) => {
-                        let _ = writeln!(code, "{}\t{{ {} }},", inner_indent, props.join(", "));
+                        if last_is_props && i == last_idx {
+                            merged_last_props = props.clone();
+                        } else {
+                            let _ = writeln!(code, "{}\t{{ {} }},", inner_indent, props.join(", "));
+                        }
                     }
                     ComponentPropItem::Spread(expr) => {
                         let _ = writeln!(code, "{}\t{},", inner_indent, expr);
@@ -8409,6 +8466,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
             let _ = writeln!(code, "{}\t{{", inner_indent);
+            for p in &merged_last_props {
+                let _ = writeln!(code, "{}\t\t{},", inner_indent, p);
+            }
 
             let binding_count = bindings.len();
             let has_extras = has_true_snippets
@@ -8503,8 +8563,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
                 for (snippet_name, _, _, _) in &true_snippets {
-                    if !slot_names.contains(snippet_name) {
-                        let _ = writeln!(code, "{}\t\t\t{}: true,", inner_indent, snippet_name);
+                    // A `children` snippet maps to the `default` slot (already emitted
+                    // via slot_names above); use that key so we don't add a spurious
+                    // `children: true` entry alongside `default: true`.
+                    let slot_key = if snippet_name == "children" {
+                        "default"
+                    } else {
+                        snippet_name.as_str()
+                    };
+                    if !slot_names.iter().any(|s| s == slot_key) {
+                        let _ = writeln!(code, "{}\t\t\t{}: true,", inner_indent, slot_key);
                     }
                 }
                 if has_children && !slot_names.contains(&"default".to_string()) {
@@ -8516,6 +8584,11 @@ impl<'a> ServerCodeGenerator<'a> {
             let _ = writeln!(code, "{}\t}}", inner_indent);
             let _ = writeln!(code, "{}]));", inner_indent);
             if has_true_snippets {
+                if dynamic {
+                    let call_text = code.split_off(call_start);
+                    code.push_str(&wrap_indented_call(&call_text, name, "\t"));
+                    guard_inlined = true;
+                }
                 code.push_str("}\n");
             }
         } else {
@@ -8550,6 +8623,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     code.push_str("\t}\n\n");
                 }
             }
+            // Position where the component call begins (after any hoisted snippet
+            // function declarations); see the spread branch above.
+            let call_start = code.len();
+
             let _ = writeln!(
                 code,
                 "{}{}{}($$renderer, {{",
@@ -8642,13 +8719,19 @@ impl<'a> ServerCodeGenerator<'a> {
             }
             let _ = writeln!(code, "{}}});", inner_indent);
             if has_true_snippets {
+                if dynamic {
+                    let call_text = code.split_off(call_start);
+                    code.push_str(&wrap_indented_call(&call_text, name, "\t"));
+                    guard_inlined = true;
+                }
                 code.push_str("}\n");
             }
         }
 
         // Svelte 5.52+: dynamic components emit their own if/else hydration
-        // markers (no leading or trailing `<!---->`).
-        let dynamic_wrap = if dynamic {
+        // markers (no leading or trailing `<!---->`). When the guard was already
+        // emitted inline (true-snippet branch), don't wrap again.
+        let dynamic_wrap = if dynamic && !guard_inlined {
             Some(DynamicComponentWrap {
                 test: strip_outer_parens(name).to_string(),
                 has_css_props: false,

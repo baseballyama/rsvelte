@@ -243,3 +243,41 @@ pnpm run lint-corpus:update            # re-baseline known-failures.json after a
 
 The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track
 on PRs/pushes touching the linter, the pipeline, or either pin.
+
+## Ecosystem corpus (real-world projects)
+
+The base corpus above pins sveltejs/svelte + sveltejs/svelte.dev. The
+**ecosystem corpus** runs the exact same three tracks (compiler byte-equality,
+svelte2tsx, formatter parity) over the *shipped source* of the production
+projects tracked by ecosystem-ci — `compat/ecosystem-ci/targets/*.json`
+(bits-ui, flowbite-svelte, melt-ui, shadcn-svelte) — so divergences that only
+surface on real component libraries (namespaced components, `$props.id()`,
+`{@const}`-in-snippet, long `{@render}` wrapping, …) are caught and ratcheted.
+
+Unlike ecosystem-ci this never installs deps or runs builds — the corpus only
+reads files, so projects are shallow-cloned by `sync-ecosystem.mjs`. Only each
+project's real `.svelte` / `.svelte.(js|ts)` files are collected; project
+markdown docs are skipped (they carry project-specific doc tooling — e.g.
+flowbite's non-Svelte `{#include X.svelte}` directive — and truncated pseudo-code
+the official compiler itself rejects, which is noise, not a compatibility gap).
+
+```bash
+# clone/refresh the ecosystem targets into compat/ecosystem-ci/checkout/ (gitignored)
+pnpm run corpus:eco:sync
+
+# compiler + svelte2tsx tracks over the ecosystem corpus
+pnpm run corpus:eco
+
+# formatter-parity track over the ecosystem corpus
+pnpm run corpus:eco:fmt-parity
+```
+
+`collect.mjs --eco-only` scopes the manifest to just the cloned projects (id
+prefix `eco-<name>/…`), so each track ratchets against its own checked-in
+baseline — `eco-known-failures.json`, `eco-svelte2tsx-known-failures.json`,
+`eco-fmt-known-failures.json` — independently of the base corpus. Like every
+other ratchet they may only shrink. Regenerate after a fix with
+`--update-baseline --baseline <eco file>`.
+
+A snapshot of where these stand is in
+[docs/corpus-ecosystem-compat.md](../../docs/corpus-ecosystem-compat.md).

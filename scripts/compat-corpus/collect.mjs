@@ -32,6 +32,11 @@ function argValue(name, fallback) {
 	const i = args.indexOf(name);
 	return i !== -1 && args[i + 1] ? args[i + 1] : fallback;
 }
+// --eco-only collects ONLY the cloned ecosystem projects (skips svelte +
+// svelte.dev), so the manifest — and therefore every downstream track — is
+// scoped to the real-world corpus. Used to measure ecosystem compatibility in
+// isolation without dragging the 6k-entry base corpus through compile/verify.
+const ECO_ONLY = args.includes('--eco-only');
 
 const SVELTE_DIR = path.join(ROOT, 'submodules/svelte');
 // svelte.dev is a submodule (kept current by auto-update-submodules.yml,
@@ -42,11 +47,20 @@ if (!fs.existsSync(path.join(SVELTE_DIR, 'packages/svelte/package.json'))) {
 	console.error(`[collect] svelte submodule missing at ${SVELTE_DIR} (run git submodule update --init)`);
 	process.exit(1);
 }
-if (!fs.existsSync(SVELTE_DEV_DIR)) {
-	console.error(`[collect] svelte.dev checkout missing at ${SVELTE_DEV_DIR}`);
-	console.error('  run: git submodule update --init --depth 1 submodules/svelte.dev');
-	process.exit(1);
+const HAVE_SVELTE_DEV = fs.existsSync(SVELTE_DEV_DIR);
+if (!HAVE_SVELTE_DEV) {
+	console.warn(`[collect] svelte.dev checkout missing at ${SVELTE_DEV_DIR} — skipping it`);
+	console.warn('  (run: git submodule update --init --depth 1 submodules/svelte.dev to include it)');
 }
+
+// Real-world ecosystem projects (bits-ui, melt-ui, flowbite-svelte, …) are
+// cloned on demand into compat/ecosystem-ci/checkout/<name>/ (gitignored) by
+// scripts/compat-corpus/sync-ecosystem.mjs. When present, every `.svelte` /
+// `.svelte.(js|ts)` source they ship is folded into the corpus under an
+// `eco-<name>/…` id prefix so the same byte-equality / svelte2tsx / formatter
+// tracks run over production component libraries, not just svelte's own
+// fixtures. Absent (the default in CI for the base corpus), nothing changes.
+const ECO_CHECKOUT_DIR = path.join(ROOT, 'compat/ecosystem-ci/checkout');
 
 /** Recursively list files, skipping node_modules/.git and other junk. */
 function walk(dir, out = []) {
@@ -139,7 +153,13 @@ function addEntry(repo, relPath, kind, source) {
 	manifest.push({ id, kind });
 }
 
-function collectRepo(repo, dir) {
+// `markdown` controls whether ```svelte / ```js+file fences inside .md docs are
+// extracted. The curated svelte / svelte.dev docs are designed to compile, so
+// they are included; real-world project READMEs/doc-pages are not — they carry
+// project-specific doc tooling (e.g. flowbite's non-Svelte `{#include X.svelte}`
+// directive) and truncated pseudo-code the official compiler itself rejects, so
+// the ecosystem corpus collects only each project's SHIPPED source files.
+function collectRepo(repo, dir, { markdown = true } = {}) {
 	const files = walk(dir);
 	let real = 0;
 	let md = 0;
@@ -151,7 +171,7 @@ function collectRepo(repo, dir) {
 		} else if (isSvelteFile(file)) {
 			addEntry(repo, rel, 'component', fs.readFileSync(file, 'utf8'));
 			real++;
-		} else if (file.endsWith('.md')) {
+		} else if (markdown && file.endsWith('.md')) {
 			const snippets = extractFromMarkdown(fs.readFileSync(file, 'utf8'));
 			for (const s of snippets) {
 				const kind = s.ext === '.svelte' ? 'component' : 'module';
@@ -163,8 +183,20 @@ function collectRepo(repo, dir) {
 	console.log(`[collect] ${repo}: ${real} files + ${md} markdown snippets`);
 }
 
-collectRepo('svelte', SVELTE_DIR);
-collectRepo('svelte.dev', SVELTE_DEV_DIR);
+if (!ECO_ONLY) {
+	collectRepo('svelte', SVELTE_DIR);
+	if (HAVE_SVELTE_DEV) collectRepo('svelte.dev', SVELTE_DEV_DIR);
+}
+
+// Fold in every cloned ecosystem project. Each lives under its own checkout
+// directory; its id prefix is `eco-<name>` so a single `--filter eco-` (or
+// `--filter eco-<name>`) scopes any track to the real-world corpus.
+if (fs.existsSync(ECO_CHECKOUT_DIR)) {
+	for (const entry of fs.readdirSync(ECO_CHECKOUT_DIR, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue;
+		collectRepo(`eco-${entry.name}`, path.join(ECO_CHECKOUT_DIR, entry.name), { markdown: false });
+	}
+}
 
 manifest.sort((a, b) => (a.id < b.id ? -1 : 1));
 fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');

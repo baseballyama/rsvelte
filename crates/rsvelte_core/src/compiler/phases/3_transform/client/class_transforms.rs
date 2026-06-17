@@ -1161,6 +1161,46 @@ pub(crate) fn transform_class_fields_client(script: &str) -> String {
                     let _ = writeln!(ctor_body, "\t\t\t{}", transformed_line);
                 }
 
+                // AST-based pass for `this.#field = …` assignments NESTED inside a
+                // grouped statement (e.g. `const rAF = requestAnimationFrame(() => {
+                // this.#x = false; })`): the per-line `transform_constructor_assignment`
+                // only rewrites a `this.#x = …` at the START of a (possibly grouped)
+                // line, so a field write buried inside a callback body was left as a
+                // raw assignment instead of `$.set(this.#x, …)`. The pass is idempotent
+                // (a wrapped `$.set(…)` is a CallExpression, not an AssignmentExpression),
+                // so the already-rewritten top-level writes are not touched.
+                {
+                    let mut state_qualified: Vec<String> = Vec::new();
+                    let mut other_qualified: Vec<String> = Vec::new();
+                    for field in &fields {
+                        // Constructor-declared fields keep a `this.#x = $.state(…)`
+                        // INITIALIZER in the body (handled above); AST-wrapping that
+                        // assignment would wrongly produce `$.set(this.#x, $.state(…))`.
+                        // Only class-body-declared fields have plain writes here.
+                        if field.constructor_declared {
+                            continue;
+                        }
+                        let qualified = format!("this.#{}", field.private_backing_name);
+                        if field.rune_type == "$state" {
+                            state_qualified.push(qualified);
+                        } else if field.rune_type == "$state.raw"
+                            || field.rune_type == "$state.frozen"
+                        {
+                            other_qualified.push(qualified);
+                        }
+                    }
+                    if (!state_qualified.is_empty() || !other_qualified.is_empty())
+                        && let Some(rewritten) =
+                            super::private_class_assign_ast::transform_private_class_assign_ast(
+                                &ctor_body,
+                                &state_qualified,
+                                &other_qualified,
+                            )
+                    {
+                        ctor_body = rewritten;
+                    }
+                }
+
                 let ctor_transformed = transform_class_methods_non_this(&ctor_body, &fields);
                 let ctor_transformed =
                     transform_constructor_private_reads(&ctor_transformed, &fields);

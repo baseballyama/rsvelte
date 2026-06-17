@@ -393,11 +393,20 @@ fn render_tag_has_call(expr: &Expression) -> bool {
 /// Recursively check if a JSON value (ESTree node) contains a CallExpression.
 /// Stops recursion at function boundaries (ArrowFunctionExpression, FunctionExpression)
 /// since calls inside those don't affect the outer expression's reactivity.
+///
+/// `SpreadElement` and `TaggedTemplateExpression` also count: the official Phase-2
+/// analyzer sets `expression.has_call = true` for both (SpreadElement.js,
+/// TaggedTemplateExpression.js), because e.g. `[...x]` is treated like
+/// `[...x.values()]`. This makes a render-tag argument such as
+/// `{ props, ...snippetProps }` memoize into a `$.derived`, matching upstream.
 fn json_value_has_call(val: &serde_json::Value) -> bool {
     match val {
         serde_json::Value::Object(obj) => {
             if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
-                if expr_type == "CallExpression" {
+                if expr_type == "CallExpression"
+                    || expr_type == "SpreadElement"
+                    || expr_type == "TaggedTemplateExpression"
+                {
                     return true;
                 }
                 if expr_type == "ArrowFunctionExpression"

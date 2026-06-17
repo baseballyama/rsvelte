@@ -1328,9 +1328,13 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
             collapsed
         };
         let collapsed_bytes = collapsed.as_bytes();
+        // Accept an optional TS type annotation between the closing brace and the
+        // `= $props()` (e.g. `}: PinInputRootProps = $props()`); requiring the
+        // literal `} = $props()` missed typed `$props()` destructurings, leaving
+        // their `...rest` exposing `$$slots` / `$$events`.
         if (memmem::find(collapsed_bytes, b"let {").is_some()
             || memmem::find(collapsed_bytes, b"const {").is_some())
-            && memmem::find(collapsed_bytes, b"} = $props()").is_some()
+            && memmem::find(collapsed_bytes, b"= $props()").is_some()
             && memmem::find(collapsed_bytes, b"...").is_some()
         {
             return true;
@@ -1345,43 +1349,144 @@ fn collapse_multiline_destructuring(script: &str) -> String {
     let mut result = String::new();
     let mut in_destructure = false;
     let mut accum = String::new();
+    // Original (verbatim) lines of the in-progress accumulation, so a block that
+    // turns out NOT to be a props destructuring is emitted unchanged.
+    let mut orig: Vec<String> = Vec::new();
+    // Running brace depth, ignoring braces inside string / template literals (e.g.
+    // the `}` in `inputId = `${createId(uid)}-input``, which must NOT end the
+    // destructure early — a naive `contains('}')` check truncated such patterns).
+    let mut depth: i32 = 0;
 
     for line in script.lines() {
         let trimmed = line.trim();
 
         if !in_destructure {
-            // Check if this line starts a multi-line destructure
-            if (trimmed.starts_with("let {") || trimmed.starts_with("const {"))
-                && !trimmed.contains('}')
-            {
-                in_destructure = true;
-                accum.clear();
-                accum.push_str(trimmed);
-                accum.push(' ');
-                continue;
+            // Start tracking a `let {` / `const {` whose braces do not balance on
+            // the same line (the pattern — or an object-literal RHS — continues).
+            if trimmed.starts_with("let {") || trimmed.starts_with("const {") {
+                let d = net_brace_depth(trimmed);
+                if d > 0 {
+                    in_destructure = true;
+                    depth = d;
+                    accum.clear();
+                    accum.push_str(trimmed);
+                    accum.push(' ');
+                    orig.clear();
+                    orig.push(line.to_string());
+                    continue;
+                }
             }
             result.push_str(line);
             result.push('\n');
         } else {
+            orig.push(line.to_string());
             // Skip pure comment lines when collapsing (they can't be on one line with code after them)
             if trimmed.starts_with("//") {
                 // Don't include line comments in the collapsed output
             } else {
                 accum.push_str(trimmed);
                 accum.push(' ');
+                depth += net_brace_depth(trimmed);
             }
-            if trimmed.contains('}') {
+            if depth <= 0 {
                 in_destructure = false;
-                // Clean up extra whitespace
-                let collapsed = accum.trim().to_string();
-                result.push_str("\t\t");
-                result.push_str(&collapsed);
-                result.push('\n');
+                depth = 0;
+                let collapsed = accum.trim();
+                // Only collapse a *props* destructuring (`= $$props` / `= $props()`).
+                // Anything else (e.g. `const { a } = { …object literal… }`) is
+                // emitted verbatim so we never reformat — and risk corrupting —
+                // unrelated multi-line object-literal initializers.
+                if memmem::find(collapsed.as_bytes(), b"= $$props").is_some()
+                    || memmem::find(collapsed.as_bytes(), b"= $props()").is_some()
+                {
+                    result.push_str("\t\t");
+                    result.push_str(collapsed);
+                    result.push('\n');
+                } else {
+                    for l in &orig {
+                        result.push_str(l);
+                        result.push('\n');
+                    }
+                }
             }
         }
     }
 
+    // An unterminated accumulation (no balancing `}`) is flushed verbatim so we
+    // never silently drop lines.
+    if in_destructure {
+        for l in &orig {
+            result.push_str(l);
+            result.push('\n');
+        }
+    }
+
     result
+}
+
+/// Net `{` minus `}` count of a line, skipping braces inside `'`/`"`/`` ` ``
+/// string and template literals. Template-literal `${…}` interpolations still
+/// contribute their braces (they are real JS braces), which keeps the running
+/// object-pattern depth balanced across the whole expression.
+fn net_brace_depth(line: &str) -> i32 {
+    let bytes = line.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == quote {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            b'`' => {
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        break;
+                    }
+                    if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
+                        depth += 1;
+                        i += 2;
+                        let mut interp = 1i32;
+                        while i < bytes.len() && interp > 0 {
+                            match bytes[i] {
+                                b'{' => interp += 1,
+                                b'}' => {
+                                    interp -= 1;
+                                    if interp == 0 {
+                                        depth -= 1;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    i += 1;
+                }
+            }
+            b'{' => depth += 1,
+            b'}' => depth -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+    depth
 }
 
 /// Transform script code to use proper destructuring for props spread pattern.
@@ -1430,6 +1535,36 @@ pub(crate) fn transform_props_spread_ex(
                 ("const", stripped.trim())
             } else {
                 ("let", left)
+            };
+
+            // Strip a trailing TS type annotation on the destructuring pattern,
+            // e.g. `{ a, ...rest }: SomeProps` → `{ a, ...rest }` (the server
+            // output is plain JS, so the annotation is dropped). Without this the
+            // `ends_with('}')` check below fails for a typed `$props()` and the
+            // `$$slots` / `$$events` exclusion is silently skipped.
+            let pattern = if pattern.starts_with('{') && !pattern.ends_with('}') {
+                let bytes = pattern.as_bytes();
+                let mut depth = 0i32;
+                let mut close = None;
+                for (i, &b) in bytes.iter().enumerate() {
+                    match b {
+                        b'{' => depth += 1,
+                        b'}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                close = Some(i);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                match close {
+                    Some(c) if pattern[c + 1..].trim_start().starts_with(':') => &pattern[..c + 1],
+                    _ => pattern,
+                }
+            } else {
+                pattern
             };
 
             // Case 1: Simple identifier (let props = $$props)

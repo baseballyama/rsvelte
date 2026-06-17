@@ -1129,7 +1129,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     if class_name == value {
                         class_directive_parts.push(class_name.to_string());
                     } else {
-                        class_directive_parts.push(format!("{}: {}", class_name, value));
+                        // Quote a non-identifier class name (e.g. `class:overflow-visible`
+                        // → `"overflow-visible": …`); an unquoted hyphenated key is a
+                        // syntax error. Mirrors the style-directive path above.
+                        class_directive_parts.push(format!(
+                            "{}: {}",
+                            quote_prop_name(class_name),
+                            value
+                        ));
                     }
                 }
                 Attribute::StyleDirective(style_dir) => {

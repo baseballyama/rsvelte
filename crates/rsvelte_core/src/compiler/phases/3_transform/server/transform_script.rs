@@ -7605,7 +7605,15 @@ pub(crate) fn strip_arrow_function_parens(s: String) -> String {
                     || pb == b']'
                     || pb >= 0x80
             };
-            if !prev_is_call {
+            // An arrow that is the operand of a nullish/logical operator (`??`,
+            // `||`, `&&`) MUST stay parenthesized — `a ?? () => {}` is a syntax
+            // error. esrap keeps the parens here, so we must not strip them. Only a
+            // DOUBLED operator counts: a single `?` is a ternary (`cond ? (() => …) : x`)
+            // whose consequent arrow does NOT need parens, and esrap strips those.
+            let prev_needs_parens = k >= 2
+                && matches!(bytes[k - 1], b'?' | b'|' | b'&')
+                && bytes[k - 2] == bytes[k - 1];
+            if !prev_is_call && !prev_needs_parens {
                 // Find the matching `)` for the outer parens.
                 let inner_start = i + 1;
                 let mut depth: i32 = 1;

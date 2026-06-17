@@ -1291,7 +1291,7 @@ fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> 
 fn process_bind_directive(
     bind: &BindDirective,
     context: &mut ComponentContext,
-    _props_and_spreads: &mut Vec<PropsEntry>,
+    props_and_spreads: &mut Vec<PropsEntry>,
     delayed_props: &mut Vec<DelayedProp>,
     bind_this: &mut Option<Expression>,
     binding_initializers: &mut Vec<JsStatement>,
@@ -1447,9 +1447,15 @@ fn process_bind_directive(
             .init
             .push(b::var_decl(&context.arena, set_name.clone(), Some(set)));
 
-        // Add getter
-        delayed_props.push(DelayedProp {
-            prop: b::getter(
+        // An explicit get/set bind (`bind:x={() => a, b => …}` — a SequenceExpression)
+        // is pushed in SOURCE position, NOT delayed. Upstream only delays the
+        // simple `bind:x={var}` form so a later spread can't overwrite it; the
+        // explicit-accessor form keeps its place so e.g.
+        // `<C bind:checked={…} {...rest} />` emits `spread_props({ get/set }, () => rest)`
+        // in attribute order (component.js lines 232-245 push WITHOUT delay).
+        push_prop_immediate(
+            props_and_spreads,
+            b::getter(
                 &context.arena,
                 bind.name.as_str(),
                 vec![b::return_value(
@@ -1457,11 +1463,10 @@ fn process_bind_directive(
                     b::call(&context.arena, b::id(get_name), vec![]),
                 )],
             ),
-        });
-
-        // Add setter
-        delayed_props.push(DelayedProp {
-            prop: b::setter(
+        );
+        push_prop_immediate(
+            props_and_spreads,
+            b::setter(
                 &context.arena,
                 bind.name.as_str(),
                 "$$value",
@@ -1470,7 +1475,7 @@ fn process_bind_directive(
                     b::call(&context.arena, b::id(set_name), vec![b::id("$$value")]),
                 )],
             ),
-        });
+        );
 
         return;
     }
