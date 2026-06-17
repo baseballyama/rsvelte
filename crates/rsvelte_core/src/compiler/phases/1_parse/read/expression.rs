@@ -2260,6 +2260,21 @@ pub fn parse_typescript_params(
                 let param_expr = convert_formal_parameter(arena, param, offset - 1, line_offsets);
                 p.push(param_expr);
             }
+            // A rest parameter (`...args`) lives in `params.rest`, not `items`.
+            // Without this it was silently dropped (a snippet `(...args)`
+            // emitted `()` in svelte2tsx). Mirror the function-param rest handling.
+            if let Some(rest) = &arrow.params.rest {
+                let rest_start = (offset - 1) + rest.span.start as usize;
+                let rest_end = (offset - 1) + rest.span.end as usize;
+                let argument =
+                    convert_binding_pattern(arena, &rest.rest.argument, offset - 1, line_offsets);
+                p.push(Expression::from_node(JsNode::RestElement {
+                    start: rest_start as u32,
+                    end: rest_end as u32,
+                    loc: create_typed_loc(rest_start, rest_end, line_offsets),
+                    argument: arena.alloc_js_node(argument),
+                }));
+            }
             ParseOutcome::Ok(p)
         } else {
             ParseOutcome::HasErrors

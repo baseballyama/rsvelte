@@ -2462,6 +2462,24 @@ impl Parser<'_> {
                         (mustache_start, mustache_start),
                     ));
                 }
+                // A logic block (`{#each}`, `{#if}`, …) cannot appear inside a
+                // <textarea>. Svelte raises `block_invalid_placement` at PARSE
+                // (read_sequence's `'inside <textarea>'` location); rsvelte
+                // mirrored it only in the analyze EachBlock visitor, which
+                // svelte2tsx (parse-only) never runs. Raise it here too so the
+                // error surfaces consistently.
+                if trimmed_peek.starts_with('#') {
+                    let after_hash = trimmed_peek.get(1..).unwrap_or("");
+                    let block_name: String = after_hash
+                        .chars()
+                        .take_while(|c| c.is_ascii_lowercase())
+                        .collect();
+                    return Err(crate::error::ParseError::svelte(
+                        "block_invalid_placement",
+                        format!("{{#{} ...}} block cannot be inside <textarea>", block_name),
+                        (mustache_start, mustache_start),
+                    ));
+                }
 
                 // Flush accumulated text
                 if self.index > text_start {

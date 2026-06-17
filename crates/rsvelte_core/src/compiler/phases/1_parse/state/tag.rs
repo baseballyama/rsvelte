@@ -878,7 +878,7 @@ impl Parser<'_> {
             // No "as" found - check for ", identifier" index syntax
             // For "{#each expr, index}", expr_content contains "expr, index"
 
-            let (final_expr, index_name, has_key) = {
+            let (final_expr, index_name, key) = {
                 let s = expr_content.to_string();
                 // Find the last top-level comma (not inside braces, brackets, or parens)
                 let mut depth = 0;
@@ -925,30 +925,51 @@ impl Parser<'_> {
                         };
 
                         if idx_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                            // A key without an `as` clause (`{#each items, i (key)}`)
+                            // is invalid, but svelte raises `each_key_without_as`
+                            // in the 2-analyze EachBlock visitor, NOT the parser
+                            // (svelte2tsx, which skips analyze, still compiles it).
+                            // Parse the key so analyze can flag it and svelte2tsx
+                            // can emit it; the parser no longer errors here.
+                            let key_opt = if idx_has_key {
+                                let raw_slice = &self.source[expr_start..expr_end];
+                                let lead_ws = raw_slice.len() - raw_slice.trim_start().len();
+                                let base = expr_start + lead_ws;
+                                if let Some(rel_paren) = s[comma_pos + 1..].find('(') {
+                                    let key_start = base + comma_pos + 1 + rel_paren + 1;
+                                    let key_end =
+                                        find_matching_bracket(self.source, key_start, '(')
+                                            .unwrap_or(self.bytes.len());
+                                    let key_raw = &self.source[key_start..key_end];
+                                    let key_lead = key_raw.len() - key_raw.trim_start().len();
+                                    let key_content = key_raw.trim().to_string();
+                                    Some(self.parse_head_expression(
+                                        &key_content,
+                                        key_start + key_lead,
+                                        false,
+                                        ')',
+                                    )?)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
                             (
                                 self.parse_js_expression(expr_part, expr_start),
                                 Some(CompactString::from(idx_name)),
-                                idx_has_key,
+                                key_opt,
                             )
                         } else {
-                            (expression, None, false)
+                            (expression, None, None)
                         }
                     } else {
-                        (expression, None, false)
+                        (expression, None, None)
                     }
                 } else {
-                    (expression, None, false)
+                    (expression, None, None)
                 }
             };
-
-            // Error if we have a key without "as" clause
-            if has_key {
-                return Err(crate::error::ParseError::svelte(
-                    "each_key_without_as",
-                    "An `{#each ...}` block without an `as` clause cannot have a key",
-                    (start, self.index),
-                ));
-            }
 
             // Consume the closing }
             if self.current_char() == '}' {
@@ -997,7 +1018,7 @@ impl Parser<'_> {
                 expression: final_expr,
                 context: None, // No context when no "as" clause
                 index: index_name,
-                key: None,
+                key,
                 body,
                 fallback,
                 metadata: Default::default(),
@@ -1695,8 +1716,13 @@ impl Parser<'_> {
             let params_content = &self.source[params_start..params_end];
 
             // Check for rest parameters (snippets don't support them)
-            // Look for ... at top level (not inside nested parens/brackets)
-            {
+            // Look for ... at top level (not inside nested parens/brackets).
+            // svelte raises this in the 2-analyze SnippetBlock visitor, NOT the
+            // parser — so svelte2tsx (parse-only) still COMPILES a snippet with
+            // a rest param. rsvelte keeps the parse-time check for the compiler
+            // (the compiler-errors fixture needs its position), but skips it in
+            // svelte2tsx mode (`script_ts`, set only by `parse_script_ts`).
+            if !self.script_ts {
                 let trimmed = params_content.trim();
                 let chars: Vec<char> = trimmed.chars().collect();
                 let mut depth = 0;

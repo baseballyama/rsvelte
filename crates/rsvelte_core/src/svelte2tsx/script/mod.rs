@@ -881,7 +881,10 @@ pub fn process_instance_script(
         let mut candidates: Vec<HoistCandidate> = Vec::new();
 
         // Also collect $props() rune info for typedef generation
-        let mut props_rune_info: Option<PropsRuneInfo> = None;
+        // Usually one `$props()`; a duplicate `$props()` (a compiler error, but
+        // svelte2tsx still compiles it) gets the inline `$$ComponentProps`
+        // typedef on EACH destructure, so collect all of them.
+        let mut props_rune_infos: Vec<PropsRuneInfo> = Vec::new();
 
         for (stmt_index, stmt) in program.body.iter().enumerate() {
             match stmt {
@@ -896,15 +899,16 @@ pub fn process_instance_script(
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Detect createEventDispatcher<Type>() calls
                         detect_create_event_dispatcher(declarator, raw_content, _events);
-                        // Collect $props() info for typedef generation
-                        if props_rune_info.is_none() {
-                            props_rune_info = collect_props_rune_info(
-                                var_decl,
-                                declarator,
-                                raw_content,
-                                program,
-                                stmt_index,
-                            );
+                        // Collect $props() info for typedef generation (one per
+                        // `$props()` destructure).
+                        if let Some(info) = collect_props_rune_info(
+                            var_decl,
+                            declarator,
+                            raw_content,
+                            program,
+                            stmt_index,
+                        ) {
+                            props_rune_infos.push(info);
                         }
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
                         for name in &names {
@@ -1242,6 +1246,22 @@ pub fn process_instance_script(
                     basename,
                     emit_jsdoc,
                 );
+            } else if let oxc::Statement::ExportDefaultDeclaration(export) = stmt {
+                // Instance scripts can't have `export default` (svelte rejects
+                // it). Official svelte2tsx blanks just the `export` keyword for a
+                // default-exported FUNCTION or CLASS declaration, leaving
+                // `default function …`/`default class …` (invalid TSX → oxfmt
+                // skips → raw output). A default-exported EXPRESSION
+                // (`export default 42`) is kept verbatim. Mirror that.
+                let is_decl = matches!(
+                    export.declaration,
+                    oxc::ExportDefaultDeclarationKind::FunctionDeclaration(_)
+                        | oxc::ExportDefaultDeclarationKind::ClassDeclaration(_)
+                );
+                if is_decl {
+                    let start = export.span.start + offset;
+                    str.overwrite(start, start + 6, "");
+                }
             }
         }
 
@@ -1360,7 +1380,7 @@ pub fn process_instance_script(
         // including the early-exit `if (!this.props_interface.name) return;`
         // — without a `$props()` typed annotation there's nothing for the
         // hoisted types to feed, so we leave them in place.
-        if let Some(ref info) = props_rune_info {
+        if let Some(info) = props_rune_infos.first() {
             // Determine the props-interface for gating. Mirrors official
             // `HoistableInterfaces.analyze$propsRune` / `moveHoistableInterfaces`:
             // when the `$props()` annotation is a bare named reference
@@ -1396,10 +1416,14 @@ pub fn process_instance_script(
             );
         }
 
-        // Pass 4: Apply $props() $$ComponentProps typedef transformations
-        if let Some(info) = props_rune_info {
+        // Pass 4: Apply $props() $$ComponentProps typedef transformations. With a
+        // duplicate `$props()` each destructure gets its own inline typedef
+        // (matches official, which re-emits `@typedef … $$ComponentProps` per
+        // call); the single-valued `ExportedNames` fields used by the return are
+        // idempotent across calls.
+        for info in &props_rune_infos {
             apply_props_typedef(
-                &info,
+                info,
                 offset,
                 str,
                 exported_names,
@@ -2920,13 +2944,13 @@ fn handle_export_named_decl(
                         // export so it round-trips into the legacy props return
                         // (`props: { /** @type {boolean} */ visible: visible }`),
                         // mirroring official's `value.doc`.
+                        let leading_doc =
+                            leading_jsdoc_comment(raw_content, export.span.start as usize);
                         if let Some(name) = binding_pattern_simple_name(&declarator.id)
-                            && let Some(doc) =
-                                leading_jsdoc_comment(raw_content, export.span.start as usize)
+                            && let Some(ref doc) = leading_doc
                         {
-                            exported_names.set_doc(&name, doc);
+                            exported_names.set_doc(&name, doc.clone());
                         }
-
                         // For multi-declarator let exports (export let a, b, c;),
                         // replace the comma between declarators with `;let `.
                         // This splits them into separate `let` statements,
