@@ -1026,6 +1026,62 @@ fn try_collapse(
         // and content glues directly to it: `<a\n  href="…"\n  >text</a\n>`.
         let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
         if hug_width > line_width {
+            // Content is too long even for the hug path (no single line fits).
+            // Fall through to word-fill hug: prettier's `hugStart && hugEnd` with
+            // a `Fill` body — break the collapsed text across multiple lines at
+            // the inner indent, keeping the `>` glued to the first content word
+            // and `</tag\n>` glued to the last.
+            //
+            //   <Component attr="…"
+            //     >word1 word2 long
+            //     text word3</Component
+            //   >
+            if open.ends_with('>') && !open.contains('\n') {
+                let open_no_bracket = &open[..open.len() - 1];
+                // Available width for each fill line = line_width - inner_indent - ">" prefix
+                // (first line carries the `>` prefix so 1 char less).
+                let avail_first = line_width.saturating_sub(inner_indent.width() + 1).max(1);
+                let avail_rest = line_width.saturating_sub(inner_indent.width()).max(1);
+                // Word-fill the content. First line has the `>` prefix (1 char narrower).
+                let words: Vec<&str> = collapsed.split(' ').filter(|w| !w.is_empty()).collect();
+                if !words.is_empty() {
+                    let mut lines: Vec<String> = Vec::new();
+                    let mut cur = String::new();
+                    for (wi, word) in words.iter().enumerate() {
+                        let avail = if lines.is_empty() {
+                            avail_first
+                        } else {
+                            avail_rest
+                        };
+                        if cur.is_empty() {
+                            cur.push_str(word);
+                        } else if cur.width() + 1 + word.width() <= avail {
+                            cur.push(' ');
+                            cur.push_str(word);
+                        } else {
+                            lines.push(std::mem::take(&mut cur));
+                            cur.push_str(word);
+                        }
+                        let _ = wi; // used only for avail selection
+                    }
+                    if !cur.is_empty() {
+                        lines.push(cur);
+                    }
+                    let mut hug = String::with_capacity(whole.len() + 16);
+                    hug.push_str(open_no_bracket);
+                    for (li, line) in lines.iter().enumerate() {
+                        hug.push('\n');
+                        hug.push_str(&inner_indent);
+                        if li == 0 {
+                            hug.push('>');
+                        }
+                        hug.push_str(line);
+                    }
+                    // Append `</tag\n{indent}>` so the closing `>` aligns with the element.
+                    hug.push_str(&format!("</{tag}\n{indent}>"));
+                    return (hug != whole).then_some((start, end, hug));
+                }
+            }
             return None;
         }
         let open_no_bracket = &open[..open.len() - 1];
