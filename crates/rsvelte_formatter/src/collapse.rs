@@ -1255,9 +1255,8 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     let open = out.get(e.start as usize..content_start)?;
     let content = out.get(content_start..content_end)?;
     let close = out.get(content_end..e.end as usize)?;
-    // Single line, open tag closed by `>`, simple text content, real close tag.
-    if open.contains('\n')
-        || content.contains('\n')
+    // Simple text content, an open tag closed by `>`, a real close tag.
+    if content.contains('\n')
         || content.contains('<')
         || content.is_empty()
         || !open.ends_with('>')
@@ -1265,7 +1264,28 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     {
         return None;
     }
-    let open_no_bracket = open[..open.len() - 1].to_string();
+    // The open tag is usually single-line, but the markup pass may have already
+    // wrapped its attributes (`<a\n  href="…"\n  class="…">`) when it overflowed.
+    // In that case `element_doc` rebuilds the open tag as a wrappable attribute
+    // group from the AST (see `build_open_attr_doc`), so the verbatim
+    // `open_no_bracket` is only a fallback — reconstruct a flat single-line form
+    // from the AST attributes so it (and the doc's flat-print guard) stays valid.
+    // Each attribute must itself be single-line for the flat reconstruction.
+    let open_no_bracket = if open.contains('\n') {
+        let mut flat = format!("<{tag}");
+        for attr in &e.attributes {
+            let (as_, ae) = attribute_span(attr);
+            let atext = out.get(as_ as usize..ae as usize)?;
+            if atext.contains('\n') {
+                return None; // a multi-line attribute can't sit in a flat open tag
+            }
+            flat.push(' ');
+            flat.push_str(atext);
+        }
+        flat
+    } else {
+        open[..open.len() - 1].to_string()
+    };
     Some((open_no_bracket, content.to_string(), tag.to_string()))
 }
 
