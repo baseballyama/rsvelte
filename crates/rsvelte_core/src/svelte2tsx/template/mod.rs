@@ -5638,8 +5638,9 @@ fn format_attribute_node_segments(
                 AttributeValuePart::ExpressionTag(_) => false,
             });
             if !has_expr && text_is_empty {
-                segs_push_lit(&mut out, &format!("\"{}\":\"\",", name));
-                return Some(out);
+                let mut inner: Vec<Seg> = Vec::new();
+                segs_push_lit(&mut inner, &format!("\"{}\":\"\"", name));
+                return Some(wrap_segs(inner));
             }
 
             // Single static Text value: mirror official Attribute.ts. The quote
