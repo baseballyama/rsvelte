@@ -4,8 +4,6 @@
 	"melt-ui/docs/src/previews/tabs.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/remove-blocks-whitespace/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
-	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte",
-	"svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",

@@ -744,19 +744,34 @@ pub fn svelte2tsx(
     if let Some(ref css) = ast.css
         && css.start < css.end
     {
-        // Also blank any trailing whitespace after the style tag
-        let mut blank_end = css.end;
-        let bytes = source.as_bytes();
-        while (blank_end as usize) < bytes.len() {
-            let b = bytes[blank_end as usize];
-            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                blank_end += 1;
-            } else {
-                break;
+        // Only blank the CSS range when the close tag is well-formed (exact
+        // `</style>` with no whitespace before `>`). When the close tag is
+        // malformed (e.g. `</style   >`), the official svelte2tsx regex does
+        // not match the style tag and it is left as raw text in the output.
+        // Mirror that: skip blanking so the raw `<style>…</style   >` text
+        // appears verbatim in the async template body.
+        let has_proper_style_close = {
+            let slice = &source[css.start as usize..css.end as usize];
+            slice
+                .as_bytes()
+                .windows(8)
+                .any(|w| w.eq_ignore_ascii_case(b"</style>"))
+        };
+        if has_proper_style_close {
+            // Also blank any trailing whitespace after the style tag
+            let mut blank_end = css.end;
+            let bytes = source.as_bytes();
+            while (blank_end as usize) < bytes.len() {
+                let b = bytes[blank_end as usize];
+                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                    blank_end += 1;
+                } else {
+                    break;
+                }
             }
+            str.overwrite(css.start, blank_end, "");
+            blanked_style_ranges.push((css.start as usize, blank_end as usize));
         }
-        str.overwrite(css.start, blank_end, "");
-        blanked_style_ranges.push((css.start as usize, blank_end as usize));
     }
     {
         // Fallback: scan source for <style tags that the parser didn't
@@ -976,7 +991,21 @@ pub fn svelte2tsx(
     //   - Overwriting </script> with `;\nasync () => {`
     //   - For template-only components, prepending the wrapper
 
-    let has_instance_script = ast.instance.is_some();
+    // Detect malformed script close tag (e.g. `</script   >` with whitespace
+    // before `>`). The official svelte2tsx uses a regex that requires an exact
+    // `</script>` close tag; when the close tag has whitespace the regex does
+    // not match, so official treats the whole component as having no instance
+    // script and includes the raw `<script>…</script   >` text inside the async
+    // template body. Mirror that by clearing `ast.instance` for this case so
+    // the no-script path is used. The detection criterion is: the script range
+    // does NOT contain the exact ASCII string `</script>` (case-insensitive).
+    let has_instance_script = ast.instance.as_ref().is_some_and(|inst| {
+        let slice = &source[inst.start as usize..inst.end as usize];
+        slice
+            .as_bytes()
+            .windows(9)
+            .any(|w| w.eq_ignore_ascii_case(b"</script>"))
+    });
     let has_module_script = ast.module.is_some();
 
     // Tracks whether the instance script contains a top-level `await`
