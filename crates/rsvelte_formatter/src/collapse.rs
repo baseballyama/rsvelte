@@ -2205,11 +2205,20 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
             }
             other => {
                 // Expression tag / html tag / component / … : verbatim atom.
+                // For self-closing Components with attributes, try to build a
+                // wrappable doc so a long `<Icon class="…" />` inside a fill
+                // can break its attributes (Increment 5).
                 let span = out.get(node_start(other) as usize..node_end(other) as usize)?;
                 if span.contains('\n') {
                     return None;
                 }
-                docs.push(Doc::Text(span.to_string()));
+                let elem = build_self_closing_component_doc(out, other)
+                    .unwrap_or_else(|| Doc::Text(span.to_string()));
+                if ws_prev {
+                    docs.push(Doc::Group(vec![Doc::Line, elem]));
+                } else {
+                    docs.push(elem);
+                }
                 ws_prev = false;
             }
         }
@@ -2291,6 +2300,64 @@ fn attribute_span(attr: &rsvelte_core::ast::template::Attribute) -> (u32, u32) {
 fn is_inline_regular_element(node: &TemplateNode) -> bool {
     matches!(node, TemplateNode::RegularElement(e)
         if !is_block_display(e.name.as_str()) && !is_whitespace_preserving(e.name.as_str()))
+}
+
+/// Build a wrappable doc for a self-closing `Component` with attributes, so that
+/// a long `<Icon class="…" />` inside an inline fill can break its attributes
+/// onto their own lines (dedenting `/>` back to the outer column).
+///
+/// Returns `None` if the component is not self-closing, has no attributes, has
+/// multi-line attributes, or if the flat print would not match the verbatim span.
+///
+/// Mirrors prettier-plugin-svelte's self-closing-tag assembly (~1126-1135):
+///   `group(['<', name, indent(group([line, attr1, …, dedent(line)])), '/>'])`
+///
+/// `dedent(line)` is the key: in flat mode `line` = space so `/>` is adjacent to
+/// the last attribute (`<Name attr />`); in break mode `line` emits a newline at
+/// `indent-1` (the outer column) so `/>` lands un-indented (`<Name\n  attr\n/>`).
+/// `bracketSameLine` is always false for components (no `>` hugging), so the
+/// `' '` before `/>` does NOT appear in the closing text.
+fn build_self_closing_component_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
+    use crate::doc::Doc;
+    let TemplateNode::Component(c) = node else {
+        return None;
+    };
+    // Only for self-closing (empty fragment) components with attributes.
+    if c.attributes.is_empty() || !c.fragment.nodes.is_empty() {
+        return None;
+    }
+    let span = out.get(c.start as usize..c.end as usize)?;
+    // Must be a single-line self-closing component ending with ` />`
+    // (space before `/>`; without a space it would be a different source shape).
+    if span.contains('\n') || !span.ends_with(" />") {
+        return None;
+    }
+    let name = c.name.as_str();
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(c.attributes.len() * 2 + 1);
+    for attr in &c.attributes {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        group_parts.push(Doc::Line);
+        group_parts.push(Doc::Text(atext.to_string()));
+    }
+    // `dedent(line)`: flat → " " (space before `</>`), break → newline at indent-1.
+    // This is the spec's `!bracketSameLine ? dedent(line) : ''` — since
+    // bracketSameLine is always false for components, `dedent(line)` is always used.
+    group_parts.push(Doc::Dedent(vec![Doc::Line]));
+    let doc = Doc::Group(vec![
+        Doc::Text(format!("<{name}")),
+        Doc::Indent(vec![Doc::Group(group_parts)]),
+        Doc::Text("/>".to_string()), // no leading space: the `dedent(line)` provides it
+    ]);
+    // Guard: the flat print must match the verbatim span (trimmed).
+    let flat = crate::doc::print(doc.clone(), 999999, "  ", 0, 0);
+    if flat.trim() != span.trim() {
+        return None;
+    }
+    Some(doc)
 }
 
 /// The doc for one inline element: a hug `Group` for a huggable display:inline
