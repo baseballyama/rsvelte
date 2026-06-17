@@ -3502,8 +3502,8 @@ fn type_text_typeof_references_local_value(
                 }
                 if j > start {
                     let root = &type_text[start..j];
-                    let is_import = instance_import_names.contains(root)
-                        || module_import_names.contains(root);
+                    let is_import =
+                        instance_import_names.contains(root) || module_import_names.contains(root);
                     if !is_import && instance_value_names.contains(root) {
                         return true;
                     }

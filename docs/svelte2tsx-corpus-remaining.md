@@ -5,7 +5,7 @@ compares rsvelte's `svelte2tsx` port against the **official** `svelte2tsx`
 (`submodules/language-tools`) over every shipped component in the corpus
 sources, requiring byte-identical TSX after oxfmt normalization.
 
-This PR burned the baseline **124 → 19**. The fixes that landed:
+This PR burned the baseline **124 → 16**. The fixes that landed:
 
 | Fix | Burned |
 |---|---|
@@ -17,6 +17,7 @@ This PR burned the baseline **124 → 19**. The fixes that landed:
 | Place component-doc adjacent to the component declaration | 4 |
 | Don't treat TS keywords as hoist-blocking value deps | 2 |
 | Insert auto `$$ComponentProps` before leading comments, not into them | 2 |
+| Keep instance-referencing top-level `{#snippet}` inside `$$render` | 3 |
 
 The **19** entries that remain fall into the buckets below. Each is a tracked,
 understood divergence — none is a silent gap.
@@ -77,18 +78,13 @@ inputs are degenerate by construction.
   `parser-legacy/samples/whitespace-after-style-tag/input.svelte` — malformed
   `</script   ` / `</style   ` (trailing whitespace, no `>`).
 
-## 3. Snippet-rendered-as-`const` placement
+## 3. Snippet-rendered-as-`const` placement (residual)
 
-A top-level `{#snippet name(params)}` becomes
-`const name = (params): ReturnType<import('svelte').Snippet> => { … }`. rsvelte
-emits the `const` at module scope; official keeps it **inside**
-`function $$render()`. The body transform is already byte-identical — only the
-enclosing scope differs. Interacts with the existing snippet-hoisting machinery.
+The top-level `{#snippet}`-inside-`$$render` placement is now fixed for the
+real-world cases. One migrate fixture still has a separate, unrelated
+indentation diff in the rendered snippet `const`:
 
-- `shadcn-svelte/.../blocks/sidebar-11/components/app-sidebar.svelte`
-- `shadcn-svelte/.../blocks/dashboard-01/components/data-table.svelte`
-- `shadcn-svelte/.../examples/dashboard/components/data-table.svelte`
-- `svelte/tests/migrate/samples/svelte-component/input.svelte` (also indentation)
+- `svelte/tests/migrate/samples/svelte-component/input.svelte` (indentation only)
 
 ## 4. Destructured array/nested `export const` props
 

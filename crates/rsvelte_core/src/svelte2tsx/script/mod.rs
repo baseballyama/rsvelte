@@ -1456,11 +1456,12 @@ pub fn process_instance_script(
             } else {
                 info.is_named_type_reference
             };
-            let effective_type_text: Option<&str> = if info.has_type_arg && !info.has_type_annotation {
-                info.type_arg_text.as_deref()
-            } else {
-                info.type_text.as_deref()
-            };
+            let effective_type_text: Option<&str> =
+                if info.has_type_arg && !info.has_type_annotation {
+                    info.type_arg_text.as_deref()
+                } else {
+                    info.type_text.as_deref()
+                };
             let effective_has_type = info.has_type_annotation || info.has_type_arg;
 
             let props_named_ref: Option<String> = if effective_is_named_ref {
@@ -1474,12 +1475,11 @@ pub fn process_instance_script(
             } else {
                 None
             };
-            let props_inline_type: Option<&str> =
-                if effective_is_named_ref || !effective_has_type {
-                    None
-                } else {
-                    effective_type_text
-                };
+            let props_inline_type: Option<&str> = if effective_is_named_ref || !effective_has_type {
+                None
+            } else {
+                effective_type_text
+            };
             resolve_hoistable_type_decls(
                 &candidates,
                 raw_content,
@@ -1562,10 +1562,7 @@ fn apply_props_typedef(
                 let abs_start = arg_start + offset;
                 let abs_end = arg_end + offset;
                 // Prepend `;type $$ComponentProps = ` before the inline type (travels with move)
-                str.prepend_right(
-                    abs_start,
-                    "\ntype $$ComponentProps = ",
-                );
+                str.prepend_right(abs_start, "\ntype $$ComponentProps = ");
                 // Append `;` after the inline type (travels with move)
                 str.append_left(abs_end, ";");
                 // After the move, place $$ComponentProps reference at the original location.
