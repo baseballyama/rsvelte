@@ -111,11 +111,12 @@ fn parse_body(body: &str) -> Vec<InlineEntry> {
     out
 }
 
-/// Parse a rule value (`2` / `"error"` / `["error", {…}]`) into severity +
-/// options, tolerating trailing commas (which ESLint's lenient parser accepts
-/// but `serde_json` does not).
+/// Parse a rule value (`2` / `"error"` / `['error', { allowX: true }]`) into
+/// severity + options. ESLint parses inline config with a lenient (`levn`)
+/// parser that accepts JSON5-isms `serde_json` rejects — single-quoted strings,
+/// unquoted object keys, and trailing commas — so we normalize those first.
 fn parse_value(value: &str) -> Option<(Option<crate::rule::Severity>, Option<Value>)> {
-    let normalized = strip_trailing_commas(value);
+    let normalized = normalize_json5(value);
     let parsed: Value = serde_json::from_str(&normalized).ok()?;
     let sev = severity_from_value(&parsed);
     let opts = options_from_value(&parsed);
@@ -189,50 +190,108 @@ fn split_top_level_once(s: &str, delim: u8) -> Option<(&str, &str)> {
     None
 }
 
-/// Remove commas that immediately precede a `]` or `}` (ignoring intervening
-/// whitespace), outside string literals — JSON5 trailing commas that
-/// `serde_json` rejects.
-fn strip_trailing_commas(s: &str) -> String {
-    let bytes = s.as_bytes();
+/// Normalize the JSON5-isms ESLint's lenient (`levn`) inline-config parser
+/// accepts but `serde_json` rejects, into strict JSON:
+/// - single-quoted strings → double-quoted (escaping embedded `"`),
+/// - unquoted object keys (`allowReferrer: true`) → quoted,
+/// - trailing commas before `]` / `}` removed.
+///
+/// Operates on `char`s so multi-byte UTF-8 in string values is preserved.
+fn normalize_json5(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let n = chars.len();
     let mut out = String::with_capacity(s.len());
-    let mut string: Option<u8> = None;
-    let mut escaped = false;
     let mut i = 0;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if let Some(q) = string {
-            out.push(b as char);
-            if escaped {
-                escaped = false;
-            } else if b == b'\\' {
-                escaped = true;
-            } else if b == q {
-                string = None;
-            }
-            i += 1;
-            continue;
-        }
-        if b == b'"' || b == b'\'' {
-            string = Some(b);
-            out.push(b as char);
-            i += 1;
-            continue;
-        }
-        if b == b',' {
-            // Look ahead past whitespace for a closing bracket.
-            let mut j = i + 1;
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j < bytes.len() && (bytes[j] == b']' || bytes[j] == b'}') {
-                // Drop the comma; keep the intervening whitespace.
+    while i < n {
+        let c = chars[i];
+        match c {
+            // Double-quoted string: copy verbatim, respecting `\`-escapes.
+            '"' => {
+                out.push('"');
                 i += 1;
-                continue;
+                while i < n {
+                    let d = chars[i];
+                    out.push(d);
+                    i += 1;
+                    if d == '\\' && i < n {
+                        out.push(chars[i]);
+                        i += 1;
+                    } else if d == '"' {
+                        break;
+                    }
+                }
+            }
+            // Single-quoted string → double-quoted.
+            '\'' => {
+                out.push('"');
+                i += 1;
+                while i < n {
+                    let d = chars[i];
+                    if d == '\\' && i + 1 < n {
+                        let e = chars[i + 1];
+                        // `\'` needs no escape inside a double-quoted string;
+                        // keep every other escape sequence intact.
+                        if e == '\'' {
+                            out.push('\'');
+                        } else {
+                            out.push('\\');
+                            out.push(e);
+                        }
+                        i += 2;
+                    } else if d == '\'' {
+                        out.push('"');
+                        i += 1;
+                        break;
+                    } else if d == '"' {
+                        // Escape a double quote embedded in the single-quoted text.
+                        out.push('\\');
+                        out.push('"');
+                        i += 1;
+                    } else {
+                        out.push(d);
+                        i += 1;
+                    }
+                }
+            }
+            // Trailing comma before a closing bracket → drop.
+            ',' => {
+                let mut j = i + 1;
+                while j < n && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if j < n && (chars[j] == ']' || chars[j] == '}') {
+                    i += 1; // skip the comma; following whitespace is copied next
+                } else {
+                    out.push(',');
+                    i += 1;
+                }
+            }
+            // Bareword: an unquoted object key (followed by `:`) gets quoted;
+            // a bareword value (`true`/`false`/`null`) is copied as-is.
+            c if c.is_alphabetic() || c == '_' || c == '$' => {
+                let start = i;
+                i += 1;
+                while i < n && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+                    i += 1;
+                }
+                let ident: String = chars[start..i].iter().collect();
+                let mut j = i;
+                while j < n && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if j < n && chars[j] == ':' {
+                    out.push('"');
+                    out.push_str(&ident);
+                    out.push('"');
+                } else {
+                    out.push_str(&ident);
+                }
+            }
+            _ => {
+                out.push(c);
+                i += 1;
             }
         }
-        // ASCII fast path; multi-byte UTF-8 bytes are copied verbatim too.
-        out.push(b as char);
-        i += 1;
     }
     out
 }
@@ -318,6 +377,48 @@ mod tests {
     fn colon_inside_regex_string_does_not_break_key_split() {
         let e = entries(r#"/* eslint svelte/sort-attributes: ["error", ["/^bind:/u"]] */"#);
         assert_eq!(e[0].0, "svelte/sort-attributes");
+    }
+
+    #[test]
+    fn parses_single_quoted_strings_and_unquoted_keys() {
+        // ESLint's levn parser accepts both; serde_json does not, so we normalize.
+        let e =
+            entries(r#"/* eslint svelte/no-target-blank: ['error', { allowReferrer: true }] */"#);
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].0, "svelte/no-target-blank");
+        assert_eq!(e[0].1, Some(Severity::Error));
+        let opts = e[0].2.as_ref().unwrap();
+        assert_eq!(
+            opts[0].get("allowReferrer").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn unquoted_key_with_string_value() {
+        let e = entries(r#"/* eslint svelte/x: ['error', { enforceDynamicLinks: 'never' }] */"#);
+        let opts = e[0].2.as_ref().unwrap();
+        assert_eq!(
+            opts[0].get("enforceDynamicLinks").and_then(|v| v.as_str()),
+            Some("never")
+        );
+    }
+
+    #[test]
+    fn normalize_preserves_bareword_values_and_quoted_keys() {
+        // `true`/`false`/`null` (barewords NOT followed by `:`) stay as-is, and
+        // an already-quoted key is left untouched (not double-quoted).
+        assert_eq!(
+            normalize_json5(r#"{ "a": true, b: false, c: null }"#),
+            r#"{ "a": true, "b": false, "c": null }"#
+        );
+    }
+
+    #[test]
+    fn normalize_is_utf8_safe() {
+        // A multi-byte char inside a string value must survive verbatim (the old
+        // byte-wise `b as char` path corrupted it).
+        assert_eq!(normalize_json5(r#"{ k: 'café' }"#), r#"{ "k": "café" }"#);
     }
 
     #[test]
