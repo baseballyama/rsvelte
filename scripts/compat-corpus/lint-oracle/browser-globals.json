@@ -1,0 +1,28 @@
+{
+  "_comment": "Browser globals declared in the oracle's lint environment so svelte/no-top-level-browser-globals is actually exercised. eslint-plugin-svelte's flat/base config declares NO browser globals, so without this the rule's scope-based ReferenceTracker finds zero references and never fires — making every rsvelte finding look like a false positive. This curated set MUST match BROWSER_GLOBALS in crates/rsvelte_lint/src/rules/no_top_level_browser_globals.rs so both engines test the identical, collision-free environment. (The full globals.browser set is intentionally NOT used: it contains common identifiers like `name`/`event`/`length` that rsvelte's name-based matcher cannot distinguish from local bindings without full ESLint-style scope resolution — see docs/lint-corpus-remaining-work.md.)",
+  "globals": [
+    "window",
+    "document",
+    "location",
+    "navigator",
+    "history",
+    "localStorage",
+    "sessionStorage",
+    "screen",
+    "frames",
+    "parent",
+    "top",
+    "self",
+    "alert",
+    "confirm",
+    "prompt",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "matchMedia",
+    "getComputedStyle",
+    "scrollTo",
+    "scrollBy",
+    "open",
+    "indexedDB"
+  ]
+}

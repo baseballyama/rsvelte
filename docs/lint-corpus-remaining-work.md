@@ -171,19 +171,35 @@ implicit leading attribute (line = element-start line) for counting/grouping.
 The reported attribute stays a real one (index ≥ max ≥ 1), so the `this` span
 isn't needed for the message — only its line for the single-line/grouping math.
 
-## Cluster G — `no-top-level-browser-globals` guard semantics (66 FP)
+## Cluster G — `no-top-level-browser-globals` (RESOLVED at the script level)
 
-**Layer: lint (rule). Effort: high. Risk: high (uncertain semantics).**
+**Root cause was a harness misconfiguration, not a rsvelte bug.** The upstream
+rule's `ReferenceTracker` is *scope-based*: it only flags identifiers that ESLint
+resolves to a **declared global**. eslint-plugin-svelte's `flat/base` config
+declares **no** browser globals, and the corpus oracle did not add any, so
+`globalScope.set` contained none of `window`/`document`/`location`/… — the rule
+found zero references and stayed silent on *every* file, making all 66 of
+rsvelte's (correct) findings look like false positives. rsvelte's guard analysis
+(`getGuardChecker*` / `isAvailableLocation` / READ semantics) is faithful: with
+the oracle properly configured, the two engines are byte-identical on the guard
+fixtures (`guards01`–`guards08`, `env01`–`env03`, `test01`–`test03`).
 
-rsvelte over-reports top-level browser-global uses that the upstream rule's
-`@eslint-community/eslint-utils` `ReferenceTracker` + guard analysis does not
-flag (empirically the oracle stays silent on plain `document.title = x` /
-`foo(window)` yet fires on guarded `globalThis.location.href` — the exact
-predicate needs reverse-engineering). Biggest single pure-FP cluster.
+**Fix (landed):** the oracle declares a curated browser-global environment
+(`scripts/compat-corpus/lint-oracle/browser-globals.json`), shared with rsvelte's
+`BROWSER_GLOBALS`, so both engines test the identical environment. The full
+`globals.browser` set (763 names) is intentionally **not** used: it contains
+common identifiers (`name`, `event`, `length`, `status`, `top`, `open`, …) that
+rsvelte's name-based matcher cannot tell apart from local bindings without full
+ESLint-style scope resolution — using it produced 23 false-`name` divergences in
+testing. See `docs/lint-corpus-harness-findings.md`.
 
-**Fix:** port the upstream guard model (`getGuardChecker*`, `isTopLevelLocation`,
-`isAvailableLocation`, the `ReferenceTracker` READ semantics) faithfully. Budget
-time to characterise the exact firing conditions first via the oracle.
+**Remaining (≈4 FN, tracked):** `in-template01` shows the rule must also flag
+browser globals used in **template** expressions (`{location.href}`) with
+`{#if browser}` / `{#if !browser}` *SvelteIfBlock* guards. rsvelte's rule is a
+`ScriptRule` (it walks `<script>` programs only), so template-expression
+detection + SvelteIfBlock guard handling is a separate rule extension. The full
+`globals.browser` parity also needs a scope/binding resolver (`scope.rs`
+`ComponentAnalysis`) so common-name globals can be distinguished from locals.
 
 ## Cluster H — Small / position-precision tail (≈40 divergences)
 

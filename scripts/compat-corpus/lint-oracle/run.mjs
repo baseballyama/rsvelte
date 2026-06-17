@@ -16,6 +16,19 @@ import sveltePlugin from 'eslint-plugin-svelte';
 import tsParser from '@typescript-eslint/parser';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Browser globals declared in the lint environment. eslint-plugin-svelte's
+// `flat/base` declares none, so `svelte/no-top-level-browser-globals` (whose
+// ReferenceTracker is scope-based) would never fire without this. The curated
+// set is shared with rsvelte's BROWSER_GLOBALS so both engines see the identical
+// environment — see browser-globals.json for why the full globals.browser set
+// is not used.
+const ORACLE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const BROWSER_GLOBALS = JSON.parse(
+	readFileSync(path.join(ORACLE_DIR, 'browser-globals.json'), 'utf8')
+).globals;
+const browserGlobals = Object.fromEntries(BROWSER_GLOBALS.map((name) => [name, 'readonly']));
 
 const args = process.argv.slice(2);
 let rulesPath = null;
@@ -96,6 +109,7 @@ const eslint = new ESLint({
 		{
 			files: ['**/*.svelte', '**/*.svelte.js', '**/*.svelte.ts', '**/*.js', '**/*.ts'],
 			languageOptions: {
+				globals: browserGlobals,
 				parserOptions: {
 					parser: tsParser,
 					svelteFeatures: { experimentalGenerics: true }
