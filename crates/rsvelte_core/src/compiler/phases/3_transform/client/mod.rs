@@ -73,7 +73,6 @@ use store_transforms::*;
 pub(crate) use class_transforms::transform_class_fields_client;
 pub(crate) use expression_utils::find_matching_paren;
 pub(crate) use formatting::normalize_js_with_oxc;
-pub(crate) use formatting::{restore_number_literals, restore_original_quotes};
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;

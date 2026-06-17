@@ -589,6 +589,7 @@ impl<'opt> Printer<'opt> {
                 self.print_statement(&s.body, ctx);
             }
             Statement::TryStatement(s) => self.try_statement(s, ctx),
+            Statement::SwitchStatement(s) => self.switch_statement(s, ctx),
             Statement::DebuggerStatement(_) => ctx.write("debugger;"),
             Statement::EmptyStatement(_) => {}
             Statement::BreakStatement(s) => match &s.label {
@@ -984,6 +985,40 @@ impl<'opt> Printer<'opt> {
         }
     }
 
+    /// esrap's `SwitchStatement`: `switch (disc) {`, each case indented with a
+    /// blank-line margin between cases, statements one-per-line.
+    fn switch_statement(&mut self, node: &SwitchStatement, ctx: &mut Context) {
+        ctx.write("switch (");
+        self.print_expression(&node.discriminant, ctx);
+        ctx.write(") {");
+        ctx.indent();
+
+        for (i, case) in node.cases.iter().enumerate() {
+            if i > 0 {
+                ctx.margin();
+            }
+            ctx.newline();
+            match &case.test {
+                Some(test) => {
+                    ctx.write("case ");
+                    self.print_expression(test, ctx);
+                    ctx.write(":");
+                }
+                None => ctx.write("default:"),
+            }
+            ctx.indent();
+            for stmt in &case.consequent {
+                ctx.newline();
+                self.print_statement(stmt, ctx);
+            }
+            ctx.dedent();
+        }
+
+        ctx.dedent();
+        ctx.newline();
+        ctx.write("}");
+    }
+
     fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
         ctx.write("{");
         let mut items: Vec<SeqItem> = node
@@ -1336,6 +1371,16 @@ impl<'opt> Printer<'opt> {
                 }
             }
             Expression::SequenceExpression(s) => self.sequence_expression(s, ctx),
+            Expression::ImportExpression(n) => {
+                // esrap's `ImportExpression`: `import(source[, options])`.
+                ctx.write("import(");
+                self.print_expression(&n.source, ctx);
+                if let Some(options) = &n.options {
+                    ctx.write(", ");
+                    self.print_expression(options, ctx);
+                }
+                ctx.write(")");
+            }
             other => self.unsupported(expression_kind(other), ctx),
         }
     }

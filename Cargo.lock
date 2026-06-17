@@ -2127,6 +2127,7 @@ dependencies = [
  "pretty_assertions",
  "rayon",
  "regex",
+ "rsvelte_esrap",
  "rustc-hash",
  "serde",
  "serde_json",
