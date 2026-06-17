@@ -1371,6 +1371,16 @@ impl<'opt> Printer<'opt> {
                 }
             }
             Expression::SequenceExpression(s) => self.sequence_expression(s, ctx),
+            Expression::ImportExpression(n) => {
+                // esrap's `ImportExpression`: `import(source[, options])`.
+                ctx.write("import(");
+                self.print_expression(&n.source, ctx);
+                if let Some(options) = &n.options {
+                    ctx.write(", ");
+                    self.print_expression(options, ctx);
+                }
+                ctx.write(")");
+            }
             other => self.unsupported(expression_kind(other), ctx),
         }
     }
