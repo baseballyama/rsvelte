@@ -2364,6 +2364,9 @@ fn is_inline_node(node: &TemplateNode) -> bool {
         | TemplateNode::HtmlTag(_)
         | TemplateNode::AttachTag(_)
         | TemplateNode::DebugTag(_)
+        | TemplateNode::RenderTag(_)
+        | TemplateNode::ConstTag(_)
+        | TemplateNode::DeclarationTag(_)
         | TemplateNode::Comment(_)
         | TemplateNode::Component(_) => true,
         TemplateNode::RegularElement(e) => !is_block_display(e.name.as_str()),
