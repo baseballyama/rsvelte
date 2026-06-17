@@ -155,7 +155,9 @@ fn unparen<'a, 'b>(mut expr: &'a Expression<'b>) -> &'a Expression<'b> {
 /// position requires.
 fn expr_precedence(expr: &Expression) -> u8 {
     match unparen(expr) {
-        Expression::ArrayExpression(_)
+        Expression::JSXElement(_)
+        | Expression::JSXFragment(_)
+        | Expression::ArrayExpression(_)
         | Expression::TaggedTemplateExpression(_)
         | Expression::ThisExpression(_)
         | Expression::Identifier(_)
@@ -1921,8 +1923,146 @@ impl<'opt> Printer<'opt> {
                 self.print_expression(&e.expression, ctx);
                 self.type_parameter_instantiation(&e.type_arguments, ctx);
             }
+            Expression::JSXElement(e) => self.jsx_element(e, ctx),
+            Expression::JSXFragment(f) => self.jsx_fragment(f, ctx),
             other => self.unsupported(expression_kind(other), ctx),
         }
+    }
+
+    // ----- JSX (port of esrap's `languages/tsx`) ---------------------------
+
+    fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
+        // oxc derives self-closing from the absence of a closing element.
+        self.jsx_opening_element(&node.opening_element, node.closing_element.is_none(), ctx);
+        if !node.children.is_empty() {
+            ctx.indent();
+        }
+        for child in &node.children {
+            self.jsx_child(child, ctx);
+        }
+        if !node.children.is_empty() {
+            ctx.dedent();
+        }
+        if let Some(closing) = &node.closing_element {
+            ctx.write("</");
+            self.jsx_element_name(&closing.name, ctx);
+            ctx.write(">");
+        }
+    }
+
+    fn jsx_fragment(&mut self, node: &JSXFragment, ctx: &mut Context) {
+        ctx.write("<>");
+        if !node.children.is_empty() {
+            ctx.indent();
+        }
+        for child in &node.children {
+            self.jsx_child(child, ctx);
+        }
+        if !node.children.is_empty() {
+            ctx.dedent();
+        }
+        ctx.write("</>");
+    }
+
+    fn jsx_opening_element(
+        &mut self,
+        node: &JSXOpeningElement,
+        self_closing: bool,
+        ctx: &mut Context,
+    ) {
+        ctx.write("<");
+        self.jsx_element_name(&node.name, ctx);
+        if let Some(type_args) = &node.type_arguments {
+            self.type_parameter_instantiation(type_args, ctx);
+        }
+        for attr in &node.attributes {
+            ctx.write(" ");
+            match attr {
+                JSXAttributeItem::Attribute(a) => {
+                    self.jsx_attribute_name(&a.name, ctx);
+                    if let Some(value) = &a.value {
+                        ctx.write("=");
+                        self.jsx_attribute_value(value, ctx);
+                    }
+                }
+                JSXAttributeItem::SpreadAttribute(s) => {
+                    ctx.write("{...");
+                    self.print_expression(&s.argument, ctx);
+                    ctx.write("}");
+                }
+            }
+        }
+        if self_closing {
+            ctx.write(" /");
+        }
+        ctx.write(">");
+    }
+
+    fn jsx_child(&mut self, child: &JSXChild, ctx: &mut Context) {
+        match child {
+            JSXChild::Text(t) => ctx.write(t.value.as_str()),
+            JSXChild::Element(e) => self.jsx_element(e, ctx),
+            JSXChild::Fragment(f) => self.jsx_fragment(f, ctx),
+            JSXChild::ExpressionContainer(c) => self.jsx_expression_container(c, ctx),
+            JSXChild::Spread(s) => {
+                ctx.write("{...");
+                self.print_expression(&s.expression, ctx);
+                ctx.write("}");
+            }
+        }
+    }
+
+    fn jsx_expression_container(&mut self, node: &JSXExpressionContainer, ctx: &mut Context) {
+        ctx.write("{");
+        // A `JSXEmptyExpression` (e.g. `{}` or `{/* comment */}`) prints nothing.
+        if let Some(expr) = node.expression.as_expression() {
+            self.print_expression(expr, ctx);
+        }
+        ctx.write("}");
+    }
+
+    fn jsx_attribute_value(&mut self, value: &JSXAttributeValue, ctx: &mut Context) {
+        match value {
+            JSXAttributeValue::StringLiteral(s) => ctx.write(self.string_literal(s)),
+            JSXAttributeValue::ExpressionContainer(c) => self.jsx_expression_container(c, ctx),
+            JSXAttributeValue::Element(e) => self.jsx_element(e, ctx),
+            JSXAttributeValue::Fragment(f) => self.jsx_fragment(f, ctx),
+        }
+    }
+
+    fn jsx_attribute_name(&mut self, name: &JSXAttributeName, ctx: &mut Context) {
+        match name {
+            JSXAttributeName::Identifier(id) => ctx.write(id.name.as_str()),
+            JSXAttributeName::NamespacedName(n) => {
+                ctx.write(n.namespace.name.as_str());
+                ctx.write(":");
+                ctx.write(n.name.name.as_str());
+            }
+        }
+    }
+
+    fn jsx_element_name(&mut self, name: &JSXElementName, ctx: &mut Context) {
+        match name {
+            JSXElementName::Identifier(id) => ctx.write(id.name.as_str()),
+            JSXElementName::IdentifierReference(id) => ctx.write(id.name.as_str()),
+            JSXElementName::NamespacedName(n) => {
+                ctx.write(n.namespace.name.as_str());
+                ctx.write(":");
+                ctx.write(n.name.name.as_str());
+            }
+            JSXElementName::MemberExpression(m) => self.jsx_member_expression(m, ctx),
+            JSXElementName::ThisExpression(_) => ctx.write("this"),
+        }
+    }
+
+    fn jsx_member_expression(&mut self, node: &JSXMemberExpression, ctx: &mut Context) {
+        match &node.object {
+            JSXMemberExpressionObject::IdentifierReference(id) => ctx.write(id.name.as_str()),
+            JSXMemberExpressionObject::MemberExpression(m) => self.jsx_member_expression(m, ctx),
+            JSXMemberExpressionObject::ThisExpression(_) => ctx.write("this"),
+        }
+        ctx.write(".");
+        ctx.write(node.property.name.as_str());
     }
 
     /// Print `child` parenthesised iff its precedence is below `min`.

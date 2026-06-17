@@ -15,8 +15,8 @@
 //! an empty list (total coverage). The suite no-ops with a notice when the
 //! `esrap` submodule is absent (mirroring the other corpus suites).
 
-/// Samples not yet byte-identical. Drive this to empty.
-const KNOWN_FAILURES: &[&str] = &["jsx-basic"];
+/// Samples not yet byte-identical. Empty — every esrap sample is byte-identical.
+const KNOWN_FAILURES: &[&str] = &[];
 
 use std::path::{Path, PathBuf};
 
