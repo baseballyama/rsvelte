@@ -413,18 +413,36 @@ fn find_top_level_comma(s: &str) -> Option<usize> {
 fn decode_in_call_comment_placeholders(code: &str) -> String {
     let mut out = String::with_capacity(code.len());
     let mut rest = code;
+    let is_ws = |b: u8| matches!(b, b' ' | b'\t' | b'\r' | b'\n');
     loop {
-        let Some(marker) = memmem::find(rest.as_bytes(), b", void '$$C$$") else {
+        // Locate the `void '$$C$$…'` placeholder. esrap may break the
+        // `(value, void '…')` sequence across lines, so the separating comma
+        // and the closing paren are not necessarily adjacent — scan over
+        // whitespace rather than matching a fixed `, void '$$C$$` string.
+        let Some(void_rel) = memmem::find(rest.as_bytes(), b"void '$$C$$") else {
             out.push_str(rest);
             break;
         };
+        let bytes = rest.as_bytes();
+        // Walk back from `void` over whitespace to the sequence comma.
+        let mut c = void_rel;
+        while c > 0 && is_ws(bytes[c - 1]) {
+            c -= 1;
+        }
+        if c == 0 || bytes[c - 1] != b',' {
+            // Not the smuggled-sequence shape; emit through the keyword.
+            out.push_str(&rest[..void_rel + 4]);
+            rest = &rest[void_rel + 4..];
+            continue;
+        }
+        let marker = c - 1; // the comma separating `value` from the placeholder
         // Find the enclosing `(` by scanning backward with reverse depth.
         let before = &rest[..marker];
-        let bytes = before.as_bytes();
+        let bb = before.as_bytes();
         let mut depth = 0i32;
         let mut open = None;
-        for i in (0..bytes.len()).rev() {
-            match bytes[i] {
+        for i in (0..bb.len()).rev() {
+            match bb[i] {
                 b')' | b']' | b'}' => depth += 1,
                 b'(' | b'[' | b'{' => {
                     if depth == 0 {
@@ -436,16 +454,21 @@ fn decode_in_call_comment_placeholders(code: &str) -> String {
                 _ => {}
             }
         }
-        // Find the closing `')` after the hex payload.
-        let hex_start = marker + ", void '$$C$$".len();
+        // Find the closing `'` of the hex payload, then the sequence's `)`
+        // (again possibly separated by whitespace).
+        let hex_start = void_rel + "void '$$C$$".len();
         let Some(quote_end_rel) = rest[hex_start..].find('\'') else {
             out.push_str(rest);
             break;
         };
         let hex = &rest[hex_start..hex_start + quote_end_rel];
         let after_quote = hex_start + quote_end_rel + 1;
-        let close = if rest[after_quote..].starts_with(')') {
-            after_quote + 1
+        let mut k = after_quote;
+        while k < bytes.len() && is_ws(bytes[k]) {
+            k += 1;
+        }
+        let close = if k < bytes.len() && bytes[k] == b')' {
+            k + 1
         } else {
             // Unexpected shape: leave as-is to be safe.
             out.push_str(&rest[..after_quote]);
