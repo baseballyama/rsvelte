@@ -1347,7 +1347,7 @@ fn render_single_expression_value(
             // being expanded — the continuation lines are inside that block and
             // do NOT start at the attribute column with the `name={` prefix.
             // Keep the wider-width result to avoid over-constraining inner exprs.
-            if first_line.ends_with('{') || first_line.ends_with('[') {
+            if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
                 formatted
             } else {
                 // First line ends at an operator or similar break point — the
@@ -1586,7 +1586,7 @@ fn render_attribute_value_sequence(
                         } else {
                             // Multi-line: check first-line break point
                             let first_line = first_pass.lines().next().unwrap_or("").trim_end();
-                            if first_line.ends_with('{') || first_line.ends_with('[') {
+                            if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
                                 // Expanded call-argument block — keep the wider result
                                 first_pass
                             } else {
