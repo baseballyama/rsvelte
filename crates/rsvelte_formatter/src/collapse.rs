@@ -2165,12 +2165,25 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
 }
 
 /// Build a wrappable open-tag doc (`<tag` + an attribute group) for a regular
-/// element, so a long open tag can break its attributes onto their own lines —
-/// prettier's `['<', name, indent(group([line, attr1, line, attr2, …]))]` for a
-/// hugging element (no trailing softline; the `>` belongs to the hugged content).
+/// element, so a long open tag can break its attributes onto their own lines.
+///
+/// When `hug_start` is `true` (prettier's `shouldHugStart && !isEmpty`), the `>`
+/// belongs to the hugged content so no trailing `dedent(softline)` is emitted:
+///   `['<', name, indent(group([line, attr1, line, attr2, …]))]`
+///
+/// When `hug_start` is `false` (non-hugging element, or empty element), a
+/// `Dedent(Softline)` is appended inside the attribute group so the closing `>`
+/// lands at the outer (un-indented) column when the group breaks:
+///   `['<', name, indent(group([line, attr1, …, dedent(softline)]))]`
+///
 /// Returns `None` (caller keeps the atomic open string) when there are no
 /// attributes or any attribute is multi-line in the formatted output.
-fn build_open_attr_doc(out: &str, node: &TemplateNode, tag: &str) -> Option<crate::doc::Doc> {
+fn build_open_attr_doc(
+    out: &str,
+    node: &TemplateNode,
+    tag: &str,
+    hug_start: bool,
+) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let TemplateNode::RegularElement(e) = node else {
         return None;
@@ -2178,7 +2191,7 @@ fn build_open_attr_doc(out: &str, node: &TemplateNode, tag: &str) -> Option<crat
     if e.attributes.is_empty() {
         return None;
     }
-    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2);
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2 + 1);
     for attr in &e.attributes {
         let (as_, ae) = attribute_span(attr);
         let atext = out.get(as_ as usize..ae as usize)?;
@@ -2187,6 +2200,12 @@ fn build_open_attr_doc(out: &str, node: &TemplateNode, tag: &str) -> Option<crat
         }
         group_parts.push(Doc::Line);
         group_parts.push(Doc::Text(atext.to_string()));
+    }
+    // When not hugging start, add dedent(softline) so the trailing `>` drops back
+    // to the outer column on break — mirrors prettier's openingTag assembly:
+    // `indent(group([…attrs, hugStart && !isEmpty ? '' : dedent(softline)]))`.
+    if !hug_start {
+        group_parts.push(Doc::Dedent(vec![Doc::Softline]));
     }
     Some(Doc::Concat(vec![
         Doc::Text(format!("<{tag}")),
@@ -2226,7 +2245,10 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
         // The open tag is normally atomic, but when it has attributes build it as
         // a wrappable attribute group so a long open tag inside prose can break
         // its attributes onto their own lines (`<a`\n`  href="…">text</a`\n`>`).
-        let open_doc = build_open_attr_doc(out, node, &tag).unwrap_or(Doc::Text(open_no_bracket));
+        // hug_start=true: content hugs the open tag, so no dedent(softline) inside
+        // the attribute group — the `>` belongs to the hugged content assembly.
+        let open_doc =
+            build_open_attr_doc(out, node, &tag, true).unwrap_or(Doc::Text(open_no_bracket));
         // prettier's `hugStart && hugEnd` doc: the hugged content lives in its
         // OWN group so `>{content}</tag` stays glued to the open tag when it fits
         // (only the trailing `>` drops to its own line), independent of whether
@@ -2255,13 +2277,11 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             // Only the `<tag …attrs></tag>` shape (not self-closing, no content).
             if !span.contains('\n')
                 && span.ends_with(&format!("></{tag}>"))
-                && let Some(open_doc) = build_open_attr_doc(out, node, tag)
+                // hug_start=false: empty element (isEmpty=true) → add dedent(softline)
+                // so the trailing `>` lands at the outer column on break.
+                && let Some(open_doc) = build_open_attr_doc(out, node, tag, false)
             {
-                return Some(Doc::Group(vec![
-                    open_doc,
-                    Doc::Softline,
-                    Doc::Text(format!("></{tag}>")),
-                ]));
+                return Some(Doc::Group(vec![open_doc, Doc::Text(format!("></{tag}>"))]));
             }
         }
     }
