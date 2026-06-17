@@ -605,6 +605,7 @@ impl<'opt> Printer<'opt> {
                         ctx: child,
                         multiline,
                         obj_or_array: false,
+                        is_elision: false,
                     }
                 })
                 .collect();
@@ -652,6 +653,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array: false,
+                    is_elision: false,
                 }
             })
             .collect();
@@ -956,6 +958,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array: false,
+                    is_elision: false,
                 }
             })
             .collect();
@@ -968,6 +971,7 @@ impl<'opt> Printer<'opt> {
                 ctx: child,
                 multiline,
                 obj_or_array: false,
+                is_elision: false,
             });
         }
         assemble_sequence(items, true, ",", true, ctx);
@@ -1005,6 +1009,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array: false,
+                    is_elision: el.is_none(),
                 }
             })
             .collect();
@@ -1017,6 +1022,7 @@ impl<'opt> Printer<'opt> {
                 ctx: child,
                 multiline,
                 obj_or_array: false,
+                is_elision: false,
             });
         }
         assemble_sequence(items, false, ",", true, ctx);
@@ -1042,6 +1048,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array: false,
+                    is_elision: false,
                 }
             })
             .collect();
@@ -1054,6 +1061,7 @@ impl<'opt> Printer<'opt> {
                 ctx: child,
                 multiline,
                 obj_or_array: false,
+                is_elision: false,
             });
         }
         assemble_sequence(items, false, ",", true, ctx);
@@ -1421,6 +1429,7 @@ impl<'opt> Printer<'opt> {
                             ctx: child,
                             multiline,
                             obj_or_array: false,
+                            is_elision: el.is_none(),
                         }
                     })
                     .collect();
@@ -1433,6 +1442,7 @@ impl<'opt> Printer<'opt> {
                         ctx: child,
                         multiline,
                         obj_or_array: false,
+                        is_elision: false,
                     });
                 }
                 assemble_sequence(items, false, ",", true, ctx);
@@ -1451,6 +1461,7 @@ impl<'opt> Printer<'opt> {
                             ctx: child,
                             multiline,
                             obj_or_array: false,
+                            is_elision: false,
                         }
                     })
                     .collect();
@@ -1463,6 +1474,7 @@ impl<'opt> Printer<'opt> {
                         ctx: child,
                         multiline,
                         obj_or_array: false,
+                        is_elision: false,
                     });
                 }
                 assemble_sequence(items, true, ",", true, ctx);
@@ -1570,6 +1582,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array: false,
+                    is_elision: matches!(el, ArrayExpressionElement::Elision(_)),
                 }
             })
             .collect();
@@ -1592,6 +1605,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array: false,
+                    is_elision: false,
                 }
             })
             .collect();
@@ -1625,6 +1639,7 @@ impl<'opt> Printer<'opt> {
                     ctx: child,
                     multiline,
                     obj_or_array,
+                    is_elision: false,
                 }
             })
             .collect();
@@ -1814,6 +1829,10 @@ struct SeqItem {
     ctx: Context,
     multiline: bool,
     obj_or_array: bool,
+    /// This item is an array elision (a hole, `[a, , b]`). esrap still writes
+    /// the hole's separator but omits the inter-element space/newline *before*
+    /// it, so consecutive holes read `,,` rather than `, ,`.
+    is_elision: bool,
 }
 
 /// Port of esrap's `sequence` (no-comment path): lay pre-rendered `items` out as
@@ -1831,7 +1850,9 @@ fn assemble_sequence(
     let mut multiline = false;
     let mut length: i64 = -1;
     for (i, item) in items.iter_mut().enumerate() {
-        if i < n - 1 {
+        // esrap writes the separator for every non-final element, and also for
+        // a trailing elision (`[a, ,]`): `i < n-1 || !child`.
+        if i < n - 1 || item.is_elision {
             item.ctx.write(separator);
         }
         length += item.ctx.measure() as i64 + 1;
@@ -1852,10 +1873,14 @@ fn assemble_sequence(
             if prev_multiline && item.multiline && !(prev_obj && item.obj_or_array) {
                 parent.margin();
             }
-            if multiline {
-                parent.newline();
-            } else {
-                parent.write(" ");
+            // esrap only emits the inter-element newline/space before a real
+            // element (`if (nodes[i])`), so a hole hugs the preceding comma.
+            if !item.is_elision {
+                if multiline {
+                    parent.newline();
+                } else {
+                    parent.write(" ");
+                }
             }
         }
         prev = Some((item.multiline, item.obj_or_array));
