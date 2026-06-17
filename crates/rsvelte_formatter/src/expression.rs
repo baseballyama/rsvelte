@@ -158,6 +158,7 @@ fn collect_node_edits(
             // whose sole child is another IfBlock, so recursing naively would
             // add a level per branch. Mirrors `crate::indent`.
             let mut current: &rsvelte_core::ast::template::IfBlock = blk;
+            let mut is_first = true;
             loop {
                 // Normalize extra whitespace between `{` and `#`/`:` in the
                 // block opener: `{     #if cond}` → `{#if cond}`.
@@ -171,7 +172,20 @@ fn collect_node_edits(
                 // outer parens (`{#if (b)}` → `{#if b}`) and returns the
                 // effective end of the edit (which may be past the AST expression
                 // end when parens were consumed).
-                let effective_end = push_bare_expression(source, &current.test, options, edits)?;
+                // `{#if ` = 5 chars, `{:else if ` = 10 chars.
+                let if_prefix_len = if is_first {
+                    "{#if ".len()
+                } else {
+                    "{:else if ".len()
+                };
+                let effective_end = push_bare_expression(
+                    source,
+                    &current.test,
+                    options,
+                    depth,
+                    if_prefix_len,
+                    edits,
+                )?;
                 // Trim trailing whitespace before the header `}` — e.g.
                 // `{#if cond }` → `{#if cond}`.
                 trim_trailing_ws_before_close_brace(source, effective_end, edits);
@@ -183,7 +197,10 @@ fn collect_node_edits(
                 collect_template_edits(source, &current.consequent, child_depth, options, edits)?;
                 match &current.alternate {
                     Some(alt) => match crate::indent::else_if_branch(alt) {
-                        Some(chained) => current = chained,
+                        Some(chained) => {
+                            current = chained;
+                            is_first = false;
+                        }
                         None => {
                             expand_inline_empty_block_body(alt, depth, options, edits);
                             collect_template_edits(source, alt, child_depth, options, edits)?;
@@ -202,7 +219,15 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            push_bare_expression(source, &blk.expression, options, edits)?;
+            // `{#each ` = 7 chars.
+            push_bare_expression(
+                source,
+                &blk.expression,
+                options,
+                depth,
+                "{#each ".len(),
+                edits,
+            )?;
             if let Some(ctx) = &blk.context {
                 push_pattern_at_span(source, ctx, options, edits)?;
             }
@@ -327,7 +352,15 @@ fn collect_node_edits(
                 if let Some(start) = blk.expression.start() {
                     normalize_leading_ws_before_expr(source, start, edits);
                 }
-                let expr_end = push_bare_expression(source, &blk.expression, options, edits)?;
+                // `{#await ` = 8 chars.
+                let expr_end = push_bare_expression(
+                    source,
+                    &blk.expression,
+                    options,
+                    depth,
+                    "{#await ".len(),
+                    edits,
+                )?;
                 // `blk.value` is the binding from `{#await expr then binding}` (header
                 // inline) when pending is None, or from `{:then binding}` (separator)
                 // when pending is Some.  Only treat it as a header binding in the first
@@ -409,7 +442,15 @@ fn collect_node_edits(
             if let Some(start) = blk.expression.start() {
                 normalize_leading_ws_before_expr(source, start, edits);
             }
-            let effective_end = push_bare_expression(source, &blk.expression, options, edits)?;
+            // `{#key ` = 6 chars.
+            let effective_end = push_bare_expression(
+                source,
+                &blk.expression,
+                options,
+                depth,
+                "{#key ".len(),
+                edits,
+            )?;
             // Trim `{#key expr }` → `{#key expr}`.
             trim_trailing_ws_before_close_brace(source, effective_end, edits);
             // Expand inline-empty body `{#key expr} {/key}` → blank-line form.
@@ -421,7 +462,15 @@ fn collect_node_edits(
             normalize_block_opener_ws(source, blk.start, edits);
             if blk.parameters.is_empty() {
                 // No params — just normalize the name (`{#snippet foo()}`).
-                push_bare_expression(source, &blk.expression, options, edits)?;
+                // `{#snippet ` = 10 chars.
+                push_bare_expression(
+                    source,
+                    &blk.expression,
+                    options,
+                    depth,
+                    "{#snippet ".len(),
+                    edits,
+                )?;
             } else {
                 // Format the whole header `name<…>(params)` as one function
                 // signature so a long parameter list breaks across lines like
@@ -644,9 +693,13 @@ fn push_brace_wrapped_expression(
 /// Splice just the bare expression span — preserves whatever surrounds it
 /// in the source. Used for block-header expressions (`{#if EXPR}`,
 /// `{#each EXPR as ...}`, etc.) where the `{` is followed by a Svelte
-/// keyword (`#if` / `#each` / ...) rather than the expression itself. The
-/// expression is forced onto a single line: prettier-plugin-svelte keeps a
-/// block tag's expression inline regardless of width.
+/// keyword (`#if` / `#each` / ...) rather than the expression itself.
+///
+/// When the expression itself is longer than `full_width` (i.e. OXC at
+/// `full_width` would wrap it), reformats at `full_width` and reindents
+/// continuation lines to `(depth + 1) * indent_width`.  Breaks at logical
+/// operators (`&&`, `||`) are rejected — prettier keeps block headers on one
+/// line when the only wrapping option is a logical op.
 ///
 /// Also strips any unnecessary outer parentheses that the source wraps around
 /// the expression (e.g. `{#if (b)}` → `{#if b}`, `{#each (c) as x}` →
@@ -656,6 +709,8 @@ fn push_bare_expression(
     source: &str,
     expr: &Expression,
     options: &FormatOptions,
+    depth: usize,
+    _prefix_len: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<u32, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
@@ -668,7 +723,44 @@ fn push_bare_expression(
     if slice.is_empty() {
         return Ok(end);
     }
+    let indent_width = options.js.indent_width.value() as usize;
+    let full_width = options.js.line_width.value() as usize;
+    // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
+    // prettier-plugin-svelte wraps a block-header expression across lines when
+    // the expression itself is longer than the print width (OXC at `full_width`
+    // would break it).  When the expression fits within `full_width` — even if
+    // the full header line (prefix + expression + suffix) overflows 80 cols —
+    // prettier keeps it inline.  This avoids break points at logical operators
+    // (`&&`, `||`) that OXC would pick but prettier does not in block headers.
+    //
+    // When wrapping, we pass the full `line_width` to OXC.  Continuation lines
+    // carry only the block's indent (not the keyword prefix), so using the full
+    // width avoids over-wrapping inner call arguments.
+    let formatted =
+        if !formatted.contains('\n') && UnicodeWidthStr::width(formatted.as_str()) > full_width {
+            let multi = format_expr_core(slice, options, options.js.line_width, false)?;
+            if multi.contains('\n')
+                && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
+            {
+                // reindent prepends the prefix to each continuation line ON TOP of
+                // OXC's own 2-space indent, so we pass `depth * indent_width` (not
+                // `(depth+1) * indent_width`).  The result is:
+                //   OXC indent (2) + prefix (depth*2) = (depth+1)*2 — correct.
+                let cont_indent = if options.js.indent_style.is_tab() {
+                    "\t".repeat(depth)
+                } else {
+                    " ".repeat(depth * indent_width)
+                };
+                crate::reindent::reindent(&multi, &cont_indent, true)
+            } else {
+                // OXC kept it on one line, or broke at a logical operator —
+                // keep the inline version.
+                formatted
+            }
+        } else {
+            formatted
+        };
 
     // prettier-plugin-svelte wraps assignment expressions in block-header
     // positions with parentheses to make intent clear:
@@ -2389,6 +2481,16 @@ fn strip_outer_parens(s: &str) -> &str {
         return s;
     };
     if outer_parens_match(inner) { inner } else { s }
+}
+
+/// Returns `true` when the first line of a block-header expression ends with a
+/// top-level logical operator (`&&` or `||`).  Used to detect when OXC wraps
+/// at a logical operator — prettier-plugin-svelte keeps block headers on one
+/// line in that case (even when they overflow), so we reject the multi-line
+/// form and use the inline version instead.
+fn first_line_ends_with_logical_op(first_line: &str) -> bool {
+    let t = first_line.trim_end();
+    t.ends_with("&&") || t.ends_with("||") || t.ends_with("??")
 }
 
 fn outer_parens_match(inner: &str) -> bool {
