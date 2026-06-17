@@ -16,17 +16,7 @@
 //! `esrap` submodule is absent (mirroring the other corpus suites).
 
 /// Samples not yet byte-identical. Drive this to empty.
-const KNOWN_FAILURES: &[&str] = &[
-    "jsx-basic",
-    // oxc preserves explicit `ParenthesizedExpression` nodes that acorn (esrap's
-    // baseline) elides, so esrap's redundant-paren stripping around an
-    // `as`/`satisfies` operand (`(0 as number) + 1` → `0 as number + 1`,
-    // `() => ({ x }) as const` → `() => ({ x } as const)`) can't be reproduced
-    // without dropping source parens — a printer-wide change the golden corpus
-    // depends on not making.
-    "ts-arrow-as-const-object",
-    "ts-as-precedence",
-];
+const KNOWN_FAILURES: &[&str] = &["jsx-basic"];
 
 use std::path::{Path, PathBuf};
 

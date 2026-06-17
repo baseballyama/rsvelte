@@ -136,11 +136,25 @@ fn dedent_block_comment(source: &str, start: u32, inner: &str) -> String {
         .join("\n")
 }
 
+/// Strip explicit `ParenthesizedExpression` wrappers. esrap parses with acorn,
+/// which never produces these nodes, so all of its precedence / `needs_parens`
+/// logic operates on the real underlying expression. We unwrap paren nodes
+/// before printing (see the `ParenthesizedExpression` arm in `print_expression`),
+/// so every precedence query must look through them too — otherwise a paren
+/// node's top precedence (20) would mask the inner operator and suppress the
+/// parens the grammar actually requires (e.g. `await (a || b)`).
+fn unparen<'a, 'b>(mut expr: &'a Expression<'b>) -> &'a Expression<'b> {
+    while let Expression::ParenthesizedExpression(p) = expr {
+        expr = &p.expression;
+    }
+    expr
+}
+
 /// esrap's `EXPRESSIONS_PRECEDENCE`, keyed by oxc `Expression` kind. Higher
 /// binds tighter; a child is parenthesised when its precedence is lower than the
 /// position requires.
 fn expr_precedence(expr: &Expression) -> u8 {
-    match expr {
+    match unparen(expr) {
         Expression::ArrayExpression(_)
         | Expression::TaggedTemplateExpression(_)
         | Expression::ThisExpression(_)
@@ -180,8 +194,8 @@ fn expr_precedence(expr: &Expression) -> u8 {
         Expression::TSInstantiationExpression(_)
         | Expression::TSNonNullExpression(_)
         | Expression::TSTypeAssertion(_) => 18,
-        // Parenthesised wrappers are unwrapped before precedence is consulted.
-        Expression::ParenthesizedExpression(_) => 20,
+        // `unparen` already stripped any `ParenthesizedExpression`, so it never
+        // reaches here.
         _ => 18,
     }
 }
@@ -215,6 +229,9 @@ fn binary_needs_parens(
     is_right: bool,
 ) -> bool {
     let parent_precedence = if parent_is_logical { 12 } else { 14 };
+    // esrap operates on acorn ASTs (no paren nodes), so look through any
+    // explicit `ParenthesizedExpression` before inspecting the child's kind.
+    let child = unparen(child);
 
     // A left-hand `as`/`satisfies` child only needs parens when the parent
     // operator would otherwise swallow the trailing type (`**`, `&`, `|`).
@@ -274,16 +291,16 @@ fn child_binary_op(expr: &Expression) -> &'static str {
 /// block body, so esrap parenthesizes it. Explicit `ParenthesizedExpression`
 /// bodies are printed faithfully by their own visitor and need no extra wrap.
 fn arrow_concise_body_needs_wrap(body: &Expression) -> bool {
-    match body {
+    match unparen(body) {
         Expression::ObjectExpression(_) => true,
         Expression::AssignmentExpression(a) => {
             matches!(a.left, AssignmentTarget::ObjectAssignmentTarget(_))
         }
         Expression::LogicalExpression(l) => {
-            matches!(l.left, Expression::ObjectExpression(_))
+            matches!(unparen(&l.left), Expression::ObjectExpression(_))
         }
         Expression::ConditionalExpression(c) => {
-            matches!(c.test, Expression::ObjectExpression(_))
+            matches!(unparen(&c.test), Expression::ObjectExpression(_))
         }
         // `as` / `satisfies` / `!` don't change the leftmost token, so recurse.
         Expression::TSAsExpression(e) => arrow_concise_body_needs_wrap(&e.expression),
@@ -323,6 +340,15 @@ impl<'opt> Printer<'opt> {
     /// 1-based line of a byte offset (number of line starts at/before it).
     fn line_of(&self, offset: u32) -> u32 {
         self.line_starts.partition_point(|&s| s <= offset) as u32
+    }
+
+    /// Whether any source comment starts within `[start, end)` — used to decide
+    /// if an unwrapped `ParenthesizedExpression` must keep its literal parens to
+    /// bracket an interior comment (`(/*c*/ x)`).
+    fn comment_in_span(&self, start: u32, end: u32) -> bool {
+        self.comments
+            .iter()
+            .any(|c| c.start >= start && c.start < end)
     }
 
     // ----- comments ---------------------------------------------------------
@@ -657,9 +683,9 @@ impl<'opt> Printer<'opt> {
             Statement::ExpressionStatement(s) => {
                 // esrap wraps a leading object/function-expression statement in
                 // parens so it isn't parsed as a block/declaration. The check is
-                // on the leftmost token, i.e. the immediate node type — an
-                // explicit paren node already starts with `(` and is safe.
-                let inner = &s.expression;
+                // on the leftmost token; `unparen` looks through explicit paren
+                // nodes (which acorn elides) so `({ a: 1 });` re-wraps correctly.
+                let inner = unparen(&s.expression);
                 let needs_parens = matches!(
                     inner,
                     Expression::ObjectExpression(_) | Expression::FunctionExpression(_)
@@ -1746,23 +1772,36 @@ impl<'opt> Printer<'opt> {
         self.flush_leading(ctx, start, self.line_of(start));
         match expr {
             Expression::ParenthesizedExpression(p) => {
-                // esrap prints explicit paren nodes faithfully (its
-                // `ParenthesizedExpression` visitor): `(` + inner + `)`. The
-                // inner never re-adds parens since a paren node's precedence is
-                // treated as the top (20), so the parent never double-wraps.
+                // esrap parses with acorn, which ELIDES parentheses — there is
+                // no `ParenthesizedExpression` node, so esrap recomputes every
+                // paren purely from operator/precedence rules (`needs_parens`).
+                // oxc instead PRESERVES explicit parens as this node. To match
+                // esrap byte-for-byte we UNWRAP it and print the inner
+                // expression, letting the precedence-based parenthesisation
+                // (`child_with_parens` / `binary_needs_parens` at each parent)
+                // re-add only the parens the grammar requires.
                 //
-                // The one exception is a sequence: `(a, b)` parses as
-                // `Paren(Sequence)`, but esrap's `SequenceExpression` visitor
-                // already emits the surrounding parens. Printing this paren
-                // layer too would double them, so drop it and let the sequence
-                // supply its own. An explicit redundant `((a, b))` keeps its
-                // outer layer (whose child is the inner `Paren(Sequence)`).
+                // Two exceptions keep the literal parens:
+                //
+                // 1. A comment inside the paren span: dropping the parens would
+                //    leave the interior comment dangling (`return (/*c*/ x)`,
+                //    `return (// hey\n x)`). The comment is flushed as a leading
+                //    comment of the inner expression, so the parens must stay to
+                //    bracket it as in the source.
+                // 2. A sequence: `(a, b)` parses as `Paren(Sequence)`, and the
+                //    `SequenceExpression` visitor already emits its own
+                //    surrounding parens, so the paren layer is dropped to avoid
+                //    doubling. (An explicit redundant `((a, b))` is handled
+                //    recursively — the outer layer here, the inner by the
+                //    sequence visitor.)
                 if matches!(p.expression, Expression::SequenceExpression(_)) {
                     self.print_expression(&p.expression, ctx);
-                } else {
+                } else if self.comment_in_span(p.span.start, p.span.end) {
                     ctx.write("(");
                     self.print_expression(&p.expression, ctx);
                     ctx.write(")");
+                } else {
+                    self.print_expression(&p.expression, ctx);
                 }
             }
             Expression::ChainExpression(c) => match &c.expression {
