@@ -89,7 +89,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         if let Some((start, end, formatted)) = script::format_script(source, script, options)? {
             edits.push((start, end, formatted));
         }
-        if let Some(edit) = script::format_open_tag(source, script.start, script.end) {
+        if let Some(edit) = script::format_open_tag(source, script.start, script.end, options) {
             edits.push(edit);
         }
     }
@@ -106,7 +106,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
     if let Some(css) = &root.css {
         // Normalize the `<style …>` open tag (e.g. strip trailing space from
         // `<style >`) using the same routine that normalises `<script>` tags.
-        if let Some(edit) = script::format_open_tag(source, css.start, css.end) {
+        if let Some(edit) = script::format_open_tag(source, css.start, css.end, options) {
             edits.push(edit);
         }
         style::collect_style_edit(source, css, options, &mut edits)?;

@@ -815,7 +815,9 @@ fn is_block_element(tag_name: &str) -> bool {
             | "ol"
             | "p"
             | "pre"
+            | "script"
             | "section"
+            | "style"
             | "table"
             | "ul"
     )
@@ -1312,12 +1314,7 @@ fn render_single_expression_value(
                     // Arrow function: narrow by prefix − one indent so the body
                     // lands exactly one level deep.
                     let arrow_extra = prefix.saturating_sub(indent_width);
-                    format_attribute_value_expression(
-                        inner_src,
-                        options,
-                        attr_depth,
-                        arrow_extra,
-                    )?
+                    format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
                 } else {
                     // Block-body (object / array / function): force expansion by
                     // formatting at exactly one char narrower than the inline form.
@@ -1329,12 +1326,7 @@ fn render_single_expression_value(
                     let base_width = line_width.saturating_sub(indent_cols);
                     // extra_lead that yields narrowed = inline_len − 1
                     let extra_lead = base_width.saturating_sub(inline_len.saturating_sub(1));
-                    format_attribute_value_expression(
-                        inner_src,
-                        options,
-                        attr_depth,
-                        extra_lead,
-                    )?
+                    format_attribute_value_expression(inner_src, options, attr_depth, extra_lead)?
                 }
             } else {
                 formatted
@@ -1586,7 +1578,10 @@ fn render_attribute_value_sequence(
                         } else {
                             // Multi-line: check first-line break point
                             let first_line = first_pass.lines().next().unwrap_or("").trim_end();
-                            if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
+                            if first_line.ends_with('{')
+                                || first_line.ends_with('[')
+                                || first_line.ends_with('(')
+                            {
                                 // Expanded call-argument block — keep the wider result
                                 first_pass
                             } else {
