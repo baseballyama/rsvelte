@@ -1004,6 +1004,10 @@ impl<'opt> Printer<'opt> {
         ctx.write("}");
     }
 
+    /// esrap's `handle_var_declaration` (not the generic `sequence`): break the
+    /// declarators one-per-line — joined by `,\n` and indented — when any
+    /// declarator is itself multiline (e.g. carries a leading comment) or there
+    /// is more than one and they don't fit (`measure + 2*(n-1) > 50`).
     fn variable_declaration(&mut self, decl: &VariableDeclaration, ctx: &mut Context) {
         ctx.write(match decl.kind {
             VariableDeclarationKind::Var => "var ",
@@ -1012,14 +1016,48 @@ impl<'opt> Printer<'opt> {
             VariableDeclarationKind::Using => "using ",
             VariableDeclarationKind::AwaitUsing => "await using ",
         });
-        for (i, declarator) in decl.declarations.iter().enumerate() {
-            if i > 0 {
-                ctx.write(", ");
-            }
-            self.binding_pattern(&declarator.id, ctx);
+
+        let n = decl.declarations.len();
+        let mut rendered: Vec<Context> = Vec::with_capacity(n);
+        let mut total_measure = 0usize;
+        let mut any_multiline = false;
+        for declarator in &decl.declarations {
+            let mut child = ctx.child();
+            let start = declarator.span().start;
+            self.flush_leading(&mut child, start, self.line_of(start));
+            self.binding_pattern(&declarator.id, &mut child);
             if let Some(init) = &declarator.init {
-                ctx.write(" = ");
-                self.print_expression(unparen(init), ctx);
+                child.write(" = ");
+                self.print_expression(unparen(init), &mut child);
+            }
+            total_measure += child.measure();
+            any_multiline |= child.multiline;
+            rendered.push(child);
+        }
+
+        let length = total_measure + 2 * n.saturating_sub(1);
+        let multiline = any_multiline || (n > 1 && length > 50);
+
+        if multiline {
+            if n > 1 {
+                ctx.indent();
+            }
+            for (i, child) in rendered.into_iter().enumerate() {
+                if i > 0 {
+                    ctx.write(",");
+                    ctx.newline();
+                }
+                ctx.append(child);
+            }
+            if n > 1 {
+                ctx.dedent();
+            }
+        } else {
+            for (i, child) in rendered.into_iter().enumerate() {
+                if i > 0 {
+                    ctx.write(", ");
+                }
+                ctx.append(child);
             }
         }
     }
@@ -1930,6 +1968,15 @@ mod tests {
         assert_eq!(
             print_ok("const o = { get x() {}, set x(v) {} };"),
             "const o = { get x() {}, set x(v) {} };"
+        );
+    }
+
+    #[test]
+    fn var_declaration_layout() {
+        assert_eq!(print_ok("let a = 1, b = 2;"), "let a = 1, b = 2;");
+        assert_eq!(
+            print_with_comments_ok("let a = 1,\n// c\nb = 2;"),
+            "let a = 1,\n\t// c\n\tb = 2;"
         );
     }
 
