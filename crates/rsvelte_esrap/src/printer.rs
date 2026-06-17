@@ -80,10 +80,19 @@ pub fn build_comments(program: &Program<'_>, source: &str) -> Vec<Cmt> {
             let raw = &source[start as usize..end as usize];
             let block = !matches!(c.kind, oxc_ast::ast::CommentKind::Line);
             let value = if block {
-                raw.strip_prefix("/*")
+                let inner = raw
+                    .strip_prefix("/*")
                     .and_then(|s| s.strip_suffix("*/"))
-                    .unwrap_or(raw)
-                    .to_string()
+                    .unwrap_or(raw);
+                // Svelte's `onComment` (1-parse/acorn.js) dedents a multi-line
+                // block comment by its opener line's leading indentation, so the
+                // re-indent on output (one `newline()` per line) doesn't stack
+                // on top of the source indentation. Mirror it exactly.
+                if inner.contains('\n') {
+                    dedent_block_comment(source, start, inner)
+                } else {
+                    inner.to_string()
+                }
             } else {
                 raw.strip_prefix("//").unwrap_or(raw).to_string()
             };
@@ -97,6 +106,34 @@ pub fn build_comments(program: &Program<'_>, source: &str) -> Vec<Cmt> {
             }
         })
         .collect()
+}
+
+/// Strip the comment opener's line indentation from every line of a multi-line
+/// block comment body, mirroring Svelte's `onComment` handler:
+/// `value.replace(new RegExp('^' + indentation, 'gm'), '')`. `start` is the byte
+/// offset of the `/*`; the indentation is the whitespace from the start of that
+/// line up to the first non-`[ \t]` byte.
+fn dedent_block_comment(source: &str, start: u32, inner: &str) -> String {
+    let bytes = source.as_bytes();
+    // Walk back to the start of the comment opener's line.
+    let mut a = start as usize;
+    while a > 0 && bytes[a - 1] != b'\n' {
+        a -= 1;
+    }
+    // The leading run of spaces/tabs on that line is the indentation.
+    let mut b = a;
+    while b < bytes.len() && (bytes[b] == b' ' || bytes[b] == b'\t') {
+        b += 1;
+    }
+    let indentation = &source[a..b];
+    if indentation.is_empty() {
+        return inner.to_string();
+    }
+    inner
+        .split('\n')
+        .map(|line| line.strip_prefix(indentation).unwrap_or(line))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// esrap's `EXPRESSIONS_PRECEDENCE`, keyed by oxc `Expression` kind. Higher
@@ -1718,7 +1755,19 @@ impl<'opt> Printer<'opt> {
         // Render each argument into its own context; non-final ones carry their
         // trailing comma so the comma stays put whichever layout wins.
         let mut rendered: Vec<Context> = Vec::with_capacity(n);
+        // esrap special case: a comment sitting *above* the final argument
+        // forces the whole call multiline (it sets the non-final context's
+        // `multiline`), so a `(\n\t// comment\n\targ\n)` layout is used instead
+        // of dangling the comment after `(`.
+        let mut force_wrap = false;
         for (i, arg) in args.iter().enumerate() {
+            let is_last = i == n - 1;
+            if is_last && let Some(c) = self.comments.get(self.comment_index) {
+                let arg_start = arg.span().start;
+                if c.start < arg_start && c.start_line < self.line_of(arg_start) {
+                    force_wrap = true;
+                }
+            }
             let mut child = ctx.child();
             match arg {
                 Argument::SpreadElement(s) => {
@@ -1736,11 +1785,13 @@ impl<'opt> Printer<'opt> {
             rendered.push(child);
         }
 
-        // Wrap iff any non-final argument went multiline.
-        let wrap = rendered
-            .iter()
-            .take(n.saturating_sub(1))
-            .any(|c| c.multiline);
+        // Wrap iff any non-final argument went multiline, or the final argument
+        // carries a leading comment (the esrap special case above).
+        let wrap = force_wrap
+            || rendered
+                .iter()
+                .take(n.saturating_sub(1))
+                .any(|c| c.multiline);
 
         ctx.write("(");
         if wrap {
