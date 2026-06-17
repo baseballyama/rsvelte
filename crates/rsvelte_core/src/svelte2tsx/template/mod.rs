@@ -2809,6 +2809,9 @@ fn handle_regular_element(
 
     // Process children at depth+1: this element is now an ancestor.
     // Mirrors official computeDepth which counts all ancestor element/component nodes.
+    // Hoist snippet blocks to the top of the element's children first, mirroring
+    // hoistSnippetBlock in the JS reference (pendingSnippetHoistCheck walk).
+    hoist_snippet_blocks(&el.fragment, source, str);
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     // Find and overwrite the closing tag.
@@ -4161,16 +4164,59 @@ fn handle_svelte_dynamic_element(
     // ` <var=>svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
     // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
     // when directives add an extra scope).
+    // The post-`createElement` suffix statements — `class:`/`style:`, transition/animate
+    // (`directive_suffix`), and `bind:` (`bind_suffix`) — are emitted in SOURCE-ATTRIBUTE
+    // ORDER, mirroring the regular-element handler's sort logic.
+    let first_bind_pos_se = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::BindDirective(b) => Some(b.start),
+            _ => None,
+        })
+        .min();
+    let first_directive_pos_se = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::TransitionDirective(t) => Some(t.start),
+            Attribute::AnimateDirective(an) => Some(an.start),
+            _ => None,
+        })
+        .min();
+    let first_class_style_pos_se = el
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::ClassDirective(c) => Some(c.start),
+            Attribute::StyleDirective(s) => Some(s.start),
+            _ => None,
+        })
+        .min();
+    let sorted_suffix = {
+        let mut pieces: Vec<(u32, &str)> = Vec::new();
+        if !directive_suffix.is_empty() {
+            pieces.push((
+                first_directive_pos_se.unwrap_or(u32::MAX),
+                &directive_suffix,
+            ));
+        }
+        if !class_style_suffix.is_empty() {
+            pieces.push((
+                first_class_style_pos_se.unwrap_or(u32::MAX),
+                &class_style_suffix,
+            ));
+        }
+        if !bind_suffix.is_empty() {
+            pieces.push((first_bind_pos_se.unwrap_or(u32::MAX), &bind_suffix));
+        }
+        pieces.sort_by_key(|(pos, _)| *pos);
+        pieces.into_iter().map(|(_, s)| s).collect::<String>()
+    };
     let create = |attrs: &str| {
         format!(
-            " {}svelteHTML.createElement({}{}, {{{}}});{}{}{}",
-            element_var_decl,
-            tag_text,
-            actions_arg,
-            attrs,
-            directive_suffix,
-            class_style_suffix,
-            bind_suffix
+            " {}svelteHTML.createElement({}{}, {{{}}});{}",
+            element_var_decl, tag_text, actions_arg, attrs, sorted_suffix
         )
     };
     if is_self_closing {

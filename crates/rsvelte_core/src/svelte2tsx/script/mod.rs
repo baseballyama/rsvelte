@@ -523,10 +523,20 @@ impl ExportedNames {
             let te: Vec<String> = others
                 .iter()
                 .map(|(en, info)| {
-                    if let Some(ref ta) = info.type_annotation {
-                        format!("{}: {}", en, ta)
+                    // In TS files, doc comments are included (addDoc = true in JS reference).
+                    // In JS files, addDoc = false — no doc prefix.
+                    let doc_prefix = if is_ts {
+                        match &info.doc {
+                            Some(d) => format!("\n{}", d),
+                            None => String::new(),
+                        }
                     } else {
-                        format!("{}: typeof {}", en, info.local_name)
+                        String::new()
+                    };
+                    if let Some(ref ta) = info.type_annotation {
+                        format!("{}{}: {}", doc_prefix, en, ta)
+                    } else {
+                        format!("{}{}: typeof {}", doc_prefix, en, info.local_name)
                     }
                 })
                 .collect();

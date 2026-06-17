@@ -1,7 +1,4 @@
 [
-	"bits-ui/packages/bits-ui/src/lib/bits/command/components/command.svelte",
-	"melt-ui/docs/src/components/motion.svelte",
-	"melt-ui/docs/src/previews/tabs.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/remove-blocks-whitespace/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte",
