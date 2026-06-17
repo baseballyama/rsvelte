@@ -5,124 +5,215 @@ The lint-parity corpus (`scripts/compat-corpus/lint-verify.mjs`) lints every
 the real `eslint-plugin-svelte` (oracle) and the native `rsvelte-lint`, and
 records every finding that appears on exactly one side in
 `compat/lint-corpus/known-failures.json`. That file may only **shrink** — a new
-divergence fails CI.
+divergence fails CI (the `lint-parity` job).
 
-This doc tracks the remaining divergences and the root-cause clusters so the
-backlog can be burned down rule-by-rule. Counts are a snapshot (regenerate with
-`pnpm run lint-corpus:update` then `git diff`); the shape matters more than the
-exact numbers.
+This doc is the burn-down plan for the remaining divergences, grouped by
+root-cause cluster so the backlog can be worked one cluster at a time. Counts
+are a snapshot — regenerate with `pnpm run lint-corpus:update` then `git diff`.
 
 `FP` = rsvelte reports, oracle silent (a false positive — usually the higher
 priority, most user-visible bug). `FN` = oracle reports, rsvelte silent.
 
 ## Snapshot
 
-~556 divergences across ~34 rules, after the burndown so far:
-`prefer-const` (export-prop, `{@render}`-arg writes, robustness to analysis
-errors + bind/destructuring/redeclaration), `no-spaces-around-equal-signs`
-(shorthand), `consistent-selector-style` (dynamic-class affixes),
-`max-attributes-per-line` (shorthand name), `html-self-closing` (`<slot>`).
-The excluded rules (not in the parity universe — see `EXCLUDE` in
-`lint-verify.mjs`) are tracked separately: `indent`, `valid-compile`,
-`valid-style-parse`, type-aware rules, Svelte-3/4-only rules, option-required
-rules.
+**556 divergences across 36 rules** (down from a raw 17,896 / a post-scoping
+745). Already fixed and merged: `prefer-const` (export-prop, `{@render}`-arg
+writes, robustness to analysis errors + bind/destructuring/redeclaration),
+`no-spaces-around-equal-signs` (shorthand), `consistent-selector-style`
+(dynamic-class affixes), `max-attributes-per-line` (shorthand name),
+`html-self-closing` (`<slot>`).
 
-Biggest remaining clusters (regenerate with `pnpm run lint-corpus:update`):
-`max-attributes-per-line` (80, mostly the `<svelte:element this={…}>` implicit
-attribute + the newline-in-block parser gap), `mustache-spacing` (72, mostly the
-parser gap), `no-top-level-browser-globals` (66 FP, guard semantics),
-`sort-attributes` (57, inline-config options), `consistent-selector-style` (49,
-SCSS/`lang` blocks), the conditions-gated legacy rules
-(`no-immutable-reactive-statements`, `prefer-svelte-reactivity`,
-`infinite-reactive-loop`), `no-unused-class-name` (18, SCSS), and SvelteKit
-context rules (`no-navigation-without-base`).
+Rules **excluded** from the parity universe (not counted above; see `EXCLUDE`
+in `lint-verify.mjs`): `indent`, `valid-compile`, `valid-style-parse`,
+type-aware rules (`no-unused-props`, `no-navigation-without-resolve`),
+Svelte-3/4-only rules, option-required rules.
 
-These remaining clusters are predominantly structural — they need a compiler
-parser change (newline-split block tags, `{#each}` destructuring), SCSS/`lang`
-preprocessing, inline-config option parsing, the `meta.conditions` gate
-(cluster 1), or reverse-engineering a complex guard rule — rather than a
-self-contained per-rule fix.
-
-## Root-cause clusters
-
-### 1. Missing `meta.conditions` gating (the largest systematic cause)
-
-eslint-plugin-svelte gates many rules on a `meta.conditions` block evaluated
-against a detected **SvelteContext** — the Svelte major version, runes vs legacy
-mode, and the file type (`.svelte` vs `.svelte.[js|ts]` vs SvelteKit route
-files). When the context doesn't match, the rule is skipped entirely.
-`rsvelte-lint` currently runs every rule unconditionally, so it **over-reports**
-(FP) any rule upstream would have gated off — and the corpus declares Svelte 5,
-so 3/4-flavoured fixtures diverge.
-
-Affected (FP) clusters:
-
-- `infinite-reactive-loop` (15 FP) — fires on the rule's own `$:`-based invalid
-  fixtures; upstream gates these by the legacy/runes context.
-- `prefer-svelte-reactivity` (17 FP) — fires where upstream's `'.svelte'` +
-  version gate skips.
-- `no-immutable-reactive-statements`, `no-reactive-reassign` partial.
-
-**Fix direction:** port the `SvelteContext` detection + `shouldRun(conditions)`
-gate (eslint-plugin-svelte `src/utils/index.ts` + `src/utils/svelte-context.ts`)
-into the rsvelte rule dispatcher, then tag each native rule with its upstream
-conditions. This is one feature that clears several clusters at once.
-
-### 2. SvelteKit-route file-type rules
-
-`valid-prop-names-in-kit-pages`, `no-export-load-in-svelte-module-in-kit-pages`
-(4 FP each) only fire upstream when the file path is a real SvelteKit route
-(`src/routes/+page.svelte`, …); rsvelte keys off weaker signals. Same gating
-machinery as cluster 1 (`svelteKitFileType`). `no-navigation-without-base`
-(15 FP) fires on doc/demo links upstream skips.
-
-### 3. Template declaration tags (`{@const}` / `{let}`)
-
-`prefer-const` (54 FN) misses `{@const x = …}` / `{let x}` template declaration
-tags — svelte-eslint-parser surfaces them as `VariableDeclaration`s, so the core
-`prefer-const` fires; rsvelte's `prefer-const` only walks the `<script>` AST.
-**Fix:** extend `prefer_const` to the template declaration-tag nodes.
-
-### 4. Stylistic / layout rules (whitespace & attribute layout)
-
-The biggest raw counts; hard to match byte-exactly on real-world markup:
-
-- `max-attributes-per-line` (52 FP / 124 FN)
-- `mustache-spacing` (10 FP / 62 FN)
-- `html-self-closing` (61 FN), `sort-attributes` (20/37),
-  `first-attribute-linebreak` (7 FN), `html-closing-bracket-*` (5 FN each),
-  `spaced-html-comment` (16 FN).
-
-These need per-rule alignment of the layout heuristics with upstream. Lower
-priority than the semantic clusters.
-
-### 5. `no-top-level-browser-globals` (66 FP)
-
-rsvelte flags bare-identifier / member-write browser-global uses upstream's
-`ReferenceTracker` (READ-only) doesn't (e.g. `document.title = x`, `foo(window)`).
-Align the access-kind detection with upstream.
-
-### 6. `consistent-selector-style` (49 FN)
-
-rsvelte under-reports selector-style suggestions on real CSS. Needs a pass over
-the `style`-array priority resolution to match upstream's chosen suggestion.
-
-### 7. CSS/usage long-tail
-
-`no-unused-class-name` (18 FN), `block-lang` (14 FN), `no-dupe-style-properties`,
-`no-shorthand-style-property-overrides`, `no-nested-style-tag`, etc. — small
-per-rule gaps, each a self-contained fix.
-
-## Workflow
+## How to work a cluster
 
 ```bash
 pnpm run lint-corpus:sync && pnpm run lint-corpus:oracle-install
 cargo build --release --bin rsvelte-lint
 pnpm run lint-corpus:collect
 node scripts/compat-corpus/lint-verify.mjs --show 80   # list current diffs
-# pick a rule, inspect a failing source on both engines:
+# inspect a failing source on both engines:
 #   node scripts/compat-corpus/lint-oracle/run.mjs --rules <(echo '["svelte/<rule>"]') <file>
 #   ./target/release/rsvelte-lint --config <cfg> --format sarif <file>
-# fix the rule, rebuild, then:
-pnpm run lint-corpus:update    # prune the fixed entries (only shrinks)
+# fix → rebuild → re-verify; expect "0 new", then:
+pnpm run lint-corpus:update   # prune the fixed entries (only shrinks)
 ```
+
+Always re-run `cargo test -p rsvelte_lint --test eslint_plugin_oracle` (the
+exact-fixture oracle) after a rule change — it must stay 100%.
+
+---
+
+## Cluster A — Parser robustness: newline-split block tags (≈85 divergences)
+
+**Layer: compiler/parser. Effort: high. Risk: high (codegen).**
+
+The dominant FN source. Several fixtures format a block-open tag with a newline
+between *every* token:
+
+```svelte
+{
+#each
+cats
+as
+{ id, name }
+,
+i
+}
+```
+
+`svelte-eslint-parser` parses this; rsvelte's parser bails, so the **whole file
+fails to parse and no rule runs** → FN for everything in it.
+
+Affected (FN): `mustache-spacing` (≈54 of 62, files `each01`,
+`newline-in-blocks`), `spaced-html-comment` (16, `each01`), `require-each-key`
+(7, `each01`), part of `max-attributes-per-line` and `prefer-const`.
+
+**Fix:** make the block-tag parser tolerant of arbitrary whitespace/newlines
+between `{`, the `#each`/`#if`/… keyword, and the rest. Validate against the
+compile corpus + runtime suites (codegen risk) before landing. NB:
+`{#each x as { a, b }, i}` destructuring itself already parses — only the
+newline-split form fails.
+
+## Cluster B — SCSS / non-CSS `lang` style blocks (≈70 divergences)
+
+**Layer: compiler (CSS). Effort: high. Risk: medium.**
+
+rsvelte skips `<style lang="scss|less|stylus|…">` entirely (`has_unknown_lang`
+returns early), so any rule that inspects CSS selectors/classes can't reason
+about it; the oracle parses with postcss-scss.
+
+Affected (FN): `consistent-selector-style` (≈40 of 49, files `style-lang*`,
+`*scss*`), `no-unused-class-name` (18, `style-lang*`), a couple of
+`html-self-closing`.
+
+**Fix:** a best-effort SCSS→selector extraction (SCSS is a CSS superset, but
+nesting / `&` / interpolation need handling), or wire a real preprocessor. Big;
+defer unless SCSS parity is a priority.
+
+## Cluster C — Unenforced `meta.conditions` gate (≈60 divergences)
+
+**Layer: lint engine. Effort: medium. Risk: medium (judgment call).**
+
+eslint-plugin-svelte gates rules via `meta.conditions` evaluated against a
+**SvelteContext** (`src/utils/index.ts` `shouldRun` + `svelte-context.ts`):
+Svelte major version, **runes vs legacy** mode, and file type. rsvelte declares
+`RuleConditions { runes_only, legacy_only }` on every rule meta but **never
+enforces them** (no reader in `engine`/`visitor`/`runner`), so legacy-only rules
+fire on the Svelte-5 corpus where the oracle skips them.
+
+Affected (mostly FP): `no-immutable-reactive-statements` (22),
+`prefer-svelte-reactivity` (18), `infinite-reactive-loop` (15 FP),
+`require-event-prefix` (7 FP), `no-reactive-reassign` (5).
+
+**Caveat / why it's a judgment call:** the oracle treats the whole corpus as a
+Svelte-5 *project* (so a `$:`-only file is "runes by default" → legacy rules
+skipped), whereas rsvelte's per-file detection sees `$:` → legacy → fires —
+arguably *more* correct for real per-file usage. Matching the oracle means
+porting the project-level `getSvelteVersion()` + `svelteParseContext.runes`
+detection and wiring a `shouldRun(conditions)` check into the rule dispatcher,
+then tagging each native rule with its upstream conditions. Decide the desired
+semantics before implementing.
+
+## Cluster D — SvelteKit version / `resolve()` context (≈25 divergences)
+
+**Layer: lint engine + rule logic. Effort: medium. Risk: medium.**
+
+The deprecated SvelteKit nav rules are version-gated and don't understand the
+newer `$app/paths` `resolve()` API. The corpus declares SvelteKit 2 (synthetic
+`package.json`), so rsvelte fires them on fixtures the oracle skips.
+
+Affected (FP): `no-navigation-without-base` (15, mostly
+`no-navigation-without-resolve` fixtures using `resolve(...)`),
+`valid-prop-names-in-kit-pages` (4), `no-export-load-in-svelte-module-in-kit-pages`
+(4), `no-goto-without-base` (2 FN).
+
+**Fix:** part of Cluster C's conditions machinery (these carry
+`svelteKitVersions` conditions + a `svelteKitFileType` that depends on the file
+being a real `src/routes/+page.svelte`), plus teaching the base-path check to
+treat `resolve()` as already-resolved.
+
+## Cluster E — Inline-config options (≈73 divergences)
+
+**Layer: harness / config. Effort: low–medium. Risk: low.**
+
+The docs rule-example snippets carry `/* eslint svelte/<rule>: ["error", {…}] */`
+to demonstrate a rule under *custom* options. The oracle honours the inline
+options; rsvelte doesn't parse them and uses defaults → divergence. These are
+**not real rsvelte bugs**.
+
+Affected: `sort-attributes` (57, custom `order`), `block-lang` (16, custom
+required langs).
+
+**Fix options:** (a) parse inline `/* eslint … */` option config in rsvelte
+(makes it a real feature), or (b) set `linterOptions.noInlineConfig: true` in
+the oracle so both sides use the configured (default) options — re-baseline and
+confirm it doesn't unmask inline-`eslint-disable` divergences first. (b) is the
+cheaper harness-only path.
+
+## Cluster F — `<svelte:element this={…}>` implicit attribute (≈20 divergences)
+
+**Layer: lint (rule). Effort: medium. Risk: medium (FP).**
+
+rsvelte stores the `this={…}` of `<svelte:element>` / `<svelte:component>` in a
+separate `tag: Expression` field, not in `attributes`. svelte-eslint-parser
+counts `this` as the first attribute, so rsvelte under-counts by one and
+mis-positions attribute-layout findings.
+
+Affected: part of `max-attributes-per-line` (≈20, `svelte-element01` /
+`svelte-component01`), possibly `sort-attributes`/`first-attribute-linebreak`.
+
+**Fix:** in the `svelte:element`/`svelte:component` hooks, treat `this` as an
+implicit leading attribute (line = element-start line) for counting/grouping.
+The reported attribute stays a real one (index ≥ max ≥ 1), so the `this` span
+isn't needed for the message — only its line for the single-line/grouping math.
+
+## Cluster G — `no-top-level-browser-globals` guard semantics (66 FP)
+
+**Layer: lint (rule). Effort: high. Risk: high (uncertain semantics).**
+
+rsvelte over-reports top-level browser-global uses that the upstream rule's
+`@eslint-community/eslint-utils` `ReferenceTracker` + guard analysis does not
+flag (empirically the oracle stays silent on plain `document.title = x` /
+`foo(window)` yet fires on guarded `globalThis.location.href` — the exact
+predicate needs reverse-engineering). Biggest single pure-FP cluster.
+
+**Fix:** port the upstream guard model (`getGuardChecker*`, `isTopLevelLocation`,
+`isAvailableLocation`, the `ReferenceTracker` READ semantics) faithfully. Budget
+time to characterise the exact firing conditions first via the oracle.
+
+## Cluster H — Small / position-precision tail (≈40 divergences)
+
+**Layer: lint (rule). Effort: low each. Risk: low.**
+
+Self-contained per-rule gaps, each a handful of divergences:
+
+- `prefer-const` (13) — remaining `{@const}` / `{let}` template declaration tags
+  (svelte-eslint-parser flags a never-reassigned `{let x}`; rsvelte only walks
+  `<script>`) and a TS-column case.
+- `require-store-reactive-access` (12), `no-target-blank` (6),
+  `no-reactive-reassign` (3 FP), `no-dupe-else-if-blocks` (4, compound-`&&`
+  reported-column precision), `prefer-style-directive` (6, CSS-comment column
+  precision), `html-closing-bracket-spacing` / `-new-line` (5 each),
+  `first-attribute-linebreak` (7), `no-dupe-style-properties` (3),
+  `no-shorthand-style-property-overrides` (2), `no-nested-style-tag` (2),
+  and assorted singletons (`no-useless-mustaches`, `no-add-event-listener`,
+  `no-inline-styles`, `comment-directive`, `no-inner-declarations`,
+  `no-unnecessary-state-wrap`).
+
+Pick these off opportunistically; each is a small, low-risk rule fix.
+
+---
+
+## Priority suggestion
+
+1. **Cluster E (b)** — cheap harness change, removes ~73 non-bug divergences.
+2. **Cluster H** — many small, low-risk, real-rule wins.
+3. **Cluster F** — bounded rule fix, clears the biggest layout cluster's tail.
+4. **Cluster C/D** — decide the conditions-gating semantics, then implement once
+   (clears ~85 together).
+5. **Cluster A / B / G** — high-effort structural work (parser, SCSS, guard
+   reverse-engineering); schedule deliberately.
