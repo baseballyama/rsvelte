@@ -1829,17 +1829,13 @@ fn apply_props_typedef(
             // can insert the synthesised `;type $$ComponentProps = ...;` right
             // before the `let { ... } = $props()` statement instead of at the
             // very start of `$$render` — matches the JS reference's
-            // `preprendStr(node.parent.pos + astOffset, ...)`.
+            // `preprendStr(node.parent.pos + astOffset, ...)`. `node.parent.pos`
+            // spans the declaration's *leading trivia*, so the insertion lands
+            // BEFORE any `//` / `/* */` comments that precede the `let` — walk
+            // back through them too, otherwise the typedef gets appended onto a
+            // preceding `// …` line and is swallowed by that line comment.
             let raw_bytes = raw_content.as_bytes();
-            let mut p = info.let_pos as usize;
-            while p > 0 {
-                let prev = raw_bytes[p - 1];
-                if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
-                    p -= 1;
-                } else {
-                    break;
-                }
-            }
+            let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
             exported_names.props_let_abs_pos = Some(p as u32 + offset);
         } else {
             // JS case: Insert JSDoc typedef between `let` and `{`

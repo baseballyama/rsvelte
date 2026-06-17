@@ -1,8 +1,6 @@
 [
 	"bits-ui/packages/bits-ui/src/lib/bits/command/components/command.svelte",
-	"flowbite-svelte/src/routes/blocks/utils/ExampleWrapper.svelte",
 	"flowbite-svelte/src/routes/blocks/utils/Toc.svelte",
-	"flowbite-svelte/src/routes/utils/Paging.svelte",
 	"flowbite-svelte/src/routes/utils/Toc.svelte",
 	"melt-ui/docs/src/components/motion.svelte",
 	"melt-ui/docs/src/previews/tabs.svelte",
