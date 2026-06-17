@@ -1157,17 +1157,20 @@ impl<'opt> Printer<'opt> {
     /// declarator is itself multiline (e.g. carries a leading comment) or there
     /// is more than one and they don't fit (`measure + 2*(n-1) > 50`).
     fn variable_declaration(&mut self, decl: &VariableDeclaration, ctx: &mut Context) {
-        ctx.write(match decl.kind {
+        let keyword = match decl.kind {
             VariableDeclarationKind::Var => "var ",
             VariableDeclarationKind::Let => "let ",
             VariableDeclarationKind::Const => "const ",
             VariableDeclarationKind::Using => "using ",
             VariableDeclarationKind::AwaitUsing => "await using ",
-        });
+        };
+        ctx.write(keyword);
 
         let n = decl.declarations.len();
         let mut rendered: Vec<Context> = Vec::with_capacity(n);
-        let mut total_measure = 0usize;
+        // esrap measures the whole `child_context`, which includes the keyword,
+        // so the fit test sees `let `/`const ` etc. as part of the length.
+        let mut total_measure = keyword.len();
         let mut any_multiline = false;
         for declarator in &decl.declarations {
             let mut child = ctx.child();
