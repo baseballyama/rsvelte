@@ -114,6 +114,11 @@ struct Candidate {
     start: u32,
     end: u32,
     message: String,
+    /// The rule this directive targets (`None` ⇒ wildcard / all rules). Used to
+    /// suppress unused-reports for rules rsvelte does not implement — for those
+    /// the absence of a finding is uninformative (e.g. core ESLint `no-undef`),
+    /// so reporting them as "unused" would be a false positive.
+    target: Option<String>,
 }
 
 /// A message fed to the enable/disable resolution: either a real finding or a
@@ -139,6 +144,7 @@ pub fn unused_directive_diagnostics(
     line_index: &LineIndex,
     findings: &[(u32, u32, String)],
     severity: Severity,
+    is_implemented: &dyn Fn(&str) -> bool,
 ) -> Vec<LintDiagnostic> {
     let mut blocks: Vec<BlockDir> = Vec::new();
     let mut lines: Vec<LineDir> = Vec::new();
@@ -221,10 +227,17 @@ pub fn unused_directive_diagnostics(
         }
     }
 
-    // A candidate is reported iff its own directive location is not used.
+    // A candidate is reported iff its own directive location is not used, and —
+    // for a directive that targets a *named* rule — only when rsvelte actually
+    // implements that rule. For an unimplemented target (e.g. core ESLint
+    // `no-undef`) the absence of a finding tells us nothing, so reporting it as
+    // unused would be a false positive; ESLint, which evaluates that rule, can
+    // judge it. Wildcard directives (`target: None`) keep the finding-based
+    // approximation.
     surviving
         .into_iter()
         .filter(|&i| !used.contains(&candidates[i].key))
+        .filter(|&i| candidates[i].target.as_deref().is_none_or(is_implemented))
         .map(|i| {
             let c = &candidates[i];
             LintDiagnostic {
@@ -368,6 +381,7 @@ fn parse_one_comment(
                     start: comment_start as u32,
                     end: comment_end as u32,
                     message: msg_unused(kind_str),
+                    target: None,
                 });
             } else {
                 for r in &rules {
@@ -383,6 +397,7 @@ fn parse_one_comment(
                         start: r.start,
                         end: r.end,
                         message: msg_unused_rule(kind_str, &r.id),
+                        target: Some(r.id.clone()),
                     });
                 }
             }
@@ -401,6 +416,7 @@ fn parse_one_comment(
                     start: comment_start as u32,
                     end: comment_end as u32,
                     message: msg_unused_enable(kind_str),
+                    target: None,
                 });
             } else {
                 for r in &rules {
@@ -416,6 +432,7 @@ fn parse_one_comment(
                         start: r.start,
                         end: r.end,
                         message: msg_unused_enable_rule(kind_str, &r.id),
+                        target: Some(r.id.clone()),
                     });
                 }
             }
@@ -439,6 +456,7 @@ fn parse_one_comment(
                     start: comment_start as u32,
                     end: comment_end as u32,
                     message: msg_unused(kind_str),
+                    target: None,
                 });
             } else {
                 for r in &rules {
@@ -453,6 +471,7 @@ fn parse_one_comment(
                         start: r.start,
                         end: r.end,
                         message: msg_unused_rule(kind_str, &r.id),
+                        target: Some(r.id.clone()),
                     });
                 }
             }

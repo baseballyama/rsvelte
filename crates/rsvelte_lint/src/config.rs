@@ -94,6 +94,27 @@ impl LintConfig {
         self.options.get(rule)
     }
 
+    /// Layer a single inline (`/* eslint <rule>: … */`) rule entry on top of this
+    /// config, returning the modified config. `severity` / `options` are the
+    /// already-parsed parts of the rule value (see [`severity_from_value`] /
+    /// [`options_from_value`]). Mirrors ESLint's per-file inline-config merge:
+    /// an inline entry overrides both the severity and the options for that rule
+    /// in the current file only.
+    pub(crate) fn with_inline_rule(
+        mut self,
+        rule: &str,
+        severity: Option<Severity>,
+        options: Option<Value>,
+    ) -> Self {
+        if let Some(sev) = severity {
+            self.overrides.insert(rule.to_string(), sev);
+        }
+        if let Some(opts) = options {
+            self.options.insert(rule.to_string(), opts);
+        }
+        self
+    }
+
     /// Whether a relative path (forward-slash separated) should be linted under
     /// this config's `files`/`ignores` globs. An empty `files` list matches
     /// every candidate; any `ignores` match excludes it.
@@ -168,7 +189,7 @@ impl LintConfig {
 
 /// Read a severity from a rule value: a scalar or the first element of a
 /// `[severity, options]` array.
-fn severity_from_value(v: &Value) -> Option<Severity> {
+pub(crate) fn severity_from_value(v: &Value) -> Option<Severity> {
     match v {
         Value::String(s) => Severity::parse(s),
         Value::Number(n) => n.as_i64().and_then(|i| Severity::parse(&i.to_string())),
@@ -180,7 +201,7 @@ fn severity_from_value(v: &Value) -> Option<Severity> {
 /// Read the options from a `[severity, ...options]` rule value. ESLint rule
 /// options are variadic, so everything after the severity is kept as an array
 /// (most rules use just `options[0]`).
-fn options_from_value(v: &Value) -> Option<Value> {
+pub(crate) fn options_from_value(v: &Value) -> Option<Value> {
     match v {
         Value::Array(a) if a.len() >= 2 => Some(Value::Array(a[1..].to_vec())),
         _ => None,

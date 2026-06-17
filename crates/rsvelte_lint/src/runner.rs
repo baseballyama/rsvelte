@@ -27,6 +27,11 @@ pub fn lint_source(
         .unwrap_or_default()
         .into_owned();
 
+    // Layer any inline `/* eslint <rule>: … */` config in this file on top of the
+    // base config (ESLint per-file inline-config semantics). No-op when absent.
+    let effective = crate::inline_config::apply(source, config);
+    let config = &effective;
+
     let mut diagnostics = match crate::engine::classify_source(&file.to_string_lossy()) {
         // A standalone JS/TS module file (`*.svelte.js` / `*.svelte.ts` / `*.js`
         // / `*.ts`): no template or compiler-warning pass — only script-AST rules
@@ -116,6 +121,7 @@ pub fn lint_source(
             &line_index,
             &findings,
             cd_severity,
+            &rule_is_implemented,
         )
     } else {
         Vec::new()
@@ -157,6 +163,9 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
         .unwrap_or_default()
         .into_owned();
 
+    let effective = crate::inline_config::apply(source, config);
+    let config = &effective;
+
     let mut diags = match crate::engine::classify_source(&file.to_string_lossy()) {
         crate::engine::SourceKind::Module { ts } => {
             crate::engine::run_script_rules_module(source, &filename, ts, config)
@@ -189,6 +198,8 @@ pub struct FixResult {
 pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
+    let effective = crate::inline_config::apply(source, config);
+    let config = &effective;
 
     // Gather candidate fixes from non-suppressed fixable findings — from both
     // the template-walk rules and the script-AST rules (e.g. the autofix of
@@ -253,6 +264,28 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
         }
     }
     FixResult { output, applied }
+}
+
+/// Whether `rule_id` names a rule rsvelte actually implements. Used by
+/// comment-directive's unused-report to avoid flagging a directive that targets
+/// a rule we cannot evaluate (e.g. core ESLint `no-undef`) as unused. In
+/// non-native builds there is no rule registry, so we conservatively treat every
+/// rule as implemented (preserving the prior finding-based approximation).
+#[cfg(feature = "native")]
+fn rule_is_implemented(rule_id: &str) -> bool {
+    use std::sync::LazyLock;
+    static IDS: LazyLock<std::collections::HashSet<&'static str>> = LazyLock::new(|| {
+        crate::registry::registered_rule_metas()
+            .iter()
+            .map(|m| m.name)
+            .collect()
+    });
+    IDS.contains(rule_id)
+}
+
+#[cfg(not(feature = "native"))]
+fn rule_is_implemented(_rule_id: &str) -> bool {
+    true
 }
 
 /// Lint a file on disk.
