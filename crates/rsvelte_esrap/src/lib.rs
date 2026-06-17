@@ -81,6 +81,62 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     command::print(&ctx.into_commands(), &options.indent)
 }
 
+/// A synthetic comment injected by a [`CommentHooks`] callback (esrap's
+/// `BaseComment`). `block` chooses `/* … */` vs `// …`; `value` is the interior
+/// text (without delimiters).
+#[derive(Debug, Clone)]
+pub struct SynthComment {
+    pub block: bool,
+    pub value: String,
+}
+
+impl SynthComment {
+    /// A `// value` line comment.
+    pub fn line(value: impl Into<String>) -> Self {
+        Self {
+            block: false,
+            value: value.into(),
+        }
+    }
+
+    /// A `/* value */` block comment.
+    pub fn block(value: impl Into<String>) -> Self {
+        Self {
+            block: true,
+            value: value.into(),
+        }
+    }
+}
+
+/// Caller hooks that inject synthetic comments around statements, mirroring
+/// esrap's `getLeadingComments` / `getTrailingComments` options. Each callback
+/// receives the statement node and returns the comments to emit (leading
+/// comments precede the node; trailing comments follow it on the same line).
+#[derive(Default)]
+pub struct CommentHooks<'h> {
+    #[allow(clippy::type_complexity)]
+    pub get_leading: Option<Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + 'h>>,
+    #[allow(clippy::type_complexity)]
+    pub get_trailing: Option<Box<dyn Fn(&oxc_ast::ast::Statement) -> Vec<SynthComment> + 'h>>,
+}
+
+/// Like [`print_with`], but invokes `hooks` to inject synthetic leading/trailing
+/// comments per statement (esrap's `getLeadingComments`/`getTrailingComments`).
+pub fn print_with_hooks(
+    program: &Program<'_>,
+    source: &str,
+    options: &PrintOptions,
+    hooks: &CommentHooks<'_>,
+) -> String {
+    let comments = printer::build_comments(program, source);
+    let mut printer =
+        printer::Printer::with_comments(options, comments, printer::line_starts(source))
+            .with_hooks(hooks);
+    let mut ctx = context::Context::new();
+    printer.print_program(program, &mut ctx);
+    command::print(&ctx.into_commands(), &options.indent)
+}
+
 /// Print `program` to JavaScript with the default options, returning both the
 /// code and decoded source-map mappings. The emitted code is byte-identical to
 /// [`print`] — `Location` anchors only carry mapping data, they never add text.

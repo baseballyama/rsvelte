@@ -58,6 +58,9 @@ pub struct Printer<'opt> {
     /// Byte offsets of each line start, for offset→line lookups when placing
     /// comments. Empty when printing without comments.
     line_starts: Vec<u32>,
+    /// Optional caller hooks that inject synthetic leading/trailing comments per
+    /// statement (esrap's `getLeadingComments` / `getTrailingComments`).
+    hooks: Option<&'opt crate::CommentHooks<'opt>>,
 }
 
 /// Byte offsets at which each source line begins (line 1 starts at 0).
@@ -341,6 +344,7 @@ impl<'opt> Printer<'opt> {
             comments: Vec::new(),
             comment_index: 0,
             line_starts: Vec::new(),
+            hooks: None,
         }
     }
 
@@ -357,7 +361,14 @@ impl<'opt> Printer<'opt> {
             comments,
             comment_index: 0,
             line_starts,
+            hooks: None,
         }
+    }
+
+    /// Attach caller comment hooks (builder-style).
+    pub fn with_hooks(mut self, hooks: &'opt crate::CommentHooks<'opt>) -> Self {
+        self.hooks = Some(hooks);
+        self
     }
 
     /// 1-based line of a byte offset (number of line starts at/before it).
@@ -469,13 +480,19 @@ impl<'opt> Printer<'opt> {
     /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
     /// body across `newline`s so its interior re-indents to the current level.
     fn write_comment(&mut self, cmt: &Cmt, ctx: &mut Context) {
-        if !cmt.block {
-            ctx.write(format!("//{}", cmt.value));
+        self.write_comment_parts(cmt.block, &cmt.value, ctx);
+    }
+
+    /// The body of [`Self::write_comment`], shared with synthetic comments
+    /// injected via [`crate::CommentHooks`].
+    fn write_comment_parts(&mut self, block: bool, value: &str, ctx: &mut Context) {
+        if !block {
+            ctx.write(format!("//{value}"));
             return;
         }
         ctx.write("/*");
         let mut multiline = false;
-        for (i, line) in cmt.value.split('\n').enumerate() {
+        for (i, line) in value.split('\n').enumerate() {
             if i > 0 {
                 ctx.newline();
                 multiline = true;
@@ -485,6 +502,31 @@ impl<'opt> Printer<'opt> {
         ctx.write("*/");
         if multiline {
             ctx.newline();
+        }
+    }
+
+    /// esrap's `write_additional_comments`: emit hook-supplied synthetic comments
+    /// around a node. Leading comments get a newline (line) or trailing space
+    /// (single-line block) after them; trailing comments get a leading space
+    /// before the first.
+    fn write_additional_comments(
+        &mut self,
+        comments: &[crate::SynthComment],
+        leading: bool,
+        ctx: &mut Context,
+    ) {
+        for (i, c) in comments.iter().enumerate() {
+            if !leading && i == 0 {
+                ctx.write(" ");
+            }
+            self.write_comment_parts(c.block, &c.value, ctx);
+            if leading {
+                if !c.block {
+                    ctx.newline();
+                } else if !c.value.contains('\n') {
+                    ctx.write(" ");
+                }
+            }
         }
     }
 
@@ -789,6 +831,24 @@ impl<'opt> Printer<'opt> {
     }
 
     fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context) {
+        // esrap's `_` wildcard order: hook-supplied leading comments, then the
+        // real leading-comment flush + node, then hook-supplied trailing comments.
+        if let Some(hooks) = self.hooks
+            && let Some(f) = &hooks.get_leading
+        {
+            let synth = f(stmt);
+            self.write_additional_comments(&synth, true, ctx);
+        }
+        self.print_statement_inner(stmt, ctx);
+        if let Some(hooks) = self.hooks
+            && let Some(f) = &hooks.get_trailing
+        {
+            let synth = f(stmt);
+            self.write_additional_comments(&synth, false, ctx);
+        }
+    }
+
+    fn print_statement_inner(&mut self, stmt: &Statement, ctx: &mut Context) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         let start = stmt.span().start;
         self.flush_leading(ctx, start, self.line_of(start));
