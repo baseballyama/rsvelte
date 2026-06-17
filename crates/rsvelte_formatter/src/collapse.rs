@@ -617,6 +617,7 @@ fn collect(
                     elem.end,
                     &elem.fragment,
                     line_width,
+                    Some(node),
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_fill_mixed(
@@ -677,6 +678,7 @@ fn collect(
                     c.end,
                     &c.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -700,6 +702,7 @@ fn collect(
                     t.end,
                     &t.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -723,6 +726,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -750,6 +754,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else {
@@ -771,6 +776,7 @@ fn collect(
                     s.end,
                     &s.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -794,6 +800,7 @@ fn collect(
                     c.end,
                     &c.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -817,6 +824,7 @@ fn collect(
                     e.end,
                     &e.fragment,
                     line_width,
+                    None,
                 ) {
                     edits.push(edit);
                 } else if let Some(edit) = try_hug_mixed(
@@ -886,6 +894,7 @@ fn try_collapse(
     end: u32,
     fragment: &Fragment,
     line_width: usize,
+    node: Option<&TemplateNode>,
 ) -> Option<(u32, u32, String)> {
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
@@ -1027,59 +1036,53 @@ fn try_collapse(
         let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
         if hug_width > line_width {
             // Content is too long even for the hug path (no single line fits).
-            // Fall through to word-fill hug: prettier's `hugStart && hugEnd` with
-            // a `Fill` body — break the collapsed text across multiple lines at
-            // the inner indent, keeping the `>` glued to the first content word
-            // and `</tag\n>` glued to the last.
+            // Use Doc IR to express prettier's `hugStart && hugEnd` with a `Fill`
+            // body — break the collapsed text across multiple lines at the inner
+            // indent, keeping the `>` glued to the first content word and
+            // `</tag\n>` glued to the last.
             //
             //   <Component attr="…"
             //     >word1 word2 long
             //     text word3</Component
             //   >
             if open.ends_with('>') && !open.contains('\n') {
+                use crate::doc::Doc;
                 let open_no_bracket = &open[..open.len() - 1];
-                // Available width for each fill line = line_width - inner_indent - ">" prefix
-                // (first line carries the `>` prefix so 1 char less).
-                let avail_first = line_width.saturating_sub(inner_indent.width() + 1).max(1);
-                let avail_rest = line_width.saturating_sub(inner_indent.width()).max(1);
-                // Word-fill the content. First line has the `>` prefix (1 char narrower).
-                let words: Vec<&str> = collapsed.split(' ').filter(|w| !w.is_empty()).collect();
+                let open_doc = node
+                    .and_then(|n| build_open_attr_doc(out, n, tag, true))
+                    .unwrap_or_else(|| Doc::Text(open_no_bracket.to_string()));
+                let words: Vec<&str> = collapsed.split_whitespace().collect();
                 if !words.is_empty() {
-                    let mut lines: Vec<String> = Vec::new();
-                    let mut cur = String::new();
-                    for (wi, word) in words.iter().enumerate() {
-                        let avail = if lines.is_empty() {
-                            avail_first
-                        } else {
-                            avail_rest
-                        };
-                        if cur.is_empty() {
-                            cur.push_str(word);
-                        } else if cur.width() + 1 + word.width() <= avail {
-                            cur.push(' ');
-                            cur.push_str(word);
-                        } else {
-                            lines.push(std::mem::take(&mut cur));
-                            cur.push_str(word);
+                    // Build Fill([word1, Line, word2, Line, …, wordN])
+                    let mut fill_parts: Vec<Doc> = Vec::with_capacity(words.len() * 2 - 1);
+                    for (i, word) in words.iter().enumerate() {
+                        if i > 0 {
+                            fill_parts.push(Doc::Line);
                         }
-                        let _ = wi; // used only for avail selection
+                        fill_parts.push(Doc::Text(word.to_string()));
                     }
-                    if !cur.is_empty() {
-                        lines.push(cur);
-                    }
-                    let mut hug = String::with_capacity(whole.len() + 16);
-                    hug.push_str(open_no_bracket);
-                    for (li, line) in lines.iter().enumerate() {
-                        hug.push('\n');
-                        hug.push_str(&inner_indent);
-                        if li == 0 {
-                            hug.push('>');
-                        }
-                        hug.push_str(line);
-                    }
-                    // Append `</tag\n{indent}>` so the closing `>` aligns with the element.
-                    hug.push_str(&format!("</{tag}\n{indent}>"));
-                    return (hug != whole).then_some((start, end, hug));
+                    // prettier's `hugStart && hugEnd` doc shape:
+                    //   group([
+                    //     open_doc,
+                    //     group(indent([softline, group([">", fill([…words…]), "</tag"])])),
+                    //     softline,
+                    //     ">",
+                    //   ])
+                    let inner = Doc::Group(vec![Doc::Concat(vec![
+                        Doc::Text(">".to_string()),
+                        Doc::Fill(fill_parts),
+                        Doc::Text(format!("</{tag}")),
+                    ])]);
+                    let hugged = Doc::Group(vec![Doc::Indent(vec![Doc::Softline, inner])]);
+                    let elem_doc = Doc::Group(vec![
+                        open_doc,
+                        hugged,
+                        Doc::Softline,
+                        Doc::Text(">".to_string()),
+                    ]);
+                    let base_level = indent.width() / 2;
+                    let printed = crate::doc::print(elem_doc, line_width, "  ", base_level, column);
+                    return (printed != whole).then_some((start, end, printed));
                 }
             }
             return None;
