@@ -18,7 +18,25 @@ pub(crate) use super::transform_store::*;
 /// Check if a JavaScript expression string contains `await` at the expression level
 /// (not inside nested function expressions or arrow functions).
 /// This is used to detect async expression tags that need special handling.
+///
+/// Cheap path first: if the word `await` doesn't appear at all, there's
+/// nothing to find (this is the common case across the thousands of guard
+/// calls). Otherwise prefer the AST predicate (scope-accurate nesting), and
+/// fall back to the byte scanner only when the fragment doesn't parse as a
+/// standalone module.
 pub(crate) fn expr_contains_await(expr: &str) -> bool {
+    if memmem::find(expr.as_bytes(), b"await").is_none() {
+        return false;
+    }
+    if let Some(found) = super::await_save_ast::contains_top_level_await(expr) {
+        return found;
+    }
+    expr_contains_await_textual(expr)
+}
+
+/// Byte-scanning fallback for [`expr_contains_await`], used when the fragment
+/// doesn't parse as a standalone expression.
+fn expr_contains_await_textual(expr: &str) -> bool {
     let bytes = expr.as_bytes();
     let len = bytes.len();
     let mut i = 0;
