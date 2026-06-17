@@ -20,10 +20,7 @@ const KNOWN_FAILURES: &[&str] = &[
     "class-property",
     "comment-block",
     "comment-inline",
-    "comment-inline-inserted",
     "comment-within-call-expression",
-    "empty-body",
-    "import-attributes",
     "jsdoc-indentation",
     "jsx-basic",
     "ts-abstract-class",
@@ -63,7 +60,6 @@ const KNOWN_FAILURES: &[&str] = &[
     "ts-types",
     "ts-undefined-keyword",
     "ts-utility-types",
-    "with",
 ];
 
 use std::path::{Path, PathBuf};
@@ -95,7 +91,6 @@ fn normalize(s: &str) -> String {
 
 struct Sample {
     name: String,
-    ext: String,
     source: String,
     expected: String,
     source_type: SourceType,
@@ -150,7 +145,6 @@ fn collect_samples(dir: &Path) -> Vec<Sample> {
         let expected = std::fs::read_to_string(&expected_path).unwrap();
         out.push(Sample {
             name,
-            ext,
             source,
             expected,
             source_type,
@@ -176,10 +170,10 @@ fn esrap_samples_match() {
     let total = samples.len();
 
     for sample in &samples {
-        if let Some(only) = &only {
-            if &sample.name != only {
-                continue;
-            }
+        if let Some(only) = &only
+            && &sample.name != only
+        {
+            continue;
         }
         let known = KNOWN_FAILURES.contains(&sample.name.as_str());
         let alloc = Allocator::default();
@@ -203,7 +197,7 @@ fn esrap_samples_match() {
             match out {
                 Ok(s) => {
                     let m = normalize(&s) == normalize(&sample.expected);
-                    if !m && verbose && !known {
+                    if !m && verbose {
                         eprintln!(
                             "===== {} =====\n--- expected ---\n{}\n--- got ---\n{}\n",
                             sample.name, sample.expected, s
@@ -235,16 +229,19 @@ fn esrap_samples_match() {
         KNOWN_FAILURES.len()
     );
 
+    use std::fmt::Write as _;
     let mut msg = String::new();
     if !unexpected_fail.is_empty() {
-        msg.push_str(&format!(
-            "newly-failing (fix or add to KNOWN_FAILURES): {unexpected_fail:?}\n"
-        ));
+        let _ = writeln!(
+            msg,
+            "newly-failing (fix or add to KNOWN_FAILURES): {unexpected_fail:?}"
+        );
     }
     if !unexpected_pass.is_empty() {
-        msg.push_str(&format!(
-            "now passing — remove from KNOWN_FAILURES: {unexpected_pass:?}\n"
-        ));
+        let _ = writeln!(
+            msg,
+            "now passing — remove from KNOWN_FAILURES: {unexpected_pass:?}"
+        );
     }
     assert!(msg.is_empty(), "{msg}");
 }

@@ -430,7 +430,13 @@ impl<'opt> Printer<'opt> {
 
     pub fn print_program(&mut self, program: &Program, ctx: &mut Context) {
         let span = program.span();
-        self.body(&program.body, span.start, span.end, ctx);
+        // Directives (`"use strict"`) are a separate oxc node, but esrap (from
+        // an acorn AST) sees them as leading string-literal ExpressionStatements
+        // in `body`; thread them through the same `body` sequence so margins and
+        // leading comments are computed identically.
+        let mut elems: Vec<BodyElem> = program.directives.iter().map(BodyElem::Directive).collect();
+        elems.extend(program.body.iter().map(BodyElem::Statement));
+        self.body_elems(&elems, span.start, span.end, ctx);
     }
 
     /// esrap's `body`: statements on their own lines, with a blank line between
@@ -445,21 +451,31 @@ impl<'opt> Printer<'opt> {
         body_end: u32,
         ctx: &mut Context,
     ) {
-        let non_empty: Vec<&Statement> = statements
-            .iter()
-            .filter(|s| !matches!(s, Statement::EmptyStatement(_)))
-            .collect();
+        let elems: Vec<BodyElem> = statements.iter().map(BodyElem::Statement).collect();
+        self.body_elems(&elems, body_start, body_end, ctx);
+    }
+
+    /// The element-based core of [`Self::body`], shared by `print_program` so a
+    /// program's leading directives participate in the same margin/comment pass.
+    fn body_elems(
+        &mut self,
+        elems: &[BodyElem],
+        body_start: u32,
+        body_end: u32,
+        ctx: &mut Context,
+    ) {
+        let non_empty: Vec<&BodyElem> = elems.iter().filter(|e| !e.is_empty_stmt()).collect();
         // Re-sync to the body's own start so a leading comment that precedes the
         // first statement (e.g. a file header) isn't skipped over.
         self.reset_comment_index(body_start);
 
-        let mut prev: Option<(std::mem::Discriminant<Statement>, bool)> = None;
-        for (i, stmt) in non_empty.iter().enumerate() {
+        let mut prev: Option<(&BodyElem, bool)> = None;
+        for (i, elem) in non_empty.iter().enumerate() {
             let mut child = ctx.child();
-            self.print_statement(stmt, &mut child);
+            elem.print(self, &mut child);
 
-            if let Some((prev_disc, prev_multiline)) = prev {
-                if child.multiline || prev_multiline || std::mem::discriminant(*stmt) != prev_disc {
+            if let Some((prev_elem, prev_multiline)) = prev {
+                if child.multiline || prev_multiline || !elem.same_kind(prev_elem) {
                     ctx.margin();
                 }
                 ctx.newline();
@@ -467,11 +483,11 @@ impl<'opt> Printer<'opt> {
             let multiline = child.multiline;
             ctx.append(child);
 
-            let end_line = self.line_of(stmt.span().end);
-            let next = non_empty.get(i + 1).map(|s| s.span().start);
+            let end_line = self.line_of(elem.span_end());
+            let next = non_empty.get(i + 1).map(|e| e.span_start());
             self.flush_trailing_comments(ctx, end_line, next);
 
-            prev = Some((std::mem::discriminant(*stmt), multiline));
+            prev = Some((elem, multiline));
         }
 
         // esrap's body tail (`if (node.loc)`) runs unconditionally: a trailing
@@ -482,9 +498,18 @@ impl<'opt> Printer<'opt> {
         // `empty()`, so a comment-free `{}` is unaffected.
         ctx.newline();
         if !self.comments.is_empty() {
-            let from_line = non_empty.last().map(|s| self.line_of(s.span().end));
+            let from_line = non_empty.last().map(|e| self.line_of(e.span_end()));
             self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
         }
+    }
+
+    /// A program/function-body directive (`"use strict";`), printed like the
+    /// string-literal ExpressionStatement esrap sees.
+    fn print_directive(&mut self, d: &Directive, ctx: &mut Context) {
+        let start = d.span.start;
+        self.flush_leading(ctx, start, self.line_of(start));
+        ctx.write(self.string_literal(&d.expression));
+        ctx.write(";");
     }
 
     fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context) {
@@ -591,7 +616,13 @@ impl<'opt> Printer<'opt> {
             Statement::TryStatement(s) => self.try_statement(s, ctx),
             Statement::SwitchStatement(s) => self.switch_statement(s, ctx),
             Statement::DebuggerStatement(_) => ctx.write("debugger;"),
-            Statement::EmptyStatement(_) => {}
+            Statement::WithStatement(s) => {
+                ctx.write("with (");
+                self.print_expression(&s.object, ctx);
+                ctx.write(") ");
+                self.print_statement(&s.body, ctx);
+            }
+            Statement::EmptyStatement(_) => ctx.write(";"),
             Statement::BreakStatement(s) => match &s.label {
                 Some(l) => ctx.write(format!("break {};", l.name)),
                 None => ctx.write("break;"),
@@ -654,7 +685,29 @@ impl<'opt> Printer<'opt> {
         }
         ctx.write(" from ");
         ctx.write(self.string_literal(&node.source));
+        self.import_attributes(node.with_clause.as_deref(), ctx);
         ctx.write(";");
+    }
+
+    /// esrap's import-attributes tail: ` with { key: value, … }`.
+    fn import_attributes(&mut self, clause: Option<&WithClause>, ctx: &mut Context) {
+        let Some(clause) = clause else { return };
+        if clause.with_entries.is_empty() {
+            return;
+        }
+        ctx.write(" with { ");
+        for (i, attr) in clause.with_entries.iter().enumerate() {
+            match &attr.key {
+                ImportAttributeKey::Identifier(id) => ctx.write(id.name.as_str()),
+                ImportAttributeKey::StringLiteral(s) => ctx.write(self.string_literal(s)),
+            }
+            ctx.write(": ");
+            ctx.write(self.string_literal(&attr.value));
+            if i + 1 != clause.with_entries.len() {
+                ctx.write(", ");
+            }
+        }
+        ctx.write(" }");
     }
 
     fn import_specifier(&mut self, node: &ImportSpecifier, ctx: &mut Context) {
@@ -2008,6 +2061,52 @@ fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
         ModuleExportName::IdentifierName(n) => n.name.as_str(),
         ModuleExportName::IdentifierReference(n) => n.name.as_str(),
         ModuleExportName::StringLiteral(s) => s.value.as_str(),
+    }
+}
+
+/// A member of a `body` sequence: either a leading directive or a statement.
+enum BodyElem<'a, 'b> {
+    Directive(&'b Directive<'a>),
+    Statement(&'b Statement<'a>),
+}
+
+impl<'a, 'b> BodyElem<'a, 'b> {
+    fn is_empty_stmt(&self) -> bool {
+        matches!(self, BodyElem::Statement(Statement::EmptyStatement(_)))
+    }
+
+    fn span_start(&self) -> u32 {
+        match self {
+            BodyElem::Directive(d) => d.span.start,
+            BodyElem::Statement(s) => s.span().start,
+        }
+    }
+
+    fn span_end(&self) -> u32 {
+        match self {
+            BodyElem::Directive(d) => d.span.end,
+            BodyElem::Statement(s) => s.span().end,
+        }
+    }
+
+    /// esrap's `child.type === prev_type` margin grouping. A directive groups as
+    /// its own kind (separated from a following non-directive, matching the
+    /// acorn shape where `"use strict"` precedes `import`/`let`).
+    fn same_kind(&self, other: &BodyElem<'a, '_>) -> bool {
+        match (self, other) {
+            (BodyElem::Directive(_), BodyElem::Directive(_)) => true,
+            (BodyElem::Statement(a), BodyElem::Statement(b)) => {
+                std::mem::discriminant(*a) == std::mem::discriminant(*b)
+            }
+            _ => false,
+        }
+    }
+
+    fn print(&self, printer: &mut Printer, ctx: &mut Context) {
+        match self {
+            BodyElem::Directive(d) => printer.print_directive(d, ctx),
+            BodyElem::Statement(s) => printer.print_statement(s, ctx),
+        }
     }
 }
 
