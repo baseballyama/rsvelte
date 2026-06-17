@@ -30,8 +30,8 @@ const META_PATH = path.join(FMT, 'meta.json');
 const REPORT_PATH = path.join(CORPUS, 'fmt-report.json');
 
 const args = process.argv.slice(2);
-// --baseline <path> selects an alternate ratchet file (see verify.mjs); the
-// ecosystem corpus uses eco-fmt-known-failures.json.
+// --baseline <path> selects an alternate ratchet file (see verify.mjs);
+// rarely needed — the corpus is one unified set (default fmt-known-failures.json).
 const BASELINE_PATH = path.resolve(
 	CORPUS,
 	args.indexOf('--baseline') !== -1 ? args[args.indexOf('--baseline') + 1] : 'fmt-known-failures.json',

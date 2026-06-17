@@ -40,11 +40,15 @@ of the rsvelte compiler.
 
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
-Every `.svelte` / `.svelte.(js|ts)` source in sveltejs/svelte and
-sveltejs/svelte.dev (including markdown code blocks; 6,407 entries) is
-compiled with both the official compiler and rsvelte for CSR **and** SSR,
-and the outputs must be byte-identical after comparison-side normalization
-(oxfmt + blank-line stripping — never compiler post-passes). CI ratchet:
+Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks)
+from every corpus source repository — sveltejs/svelte, sveltejs/svelte.dev, and
+the real-world projects bits-ui / flowbite-svelte / melt-ui / shadcn-svelte, all
+pinned as submodules and listed in `scripts/compat-corpus/corpus-sources.json`
+(~10,000 entries) — is compiled with both the official compiler and rsvelte for
+CSR **and** SSR, and the outputs must be byte-identical after comparison-side
+normalization (oxfmt + blank-line stripping — never compiler post-passes). It is
+one unified corpus (no separate "ecosystem" track); to grow it, add a submodule
++ a line to `corpus-sources.json` (see the README). CI ratchet:
 `compat/corpus/known-failures.json` may only shrink. See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md),
 [docs/corpus-remaining-work.md](docs/corpus-remaining-work.md) (burn-down

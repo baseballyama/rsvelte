@@ -3,12 +3,30 @@
 Verifies that rsvelte's CSR (client) and SSR (server) compile output is
 **byte-identical** to the official Svelte compiler's, over every
 `.svelte` / `.svelte.js` / `.svelte.ts` source — including code blocks inside
-markdown — found in two upstream repositories:
+markdown — found in the corpus source repositories.
 
-| Source | Pin |
-|---|---|
-| [sveltejs/svelte](https://github.com/sveltejs/svelte) | `submodules/svelte` gitlink (same compiler version rsvelte mirrors) |
-| [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `submodules/svelte.dev` gitlink (auto-bumped by `auto-update-submodules.yml`) |
+The corpus is a **single flat set** of source repositories, all git submodules
+listed in [`corpus-sources.json`](./corpus-sources.json). There is no separate
+"ecosystem" track — svelte's own fixtures, the curated svelte.dev docs, and the
+shipped source of real-world component libraries are all compiled and verified
+the same way. **To grow the corpus, [add a repository](#adding-a-repository-to-the-corpus).**
+
+| Source | Submodule | Role |
+|---|---|---|
+| [sveltejs/svelte](https://github.com/sveltejs/svelte) | `submodules/svelte` | svelte's own fixtures + the compiler/version pin rsvelte mirrors |
+| [sveltejs/svelte.dev](https://github.com/sveltejs/svelte.dev) | `submodules/svelte.dev` | curated docs (markdown code blocks) |
+| [huntabyte/bits-ui](https://github.com/huntabyte/bits-ui) | `submodules/bits-ui` | headless UI library (real-world) |
+| [themesberg/flowbite-svelte](https://github.com/themesberg/flowbite-svelte) | `submodules/flowbite-svelte` | UI library (real-world) |
+| [melt-ui/next-gen](https://github.com/melt-ui/next-gen) | `submodules/melt-ui` | headless/runes UI library (real-world) |
+| [huntabyte/shadcn-svelte](https://github.com/huntabyte/shadcn-svelte) | `submodules/shadcn-svelte` | SvelteKit component app (real-world) |
+
+Every source is **pinned by its submodule gitlink** and bumped by
+`auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
+`auto-update-svelte.yml`). For the real-world projects only their **shipped**
+`.svelte` / `.svelte.(js|ts)` files are collected — their markdown docs are
+skipped (they carry non-Svelte doc tooling and truncated pseudo-code the official
+compiler itself rejects, which is noise, not a compatibility gap). Each source is
+collected under its `id` prefix (`bits-ui/…`, `svelte.dev/…`, …).
 
 Both compilers run with identical default options (`dev: false`,
 `css: 'external'`). `.svelte.ts` modules are TS-stripped with esbuild
@@ -52,7 +70,7 @@ itself never spends cycles on cosmetic output massaging (rsvelte targets
 
 ```bash
 # one-time / after pin changes
-pnpm run corpus:sync        # init/update the svelte + svelte.dev submodules
+pnpm run corpus:sync        # init/update every corpus source submodule
 
 # build + stage the rsvelte NAPI binding
 cargo build --release --features napi --lib
@@ -178,15 +196,23 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
 
 ## CI / automation
 
-- `.github/workflows/corpus-compat.yml` — runs both tracks (`corpus` and
-  `fmt-parity` jobs) on PRs/pushes touching the compiler, the pipeline, the
-  oracle config, or either pin. Expected outputs are regenerated from the pinned
-  upstreams on every run, so bumping a pin automatically refreshes the corpus
-  *and* its expectations; the fmt oracle is cached by pin + oxfmt + config.
-- svelte.dev bumps arrive via the existing `auto-update-submodules.yml`
-  weekly PR (shared with the fmt parity corpus); the svelte side via
-  `auto-update-svelte.yml`. Both trigger corpus-compat through its
-  submodule path filters.
+- `.github/workflows/corpus-compat.yml` — runs the `corpus` (compiler +
+  svelte2tsx), `fmt-parity`, and `lint-parity` jobs on PRs/pushes touching the
+  compiler, the pipeline, the oracle config, or any source submodule. Every
+  source submodule (svelte, svelte.dev, and the real-world projects) is
+  shallow-initialised, so the whole unified corpus runs on each PR. Expected
+  outputs are regenerated from the pinned submodules on every run, so bumping a
+  pin automatically refreshes the corpus *and* its expectations; the fmt oracle
+  is cached by a combined hash of all source SHAs + oxfmt + config.
+- Source bumps arrive via `auto-update-submodules.yml` (weekly PR per submodule —
+  svelte.dev and each real-world project) and `auto-update-svelte.yml` (the
+  compiler). Both trigger corpus-compat through its submodule path filters, which
+  is how upstream projects are tracked over time. A real-world project bump can
+  introduce new divergences, so its PR may be red until the corpus baselines are
+  re-triaged (`--update-baseline`).
+
+There is no separate scheduled "ecosystem" workflow — the corpus *is* the
+ecosystem coverage, and the weekly submodule bumps are what keep it current.
 
 ## Lint parity (eslint-plugin-svelte)
 
@@ -244,40 +270,54 @@ pnpm run lint-corpus:update            # re-baseline known-failures.json after a
 The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track
 on PRs/pushes touching the linter, the pipeline, or either pin.
 
-## Ecosystem corpus (real-world projects)
+## Adding a repository to the corpus
 
-The base corpus above pins sveltejs/svelte + sveltejs/svelte.dev. The
-**ecosystem corpus** runs the exact same three tracks (compiler byte-equality,
-svelte2tsx, formatter parity) over the *shipped source* of the production
-projects tracked by ecosystem-ci — `compat/ecosystem-ci/targets/*.json`
-(bits-ui, flowbite-svelte, melt-ui, shadcn-svelte) — so divergences that only
-surface on real component libraries (namespaced components, `$props.id()`,
-`{@const}`-in-snippet, long `{@render}` wrapping, …) are caught and ratcheted.
+The corpus grows by adding source repositories. Real-world component libraries
+(bits-ui, flowbite-svelte, …) sit in the **same** corpus as svelte/svelte.dev and
+ratchet against the **same** baselines — there is no separate track to wire up.
+Adding one surfaces divergences that only appear on production code (namespaced
+components, `$props.id()`, `{@const}`-in-snippet, long `{@render}` wrapping, …).
 
-Unlike ecosystem-ci this never installs deps or runs builds — the corpus only
-reads files, so projects are shallow-cloned by `sync-ecosystem.mjs`. Only each
-project's real `.svelte` / `.svelte.(js|ts)` files are collected; project
-markdown docs are skipped (they carry project-specific doc tooling — e.g.
-flowbite's non-Svelte `{#include X.svelte}` directive — and truncated pseudo-code
-the official compiler itself rejects, which is noise, not a compatibility gap).
+To add a repository:
 
-```bash
-# clone/refresh the ecosystem targets into compat/ecosystem-ci/checkout/ (gitignored)
-pnpm run corpus:eco:sync
+1. **Add it as a submodule** (pins it; bumped weekly by `auto-update-submodules.yml`):
 
-# compiler + svelte2tsx tracks over the ecosystem corpus
-pnpm run corpus:eco
+   ```bash
+   git submodule add -b main --depth 1 https://github.com/owner/repo submodules/repo
+   ```
 
-# formatter-parity track over the ecosystem corpus
-pnpm run corpus:eco:fmt-parity
-```
+   Mirror the existing block in `.gitmodules` (`ignore = dirty`, `shallow = true`,
+   `branch = …`).
 
-`collect.mjs --eco-only` scopes the manifest to just the cloned projects (id
-prefix `eco-<name>/…`), so each track ratchets against its own checked-in
-baseline — `eco-known-failures.json`, `eco-svelte2tsx-known-failures.json`,
-`eco-fmt-known-failures.json` — independently of the base corpus. Like every
-other ratchet they may only shrink. Regenerate after a fix with
-`--update-baseline --baseline <eco file>`.
+2. **List it in [`corpus-sources.json`](./corpus-sources.json)** — one entry:
 
-A snapshot of where these stand is in
-[docs/corpus-ecosystem-compat.md](../../docs/corpus-ecosystem-compat.md).
+   ```json
+   { "path": "submodules/repo", "id": "repo", "markdown": false }
+   ```
+
+   `markdown: true` only for repos whose docs are curated to compile (svelte,
+   svelte.dev); real-world projects use `false` so only their shipped
+   `.svelte` / `.svelte.(js|ts)` files are collected (project doc markdown carries
+   non-Svelte tooling and pseudo-code the official compiler rejects — noise).
+
+3. **Wire it into CI** — add `submodules/repo` to the submodule-init steps and the
+   push/PR path filters in `.github/workflows/corpus-compat.yml`, and add a matrix
+   entry in `.github/workflows/auto-update-submodules.yml`.
+
+4. **Generate the baselines** — run the corpus and ratchet in the new divergences:
+
+   ```bash
+   pnpm run corpus:sync && pnpm run corpus:collect
+   pnpm run corpus:compile && node scripts/compat-corpus/verify.mjs --update-baseline
+   pnpm run corpus:s2t:compile && node scripts/compat-corpus/svelte2tsx-verify.mjs --update-baseline
+   pnpm run corpus:fmt && node scripts/compat-corpus/fmt-verify.mjs --update-baseline
+   ```
+
+   The new entries appear under the `repo/…` id prefix in the unified
+   `known-failures.json` / `svelte2tsx-known-failures.json` /
+   `fmt-known-failures.json`. Like every ratchet they may only **shrink** — a new
+   divergence on a later run fails CI. Regenerate baselines on Linux (CI is the
+   source of truth — see the formatter-parity environment note above).
+
+The corpus only ever **reads** source files — it never installs deps or runs a
+project's build, so a shallow submodule is all that is needed.

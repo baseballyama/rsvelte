@@ -80,13 +80,6 @@ language-tools
 # the skill bisects against), so nothing inside it should be tracked.
 compat/verify-svelte-compat/
 
-# ecosystem-ci: per-target clones, logs, and per-run result JSON. Only
-# compat/ecosystem-ci/targets/*.json and compat/ecosystem-ci/README.md are tracked.
-/compat/ecosystem-ci/checkout/
-/compat/ecosystem-ci/results/
-/compat/ecosystem-ci/.cache/
-/compat/ecosystem-ci/state/
-
 # Tool / review scratch artefacts. None of these are inputs to a build;
 # they're outputs of local tooling (benchmarks, profilers, code-review
 # skills) that get regenerated on demand and should not pollute git.

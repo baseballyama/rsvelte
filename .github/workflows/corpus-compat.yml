@@ -1,18 +1,20 @@
 name: corpus-compat
 
 # Compiles every .svelte / .svelte.(js|ts) source (including markdown code
-# blocks) from sveltejs/svelte (pinned by the submodule gitlink) and
-# sveltejs/svelte.dev (pinned by the submodules/svelte.dev gitlink) with BOTH the
-# official Svelte compiler and rsvelte, for client (CSR) and server (SSR)
-# targets, normalizes both output trees with oxfmt, and requires the results
-# to be byte-identical. The same corpus also drives a svelte2tsx TSX
-# output-parity check (official svelte2tsx from submodules/language-tools vs
-# rsvelte's port). See scripts/compat-corpus/README.md.
+# blocks) from every corpus source repository — sveltejs/svelte, sveltejs/
+# svelte.dev, and the real-world projects bits-ui / flowbite-svelte / melt-ui /
+# shadcn-svelte, each pinned by its submodule gitlink (see
+# scripts/compat-corpus/corpus-sources.json) — with BOTH the official Svelte
+# compiler and rsvelte, for client (CSR) and server (SSR) targets, normalizes
+# both output trees with oxfmt, and requires the results to be byte-identical.
+# The same corpus also drives a svelte2tsx TSX output-parity check (official
+# svelte2tsx from submodules/language-tools vs rsvelte's port). See
+# scripts/compat-corpus/README.md.
 #
 # Expected outputs are regenerated from the pinned upstreams on every run, so
-# bumping either submodule (auto-update-svelte.yml for the compiler,
-# auto-update-submodules.yml for svelte.dev) automatically refreshes both
-# the test corpus and its expectations.
+# bumping any submodule (auto-update-svelte.yml for the compiler,
+# auto-update-submodules.yml for svelte.dev and the real-world projects)
+# automatically refreshes both the test corpus and its expectations.
 #
 # The fmt-parity job additionally formats every .svelte component with both
 # rsvelte-fmt and the oxfmt(`svelte: true`) oracle (prettier-plugin-svelte for
@@ -32,6 +34,11 @@ on:
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
+      - 'submodules/bits-ui'
+      - 'submodules/flowbite-svelte'
+      - 'submodules/melt-ui'
+      - 'submodules/shadcn-svelte'
+      - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -46,6 +53,11 @@ on:
       - 'submodules/svelte'
       - 'submodules/svelte.dev'
       - 'submodules/language-tools'
+      - 'submodules/bits-ui'
+      - 'submodules/flowbite-svelte'
+      - 'submodules/melt-ui'
+      - 'submodules/shadcn-svelte'
+      - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -79,8 +91,8 @@ jobs:
         with:
           submodules: false
 
-      - name: Checkout svelte + svelte.dev + language-tools submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools
+      - name: Checkout corpus source submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -183,8 +195,8 @@ jobs:
         with:
           submodules: false
 
-      - name: Checkout svelte + svelte.dev submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev
+      - name: Checkout corpus source submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -211,9 +223,11 @@ jobs:
 
       - name: Resolve corpus pins
         id: pins
+        # One combined hash over every corpus source submodule SHA, so a bump to
+        # any source (svelte, svelte.dev, or a real-world project) invalidates the
+        # cached fmt oracle.
         run: |
-          echo "svelte=$(git -C submodules/svelte rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "svelte_dev=$(git -C submodules/svelte.dev rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "sources=$(git submodule status submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte | awk '{print $1}' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
 
       # The oracle depends only on the pins + oxfmt version + oracle config, so
       # cache it: only the first run per pin pays the ~6k oxfmt invocations.
@@ -223,7 +237,7 @@ jobs:
           path: |
             compat/corpus/fmt/oracle
             compat/corpus/fmt/meta.json
-          key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.svelte }}-${{ steps.pins.outputs.svelte_dev }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml') }}
+          key: corpus-fmt-oracle-v1-${{ runner.os }}-${{ steps.pins.outputs.sources }}-${{ hashFiles('scripts/fixtures/fmt-corpus.oxfmtrc.json', 'pnpm-lock.yaml') }}
 
       - name: Build fmt trees (oracle cached, actual via rsvelte-fmt)
         run: node scripts/compat-corpus/fmt.mjs

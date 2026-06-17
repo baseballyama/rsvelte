@@ -27,3 +27,32 @@
 	path = submodules/svelte-eslint-parser
 	url = https://github.com/sveltejs/svelte-eslint-parser
 	ignore = dirty
+# Real-world ecosystem projects folded into the compat corpus (scripts/compat-corpus).
+# Their shipped .svelte / .svelte.(js|ts) sources are compiled by both the official
+# compiler and rsvelte and required to match — the same three tracks as svelte/svelte.dev.
+# To add another project to the corpus, add a submodule here + an entry in
+# scripts/compat-corpus/corpus-sources.json. Bumped weekly by auto-update-submodules.yml.
+[submodule "submodules/bits-ui"]
+	path = submodules/bits-ui
+	url = https://github.com/huntabyte/bits-ui.git
+	ignore = dirty
+	shallow = true
+	branch = main
+[submodule "submodules/flowbite-svelte"]
+	path = submodules/flowbite-svelte
+	url = https://github.com/themesberg/flowbite-svelte.git
+	ignore = dirty
+	shallow = true
+	branch = main
+[submodule "submodules/melt-ui"]
+	path = submodules/melt-ui
+	url = https://github.com/melt-ui/next-gen.git
+	ignore = dirty
+	shallow = true
+	branch = main
+[submodule "submodules/shadcn-svelte"]
+	path = submodules/shadcn-svelte
+	url = https://github.com/huntabyte/shadcn-svelte.git
+	ignore = dirty
+	shallow = true
+	branch = main

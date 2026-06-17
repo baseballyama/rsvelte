@@ -152,7 +152,7 @@ fn should_write_actual_output() -> bool {
 }
 
 /// Fixtures that started failing on `main` after the Svelte submodule upgrades
-/// in #322 / #335 and aren't tied to a particular ecosystem-ci change. Tracked
+/// in #322 / #335 and aren't tied to a particular upstream change. Tracked
 /// separately so the runtime suite stops blocking unrelated work; remove an
 /// entry as soon as the upstream behaviour is matched.
 const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[

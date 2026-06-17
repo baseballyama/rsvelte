@@ -1,0 +1,8 @@
+[
+	{ "path": "submodules/svelte", "id": "svelte", "markdown": true, "required": true },
+	{ "path": "submodules/svelte.dev", "id": "svelte.dev", "markdown": true },
+	{ "path": "submodules/bits-ui", "id": "bits-ui", "markdown": false },
+	{ "path": "submodules/flowbite-svelte", "id": "flowbite-svelte", "markdown": false },
+	{ "path": "submodules/melt-ui", "id": "melt-ui", "markdown": false },
+	{ "path": "submodules/shadcn-svelte", "id": "shadcn-svelte", "markdown": false }
+]

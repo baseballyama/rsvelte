@@ -44,8 +44,8 @@ const NO_FMT = args.includes('--no-fmt');
 const MAX_PRINT = Number(args[args.indexOf('--max-print') + 1] || 20);
 const UPDATE_BASELINE = args.includes('--update-baseline');
 const STRICT = args.includes('--strict'); // ignore the baseline: any failure fails
-// --baseline <path> selects an alternate ratchet file (see verify.mjs); the
-// ecosystem corpus uses eco-svelte2tsx-known-failures.json.
+// --baseline <path> selects an alternate ratchet file (see verify.mjs); rarely
+// needed — the corpus is one unified set (default svelte2tsx-known-failures.json).
 const BASELINE_PATH = path.resolve(
 	CORPUS,
 	args.indexOf('--baseline') !== -1 ? args[args.indexOf('--baseline') + 1] : 'svelte2tsx-known-failures.json',
