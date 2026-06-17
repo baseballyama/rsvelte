@@ -429,7 +429,7 @@ pub fn block_unexpected_character(expected: &str) -> AnalysisError {
 pub fn each_key_without_as() -> AnalysisError {
     error(
         "each_key_without_as",
-        "`{#each}` block with a key requires an `as` binding",
+        "An `{#each ...}` block without an `as` clause cannot have a key",
     )
 }
 

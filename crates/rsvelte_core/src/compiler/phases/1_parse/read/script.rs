@@ -252,20 +252,50 @@ impl Parser<'_> {
                 end,
             );
             // Upstream acorn throws on the first script parse error, even in
-            // loose mode (read/script.js → acorn.js `handle_parse_error`).
+            // loose mode (read/script.js → acorn.js `handle_parse_error`). BUT
+            // official svelte2tsx parses scripts with acorn's error recovery and
+            // just SPLICES the raw script — it never aborts on a script JS error
+            // (e.g. `foo {}`, or `await {…}` in a non-async script, both of which
+            // acorn accepts where OXC correctly rejects). In svelte2tsx mode
+            // (`script_ts`) mirror that: on a script parse error fall back to an
+            // empty-body placeholder + raw content, so svelte2tsx applies NO body
+            // transforms and the script source survives verbatim in the output.
             if let Some(err) = parse_error {
-                return Err(err);
-            }
-            Script {
-                node_type: ScriptType::Script,
-                start: start as u32,
-                end: end as u32,
-                context,
-                content: program,
-                attributes: script_attributes,
-                raw_content: String::new(),
-                content_offset: content_start as u32,
-                is_typescript: use_typescript,
+                if !self.script_ts {
+                    return Err(err);
+                }
+                let placeholder = Expression::from_node(crate::ast::typed_expr::JsNode::Program {
+                    start: content_start as u32,
+                    end: (content_start + script_content.len()) as u32,
+                    loc: None,
+                    body: crate::ast::arena::IdRange::empty(),
+                    source_type: CompactString::from("module"),
+                    leading_comments: None,
+                    trailing_comments: None,
+                });
+                Script {
+                    node_type: ScriptType::Script,
+                    start: start as u32,
+                    end: end as u32,
+                    context,
+                    content: placeholder,
+                    attributes: script_attributes,
+                    raw_content: script_content.to_string(),
+                    content_offset: content_start as u32,
+                    is_typescript: use_typescript,
+                }
+            } else {
+                Script {
+                    node_type: ScriptType::Script,
+                    start: start as u32,
+                    end: end as u32,
+                    context,
+                    content: program,
+                    attributes: script_attributes,
+                    raw_content: String::new(),
+                    content_offset: content_start as u32,
+                    is_typescript: use_typescript,
+                }
             }
         };
 

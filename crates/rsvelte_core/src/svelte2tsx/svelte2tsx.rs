@@ -370,6 +370,18 @@ fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2T
 /// official svelte2tsx parses with svelte and so rejects these at parse. Each
 /// of these five "root-only meta tags" must appear at most once and only as a
 /// direct child of the component root (not inside any element or block).
+/// True when a component carries a `use:` action directive. svelte rejects ALL
+/// of `use:`/`transition:`/`animate:`/`class:`/`style:` on a component
+/// (`component_invalid_directive`) at 2-analyze, but official **svelte2tsx**
+/// skips analyze and actually LOWERS class/style/transition/animate on a
+/// component (to `ensureType`/`ensureTransition` suffixes) — only `use:` makes
+/// it CRASH (`element.addAction is not a function`). So, for error-parity with
+/// svelte2tsx specifically, only `use:` triggers an error here.
+fn component_has_invalid_directive(attributes: &[crate::ast::Attribute]) -> bool {
+    use crate::ast::Attribute as A;
+    attributes.iter().any(|a| matches!(a, A::UseDirective(_)))
+}
+
 fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
     use crate::ast::template::{Fragment, TemplateNode as N};
     use std::collections::HashSet;
@@ -435,6 +447,26 @@ fn validate_meta_element_placement(ast: &Root, source: &str) -> Result<(), Svelt
                     name
                 )));
             }
+        }
+        // `use:` / `transition:` / `in:` / `out:` / `animate:` / `class:` /
+        // `style:` directives are not valid on a component — svelte raises
+        // `component_invalid_directive` (2-analyze). Official svelte2tsx skips
+        // analyze and instead CRASHES on these (`element.addAction is not a
+        // function`); either way it produces an error, so raise one here for
+        // error-parity. (`bind:` / `on:` / `let:` / spread / `@attach` are OK.)
+        if let N::Component(c) = node
+            && component_has_invalid_directive(&c.attributes)
+        {
+            return Err(Svelte2TsxError::Template(
+                "This type of directive is not valid on components".to_string(),
+            ));
+        }
+        if let N::SvelteComponent(c) = node
+            && component_has_invalid_directive(&c.attributes)
+        {
+            return Err(Svelte2TsxError::Template(
+                "This type of directive is not valid on components".to_string(),
+            ));
         }
         // Recurse into children — anything nested below this node is no longer
         // at root level.
@@ -1038,8 +1070,31 @@ pub fn svelte2tsx(
         // Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
         //   `isRunes = true when component has TOP-LEVEL AWAIT in the instance script`
         let raw_content = &source[content_start as usize..content_end as usize];
-        has_top_level_await = detect_top_level_await(raw_content);
+        // When the instance script failed to parse (lenient svelte2tsx fallback —
+        // `instance.raw_content` is non-empty), the script is spliced raw and
+        // official does NOT detect its top-level `await` / wrap `$$render` in
+        // `async`; mirror that (the awaits stay in the raw, oxfmt-skipped output).
+        let script_parse_failed = !instance.raw_content.is_empty();
+        has_top_level_await = !script_parse_failed && detect_top_level_await(raw_content);
         if has_top_level_await {
+            exported_names.set_uses_runes(true);
+        }
+        // The lenient fallback's empty-body placeholder loses rune detection, but
+        // official's acorn recovers the valid parts and still sees `$state` /
+        // `$derived` etc. → runes mode. Byte-scan the raw script for a rune call
+        // so the component export / bindings keep their runes shape.
+        if script_parse_failed
+            && [
+                "$state",
+                "$derived",
+                "$props",
+                "$effect",
+                "$bindable",
+                "$host",
+            ]
+            .iter()
+            .any(|rune| raw_content.contains(rune))
+        {
             exported_names.set_uses_runes(true);
         }
         let async_prefix = if has_top_level_await { "async " } else { "" };
@@ -1810,9 +1865,11 @@ pub fn svelte2tsx(
         let mut grouped: Vec<(String, Vec<String>)> = Vec::new();
         for (name, value) in &template_info.element_events {
             if let Some(entry) = grouped.iter_mut().find(|(n, _)| n == name) {
-                if !entry.1.contains(value) {
-                    entry.1.push(value.clone());
-                }
+                // Keep duplicates: identical element forwards (`mapElementEvent`)
+                // were already collapsed at collection time, while identical
+                // component forwards (`bubbleEventDef`) must each contribute a
+                // `unionType` member (mirrors official).
+                entry.1.push(value.clone());
             } else {
                 grouped.push((name.clone(), vec![value.clone()]));
             }
