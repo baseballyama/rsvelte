@@ -29,7 +29,7 @@ There are no Node calls and no Prettier doc-IR round-trip — just rsvelte parsi
 Functional v0. The Svelte path is tested end-to-end (CLI integration tests,
 plus the tests in `rsvelte_formatter`). The `oxfmt` delegation path is
 exercised with a fake `oxfmt` in tests and against real `oxfmt` in the
-ecosystem-ci lane.
+corpus formatter-parity track (see scripts/compat-corpus/README.md).
 
 ## Install
 

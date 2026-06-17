@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 /**
  * Collect every .svelte / .svelte.js / .svelte.ts source (including code
- * blocks inside markdown files) from the sveltejs/svelte submodule and a
- * pinned sveltejs/svelte.dev checkout into `compat/corpus/sources/`.
+ * blocks inside markdown files) from every repository listed in
+ * `corpus-sources.json` into `compat/corpus/sources/`.
+ *
+ * The corpus is a single flat set of source repositories (all git submodules):
+ * sveltejs/svelte + sveltejs/svelte.dev provide svelte's own fixtures and the
+ * curated docs, and the real-world projects (bits-ui, flowbite-svelte, melt-ui,
+ * shadcn-svelte, …) provide production component-library source. There is no
+ * separate "ecosystem" track — to grow the corpus, add a submodule and a line
+ * to `corpus-sources.json`. Each source is collected under its `id` prefix.
  *
  * Markdown extraction rules (mirrors svelte.dev's site-kit renderer):
  *   - ```svelte fences            -> .svelte snippets
@@ -15,7 +22,7 @@
  *   - +++added+++ / :::highlighted::: keep their inner text,
  *     ---removed--- content is dropped (we compile the "after" state)
  *
- * Usage: node scripts/compat-corpus/collect.mjs [--svelte-dev <dir>]
+ * Usage: node scripts/compat-corpus/collect.mjs
  */
 
 import fs from 'node:fs';
@@ -27,40 +34,14 @@ const ROOT = path.resolve(__dirname, '../..');
 const CORPUS = path.join(ROOT, 'compat/corpus');
 const OUT = path.join(CORPUS, 'sources');
 
-const args = process.argv.slice(2);
-function argValue(name, fallback) {
-	const i = args.indexOf(name);
-	return i !== -1 && args[i + 1] ? args[i + 1] : fallback;
-}
-// --eco-only collects ONLY the cloned ecosystem projects (skips svelte +
-// svelte.dev), so the manifest — and therefore every downstream track — is
-// scoped to the real-world corpus. Used to measure ecosystem compatibility in
-// isolation without dragging the 6k-entry base corpus through compile/verify.
-const ECO_ONLY = args.includes('--eco-only');
-
-const SVELTE_DIR = path.join(ROOT, 'submodules/svelte');
-// svelte.dev is a submodule (kept current by auto-update-submodules.yml,
-// shared with the fmt parity corpus).
-const SVELTE_DEV_DIR = path.resolve(ROOT, argValue('--svelte-dev', 'submodules/svelte.dev'));
-
-if (!fs.existsSync(path.join(SVELTE_DIR, 'packages/svelte/package.json'))) {
-	console.error(`[collect] svelte submodule missing at ${SVELTE_DIR} (run git submodule update --init)`);
-	process.exit(1);
-}
-const HAVE_SVELTE_DEV = fs.existsSync(SVELTE_DEV_DIR);
-if (!HAVE_SVELTE_DEV) {
-	console.warn(`[collect] svelte.dev checkout missing at ${SVELTE_DEV_DIR} — skipping it`);
-	console.warn('  (run: git submodule update --init --depth 1 submodules/svelte.dev to include it)');
-}
-
-// Real-world ecosystem projects (bits-ui, melt-ui, flowbite-svelte, …) are
-// cloned on demand into compat/ecosystem-ci/checkout/<name>/ (gitignored) by
-// scripts/compat-corpus/sync-ecosystem.mjs. When present, every `.svelte` /
-// `.svelte.(js|ts)` source they ship is folded into the corpus under an
-// `eco-<name>/…` id prefix so the same byte-equality / svelte2tsx / formatter
-// tracks run over production component libraries, not just svelte's own
-// fixtures. Absent (the default in CI for the base corpus), nothing changes.
-const ECO_CHECKOUT_DIR = path.join(ROOT, 'compat/ecosystem-ci/checkout');
+// The corpus source repositories — all git submodules. Each entry: { path, id,
+// markdown, required }. `markdown` controls whether ```svelte / ```js+file
+// fences inside .md docs are extracted (true for the curated svelte/svelte.dev
+// docs, false for real-world projects whose docs carry non-Svelte doc tooling
+// and pseudo-code the compiler rejects). `required` sources abort collection
+// when absent (svelte is the compiler/version pin); others just warn + skip.
+// To grow the corpus, add a submodule (see .gitmodules) and a line here.
+const SOURCES = JSON.parse(fs.readFileSync(path.join(__dirname, 'corpus-sources.json'), 'utf8'));
 
 /** Recursively list files, skipping node_modules/.git and other junk. */
 function walk(dir, out = []) {
@@ -158,7 +139,7 @@ function addEntry(repo, relPath, kind, source) {
 // they are included; real-world project READMEs/doc-pages are not — they carry
 // project-specific doc tooling (e.g. flowbite's non-Svelte `{#include X.svelte}`
 // directive) and truncated pseudo-code the official compiler itself rejects, so
-// the ecosystem corpus collects only each project's SHIPPED source files.
+// for those projects only their SHIPPED source files are collected.
 function collectRepo(repo, dir, { markdown = true } = {}) {
 	const files = walk(dir);
 	let real = 0;
@@ -183,19 +164,18 @@ function collectRepo(repo, dir, { markdown = true } = {}) {
 	console.log(`[collect] ${repo}: ${real} files + ${md} markdown snippets`);
 }
 
-if (!ECO_ONLY) {
-	collectRepo('svelte', SVELTE_DIR);
-	if (HAVE_SVELTE_DEV) collectRepo('svelte.dev', SVELTE_DEV_DIR);
-}
-
-// Fold in every cloned ecosystem project. Each lives under its own checkout
-// directory; its id prefix is `eco-<name>` so a single `--filter eco-` (or
-// `--filter eco-<name>`) scopes any track to the real-world corpus.
-if (fs.existsSync(ECO_CHECKOUT_DIR)) {
-	for (const entry of fs.readdirSync(ECO_CHECKOUT_DIR, { withFileTypes: true })) {
-		if (!entry.isDirectory()) continue;
-		collectRepo(`eco-${entry.name}`, path.join(ECO_CHECKOUT_DIR, entry.name), { markdown: false });
+for (const src of SOURCES) {
+	const dir = path.resolve(ROOT, src.path);
+	if (!fs.existsSync(dir) || fs.readdirSync(dir).length === 0) {
+		if (src.required) {
+			console.error(`[collect] required source ${src.id} missing at ${src.path} (run: git submodule update --init --depth 1 ${src.path})`);
+			process.exit(1);
+		}
+		console.warn(`[collect] source ${src.id} missing at ${src.path} — skipping`);
+		console.warn(`  (run: git submodule update --init --depth 1 ${src.path} to include it)`);
+		continue;
 	}
+	collectRepo(src.id, dir, { markdown: src.markdown ?? false });
 }
 
 manifest.sort((a, b) => (a.id < b.id ? -1 : 1));

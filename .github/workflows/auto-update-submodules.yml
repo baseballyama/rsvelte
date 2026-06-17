@@ -54,6 +54,18 @@ jobs:
           # this PR may be red until the baselines are triaged.
           - name: svelte.dev
             path: submodules/svelte.dev
+          # Real-world projects folded into the compat corpus (scripts/compat-corpus).
+          # Bumping one re-pins its submodule; the corpus regenerates expectations
+          # from the new content on the next corpus-compat run, so the PR may be
+          # red until the eco entries in the corpus baselines are re-triaged.
+          - name: bits-ui
+            path: submodules/bits-ui
+          - name: flowbite-svelte
+            path: submodules/flowbite-svelte
+          - name: melt-ui
+            path: submodules/melt-ui
+          - name: shadcn-svelte
+            path: submodules/shadcn-svelte
     concurrency:
       group: auto-update-submodules-${{ matrix.name }}
       cancel-in-progress: false
