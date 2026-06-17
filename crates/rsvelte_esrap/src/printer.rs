@@ -1249,14 +1249,7 @@ impl<'opt> Printer<'opt> {
                     ctx.write(op.to_string());
                 }
             }
-            Expression::SequenceExpression(s) => {
-                for (i, e) in s.expressions.iter().enumerate() {
-                    if i > 0 {
-                        ctx.write(", ");
-                    }
-                    self.print_expression(unparen(e), ctx);
-                }
-            }
+            Expression::SequenceExpression(s) => self.sequence_expression(s, ctx),
             other => self.unsupported(expression_kind(other), ctx),
         }
     }
@@ -1548,6 +1541,28 @@ impl<'opt> Printer<'opt> {
             .collect();
         assemble_sequence(items, false, ",", true, ctx);
         ctx.write("]");
+    }
+
+    /// esrap always parenthesizes a sequence expression (`(a, b)`), laying the
+    /// comma list out with the shared `sequence` machinery.
+    fn sequence_expression(&mut self, node: &SequenceExpression, ctx: &mut Context) {
+        ctx.write("(");
+        let items: Vec<SeqItem> = node
+            .expressions
+            .iter()
+            .map(|e| {
+                let mut child = ctx.child();
+                self.print_expression(unparen(e), &mut child);
+                let multiline = child.multiline;
+                SeqItem {
+                    ctx: child,
+                    multiline,
+                    obj_or_array: false,
+                }
+            })
+            .collect();
+        assemble_sequence(items, false, ",", true, ctx);
+        ctx.write(")");
     }
 
     fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context) {
