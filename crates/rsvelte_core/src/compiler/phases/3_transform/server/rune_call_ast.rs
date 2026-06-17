@@ -45,18 +45,47 @@ thread_local! {
 /// when at least one call was rewritten, `None` on a parse failure or when
 /// nothing matched (caller falls back to the byte scanner).
 pub(crate) fn transform_rune_call_ast(script: &str, prefix: &str) -> Option<String> {
-    // `prefix` is `"$rune("`; the rune name is everything before the `(`.
-    let rune = &prefix[..prefix.len() - 1];
-    let is_derived = prefix == "$derived(";
-    let is_derived_by = prefix == "$derived.by(";
+    transform_rune_calls_combined(script, &[prefix])
+}
 
-    // `$state` / `$bindable` / `$derived` are plain-identifier callees;
-    // `$state.raw` / `$state.eager` / `$derived.by` are member callees on the
-    // `$state` / `$derived` object.
-    let (object_name, member_name): (&str, Option<&str>) = match rune.split_once('.') {
-        Some((obj, member)) => (obj, Some(member)),
-        None => (rune, None),
-    };
+/// One rune flavour to locate: its callee name/shape and how it is emitted.
+/// `$state` / `$bindable` are plain-identifier callees; `$state.raw` /
+/// `$derived.by` are member callees on `$state` / `$derived`.
+struct RuneSpec<'a> {
+    object_name: &'a str,
+    member_name: Option<&'a str>,
+    is_derived: bool,
+    is_derived_by: bool,
+}
+
+impl<'a> RuneSpec<'a> {
+    /// Build a spec from a `"$rune("` prefix.
+    fn from_prefix(prefix: &'a str) -> Self {
+        let rune = &prefix[..prefix.len() - 1];
+        let (object_name, member_name) = match rune.split_once('.') {
+            Some((obj, member)) => (obj, Some(member)),
+            None => (rune, None),
+        };
+        RuneSpec {
+            object_name,
+            member_name,
+            is_derived: prefix == "$derived(",
+            is_derived_by: prefix == "$derived.by(",
+        }
+    }
+}
+
+/// Rewrite every unshadowed call of any rune in `prefixes` in a SINGLE parse +
+/// walk (vs one parse per prefix). Each rune flavour has a distinct callee
+/// shape (`$state` ident vs `$state.raw` member, `$derived` vs `$derived.by`),
+/// so a call matches at most one spec and spec order is irrelevant. Returns
+/// `None` (caller falls back to the per-prefix byte scanner) on a parse failure
+/// or when nothing matched.
+pub(crate) fn transform_rune_calls_combined(script: &str, prefixes: &[&str]) -> Option<String> {
+    if prefixes.is_empty() {
+        return None;
+    }
+    let specs: Vec<RuneSpec> = prefixes.iter().map(|p| RuneSpec::from_prefix(p)).collect();
 
     ast_rewrite::with_program(
         &RUNE_CALL_ALLOC,
@@ -68,15 +97,10 @@ pub(crate) fn transform_rune_call_ast(script: &str, prefix: &str) -> Option<Stri
         },
         |program| {
             let semantic_ret = SemanticBuilder::new().build(program);
-            let semantic = &semantic_ret.semantic;
-
             let mut collector = RuneCallCollector {
-                semantic,
+                semantic: &semantic_ret.semantic,
                 script,
-                object_name,
-                member_name,
-                is_derived,
-                is_derived_by,
+                specs: &specs,
                 edits: Vec::new(),
             };
             collector.visit_program(program);
@@ -99,10 +123,7 @@ pub(crate) fn transform_rune_call_ast(script: &str, prefix: &str) -> Option<Stri
 struct RuneCallCollector<'a, 'sem> {
     semantic: &'sem Semantic<'sem>,
     script: &'a str,
-    object_name: &'a str,
-    member_name: Option<&'a str>,
-    is_derived: bool,
-    is_derived_by: bool,
+    specs: &'a [RuneSpec<'a>],
     edits: Vec<(u32, u32, String)>,
 }
 
@@ -121,28 +142,25 @@ impl<'a, 'sem> RuneCallCollector<'a, 'sem> {
             .is_some()
     }
 
-    /// Check the callee matches this rune (by name + shape) and isn't shadowed.
-    fn callee_matches(&self, callee: &Expression) -> bool {
-        match self.member_name {
+    /// Find the spec whose rune (name + shape) matches `callee`, if any, and the
+    /// callee isn't shadowed. Each rune flavour has a distinct callee shape so at
+    /// most one spec matches.
+    fn matching_spec(&self, callee: &Expression) -> Option<&'a RuneSpec<'a>> {
+        self.specs.iter().find(|spec| match spec.member_name {
             None => {
                 // Plain-identifier callee: `$state(…)`.
-                if let Expression::Identifier(id) = callee {
-                    id.name == self.object_name && !self.is_bound(id)
-                } else {
-                    false
-                }
+                matches!(callee, Expression::Identifier(id)
+                    if id.name == spec.object_name && !self.is_bound(id))
             }
             Some(member) => {
                 // Member callee: `$state.raw(…)` etc. (non-computed).
-                if let Expression::StaticMemberExpression(m) = callee
-                    && let Expression::Identifier(obj) = &m.object
-                {
-                    obj.name == self.object_name && m.property.name == member && !self.is_bound(obj)
-                } else {
-                    false
-                }
+                matches!(callee, Expression::StaticMemberExpression(m)
+                    if matches!(&m.object, Expression::Identifier(obj)
+                        if obj.name == spec.object_name
+                            && m.property.name == member
+                            && !self.is_bound(obj)))
             }
-        }
+        })
     }
 }
 
@@ -152,9 +170,9 @@ impl<'a, 'sem, 'ast> Visit<'ast> for RuneCallCollector<'a, 'sem> {
         // collected; edits are applied right-to-left so order is irrelevant.
         walk::walk_call_expression(self, call);
 
-        if !self.callee_matches(&call.callee) {
+        let Some(spec) = self.matching_spec(&call.callee) else {
             return;
-        }
+        };
 
         // Extract the verbatim `inner` text: between the call's `(` (the first
         // `(` after the callee) and the call's closing `)` (`call.span.end - 1`).
@@ -175,7 +193,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for RuneCallCollector<'a, 'sem> {
             return;
         }
         let inner = &self.script[inner_start..inner_end];
-        let replacement = emit_rune_replacement(inner, self.is_derived, self.is_derived_by);
+        let replacement = emit_rune_replacement(inner, spec.is_derived, spec.is_derived_by);
         self.edits
             .push((call.span.start, call.span.end, replacement));
     }
