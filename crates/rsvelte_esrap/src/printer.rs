@@ -1476,12 +1476,37 @@ impl<'opt> Printer<'opt> {
         }
     }
 
+    /// esrap's `ConditionalExpression`: only the test is parenthesised (by
+    /// precedence); the branches are emitted as-is. When either branch is
+    /// multiline or the two together exceed 50 columns, break onto indented
+    /// `? …` / `: …` lines.
     fn conditional_expression(&mut self, node: &ConditionalExpression, ctx: &mut Context) {
         self.child_with_parens(&node.test, 5, ctx);
-        ctx.write(" ? ");
-        self.child_with_parens(&node.consequent, 4, ctx);
-        ctx.write(" : ");
-        self.child_with_parens(&node.alternate, 4, ctx);
+
+        let mut consequent = ctx.child();
+        self.print_expression(unparen(&node.consequent), &mut consequent);
+        let mut alternate = ctx.child();
+        self.print_expression(unparen(&node.alternate), &mut alternate);
+
+        let multiline = consequent.multiline
+            || alternate.multiline
+            || consequent.measure() + alternate.measure() > 50;
+
+        if multiline {
+            ctx.indent();
+            ctx.newline();
+            ctx.write("? ");
+            ctx.append(consequent);
+            ctx.newline();
+            ctx.write(": ");
+            ctx.append(alternate);
+            ctx.dedent();
+        } else {
+            ctx.write(" ? ");
+            ctx.append(consequent);
+            ctx.write(" : ");
+            ctx.append(alternate);
+        }
     }
 
     fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
@@ -1941,6 +1966,15 @@ mod tests {
         assert_eq!(print_ok("const x = typeof y;"), "const x = typeof y;");
         assert_eq!(print_ok("const x = !y;"), "const x = !y;");
         assert_eq!(print_ok("const x = a ? b : c;"), "const x = a ? b : c;");
+        // Branches are not parenthesised (esrap), even low-precedence ones.
+        assert_eq!(
+            print_ok("const x = a ? () => b : c;"),
+            "const x = a ? () => b : c;"
+        );
+        assert_eq!(
+            print_ok("const x = a ? b : c ? d : e;"),
+            "const x = a ? b : c ? d : e;"
+        );
     }
 
     #[test]
@@ -2092,24 +2126,45 @@ mod tests {
             print_ok("outer: for (const x of xs) break outer;"),
             "outer: for (const x of xs) break outer;"
         );
-        assert_eq!(print_ok("for (const x of xs) f(x);"), "for (const x of xs) f(x);");
-        assert_eq!(print_ok("for (const k in o) f(k);"), "for (const k in o) f(k);");
-        assert_eq!(print_ok("try { a(); } catch (e) { b(); }"), "try {\n\ta();\n} catch (e) {\n\tb();\n}");
-        assert_eq!(print_ok("try { a(); } finally { c(); }"), "try {\n\ta();\n} finally {\n\tc();\n}");
+        assert_eq!(
+            print_ok("for (const x of xs) f(x);"),
+            "for (const x of xs) f(x);"
+        );
+        assert_eq!(
+            print_ok("for (const k in o) f(k);"),
+            "for (const k in o) f(k);"
+        );
+        assert_eq!(
+            print_ok("try { a(); } catch (e) { b(); }"),
+            "try {\n\ta();\n} catch (e) {\n\tb();\n}"
+        );
+        assert_eq!(
+            print_ok("try { a(); } finally { c(); }"),
+            "try {\n\ta();\n} finally {\n\tc();\n}"
+        );
         assert_eq!(print_ok("debugger;"), "debugger;");
     }
 
     #[test]
     fn param_defaults() {
-        assert_eq!(print_ok("function f(a = 1, b) {}"), "function f(a = 1, b) {}");
-        assert_eq!(print_ok("const g = (x = 2) => x;"), "const g = (x = 2) => x;");
+        assert_eq!(
+            print_ok("function f(a = 1, b) {}"),
+            "function f(a = 1, b) {}"
+        );
+        assert_eq!(
+            print_ok("const g = (x = 2) => x;"),
+            "const g = (x = 2) => x;"
+        );
     }
 
     #[test]
     fn more_expressions() {
         assert_eq!(print_ok("const r = /ab+c/gi;"), "const r = /ab+c/gi;");
         assert_eq!(print_ok("const s = tag`a${x}b`;"), "const s = tag`a${x}b`;");
-        assert_eq!(print_ok("function* g() { yield 1; yield* h(); }"), "function* g() {\n\tyield 1;\n\tyield* h();\n}");
+        assert_eq!(
+            print_ok("function* g() { yield 1; yield* h(); }"),
+            "function* g() {\n\tyield 1;\n\tyield* h();\n}"
+        );
     }
 
     #[test]
