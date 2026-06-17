@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "apps/apps/npm/svelte-check-linux-arm64-gnu"
+    "directory": "apps/npm/svelte-check-linux-arm64-gnu"
   },
   "os": [
     "linux"

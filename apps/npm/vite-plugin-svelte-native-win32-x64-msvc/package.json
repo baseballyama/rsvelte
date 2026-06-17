@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "apps/apps/npm/vite-plugin-svelte-native-win32-x64-msvc"
+    "directory": "apps/npm/vite-plugin-svelte-native-win32-x64-msvc"
   },
   "os": [
     "win32"

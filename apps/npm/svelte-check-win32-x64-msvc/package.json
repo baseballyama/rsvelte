@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
-    "directory": "apps/apps/npm/svelte-check-win32-x64-msvc"
+    "directory": "apps/npm/svelte-check-win32-x64-msvc"
   },
   "os": [
     "win32"
