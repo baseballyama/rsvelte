@@ -1557,26 +1557,48 @@ fn render_attribute_value_sequence(
                     // everything before its `{` (the `name="` prefix plus value
                     // text already emitted on this line) AND after its `}` (the
                     // remaining literal text on the line plus the closing `"`).
-                    let extra = if narrow_value && is_shallow_value(inner_src) {
-                        let on_line = out.rsplit('\n').next().unwrap_or(&out);
-                        let lead = if out.contains('\n') {
-                            visual_width(on_line)
-                        } else {
-                            name_prefix + visual_width(on_line)
-                        };
-                        let trailing: usize = parts[i + 1..]
-                            .iter()
-                            .map(|p| match p {
-                                AttributeValuePart::Text(t) => visual_width(t.raw.as_str()),
-                                AttributeValuePart::ExpressionTag(_) => 0,
-                            })
-                            .sum();
-                        lead + 3 + trailing // `{` + `}` + closing `"`
+                    //
+                    // Same two-pass logic as `render_single_expression_value`:
+                    // first format at indent-only width; if multi-line and the
+                    // first line ends with `{`/`[` (expanded call-argument block),
+                    // keep the wider result to avoid over-constraining inner exprs.
+                    let on_line = out.rsplit('\n').next().unwrap_or(&out);
+                    let lead_cols = if out.contains('\n') {
+                        visual_width(on_line)
                     } else {
-                        0
+                        name_prefix + visual_width(on_line)
                     };
-                    let formatted =
-                        format_attribute_value_expression(inner_src, &opts, attr_depth, extra)?;
+                    let trailing_cols: usize = parts[i + 1..]
+                        .iter()
+                        .map(|p| match p {
+                            AttributeValuePart::Text(t) => visual_width(t.raw.as_str()),
+                            AttributeValuePart::ExpressionTag(_) => 0,
+                        })
+                        .sum();
+                    let first_pass =
+                        format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
+                    let formatted = if narrow_value && is_shallow_value(inner_src) {
+                        // extra = lead + `{` + `}` + closing `"` + trailing
+                        let extra = lead_cols + 3 + trailing_cols;
+                        if !first_pass.contains('\n') {
+                            // Single-line: always apply the full narrowing
+                            format_attribute_value_expression(inner_src, &opts, attr_depth, extra)?
+                        } else {
+                            // Multi-line: check first-line break point
+                            let first_line = first_pass.lines().next().unwrap_or("").trim_end();
+                            if first_line.ends_with('{') || first_line.ends_with('[') {
+                                // Expanded call-argument block — keep the wider result
+                                first_pass
+                            } else {
+                                // Operator-break — re-format with the narrower width
+                                format_attribute_value_expression(
+                                    inner_src, &opts, attr_depth, extra,
+                                )?
+                            }
+                        }
+                    } else {
+                        first_pass
+                    };
                     // A wrapped interpolation's continuation lines come back at
                     // column 0+1level; push them out to the attribute column so
                     // they align under the attribute — but only when this value is
