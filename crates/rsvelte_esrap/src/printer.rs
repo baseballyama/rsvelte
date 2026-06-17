@@ -109,6 +109,9 @@ fn expr_precedence(expr: &Expression) -> u8 {
         | Expression::ThisExpression(_)
         | Expression::Identifier(_)
         | Expression::TemplateLiteral(_)
+        // `super` as a callee (`super(...)`) must never be parenthesized;
+        // esrap leaves its precedence undefined, so the `<` test is false.
+        | Expression::Super(_)
         | Expression::SequenceExpression(_) => 20,
         Expression::StaticMemberExpression(_)
         | Expression::ComputedMemberExpression(_)
