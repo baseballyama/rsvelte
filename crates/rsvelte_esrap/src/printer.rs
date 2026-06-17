@@ -1659,6 +1659,11 @@ impl<'opt> Printer<'opt> {
             .iter()
             .map(|prop| {
                 let mut child = ctx.child();
+                // esrap's `sequence` visits each property through the `_`
+                // wildcard, which flushes any comment positioned before it
+                // (`{ /** doc */ key: … }`). Mirror that per property.
+                let start = prop.span().start;
+                self.flush_leading(&mut child, start, self.line_of(start));
                 let obj_or_array = match prop {
                     ObjectPropertyKind::ObjectProperty(p) => {
                         self.object_property(p, &mut child);
