@@ -41,10 +41,28 @@ pub enum Command {
     Location { line: u32, column: u32 },
 }
 
+/// One source-map segment: `[generated_column, source_index, source_line_0based,
+/// source_column_0based]`. The source index is always `0` (esrap only ever maps a
+/// single source), matching upstream's emitted shape.
+pub type Segment = [i64; 4];
+
 /// Flatten `commands` into source text, using `indent` (e.g. `"\t"` or a run
 /// of spaces) for each indentation level. Faithful port of the `run`/`append`
 /// loop in esrap's `print`.
 pub fn print(commands: &[Command], indent: &str) -> String {
+    flatten_with_map(commands, indent).0
+}
+
+/// Flatten `commands` into both the source text and its source-map `mappings`
+/// (an array-of-lines, each line an array of [`Segment`]s). A faithful port of
+/// esrap's `print` driver, which threads `current_column` through `append` and
+/// pushes a segment on every `Location` command.
+///
+/// Note on columns: esrap segments carry ESTree columns (UTF-16 code-unit
+/// indices). This port derives source columns from byte offsets, so the two
+/// agree for ASCII / BMP source (which covers the keyword sites). Generated
+/// columns are likewise tracked in `char`s of the emitted code.
+pub fn flatten_with_map(commands: &[Command], indent: &str) -> (String, Vec<Vec<Segment>>) {
     let mut driver = Driver {
         code: String::new(),
         current_newline: String::from("\n"),
@@ -52,11 +70,18 @@ pub fn print(commands: &[Command], indent: &str) -> String {
         needs_newline: false,
         needs_margin: false,
         needs_space: false,
+        current_column: 0,
+        mappings: Vec::new(),
+        current_line: Vec::new(),
     };
     for command in commands {
         driver.run(command);
     }
-    driver.code
+    // esrap pushes the final (possibly empty) line once the buffer is drained.
+    driver
+        .mappings
+        .push(std::mem::take(&mut driver.current_line));
+    (driver.code, driver.mappings)
 }
 
 struct Driver<'a> {
@@ -68,6 +93,12 @@ struct Driver<'a> {
     needs_newline: bool,
     needs_margin: bool,
     needs_space: bool,
+    /// Current 0-based generated column (in `char`s), reset on each `\n`.
+    current_column: i64,
+    /// Completed generated lines of segments.
+    mappings: Vec<Vec<Segment>>,
+    /// Segments accumulated for the generated line currently being built.
+    current_line: Vec<Segment>,
 }
 
 impl Driver<'_> {
@@ -88,12 +119,35 @@ impl Driver<'_> {
             }
             Command::Str(s) => {
                 self.flush_pending();
-                self.code.push_str(s);
+                self.append(s);
             }
-            Command::Location { .. } => {
-                // Anchors flush pending whitespace just like a string would, so
-                // that adding source-map support later doesn't shift output.
+            Command::Location { line, column } => {
+                // Anchors flush pending whitespace just like a string would (so
+                // adding source-map support doesn't shift output), then record a
+                // segment at the current generated column. Mirrors esrap's
+                // `command.type === 'Location'` branch in `run`.
                 self.flush_pending();
+                self.current_line.push([
+                    self.current_column,
+                    0, // source index is always zero
+                    *line as i64 - 1,
+                    *column as i64,
+                ]);
+            }
+        }
+    }
+
+    /// Append literal text to the output, advancing `current_column` per char
+    /// and rolling over `current_line`/`mappings` on each `\n`. A faithful port
+    /// of esrap's `append`.
+    fn append(&mut self, str: &str) {
+        self.code.push_str(str);
+        for ch in str.chars() {
+            if ch == '\n' {
+                self.mappings.push(std::mem::take(&mut self.current_line));
+                self.current_column = 0;
+            } else {
+                self.current_column += 1;
             }
         }
     }
@@ -104,11 +158,13 @@ impl Driver<'_> {
     fn flush_pending(&mut self) {
         if self.needs_newline {
             if self.needs_margin {
-                self.code.push('\n');
+                self.append("\n");
             }
-            self.code.push_str(&self.current_newline);
+            let nl = std::mem::take(&mut self.current_newline);
+            self.append(&nl);
+            self.current_newline = nl;
         } else if self.needs_space {
-            self.code.push(' ');
+            self.append(" ");
         }
         self.needs_newline = false;
         self.needs_margin = false;
