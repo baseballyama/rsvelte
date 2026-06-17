@@ -1255,8 +1255,14 @@ pub fn svelte2tsx(
                 && !exported_names.type_already_inserted
                 && {
                     let type_text = exported_names.props_type_text.as_ref().unwrap();
-                    // Check if type references runtime values via `typeof`
-                    let has_typeof = type_text.contains("typeof ");
+                    // Check if type references an instance-local value via
+                    // `typeof` (an imported `typeof` stays hoistable).
+                    let has_typeof = type_text_typeof_references_local_value(
+                        type_text,
+                        &exported_names.instance_value_names,
+                        &exported_names.instance_import_names,
+                        &exported_names.module_import_names,
+                    );
                     // Check if type references generics from $$render
                     let has_generic_dep = !render_generics.is_empty()
                         && generics_param
@@ -1470,7 +1476,12 @@ pub fn svelte2tsx(
                 && !exported_names.type_already_inserted
                 && {
                     let type_text = exported_names.props_type_text.as_ref().unwrap();
-                    let has_typeof = type_text.contains("typeof ");
+                    let has_typeof = type_text_typeof_references_local_value(
+                        type_text,
+                        &exported_names.instance_value_names,
+                        &exported_names.instance_import_names,
+                        &exported_names.module_import_names,
+                    );
                     let has_generic_dep = !render_generics.is_empty()
                         && generics_param
                             .as_ref()
@@ -3259,6 +3270,63 @@ fn type_text_references_any(type_text: &str, names: &std::collections::HashSet<S
 #[inline]
 fn is_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Return true if `type_text` contains a `typeof X` value-query whose root
+/// identifier `X` is a value **declared in the instance script** (and not an
+/// import).
+///
+/// This mirrors upstream's `HoistableInterfaces` hoistability test for the
+/// synthesised `$$ComponentProps` alias: a `typeof X` adds `X` to the props
+/// interface's `value_deps`, and the alias can only be hoisted above
+/// `function $$render()` when every value dep is an *allowed reference*
+/// (`isAllowedReference`) — i.e. NOT a locally-declared instance value. A
+/// `typeof` of an **imported** binding (e.g. `ComponentProps<typeof Button>`
+/// where `Button` is `import`ed) stays hoistable, because the import lives at
+/// module scope above `$$render`. The previous heuristic forced *every*
+/// `typeof` inside `$$render`, which wrongly nested the alias for the very
+/// common imported-component case.
+fn type_text_typeof_references_local_value(
+    type_text: &str,
+    instance_value_names: &std::collections::HashSet<String>,
+    instance_import_names: &std::collections::HashSet<String>,
+    module_import_names: &std::collections::HashSet<String>,
+) -> bool {
+    let bytes = type_text.as_bytes();
+    let kw = b"typeof";
+    let mut i = 0usize;
+    while i + kw.len() <= bytes.len() {
+        if &bytes[i..i + kw.len()] == kw {
+            let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+            let mut j = i + kw.len();
+            // `typeof` must be followed by whitespace (a value query), not be a
+            // prefix of a longer identifier like `typeofX`.
+            let has_ws = j < bytes.len() && bytes[j].is_ascii_whitespace();
+            if before_ok && has_ws {
+                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+                // Capture the root identifier (stop at `.` / non-ident), e.g.
+                // `foo.bar.baz` -> `foo`.
+                let start = j;
+                while j < bytes.len() && is_ident_char(bytes[j]) {
+                    j += 1;
+                }
+                if j > start {
+                    let root = &type_text[start..j];
+                    let is_import = instance_import_names.contains(root)
+                        || module_import_names.contains(root);
+                    if !is_import && instance_value_names.contains(root) {
+                        return true;
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    false
 }
 
 /// Split a generics string like "T extends Record<string, any>, U" into
