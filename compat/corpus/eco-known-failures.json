@@ -153,7 +153,6 @@
 	"eco-melt-ui/docs/src/components/preview.svelte",
 	"eco-melt-ui/docs/src/components/transition.svelte",
 	"eco-melt-ui/docs/src/previews/avatar.svelte",
-	"eco-melt-ui/docs/src/previews/dialog.svelte",
 	"eco-melt-ui/docs/src/previews/progress.svelte",
 	"eco-melt-ui/docs/src/previews/radio-group.svelte",
 	"eco-melt-ui/docs/src/previews/slider.svelte",

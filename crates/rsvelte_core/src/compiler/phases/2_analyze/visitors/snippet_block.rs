@@ -215,6 +215,9 @@ fn expression_only_uses_params_node(
 
         JsNode::CallExpression {
             callee, arguments, ..
+        }
+        | JsNode::NewExpression {
+            callee, arguments, ..
         } => {
             if !expression_only_uses_params_node(arena.get_js_node(*callee), param_names, context) {
                 return false;
@@ -1126,7 +1129,7 @@ fn expression_only_uses_params(
             | Some("BooleanLiteral")
             | Some("NullLiteral") => true,
 
-            Some("CallExpression") => {
+            Some("CallExpression") | Some("NewExpression") => {
                 if let Some(callee) = obj.get("callee")
                     && !expression_only_uses_params(callee, param_names, context)
                 {
