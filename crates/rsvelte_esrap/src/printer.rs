@@ -673,9 +673,18 @@ impl<'opt> Printer<'opt> {
             ctx.write(format!("{raw}${{"));
             self.print_expression(unparen(expr), ctx);
             ctx.write("}");
+            // A newline *inside* the literal makes the enclosing context
+            // multiline (esrap), which drives statement-margin decisions.
+            if raw.contains('\n') {
+                ctx.multiline = true;
+            }
         }
         if let Some(last) = node.quasis.last() {
-            ctx.write(format!("{}`", last.value.raw));
+            let raw = last.value.raw.as_str();
+            ctx.write(format!("{raw}`"));
+            if raw.contains('\n') {
+                ctx.multiline = true;
+            }
         }
     }
 
@@ -900,7 +909,8 @@ impl<'opt> Printer<'opt> {
         if let Some(handler) = &node.handler {
             ctx.write(" ");
             if let Some(param) = &handler.param {
-                ctx.write("catch (");
+                // esrap emits `catch(e)` with no space after the keyword.
+                ctx.write("catch(");
                 self.binding_pattern(&param.pattern, ctx);
                 ctx.write(") ");
             } else {
@@ -2136,7 +2146,7 @@ mod tests {
         );
         assert_eq!(
             print_ok("try { a(); } catch (e) { b(); }"),
-            "try {\n\ta();\n} catch (e) {\n\tb();\n}"
+            "try {\n\ta();\n} catch(e) {\n\tb();\n}"
         );
         assert_eq!(
             print_ok("try { a(); } finally { c(); }"),
