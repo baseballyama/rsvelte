@@ -108,6 +108,18 @@ pub struct ExportedNames {
     /// force-inside-render, because the hoisted declaration is still in scope
     /// when the synthesised type is read.
     pub hoistable_instance_type_names: HashSet<String>,
+    /// Absolute source range of the inline type argument in `$props<{ ... }>()`.
+    /// When set, the type arg is moved to `scriptStart` (like other hoistable types)
+    /// with `\ntype $$ComponentProps = ` prepended and `;` appended.
+    /// The original position gets `/*Ωignore_startΩ*/ $$ComponentProps /*Ωignore_endΩ*/`
+    /// inserted via `append_right`.
+    /// Mirrors upstream's `analyze$propsRune` → `moveHoistableInterfaces` for `$$ComponentProps`.
+    pub props_type_arg_hoist: Option<(u32, u32)>,
+    /// True when `$props<{ ... }>()` (inline non-named type arg) form is used and the type
+    /// is being moved to scriptStart via `props_type_arg_hoist`. In this case `create_props_str`
+    /// should return `{} as any as $$ComponentProps` even without `props_type_text` being set
+    /// (to avoid triggering `ts_component_props_before_render`).
+    pub props_type_arg_hoist_ts: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -163,6 +175,8 @@ impl ExportedNames {
             module_import_names: HashSet::new(),
             module_type_names: HashSet::new(),
             hoistable_instance_type_names: HashSet::new(),
+            props_type_arg_hoist: None,
+            props_type_arg_hoist_ts: false,
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
@@ -300,6 +314,10 @@ impl ExportedNames {
     }
     pub fn create_props_str(&self, is_ts: bool, uses_dollar_props: bool) -> String {
         if self.is_runes_mode() {
+            // Type-arg hoist case: `$props<{ ... }>()` with type moved to scriptStart
+            if self.props_type_arg_hoist_ts {
+                return "{} as any as $$ComponentProps".to_string();
+            }
             // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
             if self.has_component_props_typedef && self.props_type_text.is_some() {
                 // TS hoistable case: `{} as any as $$ComponentProps`
@@ -806,6 +824,17 @@ struct PropsRuneInfo {
     prop_types: Vec<(String, bool, String)>,
     /// Names of $bindable() props
     bindable_names: Vec<String>,
+    /// Whether the $props() call has a type argument: `$props<TypeArg>()`
+    has_type_arg: bool,
+    /// Start of the type argument (relative to raw_content), for `$props<TypeArg>()`
+    type_arg_start: Option<u32>,
+    /// End of the type argument (relative to raw_content), for `$props<TypeArg>()`
+    type_arg_end: Option<u32>,
+    /// Text of the type argument
+    type_arg_text: Option<String>,
+    /// Whether the type argument is a plain named type reference (TSTypeReference),
+    /// e.g. `$props<Props>()` — used directly without creating `$$ComponentProps`.
+    type_arg_is_named_ref: bool,
 }
 
 // =============================================================================
@@ -1388,8 +1417,22 @@ pub fn process_instance_script(
             // synthetic `$$ComponentProps` (built from the inline annotation) is.
             // Either way, NOTHING is hoisted unless the props interface itself is
             // hoistable — see `resolve_hoistable_type_decls`.
-            let props_named_ref: Option<String> = if info.is_named_type_reference {
-                info.type_text.as_ref().map(|t| {
+            // Determine the effective type source: type-arg form takes priority over
+            // annotation form (mirrors upstream `typeArguments?.[0] || node.type`).
+            let effective_is_named_ref = if info.has_type_arg && !info.has_type_annotation {
+                info.type_arg_is_named_ref
+            } else {
+                info.is_named_type_reference
+            };
+            let effective_type_text: Option<&str> = if info.has_type_arg && !info.has_type_annotation {
+                info.type_arg_text.as_deref()
+            } else {
+                info.type_text.as_deref()
+            };
+            let effective_has_type = info.has_type_annotation || info.has_type_arg;
+
+            let props_named_ref: Option<String> = if effective_is_named_ref {
+                effective_type_text.map(|t| {
                     // `Props` or `Props<T>` → root name `Props`.
                     t.split(|ch: char| !is_ident_char_for_str(ch))
                         .find(|s| !s.is_empty())
@@ -1400,10 +1443,10 @@ pub fn process_instance_script(
                 None
             };
             let props_inline_type: Option<&str> =
-                if info.is_named_type_reference || !info.has_type_annotation {
+                if effective_is_named_ref || !effective_has_type {
                     None
                 } else {
-                    info.type_text.as_deref()
+                    effective_type_text
                 };
             resolve_hoistable_type_decls(
                 &candidates,
@@ -1466,6 +1509,50 @@ fn apply_props_typedef(
     is_ts: bool,
     basename: &str,
 ) {
+    if info.has_type_arg && !info.has_type_annotation {
+        // TS type-argument form: `let { ... } = $props<TypeArg>()`
+        // Mirrors upstream ExportedNames.ts handle$propsRune "Easy mode":
+        //   `if (node.initializer.typeArguments?.length > 0 || node.type)`
+        if info.type_arg_is_named_ref {
+            // `$props<Props>()` → use Props directly, no $$ComponentProps needed.
+            // props_type_text is already set by detect_props_rune_oxc.
+            // No source manipulation needed.
+        } else {
+            // `$props<{ data: T; flag?: boolean }>()` → synthesize $$ComponentProps.
+            // Mirror upstream's move-to-scriptStart mechanism:
+            //   1. prepend_right(arg_start, ";type $$ComponentProps = ") — travels with chunk
+            //   2. append_left(arg_end, ";") — travels with chunk
+            //   3. move_range(arg_start, arg_end, scriptStart) — done in svelte2tsx.rs
+            //   4. append_right(arg_end, "/*...$$ComponentProps...*/") — stays at original position
+            // The move_range + append_right means the inline type is hoisted outside $$render
+            // and the call site gets `$props</*Ωignore_startΩ*/ $$ComponentProps /*Ωignore_endΩ*/>()`.
+            if let (Some(arg_start), Some(arg_end)) = (info.type_arg_start, info.type_arg_end) {
+                let abs_start = arg_start + offset;
+                let abs_end = arg_end + offset;
+                // Prepend `;type $$ComponentProps = ` before the inline type (travels with move)
+                str.prepend_right(
+                    abs_start,
+                    "\ntype $$ComponentProps = ",
+                );
+                // Append `;` after the inline type (travels with move)
+                str.append_left(abs_end, ";");
+                // After the move, place $$ComponentProps reference at the original location.
+                // This must be done BEFORE the move_range call in svelte2tsx.rs (or at any time,
+                // since append_right inserts into the intro of the chunk at abs_end, which is NOT
+                // the moved chunk but the chunk that starts right after abs_end).
+                str.append_right(
+                    abs_end,
+                    "/*\u{03A9}ignore_start\u{03A9}*/ $$ComponentProps /*\u{03A9}ignore_end\u{03A9}*/",
+                );
+                // Signal svelte2tsx.rs to call move_range(abs_start, abs_end, scriptStart)
+                exported_names.props_type_arg_hoist = Some((abs_start, abs_end));
+                exported_names.props_type_arg_hoist_ts = true;
+            }
+            exported_names.has_component_props_typedef = true;
+        }
+        return;
+    }
+
     if info.has_type_annotation && info.is_hoistable_type {
         // TS case with inline object type: `: { a: number, b: string }`
         // Create $$ComponentProps alias and replace everything from `:` to end of type
@@ -3991,15 +4078,43 @@ fn detect_props_rune_oxc(
         exported_names.set_has_props_rune(true);
         exported_names.set_uses_runes(true);
 
-        // Extract type annotation if present (e.g., `: Props` in `let {...}: Props = $props()`)
-        // Check the declarator's own type_annotation field (OXC VariableDeclarator)
-        if let Some(ref ta) = declarator.type_annotation {
-            let ts_type = &ta.type_annotation;
-            let start = ts_type.span().start as usize;
-            let end = ts_type.span().end as usize;
+        // Extract type from the $props() call, checking type arguments first
+        // (mirrors upstream's `generic_arg = node.initializer.typeArguments?.[0] || node.type`).
+        // 1. Check type arguments: `let { ... } = $props<Props>()`
+        // 2. Fall back to type annotation: `let { ... }: Props = $props()`
+        let mut found_type = false;
+        if let Some(ref init) = declarator.init
+            && let oxc::Expression::CallExpression(call) = init
+            && let Some(ref type_args) = call.type_arguments
+            && let Some(first_param) = type_args.params.first()
+        {
+            let start = first_param.span().start as usize;
+            let end = first_param.span().end as usize;
             if start < end && end <= raw_content.len() {
                 let type_text = &raw_content[start..end];
-                exported_names.props_type_text = Some(type_text.to_string());
+                // For plain named type references, use directly.
+                // For complex types (inline object, union, etc.), the type is
+                // MOVED to scriptStart via props_type_arg_hoist — do NOT set
+                // props_type_text here, otherwise ts_component_props_before_render
+                // would emit a duplicate `type $$ComponentProps = ...;`.
+                if matches!(first_param, oxc::TSType::TSTypeReference(_)) {
+                    exported_names.props_type_text = Some(type_text.to_string());
+                }
+                // Non-named type arg: props_type_text stays None;
+                // create_props_str uses props_type_arg_hoist_ts flag instead.
+                found_type = true;
+            }
+        }
+        if !found_type {
+            // Extract type annotation if present (e.g., `: Props` in `let {...}: Props = $props()`)
+            if let Some(ref ta) = declarator.type_annotation {
+                let ts_type = &ta.type_annotation;
+                let start = ts_type.span().start as usize;
+                let end = ts_type.span().end as usize;
+                if start < end && end <= raw_content.len() {
+                    let type_text = &raw_content[start..end];
+                    exported_names.props_type_text = Some(type_text.to_string());
+                }
             }
         }
 
@@ -4259,6 +4374,27 @@ fn collect_props_rune_info(
         }
     }
 
+    // Detect type arguments on the $props() call: `$props<TypeArg>()`
+    let (has_type_arg, type_arg_start, type_arg_end, type_arg_text, type_arg_is_named_ref) =
+        if let Some(ref init) = declarator.init
+            && let oxc::Expression::CallExpression(call) = init
+            && let Some(ref type_args) = call.type_arguments
+            && let Some(first_param) = type_args.params.first()
+        {
+            let start = first_param.span().start;
+            let end = first_param.span().end;
+            let text =
+                if (start as usize) < raw_content.len() && (end as usize) <= raw_content.len() {
+                    Some(raw_content[start as usize..end as usize].to_string())
+                } else {
+                    None
+                };
+            let is_named_ref = matches!(first_param, oxc::TSType::TSTypeReference(_));
+            (true, Some(start), Some(end), text, is_named_ref)
+        } else {
+            (false, None, None, None, false)
+        };
+
     Some(PropsRuneInfo {
         let_pos,
         destructure_start,
@@ -4279,6 +4415,11 @@ fn collect_props_rune_info(
         has_unknown_props,
         prop_types,
         bindable_names,
+        has_type_arg,
+        type_arg_start,
+        type_arg_end,
+        type_arg_text,
+        type_arg_is_named_ref,
     })
 }
 

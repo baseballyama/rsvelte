@@ -1382,7 +1382,8 @@ pub fn svelte2tsx(
 
             let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
                 || !exported_names.hoistable_type_ranges.is_empty()
-                || !exported_names.dollar_generic_referenced_ranges.is_empty();
+                || !exported_names.dollar_generic_referenced_ranges.is_empty()
+                || exported_names.props_type_arg_hoist.is_some();
             // Split position: right after the `<` of `<script>`. This matches
             // the JS reference's `scriptTag.start + 1`, so moved chunks land
             // between the `;` (from the `<` overwrite) and the function
@@ -1422,6 +1423,15 @@ pub fn svelte2tsx(
                         // semicolon stranded at the original location.
                         str.prepend_right(s, ";");
                         str.append_left(e, ";");
+                        str.move_range(s, e, sp);
+                    }
+                }
+                // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
+                // `\ntype $$ComponentProps = ` and `;` were already added via
+                // `prepend_right`/`append_left` in `apply_props_typedef`.
+                // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
+                if let Some((s, e)) = exported_names.props_type_arg_hoist {
+                    if s < e && (e as usize) <= source.len() {
                         str.move_range(s, e, sp);
                     }
                 }
@@ -1570,7 +1580,8 @@ pub fn svelte2tsx(
             );
             let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
                 || !exported_names.hoistable_type_ranges.is_empty()
-                || !exported_names.dollar_generic_referenced_ranges.is_empty();
+                || !exported_names.dollar_generic_referenced_ranges.is_empty()
+                || exported_names.props_type_arg_hoist.is_some();
             // Split position: right after the `<` of `<script>`. This matches
             // the JS reference's `scriptTag.start + 1`, so moved chunks land
             // between the `;` (from the `<` overwrite) and the function
@@ -1610,6 +1621,15 @@ pub fn svelte2tsx(
                         // semicolon stranded at the original location.
                         str.prepend_right(s, ";");
                         str.append_left(e, ";");
+                        str.move_range(s, e, sp);
+                    }
+                }
+                // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
+                // `\ntype $$ComponentProps = ` and `;` were already added via
+                // `prepend_right`/`append_left` in `apply_props_typedef`.
+                // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
+                if let Some((s, e)) = exported_names.props_type_arg_hoist {
+                    if s < e && (e as usize) <= source.len() {
                         str.move_range(s, e, sp);
                     }
                 }
