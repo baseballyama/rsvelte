@@ -1942,11 +1942,9 @@ pub fn svelte2tsx(
         props_str, exports_str, bindings_str, slots_str, events_str,
     );
 
-    // Add component documentation as JSDoc comment before the component export
-    if let Some(ref doc) = component_doc {
-        closing.push_str(doc);
-        closing.push('\n');
-    }
+    // component_doc is emitted immediately before each component const/class
+    // declaration below (mirroring upstream addComponentExport.ts which places
+    // `${doc}` adjacent to the component declaration in every branch).
 
     // Build the renderCall / awaitDeclaration pair used throughout the
     // component export section below.
@@ -2038,6 +2036,10 @@ pub fn svelte2tsx(
     match options.version {
         SvelteVersion::V4 => {
             let prop_def = build_prop_def(&exported_names);
+            if let Some(ref doc) = component_doc {
+                closing.push_str(doc);
+                closing.push('\n');
+            }
             let _ = write!(
                 closing,
                 "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent({}) {{\n}}",
@@ -2064,6 +2066,10 @@ pub fn svelte2tsx(
                     // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
                     // in that case, `$$render()` otherwise.
                     closing.push_str(await_declaration);
+                    if let Some(ref doc) = component_doc {
+                        closing.push_str(doc);
+                        closing.push('\n');
+                    }
                     let _ = writeln!(
                         closing,
                         "export const {} = __sveltets_2_fn_component({});",
@@ -2120,6 +2126,7 @@ pub fn svelte2tsx(
                         has_slot_elements,
                         !events.is_empty(),
                         !can_have_any_prop && props_has_no_props,
+                        component_doc.as_deref(),
                     );
                 } else {
                     // Runes mode, TS syntax, no generics — the most common path.
@@ -2129,6 +2136,10 @@ pub fn svelte2tsx(
                     // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
                     // in that case, `$$render()` otherwise.
                     closing.push_str(await_declaration);
+                    if let Some(ref doc) = component_doc {
+                        closing.push_str(doc);
+                        closing.push('\n');
+                    }
                     let _ = writeln!(
                         closing,
                         "const {} = __sveltets_2_fn_component({});",
@@ -2239,6 +2250,10 @@ pub fn svelte2tsx(
                 closing.push_str("}\n");
 
                 // Component export
+                if let Some(ref doc) = component_doc {
+                    closing.push_str(doc);
+                    closing.push('\n');
+                }
                 let _ = writeln!(
                     closing,
                     "const {}: $$IsomorphicComponent = null as any;",
@@ -2268,6 +2283,10 @@ pub fn svelte2tsx(
                 } else {
                     "__sveltets_2_isomorphic_component"
                 };
+                if let Some(ref doc) = component_doc {
+                    closing.push_str(doc);
+                    closing.push('\n');
+                }
                 let _ = writeln!(
                     closing,
                     "const {} = {}({});",
@@ -2354,6 +2373,7 @@ fn emit_runes_generics_component(
     has_slot_elements: bool,
     has_events: bool,
     props_is_empty: bool,
+    component_doc: Option<&str>,
 ) {
     let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
     let _ = writeln!(
@@ -2415,6 +2435,10 @@ fn emit_runes_generics_component(
     );
     closing.push_str("}\n");
 
+    if let Some(doc) = component_doc {
+        closing.push_str(doc);
+        closing.push('\n');
+    }
     let _ = writeln!(
         closing,
         "const {safe_name}: $$IsomorphicComponent = null as any;"

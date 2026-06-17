@@ -1,9 +1,5 @@
 [
 	"bits-ui/packages/bits-ui/src/lib/bits/command/components/command.svelte",
-	"flowbite-svelte/src/lib/forms/radio/Radio.svelte",
-	"flowbite-svelte/src/lib/forms/radio/RadioButton.svelte",
-	"flowbite-svelte/src/lib/virtual-masonry/VirtualMasonry.svelte",
-	"flowbite-svelte/src/lib/virtuallist/VirtualList.svelte",
 	"flowbite-svelte/src/routes/blocks/utils/ExampleWrapper.svelte",
 	"flowbite-svelte/src/routes/blocks/utils/Toc.svelte",
 	"flowbite-svelte/src/routes/utils/Paging.svelte",
