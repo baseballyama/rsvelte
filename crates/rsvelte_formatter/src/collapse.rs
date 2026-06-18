@@ -228,34 +228,51 @@ fn reformat_pre_inner(
     let mut tab_lines: HashSet<usize> = HashSet::new();
     collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
 
+    // Whether the original content was hugged directly after `>` (no leading
+    // whitespace). When hugged, the first line stays inline (no leading `\n`)
+    // and subsequent lines are re-indented normally.
+    let hugged = !raw_inner.starts_with(|c: char| c.is_ascii_whitespace());
+
     // Re-indent every line: shift by `content_depth` levels; tab-marked lines use
     // tabs, the rest use spaces.
     let mut result = String::new();
     let mut offset = 0usize;
+    let mut first_line = true;
     for line in formatted.split('\n') {
-        result.push('\n');
-        let trimmed = line.trim_start_matches(' ');
-        if !trimmed.is_empty() {
-            let spaces = line.len() - trimmed.len();
-            let real_depth = spaces / iw + content_depth;
-            if tab_lines.contains(&offset) {
-                for _ in 0..real_depth {
-                    result.push('\t');
+        if first_line && hugged {
+            // Inline: emit the content directly (no leading \n, no indent
+            // — the caller's `>` is already on the line).
+            result.push_str(line.trim_start_matches(' '));
+            first_line = false;
+        } else {
+            result.push('\n');
+            let trimmed = line.trim_start_matches(' ');
+            if !trimmed.is_empty() {
+                let spaces = line.len() - trimmed.len();
+                let real_depth = spaces / iw + content_depth;
+                if tab_lines.contains(&offset) {
+                    for _ in 0..real_depth {
+                        result.push('\t');
+                    }
+                } else {
+                    for _ in 0..real_depth * iw {
+                        result.push(' ');
+                    }
                 }
-            } else {
-                for _ in 0..real_depth * iw {
-                    result.push(' ');
-                }
+                result.push_str(trimmed);
             }
-            result.push_str(trimmed);
         }
         offset += line.len() + 1; // +1 for the '\n' split removed
     }
     // The close tag's own line: pre-direct trailing whitespace → tabs at the
-    // element's depth (one less than its content).
-    result.push('\n');
-    for _ in 0..content_depth.saturating_sub(1) {
-        result.push('\t');
+    // element's depth (one less than its content). In the hugged case, the
+    // content starts inline (no leading `\n`) and the close tag immediately
+    // follows on the same line — no trailing `\n<indent>` needed.
+    if !hugged {
+        result.push('\n');
+        for _ in 0..content_depth.saturating_sub(1) {
+            result.push('\t');
+        }
     }
 
     let replacement = result;
@@ -2704,7 +2721,16 @@ fn try_hug_mixed(
     let raw = out.get(content_start..content_end)?;
     // Hug only when content is directly adjacent to BOTH tags (shouldHugStart /
     // shouldHugEnd). Whitespace-separated content is `try_fill_mixed`'s job.
-    if raw.starts_with([' ', '\t', '\r', '\n']) || raw.ends_with([' ', '\t', '\r', '\n']) {
+    // Exception: for Components (`<Kbd.Group>`, etc.), the trailing edge may have
+    // whitespace (newline + indent before `</Tag>`) without affecting the hug — the
+    // trailing whitespace is just formatting, not injected CSS whitespace. We allow
+    // the hug when only the trailing edge has whitespace, for components only.
+    let raw_trail_ws_only = is_component_tag(tag)
+        && !raw.starts_with([' ', '\t', '\r', '\n'])
+        && raw.ends_with([' ', '\t', '\r', '\n']);
+    if raw.starts_with([' ', '\t', '\r', '\n'])
+        || (raw.ends_with([' ', '\t', '\r', '\n']) && !raw_trail_ws_only)
+    {
         return None;
     }
     let column = current_column(out, start);
@@ -2739,7 +2765,14 @@ fn try_hug_mixed(
     if raw.contains('\n') && !open.contains('\n') {
         let inner_indent = format!("{ws_indent}  ");
         let open_no_bracket = &open[..open.len() - 1];
-        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>");
+        // When raw ends with whitespace (component with trailing newline+indent before
+        // `</Tag>`), the trailing whitespace provides the correct indentation, so just
+        // use `</{tag}>` directly instead of adding `\n{ws_indent}>`.
+        let result = if raw_trail_ws_only {
+            format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}>")
+        } else {
+            format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>")
+        };
         return (result != whole).then_some((start, end, result));
     }
 
@@ -3165,6 +3198,7 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                     // element group (prettier's `splitTextToDocs` returns a bare
                     // line here, governed by the parent group's break mode) rather
                     // than a lone `Fill` that always prints flat.
+                    //
                     docs.extend(parts);
                 } else {
                     docs.push(Doc::Fill(parts));
