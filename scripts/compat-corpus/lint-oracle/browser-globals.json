@@ -1,6 +1,7 @@
 {
-  "_comment": "Browser globals declared in the oracle's lint environment so svelte/no-top-level-browser-globals is actually exercised. eslint-plugin-svelte's flat/base config declares NO browser globals, so without this the rule's scope-based ReferenceTracker finds zero references and never fires — making every rsvelte finding look like a false positive. This curated set MUST match BROWSER_GLOBALS in crates/rsvelte_lint/src/rules/no_top_level_browser_globals.rs so both engines test the identical, collision-free environment. (The full globals.browser set is intentionally NOT used: it contains common identifiers like `name`/`event`/`length` that rsvelte's name-based matcher cannot distinguish from local bindings without full ESLint-style scope resolution — see docs/lint-corpus-remaining-work.md.)",
-  "globals": [
+  "_comment": "The oracle's declared lint-environment globals. eslint-plugin-svelte's flat/base config declares none, but several rules locate targets via eslint-utils ReferenceTracker, which only sees names that exist in the global scope — so without these the rules silently no-op and rsvelte's correct findings look like false positives (see docs/lint-corpus-harness-findings.md). run.mjs combines globals.builtin (ES intrinsics) with the two lists below. The full globals.browser set is intentionally NOT used: it contains common identifiers (name/event/length/status/top/open/find/…) that rsvelte's name-based no-top-level-browser-globals matcher cannot distinguish from local bindings without full ESLint scope resolution.",
+  "browserOnly_comment": "Curated browser-only globals checked by svelte/no-top-level-browser-globals. MUST stay equal to BROWSER_GLOBALS in crates/rsvelte_lint/src/rules/no_top_level_browser_globals.rs so both engines flag the identical, collision-free set.",
+  "browserOnly": [
     "window",
     "document",
     "location",
@@ -24,5 +25,18 @@
     "scrollBy",
     "open",
     "indexedDB"
+  ],
+  "envApis_comment": "Universal Web/Node APIs that ReferenceTracker-based rules track: URL/URLSearchParams (prefer-svelte-reactivity) and the timer family (infinite-reactive-loop). Non-collision-prone, available in every realistic Svelte runtime.",
+  "envApis": [
+    "URL",
+    "URLSearchParams",
+    "fetch",
+    "setTimeout",
+    "clearTimeout",
+    "setInterval",
+    "clearInterval",
+    "queueMicrotask",
+    "setImmediate",
+    "clearImmediate"
   ]
 }

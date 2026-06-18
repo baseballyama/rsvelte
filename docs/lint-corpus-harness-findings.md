@@ -82,4 +82,16 @@ common identifiers `name`/`event`/`length`/… would collide with locals in
 rsvelte's name-based `no-top-level-browser-globals`). rsvelte's rule logic was
 correct throughout.
 
+### (exposed gap) `no-immutable-reactive-statements` misses all-immutable `$:` IIFEs (rsvelte gap, tracked)
+
+Declaring the environment globals (above) also lets the oracle correctly fire
+`no-immutable-reactive-statements` on `infinite-reactive-loop/valid/test01`:
+`$: (async () => { let a = 0; … setTimeout(…) … })()` references only immutable
+free variables (the inner `a` shadows the outer one; `setTimeout`/`Promise` are
+globals), so the statement is non-reactive. rsvelte does not detect this case
+(its referenced-variable mutability analysis doesn't account for the shadowed
+local + all-global body). Tracked with the other `no-immutable-reactive-statements`
+gaps in `docs/lint-corpus-remaining-work.md`; it is a real rsvelte gap, not a
+harness artifact.
+
 <!-- Add further harness/upstream findings below as the burn-down continues. -->
