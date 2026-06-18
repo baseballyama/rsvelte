@@ -25,7 +25,6 @@
 	"bits-ui/tests/src/tests/context-menu/context-menu-force-mount-test.svelte",
 	"bits-ui/tests/src/tests/dropdown-menu/dropdown-menu-force-mount-test.svelte",
 	"bits-ui/tests/src/tests/select/select-force-mount-test.svelte",
-	"flowbite-svelte/src/lib/accordion/AccordionItem.svelte",
 	"flowbite-svelte/src/lib/buttons/Button.svelte",
 	"flowbite-svelte/src/lib/clipboard-manager/ClipboardManager.svelte",
 	"flowbite-svelte/src/lib/darkmode/DarkMode.svelte",
@@ -42,7 +41,6 @@
 	"flowbite-svelte/src/lib/stepper/TimelineStepper.svelte",
 	"flowbite-svelte/src/lib/stepper/VerticalStepper.svelte",
 	"flowbite-svelte/src/lib/tabs/TabItem.svelte",
-	"flowbite-svelte/src/lib/timeline/TimelineItem.svelte",
 	"flowbite-svelte/src/lib/tour/Tour.svelte",
 	"flowbite-svelte/src/lib/utils/CloseButton.svelte",
 	"flowbite-svelte/src/routes/+page.svelte",
@@ -120,6 +118,5 @@
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/dashboard/components/data-table.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-view-options.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table.svelte",
-	"shadcn-svelte/docs/src/routes/(app)/preview/[item]/+page.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte"
 ]
