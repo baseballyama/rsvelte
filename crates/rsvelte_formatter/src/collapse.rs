@@ -546,10 +546,11 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
     }
     // A pure-text run (no inline elements) that is already on a single line
     // (no `\n` in `whole`) should not be broken — prettier does not aggressively
-    // re-wrap text-only paragraphs that the indent pass placed on one line, even
-    // when they slightly overflow (e.g. a `for framework setup …` suffix after
-    // a block-display `<a>` parent). Multi-element runs (elements + text) are
-    // still reflowed because their fill doc correctly measures line-break points.
+    // re-wrap prose that the indent pass placed on one line, even when it slightly
+    // overflows (e.g. a `<strong>Code suggestions</strong> validated … before you
+    // merge.` run that reaches 86 cols). Only reflow pure-text single-node runs
+    // that are already single-line; multi-node runs (with inline elements) that
+    // span multiple lines in the formatted output are still reflowed normally.
     // Note: `run` was rebound above to `run[lo..hi]` (whitespace-only edges trimmed).
     if run.len() == 1
         && matches!(run[0], TemplateNode::Text(_))
