@@ -1380,6 +1380,30 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 let inner_script =
                     transform_props_spread_ex(&script_code, extra_tabs, analysis_uses_slots);
+
+                // indent_str is needed both for the BUG-2 props_id hoisting below
+                // and for store_subs_decl / store_subs_cleanup further down.
+                let indent_str = "\t".repeat(wrapper_indent);
+
+                // BUG-2 fix: `const <name> = $.props_id($$renderer)` must be the
+                // FIRST statement inside the `$$renderer.component(...)` callback —
+                // before any other instance-script statements or function declarations.
+                // Upstream places it there via `component_block.body.unshift(...)` in
+                // transform-server.js after assembling the whole component block.
+                //
+                // Strategy: scan `inner_script` for the props_id line, extract and
+                // remove it, then prepend it explicitly at the top of the wrapper body.
+                // We detect it by the pattern `$.props_id($$renderer)` (the transformed
+                // form of `$props.id()`). The `let` keyword produced by transform_script
+                // is also upgraded to `const` to match the upstream output.
+                let (props_id_preamble, inner_script) = if let Some(props_id_name) =
+                    self.analysis.and_then(|a| a.props_id.as_deref())
+                {
+                    extract_props_id_line(&inner_script, props_id_name, &indent_str)
+                } else {
+                    (String::new(), inner_script)
+                };
+
                 let mut each_counter_w: usize = 0;
                 let hoisted_parts_wrapper = Self::hoist_svelte_head(&self.output_parts);
                 let hoisted_parts_wrapper = if !blocker_map.is_empty() {
@@ -1423,7 +1447,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
                 let instance_snippets = self.build_instance_snippets(wrapper_indent);
                 let bind_props_code = self.build_bind_props(wrapper_indent);
-                let indent_str = "\t".repeat(wrapper_indent);
+                // indent_str was already computed above (before the props_id hoisting).
 
                 let store_subs_decl = if self.uses_store_subs {
                     format!("{}var $$store_subs;\n", indent_str)
@@ -1501,9 +1525,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     format!(
                         r#"$$renderer.component(
 		($$renderer) => {{
-{store_subs_decl}{inner_script}
+{props_id_preamble}{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}		}}{component_second_arg}
 	);"#,
+                        props_id_preamble = props_id_preamble,
                         store_subs_decl = store_subs_decl,
                         inner_script = inner_script,
                         instance_snippets = instance_snippets,
@@ -1515,8 +1540,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 } else {
                     format!(
                         r#"$$renderer.component(($$renderer) => {{
-{store_subs_decl}{inner_script}
+{props_id_preamble}{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}}{component_second_arg});"#,
+                        props_id_preamble = props_id_preamble,
                         store_subs_decl = store_subs_decl,
                         inner_script = inner_script,
                         instance_snippets = instance_snippets,
@@ -8457,6 +8483,58 @@ fn strip_async_placeholders(s: &str) -> String {
         }
     }
     result
+}
+
+/// Extract the `$.props_id($$renderer)` declaration line from `inner_script`,
+/// remove it in-place, and return `(props_id_line, modified_inner_script)`.
+///
+/// Upstream's server transform places this const as the FIRST statement inside
+/// the `$$renderer.component(...)` callback via `component_block.body.unshift(...)`.
+/// rsvelte emits it in source order via `transform_props_spread_ex`, so we need
+/// to extract it and re-inject it at the top.
+///
+/// The function searches for any line containing `$.props_id($$renderer)` (the
+/// form produced by `transform_script`), strips it from `inner_script`, upgrades
+/// the keyword from `let` to `const` if needed, and returns the line with the
+/// correct `indent_str` prefix and a trailing newline so the caller can prepend
+/// it directly to the wrapper body.
+///
+/// Returns `(String::new(), inner_script)` unchanged when no such line is found.
+fn extract_props_id_line(
+    inner_script: &str,
+    _props_id_name: &str,
+    indent_str: &str,
+) -> (String, String) {
+    // Search for the pattern; the line has been produced by transform_props_spread_ex
+    // so it carries `extra_tabs` leading tabs.  We strip leading whitespace before
+    // comparing so we are not sensitive to the exact indentation level.
+    let marker = "$.props_id($$renderer)";
+    let mut preamble = String::new();
+    let mut remaining = String::with_capacity(inner_script.len());
+    let mut found = false;
+    for line in inner_script.lines() {
+        let trimmed = line.trim();
+        if !found && memmem::find(trimmed.as_bytes(), marker.as_bytes()).is_some() {
+            // Upgrade `let <name> = $.props_id(...)` → `const <name> = ...`
+            let normalized = if trimmed.starts_with("let ") {
+                format!("const {}", &trimmed[4..])
+            } else {
+                trimmed.to_string()
+            };
+            preamble = format!("{}{}\n", indent_str, normalized);
+            found = true;
+        } else {
+            if !remaining.is_empty() {
+                remaining.push('\n');
+            }
+            remaining.push_str(line);
+        }
+    }
+    // Preserve a trailing newline if the original had one
+    if inner_script.ends_with('\n') && !remaining.ends_with('\n') && !remaining.is_empty() {
+        remaining.push('\n');
+    }
+    (preamble, remaining)
 }
 
 #[cfg(test)]
