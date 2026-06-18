@@ -8516,8 +8516,8 @@ fn extract_props_id_line(
         let trimmed = line.trim();
         if !found && memmem::find(trimmed.as_bytes(), marker.as_bytes()).is_some() {
             // Upgrade `let <name> = $.props_id(...)` → `const <name> = ...`
-            let normalized = if trimmed.starts_with("let ") {
-                format!("const {}", &trimmed[4..])
+            let normalized = if let Some(rest) = trimmed.strip_prefix("let ") {
+                format!("const {}", rest)
             } else {
                 trimmed.to_string()
             };
