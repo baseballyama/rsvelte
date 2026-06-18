@@ -20,6 +20,37 @@ fn paren_if_sequence(expr: String) -> String {
     }
 }
 
+/// Returns `true` when `name` starts with `"on"` AND `value` is a single
+/// expression (not a boolean flag or plain text).
+///
+/// Mirrors upstream `is_event_attribute` from
+/// `svelte/packages/svelte/src/compiler/utils/ast.js`:
+///
+/// ```js
+/// export function is_event_attribute(attribute) {
+///     return is_expression_attribute(attribute) && attribute.name.startsWith('on');
+/// }
+/// ```
+///
+/// Only expression-valued `on*` attributes are DOM event handlers.  A plain
+/// text value like `onload="doSomething()"` is **not** an event handler in
+/// Svelte's sense and must not be silently dropped.
+fn is_event_attribute_value(name: &str, value: &AttributeValue) -> bool {
+    if !name.starts_with("on") {
+        return false;
+    }
+    match value {
+        // Direct expression tag (e.g. `onclick={handler}`)
+        AttributeValue::Expression(_) => true,
+        // Single-element sequence containing an ExpressionTag
+        AttributeValue::Sequence(parts) => {
+            parts.len() == 1 && matches!(parts[0], AttributeValuePart::ExpressionTag(_))
+        }
+        // Boolean true or plain-text values are not event handlers
+        AttributeValue::True(_) => false,
+    }
+}
+
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_element(
         &mut self,
@@ -333,6 +364,15 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::Attribute(node) => {
                     let name = node.name.as_str();
+                    // Skip event-handler attributes in SSR — they have no server
+                    // representation.  Mirrors upstream's `is_event_attribute` check in
+                    // `build_element_attributes` (shared/element.js line 71):
+                    //   } else if (is_event_attribute(attribute)) {
+                    // where `is_event_attribute` = name.startsWith('on') AND value is a
+                    // single ExpressionTag (not a plain text value).
+                    if is_event_attribute_value(name, &node.value) {
+                        continue;
+                    }
                     let value = self.extract_attribute_value_as_string(node)?;
                     // Wrap dynamic class attribute in $.clsx() so arrays/objects are
                     // normalised to a class string. Mirrors the needs_clsx check in
