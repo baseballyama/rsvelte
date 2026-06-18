@@ -481,8 +481,18 @@ pub fn block_lang_source_scan_diagnostics(
         return Vec::new();
     }
 
-    // Only run when the full parse would fail — `check_root` covers success.
-    if rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()).is_ok() {
+    // Only run when the AST path was skipped — `BlockLang::check_root` already
+    // covers every file the lint engine could parse. The engine parses in
+    // LENIENT mode (`lenient_script: true`), so this guard MUST use the same
+    // mode: a `<style lang="scss">` / `<script lang="…">` block parses leniently
+    // (so `check_root` fires) while a strict `ParseOptions::default()` parse
+    // would fail here — running the source scan on top of `check_root` would
+    // then double-report. Mirror the engine's options exactly.
+    let lenient = rsvelte_core::ParseOptions {
+        lenient_script: true,
+        ..Default::default()
+    };
+    if rsvelte_core::parse(source, lenient).is_ok() {
         return Vec::new();
     }
 
@@ -604,4 +614,50 @@ fn style_scan(source: &str) -> Vec<(u32, String)> {
         i = tag_end + 1;
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_lang_option_forms() {
+        // Absent / explicit null → `[None]` (means "omitted is required").
+        assert_eq!(parse_lang_option(None, "style"), vec![None]);
+        assert_eq!(parse_lang_option(Some(&json!({})), "style"), vec![None]);
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "style": null })), "style"),
+            vec![None]
+        );
+        // Single string.
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "style": "scss" })), "style"),
+            vec![Some("scss".to_string())]
+        );
+        // Array with a mix of null + strings.
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "script": [null, "ts"] })), "script"),
+            vec![None, Some("ts".to_string())]
+        );
+        // A different key is unaffected.
+        assert_eq!(
+            parse_lang_option(Some(&json!({ "style": "scss" })), "script"),
+            vec![None]
+        );
+    }
+
+    #[test]
+    fn pretty_print_langs_messages() {
+        assert_eq!(pretty_print_langs(&[None]), "omitted");
+        assert_eq!(pretty_print_langs(&[Some("ts".to_string())]), "\"ts\"");
+        assert_eq!(
+            pretty_print_langs(&[None, Some("ts".to_string())]),
+            "either omitted or \"ts\""
+        );
+        assert_eq!(
+            pretty_print_langs(&[Some("ts".to_string()), Some("js".to_string())]),
+            "one of \"ts\", \"js\""
+        );
+    }
 }

@@ -33,7 +33,37 @@ use crate::rules::{
 #[cfg(feature = "native")]
 pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
     // Deduplicate by name: a rule registered in both `all_rules()` and
-    // `all_script_rules()` (e.g. `prefer-const`) must appear only once.
+    // `all_script_rules()` (e.g. `prefer-const`, `no-top-level-browser-globals`,
+    // `prefer-svelte-reactivity`) must appear only once.
+    //
+    // Invariant: a dual-registered rule's `Rule::meta()` and `ScriptRule::meta()`
+    // MUST return the SAME `&'static RuleMeta` (share one `META` static) — the
+    // name-keyed dedup below silently keeps the first otherwise. Catch a future
+    // mismatch (e.g. divergent `default_severity`) in debug builds.
+    #[cfg(debug_assertions)]
+    {
+        let mut by_name: std::collections::HashMap<&str, *const RuleMeta> =
+            std::collections::HashMap::new();
+        for m in all_rules()
+            .iter()
+            .map(|r| r.meta())
+            .chain(all_script_rules().iter().map(|r| r.meta()))
+            .chain(meta_rule_metas())
+        {
+            let ptr = m as *const RuleMeta;
+            if let Some(&prev) = by_name.get(m.name) {
+                debug_assert!(
+                    std::ptr::eq(prev, ptr),
+                    "rule '{}' is registered with two different RuleMeta statics — \
+                     a dual-registered rule must share one META",
+                    m.name
+                );
+            } else {
+                by_name.insert(m.name, ptr);
+            }
+        }
+    }
+
     let mut seen = std::collections::HashSet::new();
     all_rules()
         .iter()

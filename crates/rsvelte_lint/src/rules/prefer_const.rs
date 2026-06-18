@@ -306,7 +306,17 @@ fn check_template_declaration_tags(
     reassigned: &HashSet<String>,
     destructuring_all: bool,
 ) -> Vec<(u32, u32, String, Option<u32>)> {
-    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+    // Parse in lenient (lint) mode — `{let …}` declaration tags are a loose
+    // Svelte construct that the strict compiler parse rejects, so a strict parse
+    // here drops every template `{let x = …}` (a silent FN; the oracle reports
+    // them). Mirror the engine's lenient parse.
+    let Ok(root) = rsvelte_core::parse(
+        source,
+        rsvelte_core::ParseOptions {
+            lenient_script: true,
+            ..Default::default()
+        },
+    ) else {
         return Vec::new();
     };
     let mut tags: Vec<&DeclarationTag> = Vec::new();
@@ -428,20 +438,46 @@ fn lhs_is_destructuring(left: &Value) -> bool {
     )
 }
 
+/// The span `(start, end)` of the nearest enclosing function (declaration,
+/// expression, or arrow). `None` ⇒ the node is at the top (module) level. Used
+/// as a coarse lexical-scope key: ESLint's scope-aware `prefer-const` only
+/// `const`-ifies a `let` whose single assignment shares its function scope.
+type FnScope = Option<(u32, u32)>;
+
+/// The nearest enclosing-function span for the node whose ancestor chain is
+/// `ancestors` (closest function ancestor wins). `None` for the top level.
+fn enclosing_fn_span(ancestors: &[&Value]) -> FnScope {
+    for node in ancestors.iter().rev() {
+        if matches!(
+            node_type(node),
+            Some("FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression")
+        ) {
+            let s = node_start(node)?;
+            let e = node.get("end").and_then(Value::as_u64)? as u32;
+            return Some((s, e));
+        }
+    }
+    None
+}
+
 /// Per-variable assignment summary used for the no-init-let destructuring check.
 #[derive(Default)]
 struct AssignInfo {
-    /// Total number of times this name appears as an assignment target
-    /// (via `AssignmentExpression` or `UpdateExpression`; for-of/for-in are
-    /// handled separately via `hard_reassigned`).
+    /// Total number of times this name appears as an assignment target anywhere
+    /// in the program (via `AssignmentExpression` or `UpdateExpression`;
+    /// for-of/for-in are handled separately). Counting program-wide (by name) is
+    /// deliberately conservative: a same-named write in ANY scope — including a
+    /// closure over an outer binding — pushes `total` above 1 and suppresses the
+    /// report (a false negative, never a false positive).
     total: u32,
     /// Number of those assignments whose top-level LHS is an `ObjectPattern`
     /// or `ArrayPattern` (i.e. a destructuring assignment).
     destructuring: u32,
-    /// The byte offsets `(start, end)` of the identifier node inside the
-    /// first destructuring assignment's LHS pattern — used to report at the
-    /// assignment site, matching ESLint core `prefer-const` behaviour.
-    first_destructuring_pos: Option<(u32, u32)>,
+    /// The first destructuring assignment's `((id_start, id_end), fn_scope)`:
+    /// the byte offsets of the bound identifier inside the LHS pattern (the
+    /// report location, matching ESLint), plus the enclosing-function scope of
+    /// that assignment (so we only report when it matches the declaration's).
+    first_destructuring: Option<((u32, u32), FnScope)>,
 }
 
 /// Walk `program` and collect, per identifier name, how many times it is the
@@ -450,7 +486,7 @@ struct AssignInfo {
 /// excluded from the single-destructuring-assignment fast path.
 fn collect_assignment_info(program: &Value) -> std::collections::HashMap<String, AssignInfo> {
     let mut map: std::collections::HashMap<String, AssignInfo> = std::collections::HashMap::new();
-    walk_js(program, |node, _| match node_type(node) {
+    walk_js(program, |node, ancestors| match node_type(node) {
         Some("AssignmentExpression") => {
             let Some(left) = node.get("left") else {
                 return;
@@ -464,14 +500,17 @@ fn collect_assignment_info(program: &Value) -> std::collections::HashMap<String,
                     entry.total += 1;
                     if is_destructuring {
                         entry.destructuring += 1;
-                        // Record the first destructuring position for reporting.
-                        if entry.first_destructuring_pos.is_none()
+                        // Record the first destructuring position + its enclosing
+                        // function scope (the ids are children of this assignment,
+                        // so they share its scope) for the report + scope check.
+                        if entry.first_destructuring.is_none()
                             && let (Some(s), Some(e)) = (
                                 node_start(id),
                                 id.get("end").and_then(Value::as_u64).map(|e| e as u32),
                             )
                         {
-                            entry.first_destructuring_pos = Some((s, e));
+                            entry.first_destructuring =
+                                Some(((s, e), enclosing_fn_span(ancestors)));
                         }
                     }
                 }
@@ -498,7 +537,7 @@ fn collect_no_init_let_idents<'a>(
     program: &'a Value,
     is_instance: bool,
     excluded_runes: &[String],
-    out: &mut Vec<(String, &'a Value)>,
+    out: &mut Vec<(String, &'a Value, FnScope)>,
 ) {
     walk_js(program, |node, ancestors| {
         if node_type(node) != Some("VariableDeclaration")
@@ -512,6 +551,9 @@ fn collect_no_init_let_idents<'a>(
         {
             return;
         }
+        // The declaration's enclosing function scope — the assignment must share
+        // it for the binding to be `const`-ifiable (ESLint is scope-aware).
+        let decl_scope = enclosing_fn_span(ancestors);
         let Some(declarators) = node.get("declarations").and_then(Value::as_array) else {
             return;
         };
@@ -541,7 +583,7 @@ fn collect_no_init_let_idents<'a>(
                 continue;
             }
             if let Some(name) = ident_name(id) {
-                out.push((name.to_string(), id));
+                out.push((name.to_string(), id, decl_scope));
             }
         }
     });
@@ -591,7 +633,12 @@ impl ScriptRule for PreferConst {
         // whole AST, so the core rule sees the write. Recover parity by scanning
         // the template for `name = …` / `name++` whose LHS is a plain
         // identifier, and folding those names into the not-const-able set.
-        collect_template_reassignments(ctx.source(), &mut reassigned);
+        // Template reassignments (`name = …` / `name++` inside `{…}`) — computed
+        // ONCE here and reused below for the no-init-let check, avoiding a second
+        // re-parse of the source.
+        let mut template_reassign: HashSet<String> = HashSet::new();
+        collect_template_reassignments(ctx.source(), &mut template_reassign);
+        reassigned.extend(template_reassign.iter().cloned());
         // `for (x of …)` / `for (x in …)` with a bare pattern (not
         // `VariableDeclaration`) reassign the binding. The rsvelte scope builder
         // does not mark those as `reassigned`; close the gap by scanning the
@@ -740,13 +787,13 @@ impl ScriptRule for PreferConst {
             // assigned ONLY through destructuring patterns.
             let assign_info = collect_assignment_info(program);
 
-            // Extra reassigned from template / for-of (already in `reassigned`
-            // from earlier passes, but we need to exclude those from the count).
-            let mut template_and_forin: HashSet<String> = HashSet::new();
-            collect_template_reassignments(ctx.source(), &mut template_and_forin);
+            // Names also written via the template or a for-of/for-in bare pattern
+            // — reuse the already-computed `template_reassign` (no re-parse) and
+            // add for-of/for-in (a `program` JSON walk, no parse).
+            let mut template_and_forin: HashSet<String> = template_reassign;
             collect_forin_forof_reassignments(program, &mut template_and_forin);
 
-            let mut no_init_lets: Vec<(String, &Value)> = Vec::new();
+            let mut no_init_lets: Vec<(String, &Value, FnScope)> = Vec::new();
             collect_no_init_let_idents(
                 program,
                 kind == ScriptKind::Instance,
@@ -754,26 +801,29 @@ impl ScriptRule for PreferConst {
                 &mut no_init_lets,
             );
 
-            for (name, _id_node) in &no_init_lets {
+            for (name, _id_node, decl_scope) in &no_init_lets {
                 // If the template or a for-of/for-in also writes this name, skip.
                 if template_and_forin.contains(name.as_str()) {
                     continue;
                 }
                 if let Some(info) = assign_info.get(name.as_str()) {
-                    // Exactly one assignment, and it is destructuring, and there
-                    // is no non-destructuring part (i.e. total == destructuring).
-                    if info.total == 1 && info.destructuring == 1 {
-                        // Report at the identifier's position inside the
-                        // destructuring assignment LHS, matching ESLint core
-                        // `prefer-const` which reports at the assignment site.
-                        if let Some((s, e)) = info.first_destructuring_pos {
-                            reports.push((
-                                s,
-                                e,
-                                format!("'{name}' is never reassigned. Use 'const' instead."),
-                                None,
-                            ));
-                        }
+                    // Exactly one assignment program-wide, and it is destructuring
+                    // (`total == destructuring == 1`), AND that assignment shares
+                    // the declaration's function scope. The scope check prevents a
+                    // false positive when a `let a;` is assigned via destructuring
+                    // in a DIFFERENT (e.g. nested) function — ESLint's scope-aware
+                    // rule cannot `const` that and stays silent.
+                    if info.total == 1
+                        && info.destructuring == 1
+                        && let Some((pos, assign_scope)) = info.first_destructuring
+                        && assign_scope == *decl_scope
+                    {
+                        reports.push((
+                            pos.0,
+                            pos.1,
+                            format!("'{name}' is never reassigned. Use 'const' instead."),
+                            None,
+                        ));
                     }
                 }
             }
@@ -810,9 +860,12 @@ impl Rule for PreferConst {
     }
 
     fn check_root(&self, ctx: &mut LintContext, root: &Root) {
-        // If there is an instance or module script, `check_program` handles the
-        // template tags. Only proceed for script-less files.
-        if root.instance.is_some() || root.module.is_some() {
+        // The template `{let …}` declaration-tag check lives in `check_program`,
+        // but ONLY for the instance script (`kind == Instance`). So `check_root`
+        // must handle the tags whenever there is NO instance script — i.e. a
+        // module-only component or a script-less file. (Guarding on
+        // `root.module.is_some()` too would wrongly skip module-only files.)
+        if root.instance.is_some() {
             return;
         }
         let opts = ctx.option0();

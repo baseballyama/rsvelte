@@ -122,7 +122,7 @@ authoritative behavior); the 2 corpus FP are an oracle globals-version artifact,
 documented and tracked.
 
 **Resolution (applied):** these two findings are listed in
-`VERSION_ARTIFACTS` in `scripts/compat-corpus/lint-verify.mjs` and filtered
+`MANUAL_EXCLUSIONS` in `scripts/compat-corpus/lint-verify.mjs` and filtered
 from the divergence set (the same pattern as the per-rule `EXCLUDE`, but
 finding-scoped). This is the only finding-level exclusion in the corpus and it
 is justified by an upstream inconsistency, NOT an rsvelte defect — see

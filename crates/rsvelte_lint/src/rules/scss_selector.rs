@@ -865,6 +865,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn scss_is_parseable_accepts_valid() {
+        // Plain rule, nesting, declarations.
+        assert!(scss_is_parseable(
+            ".a { color: red; .b { font-weight: bold; } }"
+        ));
+        // At-rules (`@`), control flow, placeholders, mixins.
+        assert!(scss_is_parseable(
+            "@if $x { color: red; } @else { color: blue; }"
+        ));
+        assert!(scss_is_parseable("@each $i in $list { .x { width: $i; } }"));
+        assert!(scss_is_parseable(
+            "%placeholder { color: red; } .a { @extend %placeholder; }"
+        ));
+        // SCSS maps (parens), variables, custom properties.
+        assert!(scss_is_parseable(
+            "$map: ( key: value, other: 1 ); .a { --x: 1; }"
+        ));
+        // `#{…}` interpolation must not perturb brace depth.
+        assert!(scss_is_parseable(".icon-#{$name} { color: red; }"));
+        // `//` and `/* */` comments are skipped (their contents never trip it).
+        assert!(scss_is_parseable(
+            "// a bare word in a comment is fine\n.a { color: red; }"
+        ));
+        assert!(scss_is_parseable("/* end begin word */ .a { color: red; }"));
+        // Strings hide their inner `;`/`{`/`}`.
+        assert!(scss_is_parseable(r#".a { content: "a;b{c}"; }"#));
+    }
+
+    #[test]
+    fn scss_is_parseable_rejects_invalid() {
+        // Unbalanced braces.
+        assert!(!scss_is_parseable(".a { color: red; "));
+        assert!(!scss_is_parseable(".a { } }"));
+        // A bare-word statement (terminated by `;`/`}`, no `:` declaration, no
+        // `@` at-rule) — the `end` token from the corpus `invalid-scss` fixtures.
+        // A single bare word makes the whole block unparseable (≈ postcss-scss).
+        assert!(!scss_is_parseable(".a { color: red; end }")); // bare word before `}`
+        assert!(!scss_is_parseable("garbage; .a { color: red; }")); // bare word before `;`
+        // (A statement that *does* contain a `:` — even with junk around it — is
+        // treated as a declaration and passes; the heuristic only flags
+        // colon-less bare-word statements. A selector prelude ending in `{` is
+        // always accepted.)
+    }
+
+    #[test]
     fn extracts_class_selectors() {
         let scss = ".foo { color: red; }";
         let selectors = extract_selectors(scss);

@@ -398,6 +398,76 @@ mod tests {
         assert!(codes(&diags).contains(&"svelte/no-at-debug-tags".to_string()));
     }
 
+    /// Count `svelte/prefer-const` reports whose message names `var`.
+    fn prefer_const_hits(diags: &[Diagnostic], var: &str) -> usize {
+        let needle = format!("'{var}' is never reassigned");
+        diags
+            .iter()
+            .filter(|d| {
+                d.code.as_deref() == Some("svelte/prefer-const") && d.message.contains(&needle)
+            })
+            .count()
+    }
+
+    #[test]
+    fn prefer_const_destructuring_assignment_same_scope_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // `a` declared + assigned-once via destructuring in the SAME function.
+        let src = "<script>\nfunction h() {\n  let o = { a: 1 };\n  let a;\n  ({ [\"a\"]: a } = o);\n}\n</script>";
+        assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 1);
+    }
+
+    #[test]
+    fn prefer_const_destructuring_cross_scope_not_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // `a` declared at the top but assigned in a NESTED function — ESLint's
+        // scope-aware rule cannot `const` it, so neither do we (no FP).
+        let src = "<script>\nlet a;\nfunction f() { ({ [\"a\"]: a } = getX()); }\n</script>";
+        assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 0);
+    }
+
+    #[test]
+    fn prefer_const_plain_separate_assignment_not_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // A plain (non-destructuring) `let a; a = 1;` is never reported by ESLint.
+        let src = "<script>\nfunction h() { let a; a = 1; use(a); }\n</script>";
+        assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 0);
+    }
+
+    #[test]
+    fn prefer_svelte_reactivity_cross_script_set_mutation() {
+        // `new Set()` declared in the module script, mutated in the instance
+        // script — only visible when both scripts are analysed together.
+        let cfg = LintConfig::recommended()
+            .with_override("svelte/prefer-svelte-reactivity", Severity::Error);
+        let src = "<script context=\"module\">\n  const elements = new Set();\n</script>\n<script>\n  elements.add(1);\n</script>";
+        let hits = lint(src, &cfg)
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("svelte/prefer-svelte-reactivity"))
+            .count();
+        assert_eq!(
+            hits, 1,
+            "exactly one cross-script Set report (no double, no miss)"
+        );
+    }
+
+    #[test]
+    fn block_lang_non_css_lang_reports_once() {
+        // A `<style lang="stylus">` parses leniently (so `check_root` fires) but
+        // not strictly — the source-scan fallback must NOT also fire (regression
+        // test for the double-report fixed by guarding the fallback on the
+        // lenient parse).
+        let cfg = LintConfig::recommended()
+            .with_override("svelte/block-lang", Severity::Error)
+            .with_options("svelte/block-lang", serde_json::json!([{ "style": null }]));
+        let src = "<style lang=\"stylus\">\ndiv\n  color: red\n</style>";
+        let hits = lint(src, &cfg)
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("svelte/block-lang"))
+            .count();
+        assert_eq!(hits, 1, "block-lang must report once, not twice");
+    }
+
     #[test]
     fn button_has_type_flags_missing_and_respects_type_and_spread() {
         // `button-has-type` is opt-in (off by default), so enable it.
