@@ -67,22 +67,65 @@ impl Rule for NoDupeElseIfBlocks {
         for i in 1..tests.len() {
             // conditionsToCheck: the whole condition, plus — when it is a
             // top-level `&&` chain — each `&&` operand on its own.
-            let mut to_check: Vec<String> = vec![tests[i].clone()];
-            let and_parts = split_top(strip_outer_parens(&tests[i]), "&&");
+            //
+            // Upstream order: [...splitByAnd(test), test] — individual AND
+            // parts first, the whole expression last.  We match that order so
+            // that when a sub-part triggers the report its node is used (which
+            // may have a different start column than the whole condition).
+            //
+            // We also track the byte offset of each candidate within the
+            // condition source so we can report at the candidate's start
+            // position rather than always the whole condition start.
+            let condition_src = &tests[i];
+            let condition_start = spans[i].0;
+
+            // Build (candidate_text, offset_within_condition) pairs.
+            // The offset is the number of bytes from condition_start to where
+            // this candidate's source begins (after stripping outer parens).
+            let mut to_check: Vec<(String, u32)> = Vec::new();
+
+            let stripped = strip_outer_parens(condition_src);
+            let stripped_offset =
+                (stripped.as_ptr() as usize).wrapping_sub(condition_src.as_ptr() as usize) as u32;
+
+            let and_parts = split_top(stripped, "&&");
             if and_parts.len() > 1 {
-                to_check.extend(and_parts.into_iter().map(|p| p.to_string()));
+                // Individual && operands first (matches upstream's [...splitByAnd(test), test]).
+                for part in &and_parts {
+                    // `part` is already `.trim()`-ed by `split_top`.
+                    // Compute this part's offset within the full condition source.
+                    let raw_offset = stripped_offset
+                        + (part.as_ptr() as usize).wrapping_sub(stripped.as_ptr() as usize) as u32;
+                    // Upstream uses the AST node for the expression, which has
+                    // outer parentheses stripped from its span (acorn/espree do
+                    // not include redundant parens in a node's range).
+                    // Mirror that by advancing past any enclosing parens.
+                    let inner = strip_outer_parens(part);
+                    let inner_offset = raw_offset
+                        + (inner.as_ptr() as usize).wrapping_sub(part.as_ptr() as usize) as u32;
+                    to_check.push((inner.to_string(), inner_offset));
+                }
             }
+            // The whole condition last; its start is the condition start itself
+            // (stripped of outer parens, as upstream reports at the node).
+            let whole_inner = strip_outer_parens(condition_src);
+            let whole_inner_offset = stripped_offset
+                + (whole_inner.as_ptr() as usize).wrapping_sub(condition_src.as_ptr() as usize)
+                    as u32;
+            to_check.push((whole_inner.to_string(), whole_inner_offset));
 
             let prev = &split[..i];
-            let is_dup = to_check.iter().any(|c| {
+            let found_offset = to_check.iter().find_map(|(c, off)| {
                 let c_or = or_and(c);
-                c_or.iter().all(|or_op| {
+                let is_dup = c_or.iter().all(|or_op| {
                     prev.iter()
                         .any(|prev_or| prev_or.iter().any(|prev_and| is_subset(prev_and, or_op)))
-                })
+                });
+                if is_dup { Some(*off) } else { None }
             });
-            if is_dup {
-                reports.push(spans[i]);
+            if let Some(off) = found_offset {
+                let report_start = condition_start + off;
+                reports.push((report_start, spans[i].1));
             }
         }
         for (s, e) in reports {

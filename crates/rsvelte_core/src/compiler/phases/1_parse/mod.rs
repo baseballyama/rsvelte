@@ -98,6 +98,14 @@ pub struct ParseOptions {
     /// TS by default, so a plain `<script>` containing TS (e.g. `import type`,
     /// `typeof X<any>`) must be parsed as TS to format identically.
     pub force_typescript: bool,
+    /// When true, a script-block parse error produces an empty-body placeholder
+    /// rather than aborting the whole parse.  This lets the template visitor (and
+    /// the linter) still walk the rest of the component even when the `<script>`
+    /// contains syntactically-invalid TypeScript (e.g. wrong modifier order).
+    /// Mirrors the behaviour of `parse_script_ts` / svelte2tsx mode for the
+    /// script error-recovery path only — template expressions and everything
+    /// outside `<script>` are unaffected.
+    pub lenient_script: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).

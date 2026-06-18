@@ -261,7 +261,7 @@ impl Parser<'_> {
             // empty-body placeholder + raw content, so svelte2tsx applies NO body
             // transforms and the script source survives verbatim in the output.
             if let Some(err) = parse_error {
-                if !self.script_ts {
+                if !self.script_ts && !self.options.lenient_script {
                     return Err(err);
                 }
                 let placeholder = Expression::from_node(crate::ast::typed_expr::JsNode::Program {

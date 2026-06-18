@@ -48,7 +48,13 @@ pub fn run_native_rules(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(source, ParseOptions::default()) else {
+    let Ok(root) = parse(
+        source,
+        ParseOptions {
+            lenient_script: true,
+            ..Default::default()
+        },
+    ) else {
         return Vec::new();
     };
     let mut ctx = LintContext::new(config, source, filename).with_path(path);
@@ -149,7 +155,13 @@ pub fn run_script_rules_with_path(
     if enabled.is_empty() {
         return Vec::new();
     }
-    let Ok(root) = parse(source, ParseOptions::default()) else {
+    let Ok(root) = parse(
+        source,
+        ParseOptions {
+            lenient_script: true,
+            ..Default::default()
+        },
+    ) else {
         return Vec::new();
     };
 

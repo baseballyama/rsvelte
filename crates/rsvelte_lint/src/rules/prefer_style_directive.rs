@@ -162,6 +162,32 @@ fn parse_style_value(parts: &[AttributeValuePart], source: &str) -> Vec<RootNode
                 while i < bytes.len() {
                     let b = bytes[i];
                     let abs_pos = base + i as u32;
+
+                    // Skip CSS block comments (`/* … */`) in all states.
+                    // PostCSS (used by the oracle) parses comments as separate
+                    // nodes rather than as declaration text, so any `/*` in the
+                    // Top or PropName state means we are NOT inside a property
+                    // declaration and should discard any partially-accumulated
+                    // prop and advance past the comment.
+                    if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                        // Drop any partially-accumulated declaration (it is
+                        // invalid — a real prop name cannot contain `/*`).
+                        if matches!(state, ParseState::PropName) {
+                            cur_decl = None;
+                            state = ParseState::Top;
+                        }
+                        // Skip to the end of the comment.
+                        i += 2; // past `/*`
+                        while i < bytes.len() {
+                            if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                                i += 2; // past `*/`
+                                break;
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+
                     match &state {
                         ParseState::Top => {
                             if b == b';' {
