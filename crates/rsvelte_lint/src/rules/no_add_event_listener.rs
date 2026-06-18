@@ -115,6 +115,21 @@ impl ScriptRule for NoAddEventListener {
             });
         });
 
+        // Filter out cases where the callee was wrapped in a TypeScript type
+        // assertion (`(expr as T)(...)` or `<T>expr(...)`). In rsvelte the
+        // TS cast is stripped from the AST so the inner `MemberExpression`
+        // is exposed as the callee — but the oracle (espree/TS parser) sees a
+        // `TSAsExpression` callee and does NOT flag it.
+        //
+        // Detection: if the CallExpression starts before the (stripped) callee
+        // AND the source byte at the call start is `(`, AND the source slice
+        // from callee_end onwards (before the next `)` that closes the cast)
+        // contains the keyword `as ` — it was a TS cast.
+        let reports: Vec<Report> = reports
+            .into_iter()
+            .filter(|r| !is_ts_cast_stripped_callee(ctx.source(), r.call_start, r.callee_end))
+            .collect();
+
         for r in reports {
             // Resolve the target text from source now that we hold `&mut ctx`.
             let target = match r.obj_span {
@@ -232,6 +247,42 @@ fn find_open_paren(source: &str, from: u32) -> Option<u32> {
         }
     }
     None
+}
+
+/// Detect whether a CallExpression whose callee spans `[callee_end..]` was
+/// wrapped in a TypeScript type assertion (`(expr as T)(...)`) that was
+/// stripped by rsvelte's TS-stripping. The oracle (espree/TS-parser) would see a
+/// `TSAsExpression` as the callee and NOT report it, but rsvelte's AST strips
+/// the cast, exposing the inner `MemberExpression`.
+///
+/// Heuristic: if the source at `call_start` is `(` AND the text from
+/// `callee_end` up to (and including) the matching `)` contains `as `, the
+/// callee was a TS `as`-cast.
+fn is_ts_cast_stripped_callee(source: &str, call_start: u32, callee_end: u32) -> bool {
+    let bytes = source.as_bytes();
+    let call_pos = call_start as usize;
+    let callee_end_pos = callee_end as usize;
+
+    // The call must start with `(` and there must be bytes before callee_end.
+    if call_pos >= callee_end_pos {
+        return false;
+    }
+    if bytes.get(call_pos) != Some(&b'(') {
+        return false;
+    }
+
+    // Look for `as ` (or `as\t`, `as\n`) between callee_end and the first `)`.
+    let mut i = callee_end_pos;
+    while i < bytes.len() && bytes[i] != b')' {
+        if bytes[i] == b'a'
+            && bytes.get(i + 1) == Some(&b's')
+            && bytes.get(i + 2).is_some_and(|c| c.is_ascii_whitespace())
+        {
+            return true;
+        }
+        i += 1;
+    }
+    false
 }
 
 #[cfg(test)]

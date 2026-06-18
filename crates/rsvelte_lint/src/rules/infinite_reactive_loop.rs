@@ -52,8 +52,15 @@ fn is_direct_call_callee(ident: &Value, parent: Option<&Value>) -> bool {
 }
 
 /// Collect top-level bound names and function bodies from the program.
-fn collect_top_level<'a>(program: &'a Value) -> (HashMap<String, &'a Value>, HashSet<String>) {
-    let mut func_map: HashMap<String, &'a Value> = HashMap::new();
+/// The func_map value is (body, param_names) where param_names are the
+/// function's own parameter names that shadow any outer reactive variables.
+fn collect_top_level<'a>(
+    program: &'a Value,
+) -> (
+    HashMap<String, (&'a Value, HashSet<String>)>,
+    HashSet<String>,
+) {
+    let mut func_map: HashMap<String, (&'a Value, HashSet<String>)> = HashMap::new();
     let mut all_names: HashSet<String> = HashSet::new();
 
     let Some(body) = program.get("body").and_then(Value::as_array) else {
@@ -67,9 +74,57 @@ fn collect_top_level<'a>(program: &'a Value) -> (HashMap<String, &'a Value>, Has
     (func_map, all_names)
 }
 
+/// Collect all bound names from a function's `params` array into a HashSet.
+fn collect_param_names(params: &Value) -> HashSet<String> {
+    let mut names = HashSet::new();
+    if let Some(arr) = params.as_array() {
+        for p in arr {
+            collect_pattern_names(p, &mut names);
+        }
+    }
+    names
+}
+
+fn collect_pattern_names(pat: &Value, names: &mut HashSet<String>) {
+    match node_type(pat) {
+        Some("Identifier") => {
+            if let Some(n) = ident_name(pat) {
+                names.insert(n.to_string());
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(l) = pat.get("left") {
+                collect_pattern_names(l, names);
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = pat.get("properties").and_then(Value::as_array) {
+                for p in props {
+                    if let Some(v) = p.get("value") {
+                        collect_pattern_names(v, names);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(els) = pat.get("elements").and_then(Value::as_array) {
+                for e in els.iter().filter(|e| !e.is_null()) {
+                    collect_pattern_names(e, names);
+                }
+            }
+        }
+        Some("RestElement") => {
+            if let Some(a) = pat.get("argument") {
+                collect_pattern_names(a, names);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn collect_stmt_names<'a>(
     stmt: &'a Value,
-    func_map: &mut HashMap<String, &'a Value>,
+    func_map: &mut HashMap<String, (&'a Value, HashSet<String>)>,
     all_names: &mut HashSet<String>,
 ) {
     match node_type(stmt) {
@@ -77,7 +132,11 @@ fn collect_stmt_names<'a>(
             if let Some(name) = stmt.get("id").and_then(|id| ident_name(id)) {
                 all_names.insert(name.to_string());
                 if let Some(b) = stmt.get("body") {
-                    func_map.insert(name.to_string(), b);
+                    let params = stmt
+                        .get("params")
+                        .map(collect_param_names)
+                        .unwrap_or_default();
+                    func_map.insert(name.to_string(), (b, params));
                 }
             }
         }
@@ -92,7 +151,11 @@ fn collect_stmt_names<'a>(
                                 || init_ty == Some("FunctionExpression"))
                                 && let Some(b) = init.get("body")
                             {
-                                func_map.insert(name.to_string(), b);
+                                let params = init
+                                    .get("params")
+                                    .map(collect_param_names)
+                                    .unwrap_or_default();
+                                func_map.insert(name.to_string(), (b, params));
                             }
                         }
                     }
@@ -458,7 +521,7 @@ type Rep = (u32, u32, String);
 #[allow(clippy::too_many_arguments)]
 fn verify_node<'a>(
     node: &'a Value,
-    func_map: &'a HashMap<String, &'a Value>,
+    func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
     task_names: &HashSet<String>,
     reactive_names: &HashSet<String>,
     top_level_names: &HashSet<String>,
@@ -510,25 +573,42 @@ fn verify_node<'a>(
                     && let Some(fn_name) = map.get("name").and_then(Value::as_str)
                     && is_direct_call_callee(node, ancestors.last().copied())
                     && !is_shadowed_locally(fn_name, ancestors)
-                    && let Some(&fn_body) = func_map.get(fn_name)
+                    && let Some((fn_body, fn_params)) = func_map.get(fn_name)
                 {
                     let body_key = node_start(fn_body).unwrap_or(u32::MAX);
                     if !processed.contains(&body_key) {
                         let mut new_chain = call_chain.to_vec();
                         new_chain.push((ns, ne, fn_name.to_string()));
                         let cur_is_same = *is_same;
-                        verify_root(
-                            fn_body,
-                            func_map,
-                            task_names,
-                            reactive_names,
-                            top_level_names,
-                            &new_chain,
-                            cur_is_same,
-                            false,
-                            processed,
-                            reports,
-                        );
+                        // Filter out reactive names that are shadowed by the
+                        // called function's own parameters so that assignments
+                        // to those parameters inside the function body are not
+                        // mistaken for updates to the outer reactive variables.
+                        let filtered_reactive: HashSet<String> = reactive_names
+                            .iter()
+                            .filter(|n| !fn_params.contains(*n))
+                            .cloned()
+                            .collect();
+                        // Only recurse if there are still reactive names to check
+                        // (if all reactive names are shadowed by params, there is
+                        // nothing to report from this function body).
+                        if !filtered_reactive.is_empty() {
+                            verify_root(
+                                fn_body,
+                                func_map,
+                                task_names,
+                                &filtered_reactive,
+                                top_level_names,
+                                &new_chain,
+                                cur_is_same,
+                                false,
+                                processed,
+                                reports,
+                            );
+                        } else {
+                            // Still mark as processed to avoid re-visiting.
+                            processed.insert(body_key);
+                        }
                     }
                 }
 
@@ -640,7 +720,7 @@ fn verify_node<'a>(
 #[allow(clippy::too_many_arguments)]
 fn verify_root<'a>(
     body: &'a Value,
-    func_map: &'a HashMap<String, &'a Value>,
+    func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
     task_names: &HashSet<String>,
     reactive_names: &HashSet<String>,
     top_level_names: &HashSet<String>,

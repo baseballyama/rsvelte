@@ -52,6 +52,14 @@ impl Rule for NoInlineStyles {
                     ctx.report(d.start, d.end, "Found disallowed style directive.");
                 }
                 Attribute::Attribute(a) if a.name == "style" => {
+                    // Skip shorthand attributes (`{style}`) — they have type
+                    // `SvelteShorthandAttribute` in svelte-eslint-parser and are
+                    // NOT flagged by the oracle's `attribute.type === 'SvelteAttribute'`
+                    // check.  Detect shorthands by looking at the first source byte:
+                    // shorthand attributes start with `{` (not the attribute name).
+                    if ctx.slice(a.start, a.start + 1) == "{" {
+                        continue;
+                    }
                     ctx.report(a.start, a.end, "Found disallowed style attribute.");
                 }
                 Attribute::TransitionDirective(t) if !allow_transitions => {
