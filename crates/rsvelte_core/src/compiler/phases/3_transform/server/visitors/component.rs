@@ -91,6 +91,12 @@ impl<'a> ServerCodeGenerator<'a> {
         // blockers that require async_block wrapping for hydration marker consistency.
         let mut attach_expressions: Vec<String> = Vec::new();
 
+        // Counter for SequenceExpression bindings — used to generate unique hoisted var names
+        // matching the official compiler's `scope.generate('bind_get')` behaviour:
+        //   first binding  → bind_get / bind_set
+        //   second binding → bind_get_1 / bind_set_1  (etc.)
+        let mut seq_binding_count: usize = 0;
+
         for attr in &component.attributes {
             match attr {
                 Attribute::Attribute(node) => {
@@ -354,20 +360,37 @@ impl<'a> ServerCodeGenerator<'a> {
                                     self.source[setter_start..setter_end].trim().to_string();
                                 let setter_expr = self.strip_ts_from_expr(&setter_expr);
                                 let setter_expr = self.wrap_derived_reads(&setter_expr);
+
+                                // Generate unique hoisted var names for this binding, mirroring
+                                // `scope.generate('bind_get')` in the official compiler:
+                                //   0 → "bind_get" / "bind_set"
+                                //   1 → "bind_get_1" / "bind_set_1"   (etc.)
+                                let (bind_get_name, bind_set_name) = if seq_binding_count == 0 {
+                                    ("bind_get".to_string(), "bind_set".to_string())
+                                } else {
+                                    (
+                                        format!("bind_get_{}", seq_binding_count),
+                                        format!("bind_set_{}", seq_binding_count),
+                                    )
+                                };
+                                seq_binding_count += 1;
+
                                 // Push inline at source position (delay=false upstream).
-                                // We still also record in bindings for the VarDeclaration hoisting
-                                // that happens below (bind_get/bind_set), but the actual
-                                // getter/setter object is in props_and_spreads for ordering.
+                                // The getter/setter bodies reference the hoisted vars via
+                                // `bind_get_name()` / `bind_set_name($$value)` so they match
+                                // what the official compiler emits (not the raw expressions).
                                 props_and_spreads.push(ComponentPropItem::Binding {
                                     prop_name: prop_name.to_string(),
-                                    getter_expr: getter_expr.clone(),
-                                    setter_expr: setter_expr.clone(),
+                                    getter_expr: format!("{}()", bind_get_name),
+                                    setter_expr: format!("{}($$value)", bind_set_name),
                                     is_seq: true,
                                 });
                                 bindings.push(ComponentBinding::SequenceExpression {
                                     prop_name: prop_name.to_string(),
                                     getter_expr,
                                     setter_expr,
+                                    bind_get_name,
+                                    bind_set_name,
                                 });
                             }
                         }
@@ -570,16 +593,18 @@ impl<'a> ServerCodeGenerator<'a> {
                 if let ComponentBinding::SequenceExpression {
                     getter_expr,
                     setter_expr,
+                    bind_get_name,
+                    bind_set_name,
                     ..
                 } = binding
                 {
                     self.output_parts.push(OutputPart::VarDeclaration(format!(
-                        "bind_get = {}",
-                        getter_expr
+                        "{} = {}",
+                        bind_get_name, getter_expr
                     )));
                     self.output_parts.push(OutputPart::VarDeclaration(format!(
-                        "bind_set = {}",
-                        setter_expr
+                        "{} = {}",
+                        bind_set_name, setter_expr
                     )));
                     has_seq_bindings = true;
                 }

@@ -180,10 +180,15 @@ pub(crate) enum ComponentBinding {
     Simple { prop_name: String, var_name: String },
     /// Sequence expression binding: `bind:prop={() => val, (v) => { val = v }}`
     /// The getter and setter are extracted from the SequenceExpression.
+    /// `bind_get_name` / `bind_set_name` are the hoisted variable names generated for
+    /// this binding (e.g. `bind_get`, `bind_get_1`, …) — used for the `VarDeclaration`
+    /// parts and referenced by the getter/setter call expressions in the props object.
     SequenceExpression {
         prop_name: String,
         getter_expr: String,
         setter_expr: String,
+        bind_get_name: String,
+        bind_set_name: String,
     },
 }
 
