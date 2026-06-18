@@ -167,9 +167,30 @@ fn collect_attrs_classes(
                 if let AttributeValue::Sequence(parts) = &node.value {
                     for part in parts {
                         if let AttributeValuePart::Text(t) = part {
-                            // Split on whitespace — each token is a class name.
-                            for name in t.data.split_whitespace() {
-                                if !name.is_empty() {
+                            // Mirror upstream `findClassesInAttribute`:
+                            // `literal.value.trim().split(/\s+/u)`. In JS,
+                            // `"".split(/\s+/)` yields `[""]`, so a whitespace-only
+                            // text run (e.g. the space between two `{…}` mustaches
+                            // in `class="{a} {b}"`) contributes one empty class
+                            // name `""`. Reproduce that exactly — using
+                            // `split_whitespace()` (which drops empties) would
+                            // miss the `""` the oracle reports.
+                            //
+                            // A truly EMPTY run (`class=""`) is NOT a literal in
+                            // svelte-eslint-parser (its value array is empty), so
+                            // it yields no class — skip zero-length text runs.
+                            if t.data.is_empty() {
+                                continue;
+                            }
+                            let trimmed = t.data.trim();
+                            if trimmed.is_empty() {
+                                out.push(TemplateClass {
+                                    name: String::new(),
+                                    el_start,
+                                    el_end,
+                                });
+                            } else {
+                                for name in trimmed.split_whitespace() {
                                     out.push(TemplateClass {
                                         name: name.to_string(),
                                         el_start,
