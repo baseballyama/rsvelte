@@ -4,9 +4,9 @@ The svelte2tsx output-parity corpus compares rsvelte's `svelte2tsx` port against
 the **official** `svelte2tsx` over every shipped component, requiring
 byte-identical TSX after oxfmt normalization.
 
-This PR burned the baseline **124 → 2**, and added an `oracle-invalid`
-classification that correctly passes entries where the official tool itself
-produces broken output (see below).
+This PR burned the baseline **124 → 0** (a full pass), and added an
+`oracle-invalid` classification that correctly passes entries where the official
+tool itself produces broken output (see below).
 
 ## `oracle-invalid` — the official oracle is broken (now PASS)
 
@@ -28,21 +28,19 @@ target to match and rsvelte's own output is valid, so the verify
 rsvelte was fixed to emit *valid* TSX for the await-empty-then and
 `<svelte:component>`-event-bubbling cases so they qualify.
 
-## Remaining baseline (2) — `</noscript>` / `</textarea>` inside an attribute value
+## Previously-divergent, now fixed — `</noscript>` / `</textarea>` inside an attribute value
 
 - `runtime-legacy/escaped-attr` — `<a href="</noscript>…<script>…</script>">`.
 - `runtime-legacy/textarea-value-escape` — `<textarea value={`…</textarea>…`} />`.
 
 Official applies HTML **rawtext** semantics via a regex pre-pass: `</noscript>` /
 `</textarea>` closes the rawtext element, so the attribute value truncates there
-and the trailing `<script>` is re-extracted as a module statement. rsvelte keeps
-the (valid) literal attribute value. **Both tools emit valid TSX** — they only
-differ on these pathological inputs.
-
-A source-wide `<script>` extraction to match upstream was attempted but reverted:
-it over-matched real `<script>` elements in `<svelte:head>` / `{@html}` / nested
-templates and regressed 11 files. The correct port is attribute-value-scoped;
-tracked here meanwhile.
+and the trailing `<script>` is re-extracted as a module statement. These now
+match: rsvelte re-extracts the attribute-embedded `<script>` via the
+**attribute-value-scoped** `find_orphan_scripts` walk (NOT a source-wide scan —
+an earlier source-wide attempt over-matched real `<script>` elements in
+`<svelte:head>` / `{@html}` / nested templates and regressed 11 files, so it was
+reverted in favour of the scoped walk).
 
 ---
 
