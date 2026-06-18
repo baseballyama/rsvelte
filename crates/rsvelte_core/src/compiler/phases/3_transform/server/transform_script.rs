@@ -5244,6 +5244,51 @@ fn add_statement_semicolon(line: &str, next_trimmed: &str) -> String {
     line.to_string()
 }
 
+/// Strip leading TypeScript field modifiers from a class field LHS token and
+/// return the field-name-only slice (with leading `#` preserved for ergonomic
+/// private fields).
+///
+/// The modifiers we strip are the ones that appear **before** the identifier in
+/// TypeScript class declarations: `readonly`, `public`, `private`, `protected`,
+/// `override`, `accessor`, `declare`, `abstract`.  We intentionally leave
+/// `static` in place — a `static $derived.by` field keeps its `static` keyword
+/// on the backing `#field` declaration in the upstream output, and skipping it
+/// here would change semantics.
+///
+/// Examples:
+///   "readonly props"        → "props"
+///   "public readonly foo"   → "foo"
+///   "protected #bar"        → "#bar"
+///   "props"                 → "props"  (no change)
+///   "#raw"                  → "#raw"   (no change)
+fn strip_ts_field_modifiers(lhs: &str) -> &str {
+    const MODIFIERS: &[&str] = &[
+        "readonly ",
+        "public ",
+        "private ",
+        "protected ",
+        "override ",
+        "accessor ",
+        "declare ",
+        "abstract ",
+    ];
+    let mut s = lhs.trim();
+    // Keep stripping as long as a known modifier prefix is found.
+    loop {
+        let mut stripped = false;
+        for &m in MODIFIERS {
+            if let Some(rest) = s.strip_prefix(m) {
+                s = rest.trim_start();
+                stripped = true;
+            }
+        }
+        if !stripped {
+            break;
+        }
+    }
+    s
+}
+
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let script_bytes = script.as_bytes();
@@ -5636,9 +5681,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             || memmem::find(trimmed_bytes, b"= $derived.by(").is_some()
             || memmem::find(trimmed_bytes, b"=$derived.by(").is_some();
         if is_derived_field {
-            let is_private = trimmed.starts_with('#');
             if let Some(eq_pos) = trimmed.find('=') {
-                let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
+                // Strip TypeScript field modifiers (readonly, public, private, protected, …)
+                // so that e.g. `readonly props = $derived.by(…)` yields name="props" not
+                // "readonly props". The `#` ergonomic-private prefix is preserved.
+                let lhs_bare = strip_ts_field_modifiers(&trimmed[..eq_pos]);
+                let is_private = lhs_bare.starts_with('#');
+                let name = lhs_bare.trim_start_matches('#').to_string();
 
                 let (derived_pattern, is_derived_by) =
                     if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
@@ -7792,5 +7841,139 @@ mod destructure_helper_tests {
         // the multibyte target name.
         let names = extract_destructured_names_simple("{ café: renamed, π = 1 }");
         assert!(names.contains(&"renamed".to_string()), "{names:?}");
+    }
+}
+
+#[cfg(test)]
+mod class_field_server_tests {
+    use super::transform_class_fields_server;
+
+    /// Upstream ClassBody.js emits the setter as:
+    ///   b.method('set', b.key(name), [b.id('$$value')],
+    ///            [b.return(b.call(member, b.id('$$value')))])
+    /// i.e. parameter named `$$value` and body `return this.#<name>($$value);`.
+    ///
+    /// Verify that `transform_class_fields_server` generates exactly that shape
+    /// for a public `$derived.by` field — including when sibling fields appear
+    /// both before and after the class constructor (the bits-ui toggle-group
+    /// regression: `isPressed`, `snippetProps`, `props` all got `value` / no
+    /// `return` when `#tabIndex = $state(0)` and methods intervened).
+    #[test]
+    fn derived_setter_uses_dollar_dollar_value_and_return() {
+        // Mirrors the shape of `ToggleGroupItemState` from bits-ui which triggered
+        // the regression: public $derived.by fields before AND after the constructor,
+        // with methods and a $state field in between.
+        let input = r#"class ToggleGroupItemState {
+  static create(opts) {
+    return new ToggleGroupItemState(opts);
+  }
+  opts;
+  #isDisabled = $derived.by(
+    () => this.opts.disabled.current
+  );
+  isPressed = $derived.by(() => this.root.includesItem(this.opts.value.current));
+  constructor(opts, root) {
+    this.opts = opts;
+    this.root = root;
+  }
+  onclick(_) {
+    if (this.#isDisabled) return;
+  }
+  #tabIndex = $state(0);
+  snippetProps = $derived.by(() => ({
+    pressed: this.isPressed
+  }));
+  props = $derived.by(
+    () => ({
+      id: this.opts.id.current,
+    })
+  );
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // The getter should call the private backing field without argument.
+        assert!(
+            out.contains("get isPressed() {") && out.contains("return this.#isPressed();"),
+            "isPressed getter not found or malformed:\n{out}"
+        );
+        // The setter must use `$$value` (not `value`) and must have `return`.
+        assert!(
+            out.contains("set isPressed($$value)"),
+            "setter param must be $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#isPressed($$value);"),
+            "setter body must have `return this.#isPressed($$value);`, got:\n{out}"
+        );
+
+        // Same checks for the post-constructor public fields.
+        assert!(
+            out.contains("set snippetProps($$value)"),
+            "snippetProps setter param must be $$value:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#snippetProps($$value);"),
+            "snippetProps setter body must have return:\n{out}"
+        );
+        assert!(
+            out.contains("set props($$value)"),
+            "props setter param must be $$value:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "props setter body must have return:\n{out}"
+        );
+
+        // Sanity: private fields must NOT generate public get/set accessors.
+        assert!(
+            !out.contains("set isDisabled("),
+            "private #isDisabled must not get a public setter:\n{out}"
+        );
+    }
+
+    /// Regression test: TypeScript field modifiers (`readonly`, `public`, `protected`, etc.)
+    /// must be stripped before computing the field name in `transform_class_fields_server`.
+    ///
+    /// Before the fix, `readonly props = $derived.by(() => 1)` produced name
+    /// `"readonly props"` instead of `"props"`, so the field was not lowered into
+    /// the correct `get props()` / `set props($$value)` accessor pair.
+    #[test]
+    fn readonly_modifier_stripped_from_derived_field_name() {
+        let input = r#"class ToggleGroupBaseState {
+  someMethod() {
+    return 42;
+  }
+  readonly props = $derived.by(() => 1);
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // The backing private field should be `#props`, not `#readonly_props` or similar.
+        assert!(
+            out.contains("#props"),
+            "backing private field #props not found:\n{out}"
+        );
+
+        // The getter must exist with the unmodified name `props`.
+        assert!(
+            out.contains("get props() {") && out.contains("return this.#props();"),
+            "get props() accessor not correctly generated:\n{out}"
+        );
+
+        // The setter must use `$$value` (not `value`) and have `return`.
+        assert!(
+            out.contains("set props($$value)"),
+            "setter param must be $$value:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "setter body must have `return this.#props($$value);`:\n{out}"
+        );
+
+        // The keyword `readonly` must NOT appear as part of an identifier in the output.
+        // (The backing field `#props` and accessor `props` both drop the modifier.)
+        assert!(
+            !out.contains("readonly_props") && !out.contains("readonly props"),
+            "modifier `readonly` leaked into field name:\n{out}"
+        );
     }
 }
