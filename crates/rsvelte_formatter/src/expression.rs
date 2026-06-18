@@ -510,6 +510,45 @@ fn push_expression_tag(
         return Ok(());
     }
 
+    // When the expression tag body starts with `//` line comments, OXC would
+    // either drop them or fold trailing comments of the real expression into
+    // the output.  Prettier-plugin-svelte preserves the leading comment lines
+    // and formats only the AST expression node (using its source span, which
+    // does not include trailing inline/block comments).  Mirror that: extract
+    // the leading comment block, format only the expression-span source, and
+    // re-attach the comments.
+    if inner.starts_with("//") {
+        // Collect all leading `//`-comment lines.
+        let mut comment_end = 0;
+        for line in inner.lines() {
+            let lt = line.trim();
+            if lt.starts_with("//") {
+                comment_end += line.len() + 1; // +1 for '\n'
+            } else {
+                break;
+            }
+        }
+        let leading_comments = inner[..comment_end.min(inner.len())].trim_end_matches('\n');
+        // Use the AST expression span as the expression source so that
+        // trailing comments on the expression node are not included.
+        let expr_source = if let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
+            source.get(es as usize..ee as usize).unwrap_or("").trim()
+        } else {
+            inner[comment_end.min(inner.len())..].trim()
+        };
+        if expr_source.is_empty() {
+            edits.push((tag.start, tag.end, format!("{{{leading_comments}}}")));
+            return Ok(());
+        }
+        let formatted_expr = format_content_expression(expr_source, options, depth)?;
+        edits.push((
+            tag.start,
+            tag.end,
+            format!("{{{leading_comments}\n{formatted_expr}}}"),
+        ));
+        return Ok(());
+    }
+
     let formatted = format_content_expression(inner, options, depth)?;
     edits.push((tag.start, tag.end, format!("{{{formatted}}}")));
     Ok(())
@@ -1226,13 +1265,36 @@ pub(crate) fn format_directive_value_extra(
     if inner.is_empty() {
         return Ok(None);
     }
-    // When the brace interior starts with a `/* … */` block comment, the
-    // comment would be silently dropped by OXC's parser+formatter (OXC
-    // attaches the comment to the AST but does not always re-emit it).
-    // Prettier-plugin-svelte preserves the comment verbatim in such cases,
-    // so we return the raw source slice unchanged rather than formatting it.
+    // When the brace interior starts with a `/* … */` block comment, OXC's
+    // parser+formatter would silently drop the comment (OXC attaches it to
+    // the AST but does not always re-emit it).  Prettier-plugin-svelte
+    // preserves the comment verbatim in such cases, so we return the raw
+    // source slice unchanged.
     if inner.starts_with("/*") {
         return Ok(Some(inner.to_string()));
+    }
+    // When the brace interior starts with one or more `//` line comments,
+    // OXC would drop them.  Prettier-plugin-svelte preserves the leading
+    // comment lines and formats the remaining expression.  Extract the
+    // leading comment block, format the rest, and re-attach.
+    if inner.starts_with("//") {
+        // Collect all leading `//`-comment lines.
+        let mut comment_end = 0;
+        for line in inner.lines() {
+            let lt = line.trim();
+            if lt.starts_with("//") {
+                comment_end += line.len() + 1; // +1 for '\n'
+            } else {
+                break;
+            }
+        }
+        let leading_comments = &inner[..comment_end.min(inner.len())];
+        let rest = inner[comment_end.min(inner.len())..].trim();
+        if rest.is_empty() {
+            return Ok(Some(leading_comments.trim_end_matches('\n').to_string()));
+        }
+        let formatted_rest = format_attribute_value_expression(rest, options, attr_depth, extra)?;
+        return Ok(Some(format!("{leading_comments}{formatted_rest}")));
     }
     Ok(Some(format_attribute_value_expression(
         inner, options, attr_depth, extra,
@@ -1266,6 +1328,7 @@ fn directive_brace_inner<'a>(
     // Opening brace: whitespace-and-block-comment back-scan from the expression
     // start.  This handles cases like `bind:value={/** ( */ expr}` where a
     // leading `/* … */` comment sits between the `{` and the expression node.
+    // Also skips `//` line comments: `on:click={// comment\n  expr}`.
     let mut open = None;
     let mut i = expr_start as usize;
     while i > 0 {
@@ -1298,7 +1361,29 @@ fn directive_brace_inner<'a>(
                 // the `/*` open.
                 continue;
             }
-            _ => break,
+            _ => {
+                // This byte might be part of a `//` line comment.  Scan backward
+                // to the start of the current line and check whether `//` appears
+                // anywhere on that line before (or at) position `i`.  If it does,
+                // the entire line is a comment — skip it by jumping `i` to the
+                // position of the `//` so the outer `i -= 1` in the next iteration
+                // lands just before `//`, and the preceding `\n` (or whitespace)
+                // will be consumed by the whitespace arm.
+                let line_start =
+                    bytes[..i].iter().rposition(|&b| b == b'\n').map_or(0, |p| p + 1);
+                let line_slice = &bytes[line_start..=i];
+                if let Some(rel) = line_slice.windows(2).position(|w| w == b"//") {
+                    // `rel` is the offset of the first `/` of `//` within
+                    // `line_slice`.  The absolute position is `line_start + rel`.
+                    // Jump `i` to the `//` position; the next `i -= 1` will land
+                    // just before `//` (or wrap-underflow if at 0, but that
+                    // terminates the loop).
+                    i = line_start + rel;
+                    continue;
+                }
+                // Not a line-comment line — stop scanning.
+                break;
+            }
         }
     }
     let open = open?;
