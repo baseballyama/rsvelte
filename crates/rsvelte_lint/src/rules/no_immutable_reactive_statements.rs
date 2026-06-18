@@ -245,8 +245,22 @@ fn collect_mutable_via_each(source: &str) -> HashSet<String> {
 /// Whether `ident` (with its parent) sits in a position that is NOT a variable
 /// read: a non-computed member `.property`, a non-computed/non-shorthand object
 /// `key`, the `$` reactive label, or the write-only assignment target.
-fn is_ignored_position(ident: &Value, parent: &Value, write_only_lhs_start: Option<u32>) -> bool {
+fn is_ignored_position(
+    ident: &Value,
+    parent: &Value,
+    write_only_lhs_span: Option<(u32, u32)>,
+) -> bool {
     let id_start = ident.get("start").and_then(Value::as_u64);
+    // Any identifier inside the assignment's LHS (a plain target, or a binding
+    // within an object/array destructuring pattern) is a write target, not a
+    // read — regardless of how its parent node is shaped (e.g. a shorthand
+    // `{ foo }` property).
+    if let (Some(s), Some((ls, le))) = (id_start, write_only_lhs_span)
+        && u64::from(ls) <= s
+        && s < u64::from(le)
+    {
+        return true;
+    }
     match node_type(parent) {
         Some("MemberExpression") => {
             let computed = parent.get("computed").and_then(Value::as_bool) == Some(true);
@@ -275,10 +289,8 @@ fn is_ignored_position(ident: &Value, parent: &Value, write_only_lhs_start: Opti
                 .and_then(Value::as_u64)
                 == id_start
         }
-        _ => {
-            // Write-only assignment target.
-            write_only_lhs_start.map(u64::from) == id_start
-        }
+        // The write-only assignment target is handled by the LHS-span check above.
+        _ => false,
     }
 }
 
@@ -333,19 +345,38 @@ impl ScriptRule for NoImmutableReactiveStatements {
             }
             let Some(body) = node.get("body") else { return };
 
-            // Report target + write-only LHS (for `$: x = expr`).
-            let (target_start, target_end, write_only_lhs_start) = if node_type(body)
+            // Report target + write-only LHS span (for `$: x = expr` and the
+            // destructuring form `$: ({ foo } = expr)`). For an `=` assignment we
+            // report the RHS; identifiers anywhere in the LHS (a plain target or a
+            // whole object/array pattern) are write targets and must not count as
+            // reads.
+            let (target_start, target_end, write_only_lhs_span) = if node_type(body)
                 == Some("ExpressionStatement")
                 && let Some(expr) = body.get("expression")
                 && node_type(expr) == Some("AssignmentExpression")
             {
                 let op_eq = expr.get("operator").and_then(Value::as_str) == Some("=");
-                let lhs_start = expr
-                    .get("left")
-                    .filter(|l| node_type(l) == Some("Identifier"))
-                    .and_then(|l| l.get("start"))
-                    .and_then(Value::as_u64)
-                    .map(|s| s as u32);
+                let left = expr.get("left");
+                // Only a binding-shaped LHS (a plain identifier or a destructuring
+                // pattern) makes its identifiers write-only targets. A
+                // `MemberExpression` LHS (`obj.foo = …`) instead *mutates* its base
+                // object, so the base must stay a (mutable) reference and the
+                // statement is reactive — do NOT treat that LHS as write-only.
+                let lhs_is_binding = matches!(
+                    left.and_then(node_type),
+                    Some("Identifier" | "ObjectPattern" | "ArrayPattern")
+                );
+                let lhs_span = if op_eq && lhs_is_binding {
+                    match (
+                        left.and_then(|l| l.get("start")).and_then(Value::as_u64),
+                        left.and_then(|l| l.get("end")).and_then(Value::as_u64),
+                    ) {
+                        (Some(s), Some(e)) => Some((s as u32, e as u32)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
                 let right = expr.get("right");
                 let (ts, te) = if op_eq {
                     (
@@ -358,7 +389,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
                         body.get("end").and_then(Value::as_u64),
                     )
                 };
-                (ts, te, lhs_start)
+                (ts, te, lhs_span)
             } else {
                 (
                     body.get("start").and_then(Value::as_u64),
@@ -379,7 +410,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
                 let Some(parent) = ancestors.last() else {
                     return;
                 };
-                if is_ignored_position(inner, parent, write_only_lhs_start) {
+                if is_ignored_position(inner, parent, write_only_lhs_span) {
                     return;
                 }
                 let Some(name) = inner.get("name").and_then(Value::as_str) else {
