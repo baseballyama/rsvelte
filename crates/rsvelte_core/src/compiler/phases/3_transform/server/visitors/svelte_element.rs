@@ -3,10 +3,22 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{needs_clsx, prop_string};
 use super::super::types::OutputPart;
+use super::shared::utils::has_top_level_comma;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
 use std::fmt::Write as _;
+
+/// Wrap `expr` in parentheses if it contains a top-level comma (sequence expression),
+/// so that `$.clsx(a, b)` is not mis-parsed as a two-argument call.
+/// Mirrors `paren_if_sequence` in element.rs.
+fn paren_if_sequence(expr: String) -> String {
+    if has_top_level_comma(&expr) {
+        format!("({})", expr)
+    } else {
+        expr
+    }
+}
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_element(
@@ -322,10 +334,27 @@ impl<'a> ServerCodeGenerator<'a> {
                 Attribute::Attribute(node) => {
                     let name = node.name.as_str();
                     let value = self.extract_attribute_value_as_string(node)?;
+                    // Wrap dynamic class attribute in $.clsx() so arrays/objects are
+                    // normalised to a class string. Mirrors the needs_clsx check in
+                    // build_spread_object / build_element_attributes:
+                    // upstream `2-analyze/visitors/Attribute.js` sets `needs_clsx` when
+                    // `name === "class"` and the expression is not a Literal,
+                    // TemplateLiteral, or BinaryExpression.
+                    let value = if name == "class" && needs_clsx(&node.value) {
+                        format!("$.clsx({})", paren_if_sequence(value))
+                    } else {
+                        value
+                    };
                     object_parts.push(prop_string(name, &value));
                 }
                 Attribute::BindDirective(bind) => {
                     let name = bind.name.as_str();
+                    // bind:this is a client-only DOM reference; skip on server.
+                    // Upstream: build_element_attributes (shared/element.js line 113)
+                    // filters `bind:this` before the spread object is assembled.
+                    if name == "this" {
+                        continue;
+                    }
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
