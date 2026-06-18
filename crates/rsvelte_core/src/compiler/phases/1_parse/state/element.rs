@@ -1740,7 +1740,8 @@ impl Parser<'_> {
 
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let value = if self.eat_optional("=") {
+        let has_value = self.eat_optional("=");
+        let value = if has_value {
             self.skip_whitespace();
             if self.eat_optional("{") {
                 let expr_start = self.index;
@@ -1885,10 +1886,17 @@ impl Parser<'_> {
             AttributeValue::True(true)
         };
 
+        // For the shorthand form (`style:color`) the directive ends at the
+        // property name. `self.index` was advanced past any trailing whitespace
+        // by the `skip_whitespace()` before directive dispatch (needed to look
+        // for `=`), so using it here would wrongly extend the node onto the next
+        // line — upstream ends a shorthand directive at the name. With a value,
+        // `self.index` already sits at the end of the parsed value.
+        let end = if has_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::StyleDirective(
             crate::ast::template::StyleDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(prop_name),
                 name_loc,
                 value,
