@@ -41,3 +41,8 @@ compiler / esrap, burning down the output-equality corpus:
   collapses into unparseable output (the comment swallowing the next property).
 - `const id = $.props_id($$renderer)` is hoisted to the top of the component body,
   matching upstream's `body.unshift(...)`.
+- Template-literal lines that resemble imports are no longer hoisted by the
+  line-based import scanner, and template-literal interiors are preserved verbatim
+  when re-indenting nested dynamic-component calls (no spurious tabs in HTML).
+- A method chain split across lines by `//` comments no longer gets a spurious
+  `;` inserted mid-chain (which orphaned the continuation and broke parsing).
