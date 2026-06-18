@@ -106,4 +106,19 @@ comparison is therefore meaningless, exactly like the already-excluded
 in `lint-verify.mjs`; the rule stays covered by the exact-fixture oracle test
 (`eslint_plugin_oracle`).
 
+## H4 — `no-top-level-browser-globals`: globals-version split on `localStorage`/`navigator` (2 documented FP)
+
+The corpus oracle runs `eslint-plugin-svelte` against `globals@16.5`, where
+`navigator` / `localStorage` / `sessionStorage` are **node-available** — so
+upstream's `getBrowserGlobals()` (`globals.browser` minus `globals.node`)
+excludes them and the rule does **not** flag a bare `localStorage.getItem(…)` at
+module top level (`test03`, `…md/1`). rsvelte's `BROWSER_GLOBALS`, however, must
+keep them: eslint-plugin-svelte's **own** fixture suite (the exact-fixture oracle
+gate, `eslint_plugin_oracle`) declares `invalid/test03` and expects
+`"Unexpected top-level browser global variable \"localStorage\""`. Removing them
+to satisfy the corpus oracle breaks that hard gate. Per the "keep rsvelte
+correct" rule, rsvelte keeps flagging them (the upstream fixtures are the
+authoritative behavior); the 2 corpus FP are an oracle globals-version artifact,
+documented and tracked.
+
 <!-- Add further harness/upstream findings below as the burn-down continues. -->
