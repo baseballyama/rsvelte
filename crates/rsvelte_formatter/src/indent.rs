@@ -298,7 +298,41 @@ fn collect_indent_edits_inner(
                 } else {
                     t.data.as_str()
                 };
-                let reindented = reindent_text_lines(text, &child_indent, trailing_indent);
+                let mut reindented = reindent_text_lines(text, &child_indent, trailing_indent);
+                // When the text node is sandwiched between two block-display
+                // elements (both prev and next siblings are block), prettier
+                // strips any trailing spaces from the last content line so the
+                // text sits cleanly on its own line.  Example: `</p>\nlocal <p>`
+                // → the `local ` trailing space is stripped and a newline
+                // separator is added before the next `<p>` by the adjacent-block
+                // loop below.  This does NOT apply when only the next sibling is
+                // a block element (no preceding block) — prettier keeps inline
+                // text glued to the following block in that position.
+                let prev_is_block = i > 0
+                    && matches!(&fragment.nodes[i - 1],
+                        TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+                let next_is_block = i < last
+                    && matches!(&fragment.nodes[i + 1],
+                        TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+                if prev_is_block && next_is_block {
+                    let mut stripped = false;
+                    if let Some(last_nl) = reindented.rfind('\n') {
+                        let last_line = &reindented[last_nl + 1..];
+                        if !last_line.is_empty() && last_line != trailing_indent {
+                            // Content line (not purely indentation): trim trailing spaces.
+                            let trimmed_end = last_nl + 1 + last_line.trim_end_matches([' ', '\t']).len();
+                            reindented.truncate(trimmed_end);
+                            stripped = true;
+                        }
+                    }
+                    // After stripping, the text no longer ends with the
+                    // `trailing_indent` that would lead into the next block
+                    // element — insert `\n{child_indent}` at the text boundary
+                    // so the block element lands on its own indented line.
+                    if stripped {
+                        edits.push((t.end, t.end, format!("\n{child_indent}")));
+                    }
+                }
                 if reindented != text {
                     edits.push((t.start, t.end, reindented));
                 }
