@@ -286,6 +286,12 @@ impl SerializableDiagnostic {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WarningCache {
     pub version: u32,
+    /// Fingerprint of the resolved `compilerOptions` that produced these
+    /// cached diagnostics. The per-file `(mtime_ms, size)` key can't
+    /// notice a config edit (the `.svelte` source is unchanged), so the
+    /// runner compares this against the current options and drops the
+    /// whole cache on a mismatch.
+    pub config_signature: String,
     /// Keyed by absolute source path in memory; serialised with
     /// workspace-relative paths via [`save_warnings`].
     pub entries: HashMap<PathBuf, CachedDiagnostics>,
@@ -295,6 +301,7 @@ impl WarningCache {
     pub fn empty() -> Self {
         Self {
             version: WARNINGS_VERSION,
+            config_signature: String::new(),
             entries: HashMap::new(),
         }
     }
@@ -307,6 +314,8 @@ pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
     #[derive(Deserialize)]
     struct OnDisk {
         version: u32,
+        #[serde(default)]
+        config_signature: String,
         #[serde(default)]
         entries: HashMap<String, OnDiskEntry>,
     }
@@ -361,6 +370,7 @@ pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
     }
     WarningCache {
         version: parsed.version,
+        config_signature: parsed.config_signature,
         entries,
     }
 }
@@ -372,6 +382,7 @@ pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std
     #[derive(Serialize)]
     struct OnDisk<'a> {
         version: u32,
+        config_signature: &'a str,
         entries: HashMap<String, OnDiskEntry<'a>>,
     }
     #[derive(Serialize)]
@@ -416,6 +427,7 @@ pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std
     }
     let body = OnDisk {
         version: cache.version,
+        config_signature: &cache.config_signature,
         entries: out_entries,
     };
     let json = serde_json::to_string_pretty(&body).map_err(std::io::Error::other)?;

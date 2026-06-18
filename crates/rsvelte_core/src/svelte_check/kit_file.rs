@@ -123,7 +123,7 @@ fn extract_kit_files_from_stmt(stmt: &oxc::Statement, settings: &mut KitFilesSet
 }
 
 /// Match `defineConfig({...})` and return the inner object expression.
-fn unwrap_define_config_object<'a>(
+pub(crate) fn unwrap_define_config_object<'a>(
     expr: &'a oxc::Expression,
 ) -> Option<&'a oxc::ObjectExpression<'a>> {
     let oxc::Expression::CallExpression(call) = expr else {
@@ -178,7 +178,7 @@ fn extract_kit_files_from_object(obj: &oxc::ObjectExpression, settings: &mut Kit
     }
 }
 
-fn lookup_property<'a>(
+pub(crate) fn lookup_property<'a>(
     obj: &'a oxc::ObjectExpression,
     name: &str,
 ) -> Option<&'a oxc::Expression<'a>> {

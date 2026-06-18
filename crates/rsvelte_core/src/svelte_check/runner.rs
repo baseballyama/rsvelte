@@ -9,8 +9,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use crate::compiler::{CompileOptions, GenerateMode, compile};
+use crate::compiler::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
+use super::config::{CompilerOptionsSettings, load_compiler_options};
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::load_kit_files_settings;
 use super::manifest::{
@@ -148,11 +149,20 @@ impl RunResult {
 /// will plug in here in a follow-up.
 pub fn run(options: &RunOptions) -> RunResult {
     let kit_settings = load_kit_files_settings(&options.workspace);
+    // `compilerOptions` that influence diagnostics (e.g. `experimental.async`),
+    // resolved from both `svelte.config.*` and the `vite.config.*` Svelte
+    // plugin call (issue #1034).
+    let compiler_opts = load_compiler_options(&options.workspace);
     let relevant = find_relevant_files(&options.workspace, &options.ignore, &kit_settings);
     let files = relevant.svelte;
     let kit_files = relevant.kit;
     let files_checked = files.len();
-    let diagnostics = compile_files_with_cache(&files, &options.workspace, options.incremental);
+    let diagnostics = compile_files_with_cache(
+        &files,
+        &options.workspace,
+        options.incremental,
+        &compiler_opts,
+    );
     let mut result = RunResult {
         diagnostics,
         files_checked,
@@ -384,20 +394,20 @@ fn overlay_syntax_loud_diagnostics(
 /// stable input order. The compile step is pure CPU and trivially
 /// parallel; with the `native` feature we fan out across rayon's
 /// global pool, otherwise we fall back to sequential iteration.
-fn compile_files(files: &[PathBuf]) -> Vec<Diagnostic> {
+fn compile_files(files: &[PathBuf], compiler_opts: &CompilerOptionsSettings) -> Vec<Diagnostic> {
     #[cfg(feature = "rayon")]
     {
         use rayon::prelude::*;
         files
             .par_iter()
-            .flat_map_iter(|file| diagnostics_for_file(file).into_iter())
+            .flat_map_iter(|file| diagnostics_for_file(file, compiler_opts).into_iter())
             .collect()
     }
     #[cfg(not(feature = "rayon"))]
     {
         files
             .iter()
-            .flat_map(|file| diagnostics_for_file(file).into_iter())
+            .flat_map(|file| diagnostics_for_file(file, compiler_opts).into_iter())
             .collect()
     }
 }
@@ -411,13 +421,24 @@ fn compile_files_with_cache(
     files: &[PathBuf],
     workspace: &Path,
     incremental: bool,
+    compiler_opts: &CompilerOptionsSettings,
 ) -> Vec<Diagnostic> {
     if !incremental {
-        return compile_files(files);
+        return compile_files(files, compiler_opts);
     }
 
     let cache_path = workspace.join(".svelte-check").join("warnings.json");
     let mut cache = manifest::load_warnings(&cache_path, workspace);
+    // The per-file key is `(mtime_ms, size)`, which a config edit doesn't
+    // touch — so if the resolved `compilerOptions` changed since the last
+    // run, every cached diagnostic could be stale (e.g. an
+    // `experimental_async` error that toggling `experimental.async` should
+    // clear). Invalidate the whole cache on a signature mismatch.
+    let signature = compiler_opts.signature();
+    if cache.config_signature != signature {
+        cache.entries.clear();
+    }
+    cache.config_signature = signature;
     manifest::prune_warnings(&mut cache, files);
 
     // Per-file lookup → either reuse cached diagnostics or recompile.
@@ -428,14 +449,14 @@ fn compile_files_with_cache(
             use rayon::prelude::*;
             files
                 .par_iter()
-                .map(|file| compile_or_reuse(file, &cache))
+                .map(|file| compile_or_reuse(file, &cache, compiler_opts))
                 .collect()
         }
         #[cfg(not(feature = "rayon"))]
         {
             files
                 .iter()
-                .map(|file| compile_or_reuse(file, &cache))
+                .map(|file| compile_or_reuse(file, &cache, compiler_opts))
                 .collect()
         }
     };
@@ -453,7 +474,11 @@ fn compile_files_with_cache(
     diagnostics
 }
 
-fn compile_or_reuse(file: &Path, cache: &WarningCache) -> (PathBuf, CachedDiagnostics) {
+fn compile_or_reuse(
+    file: &Path,
+    cache: &WarningCache,
+    compiler_opts: &CompilerOptionsSettings,
+) -> (PathBuf, CachedDiagnostics) {
     let stats = current_stats(file);
     if let (Some((mtime, size)), Some(entry)) = (stats, cache.entries.get(file))
         && entry.mtime_ms == mtime
@@ -469,7 +494,7 @@ fn compile_or_reuse(file: &Path, cache: &WarningCache) -> (PathBuf, CachedDiagno
         );
     }
 
-    let diagnostics: Vec<SerializableDiagnostic> = diagnostics_for_file(file)
+    let diagnostics: Vec<SerializableDiagnostic> = diagnostics_for_file(file, compiler_opts)
         .iter()
         .map(SerializableDiagnostic::from_live)
         .collect();
@@ -484,7 +509,7 @@ fn compile_or_reuse(file: &Path, cache: &WarningCache) -> (PathBuf, CachedDiagno
     )
 }
 
-fn diagnostics_for_file(file: &Path) -> Vec<Diagnostic> {
+fn diagnostics_for_file(file: &Path, compiler_opts: &CompilerOptionsSettings) -> Vec<Diagnostic> {
     let source = match std::fs::read_to_string(file) {
         Ok(s) => s,
         Err(e) => {
@@ -501,6 +526,10 @@ fn diagnostics_for_file(file: &Path) -> Vec<Diagnostic> {
     let opts = CompileOptions {
         generate: GenerateMode::Client,
         filename: Some(file.display().to_string()),
+        experimental: ExperimentalOptions {
+            r#async: compiler_opts.experimental_async,
+        },
+        runes: compiler_opts.runes,
         ..Default::default()
     };
     match compile(&source, opts) {
