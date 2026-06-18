@@ -531,11 +531,12 @@ fn push_expression_tag(
         let leading_comments = inner[..comment_end.min(inner.len())].trim_end_matches('\n');
         // Use the AST expression span as the expression source so that
         // trailing comments on the expression node are not included.
-        let expr_source = if let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
-            source.get(es as usize..ee as usize).unwrap_or("").trim()
-        } else {
-            inner[comment_end.min(inner.len())..].trim()
-        };
+        let expr_source =
+            if let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
+                source.get(es as usize..ee as usize).unwrap_or("").trim()
+            } else {
+                inner[comment_end.min(inner.len())..].trim()
+            };
         if expr_source.is_empty() {
             edits.push((tag.start, tag.end, format!("{{{leading_comments}}}")));
             return Ok(());
@@ -1369,8 +1370,10 @@ fn directive_brace_inner<'a>(
                 // position of the `//` so the outer `i -= 1` in the next iteration
                 // lands just before `//`, and the preceding `\n` (or whitespace)
                 // will be consumed by the whitespace arm.
-                let line_start =
-                    bytes[..i].iter().rposition(|&b| b == b'\n').map_or(0, |p| p + 1);
+                let line_start = bytes[..i]
+                    .iter()
+                    .rposition(|&b| b == b'\n')
+                    .map_or(0, |p| p + 1);
                 let line_slice = &bytes[line_start..=i];
                 if let Some(rel) = line_slice.windows(2).position(|w| w == b"//") {
                     // `rel` is the offset of the first `/` of `//` within
@@ -1516,7 +1519,11 @@ pub(crate) fn format_function_binding(
         .map(|(c, _)| UnicodeWidthStr::width(c) + 1 /* space */)
         .unwrap_or(0);
     // +2 for outer parens when there is a comment, +0 otherwise.
-    let outer_parens_cols = if leading_block_comment.is_some() { 2 } else { 0 };
+    let outer_parens_cols = if leading_block_comment.is_some() {
+        2
+    } else {
+        0
+    };
     let inline_cols = lead_cols
         + 1  // opening `{`
         + comment_prefix_cols

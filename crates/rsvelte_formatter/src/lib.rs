@@ -176,10 +176,7 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
         // Two non-zero-length edits overlap when their ranges intersect.
         // Zero-length inserts (start == end) never conflict with a range edit
         // because they don't consume any source bytes.
-        let overlaps = applied_nonempty
-            && incoming_nonempty
-            && start < la_e
-            && end > la_s;
+        let overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s;
         if overlaps {
             continue;
         }

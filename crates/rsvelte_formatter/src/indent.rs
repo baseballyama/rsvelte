@@ -182,10 +182,27 @@ fn collect_indent_edits_inner(
                     // When either adjacent sibling is a block HTML element, the
                     // space must become a newline regardless of the inline-element
                     // guard (`next_not_regular`).
+                    // A space *after* a phrasing-content RegularElement (inline
+                    // HTML like `<strong>`, `<em>`, `<a>`, `<span>` — non-block,
+                    // non-inline-block elements with actual content children) is
+                    // prose-level glue — prettier keeps
+                    // `<strong>x</strong> {endText}` on one line just as it keeps
+                    // `<strong>x</strong> <em>y</em>` on one line.  Suppress the
+                    // space→newline conversion in this case.  Void / self-closing
+                    // elements (`<input>`, `<br>`) and inline-block form elements
+                    // (`<button>`, `<select>`) are NOT prose carriers; the space
+                    // after them does convert to a newline (oracle behaviour).
+                    let prev_is_inline_html = i > 0
+                        && matches!(&fragment.nodes[i - 1],
+                            TemplateNode::RegularElement(e)
+                            if !is_prettier_block_element(e.name.as_str())
+                                && !is_inline_block_element(e.name.as_str())
+                                && !e.fragment.nodes.is_empty());
                     let next_not_regular = next_is_block_html
                         || prev_is_block_html
                         || i >= last
-                        || !matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_));
+                        || (!matches!(&fragment.nodes[i + 1], TemplateNode::RegularElement(_))
+                            && !prev_is_inline_html);
                     let next_provoking = i < last && is_indent_provoking(&fragment.nodes[i + 1]);
                     // For element-children contexts (not block bodies), the fragment
                     // is "broken" — meaning spaces between block-level nodes become
@@ -320,7 +337,8 @@ fn collect_indent_edits_inner(
                         let last_line = &reindented[last_nl + 1..];
                         if !last_line.is_empty() && last_line != trailing_indent {
                             // Content line (not purely indentation): trim trailing spaces.
-                            let trimmed_end = last_nl + 1 + last_line.trim_end_matches([' ', '\t']).len();
+                            let trimmed_end =
+                                last_nl + 1 + last_line.trim_end_matches([' ', '\t']).len();
                             reindented.truncate(trimmed_end);
                             stripped = true;
                         }
@@ -467,20 +485,13 @@ fn collect_indent_edits_inner(
                     // Implicitly-closed RegularElement with EMPTY content: insert
                     // synthetic </tag> (pushed second so it lands before the \n).
                     if let TemplateNode::RegularElement(e) = last {
-                        let is_implicitly_closed = source
-                            .as_bytes()
-                            .get(e.end as usize - 1)
-                            .copied()
-                            != Some(b'>');
-                        let is_empty_content = e.fragment.nodes.iter().all(|n| {
-                            matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
-                        });
+                        let is_implicitly_closed =
+                            source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
+                        let is_empty_content = e.fragment.nodes.iter().all(
+                            |n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                        );
                         if is_implicitly_closed && is_empty_content {
-                            edits.push((
-                                last_end,
-                                last_end,
-                                format!("</{}>", e.name.as_str()),
-                            ));
+                            edits.push((last_end, last_end, format!("</{}>", e.name.as_str())));
                         }
                     }
                 }
@@ -510,14 +521,12 @@ fn collect_indent_edits_inner(
                     && matches!(&fragment.nodes[last_idx + 1],
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
                 if !has_trailing_ws {
-                    let is_implicitly_closed = source
-                        .as_bytes()
-                        .get(e.end as usize - 1)
-                        .copied()
-                        != Some(b'>');
-                    let is_nonempty = !e.fragment.nodes.iter().all(|n| {
-                        matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
-                    });
+                    let is_implicitly_closed =
+                        source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
+                    let is_nonempty =
+                        !e.fragment.nodes.iter().all(
+                            |n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                        );
                     let parent_close_follows = source.as_bytes().get(e.end as usize).copied()
                         == Some(b'<')
                         && source.as_bytes().get(e.end as usize + 1).copied() == Some(b'/');
@@ -916,4 +925,12 @@ fn is_prettier_block_element(tag: &str) -> bool {
             | "table"
             | "ul"
     )
+}
+
+/// Elements that render as `inline-block` / replaced content — they take up
+/// block space even though they are not block-display.  A space after one of
+/// these should not be treated as prose glue (it converts to a newline on its
+/// own line in a broken fragment, just like a block element).
+fn is_inline_block_element(tag: &str) -> bool {
+    matches!(tag, "input" | "button" | "select" | "object" | "video" | "audio")
 }

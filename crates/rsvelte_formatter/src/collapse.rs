@@ -2657,16 +2657,64 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                 // prettier's `handleTextChild` returns early for the first/last
                 // child (no trim, no flag) — the wrapper owns that boundary — so
                 // the boundary handling below only applies to middle text nodes.
+                let ws_only = txt.split_whitespace().next().is_none();
                 //
                 // Leading space after an inline element: trim it from this fill
                 // and append a `line` to the previous element's doc so the
                 // element and the following space break together (the element
                 // can then sit at the end of a line with the next word wrapping).
-                if !trim_left && !trim_right && prev_inline && starts_with_space_no_break(txt) {
-                    if let Some(prev) = docs.pop() {
-                        docs.push(Doc::Group(vec![prev, Doc::Line]));
+                //
+                // For the LAST text node after a VOID inline element (empty fragment,
+                // e.g. `<input>`, `<br>`), use a unified Fill([elem, Line, w1, Line, w2, …]).
+                // This lets the fill algorithm decide whether elem+first_word fits
+                // (and break before the first word when it doesn't) rather than
+                // having the old Fill([Line, words…]) structure, where Line acts as
+                // a 1-char content atom that always "fits", causing the first word
+                // to overflow on the same line as the element.
+                //
+                // For content elements (non-empty fragment, e.g. `<code>`, `<strong>`),
+                // keep the old Fill([Line, words…]) structure: the Line acts as a
+                // 1-char content atom that fits after the element's closing `>`,
+                // keeping text glued to the closing `>` even when the element itself
+                // was forced multi-line by its attributes.
+                // A TRUE void HTML element (`<input>`, `<br>`, `<img>`, `<hr>`, …)
+                // always ends with `/>` and has no closing tag. Its cursor
+                // position after printing is well-defined even when its attributes
+                // wrap, so a unified Fill correctly models the line-break decision.
+                // Empty non-void elements (`<span></span>`, `<span class="…"></span>`)
+                // also have `e.fragment.nodes.is_empty()` but their hug-doc may
+                // place the close tag on an indented line — merging those into a
+                // unified Fill breaks the `></tag> text` glue. Restrict the unified
+                // path to HTML void elements only.
+                let prev_is_void_inline = i > 0
+                    && matches!(&nodes[i - 1], TemplateNode::RegularElement(e)
+                        if is_html_void_element(e.name.as_str()));
+                if !trim_left && prev_inline && starts_with_space_no_break(txt) && !ws_only {
+                    // Count text words to decide whether to merge into a unified Fill.
+                    // With only ONE word (e.g. "°F"), the old Fill([Line, word]) structure
+                    // correctly tolerates slight overflow — prettier keeps a lone final word
+                    // on the same line as the element even if it overflows by a char or two.
+                    // With TWO or more words, the unified Fill correctly breaks before the
+                    // first word when it doesn't fit after the element.
+                    let text_word_count = txt.split_whitespace().count();
+                    if trim_right && prev_is_void_inline && text_word_count >= 2 {
+                        // Last text node (≥2 words) after a void inline element: unified Fill.
+                        if let Some(prev) = docs.pop() {
+                            let text_parts = split_text_to_docs(txt, true, true);
+                            let mut fill_parts = vec![prev, Doc::Line];
+                            fill_parts.extend(text_parts);
+                            docs.push(Doc::Fill(fill_parts));
+                            continue;
+                        }
+                        // No prev element to merge; fall through to normal handling.
+                    } else if !trim_right {
+                        // Middle text node: old Group([prev, Line]) + Fill([words]).
+                        if let Some(prev) = docs.pop() {
+                            docs.push(Doc::Group(vec![prev, Doc::Line]));
+                        }
+                        tl = true;
                     }
-                    tl = true;
+                    // trim_right && !prev_is_void_inline: fall through to old behavior.
                 }
                 // Trailing space before an inline element: trim it from this fill
                 // and flag the element to carry the leading `line` (hug in place):
@@ -2681,7 +2729,6 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                 // preceding element's doc; adding a leading `Line` via `ws_prev`
                 // would produce two spaces in flat mode. Skip `ws_prev` when the
                 // separator was already placed by `tl`.
-                let ws_only = txt.split_whitespace().next().is_none();
                 if !trim_left
                     && !trim_right
                     && next_inline
@@ -2692,7 +2739,7 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                     ws_prev = true;
                 }
                 let parts = split_text_to_docs(txt, tl, tr);
-                if txt.split_whitespace().next().is_none() {
+                if ws_only {
                     // Whitespace-only separator (between mustaches / atoms): emit
                     // the bare `line`(s) so they break with the surrounding
                     // element group (prettier's `splitTextToDocs` returns a bare
@@ -3226,4 +3273,28 @@ pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
         TemplateNode::SvelteComponent(n) => (n.start, n.end),
         TemplateNode::SvelteElement(n) => (n.start, n.end),
     }
+}
+
+/// HTML void elements — elements that can never have children and always use
+/// the self-closing `/>` form. Their output cursor after printing is
+/// well-defined regardless of attribute wrapping, unlike content elements
+/// (e.g. `<code>`) whose hugged close tag may end up on an indented line.
+fn is_html_void_element(tag: &str) -> bool {
+    matches!(
+        tag,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    )
 }
