@@ -244,23 +244,9 @@ fn collect_mutable_via_each(source: &str) -> HashSet<String> {
 
 /// Whether `ident` (with its parent) sits in a position that is NOT a variable
 /// read: a non-computed member `.property`, a non-computed/non-shorthand object
-/// `key`, the `$` reactive label, or the write-only assignment target.
-fn is_ignored_position(
-    ident: &Value,
-    parent: &Value,
-    write_only_lhs_span: Option<(u32, u32)>,
-) -> bool {
+/// `key`, the `$` reactive label.
+fn is_ignored_position(ident: &Value, parent: &Value) -> bool {
     let id_start = ident.get("start").and_then(Value::as_u64);
-    // Any identifier inside the assignment's LHS (a plain target, or a binding
-    // within an object/array destructuring pattern) is a write target, not a
-    // read — regardless of how its parent node is shaped (e.g. a shorthand
-    // `{ foo }` property).
-    if let (Some(s), Some((ls, le))) = (id_start, write_only_lhs_span)
-        && u64::from(ls) <= s
-        && s < u64::from(le)
-    {
-        return true;
-    }
     match node_type(parent) {
         Some("MemberExpression") => {
             let computed = parent.get("computed").and_then(Value::as_bool) == Some(true);
@@ -289,9 +275,135 @@ fn is_ignored_position(
                 .and_then(Value::as_u64)
                 == id_start
         }
-        // The write-only assignment target is handled by the LHS-span check above.
         _ => false,
     }
+}
+
+/// Collect all binding-shaped `=` assignment LHS spans anywhere in `node`.
+/// These are positions where an identifier is in write-only position (not read),
+/// and must be excluded from the "is this a reactive read?" check — but only
+/// when the name is a known top-level binding. For undeclared names in write-only
+/// position, we still treat them as unresolved through-references (→ don't report).
+///
+/// Only collects spans for `AssignmentExpression` with `=` operator whose LHS
+/// is `Identifier | ObjectPattern | ArrayPattern` (binding shapes). A
+/// `MemberExpression` LHS is NOT write-only — it mutates the object, making the
+/// object binding a mutable (reactive) reference.
+fn collect_write_only_lhs_spans(node: &Value, out: &mut Vec<(u32, u32)>) {
+    walk_js(node, |n, _| {
+        if node_type(n) != Some("AssignmentExpression") {
+            return;
+        }
+        if n.get("operator").and_then(Value::as_str) != Some("=") {
+            return;
+        }
+        let left = n.get("left");
+        let lhs_is_binding = matches!(
+            left.and_then(node_type),
+            Some("Identifier" | "ObjectPattern" | "ArrayPattern")
+        );
+        if !lhs_is_binding {
+            return;
+        }
+        let start = left
+            .and_then(|l| l.get("start"))
+            .and_then(Value::as_u64)
+            .map(|v| v as u32);
+        let end = left
+            .and_then(|l| l.get("end"))
+            .and_then(Value::as_u64)
+            .map(|v| v as u32);
+        if let (Some(s), Some(e)) = (start, end) {
+            out.push((s, e));
+        }
+    });
+}
+
+/// Collect names implicitly declared by top-level `$:` reactive assignment
+/// statements across the WHOLE program (e.g. `$: foo = 1`, `$: ([foo] = arr)`,
+/// `$: ({ a, b } = obj)`). These names are created as reactive bindings by
+/// Svelte but may not appear in `analyze_scope`'s `binding_names` when the
+/// scope builder doesn't handle the destructuring reactive-declaration pattern.
+/// Treating them as "known" ensures write-only refs in the LHS are skipped
+/// rather than triggering the "undeclared → should_skip" path.
+fn collect_reactive_decl_names(program: &Value, out: &mut HashSet<String>) {
+    let Some(body) = program.get("body").and_then(Value::as_array) else {
+        return;
+    };
+    for stmt in body {
+        if node_type(stmt) != Some("LabeledStatement") {
+            continue;
+        }
+        if stmt
+            .get("label")
+            .and_then(|l| l.get("name"))
+            .and_then(Value::as_str)
+            != Some("$")
+        {
+            continue;
+        }
+        let Some(body) = stmt.get("body") else {
+            continue;
+        };
+        if node_type(body) != Some("ExpressionStatement") {
+            continue;
+        }
+        let Some(expr) = body.get("expression") else {
+            continue;
+        };
+        // Unwrap a single level of parenthesization: `$: (foo = bar)`.
+        let expr = if node_type(expr) == Some("SequenceExpression") {
+            // Not a typical case but safe to skip
+            continue;
+        } else {
+            expr
+        };
+        if node_type(expr) != Some("AssignmentExpression") {
+            continue;
+        }
+        if expr.get("operator").and_then(Value::as_str) != Some("=") {
+            continue;
+        }
+        // Collect all identifier names from the LHS pattern — these are the
+        // implicitly-declared reactive vars.
+        collect_pattern_idents(expr.get("left"), out);
+    }
+}
+
+/// Collect all names declared by `VariableDeclaration` nodes or function
+/// parameters anywhere **inside** the reactive statement node (including inside
+/// nested function bodies). These are local bindings that shadow any outer
+/// top-level binding with the same name — references to them are not references
+/// to the outer binding and must be ignored.
+///
+/// Mirrors the upstream behaviour where `iterateRangeReferences` only yields
+/// references from the *top-level* (module/instance) scope: references to
+/// names declared inside the reactive statement itself are block- or
+/// function-scoped and therefore not yielded.
+fn collect_local_decls(node: &Value, out: &mut HashSet<String>) {
+    // We skip the LabeledStatement node itself (the reactive label `$:`) so we
+    // don't accidentally treat the label `$` as a declaration. Only the body
+    // subtree contains local declarations.
+    let body = node.get("body");
+    let Some(body) = body else { return };
+    walk_js(body, |n, _| {
+        let nt = node_type(n);
+        if nt == Some("VariableDeclaration") {
+            if let Some(declarators) = n.get("declarations").and_then(Value::as_array) {
+                for d in declarators {
+                    collect_pattern_idents(d.get("id"), out);
+                }
+            }
+        } else if matches!(
+            nt,
+            Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
+        ) && let Some(params) = n.get("params").and_then(Value::as_array)
+        {
+            for p in params {
+                collect_pattern_idents(Some(p), out);
+            }
+        }
+    });
 }
 
 #[derive(Default)]
@@ -303,33 +415,54 @@ impl ScriptRule for NoImmutableReactiveStatements {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &Value, _kind: ScriptKind) {
-        let Some(analysis) = crate::scope::analyze_scope(ctx.source()) else {
-            return;
-        };
-        let binding_names: HashSet<&str> = analysis
-            .root
-            .bindings
-            .iter()
-            .map(|b| b.name.as_str())
-            .collect();
-        let mutable_bindings: HashSet<&str> = analysis
-            .root
-            .bindings
-            .iter()
-            .filter(|b| b.reassigned || b.mutated)
-            .map(|b| b.name.as_str())
-            .collect();
+        // Try to get full scope analysis. If it fails (e.g. constant_assignment
+        // or constant_binding errors that the upstream ESLint scope manager
+        // wouldn't reject), continue with empty binding maps — the write-only
+        // LHS detection and the "unknown identifier → skip" guard ensure we
+        // only report structurally obvious non-reactive statements.
+        let analysis = crate::scope::analyze_scope(ctx.source());
+
+        let (binding_names, mutable_bindings): (HashSet<&str>, HashSet<&str>) =
+            if let Some(ref a) = analysis {
+                let names = a.root.bindings.iter().map(|b| b.name.as_str()).collect();
+                let mutable = a
+                    .root
+                    .bindings
+                    .iter()
+                    .filter(|b| b.reassigned || b.mutated)
+                    .map(|b| b.name.as_str())
+                    .collect();
+                (names, mutable)
+            } else {
+                (HashSet::new(), HashSet::new())
+            };
+
         let mut props: HashSet<String> = HashSet::new();
         collect_export_let_props(program, &mut props);
         let mutable_via_each = collect_mutable_via_each(ctx.source());
         let delete_mutated = collect_delete_mutated(program);
         let globals: HashSet<&str> = KNOWN_GLOBALS.iter().copied().collect();
 
+        // Collect names implicitly declared by reactive assignment statements
+        // (e.g. `$: foo = 1`, `$: ([...foo] = arr)`). These are reactive vars
+        // that Svelte creates but that may not appear in `analyze_scope`'s
+        // `binding_names` for destructuring patterns. We need them to correctly
+        // classify write-only LHS identifiers as "known" so they're skipped
+        // rather than triggering the "undeclared → should_skip" path.
+        let mut reactive_decl_names: HashSet<String> = HashSet::new();
+        collect_reactive_decl_names(program, &mut reactive_decl_names);
+
         let is_mutable = |name: &str| -> bool {
             props.contains(name)
                 || mutable_bindings.contains(name)
                 || mutable_via_each.contains(name)
                 || delete_mutated.contains(name)
+        };
+
+        // A name is "known" when it appears in the component's top-level
+        // bindings OR is implicitly declared by a reactive assignment statement.
+        let is_known_name = |name: &str| -> bool {
+            binding_names.contains(name) || reactive_decl_names.contains(name)
         };
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
@@ -345,61 +478,43 @@ impl ScriptRule for NoImmutableReactiveStatements {
             }
             let Some(body) = node.get("body") else { return };
 
-            // Report target + write-only LHS span (for `$: x = expr` and the
-            // destructuring form `$: ({ foo } = expr)`). For an `=` assignment we
-            // report the RHS; identifiers anywhere in the LHS (a plain target or a
-            // whole object/array pattern) are write targets and must not count as
-            // reads.
-            let (target_start, target_end, write_only_lhs_span) = if node_type(body)
-                == Some("ExpressionStatement")
+            // Report target: for `$: x = rhs` (operator `=`), report at `rhs`;
+            // otherwise report at the statement body node.
+            let (target_start, target_end) = if node_type(body) == Some("ExpressionStatement")
                 && let Some(expr) = body.get("expression")
                 && node_type(expr) == Some("AssignmentExpression")
+                && expr.get("operator").and_then(Value::as_str) == Some("=")
             {
-                let op_eq = expr.get("operator").and_then(Value::as_str) == Some("=");
-                let left = expr.get("left");
-                // Only a binding-shaped LHS (a plain identifier or a destructuring
-                // pattern) makes its identifiers write-only targets. A
-                // `MemberExpression` LHS (`obj.foo = …`) instead *mutates* its base
-                // object, so the base must stay a (mutable) reference and the
-                // statement is reactive — do NOT treat that LHS as write-only.
-                let lhs_is_binding = matches!(
-                    left.and_then(node_type),
-                    Some("Identifier" | "ObjectPattern" | "ArrayPattern")
-                );
-                let lhs_span = if op_eq && lhs_is_binding {
-                    match (
-                        left.and_then(|l| l.get("start")).and_then(Value::as_u64),
-                        left.and_then(|l| l.get("end")).and_then(Value::as_u64),
-                    ) {
-                        (Some(s), Some(e)) => Some((s as u32, e as u32)),
-                        _ => None,
-                    }
-                } else {
-                    None
-                };
                 let right = expr.get("right");
-                let (ts, te) = if op_eq {
-                    (
-                        right.and_then(|r| r.get("start")).and_then(Value::as_u64),
-                        right.and_then(|r| r.get("end")).and_then(Value::as_u64),
-                    )
-                } else {
-                    (
-                        body.get("start").and_then(Value::as_u64),
-                        body.get("end").and_then(Value::as_u64),
-                    )
-                };
-                (ts, te, lhs_span)
+                let ts = right.and_then(|r| r.get("start")).and_then(Value::as_u64);
+                let te = right.and_then(|r| r.get("end")).and_then(Value::as_u64);
+                (ts, te)
             } else {
                 (
                     body.get("start").and_then(Value::as_u64),
                     body.get("end").and_then(Value::as_u64),
-                    None,
                 )
             };
             let (Some(ts), Some(te)) = (target_start, target_end) else {
                 return;
             };
+
+            // Pre-collect all write-only LHS spans from ALL `=` assignments
+            // anywhere in this reactive statement (including those inside block
+            // bodies). These are positions where KNOWN identifiers are in
+            // write-only position (not reads) — they should not count as reactive
+            // references. For UNKNOWN identifiers in write-only position, the
+            // normal "undeclared → should_skip = true" path still applies.
+            let mut write_only_lhs_spans: Vec<(u32, u32)> = Vec::new();
+            collect_write_only_lhs_spans(node, &mut write_only_lhs_spans);
+
+            // Pre-collect all names declared INSIDE the reactive statement body
+            // (variable declarations and function params at any depth). These are
+            // local bindings that shadow outer top-level variables with the same
+            // name. References to such names within the reactive statement are NOT
+            // references to the outer top-level binding and must be ignored.
+            let mut local_decls: HashSet<String> = HashSet::new();
+            collect_local_decls(node, &mut local_decls);
 
             // Walk the statement subtree, classifying each referenced identifier.
             let mut should_skip = false;
@@ -410,17 +525,48 @@ impl ScriptRule for NoImmutableReactiveStatements {
                 let Some(parent) = ancestors.last() else {
                     return;
                 };
-                if is_ignored_position(inner, parent, write_only_lhs_span) {
+                if is_ignored_position(inner, parent) {
                     return;
                 }
                 let Some(name) = inner.get("name").and_then(Value::as_str) else {
                     return;
                 };
+
+                // Identifiers that name a LOCAL declaration within this reactive
+                // statement (a block-scoped variable or a function param) are not
+                // references to the outer top-level binding — ignore them entirely.
+                // This mirrors the upstream `iterateRangeReferences` which only
+                // yields references from the top-level (module/instance) scope.
+                if local_decls.contains(name) {
+                    return;
+                }
+
+                let id_pos = inner.get("start").and_then(Value::as_u64).unwrap_or(0);
+                let is_write_only = write_only_lhs_spans
+                    .iter()
+                    .any(|&(s, e)| u64::from(s) <= id_pos && id_pos < u64::from(e));
+
+                if is_write_only {
+                    if is_known_name(name) {
+                        // Known variable in write-only position: this is a write
+                        // target, not a read — skip it. The upstream's
+                        // `reference.isWriteOnly() → continue` mirrors this.
+                        return;
+                    }
+                    // Unknown variable in write-only position (e.g. `c` in
+                    // `c = bar == null` where `c` is not declared). This is an
+                    // unresolved "through" reference in the upstream model.
+                    // `through.resolved == null → return` means don't report.
+                    should_skip = true;
+                    return;
+                }
+
+                // Not in write-only position: standard read-reference check.
                 if name.starts_with("$$") {
                     should_skip = true; // builtin `$$` var
                 } else if name.starts_with('$') {
                     should_skip = true; // reactive store reference → mutable
-                } else if binding_names.contains(name) {
+                } else if is_known_name(name) {
                     if is_mutable(name) {
                         should_skip = true;
                     }
