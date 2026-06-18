@@ -26,8 +26,9 @@
     "open",
     "indexedDB"
   ],
-  "envApis_comment": "Universal Web/Node APIs that ReferenceTracker-based rules track: URL/URLSearchParams (prefer-svelte-reactivity) and the timer family (infinite-reactive-loop). Non-collision-prone, available in every realistic Svelte runtime.",
+  "envApis_comment": "Universal Web/Node APIs available in every realistic Svelte runtime. `console` makes no-immutable-reactive-statements treat `$: console.log(x)` as a resolved reference (matching real ESLint browser/node globals); the rest are tracked by ReferenceTracker rules (URL/URLSearchParams → prefer-svelte-reactivity; the timer family → infinite-reactive-loop). All non-collision-prone (not browser-only, so no-top-level-browser-globals is unaffected).",
   "envApis": [
+    "console",
     "URL",
     "URLSearchParams",
     "fetch",

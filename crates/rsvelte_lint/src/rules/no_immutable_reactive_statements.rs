@@ -159,6 +159,26 @@ fn expr_base_name(e: Option<&Value>) -> Option<&str> {
     }
 }
 
+/// Collect the base identifier of every `delete <member>` expression in the
+/// program (`delete obj.prop` ⇒ `obj`). Such a delete mutates the object, so the
+/// base name is mutable — mirrors upstream's `hasWriteMember` handling of
+/// `UnaryExpression { operator: 'delete' }`.
+fn collect_delete_mutated(program: &Value) -> HashSet<String> {
+    let mut out = HashSet::new();
+    walk_js(program, |node, _| {
+        if node_type(node) != Some("UnaryExpression") {
+            return;
+        }
+        if node.get("operator").and_then(Value::as_str) != Some("delete") {
+            return;
+        }
+        if let Some(base) = expr_base_name(node.get("argument")) {
+            out.insert(base.to_string());
+        }
+    });
+    out
+}
+
 /// Whether `name` is *written* anywhere in `scope`: as a `bind:` directive
 /// target, an assignment / update target, or the source of a nested `{#each}`
 /// whose own context is (recursively) written.
@@ -290,12 +310,14 @@ impl ScriptRule for NoImmutableReactiveStatements {
         let mut props: HashSet<String> = HashSet::new();
         collect_export_let_props(program, &mut props);
         let mutable_via_each = collect_mutable_via_each(ctx.source());
+        let delete_mutated = collect_delete_mutated(program);
         let globals: HashSet<&str> = KNOWN_GLOBALS.iter().copied().collect();
 
         let is_mutable = |name: &str| -> bool {
             props.contains(name)
                 || mutable_bindings.contains(name)
                 || mutable_via_each.contains(name)
+                || delete_mutated.contains(name)
         };
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
