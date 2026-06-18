@@ -1124,26 +1124,38 @@ fn try_collapse(
     // prettier-plugin-svelte's inline-vs-block child whitespace handling.
     let trims_edge = trims_edge_whitespace(tag) || is_component_tag(tag);
 
-    // Empty element (whitespace-only body): collapse to `<tag></tag>` — the
-    // close tag glues directly to the `>`, dropping the body whitespace.
+    // Empty element (whitespace-only body): normalize whitespace between tags.
     //
-    // For block/component/slot elements (`trims_edge = true`) this holds even
-    // when the open tag wrapped across lines (`<svelte:boundary\n
-    // onerror={…}\n></svelte:boundary>`), because block elements are not
-    // whitespace-sensitive at boundaries.
+    // Three distinct cases:
     //
-    // For non-block elements like `<button>` (inline-block), when the open tag
-    // wrapped the oracle keeps `>` and `</button>` on separate lines:
-    //   <button
-    //     onclick={…}
-    //   >
-    //   </button>
-    // So skip the collapse for those cases — return None to leave the
-    // already-rendered layout (with the `\n` between `>` and `</tag>`) intact.
+    // 1. Block/component/slot (`trims_edge = true`): collapse to `<tag></tag>`
+    //    regardless of whether the open tag wraps. These are not whitespace-
+    //    sensitive so the body whitespace is dropped entirely.
+    //      `<div>\n</div>` → `<div></div>`
+    //      `<div\n  class="…"\n></div>` → `<div\n  class="…"\n></div>`
+    //
+    // 2. Non-block elements with an **inline** (non-wrapped) open tag: keep
+    //    one edge space so the close tag doesn't touch the `>`.
+    //      `<span>\n</span>` → `<span> </span>`
+    //      `<button>\n</button>` → `<button> </button>`
+    //      `<svg>\n</svg>` → `<svg> </svg>`
+    //    oracle treats these as whitespace-sensitive — one space represents the
+    //    boundary whitespace.
+    //
+    // 3. Non-block elements with a **wrapped** open tag: keep `>` and `</tag>`
+    //    on separate lines. Return None so the already-formatted layout is used.
+    //      `<button\n  onclick={…}\n>\n</button>` — stays as-is.
     if collapsed.is_empty() {
-        if !trims_edge && open.contains('\n') {
-            return None;
+        if !trims_edge {
+            if open.contains('\n') {
+                // Case 3: wrapped open tag — leave as-is.
+                return None;
+            }
+            // Case 2: inline open tag — insert one space between `>` and `</tag>`.
+            let result = format!("{open} {close}");
+            return (result != whole).then_some((start, end, result));
         }
+        // Case 1: block/component — collapse completely.
         let result = format!("{open}{close}");
         return (result != whole).then_some((start, end, result));
     }
