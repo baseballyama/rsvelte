@@ -44,6 +44,12 @@ const EXCLUDE = new Set([
 	//    type-aware path is covered separately by `rsvelte_lint_types`.
 	'svelte/no-unused-props',
 	'svelte/no-navigation-without-resolve',
+	// `require-event-prefix` resolves component event names from TS types; the
+	//    corpus oracle has only the TS *parser* (no type checker), so it returns
+	//    `{}` and stays silent even on its own invalid fixtures. rsvelte's
+	//    syntactic port recovers them, so a finding-level comparison here is
+	//    meaningless (the rule IS exercised by the exact-fixture oracle test).
+	'svelte/require-event-prefix',
 	// ── Option-required: schema rejects an empty option list, so the rule is a
 	//    no-op without a per-project allowlist. rsvelte defaults it off too.
 	'svelte/no-restricted-html-elements',

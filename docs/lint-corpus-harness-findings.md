@@ -94,4 +94,16 @@ local + all-global body). Tracked with the other `no-immutable-reactive-statemen
 gaps in `docs/lint-corpus-remaining-work.md`; it is a real rsvelte gap, not a
 harness artifact.
 
+## H3 — `require-event-prefix` is type-aware → excluded from the parity universe (harness)
+
+`svelte/require-event-prefix` resolves a component's event names from TypeScript
+types. The corpus oracle wires only the TS *parser* (`@typescript-eslint/parser`,
+no `parserOptions.project`/type checker), so the rule gets no type info and
+returns `{}` — staying silent even on its own `invalid/` fixtures. rsvelte's
+syntactic port recovers the event names and (correctly) fires. A finding-level
+comparison is therefore meaningless, exactly like the already-excluded
+`no-unused-props` / `no-navigation-without-resolve`. Added to the `EXCLUDE` set
+in `lint-verify.mjs`; the rule stays covered by the exact-fixture oracle test
+(`eslint_plugin_oracle`).
+
 <!-- Add further harness/upstream findings below as the burn-down continues. -->
