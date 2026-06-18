@@ -26,6 +26,22 @@ use super::super::parser::{ElementType, Parser, StackEntry};
 use super::super::utils::decode_html_entities;
 use super::super::utils::is_void_element;
 
+/// Whether the attribute list contains a non-empty `lang="…"` attribute. Used
+/// (in lenient/lint mode) to treat `<template lang="pug">` and similar as raw
+/// text rather than Svelte markup.
+fn template_has_lang(attributes: &[crate::ast::Attribute]) -> bool {
+    for attr in attributes {
+        if let crate::ast::Attribute::Attribute(node) = attr
+            && node.name.as_str() == "lang"
+            && let AttributeValue::Sequence(parts) = &node.value
+            && let Some(AttributeValuePart::Text(t)) = parts.first()
+        {
+            return !t.data.trim().is_empty();
+        }
+    }
+    false
+}
+
 impl Parser<'_> {
     /// Parse an element or comment.
     pub fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode>> {
@@ -183,7 +199,16 @@ impl Parser<'_> {
         // `is_top_level_script_or_style` branch runs `parser.eat('>', true)`
         // directly (the `/` is never consumed), so `<script foo="bar"/>` is an
         // `expected_token` error at the `/`.
-        let self_closing = if is_top_level_script_or_style && !self.options.loose {
+        //
+        // In lenient (lint) mode we mirror svelte-eslint-parser, which DOES
+        // tolerate a self-closed `<style />` / `<script />` (it produces a
+        // self-closing node so layout/style lint rules can still fire). Allow
+        // the `/` to be consumed so the template parse does not abort — the
+        // compiler keeps `lenient_script: false`, so its output is unchanged.
+        let self_closing = if is_top_level_script_or_style
+            && !self.options.loose
+            && !self.options.lenient_script
+        {
             false
         } else {
             self.eat_optional("/")
@@ -214,13 +239,13 @@ impl Parser<'_> {
         // Handle script and style tags specially
         // Only treat as Svelte script if at root level (not inside another element)
         if name == "script" && !self.is_inside_element() {
-            return self.parse_script_tag(start, attributes);
+            return self.parse_script_tag(start, attributes, self_closing);
         }
 
         // Only treat as Svelte style (component CSS) if at root level (not inside another element)
         // When inside any element (including svelte:head), style should remain as a child element
         if name == "style" && !self.is_inside_element() {
-            return self.parse_style_tag(start, attributes);
+            return self.parse_style_tag(start, attributes, self_closing);
         }
 
         // Handle svelte:options specially - extract and store options
@@ -237,8 +262,17 @@ impl Parser<'_> {
         // Check if this is a raw text element (textarea, or non-top-level script/style).
         // Non-top-level <script> and <style> tags have their content parsed as raw text,
         // matching the official Svelte compiler behavior (element.js L400-417).
+        //
+        // In lenient (lint) mode a `<template lang="…">` (e.g. `lang="pug"`) holds
+        // a preprocessor language, NOT Svelte markup — parsing its body as Svelte
+        // would spuriously fail and suppress every lint on the file. Treat it as a
+        // raw-text element so the body is opaque (svelte-eslint-parser likewise
+        // does not parse it as Svelte). The compiler keeps `lenient_script: false`.
         let is_raw_text_element = name == "textarea"
-            || ((name == "script" || name == "style") && self.is_inside_element());
+            || ((name == "script" || name == "style") && self.is_inside_element())
+            || (self.options.lenient_script
+                && name == "template"
+                && template_has_lang(&attributes));
 
         // Create fragment for children
         let mut fragment = Fragment {
@@ -1654,7 +1688,8 @@ impl Parser<'_> {
 
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let expression = if self.eat_optional("=") {
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
             self.skip_whitespace();
             // Handle both bare {expr} and quoted "{expr}" / '{expr}'
             let quote =
@@ -1697,10 +1732,12 @@ impl Parser<'_> {
             )
         };
 
+        // Shorthand `class:name` (no value) ends at the name (see animate).
+        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::ClassDirective(
             crate::ast::template::ClassDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
@@ -1731,7 +1768,8 @@ impl Parser<'_> {
 
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let value = if self.eat_optional("=") {
+        let has_value = self.eat_optional("=");
+        let value = if has_value {
             self.skip_whitespace();
             if self.eat_optional("{") {
                 let expr_start = self.index;
@@ -1876,10 +1914,17 @@ impl Parser<'_> {
             AttributeValue::True(true)
         };
 
+        // For the shorthand form (`style:color`) the directive ends at the
+        // property name. `self.index` was advanced past any trailing whitespace
+        // by the `skip_whitespace()` before directive dispatch (needed to look
+        // for `=`), so using it here would wrongly extend the node onto the next
+        // line — upstream ends a shorthand directive at the name. With a value,
+        // `self.index` already sits at the end of the parsed value.
+        let end = if has_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::StyleDirective(
             crate::ast::template::StyleDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(prop_name),
                 name_loc,
                 value,
@@ -2010,7 +2055,8 @@ impl Parser<'_> {
         let animate_name = &full_name[8..]; // Skip "animate:"
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let expression = if self.eat_optional("=") {
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
             self.skip_whitespace();
             // Handle both bare {expr} and quoted "{expr}" / '{expr}'
             let quote =
@@ -2041,10 +2087,14 @@ impl Parser<'_> {
             None
         };
 
+        // A shorthand `animate:name` (no value) ends at the name — `self.index`
+        // was advanced past trailing whitespace by the pre-dispatch
+        // `skip_whitespace()`, so use `name_end` (matches upstream spans).
+        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::AnimateDirective(
             crate::ast::template::AnimateDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
@@ -2064,7 +2114,8 @@ impl Parser<'_> {
         let let_name = &full_name[4..]; // Skip "let:"
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let expression = if self.eat_optional("=") {
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
             self.skip_whitespace();
             // Handle both bare {expr} and quoted "{expr}" / '{expr}'
             let quote =
@@ -2095,10 +2146,12 @@ impl Parser<'_> {
             None
         };
 
+        // Shorthand `let:name` (no value) ends at the name (see animate).
+        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::LetDirective(
             crate::ast::template::LetDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,
@@ -2406,7 +2459,11 @@ impl Parser<'_> {
     /// - For textarea: parses {expressions} but treats HTML as text
     pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
         let closing_tag = format!("</{}", tag_name);
-        let is_raw_content = tag_name == "style" || tag_name == "script";
+        // `template` only reaches here via the lenient-mode `<template lang="…">`
+        // raw-text gate (a normal `<template>` is parsed as markup), so its body
+        // is a non-Svelte preprocessor language and must be fully opaque — no
+        // expression handling — exactly like `style`/`script`.
+        let is_raw_content = tag_name == "style" || tag_name == "script" || tag_name == "template";
 
         // For style and script elements, just get raw content (no expression handling)
         if is_raw_content {

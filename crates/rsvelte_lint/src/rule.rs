@@ -13,6 +13,26 @@ use rsvelte_core::ast::template::{
 
 use crate::context::LintContext;
 
+/// A lightweight view of `<script>`, `<style>`, or `<svelte:options>` as an
+/// element-like node so layout rules can check their start-tag attributes.
+///
+/// svelte-eslint-parser keeps these as first-class element nodes in the tree;
+/// rsvelte lifts them out into `Root.instance` / `Root.module` / `Root.css` /
+/// `Root.options`. This struct bridges the gap so only layout rules that opt
+/// in via `check_special_element` ever see them — non-layout rules keep the
+/// default empty impl and are unaffected.
+pub struct SpecialElement<'a> {
+    /// Tag name: `"script"`, `"style"`, or `"svelte:options"`.
+    pub name: &'a str,
+    /// Byte offset of the `<` of the start tag in the source.
+    pub start: u32,
+    /// Byte offset of the end of the element in the source.
+    pub end: u32,
+    /// The element's plain attributes (e.g. `lang`, `context`, `generics`).
+    /// Always `Attribute::Attribute(_)` variants — these tags carry no directives.
+    pub attributes: Vec<Attribute>,
+}
+
 /// Configured severity for a rule. `Off` disables it entirely (its hooks are
 /// never invoked).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,4 +152,16 @@ pub trait Rule: Send + Sync {
 
     /// Called for every HTML comment (`<!-- … -->`) in the template.
     fn check_comment(&self, ctx: &mut LintContext, comment: &Comment) {}
+
+    /// Called once per `<script>`, `<style>`, and `<svelte:options>` block
+    /// (when present) **after** the template fragment walk.
+    ///
+    /// svelte-eslint-parser exposes these as first-class element nodes so
+    /// layout rules check their start-tag attributes. rsvelte lifts them into
+    /// `Root.instance` / `Root.module` / `Root.css` / `Root.options`, so they
+    /// never appear in the fragment walk. This hook gives layout rules a
+    /// targeted way to visit them without touching non-layout rules.
+    ///
+    /// The default implementation is empty, so existing rules are unaffected.
+    fn check_special_element(&self, _ctx: &mut LintContext, _el: &SpecialElement<'_>) {}
 }

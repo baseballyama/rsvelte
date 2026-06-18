@@ -23,7 +23,9 @@ use rsvelte_core::ast::template::{
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::line_index::LineIndex;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/max-attributes-per-line",
@@ -109,6 +111,14 @@ fn attr_name(src: &str, a: &Attribute) -> String {
     }
 }
 
+/// Reconstruct the `this={…}` attribute span from an optional inner-expression
+/// span (`<svelte:element>` / `<svelte:component>`), or `None` when either end
+/// is missing or the backward scan fails.
+fn this_attr_span(src: &str, expr_start: Option<u32>, expr_end: Option<u32>) -> Option<(u32, u32)> {
+    let (s, e) = (expr_start?, expr_end?);
+    crate::rules::find_this_attr_span(src.as_bytes(), s, e)
+}
+
 /// Find the end of the previous token before `attr_start` (the whitespace
 /// between the previous token and this attribute will be replaced with `\n`).
 fn prev_token_end(src: &[u8], el_start: u32, attr_start_off: u32) -> u32 {
@@ -124,15 +134,52 @@ fn prev_token_end(src: &[u8], el_start: u32, attr_start_off: u32) -> u32 {
     pos as u32
 }
 
+/// One attribute (real or the spliced-in implicit `this`) in source order.
+struct AttrItem {
+    start: u32,
+    end: u32,
+    name: String,
+}
+
+/// Emit the "should be on a new line" report + whitespace-to-newline fix for
+/// `item`.
+fn report_item(ctx: &mut LintContext, item: &AttrItem, el_start: u32, src_bytes: &[u8]) {
+    let name = &item.name;
+    let prev_end = prev_token_end(src_bytes, el_start, item.start);
+    ctx.report_with_fix(
+        item.start,
+        item.end,
+        format!("'{name}' should be on a new line."),
+        Fix {
+            message: format!("Move '{name}' to new line"),
+            edits: vec![TextEdit {
+                start: prev_end,
+                end: item.start,
+                new_text: "\n".to_string(),
+            }],
+        },
+    );
+}
+
 #[derive(Default)]
 pub struct MaxAttributesPerLine;
 
 impl MaxAttributesPerLine {
-    fn check_tag(&self, ctx: &mut LintContext, el_start: u32, attributes: &[Attribute]) {
-        if attributes.is_empty() {
-            return;
-        }
-
+    /// `this_span` is the reconstructed `this={…}` span for
+    /// `<svelte:element>` / `<svelte:component>`. svelte-eslint-parser keeps
+    /// `this` in the attribute list (at its source position, which may be in the
+    /// middle, e.g. `<svelte:element class this type>`), whereas rsvelte stores
+    /// it outside `attributes`. We splice it back in at its source position so it
+    /// participates in counting, line grouping, and reporting exactly like a
+    /// normal attribute.
+    fn check_tag(
+        &self,
+        ctx: &mut LintContext,
+        el_start: u32,
+        attributes: &[Attribute],
+        this_span: Option<(u32, u32)>,
+        generics_name: Option<&str>,
+    ) {
         let opt = ctx.option0();
         let multiline_max: u32 = opt
             .and_then(|v| v.get("multiline"))
@@ -145,80 +192,92 @@ impl MaxAttributesPerLine {
             .map(|n| n as u32)
             .unwrap_or(1);
 
-        let li = LineIndex::new(ctx.source());
-
-        // Determine singleline vs multiline: is the start-tag on one line?
-        // Upstream uses `node.loc.start.line === node.loc.end.line`, where the
-        // node is the SvelteStartTag. We approximate this: compare line of the
-        // first attribute's start to line of the last attribute's end.
-        let first_start = attr_start(attributes.first().unwrap());
-        let last_end = attr_end(attributes.last().unwrap());
-        let is_single = li.line(first_start) == li.line(last_end);
-
         let src = ctx.source();
+
+        // Build the source-ordered attribute list, splicing in the implicit
+        // `this` at its real position.
+        let mut items: Vec<AttrItem> = attributes
+            .iter()
+            .map(|a| {
+                // On `<script>` a valid `generics="…"` is reported with its full
+                // attribute text (svelte-eslint-parser's SvelteGenericsDirective);
+                // an invalid one keeps the key-only name. `generics_name` carries
+                // the full text when valid.
+                let name = match a {
+                    Attribute::Attribute(n) if n.name == "generics" => generics_name
+                        .map(str::to_string)
+                        .unwrap_or_else(|| attr_name(src, a)),
+                    _ => attr_name(src, a),
+                };
+                AttrItem {
+                    start: attr_start(a),
+                    end: attr_end(a),
+                    name,
+                }
+            })
+            .collect();
+        if let Some((s, e)) = this_span {
+            let pos = items
+                .iter()
+                .position(|it| it.start > s)
+                .unwrap_or(items.len());
+            items.insert(
+                pos,
+                AttrItem {
+                    start: s,
+                    end: e,
+                    name: "this".to_string(),
+                },
+            );
+        }
+        if items.is_empty() {
+            return;
+        }
+
+        let li = LineIndex::new(src);
         let src_bytes = src.as_bytes();
 
+        // Determine singleline vs multiline: is the start-tag on one line?
+        // Upstream uses `node.loc.start.line === node.loc.end.line` (the
+        // SvelteStartTag); we approximate via the first item's start line vs the
+        // last item's end line.
+        let is_single = li.line(items.first().unwrap().start) == li.line(items.last().unwrap().end);
+
         if is_single {
-            // Single-line: if more than singleline_max attributes, report the
-            // (singleline_max)th attribute (0-indexed: index singleline_max).
-            if attributes.len() as u32 > singleline_max {
-                let attr = &attributes[singleline_max as usize];
-                let start = attr_start(attr);
-                let end = attr_end(attr);
-                let name = attr_name(src, attr);
-                let prev_end = prev_token_end(src_bytes, el_start, start);
-                ctx.report_with_fix(
-                    start,
-                    end,
-                    format!("'{name}' should be on a new line."),
-                    Fix {
-                        message: format!("Move '{name}' to new line"),
-                        edits: vec![TextEdit {
-                            start: prev_end,
-                            end: start,
-                            new_text: "\n".to_string(),
-                        }],
-                    },
-                );
+            // Single-line: more than singleline_max attributes ⇒ report the
+            // (singleline_max)th (0-indexed) item.
+            if items.len() as u32 > singleline_max {
+                report_item(ctx, &items[singleline_max as usize], el_start, src_bytes);
             }
         } else {
-            // Multi-line: group attributes by line, report any line that has
-            // more than multiline_max attributes.
-            //
-            // Upstream `groupAttributesByLine` groups attributes sharing the
-            // same line. We replicate this by checking consecutive attributes
-            // that share a line.
-            let mut i = 0;
-            while i < attributes.len() {
-                let line = li.line(attr_start(&attributes[i]));
-                let mut j = i + 1;
-                while j < attributes.len() && li.line(attr_start(&attributes[j])) == line {
-                    j += 1;
-                }
-                // attributes[i..j] are all on the same line.
-                let count = (j - i) as u32;
+            // Multi-line: group consecutive items, reporting any group larger
+            // than `multiline_max`. Mirror upstream `groupAttributesByLine`: an
+            // attribute joins the current group when its START line equals the
+            // group's FIRST attribute's END line — so an attribute that begins
+            // on the line where the previous one's multi-line value ends
+            // (`<img src\n=\n"x" alt=…>`) shares its group. (Relies on attribute
+            // `end` offsets excluding trailing whitespace — true for values and,
+            // since the directive-span fix, for shorthand directives too.)
+            let mut group_start = 0;
+            let finalize = |ctx: &mut LintContext, g_start: usize, g_end: usize| {
+                let count = (g_end - g_start) as u32;
                 if count > multiline_max {
-                    let attr = &attributes[i + multiline_max as usize];
-                    let start = attr_start(attr);
-                    let end = attr_end(attr);
-                    let name = attr_name(src, attr);
-                    let prev_end = prev_token_end(src_bytes, el_start, start);
-                    ctx.report_with_fix(
-                        start,
-                        end,
-                        format!("'{name}' should be on a new line."),
-                        Fix {
-                            message: format!("Move '{name}' to new line"),
-                            edits: vec![TextEdit {
-                                start: prev_end,
-                                end: start,
-                                new_text: "\n".to_string(),
-                            }],
-                        },
+                    report_item(
+                        ctx,
+                        &items[g_start + multiline_max as usize],
+                        el_start,
+                        src_bytes,
                     );
                 }
-                i = j;
+            };
+            for k in 1..items.len() {
+                let group_first_end_line = li.line(items[group_start].end);
+                if li.line(items[k].start) != group_first_end_line {
+                    finalize(ctx, group_start, k);
+                    group_start = k;
+                }
             }
+            finalize(ctx, group_start, items.len());
         }
     }
 }
@@ -229,26 +288,72 @@ impl Rule for MaxAttributesPerLine {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_tag(ctx, el.start, &el.attributes);
+        self.check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_tag(ctx, c.start, &c.attributes);
+        self.check_tag(ctx, c.start, &c.attributes, None, None);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_tag(ctx, el.start, &el.attributes);
+        self.check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        self.check_tag(ctx, el.start, &el.attributes);
+        // `<svelte:component this={…}>` — the `this` expression is stored
+        // separately; reconstruct its span so it counts as the leading attribute.
+        let this_span = this_attr_span(ctx.source(), el.expression.start(), el.expression.end());
+        self.check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        self.check_tag(ctx, el.start, &el.attributes);
+        // `<svelte:element this={…}>` — same as svelte:component, via `el.tag`.
+        let this_span = this_attr_span(ctx.source(), el.tag.start(), el.tag.end());
+        self.check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_tag(ctx, el.start, &el.attributes);
+        self.check_tag(ctx, el.start, &el.attributes, None, None);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        // On `<script>`, svelte-eslint-parser types a *valid* `generics="…"` as a
+        // `SvelteGenericsDirective` whose message uses the full attribute text,
+        // but keeps an *invalid* one as a `SvelteAttribute` (key-only message).
+        // Decide which by parsing the value as TS; pass the full text when valid.
+        let generics_name = generics_report_name(ctx.source(), &el.attributes);
+        self.check_tag(
+            ctx,
+            el.start,
+            &el.attributes,
+            None,
+            generics_name.as_deref(),
+        );
+    }
+}
+
+/// If the start tag has a `generics="…"` attribute whose value is syntactically
+/// valid TypeScript type parameters, return its full attribute text
+/// (`generics="…"`) — the name svelte-eslint-parser reports for a
+/// `SvelteGenericsDirective`. Returns `None` for no generics attribute or an
+/// invalid value (where the key-only `generics` name applies).
+fn generics_report_name(src: &str, attributes: &[Attribute]) -> Option<String> {
+    let (start, end) = attributes.iter().find_map(|a| match a {
+        Attribute::Attribute(n) if n.name == "generics" => Some((n.start, n.end)),
+        _ => None,
+    })?;
+    let full = src.get(start as usize..end as usize)?;
+    // The value is between the first and last double-quote of `generics="…"`.
+    let q1 = full.find('"')?;
+    let q2 = full.rfind('"')?;
+    if q2 <= q1 {
+        return None;
+    }
+    let value = &full[q1 + 1..q2];
+    let wrapped = format!("type __RsvelteGenerics<{value}> = unknown;");
+    if rsvelte_core::compiler::phases::ts_snippet_is_valid(&wrapped, true) {
+        Some(full.to_string())
+    } else {
+        None
     }
 }

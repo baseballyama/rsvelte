@@ -36,15 +36,39 @@ const MESSAGE: &str = "disallow invalid props in SvelteKit route components.";
 
 /// Allowed `$props()` destructuring keys for each SvelteKit route file type
 /// (Svelte 5 only).
-fn allowed_prop_names(filename: &str) -> Option<&'static [&'static str]> {
-    if filename == "+page.svelte" {
-        Some(&["data", "form", "params", "snapshot"])
+///
+/// Returns `None` if the file is not a recognized SvelteKit route file, or
+/// if it is not located under a `src/routes` directory segment (matching
+/// upstream's `svelteKitFileType` path gate).
+fn allowed_prop_names(ctx: &LintContext) -> Option<&'static [&'static str]> {
+    let filename = ctx.filename();
+    // Check filename first — fast exit for non-kit files.
+    let allowed: &[&str] = if filename == "+page.svelte" {
+        &["data", "form", "params", "snapshot"]
     } else if filename == "+layout.svelte" {
-        Some(&["data", "form", "params", "snapshot", "children"])
+        &["data", "form", "params", "snapshot", "children"]
     } else if filename == "+error.svelte" {
-        Some(&["error"])
+        &["error"]
     } else {
-        None
+        return None;
+    };
+    // Require file to be under a `src/routes` directory segment, mirroring
+    // upstream's `filePath.startsWith(path.join(projectRootDir, "src/routes"))`.
+    // When the path has no parent directory (bare filename, e.g. in tests or
+    // wasm), fall back to the filename-only gate to preserve oracle-test behavior.
+    if let Some(path) = ctx.path() {
+        if path.parent().is_none_or(|p| p == std::path::Path::new("")) {
+            return Some(allowed);
+        }
+        let path_str = path.to_string_lossy();
+        if path_str.contains("/src/routes/") || path_str.starts_with("src/routes/") {
+            Some(allowed)
+        } else {
+            None
+        }
+    } else {
+        // No filesystem path (wasm / in-memory): fall back to filename-only gate.
+        Some(allowed)
     }
 }
 
@@ -79,9 +103,8 @@ impl ScriptRule for ValidPropNamesInKitPages {
             return;
         }
 
-        let filename = ctx.filename();
-        let Some(allowed) = allowed_prop_names(filename) else {
-            // Not a recognized SvelteKit route file — no-op.
+        let Some(allowed) = allowed_prop_names(ctx) else {
+            // Not a recognized SvelteKit route file, or not under src/routes — no-op.
             return;
         };
 

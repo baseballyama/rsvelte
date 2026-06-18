@@ -17,6 +17,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::scss_selector::{SelectorKind, extract_selectors, is_plain_css_lang, scss_lang};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-unused-class-name",
@@ -166,9 +167,30 @@ fn collect_attrs_classes(
                 if let AttributeValue::Sequence(parts) = &node.value {
                     for part in parts {
                         if let AttributeValuePart::Text(t) = part {
-                            // Split on whitespace — each token is a class name.
-                            for name in t.data.split_whitespace() {
-                                if !name.is_empty() {
+                            // Mirror upstream `findClassesInAttribute`:
+                            // `literal.value.trim().split(/\s+/u)`. In JS,
+                            // `"".split(/\s+/)` yields `[""]`, so a whitespace-only
+                            // text run (e.g. the space between two `{…}` mustaches
+                            // in `class="{a} {b}"`) contributes one empty class
+                            // name `""`. Reproduce that exactly — using
+                            // `split_whitespace()` (which drops empties) would
+                            // miss the `""` the oracle reports.
+                            //
+                            // A truly EMPTY run (`class=""`) is NOT a literal in
+                            // svelte-eslint-parser (its value array is empty), so
+                            // it yields no class — skip zero-length text runs.
+                            if t.data.is_empty() {
+                                continue;
+                            }
+                            let trimmed = t.data.trim();
+                            if trimmed.is_empty() {
+                                out.push(TemplateClass {
+                                    name: String::new(),
+                                    el_start,
+                                    el_end,
+                                });
+                            } else {
+                                for name in trimmed.split_whitespace() {
                                     out.push(TemplateClass {
                                         name: name.to_string(),
                                         el_start,
@@ -296,41 +318,6 @@ fn collect_selector_classes(node: &Value, out: &mut Vec<String>) {
 }
 
 // ---------------------------------------------------------------------------
-// CSS lang check: skip for unknown / non-plain-CSS langs
-// ---------------------------------------------------------------------------
-
-/// Returns `true` when the `<style>` block has a non-plain lang attribute
-/// (e.g. `lang="scss"`). The upstream rule returns early for
-/// `status === 'unknown-lang'` which corresponds to this.
-fn has_unknown_lang(css: &StyleSheet) -> bool {
-    for attr in &css.attributes {
-        if attr.get("name").and_then(Value::as_str) == Some("lang") {
-            // Any truthy lang value other than "css" (or empty) is considered
-            // unknown; "css" itself is fine.
-            let val = attr.get("value");
-            // boolean `true` → shorthand `lang` (no value) → treat as empty → known
-            if val.and_then(Value::as_bool).unwrap_or(false) {
-                return false;
-            }
-            // Sequence value: extract text
-            if let Some(seq) = val.and_then(Value::as_array) {
-                for part in seq {
-                    if part.get("type").and_then(Value::as_str) == Some("Text")
-                        && let Some(data) = part.get("data").and_then(Value::as_str)
-                    {
-                        let lang = data.to_lowercase();
-                        return !matches!(lang.as_str(), "" | "css");
-                    }
-                }
-            }
-            // lang attribute present but no recognizable value → unknown
-            return true;
-        }
-    }
-    false
-}
-
-// ---------------------------------------------------------------------------
 // Rule implementation
 // ---------------------------------------------------------------------------
 
@@ -360,11 +347,25 @@ impl Rule for NoUnusedClassName {
         let css_classes: Vec<String> = match root.css.as_deref() {
             None => Vec::new(),
             Some(css) => {
-                // Skip if the style block has an unknown/non-plain lang.
-                if has_unknown_lang(css) {
+                if let Some(_lang) = scss_lang(&css.attributes) {
+                    // Best-effort SCSS/PostCSS: extract class names from raw text.
+                    let raw = &css.content.styles;
+                    // The oracle's postcss-scss parse fails (and reports nothing)
+                    // on malformed SCSS — mirror that so we don't over-report.
+                    if !crate::rules::scss_selector::scss_is_parseable(raw) {
+                        return;
+                    }
+                    extract_selectors(raw)
+                        .into_iter()
+                        .filter(|s| s.kind == SelectorKind::Class)
+                        .map(|s| s.name)
+                        .collect()
+                } else if is_plain_css_lang(&css.attributes) {
+                    collect_css_classes(css)
+                } else {
+                    // Unknown lang (less, etc.) — oracle skips these entirely.
                     return;
                 }
-                collect_css_classes(css)
             }
         };
 

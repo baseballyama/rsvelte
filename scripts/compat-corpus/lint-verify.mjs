@@ -44,6 +44,12 @@ const EXCLUDE = new Set([
 	//    type-aware path is covered separately by `rsvelte_lint_types`.
 	'svelte/no-unused-props',
 	'svelte/no-navigation-without-resolve',
+	// `require-event-prefix` resolves component event names from TS types; the
+	//    corpus oracle has only the TS *parser* (no type checker), so it returns
+	//    `{}` and stays silent even on its own invalid fixtures. rsvelte's
+	//    syntactic port recovers them, so a finding-level comparison here is
+	//    meaningless (the rule IS exercised by the exact-fixture oracle test).
+	'svelte/require-event-prefix',
 	// ── Option-required: schema rejects an empty option list, so the rule is a
 	//    no-op without a per-project allowlist. rsvelte defaults it off too.
 	'svelte/no-restricted-html-elements',
@@ -65,6 +71,40 @@ const EXCLUDE = new Set([
 	//    compiler-level differences already tracked elsewhere.
 	'svelte/valid-compile',
 	'svelte/valid-style-parse'
+]);
+
+// Individual findings excluded for a structural reason OUTSIDE rsvelte's
+// control (a version skew in the oracle's tooling, or a capability rsvelte does
+// not implement) — the finding-scoped analogue of the per-rule `EXCLUDE` above,
+// NOT a place to hide real divergences. Each entry is a full
+// `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and MUST carry a
+// documented justification (see docs/lint-corpus-harness-findings.md and
+// docs/upstream-issues.md).
+const MANUAL_EXCLUSIONS = new Set([
+	// H4 — `globals` version split on `localStorage`/`navigator`/`sessionStorage`.
+	// The corpus oracle runs eslint-plugin-svelte against globals@16.5, where
+	// these are node-available, so upstream's `getBrowserGlobals()` (browser ∖
+	// node) EXCLUDES them and the rule does not flag a bare top-level
+	// `localStorage`. rsvelte MUST keep flagging them: eslint-plugin-svelte's
+	// own fixture suite (the `eslint_plugin_oracle` hard gate) declares
+	// `invalid/test03` expecting exactly this report. The two upstream artefacts
+	// (live globals vs bundled fixtures) disagree; rsvelte matches the
+	// authoritative fixtures. Reported upstream — see the harness-findings doc.
+	'eslint-plugin-svelte/docs/rules/no-top-level-browser-globals.md/1.svelte|+svelte/no-top-level-browser-globals\t25:13\tUnexpected top-level browser global variable "localStorage".',
+	'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".',
+
+	// `comment-directive` reportUnusedDisableDirectives on a CORE ESLint rule.
+	// The oracle reports an `eslint-disable-next-line no-undef` as unused because
+	// it RAN `no-undef` and it produced no error. rsvelte implements only
+	// `svelte/*` rules, so it cannot tell "no-undef ran and found nothing"
+	// (→ unused) from "no-undef would have fired but we never ran it" (→ used) —
+	// it deliberately stays silent for unimplemented targets to avoid the FP
+	// (verified: removing that guard trades this FN for a real FP on the very
+	// next directive in the same fixture, line 8 having an undefined variable).
+	// Same class as the type-aware `EXCLUDE` rules: not comparable without a
+	// capability rsvelte does not have. The svelte/* unused-directive behaviour
+	// IS still compared (only this single core-rule finding is excluded).
+	"eslint-plugin-svelte/docs/rules/comment-directive.md/4.svelte|-svelte/comment-directive\t11:31\tUnused eslint-disable-next-line directive (no problems were reported from 'no-undef')."
 ]);
 
 function findBinary() {
@@ -214,6 +254,10 @@ function main() {
 		for (const k of rset) if (!oset.has(k)) diffs.push(`${id}|+${k}`); // false positive
 		for (const k of oset) if (!rset.has(k)) diffs.push(`${id}|-${k}`); // false negative
 	}
+	// Drop documented finding-level exclusions (version skew / capability gap).
+	const filtered = diffs.filter((d) => !MANUAL_EXCLUSIONS.has(d));
+	diffs.length = 0;
+	diffs.push(...filtered);
 	diffs.sort();
 
 	const known = fs.existsSync(KNOWN) ? JSON.parse(fs.readFileSync(KNOWN, 'utf8')) : [];

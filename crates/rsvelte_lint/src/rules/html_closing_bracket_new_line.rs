@@ -29,7 +29,9 @@ use rsvelte_core::ast::template::{
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::line_index::LineIndex;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/html-closing-bracket-new-line",
@@ -388,5 +390,9 @@ impl Rule for HtmlClosingBracketNewLine {
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
         self.check_element_like(ctx, el.start, el.end, "slot", &el.attributes);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        self.check_element_like(ctx, el.start, el.end, el.name, &el.attributes);
     }
 }

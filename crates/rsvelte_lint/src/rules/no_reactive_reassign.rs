@@ -277,9 +277,20 @@ fn collect_reactive_values(
         }
         if let Some(name) = left.get("name").and_then(Value::as_str)
             && !toplevel.contains(name)
+            // A `$`-prefixed target (`$: $store = …`) is a *store* write, not a
+            // reactive-variable declaration, so reassigning it elsewhere
+            // (`$store++`) is a normal store update and must not be flagged.
+            && !name.starts_with('$')
         {
-            names.insert(name.to_string());
-            if let Some(p) = pos(left) {
+            // Only the FIRST `$: name = …` statement *defines* the reactive
+            // value; its LHS is the definition and is skipped. A LATER
+            // `$: name = …` re-assigns the already-defined reactive value, so
+            // its LHS must NOT go in `def_lhs` — upstream reports it (it iterates
+            // the variable's references and excludes only the defining
+            // assignment's own `.left`). `HashSet::insert` returns `true` only on
+            // first insertion, so we record the def LHS exactly once per name.
+            let is_first = names.insert(name.to_string());
+            if is_first && let Some(p) = pos(left) {
                 def_lhs.insert(p);
             }
         }

@@ -120,6 +120,19 @@ impl Checker<'_> {
     }
 
     fn verify(&mut self, node: Option<&Value>, consistent: bool, fixable: bool) {
+        self.verify_offset(node, consistent, fixable, 0);
+    }
+
+    /// Like `verify` but adds `start_offset` to the reported start (and fix)
+    /// position.  Used for computed property keys where the AST stores the
+    /// identifier start at the `[` bracket rather than at the identifier text.
+    fn verify_offset(
+        &mut self,
+        node: Option<&Value>,
+        consistent: bool,
+        fixable: bool,
+        start_offset: u32,
+    ) {
         let Some(node) = node.filter(|n| !n.is_null()) else {
             return;
         };
@@ -127,6 +140,7 @@ impl Checker<'_> {
             return;
         }
         if let (Some(s), Some(e)) = (nstart(node), nend(node)) {
+            let s = s + start_offset;
             self.reports.push(Report {
                 start: s,
                 end: e,
@@ -326,7 +340,11 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
                     node.get("key").map(node_type) == Some(Some("PrivateIdentifier"));
                 let computed = node.get("computed").and_then(Value::as_bool) == Some(true);
                 if !key_is_private && computed {
-                    checker.verify(node.get("key"), false, true);
+                    // rsvelte's AST sets the Identifier key's `start` to the
+                    // position of the `[` bracket rather than to the identifier
+                    // itself.  Add 1 to skip the bracket so the report column
+                    // matches the oracle (which points at the identifier text).
+                    checker.verify_offset(node.get("key"), false, true, 1);
                 }
             }
             Some("ImportExpression") => {

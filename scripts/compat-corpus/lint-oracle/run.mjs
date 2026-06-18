@@ -14,8 +14,37 @@
 import { ESLint } from 'eslint';
 import sveltePlugin from 'eslint-plugin-svelte';
 import tsParser from '@typescript-eslint/parser';
+import globalsPkg from 'globals';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// The lint environment's declared globals. eslint-plugin-svelte's `flat/base`
+// declares none, but several rules locate their targets with eslint-utils'
+// `ReferenceTracker`, which is *scope-based* — it only yields references to
+// names that exist in the global scope. Without a realistic global environment
+// those rules silently no-op (e.g. no-top-level-browser-globals never fires;
+// infinite-reactive-loop can't see setTimeout; prefer-svelte-reactivity can't
+// see `new URL`), making rsvelte's correct findings look like false positives.
+//
+// We declare a realistic, COLLISION-SAFE environment (see browser-globals.json):
+//   - `globals.builtin`  — ES intrinsics (Date/Map/Set/Promise/…),
+//   - `envApis`          — universal Web/Node APIs the rules track
+//                          (URL, URLSearchParams, the setTimeout/… timer family),
+//   - `browserOnly`      — the curated browser-only set for
+//                          no-top-level-browser-globals (kept equal to rsvelte's
+//                          BROWSER_GLOBALS).
+// The full `globals.browser` set is intentionally avoided: it contains common
+// identifiers (`name`/`event`/`length`/…) that rsvelte's name-based matcher
+// cannot tell apart from local bindings.
+const ORACLE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ENV_GLOBALS = JSON.parse(readFileSync(path.join(ORACLE_DIR, 'browser-globals.json'), 'utf8'));
+const asReadonly = (names) => Object.fromEntries(names.map((name) => [name, 'readonly']));
+const browserGlobals = {
+	...globalsPkg.builtin,
+	...asReadonly(ENV_GLOBALS.envApis),
+	...asReadonly(ENV_GLOBALS.browserOnly)
+};
 
 const args = process.argv.slice(2);
 let rulesPath = null;
@@ -96,6 +125,7 @@ const eslint = new ESLint({
 		{
 			files: ['**/*.svelte', '**/*.svelte.js', '**/*.svelte.ts', '**/*.js', '**/*.ts'],
 			languageOptions: {
+				globals: browserGlobals,
 				parserOptions: {
 					parser: tsParser,
 					svelteFeatures: { experimentalGenerics: true }

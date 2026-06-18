@@ -1,18 +1,14 @@
 //! `svelte/no-top-level-browser-globals` — disallow using browser global
 //! variables (`window`, `document`, `location`, `localStorage`, …) at the
 //! top level of a `<script>` / `*.svelte.[js|ts]` module, where the code also
-//! runs during SSR. Port of the eslint-plugin-svelte rule, over the script
-//! ESTree program via the [`ScriptRule`] hook.
+//! runs during SSR. Port of the eslint-plugin-svelte rule.
 //!
 //! ## Scope of this port
 //!
-//! This is a SCRIPT-AST rule, so it only sees each `<script>` program — it
-//! cannot inspect template expressions or `{#if browser}` template blocks.
-//! The fixtures that exercise template usage (`invalid/in-template01`, and the
-//! `valid/in-template*` / `valid/complex-guards*` cases) are therefore not the
-//! responsibility of this rule (the valid ones expect zero findings, which we
-//! satisfy trivially; the single invalid template fixture cannot be satisfied
-//! here — see the module note in the integrator's skip list).
+//! This rule has two check paths:
+//! - `ScriptRule::check_program` — checks `<script>` blocks via the ESTree program.
+//! - `Rule::check_root` — checks template `{expr}` tags, respecting `{#if browser}`
+//!   / `{#if !browser}` guards.
 //!
 //! ## Algorithm (faithful to upstream)
 //!
@@ -38,8 +34,10 @@
 
 use serde_json::Value;
 
+use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
+
 use crate::context::LintContext;
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::script::{ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
@@ -471,6 +469,58 @@ fn is_import_meta_env_ssr(node: &Value, source: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Scan an ESTree `program` for `import { browser } from "$app/environment"` /
+/// `import * as env from "esm-env"` declarations and collect the local names.
+///
+/// - `browser_locals`: local names bound to `browser`/`BROWSER` (e.g. `browser`,
+///   or `BROWSER` when the import uses the `esm-env` name).
+/// - `env_namespaces`: local names for namespace imports (e.g. `env` when
+///   `import * as env from "$app/environment"`).
+fn collect_browser_checker_imports(
+    program: &Value,
+    browser_locals: &mut Vec<String>,
+    env_namespaces: &mut Vec<String>,
+) {
+    walk_js(program, |node, _| {
+        if node_type(node) != Some("ImportDeclaration") {
+            return;
+        }
+        let source_val = node
+            .get("source")
+            .and_then(|s| s.get("value"))
+            .and_then(Value::as_str);
+        let is_env_module = matches!(source_val, Some("$app/environment") | Some("esm-env"));
+        if !is_env_module {
+            return;
+        }
+        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
+            return;
+        };
+        for spec in specs {
+            match node_type(spec) {
+                Some("ImportSpecifier") => {
+                    let imported = spec.get("imported").and_then(ident_name).or_else(|| {
+                        spec.get("imported")
+                            .and_then(|i| i.get("value"))
+                            .and_then(Value::as_str)
+                    });
+                    if matches!(imported, Some("browser") | Some("BROWSER"))
+                        && let Some(local) = spec.get("local").and_then(ident_name)
+                    {
+                        browser_locals.push(local.to_string());
+                    }
+                }
+                Some("ImportNamespaceSpecifier") => {
+                    if let Some(local) = spec.get("local").and_then(ident_name) {
+                        env_namespaces.push(local.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+}
+
 #[derive(Default)]
 pub struct NoTopLevelBrowserGlobals;
 
@@ -485,44 +535,7 @@ impl ScriptRule for NoTopLevelBrowserGlobals {
         // local names bound to `browser`/`BROWSER` reads, and namespace imports.
         let mut browser_locals: Vec<String> = Vec::new();
         let mut env_namespaces: Vec<String> = Vec::new();
-        walk_js(program, |node, _| {
-            if node_type(node) != Some("ImportDeclaration") {
-                return;
-            }
-            let source = node
-                .get("source")
-                .and_then(|s| s.get("value"))
-                .and_then(Value::as_str);
-            let is_env_module = matches!(source, Some("$app/environment") | Some("esm-env"));
-            if !is_env_module {
-                return;
-            }
-            let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-                return;
-            };
-            for spec in specs {
-                match node_type(spec) {
-                    Some("ImportSpecifier") => {
-                        let imported = spec.get("imported").and_then(ident_name).or_else(|| {
-                            spec.get("imported")
-                                .and_then(|i| i.get("value"))
-                                .and_then(Value::as_str)
-                        });
-                        if matches!(imported, Some("browser") | Some("BROWSER"))
-                            && let Some(local) = spec.get("local").and_then(ident_name)
-                        {
-                            browser_locals.push(local.to_string());
-                        }
-                    }
-                    Some("ImportNamespaceSpecifier") => {
-                        if let Some(local) = spec.get("local").and_then(ident_name) {
-                            env_namespaces.push(local.to_string());
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        });
+        collect_browser_checker_imports(program, &mut browser_locals, &mut env_namespaces);
 
         let mut guards: Vec<Guard> = Vec::new();
 
@@ -690,6 +703,349 @@ fn is_value_reference(node: &Value, ancestors: &[&Value]) -> bool {
         Some("LabeledStatement") | Some("BreakStatement") | Some("ContinueStatement") => false,
         // Member property handled separately by the caller.
         _ => true,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Template rule implementation
+// ---------------------------------------------------------------------------
+
+/// Whether `expr_json` (an ESTree Identifier node) is a bare read of one of
+/// the browser-local names (not a declaration, member property, etc.).
+fn is_bare_browser_ref(
+    node: &Value,
+    ancestors: &[&Value],
+    browser_locals: &[String],
+    env_namespaces: &[String],
+) -> bool {
+    match node_type(node) {
+        Some("Identifier") => {
+            let name = match node.get("name").and_then(Value::as_str) {
+                Some(n) => n,
+                None => return false,
+            };
+            browser_locals.iter().any(|l| l == name)
+                && is_value_reference(node, ancestors)
+                && !is_member_property(node, ancestors)
+        }
+        Some("MemberExpression") => {
+            // `env.browser` / `env.BROWSER` namespace access.
+            let obj_is_ns = node
+                .get("object")
+                .and_then(ident_name)
+                .is_some_and(|o| env_namespaces.iter().any(|n| n == o));
+            let prop = member_prop_name(node);
+            obj_is_ns && matches!(prop, Some("browser") | Some("BROWSER"))
+        }
+        _ => false,
+    }
+}
+
+/// Returns `true` when `expr` is a "positive browser signal" — a sub-expression
+/// that, if truthy, implies the browser environment is available:
+/// - a bare browser ref (`browser`, `env.browser`)
+/// - `expr1 && expr2` where at least one operand is a positive browser signal
+fn expr_implies_browser(
+    expr: &Value,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+) -> bool {
+    let empty: &[&Value] = &[];
+    if is_bare_browser_ref(expr, empty, browser_locals, env_namespaces) {
+        return true;
+    }
+    if node_type(expr) == Some("LogicalExpression")
+        && expr.get("operator").and_then(Value::as_str) == Some("&&")
+    {
+        let left_ok = expr
+            .get("left")
+            .is_some_and(|l| expr_implies_browser(l, browser_locals, env_namespaces));
+        let right_ok = expr
+            .get("right")
+            .is_some_and(|r| expr_implies_browser(r, browser_locals, env_namespaces));
+        return left_ok || right_ok;
+    }
+    false
+}
+
+/// Returns `true` when `expr` is a "negative browser signal" — a sub-expression
+/// that, if truthy, implies we are NOT in the browser environment:
+/// - `!browserRef`
+/// - `expr1 || expr2` where at least one operand is a negative browser signal
+fn expr_implies_no_browser(
+    expr: &Value,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+) -> bool {
+    let empty: &[&Value] = &[];
+    if node_type(expr) == Some("UnaryExpression")
+        && expr.get("operator").and_then(Value::as_str) == Some("!")
+        && let Some(arg) = expr.get("argument")
+        && is_bare_browser_ref(arg, empty, browser_locals, env_namespaces)
+    {
+        return true;
+    }
+    if node_type(expr) == Some("LogicalExpression")
+        && expr.get("operator").and_then(Value::as_str) == Some("||")
+    {
+        let left_ok = expr
+            .get("left")
+            .is_some_and(|l| expr_implies_no_browser(l, browser_locals, env_namespaces));
+        let right_ok = expr
+            .get("right")
+            .is_some_and(|r| expr_implies_no_browser(r, browser_locals, env_namespaces));
+        return left_ok || right_ok;
+    }
+    false
+}
+
+/// Determine whether the `{#if <test>}` block's test expression constitutes a
+/// browser guard and return `(consequent_is_client_guaranteed,
+/// alternate_is_client_guaranteed)`.
+///
+/// - Bare browser ref (or `&&` chain containing one) → consequent is client-guaranteed.
+/// - `!browserRef` (or `||` chain containing one) → alternate is client-guaranteed.
+/// - Neither → both inherit the parent's `client_guaranteed`.
+fn classify_if_test(
+    test_json: &Value,
+    parent_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+) -> (bool, bool) {
+    let consequent_guaranteed =
+        parent_guaranteed || expr_implies_browser(test_json, browser_locals, env_namespaces);
+    let alternate_guaranteed =
+        parent_guaranteed || expr_implies_no_browser(test_json, browser_locals, env_namespaces);
+    (consequent_guaranteed, alternate_guaranteed)
+}
+
+/// Scan a JS expression JSON for browser globals and report any that are found.
+fn check_expr_for_browser_globals(expr_json: &Value, ctx: &mut LintContext) {
+    walk_js(expr_json, |node, ancestors| {
+        let name = match node_type(node) {
+            Some("Identifier") => {
+                let n = match node.get("name").and_then(Value::as_str) {
+                    Some(n) => n,
+                    None => return,
+                };
+                if !is_browser_global(n) {
+                    return;
+                }
+                if !is_value_reference(node, ancestors) {
+                    return;
+                }
+                if is_member_property(node, ancestors) {
+                    return;
+                }
+                n
+            }
+            _ => return,
+        };
+        if in_function(ancestors) || in_type_annotation(ancestors) {
+            return;
+        }
+        let Some((start, end)) = range(node) else {
+            return;
+        };
+        ctx.report(
+            start,
+            end,
+            format!("Unexpected top-level browser global variable \"{name}\"."),
+        );
+    });
+}
+
+/// Walk a template `Fragment`, tracking `client_guaranteed` state through
+/// `{#if browser}` / `{#if !browser}` blocks.
+fn walk_fragment_for_browser_globals(
+    fragment: &Fragment,
+    client_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+    ctx: &mut LintContext,
+) {
+    for node in &fragment.nodes {
+        walk_template_node_for_browser_globals(
+            node,
+            client_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        );
+    }
+}
+
+fn walk_template_node_for_browser_globals(
+    node: &TemplateNode,
+    client_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+    ctx: &mut LintContext,
+) {
+    match node {
+        TemplateNode::IfBlock(b) => {
+            let test_json = b.test.as_json();
+            let (consequent_guaranteed, alternate_guaranteed) =
+                classify_if_test(test_json, client_guaranteed, browser_locals, env_namespaces);
+            walk_fragment_for_browser_globals(
+                &b.consequent,
+                consequent_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+            if let Some(alt) = &b.alternate {
+                walk_fragment_for_browser_globals(
+                    alt,
+                    alternate_guaranteed,
+                    browser_locals,
+                    env_namespaces,
+                    ctx,
+                );
+            }
+        }
+        TemplateNode::ExpressionTag(tag) if !client_guaranteed => {
+            let expr_json = tag.expression.as_json();
+            check_expr_for_browser_globals(expr_json, ctx);
+        }
+        TemplateNode::RegularElement(el) => {
+            walk_fragment_for_browser_globals(
+                &el.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        TemplateNode::Component(c) => {
+            walk_fragment_for_browser_globals(
+                &c.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        TemplateNode::EachBlock(b) => {
+            walk_fragment_for_browser_globals(
+                &b.body,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+            if let Some(fb) = &b.fallback {
+                walk_fragment_for_browser_globals(
+                    fb,
+                    client_guaranteed,
+                    browser_locals,
+                    env_namespaces,
+                    ctx,
+                );
+            }
+        }
+        TemplateNode::AwaitBlock(b) => {
+            for frag in [b.pending.as_ref(), b.then.as_ref(), b.catch.as_ref()]
+                .into_iter()
+                .flatten()
+            {
+                walk_fragment_for_browser_globals(
+                    frag,
+                    client_guaranteed,
+                    browser_locals,
+                    env_namespaces,
+                    ctx,
+                );
+            }
+        }
+        TemplateNode::KeyBlock(b) => {
+            walk_fragment_for_browser_globals(
+                &b.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        TemplateNode::SnippetBlock(_) => {
+            // Snippets can be called from any context (client or server), so
+            // browser globals inside them cannot be reliably flagged. Skip them
+            // entirely — mirrors the `valid/in-template02` fixture behaviour.
+        }
+        TemplateNode::SvelteHead(el)
+        | TemplateNode::SvelteBody(el)
+        | TemplateNode::SvelteDocument(el)
+        | TemplateNode::SvelteFragment(el)
+        | TemplateNode::SvelteBoundary(el)
+        | TemplateNode::SvelteOptions(el)
+        | TemplateNode::SvelteSelf(el)
+        | TemplateNode::SvelteWindow(el) => {
+            walk_fragment_for_browser_globals(
+                &el.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        TemplateNode::SvelteComponent(c) => {
+            walk_fragment_for_browser_globals(
+                &c.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        TemplateNode::SvelteElement(e) => {
+            walk_fragment_for_browser_globals(
+                &e.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        TemplateNode::TitleElement(t) => {
+            walk_fragment_for_browser_globals(
+                &t.fragment,
+                client_guaranteed,
+                browser_locals,
+                env_namespaces,
+                ctx,
+            );
+        }
+        _ => {}
+    }
+}
+
+impl Rule for NoTopLevelBrowserGlobals {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        // Collect browser-checker imports from both instance and module scripts.
+        // This hook runs inside `with_serialize_arena`, so `as_json()` resolves.
+        let mut browser_locals: Vec<String> = Vec::new();
+        let mut env_namespaces: Vec<String> = Vec::new();
+
+        for script in [root.instance.as_deref(), root.module.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            let prog = script.content.as_json();
+            collect_browser_checker_imports(prog, &mut browser_locals, &mut env_namespaces);
+        }
+
+        // Walk the template fragment, checking expression tags.
+        walk_fragment_for_browser_globals(
+            &root.fragment,
+            false, // top-level is not client-guaranteed
+            &browser_locals,
+            &env_namespaces,
+            ctx,
+        );
     }
 }
 

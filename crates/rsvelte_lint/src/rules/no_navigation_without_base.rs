@@ -502,6 +502,18 @@ impl NoNavigationWithoutBase {
         }
         // Single expression value: `href={...}` → value is an ExpressionTag.
         if node_type(value) == Some("ExpressionTag") {
+            // Skip shorthand `{href}` attributes: the attribute starts at `{`,
+            // so `attr["start"] + 1 == value["start"]`. Upstream treats these
+            // as `SvelteShorthandAttribute` (a distinct AST node type) which the
+            // `SvelteAttribute` hook never sees — so they are never flagged.
+            let attr_start = attr
+                .get("start")
+                .and_then(Value::as_u64)
+                .unwrap_or(u64::MAX);
+            let val_start = value.get("start").and_then(Value::as_u64).unwrap_or(0);
+            if attr_start + 1 == val_start {
+                return None;
+            }
             return self.check_href_expr(cx, value);
         }
         None

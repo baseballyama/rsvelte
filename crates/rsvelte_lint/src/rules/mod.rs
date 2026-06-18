@@ -7,6 +7,7 @@ pub mod button_has_type;
 pub mod comment_directive;
 pub mod consistent_selector_style;
 pub mod derived_has_same_inputs_outputs;
+pub mod scss_selector;
 // Source-scan "meta" rules: these run only in the native `runner::lint_source`
 // pipeline (they produce `rsvelte_core::svelte_check::Diagnostic` and use the
 // `compile`-based `validator`), never in the wasm `lint` export (which is
@@ -97,3 +98,66 @@ pub mod valid_each_key;
 pub mod valid_prop_names_in_kit_pages;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod valid_style_parse;
+
+/// Reconstruct the full `this={…}` attribute span of a `<svelte:element>` /
+/// `<svelte:component>` start tag from its inner expression span.
+///
+/// The parser filters `this` out of `el.attributes`, storing only the inner
+/// expression in `el.tag` / `el.expression`. Several layout rules
+/// (`sort-attributes`, `max-attributes-per-line`, …) need to treat `this` as a
+/// normal leading attribute, so they scan backward from the expression to find
+/// the `this=` keyword. Tolerant of optional whitespace around `=` and `{`
+/// (e.g. `this = { expr }`).
+///
+/// Returns `(attr_start, attr_end)` where `attr_start` is the byte offset of the
+/// `t` in `this` and `attr_end` is the byte past the closing `}`.
+pub(crate) fn find_this_attr_span(
+    src_bytes: &[u8],
+    expr_start: u32,
+    expr_end: u32,
+) -> Option<(u32, u32)> {
+    let mut pos = expr_start as usize;
+    if pos == 0 {
+        return None;
+    }
+    // Step back over optional whitespace before the value opener.
+    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
+        pos -= 1;
+    }
+    // Expect the value opener: `{` for `this={expr}`, or a quote for a static
+    // `this="div"` / `this='div'` (svelte:element with a non-expression `this`,
+    // whose `el.tag` is a Literal spanning the inner string — `expr_end + 1`
+    // still lands just past the matching closing quote, as with `}`).
+    if pos == 0 || !matches!(src_bytes[pos - 1], b'{' | b'"' | b'\'') {
+        return None;
+    }
+    pos -= 1;
+    // Step back over optional whitespace before `=`.
+    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
+        pos -= 1;
+    }
+    // Expect `=`.
+    if pos == 0 || src_bytes[pos - 1] != b'=' {
+        return None;
+    }
+    pos -= 1;
+    // Step back over optional whitespace before `this`.
+    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
+        pos -= 1;
+    }
+    // Expect `this` backwards: pos-1=`s`, pos-2=`i`, pos-3=`h`, pos-4=`t`.
+    if pos < 4 {
+        return None;
+    }
+    if src_bytes[pos - 1] != b's'
+        || src_bytes[pos - 2] != b'i'
+        || src_bytes[pos - 3] != b'h'
+        || src_bytes[pos - 4] != b't'
+    {
+        return None;
+    }
+    let attr_start = (pos - 4) as u32;
+    // The closing `}` is right after expr_end.
+    let attr_end = expr_end + 1;
+    Some((attr_start, attr_end))
+}

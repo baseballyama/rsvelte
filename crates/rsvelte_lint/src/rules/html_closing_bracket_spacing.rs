@@ -22,7 +22,9 @@ use rsvelte_core::ast::template::{
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/html-closing-bracket-spacing",
@@ -255,5 +257,9 @@ impl Rule for HtmlClosingBracketSpacing {
             "svelte:element".len(),
             &el.attributes,
         );
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        self.check_element_like(ctx, el.start, el.end, el.name.len(), &el.attributes);
     }
 }
