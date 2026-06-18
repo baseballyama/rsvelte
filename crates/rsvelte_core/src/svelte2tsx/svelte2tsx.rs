@@ -268,127 +268,6 @@ fn blank_style_content(source: &str) -> String {
     String::from_utf8(bytes).unwrap_or_else(|_| source.to_string())
 }
 
-/// Find all `<script>…</script>` tags in `source` that are NOT one of the
-/// top-level instance / module script ranges supplied in `skip_ranges`.
-///
-/// Returns a list of `(container_start, container_end, content)` tuples where
-/// `container_start..container_end` spans the entire `<script>…</script>` tag
-/// (including the opening/closing tags) and `content` is the raw JS/TS text
-/// between them.
-///
-/// Mirrors the `scriptRegex`-based extraction in official svelte2tsx's
-/// `htmlxparser.ts` (`extractTag` + `findVerbatimElements`): any
-/// `<script…>…</script>` in the source is discovered, regardless of nesting.
-/// Tags inside HTML comments (`<!--`) are excluded.
-///
-/// Only tags whose container range does NOT overlap with a `skip_range` are
-/// returned — those that DO overlap are the top-level instance / module scripts
-/// already handled by rsvelte's normal script processing.
-fn find_embedded_scripts(
-    source: &str,
-    skip_ranges: &[(usize, usize)],
-) -> Vec<(usize, usize, String)> {
-    let bytes = source.as_bytes();
-    let len = bytes.len();
-    let mut results = Vec::new();
-    let mut search = 0usize;
-
-    while search < len {
-        // Skip HTML comments `<!-- … -->`
-        if source[search..].starts_with("<!--") {
-            if let Some(end_rel) = source[search..].find("-->") {
-                search += end_rel + 3;
-                continue;
-            } else {
-                break;
-            }
-        }
-
-        // Look for `<script`
-        let Some(rel) = source[search..].find("<script") else {
-            break;
-        };
-        let tag_start = search + rel;
-
-        // Must be followed by `>`, space, tab, newline, `/`, or end-of-string.
-        let after = tag_start + 7; // len("<script") = 7
-        if after < len {
-            let next = bytes[after];
-            if next != b'>'
-                && next != b' '
-                && next != b'\t'
-                && next != b'\n'
-                && next != b'\r'
-                && next != b'/'
-            {
-                search = tag_start + 1;
-                continue;
-            }
-        } else if after > len {
-            break;
-        }
-
-        // Scan forward to find the end of the opening tag `>`, respecting
-        // quoted attribute values (so a `>` inside `attr="..."` is skipped).
-        let mut tag_gt = after;
-        let mut in_quote: Option<u8> = None;
-        let mut self_closing = false;
-        while tag_gt < len {
-            let b = bytes[tag_gt];
-            match in_quote {
-                Some(q) if b == q => in_quote = None,
-                Some(_) => {}
-                None => match b {
-                    b'"' | b'\'' => in_quote = Some(b),
-                    b'/' if tag_gt + 1 < len && bytes[tag_gt + 1] == b'>' => {
-                        self_closing = true;
-                        tag_gt += 1;
-                        break;
-                    }
-                    b'>' => break,
-                    _ => {}
-                },
-            }
-            tag_gt += 1;
-        }
-        if tag_gt >= len {
-            break;
-        }
-        let content_start = tag_gt + 1; // byte after `>`
-        if self_closing {
-            // `<script … />` — no content
-            let container_end = content_start;
-            let is_top_level = skip_ranges
-                .iter()
-                .any(|&(s, e)| s <= tag_start && e >= container_end);
-            if !is_top_level {
-                results.push((tag_start, container_end, String::new()));
-            }
-            search = container_end;
-            continue;
-        }
-
-        // Find the matching `</script>`
-        let Some(close_rel) = source[content_start..].find("</script>") else {
-            break;
-        };
-        let content_end = content_start + close_rel;
-        let container_end = content_end + 9; // len("</script>") = 9
-
-        let is_top_level = skip_ranges
-            .iter()
-            .any(|&(s, e)| s <= tag_start && e >= container_end);
-        if !is_top_level {
-            let content = source[content_start..content_end].to_string();
-            results.push((tag_start, container_end, content));
-        }
-
-        search = container_end;
-    }
-
-    results
-}
-
 /// Validate that every `{@debug …}` argument is a plain identifier, returning a
 /// template error otherwise — mirrors svelte's parse-time check (rsvelte's lives
 /// in the analyze DebugTag visitor, which svelte2tsx doesn't run).
@@ -789,34 +668,13 @@ pub fn svelte2tsx(
     // When a top-level instance script already exists, the embedded script's
     // content is simply dropped (it's an anomalous/malformed template that the
     // official tool also handles inconsistently).
-    let embedded_script_content: String = {
-        let skip_ranges: Vec<(usize, usize)> = {
-            let mut v = Vec::new();
-            if let Some(ref inst) = ast.instance {
-                v.push((inst.start as usize, inst.end as usize));
-            }
-            if let Some(ref module) = ast.module {
-                v.push((module.start as usize, module.end as usize));
-            }
-            v
-        };
-        let embedded = find_embedded_scripts(source, &skip_ranges);
-        let mut collected = String::new();
-        for (tag_start, tag_end, content) in embedded {
-            str.remove(tag_start as u32, tag_end as u32);
-            // Only collect the content when there is no top-level instance
-            // script — mirroring the official tool processing the embedded
-            // script as the instance script in that case.
-            if ast.instance.is_none() && !content.trim().is_empty() {
-                if !collected.is_empty() {
-                    collected.push('\n');
-                }
-                collected.push_str(content.trim_end());
-                collected.push(';');
-            }
-        }
-        collected
-    };
+    // (Previously rsvelte mirrored official svelte2tsx's scriptRegex extraction
+    // here to handle a `<script>` pulled out of an attribute value by HTML
+    // rawtext rules — but a source-wide scan over-matched real `<script>`
+    // elements in `<svelte:head>` / `{@html}` / nested templates and regressed
+    // 11 files, so it was reverted. The two escaped-attr/textarea entries it
+    // targeted are tracked in docs/svelte2tsx-corpus-remaining.md instead.)
+    let embedded_script_content: String = String::new();
 
     // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
     // naive `source.contains("<slot")` matches `<slot>` inside string literals

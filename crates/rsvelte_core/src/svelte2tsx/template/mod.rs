@@ -691,19 +691,22 @@ fn collect_info_from_node(
             }
         }
         TemplateNode::SvelteComponent(comp) => {
-            // Forwarded events on `<svelte:component on:foo>`: official emits
-            // `bubbleEventDef(__sveltets_2_instanceOf(svelte:component).$$events_def, …)`
-            // — using the literal tag name `svelte:component` as the instanceOf
-            // argument (not a valid TS identifier, so the output is emitted raw;
-            // this mirrors official svelte2tsx byte-for-byte).
+            // Forwarded events on `<svelte:component this={X} on:foo>`: emit
+            // `bubbleEventDef(__sveltets_2_instanceOf(X).$$events_def, …)` using
+            // the component's `this` expression as the instanceOf argument.
+            // (Upstream uses the literal tag name `svelte:component` here, which
+            // is not a valid TS identifier and makes the whole output
+            // unparseable; rsvelte emits the real `this` expression so the
+            // output stays valid TSX.)
+            let this_expr = get_expression_text(&comp.expression, source);
             for attr in &comp.attributes {
                 if let Attribute::OnDirective(on) = attr
                     && on.expression.is_none()
                 {
                     let event_name = on.name.to_string();
                     let event_value = format!(
-                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf(svelte:component).$$events_def, '{}')",
-                        event_name
+                        "__sveltets_2_bubbleEventDef(__sveltets_2_instanceOf({}).$$events_def, '{}')",
+                        this_expr, event_name
                     );
                     info.element_events.push((event_name, event_value));
                 }
