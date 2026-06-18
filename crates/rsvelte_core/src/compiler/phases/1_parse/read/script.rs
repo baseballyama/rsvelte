@@ -184,6 +184,16 @@ impl Parser<'_> {
                     {
                         if t.data.as_str() == "module" {
                             context = ScriptContext::Module;
+                            // The compiler drops the `context` attribute from the
+                            // script's attribute list (it only needs the
+                            // `ScriptContext`), and the snapshot tests expect that.
+                            // svelte-eslint-parser keeps it, so attribute-layout
+                            // lint rules count it — preserve it only in lenient
+                            // (lint) mode to match the oracle without changing
+                            // compiler output.
+                            if self.options.lenient_script {
+                                script_attributes.push(attr_node.clone());
+                            }
                         } else {
                             // Invalid context value - only "module" is allowed
                             return Err(crate::error::ParseError::svelte(
