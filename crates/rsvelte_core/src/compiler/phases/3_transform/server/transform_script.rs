@@ -5675,77 +5675,74 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             || memmem::find(trimmed_bytes, b"=$derived(").is_some()
             || memmem::find(trimmed_bytes, b"= $derived.by(").is_some()
             || memmem::find(trimmed_bytes, b"=$derived.by(").is_some();
-        if is_derived_field {
-            if let Some(eq_pos) = trimmed.find('=') {
-                // Strip TypeScript field modifiers (readonly, public, private, protected, …)
-                // so that e.g. `readonly props = $derived.by(…)` yields name="props" not
-                // "readonly props". The `#` ergonomic-private prefix is preserved.
-                let lhs_bare = strip_ts_field_modifiers(&trimmed[..eq_pos]);
-                let is_private = lhs_bare.starts_with('#');
-                let name = lhs_bare.trim_start_matches('#').to_string();
+        if is_derived_field && let Some(eq_pos) = trimmed.find('=') {
+            // Strip TypeScript field modifiers (readonly, public, private, protected, …)
+            // so that e.g. `readonly props = $derived.by(…)` yields name="props" not
+            // "readonly props". The `#` ergonomic-private prefix is preserved.
+            let lhs_bare = strip_ts_field_modifiers(&trimmed[..eq_pos]);
+            let is_private = lhs_bare.starts_with('#');
+            let name = lhs_bare.trim_start_matches('#').to_string();
 
-                let (derived_pattern, is_derived_by) =
-                    if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
-                        ("$derived.by(", true)
+            let (derived_pattern, is_derived_by) =
+                if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
+                    ("$derived.by(", true)
+                } else {
+                    ("$derived(", false)
+                };
+
+            if let Some(derived_pos) = memmem::find(trimmed_bytes, derived_pattern.as_bytes()) {
+                let value_start = derived_pos + derived_pattern.len();
+                let after_paren = &trimmed[value_start..];
+
+                if let Some(value_end) = find_matching_paren_server(after_paren) {
+                    let value = after_paren[..value_end].to_string();
+                    let sanitized_name = sanitize_identifier(&name);
+                    let private_name = if is_private {
+                        format!("#{}", sanitized_name)
                     } else {
-                        ("$derived(", false)
+                        backing_private(&name)
                     };
 
-                if let Some(derived_pos) = memmem::find(trimmed_bytes, derived_pattern.as_bytes()) {
-                    let value_start = derived_pos + derived_pattern.len();
-                    let after_paren = &trimmed[value_start..];
-
-                    if let Some(value_end) = find_matching_paren_server(after_paren) {
-                        let value = after_paren[..value_end].to_string();
-                        let sanitized_name = sanitize_identifier(&name);
-                        let private_name = if is_private {
-                            format!("#{}", sanitized_name)
-                        } else {
-                            backing_private(&name)
-                        };
-
-                        let value_str = value.trim();
-                        let wrapped_value = if value_str.starts_with('{') {
-                            format!("({})", value_str)
-                        } else {
-                            value_str.to_string()
-                        };
-
-                        let transformed_line = if is_derived_by {
-                            format!("{} = $.derived({})", private_name, wrapped_value)
-                        } else {
-                            format!("{} = $.derived(() => {})", private_name, wrapped_value)
-                        };
-
-                        members.push(ClassMember::Field(transformed_line));
-
-                        derived_fields.push(DerivedField {
-                            name,
-                            is_private,
-                            constructor_declared: false,
-                        });
-                        continue;
+                    let value_str = value.trim();
+                    let wrapped_value = if value_str.starts_with('{') {
+                        format!("({})", value_str)
                     } else {
-                        // Multiline derived field - accumulate until parens balance
-                        in_derived_field = true;
-                        derived_accum = trimmed.to_string();
-                        derived_paren_depth = 0;
-                        for c in trimmed.chars() {
-                            match c {
-                                '(' | '{' | '[' => derived_paren_depth += 1,
-                                ')' | '}' | ']' => derived_paren_depth -= 1,
-                                _ => {}
-                            }
+                        value_str.to_string()
+                    };
+
+                    let transformed_line = if is_derived_by {
+                        format!("{} = $.derived({})", private_name, wrapped_value)
+                    } else {
+                        format!("{} = $.derived(() => {})", private_name, wrapped_value)
+                    };
+
+                    members.push(ClassMember::Field(transformed_line));
+
+                    derived_fields.push(DerivedField {
+                        name,
+                        is_private,
+                        constructor_declared: false,
+                    });
+                    continue;
+                } else {
+                    // Multiline derived field - accumulate until parens balance
+                    in_derived_field = true;
+                    derived_accum = trimmed.to_string();
+                    derived_paren_depth = 0;
+                    for c in trimmed.chars() {
+                        match c {
+                            '(' | '{' | '[' => derived_paren_depth += 1,
+                            ')' | '}' | ']' => derived_paren_depth -= 1,
+                            _ => {}
                         }
-                        derived_field_name = name;
-                        derived_field_is_private = is_private;
-                        derived_field_is_by = is_derived_by;
-                        continue;
                     }
+                    derived_field_name = name;
+                    derived_field_is_private = is_private;
+                    derived_field_is_by = is_derived_by;
+                    continue;
                 }
             }
         }
-
         let is_state_field = memmem::find(trimmed_bytes, b"= $state(").is_some()
             || memmem::find(trimmed_bytes, b"=$state(").is_some()
             || memmem::find(trimmed_bytes, b"= $state.raw(").is_some()
