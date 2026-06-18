@@ -834,7 +834,14 @@ fn convert_component_result(
     }
 }
 
-/// Add `extra` to every non-empty line *after* the first of `code`.
+/// Add `extra` to every non-empty line *after* the first of `code`,
+/// UNLESS that line is a continuation of a template literal.
+///
+/// Template-literal interior lines must be preserved byte-verbatim: the
+/// content between the opening `` ` `` and the closing `` ` `` is the
+/// string value, and prepending extra tabs changes the rendered HTML.
+/// Upstream (esrap) never indents template-literal interiors — it just
+/// emits the raw quasi value as-is.
 ///
 /// Used to lift a multi-line `JsStatement::Raw` block down one indent level
 /// when nesting it inside another structured statement (e.g. inside an
@@ -844,14 +851,32 @@ fn convert_component_result(
 fn reindent_multiline_raw(code: &str, extra: &str) -> String {
     let mut out = String::with_capacity(code.len() + extra.len() * 8);
     let mut first = true;
+    // Track whether we are inside a template literal (between backticks).
+    // `in_template_literal` holds the state AT THE BEGINNING of the current line,
+    // i.e. whether the previous line left us inside an open template literal.
+    // Lines whose state at entry is `true` are template-literal content and must
+    // NOT receive the extra indentation prefix.
+    let mut in_template_literal = false;
     for line in code.split_inclusive('\n') {
+        // Snapshot state at the START of this line (used for the indent decision).
+        let was_in_template = in_template_literal;
+        // Advance template-literal tracking to end of this line so the NEXT
+        // iteration starts with the correct state.  Use the line without the
+        // trailing `\n` (split_inclusive keeps it) so the backtick scanner only
+        // sees actual code characters.
+        let line_without_nl = line.trim_end_matches('\n');
+        in_template_literal = super::helpers::update_template_literal_state_for_indent(
+            line_without_nl,
+            in_template_literal,
+        );
         if first {
             first = false;
             out.push_str(line);
             continue;
         }
-        // Don't prefix empty or whitespace-only lines.
-        if line.trim_start_matches([' ', '\t']).is_empty() {
+        // Inside a template literal: emit verbatim (no extra indent).
+        // Empty/whitespace-only lines also never get a prefix.
+        if was_in_template || line.trim_start_matches([' ', '\t']).is_empty() {
             out.push_str(line);
         } else {
             out.push_str(extra);
@@ -2540,5 +2565,65 @@ mod tests {
             }
             _ => panic!("Expected raw statement for ConstDeclaration"),
         }
+    }
+
+    /// Bug B regression: `reindent_multiline_raw` must NOT add extra indentation
+    /// to continuation lines that are inside a template literal.
+    ///
+    /// Scenario: a component (`Dialog.Content`) has a `children` prop whose body
+    /// contains `$$renderer.push(\`...\n\t\t\t\t\tappear.\`)`.  When a parent
+    /// dynamic component (`Dialog.Portal`) wraps this via
+    /// `push_dynamic_component_if_else → reindent_multiline_raw`, the
+    /// continuation line `\t\t\t\t\tappear.` must stay at 5 tabs, not gain
+    /// an extra tab per nesting level.
+    #[test]
+    fn reindent_multiline_raw_preserves_template_literal_continuations() {
+        // Simulate the component call code for Dialog.Content with a children
+        // callback that has a multi-line $$renderer.push(`...`) call.
+        // The push body spans two lines; the second line is inside the backtick
+        // template literal and must NOT receive the extra `\t` prefix.
+        let call_code = "Dialog.Content($$renderer, {\n\tchildren: ($$renderer) => {\n\t\t$$renderer.push(`<p>Click here. The tooltip will not\n\t\t\t\t\tappear.</p> `);\n\t},\n});\n";
+        let reindented = reindent_multiline_raw(call_code, "\t");
+
+        // The first line gets no extra indent (it's `first`).
+        assert!(
+            reindented.starts_with("Dialog.Content"),
+            "first line should start with Dialog.Content: {reindented:?}"
+        );
+
+        // The continuation line INSIDE the template literal (`appear.`) must
+        // keep exactly its original 5 tabs, NOT gain a 6th.
+        assert!(
+            reindented.contains("\n\t\t\t\t\tappear.</p> `);"),
+            "template-literal continuation must keep original indentation (5 tabs): {reindented:?}"
+        );
+        // It must NOT have 6 tabs before `appear.`
+        assert!(
+            !reindented.contains("\n\t\t\t\t\t\tappear.</p> `);"),
+            "template-literal continuation must NOT gain extra tab: {reindented:?}"
+        );
+    }
+
+    /// Nested dynamic components: each level calls `reindent_multiline_raw`
+    /// once.  After two levels, a 5-tab template-literal continuation must
+    /// still stay at 5 tabs (not grow to 7).
+    #[test]
+    fn reindent_multiline_raw_nested_dynamic_components() {
+        // Level 1 (Dialog.Portal wrapping Dialog.Content)
+        let inner = "Dialog.Content($$renderer, {\n\tchildren: ($$renderer) => {\n\t\t$$renderer.push(`<p>Tooltip will not\n\t\t\t\t\tappear.</p> `);\n\t},\n});\n";
+        let level1 = reindent_multiline_raw(inner, "\t");
+
+        // Level 2 (Dialog.Root wrapping Dialog.Portal)
+        let level2 = reindent_multiline_raw(&level1, "\t");
+
+        // The template-literal continuation must still have exactly 5 tabs.
+        assert!(
+            level2.contains("\n\t\t\t\t\tappear.</p> `);"),
+            "after 2 levels of reindent, template-literal content must keep 5 tabs: {level2:?}"
+        );
+        assert!(
+            !level2.contains("\n\t\t\t\t\t\t\tappear.</p> `);"),
+            "after 2 levels of reindent, template-literal content must NOT have 7 tabs: {level2:?}"
+        );
     }
 }
