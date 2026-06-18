@@ -480,7 +480,8 @@ fn push_open_tag(
     // `<svelte:window>` is also emitted as self-closing when it has no
     // children (the common case). When it does have children (a compiler error,
     // but the formatter still processes it), it keeps the non-self-closing form.
-    let self_closing = is_self_closing(source, open_tag_end)
+    let last_attr_end = attributes.last().map_or(0, |a| attribute_span(a).1);
+    let self_closing = is_self_closing_inner(source, open_tag_end, last_attr_end)
         || is_void_element(tag_name)
         || (tag_name == "svelte:window" && empty_element);
 
@@ -1028,7 +1029,7 @@ fn find_open_tag_end(source: &str, element_start: u32, attributes: &[Attribute])
     None
 }
 
-fn is_self_closing(source: &str, open_tag_end: u32) -> bool {
+fn is_self_closing_inner(source: &str, open_tag_end: u32, last_attr_end: u32) -> bool {
     let bytes = source.as_bytes();
     if open_tag_end < 2 {
         return false;
@@ -1042,7 +1043,15 @@ fn is_self_closing(source: &str, open_tag_end: u32) -> bool {
                 }
                 i -= 1;
             }
-            b'/' => return true,
+            b'/' => {
+                // A `/` that is at or before the last attribute's end is part
+                // of the attribute value (e.g. `href=/` in `<a href=/>`) and
+                // does NOT indicate self-closing syntax.
+                if last_attr_end > 0 && (i as u32) < last_attr_end {
+                    return false;
+                }
+                return true;
+            }
             _ => return false,
         }
     }
