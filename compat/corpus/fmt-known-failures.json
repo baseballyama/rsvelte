@@ -1,7 +1,6 @@
 [
 	"bits-ui/docs/src/lib/components/homepage/card-timer.svelte",
 	"bits-ui/docs/src/routes/+page.svelte",
-	"bits-ui/tests/src/tests/navigation-menu/navigation-menu-test.svelte",
 	"flowbite-svelte/src/lib/forms/tags/Tags.svelte",
 	"flowbite-svelte/src/lib/mega-menu/MegaMenu.svelte",
 	"flowbite-svelte/src/lib/stepper/TimelineStepper.svelte",

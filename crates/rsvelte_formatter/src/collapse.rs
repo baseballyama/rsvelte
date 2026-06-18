@@ -1197,16 +1197,18 @@ fn try_collapse(
     // must fit on one line and the `>content</tag` line must fit; otherwise this
     // needs attribute-wrapping / content fill we don't do here.
     //
-    // The hug only applies when the content is directly adjacent to the tags
-    // (prettier's `shouldHugStart`/`shouldHugEnd`: hug iff the first/last child
-    // does NOT start/end with whitespace). When the content is separated from
-    // the tags by whitespace (`<button>\n  click me\n</button>`), prettier
-    // block-breaks instead, so fall through to the block-break path below.
+    // The hug only applies when the content is directly adjacent to the open tag
+    // (prettier's `shouldHugStart`: hug iff the first child does NOT start with
+    // whitespace, i.e. `!had_lead`). `shouldHugEnd` is independent — trailing
+    // whitespace on the content is harmless because `collapsed` already strips it.
+    // When the content is separated from the open tag by whitespace
+    // (`<button>\n  click me\n</button>`), prettier block-breaks instead, so fall
+    // through to the block-break path below.
     // Hug eligibility is about whitespace-injection when the open tag wraps, not
     // about the one-line edge space: components hug like inline elements
     // (`<Message kind="info"\n  >text</Message\n>`), so use the inline predicate
     // here, not the component-inclusive `trims_edge`.
-    if !trims_edge_whitespace(tag) && !had_lead && !had_trail {
+    if !trims_edge_whitespace(tag) && !had_lead {
         if !open.ends_with('>') {
             return None;
         }
@@ -1240,6 +1242,25 @@ fn try_collapse(
             // continuation of a multi-line attribute value (e.g. the RHS of an
             // `onclick={() =>\n  expr}` attribute), not the attribute keyword.
             let inner_indent = format!("{close_indent}  ");
+            // When `had_trail=true` (shouldHugEnd=false), the close tag should
+            // stay on its own line (`\n{element_indent}</tag>`) rather than be
+            // glued to the content as `</tag\n{close_indent}>`.  Skip both the
+            // same-line and inner-indent hug paths in this branch and fall
+            // through to the `shouldHugEnd=false` handling below.
+            if had_trail {
+                // `shouldHugEnd=false`: the close tag belongs on its own line at
+                // the element indent level.  Preserve the current form or produce
+                // `{open}{collapsed}\n{elem_indent}</{tag}>` without touching it.
+                let line_start_inner = out[..s].rfind('\n').map_or(0, |i| i + 1);
+                let elem_indent = out.get(line_start_inner..s).unwrap_or("");
+                if elem_indent.bytes().all(|b| b == b' ' || b == b'\t') {
+                    let result = format!("{open}{collapsed}\n{elem_indent}</{tag}>");
+                    if result != whole {
+                        return Some((start, end, result));
+                    }
+                }
+                return None;
+            }
             let last_line_width = last_open_line.width() + collapsed.width() + 2 + tag.width();
             if last_line_width <= line_width {
                 // Fits: keep the `>` glued to the last attribute line.
@@ -1316,7 +1337,15 @@ fn try_collapse(
         // `column` is the number of columns before the element (the indent), and
         // `open` does NOT include that leading indent — so the total line width
         // is `column + open.width() + collapsed.width() + 2 + tag.width()`.
-        let same_line_width = column + open.width() + collapsed.width() + 2 + tag.width();
+        //
+        // When the original content had trailing whitespace (`had_trail=true`),
+        // prettier's group-fit check measures the content including that trailing
+        // space (since `shouldHugEnd=false` means a space is injected before the
+        // close tag). Add 1 extra column to match prettier's fit check so that
+        // elements that just barely fit (e.g. 80 cols) without the space are
+        // correctly detected as overflowing and use the inner-indent hug form.
+        let trailing_edge_extra = if had_trail && !trims_edge_whitespace(tag) { 1 } else { 0 };
+        let same_line_width = column + open.width() + collapsed.width() + 2 + tag.width() + trailing_edge_extra;
         if same_line_width <= line_width {
             let result = format!("{open}{collapsed}</{tag}\n{indent}>");
             return (result != whole).then_some((start, end, result));
@@ -1378,7 +1407,16 @@ fn try_collapse(
             return None;
         }
         let open_no_bracket = &open[..open.len() - 1];
-        let hug = format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{indent}>");
+        // When the original content had trailing whitespace (`had_trail=true`),
+        // prettier uses `shouldHugEnd=false`: the close tag goes on its own line
+        // at the element indent level (`\n{indent}</tag>`), not glued as
+        // `</tag\n{indent}>`.  When `!had_trail` (`shouldHugEnd=true`), the close
+        // tag is split across two lines: `</tag\n{indent}>`.
+        let hug = if had_trail {
+            format!("{open_no_bracket}\n{inner_indent}>{collapsed}\n{indent}</{tag}>")
+        } else {
+            format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{indent}>")
+        };
         return (hug != whole).then_some((start, end, hug));
     }
 
