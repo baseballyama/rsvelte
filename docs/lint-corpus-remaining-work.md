@@ -16,35 +16,40 @@ priority, most user-visible bug). `FN` = oracle reports, rsvelte silent.
 
 ## Snapshot
 
-**43 divergences** (down from 556 at the start of this burn-down pass; a raw
-17,896 / a post-scoping 745 before that) — **92% cleared**. Beyond the clusters
-below, later passes added: **TS-aware `<script generics="…">`** (parse the value
-as TS to pick the full-text vs key-only message — new
-`rsvelte_core::ts_snippet_is_valid`), **`<script context="module">` attribute
-preserved in lint mode** (so layout rules count it without changing compiler
-output), no-immutable **destructuring reactive assignments** + the **`console`**
-oracle global, and **`$`-store-target** handling in no-reactive-reassign.
+**0 divergences** (down from 556 at the start of this burn-down pass; a raw
+17,896 / a post-scoping 745 before that) — **100% cleared**. `known-failures.json`
+is now empty: the `lint-parity` CI gate passes with full parity. The three
+remaining non-comparable findings are documented finding-level `MANUAL_EXCLUSIONS`
+in `lint-verify.mjs` (NOT in known-failures): H4 globals-version skew (×2) and
+H5 core-`no-undef` capability gap (×1) — see `docs/lint-corpus-harness-findings.md`
+and `docs/upstream-issues.md`.
 
-The remaining **43** need larger subsystems, documented in
-`docs/lint-corpus-harness-findings.md` and below:
+How the final clusters (the **43** that remained at the last snapshot) were
+cleared:
 
-1. **Non-CSS `<style lang>` (~12)** — rsvelte's CSS parser rejects Sass/SCSS, so
-   the file fails to parse and no rule runs (`html-self-closing`,
-   `no-unused-class-name`, …). A lenient skip makes *valid* sass lint but also
-   makes *invalid* scss parse, where the oracle's postcss-scss correctly rejects
-   and stays silent (over-report). Needs a real SCSS validator/parser to tell
-   valid from invalid (tried + reverted the lenient skip).
-2. **no-immutable module/instance (~9)** — a `<script module>` + instance script
-   mis-serialises for lint (`ARENA MISMATCH`: the per-parse arena's `JsNodeId`s
-   don't align across the two programs), so the rule gets empty data. Deep
-   rsvelte_core arena/program-lifecycle fix; does not affect compile output.
-3. **`no-top-level-browser-globals` in template (4)** — must scan template
-   `{expr}` tags with `{#if browser}` *SvelteIfBlock* guards (a guard-tracking
-   template walk). Plus 2 documented globals-version FP (H4).
-4. **Scattered per-rule edges (~16)** — `sort-attributes`/`prefer-const`/
-   `first-attribute-linebreak` on parse-failure files (blocked by #1), the
-   static `this="…"` mid-attribute case, `comment-directive` (needs core
-   `no-undef`), `prefer-svelte-reactivity` cross-script-block Set mutation.
+1. **Non-CSS `<style lang>` + self-closing (was ~12)** — done. Lenient parser:
+   self-closing `<style/>`/`<script/>` no longer abort the parse; a non-CSS
+   `lang` block skips CSS-shaped validation; and `scss_is_parseable` (a
+   conservative SCSS structural check) suppresses the CSS-aware rules on
+   *invalid* SCSS, mirroring postcss-scss failing — so valid SCSS lints and
+   invalid SCSS stays silent without a full SCSS parser.
+2. **no-immutable module/instance (was ~9)** — done. The rule now walks
+   block-body write-only targets, ignores reactive-block-local declarations, and
+   resolves cross-script immutability; on a scope-analysis failure it continues
+   with empty maps (the unknown-name guard keeps it strictly FN-safe). The
+   `ARENA MISMATCH` debug line is `#[cfg(debug_assertions)]`-only and no longer
+   affects results.
+3. **`no-top-level-browser-globals` in template (was 4)** — done. A
+   dual-registered `check_root` walks template `{expr}` tags tracking a monotonic
+   `client_guaranteed` flag through `{#if browser}` / `{#if !browser}` guards.
+   The 2 globals-version FP are the documented H4 exclusion.
+4. **Scattered per-rule edges (was ~16)** — done. Shorthand-directive spans fixed
+   in the parser (class/animate/let/style end at the name), unblocking
+   `max-attributes-per-line` end-line grouping and `first-attribute-linebreak`;
+   `this="…"` static recovery; `no-unused-class-name` empty-`""` parity;
+   `<template lang="pug">` treated as opaque (lenient); prefer-const no-init
+   destructuring; prefer-svelte-reactivity cross-script. `comment-directive` on
+   core `no-undef` is the documented H5 exclusion (verified FN↔FP trade-off).
 
 Earlier in this pass cleared **486** (87%) across:
 Cluster E (inline `/* eslint … */` config + JSON5 leniency), Cluster F
