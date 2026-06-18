@@ -12,6 +12,15 @@
  * down over time; when a known failure now passes, a reminder to shrink the
  * baseline is printed (use --update-baseline to rewrite it).
  *
+ * Oracle exclusions: compat/corpus/fmt-oracle-excluded.json lists ids that are
+ * permanently excluded from the parity set because either (a) the oracle output
+ * is itself wrong/corrupt (oracle-bug), (b) the input is invalid and rsvelte
+ * correctly rejects it (invalid-input), or (c) the fixture is from the
+ * out-of-scope Svelte 4→5 migrator (migrate). Excluded ids are removed from the
+ * comparison set entirely — they count as neither matched nor failed. A staleness
+ * check warns if an excluded id is no longer in the run's parity set, or if it
+ * would now match the oracle byte-for-byte (in which case it can be un-excluded).
+ *
  * Usage:
  *   node scripts/compat-corpus/fmt-verify.mjs [--max-print <n>] [--update-baseline] [--strict]
  */
@@ -28,6 +37,7 @@ const ORACLE = path.join(FMT, 'oracle');
 const ACTUAL = path.join(FMT, 'actual');
 const META_PATH = path.join(FMT, 'meta.json');
 const REPORT_PATH = path.join(CORPUS, 'fmt-report.json');
+const EXCLUDED_PATH = path.join(CORPUS, 'fmt-oracle-excluded.json');
 
 const args = process.argv.slice(2);
 // --baseline <path> selects an alternate ratchet file (see verify.mjs);
@@ -77,9 +87,23 @@ if (included.length < 1000) {
 	fail(`only ${included.length} components in the parity set — the corpus looks incomplete; re-run collect.mjs + fmt.mjs`);
 }
 
+// Load oracle exclusions (oracle-bug / invalid-input / migrate).
+// These ids are removed from the comparison set entirely.
+const excludedEntries = fs.existsSync(EXCLUDED_PATH)
+	? JSON.parse(fs.readFileSync(EXCLUDED_PATH, 'utf8'))
+	: [];
+const excludedSet = new Set(excludedEntries.map((e) => e.id));
+
+const includedSet = new Set(included);
 const failures = [];
 let matched = 0;
+let excluded = 0;
 for (const id of included) {
+	// Skip oracle-excluded ids entirely — they count as neither matched nor failed.
+	if (excludedSet.has(id)) {
+		excluded++;
+		continue;
+	}
 	const oracle = readIf(path.join(ORACLE, id));
 	const actual = readIf(path.join(ACTUAL, id));
 	if (oracle === null) continue; // not part of the parity set
@@ -94,10 +118,28 @@ for (const id of included) {
 	failures.push({ id, kind: 'diff', detail: firstDiffLine(oracle, actual) });
 }
 
+// Staleness checks for excluded entries.
+for (const entry of excludedEntries) {
+	const { id } = entry;
+	if (!includedSet.has(id)) {
+		// Excluded id not present in this run's parity set — warn but don't fail.
+		// (e.g. a file removed from the corpus, or an OS-specific oracle skip)
+		console.warn(`[fmt-verify] WARNING: excluded id not in parity set (stale?): ${id}`);
+		continue;
+	}
+	// Check if the excluded id would now match the oracle byte-for-byte.
+	const oracle = readIf(path.join(ORACLE, id));
+	const actual = readIf(path.join(ACTUAL, id));
+	if (oracle !== null && actual !== null && oracle === actual) {
+		console.log(`[fmt-verify] NOTICE: excluded id now matches oracle — consider un-excluding: ${id}`);
+	}
+}
+
 const report = {
 	generatedAt: new Date().toISOString(),
 	corpus: { svelteSha: meta.svelteSha, svelteDevSha: meta.svelteDevSha, oxfmtVersion: meta.oxfmtVersion },
 	included: included.length,
+	excluded,
 	skipped: (meta.skips ?? []).length,
 	matched,
 	failed: failures.length,
@@ -107,6 +149,7 @@ fs.writeFileSync(REPORT_PATH, JSON.stringify(report, null, '\t') + '\n');
 
 console.log('\n[fmt-verify] results:');
 console.log(`  included  ${included.length}`);
+console.log(`  excluded  ${excluded}  (oracle-bug / invalid-input / migrate — see compat/corpus/fmt-oracle-excluded.json)`);
 console.log(`  matched   ${matched}`);
 console.log(`  failed    ${failures.length}`);
 console.log(`  report:   ${path.relative(ROOT, REPORT_PATH)}`);
