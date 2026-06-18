@@ -50,7 +50,5 @@
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-group-each-16/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/svg-tspan-preserve-space/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-dont-rebase-new-batch-4/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-template/main.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte"
 ]

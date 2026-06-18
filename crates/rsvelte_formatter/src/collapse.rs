@@ -537,6 +537,17 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         return (flat != whole).then_some((s as u32, e as u32, flat));
     }
     let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
+    // If the doc had no break points (e.g. two adjacent inline-block elements
+    // like `<button>A</button><button>B</button>` with no text between them),
+    // `print` produces the same flat single-line string regardless of
+    // `line_width`. Guard against returning an edit that merges overflow onto
+    // one line — if the printed form contains no newline and still overflows,
+    // the collapse has no useful layout to offer; return None so the
+    // element-level passes (try_collapse / try_hug_mixed) own the elements
+    // individually.
+    if !printed.contains('\n') && indent_cols + printed.width() > line_width {
+        return None;
+    }
     (printed != whole).then_some((s as u32, e as u32, printed))
 }
 
@@ -2922,6 +2933,52 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                 && let Some(open_doc) = build_open_attr_doc(out, node, tag, false)
             {
                 return Some(Doc::Group(vec![open_doc, Doc::Text(format!("></{tag}>"))]));
+            }
+        }
+    }
+    // Inline-block elements with simple text content (`<button onclick=…>text</button>`):
+    // build a hug doc so the open tag can break its attributes when the element
+    // chain overflows.  `element_hug_parts` excludes `is_inline_block` tags (they
+    // aren't whitespace-sensitive for standalone hug purposes) but in an inline fill
+    // run we still need a breakable doc so adjacent elements can reflow rather than
+    // merging onto one overflowing line.  Only for non-empty, text-only content
+    // directly adjacent (no leading/trailing space — shouldHugStart && shouldHugEnd).
+    if let TemplateNode::RegularElement(e) = node {
+        let tag = e.name.as_str();
+        if is_inline_block(tag) && !e.attributes.is_empty() && !e.fragment.nodes.is_empty() {
+            let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+            if span.contains('\n') {
+                return None;
+            }
+            let first = e.fragment.nodes.first();
+            let last = e.fragment.nodes.last();
+            if let (Some(first), Some(last)) = (first, last) {
+                let content_start = node_start(first) as usize;
+                let content_end = node_end(last) as usize;
+                let open_text = out.get(node_start(node) as usize..content_start)?;
+                let content = out.get(content_start..content_end)?;
+                let close = out.get(content_end..node_end(node) as usize)?;
+                if !content.contains('\n')
+                    && !content.contains('<')
+                    && !content.is_empty()
+                    && open_text.ends_with('>')
+                    && close.starts_with("</")
+                    && !content.starts_with([' ', '\t', '\r', '\n'])
+                    && !content.ends_with([' ', '\t', '\r', '\n'])
+                {
+                    let open_doc =
+                        build_open_attr_doc(out, node, tag, true)
+                            .unwrap_or(Doc::Text(open_text[..open_text.len() - 1].to_string()));
+                    return Some(Doc::Group(vec![
+                        open_doc,
+                        Doc::Group(vec![Doc::Indent(vec![
+                            Doc::Softline,
+                            Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
+                        ])]),
+                        Doc::Softline,
+                        Doc::Text(">".to_string()),
+                    ]));
+                }
             }
         }
     }
