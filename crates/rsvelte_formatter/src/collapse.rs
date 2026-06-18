@@ -1125,11 +1125,25 @@ fn try_collapse(
     let trims_edge = trims_edge_whitespace(tag) || is_component_tag(tag);
 
     // Empty element (whitespace-only body): collapse to `<tag></tag>` — the
-    // close tag glues directly to the `>`, dropping the body whitespace. This
-    // holds even when the open tag wrapped across lines (`<svelte:boundary\n
-    // onerror={…}\n></svelte:boundary>`), which the one-line path below rejects
-    // because the open tag contains a newline.
+    // close tag glues directly to the `>`, dropping the body whitespace.
+    //
+    // For block/component/slot elements (`trims_edge = true`) this holds even
+    // when the open tag wrapped across lines (`<svelte:boundary\n
+    // onerror={…}\n></svelte:boundary>`), because block elements are not
+    // whitespace-sensitive at boundaries.
+    //
+    // For non-block elements like `<button>` (inline-block), when the open tag
+    // wrapped the oracle keeps `>` and `</button>` on separate lines:
+    //   <button
+    //     onclick={…}
+    //   >
+    //   </button>
+    // So skip the collapse for those cases — return None to leave the
+    // already-rendered layout (with the `\n` between `>` and `</tag>`) intact.
     if collapsed.is_empty() {
+        if !trims_edge && open.contains('\n') {
+            return None;
+        }
         let result = format!("{open}{close}");
         return (result != whole).then_some((start, end, result));
     }
