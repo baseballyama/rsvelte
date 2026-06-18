@@ -804,21 +804,56 @@ fn collect(
             TemplateNode::RegularElement(elem) => {
                 if is_whitespace_preserving(elem.name.as_str()) {
                     // `<pre>` / `<textarea>` preserve whitespace, so collapse never
-                    // reflows their text — but a sole content mustache whose
-                    // expression overflows still wraps (the JS is formatted), with
-                    // `<pre>{` and `}</pre>` glued. The shared format-time width
-                    // check under-counts the glued tag prefix, so handle it here.
-                    if matches!(elem.name.as_str(), "pre" | "textarea")
-                        && let Some(edit) = try_break_pre_content_tag(
+                    // reflows their text.  Three targeted sub-passes handle the
+                    // overflow cases that markup/format-time width checks miss:
+                    //
+                    // 1. `try_break_pre_content_tag` — a sole expression-tag child
+                    //    whose expression overflows needs its content broken (the
+                    //    glued `<pre>{` prefix makes the shared width check
+                    //    under-count).
+                    // 2. `try_break_pre_own_attrs` — the `<pre>` open tag itself
+                    //    has attributes that need breaking when the whole one-line
+                    //    element overflows (open tag fits alone but open+content
+                    //    doesn't).
+                    // 3. `try_fix_pre_child_open_tags` — child elements (e.g.
+                    //    `<code>` inside `<pre>`) whose open-tag `>` placement
+                    //    needs fixing (either the `>` should be hugged to the last
+                    //    attr, or `>` needs to drop to a new line for overflow).
+                    //
+                    // Cases 1 and 2 both rewrite the whole `<pre>` span and are
+                    // mutually exclusive — only the first that fires is used.
+                    // Case 3 targets child sub-spans and is skipped when case 1 or
+                    // 2 fires (to avoid overlapping edits).
+                    if matches!(elem.name.as_str(), "pre" | "textarea") {
+                        if let Some(edit) = try_break_pre_content_tag(
                             out,
                             elem.start,
                             elem.end,
                             &elem.fragment,
                             line_width,
                             options,
-                        )
-                    {
-                        edits.push(edit);
+                        ) {
+                            edits.push(edit);
+                        } else if let Some(edit) = try_break_pre_own_attrs(
+                            out,
+                            elem.start,
+                            elem.end,
+                            &elem.fragment,
+                            line_width,
+                            options,
+                        ) {
+                            edits.push(edit);
+                        } else {
+                            for edit in try_fix_pre_child_open_tags(
+                                out,
+                                elem.start,
+                                &elem.fragment,
+                                line_width,
+                                options,
+                            ) {
+                                edits.push(edit);
+                            }
+                        }
                     }
                     continue;
                 }
@@ -1803,6 +1838,227 @@ fn try_break_pre_content_tag(
     }
     let broken = format!("{open}{{{wrapped}}}{close}");
     (broken != whole).then_some((start, end, broken))
+}
+
+/// Split an attribute string (`attr1 attr2="val" attr3={expr}`) into individual
+/// attribute tokens, respecting quoted values so spaces inside quotes don't split.
+fn split_open_tag_attrs(attrs: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let mut start = 0;
+    let mut in_quote = false;
+    let mut quote_char = b'"';
+    let bytes = attrs.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        if in_quote {
+            if b == quote_char {
+                in_quote = false;
+            }
+        } else if b == b'"' || b == b'\'' {
+            in_quote = true;
+            quote_char = b;
+        } else if b == b' ' {
+            let attr = attrs[start..i].trim();
+            if !attr.is_empty() {
+                result.push(attr);
+            }
+            start = i + 1;
+        }
+    }
+    let last = attrs[start..].trim();
+    if !last.is_empty() {
+        result.push(last);
+    }
+    result
+}
+
+/// Break a `<pre>` (or `<textarea>`) element's own open-tag attributes when the
+/// whole element is on one line but overflows `line_width`.
+///
+/// Example: `<pre class="language-svelte !-mt-2 mb-0">{processedCode}</pre>` at
+/// column 10 (85 chars total) →
+/// ```
+///   <pre
+///     class="language-svelte !-mt-2 mb-0">{processedCode}</pre>
+/// ```
+///
+/// This covers the case where the open tag alone fits but `open + content +
+/// close` overflows, and the content expression is too simple to break (so
+/// `try_break_pre_content_tag` returns None).
+fn try_break_pre_own_attrs(
+    out: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    // Only single-line elements.
+    if whole.contains('\n') {
+        return None;
+    }
+    // Only elements that overflow.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let column = indent.width();
+    if column + whole.width() <= line_width {
+        return None;
+    }
+    // Find the open tag end (position right after `>` of the opening tag).
+    let open_end = if let Some(first) = fragment.nodes.first() {
+        node_start(first) as usize
+    } else {
+        return None;
+    };
+    let open = out.get(s..open_end)?;
+    // Must be a single-line open tag with at least one attribute.
+    if open.contains('\n') || !open.contains(' ') || !open.ends_with('>') {
+        return None;
+    }
+    // Parse: `<tagname attr1 attr2 ...>`
+    let inner = open.get(1..open.len() - 1)?; // strip `<` and `>`
+    let sp = inner.find(' ')?;
+    let tag_name = &inner[..sp];
+    let attrs_str = inner[sp + 1..].trim();
+    let attrs = split_open_tag_attrs(attrs_str);
+    if attrs.is_empty() {
+        return None;
+    }
+    let iw = options.js.indent_width.value() as usize;
+    let inner_indent = " ".repeat(column + iw);
+    let mut new_open = format!("<{tag_name}");
+    for attr in &attrs {
+        new_open.push('\n');
+        new_open.push_str(&inner_indent);
+        new_open.push_str(attr);
+    }
+    // `<pre>` always hugs: `>` stays on the last attribute line.
+    new_open.push('>');
+    let rest = out.get(open_end..e)?;
+    let result = format!("{new_open}{rest}");
+    (result != whole).then_some((s as u32, e as u32, result))
+}
+
+/// Fix open-tag `>` placement for direct child elements of `<pre>` (or
+/// `<textarea>`).  Two sub-cases:
+///
+/// **A — one-liner overflows**: `<code id="x">long content` → insert
+/// `\n{gt_indent}` before the `>` of the open tag:
+/// ```
+///     <pre><code id="x"
+///             >long content
+/// ```
+///
+/// **B — multi-line attrs, non-hug `>`**: the markup formatter placed `>` on
+/// its own line (the default for non-block elements whose content starts with
+/// whitespace). Inside `<pre>` that is wrong — a newline before the content
+/// would inject significant whitespace. Convert to hug form:
+/// ```
+///     <pre><code
+///         id="x"
+///         class="y">raw content
+/// ```
+fn try_fix_pre_child_open_tags(
+    out: &str,
+    pre_start: u32,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Vec<(u32, u32, String)> {
+    let mut edits = Vec::new();
+    // Determine the `<pre>` element's leading indent column.
+    let pre_s = pre_start as usize;
+    let pre_line_start = out[..pre_s].rfind('\n').map_or(0, |i| i + 1);
+    let pre_leading = &out[pre_line_start..pre_s];
+    let pre_indent_col = if pre_leading.bytes().all(|b| b == b' ' || b == b'\t') {
+        pre_leading.width()
+    } else {
+        // `<pre>` does not start at the beginning of its line (e.g. it directly
+        // follows another element). Use its actual column.
+        current_column(out, pre_start)
+    };
+    let iw = options.js.indent_width.value() as usize;
+
+    for node in &fragment.nodes {
+        let TemplateNode::RegularElement(child) = node else {
+            continue;
+        };
+        let cs = child.start as usize;
+        let ce = child.end as usize;
+        let Some(whole) = out.get(cs..ce) else {
+            continue;
+        };
+        // Find where the child's open tag ends (position right after `>`).
+        let open_end = if let Some(first_child_node) = child.fragment.nodes.first() {
+            node_start(first_child_node) as usize
+        } else {
+            continue; // empty element – nothing to fix
+        };
+        let Some(open) = out.get(cs..open_end) else {
+            continue;
+        };
+
+        // Sub-case A: single-line open tag whose line overflows.
+        // The child element may have newlines in its content (text with `\n`,
+        // a closing `</code>` on its own line, etc.) — we only need the OPEN
+        // TAG to be a single line, and that line to overflow.
+        if !open.contains('\n') {
+            if !open.ends_with('>') {
+                continue;
+            }
+            // Has no attributes — nothing to break.
+            if !open.contains(' ') {
+                continue;
+            }
+            let line_start = out[..cs].rfind('\n').map_or(0, |i| i + 1);
+            // Measure the full line (from start through the first `\n` after
+            // the open-tag `>`, i.e. including the content that follows `>`).
+            let line_nl = out[open_end..].find('\n').map_or(out.len(), |i| open_end + i);
+            let line = &out[line_start..line_nl];
+            if line.width() <= line_width {
+                continue; // fits on one line — no action needed
+            }
+            // Drop `>` to a new indented line.  The indent sits two levels
+            // deeper than `<pre>`'s own indent (one for the child element, one
+            // for the inner "attr" indent) so it aligns under the child's attrs
+            // in the standard multi-line open-tag shape.
+            let gt_indent = " ".repeat(pre_indent_col + 2 * iw);
+            let result = format!(
+                "{}\n{}>{}",
+                &out[cs..open_end - 1],
+                gt_indent,
+                &out[open_end..ce],
+            );
+            if result != whole {
+                edits.push((child.start, child.end, result));
+            }
+        }
+        // Sub-case B: multi-line open tag with `>` dropped to its own line.
+        else if open.contains('\n') {
+            // The open tag must end with `\n{spaces}>` (non-hug form).
+            if let Some(last_nl) = open.rfind('\n') {
+                let after_last_nl = &open[last_nl + 1..];
+                if after_last_nl.ends_with('>')
+                    && after_last_nl[..after_last_nl.len() - 1]
+                        .bytes()
+                        .all(|b| b == b' ')
+                {
+                    // Move `>` to hug the last attribute line (remove the
+                    // `\n{spaces}` before `>`).
+                    let new_open = format!("{}>", &open[..last_nl]);
+                    let result = format!("{new_open}{}", &out[open_end..ce]);
+                    if result != whole {
+                        edits.push((child.start, child.end, result));
+                    }
+                }
+            }
+        }
+    }
+    edits
 }
 
 /// Hug-break the single inline-element body of a block (`{#each …}<span>…</span>{/each}`)
