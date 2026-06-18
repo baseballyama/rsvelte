@@ -241,18 +241,13 @@ fn transform_script_content_inner(
             continue;
         }
 
-        // If we're inside a multi-line template literal, pass through as-is
+        // If we're inside a multi-line template literal, pass through verbatim.
+        // Template literal interior text must not be re-indented — the raw
+        // content (spaces, tabs, etc.) is part of the string value.
         if in_template_literal {
             // Check if this line closes the template literal
             in_template_literal = !line_closes_template_literal(line);
-            if line.starts_with('\t') {
-                result.push_str(line);
-            } else if trimmed.is_empty() {
-                // skip empty lines
-            } else {
-                result.push('\t');
-                result.push_str(trimmed);
-            }
+            result.push_str(line);
             result.push('\n');
             continue;
         }
@@ -5929,7 +5924,31 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         .collect();
 
     if derived_fields.is_empty() && !has_state_fields {
-        return script.to_string();
+        // This class has no $derived/$state fields to transform, but subsequent
+        // classes in the same source file might. Recurse on everything after the
+        // closing `}` of this class so those classes are not skipped.
+        //
+        // The previous `return script.to_string()` here was the root cause of the
+        // bits-ui regression: when a class with no rune fields appeared between two
+        // classes that DO have rune fields (e.g. `ToggleGroupRootState` between
+        // `ToggleGroupMultipleState` and `ToggleGroupItemState`, or the numeric-
+        // segment subclasses before `DateFieldDayPeriodSegmentState`), the early
+        // return short-circuited the recursion and the subsequent classes' fields
+        // were never lowered by the SERVER transform. The CLIENT transform then
+        // processed those fields instead, emitting the wrong
+        // `set x(value) { $.set(this.#x, value); }` shape.
+        let after_class_body = &script[class_body_end + 1..];
+        let after_class_transformed = transform_class_fields_server(after_class_body);
+        // Fast path: if nothing changed downstream, return the original script
+        // unmodified (avoids an allocation when no subsequent class needs work).
+        if after_class_transformed == after_class_body {
+            return script.to_string();
+        }
+        return format!(
+            "{}{}",
+            &script[..class_body_end + 1],
+            after_class_transformed
+        );
     }
 
     let mut new_class_body = String::new();
@@ -7974,6 +7993,265 @@ mod class_field_server_tests {
         assert!(
             !out.contains("readonly_props") && !out.contains("readonly props"),
             "modifier `readonly` leaked into field name:\n{out}"
+        );
+    }
+
+    /// Regression test: public $derived.by fields that appear AFTER the constructor
+    /// AND after regular methods must still emit the `$$value`/`return` setter shape.
+    ///
+    /// This reproduces the DateFieldDayPeriodSegmentState and ToggleGroupItemState
+    /// bugs: a class whose last member is a public `$derived.by(...)` field (after
+    /// methods that contain callbacks with `{}`) was being missed by the server
+    /// transform, causing the CLIENT shape (`set props(value)`) to leak through.
+    #[test]
+    fn derived_field_after_method_with_callbacks() {
+        // Minimal reproduction of DateFieldDayPeriodSegmentState structure:
+        // - static create method
+        // - constructor
+        // - onkeydown method that has nested callbacks with {}
+        // - readonly props = $derived.by(...) as the LAST member
+        let input = r#"export class DateFieldDayPeriodSegmentState {
+  static create(opts) {
+    return new DateFieldDayPeriodSegmentState(opts);
+  }
+
+  readonly opts;
+  readonly root;
+  #announcer;
+
+  constructor(opts, root) {
+    this.opts = opts;
+    this.root = root;
+    this.#announcer = root.announcer;
+  }
+
+  onkeydown(e) {
+    if (e.ctrlKey) return;
+
+    if (isArrowUp(e.key) || isArrowDown(e.key)) {
+      this.root.updateSegment("dayPeriod", (prev) => {
+        if (prev === "AM") {
+          const next = "PM";
+          this.#announcer.announce(next);
+          return next;
+        }
+        const next = "AM";
+        this.#announcer.announce(next);
+        return next;
+      });
+      return;
+    }
+
+    if (isBackspace(e.key)) {
+      this.root.updateSegment("dayPeriod", () => {
+        const next = "AM";
+        this.#announcer.announce(next);
+        return next;
+      });
+    }
+
+    if (e.key === "A" || e.key === "P") {
+      this.root.updateSegment("dayPeriod", () => {
+        const next = e.key === "A" ? "AM" : "PM";
+        this.#announcer.announce(next);
+        return next;
+      });
+    }
+  }
+
+  readonly props = $derived.by(() => {
+    const segmentValues = this.root.segmentValues;
+    if (!("dayPeriod" in segmentValues)) return;
+
+    const valueMin = 0;
+    const valueMax = 12;
+    const valueNow = segmentValues.dayPeriod === "AM" ? 0 : 12;
+    const valueText = segmentValues.dayPeriod ?? "AM";
+
+    return {
+      id: this.opts.id.current,
+      "aria-label": "AM/PM",
+      "aria-valuemin": valueMin,
+      "aria-valuemax": valueMax,
+      "aria-valuenow": valueNow,
+      "aria-valuetext": valueText,
+    };
+  });
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // The setter must use `$$value` (not `value`) and must have `return`.
+        assert!(
+            out.contains("set props($$value)"),
+            "setter param must be $$value (DateFieldDayPeriodSegmentState pattern), got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "setter body must have `return this.#props($$value);`, got:\n{out}"
+        );
+        // No client-shaped setter should leak through.
+        assert!(
+            !out.contains("set props(value)"),
+            "client-shaped setter leaked through:\n{out}"
+        );
+    }
+
+    /// Regression test: ToggleGroupItemState pattern — readonly isPressed with
+    /// single-line $derived.by (the field that triggered the original report).
+    #[test]
+    fn toggle_group_item_state_is_pressed_readonly() {
+        // Mirrors ToggleGroupItemState exactly as it appears in the source.
+        let input = r#"export class ToggleGroupItemState {
+  static create(opts) {
+    return new ToggleGroupItemState(opts);
+  }
+  readonly opts;
+  readonly root;
+  readonly attachment;
+  readonly #isDisabled = $derived.by(
+    () => this.opts.disabled.current || this.root.opts.disabled.current
+  );
+  readonly isPressed = $derived.by(() => this.root.includesItem(this.opts.value.current));
+  readonly #ariaChecked = $derived.by(() => {
+    return this.root.isMulti ? undefined : getAriaChecked(this.isPressed, false);
+  });
+  readonly #ariaPressed = $derived.by(() => {
+    return this.root.isMulti ? boolToStr(this.isPressed) : undefined;
+  });
+  constructor(opts, root) {
+    this.opts = opts;
+    this.root = root;
+    this.onclick = this.onclick.bind(this);
+    this.onkeydown = this.onkeydown.bind(this);
+  }
+  #toggleItem() {
+    if (this.#isDisabled) return;
+  }
+  onclick(_) {
+    if (this.#isDisabled) return;
+  }
+  onkeydown(e) {
+    if (this.#isDisabled) return;
+  }
+  #tabIndex = $state(0);
+  readonly snippetProps = $derived.by(() => ({
+    pressed: this.isPressed,
+  }));
+  readonly props = $derived.by(
+    () => ({
+      id: this.opts.id.current,
+      role: this.root.isMulti ? undefined : "radio",
+    }) as const
+  );
+}"#;
+        let out = transform_class_fields_server(input);
+
+        assert!(
+            out.contains("set isPressed($$value)"),
+            "isPressed setter must use $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#isPressed($$value);"),
+            "isPressed setter must have return, got:\n{out}"
+        );
+        assert!(
+            out.contains("set snippetProps($$value)"),
+            "snippetProps setter must use $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("set props($$value)"),
+            "props setter must use $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "props setter must have return, got:\n{out}"
+        );
+        assert!(
+            !out.contains("set isPressed(value)"),
+            "client-shaped isPressed setter leaked:\n{out}"
+        );
+        assert!(
+            !out.contains("set props(value)"),
+            "client-shaped props setter leaked:\n{out}"
+        );
+    }
+
+    /// Regression: a class with NO $derived/$state fields between two classes
+    /// that DO have such fields must NOT cause the second class's fields to be
+    /// skipped.  The previous early-return at `derived_fields.is_empty() &&
+    /// !has_state_fields` returned `script.to_string()` — discarding any
+    /// subsequent recursive work — instead of forwarding the recursion.
+    ///
+    /// Mirrors the shape of `ToggleGroupRootState` (static-create-only, no rune
+    /// fields) sitting between `ToggleGroupMultipleState` (has rune fields) and
+    /// `ToggleGroupItemState` (has rune fields).
+    #[test]
+    fn class_with_no_rune_fields_between_two_classes_that_do() {
+        let input = r#"class First {
+  readonly value = $derived.by(() => 1);
+}
+class Middle {
+  static create(opts) {
+    return new Middle(opts);
+  }
+}
+class Last {
+  readonly result = $derived.by(() => 2);
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // First class: correctly lowered.
+        assert!(
+            out.contains("set value($$value)"),
+            "First.value setter must use $$value:\n{out}"
+        );
+        // Last class: must also be lowered even though Middle had no rune fields.
+        assert!(
+            out.contains("set result($$value)"),
+            "Last.result setter must use $$value (Middle early-return bug):\n{out}"
+        );
+        // No client-shaped setters.
+        assert!(
+            !out.contains("set value(value)") && !out.contains("set result(value)"),
+            "client-shaped setter leaked through:\n{out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod template_literal_indentation_tests {
+    use super::transform_script_content_with_imports;
+    use rustc_hash::FxHashSet;
+
+    /// Template literal interior lines must be passed through verbatim (no
+    /// added tab, no trimming).  The flowbite-svelte blockquote builder uses:
+    ///   let generatedCode = $derived((() => {
+    ///     return `<Blockquote${propsString}>
+    ///   ${text}
+    /// </Blockquote>`;
+    ///   })());
+    /// The `  ${text}` line (2 leading spaces) must survive unchanged — it is
+    /// the raw content of the template string, not JavaScript indentation.
+    #[test]
+    fn template_literal_interior_not_reindented() {
+        let input = "let generatedCode = $derived(\n  (() => {\n    return `<Blockquote>\n  ${text}\n</Blockquote>`;\n  })()\n);";
+        let out = transform_script_content_with_imports(
+            input,
+            &FxHashSet::default(),
+            &FxHashSet::default(),
+            false,
+        );
+        assert!(
+            !out.contains("\t${text}") && !out.contains("\t</Blockquote>"),
+            "Template literal interior line got extra tab indentation:\n{out}"
+        );
+        assert!(
+            out.contains("  ${text}"),
+            "Template literal interior `  ${{text}}` was corrupted:\n{out}"
+        );
+        assert!(
+            out.contains("</Blockquote>`"),
+            "Template literal closing line was corrupted:\n{out}"
         );
     }
 }
