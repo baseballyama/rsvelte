@@ -212,6 +212,22 @@ fn collect_indent_edits_inner(
                         } else {
                             format!("\n{child_indent}")
                         }
+                    } else if is_block_body && effectively_broken && i == 0 && next_provoking {
+                        // Leading edge whitespace in a block body that contains a
+                        // block-level child: the opening delimiter's `}` is
+                        // followed by a space (e.g. `{#each … } <div>`).  In a
+                        // broken block body this space should become a newline so
+                        // `<div>` lands on its own indented line.  The middle case
+                        // above handles inter-sibling spaces (prev_provoking &&
+                        // next_provoking), but the very first whitespace text in a
+                        // block body has no provoking predecessor — handle it here.
+                        format!("\n{child_indent}")
+                    } else if is_block_body && effectively_broken && i == last && prev_provoking {
+                        // Trailing edge whitespace in a block body that contains a
+                        // block-level child: the closing delimiter is preceded by a
+                        // space (e.g. `</div> {/each}`).  Same rationale as above,
+                        // but for the trailing edge.
+                        format!("\n{parent_indent}")
                     } else if child_depth == 0 && (i == 0 || i == last) {
                         String::new()
                     } else {
