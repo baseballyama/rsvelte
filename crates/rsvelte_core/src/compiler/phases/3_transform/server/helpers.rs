@@ -1344,6 +1344,88 @@ pub(crate) fn detect_props_spread_pattern(script: &str) -> bool {
     false
 }
 
+/// Strip a trailing `// line comment` from a code snippet, without touching
+/// `//` inside string or template literals. Returns the code portion only
+/// (trimmed of trailing whitespace). Pure comment lines (trimmed starts with
+/// `//`) return an empty string.
+///
+/// This is used by `collapse_multiline_destructuring` so that an inline
+/// comment like `open = void 0, // some note` does not get embedded in the
+/// collapsed single-line output where it would swallow subsequent tokens.
+fn strip_inline_line_comment(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        match bytes[i] {
+            // Single-quoted or double-quoted string literal.
+            b'\'' | b'"' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == quote {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            // Template literal (skip `${...}` interpolations so their `//`
+            // is also ignored).
+            b'`' => {
+                i += 1;
+                while i < len {
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'`' {
+                        i += 1;
+                        break;
+                    }
+                    if bytes[i] == b'$' && i + 1 < len && bytes[i + 1] == b'{' {
+                        i += 2;
+                        let mut depth = 1i32;
+                        while i < len && depth > 0 {
+                            match bytes[i] {
+                                b'{' => depth += 1,
+                                b'}' => depth -= 1,
+                                b'\\' => {
+                                    i += 1;
+                                }
+                                _ => {}
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    i += 1;
+                }
+            }
+            // Block comment — advance past `*/`.
+            b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(len);
+            }
+            // Line comment found outside a string literal — strip from here.
+            b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                return s[..i].trim_end();
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    s
+}
+
 /// Collapse multi-line `let/const { ... } = $$props` destructurings into single lines.
 fn collapse_multiline_destructuring(script: &str) -> String {
     let mut result = String::new();
@@ -1369,7 +1451,9 @@ fn collapse_multiline_destructuring(script: &str) -> String {
                     in_destructure = true;
                     depth = d;
                     accum.clear();
-                    accum.push_str(trimmed);
+                    // Strip any trailing inline `//` comment from the first line too.
+                    let code_part = strip_inline_line_comment(trimmed);
+                    accum.push_str(code_part);
                     accum.push(' ');
                     orig.clear();
                     orig.push(line.to_string());
@@ -1384,9 +1468,15 @@ fn collapse_multiline_destructuring(script: &str) -> String {
             if trimmed.starts_with("//") {
                 // Don't include line comments in the collapsed output
             } else {
-                accum.push_str(trimmed);
+                // Strip any trailing inline `// line comment` before appending to
+                // the single-line accumulation. Without this, a comment like
+                //   open = void 0, // If undefined, renders inline; if defined …
+                // would be embedded in the collapsed output and swallow the following
+                // property (`badgeProps = …`) — making the output unparseable.
+                let code_part = strip_inline_line_comment(trimmed);
+                accum.push_str(code_part);
                 accum.push(' ');
-                depth += net_brace_depth(trimmed);
+                depth += net_brace_depth(code_part);
             }
             if depth <= 0 {
                 in_destructure = false;
@@ -3356,6 +3446,113 @@ mod ts_strip_tests {
         assert_eq!(
             strip_ts_type_annotation("[a, b]: number[] = []"),
             "[a, b] = []"
+        );
+    }
+}
+
+#[cfg(test)]
+mod collapse_destructuring_tests {
+    use super::{collapse_multiline_destructuring, strip_inline_line_comment};
+
+    // ── strip_inline_line_comment ───────────────────────────────────────────
+
+    #[test]
+    fn strip_comment_after_code() {
+        assert_eq!(
+            strip_inline_line_comment("open = void 0, // If undefined, renders as modal"),
+            "open = void 0,"
+        );
+    }
+
+    #[test]
+    fn no_comment_returns_unchanged() {
+        assert_eq!(
+            strip_inline_line_comment("badgeProps = { color: \"blue\" },"),
+            "badgeProps = { color: \"blue\" },"
+        );
+    }
+
+    #[test]
+    fn slash_slash_inside_string_not_stripped() {
+        // `//` inside a string literal must NOT be treated as a comment.
+        assert_eq!(
+            strip_inline_line_comment("url = \"http://example.com\","),
+            "url = \"http://example.com\","
+        );
+    }
+
+    #[test]
+    fn pure_comment_line_becomes_empty() {
+        assert_eq!(strip_inline_line_comment("// just a comment"), "");
+    }
+
+    #[test]
+    fn block_comment_followed_by_code_not_stripped() {
+        // A `/* … */` block comment before `//` does not confuse the scanner.
+        assert_eq!(
+            strip_inline_line_comment("/* note */ open = 1, // line comment"),
+            "/* note */ open = 1,"
+        );
+    }
+
+    // ── collapse_multiline_destructuring with inline comment ───────────────
+
+    /// A multi-line `$props()` destructure that contains an interior `//`
+    /// line comment (trailing on a property line) must produce a *parseable*
+    /// collapsed single line — the `//` must NOT swallow subsequent properties.
+    #[test]
+    fn inline_comment_in_props_destructure_is_parseable() {
+        let input = "\tlet {\n\
+                     \t  a = 1,\n\
+                     \t  open = void 0, // If undefined, renders inline; if defined, renders as modal\n\
+                     \t  badgeProps = { color: \"blue\" },\n\
+                     \t  b = 2\n\
+                     \t} = $$props;\n";
+        let collapsed = collapse_multiline_destructuring(input);
+        // The collapsed output must be on one line and must NOT contain `//`
+        // (which would make everything after it a comment on that line).
+        assert!(
+            collapsed.contains("= $$props"),
+            "Expected $$props in output: {collapsed:?}"
+        );
+        // The `//` comment should have been stripped — `badgeProps` must still appear.
+        assert!(
+            collapsed.contains("badgeProps"),
+            "badgeProps was swallowed by inline comment: {collapsed:?}"
+        );
+        // The line must not contain a `//` that would make subsequent tokens into a comment.
+        let single_line = collapsed
+            .lines()
+            .find(|l| l.contains("= $$props"))
+            .unwrap_or("");
+        assert!(
+            !single_line.contains("//"),
+            "Inline comment survived collapse and would swallow following tokens: {single_line:?}"
+        );
+    }
+
+    /// A `$props()` destructure that has a *pure* comment line (starts with `//`)
+    /// in the middle should also collapse correctly (the comment line is already
+    /// excluded by the existing logic).
+    #[test]
+    fn pure_comment_line_in_props_destructure_is_excluded() {
+        let input = "\tlet {\n\
+                     \t  a = 1,\n\
+                     \t  // This is a standalone comment line\n\
+                     \t  b = 2\n\
+                     \t} = $$props;\n";
+        let collapsed = collapse_multiline_destructuring(input);
+        assert!(
+            collapsed.contains("a = 1") && collapsed.contains("b = 2"),
+            "Properties missing after collapsing: {collapsed:?}"
+        );
+        let single_line = collapsed
+            .lines()
+            .find(|l| l.contains("= $$props"))
+            .unwrap_or("");
+        assert!(
+            !single_line.contains("//"),
+            "Standalone comment line survived collapse: {single_line:?}"
         );
     }
 }
