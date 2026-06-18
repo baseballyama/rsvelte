@@ -26,6 +26,22 @@ use super::super::parser::{ElementType, Parser, StackEntry};
 use super::super::utils::decode_html_entities;
 use super::super::utils::is_void_element;
 
+/// Whether the attribute list contains a non-empty `lang="…"` attribute. Used
+/// (in lenient/lint mode) to treat `<template lang="pug">` and similar as raw
+/// text rather than Svelte markup.
+fn template_has_lang(attributes: &[crate::ast::Attribute]) -> bool {
+    for attr in attributes {
+        if let crate::ast::Attribute::Attribute(node) = attr
+            && node.name.as_str() == "lang"
+            && let AttributeValue::Sequence(parts) = &node.value
+            && let Some(AttributeValuePart::Text(t)) = parts.first()
+        {
+            return !t.data.trim().is_empty();
+        }
+    }
+    false
+}
+
 impl Parser<'_> {
     /// Parse an element or comment.
     pub fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode>> {
@@ -246,8 +262,17 @@ impl Parser<'_> {
         // Check if this is a raw text element (textarea, or non-top-level script/style).
         // Non-top-level <script> and <style> tags have their content parsed as raw text,
         // matching the official Svelte compiler behavior (element.js L400-417).
+        //
+        // In lenient (lint) mode a `<template lang="…">` (e.g. `lang="pug"`) holds
+        // a preprocessor language, NOT Svelte markup — parsing its body as Svelte
+        // would spuriously fail and suppress every lint on the file. Treat it as a
+        // raw-text element so the body is opaque (svelte-eslint-parser likewise
+        // does not parse it as Svelte). The compiler keeps `lenient_script: false`.
         let is_raw_text_element = name == "textarea"
-            || ((name == "script" || name == "style") && self.is_inside_element());
+            || ((name == "script" || name == "style") && self.is_inside_element())
+            || (self.options.lenient_script
+                && name == "template"
+                && template_has_lang(&attributes));
 
         // Create fragment for children
         let mut fragment = Fragment {
@@ -2423,7 +2448,11 @@ impl Parser<'_> {
     /// - For textarea: parses {expressions} but treats HTML as text
     pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
         let closing_tag = format!("</{}", tag_name);
-        let is_raw_content = tag_name == "style" || tag_name == "script";
+        // `template` only reaches here via the lenient-mode `<template lang="…">`
+        // raw-text gate (a normal `<template>` is parsed as markup), so its body
+        // is a non-Svelte preprocessor language and must be fully opaque — no
+        // expression handling — exactly like `style`/`script`.
+        let is_raw_content = tag_name == "style" || tag_name == "script" || tag_name == "template";
 
         // For style and script elements, just get raw content (no expression handling)
         if is_raw_content {

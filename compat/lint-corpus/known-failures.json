@@ -2,6 +2,5 @@
 	"eslint-plugin-svelte/docs/rules/comment-directive.md/4.svelte|-svelte/comment-directive\t11:31\tUnused eslint-disable-next-line directive (no problems were reported from 'no-undef').",
 	"eslint-plugin-svelte/docs/rules/no-spaces-around-equal-signs-in-attribute.md/1.svelte|-svelte/max-attributes-per-line\t15:12\t'alt' should be on a new line.",
 	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-reactive-reassign/valid/destructure01-input.svelte|-svelte/prefer-const\t8:23\t'a' is never reassigned. Use 'const' instead.",
-	"svelte-eslint-parser/tests/fixtures/parser/ast/pug/each/each01-input.svelte|-svelte/prefer-const\t2:5\t'objs' is never reassigned. Use 'const' instead.",
 	"svelte-eslint-parser/tests/fixtures/parser/ast/tutorial/module-exports02-input.svelte|-svelte/prefer-svelte-reactivity\t2:19\tFound a mutable instance of the built-in Set class. Use SvelteSet instead."
 ]
