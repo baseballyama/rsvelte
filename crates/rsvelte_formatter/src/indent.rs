@@ -486,6 +486,51 @@ fn collect_indent_edits_inner(
                 }
             }
         }
+
+        // When force_break_content is NOT active (sole non-ws child case) and
+        // that sole child is a non-empty implicitly-closed RegularElement whose
+        // trailing whitespace was consumed by markup.rs case 4, the parent's
+        // close tag immediately follows with no preceding newline. Insert one
+        // here so the parent's close tag lands on its own line.
+        // Example: `<main>\n\t<div>...\n</main>` — case 4 replaces `\n` with
+        // `\n  </div>`, then `</main>` needs its own preceding `\n`.
+        if !force_break_content {
+            let last_non_ws = fragment.nodes.iter().rev().find(
+                |n| !matches!(n, TemplateNode::Text(t) if is_whitespace_only(t.data.as_str())),
+            );
+            if let Some(last_node) = last_non_ws
+                && let TemplateNode::RegularElement(e) = last_node
+            {
+                let last_idx = fragment
+                    .nodes
+                    .iter()
+                    .rposition(|n| std::ptr::eq(n, last_node))
+                    .unwrap_or(0);
+                let has_trailing_ws = last_idx + 1 < fragment.nodes.len()
+                    && matches!(&fragment.nodes[last_idx + 1],
+                        TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
+                if !has_trailing_ws {
+                    let is_implicitly_closed = source
+                        .as_bytes()
+                        .get(e.end as usize - 1)
+                        .copied()
+                        != Some(b'>');
+                    let is_nonempty = !e.fragment.nodes.iter().all(|n| {
+                        matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                    });
+                    let parent_close_follows = source.as_bytes().get(e.end as usize).copied()
+                        == Some(b'<')
+                        && source.as_bytes().get(e.end as usize + 1).copied() == Some(b'/');
+                    if is_implicitly_closed && is_nonempty && parent_close_follows {
+                        // Zero-length insert at `e.end` adds `\n{parent_indent}` before
+                        // the parent's close tag. This restores the newline consumed by
+                        // markup.rs case 4 when it replaced the element's trailing `\n`
+                        // with `\n{child_indent}</tag>`.
+                        edits.push((e.end, e.end, format!("\n{parent_indent}")));
+                    }
+                }
+            }
+        }
     }
 
     for (i, node) in fragment.nodes.iter().enumerate() {

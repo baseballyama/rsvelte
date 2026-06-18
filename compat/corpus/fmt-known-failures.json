@@ -61,7 +61,5 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/a11y-label-has-associated-control/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte"
+	"svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte"
 ]

@@ -474,13 +474,14 @@ fn push_close_tag(
                 .count();
             if trailing_ws_only > 0 {
                 let content_end = (end_idx - trailing_ws_only) as u32;
-                // Replace `\n\t` (trailing whitespace) with `</tag>`.
-                // `apply_edits` processes in descending start order, so the
-                // indent-pass `\n{child_indent}` insert at `element_end` fires
-                // first (it's at a higher offset); this replacement fires
-                // second, replacing the original `\n\t` with `</tag>`.
-                // Result: `content</tag>\n{child_indent}` — correct layout.
-                edits.push((content_end, element_end, format!("</{tag_name}>")));
+                // Replace trailing whitespace with `\n{indent}</tag>`.
+                // The indent pass may also emit an edit on this same span
+                // (normalising `\n\t` to `\n{child_indent}`) — the overlap
+                // detection in `lib.rs` ensures markup's edit wins and the
+                // indent edit is skipped, so the newline + indent here is
+                // the only whitespace emitted before the close tag.
+                let parent_indent = indent_str(depth, &options.js);
+                edits.push((content_end, element_end, format!("\n{parent_indent}</{tag_name}>")));
             }
         }
         return;
