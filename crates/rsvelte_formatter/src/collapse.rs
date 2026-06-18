@@ -385,7 +385,19 @@ fn is_run_member(out: &str, node: &TemplateNode) -> bool {
             // participate in inline prose runs — e.g. `text <Icon /> more text`.
             // A multi-line component has already had its open tag wrapped and is
             // left as a run boundary so its own layout owns it.
-            out.get(node_start(node) as usize..node_end(node) as usize)
+            // A component that sits at the START of its line (only whitespace
+            // before it) is block-level — it must NOT be included in a prose run,
+            // because the run-fill pass treats it as a flat atom and then marks it
+            // as "consumed", preventing the element-level hug/fill passes from
+            // reformatting it.
+            let s = node_start(node) as usize;
+            let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+            let before = &out[line_start..s];
+            if before.bytes().all(|b| b == b' ' || b == b'\t') {
+                // At start of line — not an inline run member.
+                return false;
+            }
+            out.get(s..node_end(node) as usize)
                 .is_some_and(|span| !span.contains('\n'))
         }
         _ => false,
