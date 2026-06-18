@@ -1,6 +1,3 @@
 [
-	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/escaped-attr/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/textarea-value-escape/main.svelte",
-	"svelte/packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte"
+	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte"
 ]

@@ -2257,8 +2257,19 @@ fn handle_await_block(
             if catch_end < block.end {
                 str.overwrite(catch_end, block.end, "}}");
             }
-        } else if then_end < block.end {
-            str.overwrite(then_end, block.end, &format!("{}}}", value_close));
+        } else {
+            // Close the value block (if any) + the outer await block. This
+            // handles both the normal case (then_end < block.end: the then
+            // body ends before {/await}, so we overwrite the gap) and the
+            // empty-then-body case (then_end == block.end: the overwrite from
+            // expr_end to block.end already consumed that region, so we must
+            // append rather than overwrite a zero-length range).
+            let close = format!("{}}}", value_close);
+            if then_end < block.end {
+                str.overwrite(then_end, block.end, &close);
+            } else {
+                str.append_left(block.end, &close);
+            }
         }
     } else if has_catch {
         // Pattern: {#await promise catch error} catch {/await} (no pending, no then)
