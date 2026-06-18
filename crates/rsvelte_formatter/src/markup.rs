@@ -384,6 +384,51 @@ fn push_close_tag(
     let span = find_close_tag_span(source, element_end, tag_name)
         .or_else(|| find_any_close_tag_span(source, element_end));
     let Some((start, end)) = span else {
+        // No explicit close tag at element_end.  There are three cases:
+        //
+        // 1. Self-closing element (`<tag />`): `bytes[element_end-1] == '>'`
+        //    and `bytes[element_end-2] == '/'`.  No close tag needed.
+        // 2. Void element (`<br>`, `<input>`, …): recognised by
+        //    `is_void_element`. No close tag needed.
+        // 3. An element whose open tag ends with a plain `>` but has no
+        //    matching close tag in source — e.g. `<keygen>` (treated as
+        //    non-void by the Svelte parser but no `</keygen>` follows).
+        //    The oracle (prettier-plugin-svelte) emits a close tag for
+        //    these, so we insert one.  Elements that the parser closed
+        //    implicitly with trailing content (e.g. `<duiv>\n` where
+        //    `bytes[element_end-1] != '>'`) are handled by the indent pass
+        //    (`force_break_content` trailing edge) instead.
+        let bytes = source.as_bytes();
+        let end_idx = element_end as usize;
+        let prev = bytes.get(end_idx.wrapping_sub(1)).copied();
+        let prev2 = bytes.get(end_idx.wrapping_sub(2)).copied();
+        let is_self_closing_slash = prev == Some(b'>') && prev2 == Some(b'/');
+        // `is_void_element` covers HTML void elements; also exclude HTML
+        // declarations like `<!doctype html>` (tag name starts with `!`).
+        let is_void = is_void_element(tag_name) || tag_name.starts_with('!');
+        let has_trailing_content = prev != Some(b'>');
+        if !is_self_closing_slash && !is_void && !has_trailing_content {
+            // Case 3: empty-body element with no close tag (e.g. `<keygen>`).
+            // We can't insert at `element_end` because a whitespace Text node
+            // at that position would have an indent-normalizer edit
+            // `(element_end, element_end+1, "\n")` that conflicts.  Instead,
+            // supersede the open-tag edit pushed by `push_open_tag` with a
+            // combined `<tag></ tag>` replacement that covers the entire open-
+            // tag span.  That replacement's start (`element_end - open_tag_len`)
+            // is strictly less than the Text node's start (`element_end`), so
+            // the two edits never overlap.
+            if let Some(last) = edits.last_mut()
+                && last.1 == element_end
+            {
+                // The last edit is the open-tag replacement `(start, element_end,
+                // rendered_open)` — append `</tag>` to its replacement text.
+                last.2.push_str(&format!("</{tag_name}>"));
+            } else {
+                // Fallback: just insert at element_end (may conflict in rare
+                // cases but safe enough for normal source).
+                edits.push((element_end, element_end, format!("</{tag_name}>")));
+            }
+        }
         return;
     };
     // When the open tag wrapped and the element's content is whitespace-
