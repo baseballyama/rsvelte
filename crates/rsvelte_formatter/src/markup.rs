@@ -107,6 +107,7 @@ fn collect_node_open_tag_edits(
 ) -> Result<(), FormatError> {
     match node {
         TemplateNode::RegularElement(elem) => {
+            let is_empty = is_empty_fragment(&elem.fragment);
             let wrapped = push_open_tag(
                 source,
                 elem.start,
@@ -114,7 +115,7 @@ fn collect_node_open_tag_edits(
                 &elem.attributes,
                 None,
                 depth,
-                is_empty_fragment(&elem.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -124,12 +125,14 @@ fn collect_node_open_tag_edits(
                 elem.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &elem.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::Component(c) => {
+            let is_empty = is_empty_fragment(&c.fragment);
             let wrapped = push_open_tag(
                 source,
                 c.start,
@@ -137,7 +140,7 @@ fn collect_node_open_tag_edits(
                 &c.attributes,
                 None,
                 depth,
-                is_empty_fragment(&c.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -147,12 +150,14 @@ fn collect_node_open_tag_edits(
                 c.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::TitleElement(t) => {
+            let is_empty = is_empty_fragment(&t.fragment);
             let wrapped = push_open_tag(
                 source,
                 t.start,
@@ -160,7 +165,7 @@ fn collect_node_open_tag_edits(
                 &t.attributes,
                 None,
                 depth,
-                is_empty_fragment(&t.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -170,12 +175,14 @@ fn collect_node_open_tag_edits(
                 t.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &t.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SlotElement(s) => {
+            let is_empty = is_empty_fragment(&s.fragment);
             let wrapped = push_open_tag(
                 source,
                 s.start,
@@ -183,7 +190,7 @@ fn collect_node_open_tag_edits(
                 &s.attributes,
                 None,
                 depth,
-                is_empty_fragment(&s.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -193,6 +200,7 @@ fn collect_node_open_tag_edits(
                 s.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
@@ -205,6 +213,7 @@ fn collect_node_open_tag_edits(
         | TemplateNode::SvelteBoundary(s)
         | TemplateNode::SvelteOptions(s)
         | TemplateNode::SvelteSelf(s) => {
+            let is_empty = is_empty_fragment(&s.fragment);
             let wrapped = push_open_tag(
                 source,
                 s.start,
@@ -212,7 +221,7 @@ fn collect_node_open_tag_edits(
                 &s.attributes,
                 None,
                 depth,
-                is_empty_fragment(&s.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -222,6 +231,7 @@ fn collect_node_open_tag_edits(
                 s.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
@@ -259,6 +269,7 @@ fn collect_node_open_tag_edits(
                     s.name.as_str(),
                     wrapped,
                     depth,
+                    empty,
                     options,
                     edits,
                 );
@@ -266,6 +277,7 @@ fn collect_node_open_tag_edits(
             collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => {
+            let is_empty = is_empty_fragment(&c.fragment);
             let wrapped = push_open_tag(
                 source,
                 c.start,
@@ -273,7 +285,7 @@ fn collect_node_open_tag_edits(
                 &c.attributes,
                 Some(&c.expression),
                 depth,
-                is_empty_fragment(&c.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -283,12 +295,14 @@ fn collect_node_open_tag_edits(
                 c.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
             collect_open_tag_edits(source, &c.fragment, depth + 1, options, edits)?;
         }
         TemplateNode::SvelteElement(e) => {
+            let is_empty = is_empty_fragment(&e.fragment);
             let wrapped = push_open_tag(
                 source,
                 e.start,
@@ -296,7 +310,7 @@ fn collect_node_open_tag_edits(
                 &e.attributes,
                 Some(&e.tag),
                 depth,
-                is_empty_fragment(&e.fragment),
+                is_empty,
                 options,
                 edits,
             )?;
@@ -306,6 +320,7 @@ fn collect_node_open_tag_edits(
                 e.name.as_str(),
                 wrapped,
                 depth,
+                is_empty,
                 options,
                 edits,
             );
@@ -369,6 +384,12 @@ fn push_close_tag(
     tag_name: &str,
     open_wrapped: bool,
     depth: usize,
+    // Whether the element's fragment has no non-whitespace content.  Used to
+    // guard case 4 (implicitly-closed elements with trailing whitespace): we
+    // only replace the trailing whitespace with `</tag>` when there IS actual
+    // non-whitespace content inside the element.  Empty elements (e.g.
+    // `<duiv>\n`) have their whitespace preserved by the collapse pass.
+    is_empty: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
@@ -427,6 +448,39 @@ fn push_close_tag(
                 // Fallback: just insert at element_end (may conflict in rare
                 // cases but safe enough for normal source).
                 edits.push((element_end, element_end, format!("</{tag_name}>")));
+            }
+        } else if !is_self_closing_slash && !is_void && has_trailing_content && !is_empty {
+            // Case 4: Implicitly-closed element with non-whitespace content
+            // whose AST `end` includes trailing whitespace (newline + indent)
+            // that belongs to the parent, not the element's content.
+            // E.g. `<li>a\n\t` where `\n\t` is the indentation leading to the
+            // next sibling `<li>`.
+            //
+            // Walk backwards from `element_end` to find the last non-whitespace
+            // byte (the actual content end), then REPLACE the trailing whitespace
+            // with `</tag>`.  The adjacent-block indent loop will re-insert the
+            // `\n{child_indent}` separator before the next sibling, so removing
+            // the raw `\n\t` is safe.
+            //
+            // The `!is_empty` guard prevents this from firing for elements that
+            // have only whitespace content (e.g. `<duiv>\n`) — those are handled
+            // by the collapse pass (whitespace-only → `<tag> </tag>`).
+            //
+            // Only apply when ALL trailing bytes are ASCII whitespace — if
+            // non-whitespace bytes are present the element has actual trailing
+            // content (e.g. `<li>text more</ul>`) that we must not remove.
+            let trailing_ws_only = bytes[..end_idx].iter().rev()
+                .take_while(|&&b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+                .count();
+            if trailing_ws_only > 0 {
+                let content_end = (end_idx - trailing_ws_only) as u32;
+                // Replace `\n\t` (trailing whitespace) with `</tag>`.
+                // `apply_edits` processes in descending start order, so the
+                // indent-pass `\n{child_indent}` insert at `element_end` fires
+                // first (it's at a higher offset); this replacement fires
+                // second, replacing the original `\n\t` with `</tag>`.
+                // Result: `content</tag>\n{child_indent}` — correct layout.
+                edits.push((content_end, element_end, format!("</{tag_name}>")));
             }
         }
         return;
