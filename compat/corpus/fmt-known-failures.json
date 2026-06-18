@@ -45,7 +45,6 @@
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/playground/(components)/code-viewer.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-faceted-filter.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-view-options.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte",
 	"svelte/packages/svelte/tests/css/samples/general-siblings-combinator-nested-slots-flattened/input.svelte",
 	"svelte/packages/svelte/tests/css/samples/siblings-combinator-nested-slots-flattened/input.svelte",
 	"svelte/packages/svelte/tests/hydration/samples/element-dir-attribute-sibling/main.svelte",

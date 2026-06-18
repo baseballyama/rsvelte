@@ -78,5 +78,10 @@
 		"id": "svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte",
 		"class": "invalid-input",
 		"reason": "Snippet param 'c?: number = 5' is invalid TypeScript (TS1015: parameter cannot have both ? and an initializer); rsvelte-fmt correctly rejects it (script parse error from oxc)"
+	},
+	{
+		"id": "svelte/packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte",
+		"class": "invalid-input",
+		"reason": "Snippets do not support rest parameters (snippet_invalid_rest_parameter); rsvelte-fmt correctly rejects this invalid input; oracle (prettier-plugin-svelte) formats it anyway without validation"
 	}
 ]
