@@ -380,6 +380,14 @@ fn is_run_member(out: &str, node: &TemplateNode) -> bool {
             out.get(node_start(node) as usize..node_end(node) as usize)
                 .is_some_and(|span| !span.contains('\n'))
         }
+        TemplateNode::Component(_) => {
+            // Single-line components (self-closing or with short inline content)
+            // participate in inline prose runs — e.g. `text <Icon /> more text`.
+            // A multi-line component has already had its open tag wrapped and is
+            // left as a run boundary so its own layout owns it.
+            out.get(node_start(node) as usize..node_end(node) as usize)
+                .is_some_and(|span| !span.contains('\n'))
+        }
         _ => false,
     }
 }
@@ -401,9 +409,15 @@ fn fill_inline_runs(
     consumed: &mut Vec<(u32, u32)>,
 ) {
     let nodes = &fragment.nodes;
-    if nodes.iter().all(|n| is_run_member(out, n)) {
-        return; // whole fragment is one run — owned by the element-level fill
-    }
+    // When all nodes are run members (text + inline elements only), the fragment
+    // IS one big prose run. For block bodies ({#if}/{#each}/…) there is no
+    // parent element-level fill to handle it — the indent pass may have broken
+    // things onto separate lines that should be reflowed here. For element
+    // children the element-level fill (`try_fill_mixed`) handles the whole
+    // fragment before recursing, but if it returned None (e.g., the element is
+    // already well-laid-out) we still try reflowing as one run so broken
+    // sub-runs (e.g., `<strong>x</strong>\n  {y}` split by the indent pass
+    // inside an `{#if}` block body) can collapse back to `<strong>x</strong> {y}`.
     let mut i = 0;
     while i < nodes.len() {
         if !is_run_member(out, &nodes[i]) {
@@ -434,13 +448,31 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         hi -= 1;
     }
     let run = &run[lo..hi];
-    // Need prose: at least one text word. A run may be a pure-text paragraph
-    // (`<p>` body text up to a multi-line `<svg>` sibling) or text interspersed
-    // with childless inline elements — both reflow to printWidth here.
-    let has_word = run
+    // Need prose: at least one text word (a Text node with non-whitespace content)
+    // or an element with content combined with at least one other non-whitespace
+    // node (so a two-node run like `<strong>x</strong> {y}` is reflowed but a
+    // single standalone element is left to the element-level pass).
+    //
+    // A run may be a pure-text paragraph (`<p>` body text up to a multi-line
+    // `<svg>` sibling), text interspersed with childless inline elements, or
+    // an inline element followed by expression tags
+    // (`<strong>x</strong> {y}` — the indent pass may break the space before
+    // `{y}` to a newline, which the fill should restore when it fits).
+    let has_text_word = run
         .iter()
         .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    if !has_word {
+    // Count non-whitespace-only nodes in the run.
+    let non_ws_count = run
+        .iter()
+        .filter(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+        .count();
+    let has_element_content = non_ws_count > 1
+        && run.iter().any(|n| match n {
+            TemplateNode::RegularElement(e) => !e.fragment.nodes.is_empty(),
+            TemplateNode::Component(c) => !c.fragment.nodes.is_empty(),
+            _ => false,
+        });
+    if !has_text_word && !has_element_content {
         return None;
     }
     let first = run.first()?;
@@ -793,6 +825,11 @@ fn collect(
                 }
             }
             TemplateNode::Component(c) => {
+                // A run fill already reflowed this component inline — its layout
+                // is owned by that edit, so recursing would risk an overlapping edit.
+                if in_consumed_run(c.start, c.end) {
+                    continue;
+                }
                 if let Some(edit) = try_collapse(
                     out,
                     c.name.as_str(),
@@ -1164,16 +1201,60 @@ fn try_collapse(
                 let result = format!("{open}{collapsed}</{tag}\n{close_indent}>");
                 return (result != whole).then_some((start, end, result));
             }
-            // Doesn't fit: move `>` to a new line at the attribute indent
-            // so the content starts on an indented line: `  >content</tag\n>`.
+            // Doesn't fit on the last-attribute line: move `>` to a new line
+            // at the attribute indent so the content starts on an indented line.
+            // `open_no_bracket` may already end with `\n{inner_indent}` if the
+            // markup pass placed `>` on its own line (`<P class="…"\n  >`). In
+            // that case, just append `>` + content without adding another newline.
+            let open_no_bracket = &open[..open.len() - 1];
+            let already_indented = open_no_bracket.ends_with(&format!("\n{inner_indent}"));
+            let prefix = if already_indented {
+                // Trim the trailing `\n{inner_indent}` so we can reassemble cleanly.
+                &open_no_bracket[..open_no_bracket.len() - 1 - inner_indent.len()]
+            } else {
+                open_no_bracket
+            };
             let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
-            if hug_width > line_width {
+            if hug_width <= line_width {
+                let hug = format!(
+                    "{prefix}\n{inner_indent}>{collapsed}</{tag}\n{close_indent}>"
+                );
+                return (hug != whole).then_some((start, end, hug));
+            }
+            // Content is too long for a single hug line — fill-wrap the text
+            // across multiple lines at the inner indent level.
+            // First line: `  >word1 word2…` (1 char for `>` reduces avail)
+            // Continuation lines: `  word3 word4…`
+            let first_avail = line_width.saturating_sub(inner_indent.width() + 1).max(1);
+            let cont_avail = line_width.saturating_sub(inner_indent.width()).max(1);
+            let mut fill_lines: Vec<String> = Vec::new();
+            let mut cur = String::new();
+            let avail_for = |n: usize| if n == 0 { first_avail } else { cont_avail };
+            for word in collapsed.split_whitespace() {
+                if cur.is_empty() {
+                    cur.push_str(word);
+                } else if cur.width() + 1 + word.width() <= avail_for(fill_lines.len()) {
+                    cur.push(' ');
+                    cur.push_str(word);
+                } else {
+                    fill_lines.push(std::mem::take(&mut cur));
+                    cur.push_str(word);
+                }
+            }
+            if !cur.is_empty() {
+                fill_lines.push(cur);
+            }
+            if fill_lines.is_empty() {
                 return None;
             }
-            let open_no_bracket = &open[..open.len() - 1];
-            let hug =
-                format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{close_indent}>");
-            return (hug != whole).then_some((start, end, hug));
+            let mut result = format!("{prefix}\n{inner_indent}>{}", fill_lines[0]);
+            for line in &fill_lines[1..] {
+                result.push('\n');
+                result.push_str(&inner_indent);
+                result.push_str(line);
+            }
+            result.push_str(&format!("</{tag}\n{close_indent}>"));
+            return (result != whole).then_some((start, end, result));
         }
         // Same-line hug for single-line open tags: only when the element is at
         // the start of its line (so `indent` / `inner_indent` are well-defined).
@@ -1413,26 +1494,42 @@ fn is_component_tag(tag: &str) -> bool {
 /// content (no nested element tags), an open tag ending in `>` — return its
 /// `(open_without_bracket, inner_content, tag)` for the hug break.
 fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, String)> {
-    let TemplateNode::RegularElement(e) = node else {
-        return None;
+    // Extract tag name, attributes, fragment start/end for both RegularElement
+    // and Component variants (Components like `<A href="/">text</A>` appear in
+    // inline prose runs and need the same hug treatment).
+    let (tag, attrs, frag, elem_start, elem_end) = match node {
+        TemplateNode::RegularElement(e) => {
+            let tag = e.name.as_str();
+            if is_block_display(tag) || is_inline_block(tag) || trims_edge_whitespace(tag) {
+                return None;
+            }
+            (tag, &e.attributes, &e.fragment, e.start, e.end)
+        }
+        TemplateNode::Component(c) => (c.name.as_str(), &c.attributes, &c.fragment, c.start, c.end),
+        _ => return None,
     };
-    let tag = e.name.as_str();
-    if is_block_display(tag) || is_inline_block(tag) || trims_edge_whitespace(tag) {
-        return None;
-    }
-    let first = e.fragment.nodes.first()?;
-    let last = e.fragment.nodes.last()?;
+    let first = frag.nodes.first()?;
+    let last = frag.nodes.last()?;
     let content_start = node_start(first) as usize;
     let content_end = node_end(last) as usize;
-    let open = out.get(e.start as usize..content_start)?;
+    let open = out.get(elem_start as usize..content_start)?;
     let content = out.get(content_start..content_end)?;
-    let close = out.get(content_end..e.end as usize)?;
+    let close = out.get(content_end..elem_end as usize)?;
     // Simple text content, an open tag closed by `>`, a real close tag.
     if content.contains('\n')
         || content.contains('<')
         || content.is_empty()
         || !open.ends_with('>')
         || !close.starts_with("</")
+    {
+        return None;
+    }
+    // prettier's shouldHugStart / shouldHugEnd: hug only when content is directly
+    // adjacent to the open/close tag (no leading/trailing whitespace). Content that
+    // starts or ends with whitespace gets block-break treatment (content on its own
+    // indented line with `>` and `</tag>` each on their own lines), not hug.
+    if content.starts_with([' ', '\t', '\r', '\n'])
+        || content.ends_with([' ', '\t', '\r', '\n'])
     {
         return None;
     }
@@ -1445,7 +1542,7 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     // Each attribute must itself be single-line for the flat reconstruction.
     let open_no_bracket = if open.contains('\n') {
         let mut flat = format!("<{tag}");
-        for attr in &e.attributes {
+        for attr in attrs {
             let (as_, ae) = attribute_span(attr);
             let atext = out.get(as_ as usize..ae as usize)?;
             if atext.contains('\n') {
@@ -2122,14 +2219,36 @@ fn try_hug_mixed(
         // exposing the real last attribute line.
         let onb = open[..open.len() - 1].trim_end();
         let last_line = onb.rsplit('\n').next().unwrap_or(onb);
+        let inner_indent = format!("{indent}  ");
         let glued = last_line.width() + 1 + raw.width() + 2 + tag.width();
-        let result = if glued <= line_width {
-            format!("{onb}>{raw}</{tag}\n{indent}>")
-        } else {
-            let inner_indent = format!("{indent}  ");
-            format!("{onb}\n{inner_indent}>{raw}</{tag}\n{indent}>")
-        };
-        return (result != whole).then_some((start, end, result));
+        if glued <= line_width {
+            let result = format!("{onb}>{raw}</{tag}\n{indent}>");
+            return (result != whole).then_some((start, end, result));
+        }
+        // The content is too long to fit even on the inner-indent line. Try to
+        // break the content's inner components' attributes using the Doc IR. This
+        // handles cases like `<Button\n  >text<Icon class="…"/></Button\n>` where
+        // the Icon's attributes need to wrap.
+        let simple = format!("{onb}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        if simple != whole {
+            return Some((start, end, simple));
+        }
+        // `simple == whole` — already in the hug form but content still overflows.
+        // Use the Doc IR to reformat the inner content, allowing component attributes
+        // to break.
+        let body_opt = build_children_doc(out, fragment);
+        if let Some(body) = body_opt {
+            let inner_col = inner_indent.width() + 1; // column after the `>`
+            let base_level = inner_indent.width() / 2;
+            let printed = crate::doc::print(body, line_width, "  ", base_level, inner_col);
+            if printed != raw {
+                let result2 = format!("{onb}\n{inner_indent}>{printed}</{tag}\n{indent}>");
+                if result2 != whole {
+                    return Some((start, end, result2));
+                }
+            }
+        }
+        return None;
     }
 
     let element_one_line = column + open.width() + raw.width() + close.width();
@@ -2150,7 +2269,8 @@ fn try_hug_mixed(
     // and otherwise moves `>{body}</tag` to its own indented line (e.g. `<title`\n
     // `  >…</title`\n`>`).
     use crate::doc::Doc;
-    let body = build_children_doc(out, fragment)?;
+    let body_opt = build_children_doc(out, fragment);
+    let body = body_opt?;
     let open_no_bracket = open[..open.len() - 1].to_string();
     let inner = Doc::Group(vec![Doc::Concat(vec![
         Doc::Text(">".to_string()),
@@ -2278,9 +2398,14 @@ fn try_fill_mixed(
 
     if !flat.contains('\n') {
         let element_one_line = column + open.width() + flat.width() + close.width();
-        // A block element whose flat element line overflows puts its content on
-        // its own line; an inline element would instead hug, so leave those.
-        if element_one_line <= line_width || !is_block_display(tag) {
+        // A block element (or overflowing component with prose content) puts its
+        // content on its own line; an inline HTML element would instead hug, so
+        // leave those. Components with block-like (newline-bounded) content that
+        // overflow are also reflowed here — they are gated above by
+        // `fragment_has_prose_word` and `had_lead && had_trail`.
+        if element_one_line <= line_width
+            || (!is_block_display(tag) && !is_component_tag(tag))
+        {
             // Even when the element fits on one line, if it's a block-display
             // element with leading/trailing space boundary whitespace (but NOT
             // newline-separated — that's indented multi-line content), collapse
@@ -2396,7 +2521,18 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                 // a first text node instead keeps its trailing `line` inside the
                 // fill (prints as a flat space) and the inline element stays bare,
                 // so it hug-breaks in place rather than breaking onto its own line.
-                if !trim_left && !trim_right && next_inline && ends_with_space_no_break(txt) {
+                //
+                // Special case: a whitespace-only text node between two inline
+                // elements (e.g. `<kbd>…</kbd> <kbd>K</kbd>` with Text(" ")
+                // in the middle) fires BOTH the prev-inline and next-inline checks.
+                // The prev-inline check already appended a trailing `Line` to the
+                // preceding element's doc; adding a leading `Line` via `ws_prev`
+                // would produce two spaces in flat mode. Skip `ws_prev` when the
+                // separator was already placed by `tl`.
+                let ws_only = txt.split_whitespace().next().is_none();
+                if !trim_left && !trim_right && next_inline && ends_with_space_no_break(txt)
+                    && !(ws_only && tl)
+                {
                     tr = true;
                     ws_prev = true;
                 }
@@ -2423,6 +2559,9 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
             }
             other => {
                 // Expression tag / html tag / component / … : verbatim atom.
+                // For Components with text content (`<A href="/">text</A>`), try
+                // the same hug-doc treatment as RegularElement so the open tag can
+                // break its attributes when the prose line overflows (Increment 6).
                 // For self-closing Components with attributes, try to build a
                 // wrappable doc so a long `<Icon class="…" />` inside a fill
                 // can break its attributes (Increment 5).
@@ -2430,8 +2569,21 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                 if span.contains('\n') {
                     return None;
                 }
-                let elem = build_self_closing_component_doc(out, other)
-                    .unwrap_or_else(|| Doc::Text(span.to_string()));
+                let elem = if matches!(other, TemplateNode::Component(c) if c.fragment.nodes.is_empty()) {
+                    // Self-closing Component (`<Icon class="…" />`): build a breakable
+                    // attribute-wrapping doc first; fall back to element_doc (for the
+                    // hug-start path, though rare for self-closing) or plain text.
+                    build_self_closing_component_doc(out, other)
+                        .or_else(|| element_doc(out, other))
+                        .unwrap_or_else(|| Doc::Text(span.to_string()))
+                } else if matches!(other, TemplateNode::Component(_)) {
+                    // Non-self-closing Component (`<A href="/">text</A>`): hug doc first.
+                    element_doc(out, other)
+                        .unwrap_or_else(|| Doc::Text(span.to_string()))
+                } else {
+                    build_self_closing_component_doc(out, other)
+                        .unwrap_or_else(|| Doc::Text(span.to_string()))
+                };
                 if ws_prev {
                     docs.push(Doc::Group(vec![Doc::Line, elem]));
                 } else {
@@ -2468,14 +2620,18 @@ fn build_open_attr_doc(
     hug_start: bool,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
-    let TemplateNode::RegularElement(e) = node else {
-        return None;
+    // Support both RegularElement and Component (the latter appears in inline
+    // prose runs as `<A href="/">text</A>` etc.).
+    let attrs: &[_] = match node {
+        TemplateNode::RegularElement(e) => &e.attributes,
+        TemplateNode::Component(c) => &c.attributes,
+        _ => return None,
     };
-    if e.attributes.is_empty() {
+    if attrs.is_empty() {
         return None;
     }
-    let mut group_parts: Vec<Doc> = Vec::with_capacity(e.attributes.len() * 2 + 1);
-    for attr in &e.attributes {
+    let mut group_parts: Vec<Doc> = Vec::with_capacity(attrs.len() * 2 + 1);
+    for attr in attrs {
         let (as_, ae) = attribute_span(attr);
         let atext = out.get(as_ as usize..ae as usize)?;
         if atext.contains('\n') {
