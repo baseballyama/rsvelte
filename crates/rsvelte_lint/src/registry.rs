@@ -130,6 +130,11 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         // `check_program` path; the `Rule` implementation here adds
         // `check_root` so template expression tags are checked for browser globals.
         Box::new(NoTopLevelBrowserGlobals),
+        // `PreferSvelteReactivity` also lives in `all_script_rules()` for the
+        // per-script `check_program` path; the `Rule` implementation here adds
+        // `check_root` to detect cross-script cases (declared in module script,
+        // mutated in instance script, or vice versa).
+        Box::new(crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity),
     ]
 }
 

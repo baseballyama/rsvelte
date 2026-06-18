@@ -418,6 +418,135 @@ fn collect_forin_forof_reassignments(program: &Value, out: &mut HashSet<String>)
     });
 }
 
+/// Whether the LHS of an `AssignmentExpression` is a destructuring pattern
+/// (`ObjectPattern` or `ArrayPattern`), possibly nested inside a parenthesised
+/// expression — i.e. `({ a } = rhs)`.
+fn lhs_is_destructuring(left: &Value) -> bool {
+    matches!(
+        node_type(left),
+        Some("ObjectPattern") | Some("ArrayPattern")
+    )
+}
+
+/// Per-variable assignment summary used for the no-init-let destructuring check.
+#[derive(Default)]
+struct AssignInfo {
+    /// Total number of times this name appears as an assignment target
+    /// (via `AssignmentExpression` or `UpdateExpression`; for-of/for-in are
+    /// handled separately via `hard_reassigned`).
+    total: u32,
+    /// Number of those assignments whose top-level LHS is an `ObjectPattern`
+    /// or `ArrayPattern` (i.e. a destructuring assignment).
+    destructuring: u32,
+    /// The byte offsets `(start, end)` of the identifier node inside the
+    /// first destructuring assignment's LHS pattern — used to report at the
+    /// assignment site, matching ESLint core `prefer-const` behaviour.
+    first_destructuring_pos: Option<(u32, u32)>,
+}
+
+/// Walk `program` and collect, per identifier name, how many times it is the
+/// target of an `AssignmentExpression` and how many of those are destructuring.
+/// `UpdateExpression` increments `total` (not destructuring) so the name is
+/// excluded from the single-destructuring-assignment fast path.
+fn collect_assignment_info(program: &Value) -> std::collections::HashMap<String, AssignInfo> {
+    let mut map: std::collections::HashMap<String, AssignInfo> = std::collections::HashMap::new();
+    walk_js(program, |node, _| match node_type(node) {
+        Some("AssignmentExpression") => {
+            let Some(left) = node.get("left") else {
+                return;
+            };
+            let is_destructuring = lhs_is_destructuring(left);
+            let mut ids = Vec::new();
+            collect_pattern_idents(left, &mut ids);
+            for id in ids {
+                if let Some(name) = ident_name(id) {
+                    let entry = map.entry(name.to_string()).or_default();
+                    entry.total += 1;
+                    if is_destructuring {
+                        entry.destructuring += 1;
+                        // Record the first destructuring position for reporting.
+                        if entry.first_destructuring_pos.is_none()
+                            && let (Some(s), Some(e)) = (
+                                node_start(id),
+                                id.get("end").and_then(Value::as_u64).map(|e| e as u32),
+                            )
+                        {
+                            entry.first_destructuring_pos = Some((s, e));
+                        }
+                    }
+                }
+            }
+        }
+        Some("UpdateExpression") => {
+            if let Some(name) = node
+                .get("argument")
+                .filter(|a| node_type(a) == Some("Identifier"))
+                .and_then(ident_name)
+            {
+                map.entry(name.to_string()).or_default().total += 1;
+            }
+        }
+        _ => {}
+    });
+    map
+}
+
+/// Collect `(name, id_node)` for every `let` declarator with NO initializer
+/// in `program`.  `export let` in an instance script is excluded (handled by
+/// `kind` at the call site; pass `is_instance` accordingly).
+fn collect_no_init_let_idents<'a>(
+    program: &'a Value,
+    is_instance: bool,
+    excluded_runes: &[String],
+    out: &mut Vec<(String, &'a Value)>,
+) {
+    walk_js(program, |node, ancestors| {
+        if node_type(node) != Some("VariableDeclaration")
+            || node.get("kind").and_then(Value::as_str) != Some("let")
+        {
+            return;
+        }
+        // Skip `export let` in instance scripts.
+        if is_instance
+            && ancestors.last().and_then(|p| node_type(p)) == Some("ExportNamedDeclaration")
+        {
+            return;
+        }
+        let Some(declarators) = node.get("declarations").and_then(Value::as_array) else {
+            return;
+        };
+        // Skip declarations that contain an excluded-rune init.
+        let skip = declarators.iter().any(|d| {
+            d.get("init")
+                .filter(|i| !i.is_null())
+                .and_then(init_rune_callee)
+                .is_some_and(|c| excluded_runes.iter().any(|e| e == c))
+        });
+        if skip {
+            return;
+        }
+        for d in declarators {
+            let has_init = d.get("init").is_some_and(|i| !i.is_null());
+            if has_init {
+                continue; // only care about no-init declarators
+            }
+            let Some(id) = d.get("id") else {
+                continue;
+            };
+            // Only bare-identifier no-init declarators: `let a;` (not patterns).
+            // ESLint does not report `let [a]; [a] = rhs` — it only reports the
+            // separate-declaration destructuring-assignment pattern where the
+            // declaration is a plain identifier.
+            if node_type(id) != Some("Identifier") {
+                continue;
+            }
+            if let Some(name) = ident_name(id) {
+                out.push((name.to_string(), id));
+            }
+        }
+    });
+}
+
 #[derive(Default)]
 pub struct PreferConst;
 
@@ -590,6 +719,64 @@ impl ScriptRule for PreferConst {
             let tag_reports =
                 check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);
             reports.extend(tag_reports);
+        }
+
+        // Extra check: `let a; ({ …a… } = rhs)` — a `let` binding with NO
+        // initializer that is assigned EXACTLY ONCE via a destructuring
+        // `AssignmentExpression` (LHS is ObjectPattern/ArrayPattern), and never
+        // otherwise reassigned/updated. ESLint core `prefer-const` reports this
+        // case ("use `const` in the destructuring assignment instead"), but only
+        // for the destructuring-assignment pattern — a plain `let a; a = 1` is
+        // NOT reported.
+        //
+        // We must NOT add a fix here because the suggested fix ("use `const`
+        // in the destructuring assignment") rewrites the call site, not the
+        // `let` declaration; generating the right autofix would be complex.
+        {
+            // Collect "hard" reassigned names that disqualify the no-init path:
+            // template writes, for-of/for-in bare patterns, update expressions,
+            // bind directives, and plain (non-destructuring) assignments.
+            // We re-use `reassigned` but need to also know which names were
+            // assigned ONLY through destructuring patterns.
+            let assign_info = collect_assignment_info(program);
+
+            // Extra reassigned from template / for-of (already in `reassigned`
+            // from earlier passes, but we need to exclude those from the count).
+            let mut template_and_forin: HashSet<String> = HashSet::new();
+            collect_template_reassignments(ctx.source(), &mut template_and_forin);
+            collect_forin_forof_reassignments(program, &mut template_and_forin);
+
+            let mut no_init_lets: Vec<(String, &Value)> = Vec::new();
+            collect_no_init_let_idents(
+                program,
+                kind == ScriptKind::Instance,
+                &excluded,
+                &mut no_init_lets,
+            );
+
+            for (name, _id_node) in &no_init_lets {
+                // If the template or a for-of/for-in also writes this name, skip.
+                if template_and_forin.contains(name.as_str()) {
+                    continue;
+                }
+                if let Some(info) = assign_info.get(name.as_str()) {
+                    // Exactly one assignment, and it is destructuring, and there
+                    // is no non-destructuring part (i.e. total == destructuring).
+                    if info.total == 1 && info.destructuring == 1 {
+                        // Report at the identifier's position inside the
+                        // destructuring assignment LHS, matching ESLint core
+                        // `prefer-const` which reports at the assignment site.
+                        if let Some((s, e)) = info.first_destructuring_pos {
+                            reports.push((
+                                s,
+                                e,
+                                format!("'{name}' is never reassigned. Use 'const' instead."),
+                                None,
+                            ));
+                        }
+                    }
+                }
+            }
         }
 
         for (start, end, msg, fix_start) in reports {
