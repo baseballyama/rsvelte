@@ -339,6 +339,36 @@ fn collect_indent_edits_inner(
             }
         }
 
+        // When a block-display element is directly adjacent (no whitespace
+        // separator, no newline) to a non-whitespace text node, the text must
+        // be pushed onto its own line.  For example `<p>text</p>.` — the
+        // trailing `.` follows the `</p>` close tag with no separator at all;
+        // prettier puts it on a new line.
+        //
+        // Only fire when the Text node starts with a non-whitespace character
+        // (the adjacent text abuts the block element with no newline in between)
+        // because when a `\n` is already present the existing indent-pass
+        // whitespace-text rewrite handles the indentation.
+        for w in fragment.nodes.windows(2) {
+            let (a, b) = (&w[0], &w[1]);
+            let a_is_block = matches!(a, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
+            // Only handle block + Text adjacency with a non-whitespace, non-newline
+            // leading character in the text — the earlier loop already handles
+            // block + non-Text adjacency.
+            if !a_is_block {
+                continue;
+            }
+            let b_is_nonempty_text = matches!(b, TemplateNode::Text(t)
+                if !is_whitespace_only(t.data.as_str()) && !t.data.starts_with('\n'));
+            if !b_is_nonempty_text {
+                continue;
+            }
+            let boundary = crate::collapse::template_node_span(a).1;
+            if boundary == crate::collapse::template_node_span(b).0 {
+                edits.push((boundary, boundary, format!("\n{child_indent}")));
+            }
+        }
+
         // When force_break_content is active, the fragment's first and last
         // non-whitespace, non-text nodes also need edge newlines when there's no
         // leading / trailing whitespace text node. This mirrors prettier's outer
