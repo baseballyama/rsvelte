@@ -663,18 +663,33 @@ pub fn svelte2tsx(
     // `processInstanceScriptContent` effect by:
     //  1. Removing the script tag from the MagicString so attribute values that
     //     overlap its range are automatically truncated in the output.
-    //  2. Prepending the raw content to the render function body (as `content;;`
-    //     with the double-semicolon the official svelte2tsx emits).
+    //  2. Prepending the raw content to the render function body.
     // When a top-level instance script already exists, the embedded script's
     // content is simply dropped (it's an anomalous/malformed template that the
     // official tool also handles inconsistently).
-    // (Previously rsvelte mirrored official svelte2tsx's scriptRegex extraction
-    // here to handle a `<script>` pulled out of an attribute value by HTML
-    // rawtext rules — but a source-wide scan over-matched real `<script>`
-    // elements in `<svelte:head>` / `{@html}` / nested templates and regressed
-    // 11 files, so it was reverted. The two escaped-attr/textarea entries it
-    // targeted are tracked in docs/svelte2tsx-corpus-remaining.md instead.)
-    let embedded_script_content: String = String::new();
+    //
+    // Narrow-scan approach: scan the source for `<script>…</script>` that
+    // - is NOT the top-level instance/module script position, and
+    // - is NOT a RegularElement "script" node anywhere in the fragment AST, and
+    // - is NOT inside a HtmlTag (@html) node range.
+    // Such "orphan" scripts sit inside attribute values or template-literal
+    // expressions that the Svelte parser did not turn into element/script nodes.
+    // Overwriting their range with "" in the MagicString causes any attribute
+    // whose source span covers that range to be automatically truncated.
+    let orphan_scripts = find_orphan_scripts(&ast, source);
+    // Remove orphan scripts from the MagicString (must happen BEFORE
+    // process_template_inplace so the overwrite is in place when the template
+    // emits Seg::Src ranges that span the orphan range).
+    for &(s, e, _) in &orphan_scripts {
+        str.overwrite(s, e, "");
+    }
+    // Collect content for injection into $$render() body. Only matters when
+    // there is no top-level instance/module script (the "no script" path below).
+    let embedded_script_content: String = orphan_scripts
+        .iter()
+        .map(|(_, _, content)| content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
 
     // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
     // naive `source.contains("<slot")` matches `<slot>` inside string literals
@@ -5176,6 +5191,223 @@ fn lazy_slice_references_rune_global(slice: &str) -> bool {
         }
     }
     false
+}
+
+// =============================================================================
+// Orphan-script detection (Step 7.48)
+// =============================================================================
+
+/// Collect start positions of every `RegularElement` named `"script"` anywhere
+/// in the fragment tree (including inside `{#if}`, `{#each}`, `<svelte:head>`,
+/// nested elements, etc.).
+fn collect_script_element_starts(
+    fragment: &crate::ast::template::Fragment,
+    out: &mut std::collections::HashSet<u32>,
+) {
+    use crate::ast::template::TemplateNode as N;
+    for node in &fragment.nodes {
+        match node {
+            N::RegularElement(e) => {
+                if e.name == "script" {
+                    out.insert(e.start);
+                }
+                collect_script_element_starts(&e.fragment, out);
+            }
+            N::Component(c) => collect_script_element_starts(&c.fragment, out),
+            N::SvelteComponent(c) => collect_script_element_starts(&c.fragment, out),
+            N::SvelteElement(e) => collect_script_element_starts(&e.fragment, out),
+            N::TitleElement(e) => collect_script_element_starts(&e.fragment, out),
+            N::SlotElement(e) => collect_script_element_starts(&e.fragment, out),
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => collect_script_element_starts(&e.fragment, out),
+            N::IfBlock(b) => {
+                collect_script_element_starts(&b.consequent, out);
+                if let Some(alt) = &b.alternate {
+                    collect_script_element_starts(alt, out);
+                }
+            }
+            N::EachBlock(b) => {
+                collect_script_element_starts(&b.body, out);
+                if let Some(fb) = &b.fallback {
+                    collect_script_element_starts(fb, out);
+                }
+            }
+            N::KeyBlock(b) => collect_script_element_starts(&b.fragment, out),
+            N::SnippetBlock(b) => collect_script_element_starts(&b.body, out),
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    collect_script_element_starts(f, out);
+                }
+                if let Some(f) = &b.then {
+                    collect_script_element_starts(f, out);
+                }
+                if let Some(f) = &b.catch {
+                    collect_script_element_starts(f, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Collect (start, end) ranges of every `HtmlTag` (`{@html}`) node anywhere
+/// in the fragment tree. A `<script>` inside a HtmlTag expression is NOT an
+/// orphan — it's already handled by the `{@html}` output.
+fn collect_html_tag_ranges(fragment: &crate::ast::template::Fragment, out: &mut Vec<(u32, u32)>) {
+    use crate::ast::template::TemplateNode as N;
+    for node in &fragment.nodes {
+        match node {
+            N::HtmlTag(h) => {
+                out.push((h.start, h.end));
+            }
+            N::RegularElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::Component(c) => collect_html_tag_ranges(&c.fragment, out),
+            N::SvelteComponent(c) => collect_html_tag_ranges(&c.fragment, out),
+            N::SvelteElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::TitleElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::SlotElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::IfBlock(b) => {
+                collect_html_tag_ranges(&b.consequent, out);
+                if let Some(alt) = &b.alternate {
+                    collect_html_tag_ranges(alt, out);
+                }
+            }
+            N::EachBlock(b) => {
+                collect_html_tag_ranges(&b.body, out);
+                if let Some(fb) = &b.fallback {
+                    collect_html_tag_ranges(fb, out);
+                }
+            }
+            N::KeyBlock(b) => collect_html_tag_ranges(&b.fragment, out),
+            N::SnippetBlock(b) => collect_html_tag_ranges(&b.body, out),
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    collect_html_tag_ranges(f, out);
+                }
+                if let Some(f) = &b.then {
+                    collect_html_tag_ranges(f, out);
+                }
+                if let Some(f) = &b.catch {
+                    collect_html_tag_ranges(f, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Find "orphan" `<script>…</script>` occurrences in `source` that the Svelte
+/// parser did NOT recognise as a real Script (instance/module) or as a
+/// `RegularElement` named `"script"`. These are typically `<script>` tags
+/// embedded inside attribute values (e.g. `href="</noscript><script>…"`) or
+/// inside template-literal expressions that the HTML parser terminated early.
+///
+/// Returns a list of `(start, end, inner_content)` triples, where `start`/`end`
+/// are byte offsets in `source` and `inner_content` is the raw text between
+/// `<script…>` and `</script>`.
+fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
+    // 1. Collect known "legitimate" script start positions and their full ranges.
+    let mut known_starts: std::collections::HashSet<u32> = std::collections::HashSet::default();
+    // Also collect ranges of instance/module scripts so we can skip `<script>`
+    // occurrences inside their string literals / template content.
+    let mut known_ranges: Vec<(u32, u32)> = Vec::new();
+    if let Some(inst) = &ast.instance {
+        known_starts.insert(inst.start);
+        known_ranges.push((inst.start, inst.end));
+    }
+    if let Some(module) = &ast.module {
+        known_starts.insert(module.start);
+        known_ranges.push((module.start, module.end));
+    }
+    collect_script_element_starts(&ast.fragment, &mut known_starts);
+
+    // 2. Collect HtmlTag ranges — a <script> inside {@html …} is not orphan.
+    let mut html_tag_ranges: Vec<(u32, u32)> = Vec::new();
+    collect_html_tag_ranges(&ast.fragment, &mut html_tag_ranges);
+
+    // 3. Scan the source for `<script` occurrences.
+    let bytes = source.as_bytes();
+    let mut result: Vec<(u32, u32, String)> = Vec::new();
+    // Lower-case ONCE (not per iteration). ASCII-lowercasing never changes byte
+    // length, so offsets into `source_lower` map 1:1 onto `source`.
+    let source_lower = source.to_ascii_lowercase();
+    let mut search: usize = 0;
+
+    while search < source.len() {
+        let Some(rel) = source_lower[search..].find("<script") else {
+            break;
+        };
+        let tag_start = (search + rel) as u32;
+
+        // Require a proper tag boundary after `<script` (6 bytes for "script").
+        let after_pos = tag_start as usize + 7; // skip '<' + "script"
+        let next_byte = bytes.get(after_pos).copied();
+        if !matches!(
+            next_byte,
+            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+        ) {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Skip if this is a recognised script/element node (exact start match).
+        if known_starts.contains(&tag_start) {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Skip if the tag start falls INSIDE an instance/module script range
+        // (e.g. `<script>` text inside a string literal in the script body).
+        if known_ranges
+            .iter()
+            .any(|&(s, e)| tag_start > s && tag_start < e)
+        {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Skip if the tag start falls inside a {@html …} range.
+        if html_tag_ranges
+            .iter()
+            .any(|&(s, e)| tag_start > s && tag_start < e)
+        {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Find the matching `</script>` (case-insensitive).
+        let Some(close_rel) = source_lower[tag_start as usize..].find("</script>") else {
+            break; // unterminated — skip
+        };
+        let tag_end = tag_start + close_rel as u32 + 9; // 9 = len("</script>")
+
+        // Extract the inner content: everything between `>` of the open tag and
+        // `<` of `</script>`.
+        let open_gt = source[tag_start as usize..tag_end as usize]
+            .find('>')
+            .map(|p| tag_start as usize + p + 1)
+            .unwrap_or(tag_start as usize + 8); // fallback: after "<script>"
+        let inner = source[open_gt..tag_start as usize + close_rel].to_string();
+
+        result.push((tag_start, tag_end, inner));
+        search = tag_end as usize;
+    }
+
+    result
 }
 
 #[cfg(test)]
