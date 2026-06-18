@@ -36,7 +36,6 @@
 	"shadcn-svelte/docs/src/lib/registry/examples/sonner-types.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/initialize-dialog.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/playground/(components)/code-viewer.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-faceted-filter.svelte",

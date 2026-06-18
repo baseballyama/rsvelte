@@ -544,6 +544,19 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         // flat text rather than leaving the broken input untouched.
         return (flat != whole).then_some((s as u32, e as u32, flat));
     }
+    // A pure-text run (no inline elements) that is already on a single line
+    // (no `\n` in `whole`) should not be broken — prettier does not aggressively
+    // re-wrap text-only paragraphs that the indent pass placed on one line, even
+    // when they slightly overflow (e.g. a `for framework setup …` suffix after
+    // a block-display `<a>` parent). Multi-element runs (elements + text) are
+    // still reflowed because their fill doc correctly measures line-break points.
+    // Note: `run` was rebound above to `run[lo..hi]` (whitespace-only edges trimmed).
+    if run.len() == 1
+        && matches!(run[0], TemplateNode::Text(_))
+        && !whole.contains('\n')
+    {
+        return None;
+    }
     let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
     // If the doc had no break points (e.g. two adjacent inline-block elements
     // like `<button>A</button><button>B</button>` with no text between them),
