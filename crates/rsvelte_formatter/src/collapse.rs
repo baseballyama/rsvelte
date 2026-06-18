@@ -385,20 +385,27 @@ fn is_run_member(out: &str, node: &TemplateNode) -> bool {
             // participate in inline prose runs — e.g. `text <Icon /> more text`.
             // A multi-line component has already had its open tag wrapped and is
             // left as a run boundary so its own layout owns it.
-            // A component that sits at the START of its line (only whitespace
-            // before it) is block-level — it must NOT be included in a prose run,
-            // because the run-fill pass treats it as a flat atom and then marks it
-            // as "consumed", preventing the element-level hug/fill passes from
-            // reformatting it.
+            // A component that stands ALONE on its line (only whitespace both
+            // before AND after it on that line) is laid out block-like — it must
+            // NOT join a prose run, because the run-fill pass treats it as a flat
+            // atom and marks it "consumed", preventing the element-level hug/fill
+            // passes from reformatting it (e.g. a top-level `<Heading>…</Heading>`).
+            // But a self-closing inline component immediately followed by text on
+            // the same line (`<Icon />Add new user`) is genuine inline prose and
+            // stays a run member so the trailing text fill-wraps with it.
             let s = node_start(node) as usize;
+            let e = node_end(node) as usize;
             let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
             let before = &out[line_start..s];
             if before.bytes().all(|b| b == b' ' || b == b'\t') {
-                // At start of line — not an inline run member.
-                return false;
+                let line_end = out[e..].find('\n').map_or(out.len(), |i| e + i);
+                let after = &out[e..line_end];
+                if after.bytes().all(|b| b == b' ' || b == b'\t') {
+                    // Alone on its line — not an inline run member.
+                    return false;
+                }
             }
-            out.get(s..node_end(node) as usize)
-                .is_some_and(|span| !span.contains('\n'))
+            out.get(s..e).is_some_and(|span| !span.contains('\n'))
         }
         _ => false,
     }
@@ -1228,9 +1235,7 @@ fn try_collapse(
             };
             let hug_width = inner_indent.width() + 1 + collapsed.width() + 2 + tag.width();
             if hug_width <= line_width {
-                let hug = format!(
-                    "{prefix}\n{inner_indent}>{collapsed}</{tag}\n{close_indent}>"
-                );
+                let hug = format!("{prefix}\n{inner_indent}>{collapsed}</{tag}\n{close_indent}>");
                 return (hug != whole).then_some((start, end, hug));
             }
             // Content is too long for a single hug line — fill-wrap the text
@@ -1540,9 +1545,7 @@ fn element_hug_parts(out: &str, node: &TemplateNode) -> Option<(String, String, 
     // adjacent to the open/close tag (no leading/trailing whitespace). Content that
     // starts or ends with whitespace gets block-break treatment (content on its own
     // indented line with `>` and `</tag>` each on their own lines), not hug.
-    if content.starts_with([' ', '\t', '\r', '\n'])
-        || content.ends_with([' ', '\t', '\r', '\n'])
-    {
+    if content.starts_with([' ', '\t', '\r', '\n']) || content.ends_with([' ', '\t', '\r', '\n']) {
         return None;
     }
     // The open tag is usually single-line, but the markup pass may have already
@@ -2065,7 +2068,9 @@ fn try_break_block_multiline_content(
         // Derive indent from the last line of the open tag (the `>` line).
         let last_nl = open.rfind('\n').unwrap();
         let last_open_line = &open[last_nl + 1..]; // e.g. "    >"
-        let ws_len = last_open_line.len().saturating_sub(last_open_line.trim_start().len());
+        let ws_len = last_open_line
+            .len()
+            .saturating_sub(last_open_line.trim_start().len());
         let indent = &last_open_line[..ws_len];
         if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
             return None;
@@ -2415,9 +2420,7 @@ fn try_fill_mixed(
         // leave those. Components with block-like (newline-bounded) content that
         // overflow are also reflowed here — they are gated above by
         // `fragment_has_prose_word` and `had_lead && had_trail`.
-        if element_one_line <= line_width
-            || (!is_block_display(tag) && !is_component_tag(tag))
-        {
+        if element_one_line <= line_width || (!is_block_display(tag) && !is_component_tag(tag)) {
             // Even when the element fits on one line, if it's a block-display
             // element with leading/trailing space boundary whitespace (but NOT
             // newline-separated — that's indented multi-line content), collapse
@@ -2542,7 +2545,10 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                 // would produce two spaces in flat mode. Skip `ws_prev` when the
                 // separator was already placed by `tl`.
                 let ws_only = txt.split_whitespace().next().is_none();
-                if !trim_left && !trim_right && next_inline && ends_with_space_no_break(txt)
+                if !trim_left
+                    && !trim_right
+                    && next_inline
+                    && ends_with_space_no_break(txt)
                     && !(ws_only && tl)
                 {
                     tr = true;
@@ -2581,7 +2587,8 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                 if span.contains('\n') {
                     return None;
                 }
-                let elem = if matches!(other, TemplateNode::Component(c) if c.fragment.nodes.is_empty()) {
+                let elem = if matches!(other, TemplateNode::Component(c) if c.fragment.nodes.is_empty())
+                {
                     // Self-closing Component (`<Icon class="…" />`): build a breakable
                     // attribute-wrapping doc first; fall back to element_doc (for the
                     // hug-start path, though rare for self-closing) or plain text.
@@ -2590,8 +2597,7 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                         .unwrap_or_else(|| Doc::Text(span.to_string()))
                 } else if matches!(other, TemplateNode::Component(_)) {
                     // Non-self-closing Component (`<A href="/">text</A>`): hug doc first.
-                    element_doc(out, other)
-                        .unwrap_or_else(|| Doc::Text(span.to_string()))
+                    element_doc(out, other).unwrap_or_else(|| Doc::Text(span.to_string()))
                 } else {
                     build_self_closing_component_doc(out, other)
                         .unwrap_or_else(|| Doc::Text(span.to_string()))
