@@ -186,17 +186,17 @@ impl<'a, 'sem, 'ast> Visit<'ast> for DerivedReadCollector<'a, 'sem> {
     }
 
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
-        // A bare 0-arg call `foo()` of a derived is already a getter
-        // invocation — don't wrap the callee to `foo()()`. (An optional call
-        // `foo?.()` or a call with args `foo(x)` IS wrapped: the scanner emits
-        // `foo()?.()` / `foo()(x)`, matching upstream `b.call` on every ref.)
-        if !call.optional
-            && call.arguments.is_empty()
-            && let Expression::Identifier(callee) = &call.callee
-            && self.is_derived(&callee.name)
-        {
-            self.skip_spans.insert(callee.span.start);
-        }
+        // Every read of a derived identifier is wrapped to its getter call,
+        // INCLUDING when the derived is itself the callee — `foo()` → `foo()()`,
+        // `foo(x)` → `foo()(x)`, `foo?.()` → `foo()?.()`. On the server a derived
+        // is a callable getter, so a source-level call of a derived (`{ scale()(t) }`,
+        // `{ inactive() }`) is calling the derived's *value*: the getter read
+        // (`foo()`) must still be inserted, yielding `foo()()`. Upstream applies
+        // `b.call` to every derived reference uniformly — there is no
+        // call-position exception. (A source `foo()` only occurs when the
+        // derived's value is itself a function, i.e. the currying case; a plain
+        // derived read is written `foo`, never `foo()`.) The bare reference is
+        // wrapped by `visit_identifier_reference` during the walk below.
         walk::walk_call_expression(self, call);
     }
 }
@@ -275,10 +275,12 @@ mod tests {
     }
 
     #[test]
-    fn wraps_call_with_args_but_not_empty_call() {
-        // `count(x)` → `count()(x)`; `count()` stays (already a getter call).
+    fn wraps_derived_callee_uniformly() {
+        // A derived used as a callee is wrapped uniformly: the source call is of
+        // the derived's (function) value, so the getter read is still inserted.
+        // `count(x)` → `count()(x)`; `count()` → `count()()` (the currying case).
         assert_eq!(wrap("count(x);", &["count"]).unwrap(), "count()(x);");
-        assert!(wrap("count();", &["count"]).is_none());
+        assert_eq!(wrap("count();", &["count"]).unwrap(), "count()();");
     }
 
     #[test]
