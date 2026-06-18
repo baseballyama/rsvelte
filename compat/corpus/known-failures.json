@@ -109,7 +109,6 @@
 	"shadcn-svelte/docs/src/lib/registry/examples/create/vercel/circular-gauge.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/date-picker-form.svelte",
 	"shadcn-svelte/docs/src/lib/registry/ui/input/input.svelte",
-	"shadcn-svelte/docs/src/lib/registry/ui/native-select/native-select-option.svelte",
 	"shadcn-svelte/docs/src/lib/registry/ui/native-select/native-select.svelte",
 	"shadcn-svelte/docs/src/lib/registry/ui/sidebar/sidebar-menu-skeleton.svelte",
 	"shadcn-svelte/docs/src/lib/registry/ui/spinner/spinner.svelte",
