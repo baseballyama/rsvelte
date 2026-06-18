@@ -225,17 +225,20 @@ impl<'a> ServerCodeGenerator<'a> {
                                         if expr_end > expr_start && expr_end <= self.source.len() {
                                             let expr_src = self.source[expr_start..expr_end].trim();
                                             let transformed = self.transform_store_refs(expr_src);
-                                            // Upstream `build_attribute_value` skips the
-                                            // `$.stringify(...)` wrap when the interpolated
-                                            // expression is statically known to be a defined
-                                            // string. The dominant real-world case is a
-                                            // `$props.id()` binding (`evaluated.is_string &&
-                                            // is_defined`), so emit it raw to match
-                                            // `for: ` + `${id}` exactly.
-                                            let is_known_string_id =
-                                                self.analysis.and_then(|a| a.props_id.as_deref())
-                                                    == Some(transformed.as_str());
-                                            if is_known_string_id {
+                                            // Upstream `build_attribute_value`
+                                            // (shared/utils.js line 243-245) elides
+                                            // `$.stringify(...)` when the interpolated
+                                            // expression is statically known to be a
+                                            // defined string: `evaluated.is_string &&
+                                            // evaluated.is_defined`. Mirror that by
+                                            // running the full evaluator on the AST
+                                            // expression node — this covers $props.id()
+                                            // bindings, ternaries with string-literal
+                                            // branches, string concatenation, typeof,
+                                            // etc., not just the props_id special case.
+                                            let evaluation = self
+                                                .evaluate_template_expression(&expr_tag.expression);
+                                            if evaluation.is_string() && evaluation.is_defined() {
                                                 value_str.push_str("${");
                                                 value_str.push_str(&transformed);
                                                 value_str.push('}');
