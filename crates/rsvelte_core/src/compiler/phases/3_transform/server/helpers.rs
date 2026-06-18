@@ -1438,6 +1438,13 @@ fn collapse_multiline_destructuring(script: &str) -> String {
     // the `}` in `inputId = `${createId(uid)}-input``, which must NOT end the
     // destructure early — a naive `contains('}')` check truncated such patterns).
     let mut depth: i32 = 0;
+    // When `depth` reaches 0 but we haven't yet seen `= $$props` / `= $props()`,
+    // the pattern closing `}` is on its own line and the `= rhs` follows on a
+    // later line (e.g. after TS type-annotation removal leaves a lone `}` line
+    // followed by ` = $props()`).  In that state, keep accumulating through
+    // blank / comment lines until we find the `=` assignment or a code line that
+    // can't be the RHS — then finalize.
+    let mut awaiting_rhs = false;
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -1449,6 +1456,7 @@ fn collapse_multiline_destructuring(script: &str) -> String {
                 let d = net_brace_depth(trimmed);
                 if d > 0 {
                     in_destructure = true;
+                    awaiting_rhs = false;
                     depth = d;
                     accum.clear();
                     // Strip any trailing inline `//` comment from the first line too.
@@ -1462,6 +1470,39 @@ fn collapse_multiline_destructuring(script: &str) -> String {
             }
             result.push_str(line);
             result.push('\n');
+        } else if awaiting_rhs {
+            // We've seen the pattern's closing `}` but not the `= $$props` yet.
+            // Skip blank and comment-only lines; accept `= $$props`/`= $props()`.
+            orig.push(line.to_string());
+            if trimmed.is_empty()
+                || trimmed.starts_with("//")
+                || trimmed.starts_with("/*")
+                || trimmed.starts_with("*")
+            {
+                // Blank or comment line — keep waiting.
+                continue;
+            }
+            // Any non-comment, non-blank line: it should be the `= $$props` /
+            // `= $props()` assignment.  Append it to accum and finalize.
+            let code_part = strip_inline_line_comment(trimmed);
+            accum.push_str(code_part);
+            accum.push(' ');
+            in_destructure = false;
+            awaiting_rhs = false;
+            depth = 0;
+            let collapsed = accum.trim();
+            if memmem::find(collapsed.as_bytes(), b"= $$props").is_some()
+                || memmem::find(collapsed.as_bytes(), b"= $props()").is_some()
+            {
+                result.push_str("\t\t");
+                result.push_str(collapsed);
+                result.push('\n');
+            } else {
+                for l in &orig {
+                    result.push_str(l);
+                    result.push('\n');
+                }
+            }
         } else {
             orig.push(line.to_string());
             // Skip pure comment lines when collapsing (they can't be on one line with code after them)
@@ -1479,24 +1520,32 @@ fn collapse_multiline_destructuring(script: &str) -> String {
                 depth += net_brace_depth(code_part);
             }
             if depth <= 0 {
-                in_destructure = false;
                 depth = 0;
-                let collapsed = accum.trim();
+                let collapsed_so_far = accum.trim();
                 // Only collapse a *props* destructuring (`= $$props` / `= $props()`).
                 // Anything else (e.g. `const { a } = { …object literal… }`) is
                 // emitted verbatim so we never reformat — and risk corrupting —
                 // unrelated multi-line object-literal initializers.
-                if memmem::find(collapsed.as_bytes(), b"= $$props").is_some()
-                    || memmem::find(collapsed.as_bytes(), b"= $props()").is_some()
+                if memmem::find(collapsed_so_far.as_bytes(), b"= $$props").is_some()
+                    || memmem::find(collapsed_so_far.as_bytes(), b"= $props()").is_some()
                 {
+                    in_destructure = false;
                     result.push_str("\t\t");
-                    result.push_str(collapsed);
+                    result.push_str(collapsed_so_far);
                     result.push('\n');
                 } else {
-                    for l in &orig {
-                        result.push_str(l);
-                        result.push('\n');
-                    }
+                    // The brace pattern is closed but we haven't seen the `= rhs`
+                    // yet.  This can happen when a TS type annotation was stripped
+                    // and the closing `}` of the pattern ended up on its own line:
+                    //
+                    //   let { ...rest }          ← pattern closing `}` alone
+                    //   /**  JSDoc  */           ← stripped-annotation comment
+                    //    = $props();             ← RHS on a later line
+                    //
+                    // Stay in `in_destructure` mode (now flagged as `awaiting_rhs`)
+                    // and continue consuming lines until we see `= $$props` or
+                    // encounter an unrecognized code line.
+                    awaiting_rhs = true;
                 }
             }
         }
@@ -3658,6 +3707,45 @@ mod collapse_destructuring_tests {
         assert!(
             !result.contains("Checkbox.GroupProps"),
             "TS type annotation leaked into output: {result:?}"
+        );
+    }
+
+    /// Regression: when `strip_typescript` re-emits a JSDoc comment that was
+    /// inside a TS type annotation on a `$props()` destructure, the comment
+    /// lands between the closing `}` of the destructure and `= $$props`.
+    /// `collapse_multiline_destructuring` must not break on this — it should
+    /// treat the block comment lines as continuations and still produce a single
+    /// collapsed line containing `= $$props`, so `transform_props_spread_ex`
+    /// can inject `$$slots` / `$$events`.
+    ///
+    /// Input reproduces what `strip_typescript` emits for:
+    ///   let { ..., ...restProps }: SomeType & { /** JSDoc */ items?: ... } = $props()
+    /// after the TS annotation is removed but its interior comment is re-emitted.
+    #[test]
+    fn jsdoc_comment_between_brace_and_equals_does_not_drop_slots_events() {
+        use super::transform_props_spread_ex;
+        // Simulates the post-strip_typescript form: comment floats between `}` and `= $$props`.
+        let input = "\tlet {\n\
+                     \t\tvalue: valueProp = [],\n\
+                     \t\titems = [],\n\
+                     \t\t...restProps\n\
+                     \t}\n\
+                     \t/**\n\
+                     \t * The individual checkbox items.\n\
+                     \t */\n\
+                     \t= $$props;\n";
+        let result = transform_props_spread_ex(input, 0, false);
+        assert!(
+            result.contains("$$slots"),
+            "$$slots missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("$$events"),
+            "$$events missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("...restProps"),
+            "restProps missing from output: {result:?}"
         );
     }
 }
