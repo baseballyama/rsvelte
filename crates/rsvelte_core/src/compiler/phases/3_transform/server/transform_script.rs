@@ -253,11 +253,21 @@ fn transform_script_content_inner(
         }
 
         let line = format_js_line(line);
-        // Check next non-empty line to determine if current line is a continuation
+        // Check next non-empty, non-comment code line to determine if the current line is a
+        // continuation.  Skipping comment lines is critical for method chains that have `//` or
+        // `/* */` annotations between chain links, e.g.:
+        //
+        //   const parts = username
+        //       // Insert space before capitals
+        //       .replace(/([a-z])([A-Z])/g, "$1 $2")
+        //
+        // Without skipping comments, `next_trimmed` would point at the `// Insert…` line, which
+        // does not start with `.`, so `add_statement_semicolon` would erroneously terminate
+        // `const parts = username` with a `;`, orphaning the rest of the chain.
         let next_trimmed = all_lines[(line_idx + 1)..]
             .iter()
-            .find(|l| !l.trim().is_empty())
             .map(|l| l.trim())
+            .find(|t| !t.is_empty() && !t.starts_with("//") && !t.starts_with("/*"))
             .unwrap_or("");
         let line = add_statement_semicolon(&line, next_trimmed);
 
@@ -8211,6 +8221,83 @@ class Last {
         assert!(
             !out.contains("set value(value)") && !out.contains("set result(value)"),
             "client-shaped setter leaked through:\n{out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod method_chain_comment_semicolon_tests {
+    use super::transform_script_content_with_imports;
+    use rustc_hash::FxHashSet;
+
+    /// A method chain where every `.method(...)` link is preceded by a `//` comment
+    /// must NOT have a spurious `;` inserted after the first line of the declaration.
+    ///
+    /// Source pattern (from melt-ui avatar.svelte):
+    ///
+    ///   const parts = username
+    ///       // Insert space before capitals in camelCase/PascalCase
+    ///       .replace(/([a-z])([A-Z])/g, "$1 $2")
+    ///       // Split by common separators
+    ///       .split(/[\s\-_/.]+/)
+    ///       // Remove empty parts
+    ///       .filter((part) => part.length > 0);
+    ///
+    /// Before the fix, `next_trimmed` pointed at the comment line (not `.replace`), so
+    /// `add_statement_semicolon` incorrectly terminated after `username`, producing
+    /// `const parts = username;` and orphaning the chain links.
+    #[test]
+    fn method_chain_with_interleaved_line_comments_no_spurious_semicolon() {
+        let input = "const parts = username\n\
+            \t// Insert space before capitals in camelCase/PascalCase\n\
+            \t.replace(/([a-z])([A-Z])/g, \"$1 $2\")\n\
+            \t// Split by common separators\n\
+            \t.split(/[\\s\\-_/.]+/)\n\
+            \t// Remove empty parts\n\
+            \t.filter((part) => part.length > 0);";
+        let out = transform_script_content_with_imports(
+            input,
+            &FxHashSet::default(),
+            &FxHashSet::default(),
+            false,
+        );
+        assert!(
+            !out.contains("username;"),
+            "Spurious semicolon after `username` breaks the method chain:\n{out}"
+        );
+        assert!(
+            out.contains(".replace("),
+            "`.replace(` chain link missing from output:\n{out}"
+        );
+        assert!(
+            out.contains(".split("),
+            "`.split(` chain link missing from output:\n{out}"
+        );
+        assert!(
+            out.contains(".filter("),
+            "`.filter(` chain link missing from output:\n{out}"
+        );
+    }
+
+    /// Same scenario but with a `/* */` block comment between chain links.
+    #[test]
+    fn method_chain_with_interleaved_block_comments_no_spurious_semicolon() {
+        let input = "const parts = username\n\
+            \t/* Insert space before capitals */\n\
+            \t.replace(/([a-z])([A-Z])/g, \"$1 $2\");";
+        let out = transform_script_content_with_imports(
+            input,
+            &FxHashSet::default(),
+            &FxHashSet::default(),
+            false,
+        );
+        assert!(
+            !out.contains("username;"),
+            "Spurious semicolon after `username` with block-comment intervening:\n{out}"
+        );
+        assert!(
+            out.contains(".replace("),
+            "`.replace(` chain link missing from output:\n{out}"
         );
     }
 }
