@@ -2998,6 +2998,49 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             }
         }
     }
+    // Non-block RegularElement with element content (content.contains('<')) that is
+    // fully inline (no `\n`): prettier hugs start/end when the content is directly
+    // adjacent (no leading/trailing whitespace), even when the content contains
+    // nested HTML tags. This handles table-section elements like `<tbody>`, `<tr>`,
+    // SVG container elements, and any non-block inline element containing child HTML.
+    // Build the same hug group as `element_hug_parts` but without the `contains('<')` guard.
+    if let TemplateNode::RegularElement(e) = node {
+        let tag = e.name.as_str();
+        if !is_block_display(tag) && !is_inline_block(tag) && !is_whitespace_preserving(tag) {
+            let elem_start = e.start as usize;
+            let elem_end = e.end as usize;
+            if let (Some(first), Some(last)) =
+                (e.fragment.nodes.first(), e.fragment.nodes.last())
+                && let (Some(open), Some(content), Some(close)) = (
+                    out.get(elem_start..node_start(first) as usize),
+                    out.get(node_start(first) as usize..node_end(last) as usize),
+                    out.get(node_end(last) as usize..elem_end),
+                )
+                && !open.contains('\n')
+                && !content.contains('\n')
+                && content.contains('<') // only this path (text-only handled by element_hug_parts)
+                && !content.is_empty()
+                && open.ends_with('>')
+                && close.starts_with("</")
+                && !content.starts_with([' ', '\t', '\r', '\n'])
+                && !content.ends_with([' ', '\t', '\r', '\n'])
+            {
+                let open_no_bracket = &open[..open.len() - 1]; // strip trailing `>`
+                let inner_text = format!(">{content}</{tag}");
+                let open_doc = build_open_attr_doc(out, node, tag, true)
+                    .unwrap_or_else(|| Doc::Text(open_no_bracket.to_string()));
+                return Some(Doc::Group(vec![
+                    open_doc,
+                    Doc::Group(vec![Doc::Indent(vec![
+                        Doc::Softline,
+                        Doc::Group(vec![Doc::Text(inner_text)]),
+                    ])]),
+                    Doc::Softline,
+                    Doc::Text(">".to_string()),
+                ]));
+            }
+        }
+    }
     // `<slot>` with non-empty content that is fully inline (no `\n`):
     // prettier hugs start/end when the content is directly adjacent (no leading/
     // trailing whitespace), even when the content contains nested HTML. Build the
