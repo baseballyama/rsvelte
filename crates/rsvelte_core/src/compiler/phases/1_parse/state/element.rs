@@ -1688,7 +1688,8 @@ impl Parser<'_> {
 
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let expression = if self.eat_optional("=") {
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
             self.skip_whitespace();
             // Handle both bare {expr} and quoted "{expr}" / '{expr}'
             let quote =
@@ -1731,10 +1732,12 @@ impl Parser<'_> {
             )
         };
 
+        // Shorthand `class:name` (no value) ends at the name (see animate).
+        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::ClassDirective(
             crate::ast::template::ClassDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
@@ -2052,7 +2055,8 @@ impl Parser<'_> {
         let animate_name = &full_name[8..]; // Skip "animate:"
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let expression = if self.eat_optional("=") {
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
             self.skip_whitespace();
             // Handle both bare {expr} and quoted "{expr}" / '{expr}'
             let quote =
@@ -2083,10 +2087,14 @@ impl Parser<'_> {
             None
         };
 
+        // A shorthand `animate:name` (no value) ends at the name — `self.index`
+        // was advanced past trailing whitespace by the pre-dispatch
+        // `skip_whitespace()`, so use `name_end` (matches upstream spans).
+        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::AnimateDirective(
             crate::ast::template::AnimateDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
@@ -2106,7 +2114,8 @@ impl Parser<'_> {
         let let_name = &full_name[4..]; // Skip "let:"
         let name_loc = self.create_name_loc_optional(name_start, name_end);
 
-        let expression = if self.eat_optional("=") {
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
             self.skip_whitespace();
             // Handle both bare {expr} and quoted "{expr}" / '{expr}'
             let quote =
@@ -2137,10 +2146,12 @@ impl Parser<'_> {
             None
         };
 
+        // Shorthand `let:name` (no value) ends at the name (see animate).
+        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::LetDirective(
             crate::ast::template::LetDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end as u32,
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,

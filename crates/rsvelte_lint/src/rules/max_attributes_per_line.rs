@@ -250,21 +250,34 @@ impl MaxAttributesPerLine {
                 report_item(ctx, &items[singleline_max as usize], el_start, src_bytes);
             }
         } else {
-            // Multi-line: group items sharing a line, report any line with more
-            // than multiline_max items (`groupAttributesByLine`).
-            let mut i = 0;
-            while i < items.len() {
-                let line = li.line(items[i].start);
-                let mut j = i + 1;
-                while j < items.len() && li.line(items[j].start) == line {
-                    j += 1;
-                }
-                let count = (j - i) as u32;
+            // Multi-line: group consecutive items, reporting any group larger
+            // than `multiline_max`. Mirror upstream `groupAttributesByLine`: an
+            // attribute joins the current group when its START line equals the
+            // group's FIRST attribute's END line — so an attribute that begins
+            // on the line where the previous one's multi-line value ends
+            // (`<img src\n=\n"x" alt=…>`) shares its group. (Relies on attribute
+            // `end` offsets excluding trailing whitespace — true for values and,
+            // since the directive-span fix, for shorthand directives too.)
+            let mut group_start = 0;
+            let finalize = |ctx: &mut LintContext, g_start: usize, g_end: usize| {
+                let count = (g_end - g_start) as u32;
                 if count > multiline_max {
-                    report_item(ctx, &items[i + multiline_max as usize], el_start, src_bytes);
+                    report_item(
+                        ctx,
+                        &items[g_start + multiline_max as usize],
+                        el_start,
+                        src_bytes,
+                    );
                 }
-                i = j;
+            };
+            for k in 1..items.len() {
+                let group_first_end_line = li.line(items[group_start].end);
+                if li.line(items[k].start) != group_first_end_line {
+                    finalize(ctx, group_start, k);
+                    group_start = k;
+                }
             }
+            finalize(ctx, group_start, items.len());
         }
     }
 }

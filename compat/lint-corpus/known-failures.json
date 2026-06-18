@@ -1,4 +1,3 @@
 [
-	"eslint-plugin-svelte/docs/rules/comment-directive.md/4.svelte|-svelte/comment-directive\t11:31\tUnused eslint-disable-next-line directive (no problems were reported from 'no-undef').",
-	"eslint-plugin-svelte/docs/rules/no-spaces-around-equal-signs-in-attribute.md/1.svelte|-svelte/max-attributes-per-line\t15:12\t'alt' should be on a new line."
+	"eslint-plugin-svelte/docs/rules/comment-directive.md/4.svelte|-svelte/comment-directive\t11:31\tUnused eslint-disable-next-line directive (no problems were reported from 'no-undef')."
 ]
