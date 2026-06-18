@@ -1056,7 +1056,10 @@ fn render_multi_line(
             // already pushed above.
             out.push_str(a);
         } else {
-            out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
+            // For expression-led attributes that also contain raw HTML text
+            // continuation lines (tab-indented), re-indent only the JS expression
+            // part and keep the raw text verbatim.
+            out.push_str(&reindent_attr_with_raw_text(a, &inner_indent));
         }
     }
     if hug_open && !self_closing {
@@ -1087,6 +1090,29 @@ fn is_string_value_attr(a: &str) -> bool {
     match a.split_once('=') {
         Some((_, value)) => value.starts_with('"') && !value.starts_with("\"{"),
         None => false,
+    }
+}
+
+/// Re-indent an expression-led attribute (`class="{expr}\nraw-text…"`).
+///
+/// OXC always formats JS with spaces (never tabs). When an attribute starts with
+/// a JS expression (`"{`) but also has continuation lines that start with a tab
+/// (`\n\t`), those tab-indented lines are raw HTML attribute text — not formatted
+/// JS — and must be kept verbatim. Split the attribute at the first `\n\t` and
+/// re-indent only the expression part; append the raw text as-is.
+///
+/// Falls back to `reindent(a, prefix, true)` when no `\n\t` is found (pure JS
+/// attribute — the normal path).
+fn reindent_attr_with_raw_text(a: &str, prefix: &str) -> String {
+    // Find the first occurrence of a newline followed by a tab — this marks the
+    // boundary between formatted JS and raw source text.
+    if let Some(split_pos) = a.find("\n\t") {
+        let js_part = &a[..split_pos];
+        let raw_part = &a[split_pos..]; // starts with "\n\t…"
+        let reindented_js = crate::reindent::reindent(js_part, prefix, true);
+        format!("{reindented_js}{raw_part}")
+    } else {
+        crate::reindent::reindent(a, prefix, true)
     }
 }
 

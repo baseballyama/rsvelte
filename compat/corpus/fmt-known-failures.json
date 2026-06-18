@@ -19,7 +19,6 @@
 	"flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/Installcommand.svelte",
 	"flowbite-svelte/src/routes/landing/Components.svelte",
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
-	"melt-ui/docs/src/previews/tree.svelte",
 	"shadcn-svelte/docs/src/lib/components/code-tabs.svelte",
 	"shadcn-svelte/docs/src/lib/components/command-menu/command-menu.svelte",
 	"shadcn-svelte/docs/src/lib/components/docs-sidebar.svelte",
