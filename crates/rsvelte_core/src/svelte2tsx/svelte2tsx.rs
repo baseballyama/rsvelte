@@ -645,6 +645,53 @@ pub fn svelte2tsx(
         exported_names.set_uses_runes(true);
     }
 
+    // Step 7.48: Find and remove embedded `<script>` tags (those NOT matching
+    // the top-level instance / module script). Mirrors official svelte2tsx's
+    // `blankOtherScriptTags` / `str.move` approach.
+    //
+    // Background: official svelte2tsx extracts ALL `<script>…</script>` from
+    // the source (including those inside attribute values such as
+    // `<noscript><a href="</noscript><script>…</script>">`) using a regex. It
+    // then treats the first top-level one as the instance script and *moves* it
+    // to the top. Non-top-level scripts are *removed* from the MagicString via
+    // `blankOtherScriptTags`. The move / remove of the original range causes
+    // any attribute value whose source span covers that range to be truncated
+    // when emitted from the MagicString — giving `href: \`</noscript>\`` instead
+    // of the full `href: \`</noscript><script>…</script>\``.
+    //
+    // For rsvelte: when the embedded script is the ONLY script in the file
+    // (i.e. no top-level instance / module scripts), we replicate the
+    // `processInstanceScriptContent` effect by:
+    //  1. Removing the script tag from the MagicString so attribute values that
+    //     overlap its range are automatically truncated in the output.
+    //  2. Prepending the raw content to the render function body.
+    // When a top-level instance script already exists, the embedded script's
+    // content is simply dropped (it's an anomalous/malformed template that the
+    // official tool also handles inconsistently).
+    //
+    // Narrow-scan approach: scan the source for `<script>…</script>` that
+    // - is NOT the top-level instance/module script position, and
+    // - is NOT a RegularElement "script" node anywhere in the fragment AST, and
+    // - is NOT inside a HtmlTag (@html) node range.
+    // Such "orphan" scripts sit inside attribute values or template-literal
+    // expressions that the Svelte parser did not turn into element/script nodes.
+    // Overwriting their range with "" in the MagicString causes any attribute
+    // whose source span covers that range to be automatically truncated.
+    let orphan_scripts = find_orphan_scripts(&ast, source);
+    // Remove orphan scripts from the MagicString (must happen BEFORE
+    // process_template_inplace so the overwrite is in place when the template
+    // emits Seg::Src ranges that span the orphan range).
+    for &(s, e, _) in &orphan_scripts {
+        str.overwrite(s, e, "");
+    }
+    // Collect content for injection into $$render() body. Only matters when
+    // there is no top-level instance/module script (the "no script" path below).
+    let embedded_script_content: String = orphan_scripts
+        .iter()
+        .map(|(_, _, content)| content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
     // Step 7.5: Slot detection from the AST (NOT a source substring scan — a
     // naive `source.contains("<slot")` matches `<slot>` inside string literals
     // such as a custom element's `shadowRoot.innerHTML = '…<slot>…'`, which are
@@ -745,19 +792,34 @@ pub fn svelte2tsx(
     if let Some(ref css) = ast.css
         && css.start < css.end
     {
-        // Also blank any trailing whitespace after the style tag
-        let mut blank_end = css.end;
-        let bytes = source.as_bytes();
-        while (blank_end as usize) < bytes.len() {
-            let b = bytes[blank_end as usize];
-            if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                blank_end += 1;
-            } else {
-                break;
+        // Only blank the CSS range when the close tag is well-formed (exact
+        // `</style>` with no whitespace before `>`). When the close tag is
+        // malformed (e.g. `</style   >`), the official svelte2tsx regex does
+        // not match the style tag and it is left as raw text in the output.
+        // Mirror that: skip blanking so the raw `<style>…</style   >` text
+        // appears verbatim in the async template body.
+        let has_proper_style_close = {
+            let slice = &source[css.start as usize..css.end as usize];
+            slice
+                .as_bytes()
+                .windows(8)
+                .any(|w| w.eq_ignore_ascii_case(b"</style>"))
+        };
+        if has_proper_style_close {
+            // Also blank any trailing whitespace after the style tag
+            let mut blank_end = css.end;
+            let bytes = source.as_bytes();
+            while (blank_end as usize) < bytes.len() {
+                let b = bytes[blank_end as usize];
+                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+                    blank_end += 1;
+                } else {
+                    break;
+                }
             }
+            str.overwrite(css.start, blank_end, "");
+            blanked_style_ranges.push((css.start as usize, blank_end as usize));
         }
-        str.overwrite(css.start, blank_end, "");
-        blanked_style_ranges.push((css.start as usize, blank_end as usize));
     }
     {
         // Fallback: scan source for <style tags that the parser didn't
@@ -977,7 +1039,21 @@ pub fn svelte2tsx(
     //   - Overwriting </script> with `;\nasync () => {`
     //   - For template-only components, prepending the wrapper
 
-    let has_instance_script = ast.instance.is_some();
+    // Detect malformed script close tag (e.g. `</script   >` with whitespace
+    // before `>`). The official svelte2tsx uses a regex that requires an exact
+    // `</script>` close tag; when the close tag has whitespace the regex does
+    // not match, so official treats the whole component as having no instance
+    // script and includes the raw `<script>…</script   >` text inside the async
+    // template body. Mirror that by clearing `ast.instance` for this case so
+    // the no-script path is used. The detection criterion is: the script range
+    // does NOT contain the exact ASCII string `</script>` (case-insensitive).
+    let has_instance_script = ast.instance.as_ref().is_some_and(|inst| {
+        let slice = &source[inst.start as usize..inst.end as usize];
+        slice
+            .as_bytes()
+            .windows(9)
+            .any(|w| w.eq_ignore_ascii_case(b"</script>"))
+    });
     let has_module_script = ast.module.is_some();
 
     // Tracks whether the instance script contains a top-level `await`
@@ -1167,11 +1243,43 @@ pub fn svelte2tsx(
                 let comments_raw = &source[abs_comments_start as usize..abs_import_start as usize];
                 let import_raw = &source[abs_import_start as usize..abs_end as usize];
 
-                let comment_lines: Vec<&str> = comments_raw
-                    .lines()
-                    .map(|line| line.trim())
-                    .filter(|line| !line.is_empty())
-                    .collect();
+                // Collect leading comment lines while preserving block-comment
+                // interior indentation verbatim.  The JS reference (`moveNode`)
+                // uses `str.move()` which copies source text byte-for-byte, so
+                // `/* … */` inner lines must retain their original leading spaces.
+                // Only the opener line (`/*...`) is fully trimmed (leading indent
+                // is dropped; trailing spaces after `/*` are stripped); all other
+                // block-comment lines are preserved as-is.  Lines that are purely
+                // whitespace outside a block comment are filtered out.
+                let comment_lines: Vec<String> = {
+                    let mut lines: Vec<String> = Vec::new();
+                    let mut in_block = false;
+                    for line in comments_raw.lines() {
+                        if in_block {
+                            // Preserve interior indentation verbatim.
+                            if line.contains("*/") {
+                                in_block = false;
+                            }
+                            lines.push(line.to_string());
+                        } else {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() {
+                                continue; // skip whitespace-only lines
+                            }
+                            if trimmed.starts_with("/*") {
+                                // Block-comment opener: trim fully so the
+                                // leading indent and any trailing spaces after
+                                // `/*` are dropped (e.g. `  /*  ` → `/*`).
+                                in_block = !trimmed.contains("*/");
+                                lines.push(trimmed.to_string());
+                            } else {
+                                // Line comment (`//`) or other: fully trim.
+                                lines.push(trimmed.to_string());
+                            }
+                        }
+                    }
+                    lines
+                };
 
                 // Was the last comment on the same line as the `import`
                 // keyword? True when `comments_raw`'s final line is not
@@ -1256,8 +1364,14 @@ pub fn svelte2tsx(
                 && !exported_names.type_already_inserted
                 && {
                     let type_text = exported_names.props_type_text.as_ref().unwrap();
-                    // Check if type references runtime values via `typeof`
-                    let has_typeof = type_text.contains("typeof ");
+                    // Check if type references an instance-local value via
+                    // `typeof` (an imported `typeof` stays hoistable).
+                    let has_typeof = type_text_typeof_references_local_value(
+                        type_text,
+                        &exported_names.instance_value_names,
+                        &exported_names.instance_import_names,
+                        &exported_names.module_import_names,
+                    );
                     // Check if type references generics from $$render
                     let has_generic_dep = !render_generics.is_empty()
                         && generics_param
@@ -1346,6 +1460,18 @@ pub fn svelte2tsx(
                 part_a.push('\n');
             }
             part_a.push_str(&import_text);
+            // When there are hoistable snippets and a $$ComponentProps typedef to
+            // emit before $$render, the typedef must appear BEFORE the snippets in
+            // the output. Because snippets are moved to `sp` (after `part_a`) and
+            // `part_b` is placed after them, we append the typedef to `part_a` so
+            // it lands between the imports and the snippets. A `\n` separator is
+            // also added to match the blank line the JS reference produces.
+            let ts_component_props_in_part_a = !hoistable_snippet_ranges.is_empty()
+                && !ts_component_props_before_render.is_empty();
+            if ts_component_props_in_part_a {
+                part_a.push('\n');
+                part_a.push_str(&ts_component_props_before_render);
+            }
             let trailing_newline = if ts_component_props_inside_render.is_empty() {
                 "\n"
             } else {
@@ -1358,15 +1484,21 @@ pub fn svelte2tsx(
             // a `\n` prefix on part_b in that case.
             let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
                 && !ts_component_props_before_render.is_empty()
+                && !ts_component_props_in_part_a
             {
                 "\n"
             } else {
                 ""
             };
+            let part_b_component_props = if ts_component_props_in_part_a {
+                ""
+            } else {
+                &ts_component_props_before_render
+            };
             let part_b = format!(
                 "{}{}{}{}function $$render{}() {{{}{}{}",
                 part_b_prefix,
-                ts_component_props_before_render,
+                part_b_component_props,
                 template_comment,
                 async_prefix,
                 render_generics,
@@ -1377,7 +1509,8 @@ pub fn svelte2tsx(
 
             let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
                 || !exported_names.hoistable_type_ranges.is_empty()
-                || !exported_names.dollar_generic_referenced_ranges.is_empty();
+                || !exported_names.dollar_generic_referenced_ranges.is_empty()
+                || exported_names.props_type_arg_hoist.is_some();
             // Split position: right after the `<` of `<script>`. This matches
             // the JS reference's `scriptTag.start + 1`, so moved chunks land
             // between the `;` (from the `<` overwrite) and the function
@@ -1419,6 +1552,16 @@ pub fn svelte2tsx(
                         str.append_left(e, ";");
                         str.move_range(s, e, sp);
                     }
+                }
+                // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
+                // `\ntype $$ComponentProps = ` and `;` were already added via
+                // `prepend_right`/`append_left` in `apply_props_typedef`.
+                // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
+                if let Some((s, e)) = exported_names.props_type_arg_hoist
+                    && s < e
+                    && (e as usize) <= source.len()
+                {
+                    str.move_range(s, e, sp);
                 }
                 // Move `$$Generic<X>`-referenced types. Mirrors the JS
                 // reference's `nodesToMove` path (`moveNode`) — uses
@@ -1471,7 +1614,12 @@ pub fn svelte2tsx(
                 && !exported_names.type_already_inserted
                 && {
                     let type_text = exported_names.props_type_text.as_ref().unwrap();
-                    let has_typeof = type_text.contains("typeof ");
+                    let has_typeof = type_text_typeof_references_local_value(
+                        type_text,
+                        &exported_names.instance_value_names,
+                        &exported_names.instance_import_names,
+                        &exported_names.module_import_names,
+                    );
                     let has_generic_dep = !render_generics.is_empty()
                         && generics_param
                             .as_ref()
@@ -1539,18 +1687,32 @@ pub fn svelte2tsx(
             // No-imports branch: same split rationale as the imports branch
             // above — keep the synthesised `;type $$ComponentProps = ...;` in
             // part_b so it follows any hoisted type/interface declarations.
-            let part_a = String::from(";");
+            // When there are hoistable snippets, move it to part_a so it
+            // appears before them (mirrors the imports-branch behaviour).
+            let ts_component_props_in_part_a = !hoistable_snippet_ranges.is_empty()
+                && !ts_component_props_before_render.is_empty();
+            let mut part_a = String::from(";");
+            if ts_component_props_in_part_a {
+                part_a.push('\n');
+                part_a.push_str(&ts_component_props_before_render);
+            }
             let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
                 && !ts_component_props_before_render.is_empty()
+                && !ts_component_props_in_part_a
             {
                 "\n"
             } else {
                 ""
             };
+            let part_b_component_props = if ts_component_props_in_part_a {
+                ""
+            } else {
+                &ts_component_props_before_render
+            };
             let part_b = format!(
                 "{}{}{}{}function $$render{}() {{{}{}{}",
                 part_b_prefix,
-                ts_component_props_before_render,
+                part_b_component_props,
                 template_comment,
                 async_prefix,
                 render_generics,
@@ -1560,7 +1722,8 @@ pub fn svelte2tsx(
             );
             let has_hoistable_chunks = !hoistable_snippet_ranges.is_empty()
                 || !exported_names.hoistable_type_ranges.is_empty()
-                || !exported_names.dollar_generic_referenced_ranges.is_empty();
+                || !exported_names.dollar_generic_referenced_ranges.is_empty()
+                || exported_names.props_type_arg_hoist.is_some();
             // Split position: right after the `<` of `<script>`. This matches
             // the JS reference's `scriptTag.start + 1`, so moved chunks land
             // between the `;` (from the `<` overwrite) and the function
@@ -1602,6 +1765,16 @@ pub fn svelte2tsx(
                         str.append_left(e, ";");
                         str.move_range(s, e, sp);
                     }
+                }
+                // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
+                // `\ntype $$ComponentProps = ` and `;` were already added via
+                // `prepend_right`/`append_left` in `apply_props_typedef`.
+                // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
+                if let Some((s, e)) = exported_names.props_type_arg_hoist
+                    && s < e
+                    && (e as usize) <= source.len()
+                {
+                    str.move_range(s, e, sp);
                 }
                 // Move `$$Generic<X>`-referenced types. Mirrors the JS
                 // reference's `nodesToMove` path (`moveNode`) — uses
@@ -1791,15 +1964,24 @@ pub fn svelte2tsx(
 
         str.prepend_str(header_str);
     } else {
-        // No script tags at all: prepend the full wrapper
+        // No script tags at all: prepend the full wrapper.
+        // When embedded scripts were found and removed (step 7.48), their content
+        // is injected here right after `function $$render() {` — mirroring how
+        // the official tool processes an embedded script as an instance script and
+        // moves its content to the render-function body start.
         let slot_decl_tmpl = if has_slot_elements && !is_dts_mode {
             "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*\u{03A9}ignore_end\u{03A9}*/"
         } else {
             ""
         };
+        let embedded_injection = if !embedded_script_content.is_empty() {
+            format!("\n{}", embedded_script_content)
+        } else {
+            String::new()
+        };
         let wrapper = format!(
-            "{};function $$render() {{{}{}\nasync () => {{",
-            header_str, dollar_decls, slot_decl_tmpl
+            "{};function $$render() {{{}{}{}\nasync () => {{",
+            header_str, dollar_decls, embedded_injection, slot_decl_tmpl
         );
         str.prepend_str(&wrapper);
     }
@@ -1912,11 +2094,9 @@ pub fn svelte2tsx(
         props_str, exports_str, bindings_str, slots_str, events_str,
     );
 
-    // Add component documentation as JSDoc comment before the component export
-    if let Some(ref doc) = component_doc {
-        closing.push_str(doc);
-        closing.push('\n');
-    }
+    // component_doc is emitted immediately before each component const/class
+    // declaration below (mirroring upstream addComponentExport.ts which places
+    // `${doc}` adjacent to the component declaration in every branch).
 
     // Build the renderCall / awaitDeclaration pair used throughout the
     // component export section below.
@@ -2008,6 +2188,10 @@ pub fn svelte2tsx(
     match options.version {
         SvelteVersion::V4 => {
             let prop_def = build_prop_def(&exported_names);
+            if let Some(ref doc) = component_doc {
+                closing.push_str(doc);
+                closing.push('\n');
+            }
             let _ = write!(
                 closing,
                 "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent({}) {{\n}}",
@@ -2034,6 +2218,10 @@ pub fn svelte2tsx(
                     // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
                     // in that case, `$$render()` otherwise.
                     closing.push_str(await_declaration);
+                    if let Some(ref doc) = component_doc {
+                        closing.push_str(doc);
+                        closing.push('\n');
+                    }
                     let _ = writeln!(
                         closing,
                         "export const {} = __sveltets_2_fn_component({});",
@@ -2090,6 +2278,7 @@ pub fn svelte2tsx(
                         has_slot_elements,
                         !events.is_empty(),
                         !can_have_any_prop && props_has_no_props,
+                        component_doc.as_deref(),
                     );
                 } else {
                     // Runes mode, TS syntax, no generics — the most common path.
@@ -2099,6 +2288,10 @@ pub fn svelte2tsx(
                     // top-level await (hasTopLevelAwait); `render_call` is `$$$render`
                     // in that case, `$$render()` otherwise.
                     closing.push_str(await_declaration);
+                    if let Some(ref doc) = component_doc {
+                        closing.push_str(doc);
+                        closing.push('\n');
+                    }
                     let _ = writeln!(
                         closing,
                         "const {} = __sveltets_2_fn_component({});",
@@ -2209,6 +2402,10 @@ pub fn svelte2tsx(
                 closing.push_str("}\n");
 
                 // Component export
+                if let Some(ref doc) = component_doc {
+                    closing.push_str(doc);
+                    closing.push('\n');
+                }
                 let _ = writeln!(
                     closing,
                     "const {}: $$IsomorphicComponent = null as any;",
@@ -2238,6 +2435,10 @@ pub fn svelte2tsx(
                 } else {
                     "__sveltets_2_isomorphic_component"
                 };
+                if let Some(ref doc) = component_doc {
+                    closing.push_str(doc);
+                    closing.push('\n');
+                }
                 let _ = writeln!(
                     closing,
                     "const {} = {}({});",
@@ -2324,6 +2525,7 @@ fn emit_runes_generics_component(
     has_slot_elements: bool,
     has_events: bool,
     props_is_empty: bool,
+    component_doc: Option<&str>,
 ) {
     let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
     let _ = writeln!(
@@ -2385,6 +2587,10 @@ fn emit_runes_generics_component(
     );
     closing.push_str("}\n");
 
+    if let Some(doc) = component_doc {
+        closing.push_str(doc);
+        closing.push('\n');
+    }
     let _ = writeln!(
         closing,
         "const {safe_name}: $$IsomorphicComponent = null as any;"
@@ -3140,12 +3346,24 @@ fn is_snippet_module_hoistable(
     // instance-script value (and isn't an import or a snippet param) blocks
     // hoisting.
     //
+    // We use `lexical_identifiers_in_expressions` (identifiers inside `{...}` blocks)
+    // rather than `lexical_identifiers` to avoid false positives from HTML attribute
+    // NAMES like `data-state` (where `data` or `state` follow a `-` and are not JS
+    // references).  Periscopic's scope analysis only sees JS AST nodes, not attribute
+    // name strings, so this is the correct approximation.
+    //
     // `$name` references trigger auto-store subscription; the JS reference
     // adds the un-prefixed `name` to `disallowed_values` via
     // `addDisallowed(getAccessedStores())`, so any `$name` whose underlying
     // `name` is bound in the instance script (value OR import) also blocks.
-    for ident in lexical_identifiers(body_text) {
-        if params_set.contains(&ident) {
+    // Collect the snippet body's expression-context identifiers ONCE — we use
+    // `lexical_identifiers_in_expressions` (only identifiers inside `{...}`
+    // blocks) rather than the general `lexical_identifiers` to avoid false
+    // positives from HTML attribute names like `data-state` (where `state`
+    // follows a `-` and is not a JS reference). Both checks below iterate it.
+    let body_idents = lexical_identifiers_in_expressions(body_text);
+    for ident in &body_idents {
+        if params_set.contains(ident) {
             continue;
         }
         if let Some(stripped) = ident.strip_prefix('$')
@@ -3163,12 +3381,37 @@ fn is_snippet_module_hoistable(
                 return false;
             }
         }
-        if exported_names.instance_value_names.contains(&ident)
-            && !exported_names.instance_import_names.contains(&ident)
+
+        if exported_names.instance_value_names.contains(ident)
+            && !exported_names.instance_import_names.contains(ident)
         {
             return false;
         }
     }
+
+    // Additional check: JS reference's `addDisallowed(implicitStoreValues.getAccessedStores())`
+    // adds the base names of ALL `$X` identifiers found in the instance script (the `is_rune`
+    // filter is broken in JS due to TypeScript parent pointers not being set, so `$props`,
+    // `$bindable`, etc. always land in `accessedStores`).  If any such base name `X` appears
+    // as a plain identifier in the snippet body's EXPRESSION context, hoisting is blocked.
+    //
+    // E.g. `{#snippet Tree}` that contains `{#snippet child({ props })}` has `props` inside
+    // a `{...}` expression block.  Meanwhile `$props()` in the instance script means `props`
+    // is in `disallowed_values` (JS) / `instance_script_loose_dollar_names` (Rust). → blocked.
+    if !exported_names.instance_script_loose_dollar_names.is_empty() {
+        for ident in &body_idents {
+            if params_set.contains(ident) {
+                continue;
+            }
+            if exported_names
+                .instance_script_loose_dollar_names
+                .contains(ident)
+            {
+                return false;
+            }
+        }
+    }
+
     true
 }
 
@@ -3224,6 +3467,87 @@ fn lexical_identifiers(text: &str) -> Vec<String> {
     out
 }
 
+/// Extract identifiers that appear inside Svelte template expression blocks
+/// (`{...}` / `{#...}` / `{:...}` / `{/...}` / `{@...}`).
+///
+/// This is intentionally more conservative than `lexical_identifiers`: it only
+/// yields tokens found inside the `{ … }` delimiters of template tags, which
+/// is roughly what periscopic's JS AST scope analysis would see as free
+/// variables.  HTML attribute NAMES (e.g. the `state` in `data-state`) are
+/// outside these delimiters and therefore not returned, preventing false
+/// positives when checking `instance_script_loose_dollar_names`.
+fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+
+    while i < len {
+        if bytes[i] != b'{' {
+            i += 1;
+            continue;
+        }
+        // Found `{` — scan the delimited expression region.
+        i += 1; // skip `{`
+        let mut depth = 1usize;
+        let expr_start = i;
+        while i < len && depth > 0 {
+            let b = bytes[i];
+            match b {
+                b'{' => {
+                    depth += 1;
+                    i += 1;
+                }
+                b'}' => {
+                    depth -= 1;
+                    i += 1;
+                }
+                b'\'' | b'"' | b'`' => {
+                    let q = b;
+                    i += 1;
+                    while i < len && bytes[i] != q {
+                        if bytes[i] == b'\\' && i + 1 < len {
+                            i += 2;
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    if i < len {
+                        i += 1;
+                    }
+                }
+                b'/' if i + 1 < len && bytes[i + 1] == b'/' => {
+                    while i < len && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                }
+                b'/' if i + 1 < len && bytes[i + 1] == b'*' => {
+                    i += 2;
+                    while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        i += 1;
+                    }
+                    i = (i + 2).min(len);
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+        let expr_end = i.saturating_sub(1); // don't include the closing `}`
+        // `text.get(..)` rather than direct slicing: on a (parser-rejected)
+        // unterminated `{` whose body ends mid-multibyte-char, `expr_end` could
+        // land off a char boundary — fall through instead of panicking.
+        if expr_start < expr_end
+            && let Some(expr_text) = text.get(expr_start..expr_end)
+        {
+            for tok in lexical_identifiers(expr_text) {
+                out.push(tok);
+            }
+        }
+    }
+    out
+}
+
 /// Return true if `type_text` mentions any of `names` as a whole identifier
 /// (i.e. surrounded by non-identifier characters on both sides).
 ///
@@ -3260,6 +3584,63 @@ fn type_text_references_any(type_text: &str, names: &std::collections::HashSet<S
 #[inline]
 fn is_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+/// Return true if `type_text` contains a `typeof X` value-query whose root
+/// identifier `X` is a value **declared in the instance script** (and not an
+/// import).
+///
+/// This mirrors upstream's `HoistableInterfaces` hoistability test for the
+/// synthesised `$$ComponentProps` alias: a `typeof X` adds `X` to the props
+/// interface's `value_deps`, and the alias can only be hoisted above
+/// `function $$render()` when every value dep is an *allowed reference*
+/// (`isAllowedReference`) — i.e. NOT a locally-declared instance value. A
+/// `typeof` of an **imported** binding (e.g. `ComponentProps<typeof Button>`
+/// where `Button` is `import`ed) stays hoistable, because the import lives at
+/// module scope above `$$render`. The previous heuristic forced *every*
+/// `typeof` inside `$$render`, which wrongly nested the alias for the very
+/// common imported-component case.
+fn type_text_typeof_references_local_value(
+    type_text: &str,
+    instance_value_names: &std::collections::HashSet<String>,
+    instance_import_names: &std::collections::HashSet<String>,
+    module_import_names: &std::collections::HashSet<String>,
+) -> bool {
+    let bytes = type_text.as_bytes();
+    let kw = b"typeof";
+    let mut i = 0usize;
+    while i + kw.len() <= bytes.len() {
+        if &bytes[i..i + kw.len()] == kw {
+            let before_ok = i == 0 || !is_ident_char(bytes[i - 1]);
+            let mut j = i + kw.len();
+            // `typeof` must be followed by whitespace (a value query), not be a
+            // prefix of a longer identifier like `typeofX`.
+            let has_ws = j < bytes.len() && bytes[j].is_ascii_whitespace();
+            if before_ok && has_ws {
+                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+                // Capture the root identifier (stop at `.` / non-ident), e.g.
+                // `foo.bar.baz` -> `foo`.
+                let start = j;
+                while j < bytes.len() && is_ident_char(bytes[j]) {
+                    j += 1;
+                }
+                if j > start {
+                    let root = &type_text[start..j];
+                    let is_import =
+                        instance_import_names.contains(root) || module_import_names.contains(root);
+                    if !is_import && instance_value_names.contains(root) {
+                        return true;
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    false
 }
 
 /// Split a generics string like "T extends Record<string, any>, U" into
@@ -4813,9 +5194,296 @@ fn lazy_slice_references_rune_global(slice: &str) -> bool {
     false
 }
 
+// =============================================================================
+// Orphan-script detection (Step 7.48)
+// =============================================================================
+
+/// Collect start positions of every `RegularElement` named `"script"` anywhere
+/// in the fragment tree (including inside `{#if}`, `{#each}`, `<svelte:head>`,
+/// nested elements, etc.).
+fn collect_script_element_starts(
+    fragment: &crate::ast::template::Fragment,
+    out: &mut std::collections::HashSet<u32>,
+) {
+    use crate::ast::template::TemplateNode as N;
+    for node in &fragment.nodes {
+        match node {
+            N::RegularElement(e) => {
+                if e.name == "script" {
+                    out.insert(e.start);
+                }
+                collect_script_element_starts(&e.fragment, out);
+            }
+            N::Component(c) => collect_script_element_starts(&c.fragment, out),
+            N::SvelteComponent(c) => collect_script_element_starts(&c.fragment, out),
+            N::SvelteElement(e) => collect_script_element_starts(&e.fragment, out),
+            N::TitleElement(e) => collect_script_element_starts(&e.fragment, out),
+            N::SlotElement(e) => collect_script_element_starts(&e.fragment, out),
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => collect_script_element_starts(&e.fragment, out),
+            N::IfBlock(b) => {
+                collect_script_element_starts(&b.consequent, out);
+                if let Some(alt) = &b.alternate {
+                    collect_script_element_starts(alt, out);
+                }
+            }
+            N::EachBlock(b) => {
+                collect_script_element_starts(&b.body, out);
+                if let Some(fb) = &b.fallback {
+                    collect_script_element_starts(fb, out);
+                }
+            }
+            N::KeyBlock(b) => collect_script_element_starts(&b.fragment, out),
+            N::SnippetBlock(b) => collect_script_element_starts(&b.body, out),
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    collect_script_element_starts(f, out);
+                }
+                if let Some(f) = &b.then {
+                    collect_script_element_starts(f, out);
+                }
+                if let Some(f) = &b.catch {
+                    collect_script_element_starts(f, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Collect (start, end) ranges of every `HtmlTag` (`{@html}`) node anywhere
+/// in the fragment tree. A `<script>` inside a HtmlTag expression is NOT an
+/// orphan — it's already handled by the `{@html}` output.
+fn collect_html_tag_ranges(fragment: &crate::ast::template::Fragment, out: &mut Vec<(u32, u32)>) {
+    use crate::ast::template::TemplateNode as N;
+    for node in &fragment.nodes {
+        match node {
+            N::HtmlTag(h) => {
+                out.push((h.start, h.end));
+            }
+            N::RegularElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::Component(c) => collect_html_tag_ranges(&c.fragment, out),
+            N::SvelteComponent(c) => collect_html_tag_ranges(&c.fragment, out),
+            N::SvelteElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::TitleElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::SlotElement(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::SvelteHead(e)
+            | N::SvelteFragment(e)
+            | N::SvelteBody(e)
+            | N::SvelteWindow(e)
+            | N::SvelteDocument(e)
+            | N::SvelteBoundary(e)
+            | N::SvelteOptions(e)
+            | N::SvelteSelf(e) => collect_html_tag_ranges(&e.fragment, out),
+            N::IfBlock(b) => {
+                collect_html_tag_ranges(&b.consequent, out);
+                if let Some(alt) = &b.alternate {
+                    collect_html_tag_ranges(alt, out);
+                }
+            }
+            N::EachBlock(b) => {
+                collect_html_tag_ranges(&b.body, out);
+                if let Some(fb) = &b.fallback {
+                    collect_html_tag_ranges(fb, out);
+                }
+            }
+            N::KeyBlock(b) => collect_html_tag_ranges(&b.fragment, out),
+            N::SnippetBlock(b) => collect_html_tag_ranges(&b.body, out),
+            N::AwaitBlock(b) => {
+                if let Some(f) = &b.pending {
+                    collect_html_tag_ranges(f, out);
+                }
+                if let Some(f) = &b.then {
+                    collect_html_tag_ranges(f, out);
+                }
+                if let Some(f) = &b.catch {
+                    collect_html_tag_ranges(f, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Find "orphan" `<script>…</script>` occurrences in `source` that the Svelte
+/// parser did NOT recognise as a real Script (instance/module) or as a
+/// `RegularElement` named `"script"`. These are typically `<script>` tags
+/// embedded inside attribute values (e.g. `href="</noscript><script>…"`) or
+/// inside template-literal expressions that the HTML parser terminated early.
+///
+/// Returns a list of `(start, end, inner_content)` triples, where `start`/`end`
+/// are byte offsets in `source` and `inner_content` is the raw text between
+/// `<script…>` and `</script>`.
+fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
+    // 1. Collect known "legitimate" script start positions and their full ranges.
+    let mut known_starts: std::collections::HashSet<u32> = std::collections::HashSet::default();
+    // Also collect ranges of instance/module scripts so we can skip `<script>`
+    // occurrences inside their string literals / template content.
+    let mut known_ranges: Vec<(u32, u32)> = Vec::new();
+    if let Some(inst) = &ast.instance {
+        known_starts.insert(inst.start);
+        known_ranges.push((inst.start, inst.end));
+    }
+    if let Some(module) = &ast.module {
+        known_starts.insert(module.start);
+        known_ranges.push((module.start, module.end));
+    }
+    collect_script_element_starts(&ast.fragment, &mut known_starts);
+
+    // 2. Collect HtmlTag ranges — a <script> inside {@html …} is not orphan.
+    let mut html_tag_ranges: Vec<(u32, u32)> = Vec::new();
+    collect_html_tag_ranges(&ast.fragment, &mut html_tag_ranges);
+
+    // 3. Scan the source for `<script` occurrences.
+    let bytes = source.as_bytes();
+    let mut result: Vec<(u32, u32, String)> = Vec::new();
+    // Lower-case ONCE (not per iteration). ASCII-lowercasing never changes byte
+    // length, so offsets into `source_lower` map 1:1 onto `source`.
+    let source_lower = source.to_ascii_lowercase();
+    let mut search: usize = 0;
+
+    while search < source.len() {
+        let Some(rel) = source_lower[search..].find("<script") else {
+            break;
+        };
+        let tag_start = (search + rel) as u32;
+
+        // Require a proper tag boundary after `<script` (6 bytes for "script").
+        let after_pos = tag_start as usize + 7; // skip '<' + "script"
+        let next_byte = bytes.get(after_pos).copied();
+        if !matches!(
+            next_byte,
+            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+        ) {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Skip if this is a recognised script/element node (exact start match).
+        if known_starts.contains(&tag_start) {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Skip if the tag start falls INSIDE an instance/module script range
+        // (e.g. `<script>` text inside a string literal in the script body).
+        if known_ranges
+            .iter()
+            .any(|&(s, e)| tag_start > s && tag_start < e)
+        {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Skip if the tag start falls inside a {@html …} range.
+        if html_tag_ranges
+            .iter()
+            .any(|&(s, e)| tag_start > s && tag_start < e)
+        {
+            search = tag_start as usize + 7;
+            continue;
+        }
+
+        // Find the matching `</script>` (case-insensitive).
+        let Some(close_rel) = source_lower[tag_start as usize..].find("</script>") else {
+            break; // unterminated — skip
+        };
+        let tag_end = tag_start + close_rel as u32 + 9; // 9 = len("</script>")
+
+        // Extract the inner content: everything between `>` of the open tag and
+        // `<` of `</script>`.
+        let open_gt = source[tag_start as usize..tag_end as usize]
+            .find('>')
+            .map(|p| tag_start as usize + p + 1)
+            .unwrap_or(tag_start as usize + 8); // fallback: after "<script>"
+        let inner = source[open_gt..tag_start as usize + close_rel].to_string();
+
+        result.push((tag_start, tag_end, inner));
+        search = tag_end as usize;
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
+
+    fn set(names: &[&str]) -> HashSet<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn typeof_local_value_blocks_hoist_but_import_does_not() {
+        // `typeof Button` where Button is imported → hoistable (false).
+        let imports = set(&["Button"]);
+        assert!(!type_text_typeof_references_local_value(
+            "ComponentProps<typeof Button>",
+            &set(&[]),
+            &imports,
+            &set(&[]),
+        ));
+        // `typeof localVal` where localVal is an instance-script value → block (true).
+        assert!(type_text_typeof_references_local_value(
+            "typeof localVal",
+            &set(&["localVal"]),
+            &set(&[]),
+            &set(&[]),
+        ));
+        // No `typeof` at all → false.
+        assert!(!type_text_typeof_references_local_value(
+            "{ a: string; b: number }",
+            &set(&["localVal"]),
+            &set(&[]),
+            &set(&[]),
+        ));
+        // A module-scope import via `typeof` is also hoistable (false).
+        assert!(!type_text_typeof_references_local_value(
+            "typeof ModuleThing",
+            &set(&[]),
+            &set(&[]),
+            &set(&["ModuleThing"]),
+        ));
+    }
+
+    #[test]
+    fn lexical_identifiers_in_expressions_only_reads_brace_blocks() {
+        // Identifiers inside `{...}` are returned; HTML attribute names like
+        // `data-state` (outside braces) are not — avoids false hoist-blocks.
+        let got = lexical_identifiers_in_expressions("<div data-state={open}>{value}</div>");
+        assert!(got.contains(&"open".to_string()), "{got:?}");
+        assert!(got.contains(&"value".to_string()), "{got:?}");
+        assert!(
+            !got.contains(&"state".to_string()),
+            "attr name skipped: {got:?}"
+        );
+        assert!(
+            !got.contains(&"data".to_string()),
+            "attr name skipped: {got:?}"
+        );
+        // Strings inside an expression are skipped; nested braces are balanced.
+        let got2 = lexical_identifiers_in_expressions("{ f({ a: 'literal' }) }");
+        assert!(got2.contains(&"f".to_string()), "{got2:?}");
+        assert!(got2.contains(&"a".to_string()), "{got2:?}");
+        assert!(
+            !got2.contains(&"literal".to_string()),
+            "string skipped: {got2:?}"
+        );
+    }
+
+    #[test]
+    fn lexical_identifiers_in_expressions_no_panic_on_unterminated_brace() {
+        // Defensive: an unterminated `{` ending mid-multibyte must not panic.
+        let _ = lexical_identifiers_in_expressions("{ x = \u{1F600}");
+        let _ = lexical_identifiers_in_expressions("{\u{30A2}");
+    }
 
     #[test]
     fn test_derive_component_name() {
