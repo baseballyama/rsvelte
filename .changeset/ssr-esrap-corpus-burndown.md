@@ -27,4 +27,9 @@ compiler / esrap, burning down the output-equality corpus:
 - Multi-line template-literal interiors in transformed `<script>` blocks are no
   longer re-indented (their content is part of the string value).
 - `bind:prop={() => get, set}` (SequenceExpression) bindings keep their source
-  position relative to `{...spread}` in `$.spread_props([…])`.
+  position relative to `{...spread}` in `$.spread_props([…])`, and their get/set
+  accessors reference the hoisted `bind_get()`/`bind_set($$value)` variables.
+- Event-handler attributes (`onclick={…}` etc.) are excluded from `<svelte:element>`
+  server spread attributes.
+- A `{#snippet}` body whose sole child is a standalone component/render-tag no
+  longer emits a trailing `<!---->` marker.
