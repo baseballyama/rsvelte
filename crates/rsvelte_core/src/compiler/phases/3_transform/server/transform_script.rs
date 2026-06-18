@@ -5292,6 +5292,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         Field(String),
         Method(Vec<String>),
         ArrowFn(Vec<String>),
+        /// A block or line comment that must be emitted verbatim without any
+        /// surrounding blank-line separators or semicolons.
+        Comment(Vec<String>),
     }
 
     #[derive(Debug, Clone)]
@@ -5334,6 +5337,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut in_plain_field = false;
     let mut plain_field_lines: Vec<String> = Vec::new();
     let mut plain_field_depth: i32 = 0;
+
+    // For block comments (`/** … */` / `/* … */`) inside class bodies: accumulate
+    // lines until the closing `*/` and push them as a `ClassMember::Comment` so the
+    // emitter writes them verbatim, without appending `;` to each line (the Field
+    // emitter would otherwise turn `/**` into `/**;` etc.).
+    let mut in_block_comment = false;
+    let mut block_comment_lines: Vec<String> = Vec::new();
 
     let all_lines: Vec<&str> = class_body.lines().collect();
 
@@ -5477,7 +5487,40 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
+        // Accumulate a multi-line block comment (`/** … */` or `/* … */`).
+        // Comment lines must be emitted verbatim: the Field emitter would
+        // otherwise append `;` to every comment line.
+        if in_block_comment {
+            block_comment_lines.push(line.to_string());
+            if trimmed.contains("*/") {
+                in_block_comment = false;
+                members.push(ClassMember::Comment(block_comment_lines.clone()));
+                block_comment_lines.clear();
+            }
+            continue;
+        }
+
         if trimmed.is_empty() {
+            continue;
+        }
+
+        // Detect the start of a block comment that spans more than one line.
+        // Single-line `/* … */` comments are handled here too (the closing `*/`
+        // is on the same line so `in_block_comment` stays false after this).
+        if trimmed.starts_with("/*") {
+            if trimmed.contains("*/") {
+                // Entire block comment fits on one line — emit verbatim.
+                members.push(ClassMember::Comment(vec![line.to_string()]));
+            } else {
+                in_block_comment = true;
+                block_comment_lines.clear();
+                block_comment_lines.push(line.to_string());
+            }
+            continue;
+        }
+        // Single-line `//` comments: emit verbatim (no `;` should be added).
+        if trimmed.starts_with("//") {
+            members.push(ClassMember::Comment(vec![line.to_string()]));
             continue;
         }
 
@@ -5863,9 +5906,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         );
     }
 
+    // Track whether the previous emitted member was a `Comment` so that the
+    // Method emitter can skip its usual leading blank-line separator when a
+    // JSDoc comment directly precedes a method (matching upstream output).
+    let mut last_was_comment = false;
+
     for member in &members {
         match member {
             ClassMember::Field(line) => {
+                last_was_comment = false;
                 // Skip fields that have been converted to constructor-declared derived fields
                 // e.g., `product;` should be skipped when `this.product = $derived(...)` was found
                 let field_name = line
@@ -5985,9 +6034,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     }
                 }
 
-                new_class_body.push('\n');
+                // Skip the usual blank-line separator when a block comment
+                // directly precedes this method (the comment's trailing `\n`
+                // already provides the line break).
+                if !last_was_comment {
+                    new_class_body.push('\n');
+                }
                 new_class_body.push_str(&transformed);
                 new_class_body.push('\n');
+                last_was_comment = false;
             }
             ClassMember::ArrowFn(lines) => {
                 new_class_body.push('\n');
@@ -5995,6 +6050,16 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     new_class_body.push_str(line);
                     new_class_body.push('\n');
                 }
+                last_was_comment = false;
+            }
+            ClassMember::Comment(lines) => {
+                // Emit verbatim, no surrounding blank-line separators and
+                // absolutely no semicolons — comments are not statements.
+                for line in lines {
+                    new_class_body.push_str(line);
+                    new_class_body.push('\n');
+                }
+                last_was_comment = true;
             }
         }
     }
