@@ -788,6 +788,23 @@ impl Parser<'_> {
     /// Syntax: {#each expression as context}...{:else}...{/each}
     /// Or: {#each expression as context, index}...{/each}
     /// Or: {#each expression as context (key)}...{/each}
+    /// Whether `self.index` (positioned on a whitespace byte) begins a
+    /// `WS* as WS` run — the `as` alias separator of an `{#each … as …}` header.
+    /// Tolerates arbitrary whitespace (incl. newlines) on both sides so a
+    /// newline-split header parses like a single-spaced one.
+    fn looks_like_as_separator(&self) -> bool {
+        let mut j = self.index;
+        while j < self.bytes.len() && self.bytes[j].is_ascii_whitespace() {
+            j += 1;
+        }
+        self.bytes.get(j) == Some(&b'a')
+            && self.bytes.get(j + 1) == Some(&b's')
+            && self
+                .bytes
+                .get(j + 2)
+                .is_some_and(|c| c.is_ascii_whitespace())
+    }
+
     pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.skip_whitespace();
 
@@ -845,11 +862,16 @@ impl Parser<'_> {
                     }
                     depth -= 1;
                 }
-                b' ' if depth == 0 && self.match_str(" as ") => {
+                // The alias separator is the `as` keyword bounded by whitespace.
+                // Match it across *arbitrary* whitespace (including newlines), so
+                // a newline-split header like `{#each\ncats\nas\n{ id }\n}` parses
+                // the same as `{#each cats as { id }}`. We trigger on the first
+                // whitespace byte of the run and skip the whole `WS* as` so it
+                // is not re-scanned; the rightmost top-level `as` wins.
+                _ if depth == 0 && b.is_ascii_whitespace() && self.looks_like_as_separator() => {
                     last_as = Some(self.index);
-                    // Skip past this ` as ` and keep scanning. If there's a
-                    // later top-level ` as `, that one's the alias separator.
-                    self.index += 4;
+                    self.skip_whitespace();
+                    self.index += 2; // consume `as`
                     continue;
                 }
                 _ => {}
@@ -1025,8 +1047,12 @@ impl Parser<'_> {
             }))));
         }
 
-        // Consume " as "
-        self.advance_by(4);
+        // Consume the `as` keyword and the whitespace around it. `self.index`
+        // is at the start of the whitespace run preceding `as` (see
+        // `looks_like_as_separator`), which may be arbitrary whitespace
+        // (newline-split headers), so we can't assume a fixed-width ` as `.
+        self.skip_whitespace();
+        self.advance_by(2); // `as`
         self.skip_whitespace();
 
         // Parse the context (binding pattern)
