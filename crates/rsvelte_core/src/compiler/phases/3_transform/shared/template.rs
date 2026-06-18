@@ -91,7 +91,7 @@ pub fn sanitize_template_string(s: &str) -> String {
 /// Escape a string for use in a single-quoted JavaScript string literal.
 ///
 /// Mirrors esrap's `quote()` (esrap `src/languages/ts/index.js`) and the
-/// codegen-side [`escape_string_single`]: only the backslash, the quote
+/// codegen-side `escape_string_single`: only the backslash, the quote
 /// character, `\n` and `\r` are escaped. A tab (and other control characters)
 /// is emitted **literally** — escaping it as `\t` diverges from the official
 /// compiler's output (e.g. multi-line `class="…"` values keep their source
