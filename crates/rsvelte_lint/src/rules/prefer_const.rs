@@ -14,9 +14,12 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
+use rsvelte_core::ast::arena::with_serialize_arena;
+use rsvelte_core::ast::template::{DeclarationTag, Fragment, Root, TemplateNode};
+
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::script::{ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
@@ -163,6 +166,23 @@ fn walk_assignments(value: &Value, out: &mut HashSet<String>) {
                         }
                     }
                 }
+                // `for (x of …)` / `for (x in …)` where the left-hand side is
+                // a bare pattern (not a `VariableDeclaration`) reassigns the
+                // binding. Mirror what svelte-eslint-parser's scope analysis
+                // records as a write reference for the loop variable.
+                Some("ForOfStatement") | Some("ForInStatement") => {
+                    if let Some(left) = map.get("left")
+                        && node_type(left) != Some("VariableDeclaration")
+                    {
+                        let mut ids = Vec::new();
+                        collect_pattern_idents(left, &mut ids);
+                        for id in ids {
+                            if let Some(name) = ident_name(id) {
+                                out.insert(name.to_string());
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
             for child in map.values() {
@@ -225,6 +245,179 @@ fn collect_pattern_idents<'a>(id: &'a Value, out: &mut Vec<&'a Value>) {
     }
 }
 
+/// Scan the parsed script `program` for `for (x of …)` / `for (x in …)`
+/// statements where the left-hand side is a bare pattern (not a
+/// `VariableDeclaration`). Such loops reassign their binding, but the rsvelte
+/// scope builder does not currently mark those bindings as `reassigned` in the
+/// `analyze_scope` path. Call this after populating `reassigned` from either
+/// path to close the gap.
+/// Walk a template `Fragment` and collect all `DeclarationTag` nodes.
+fn collect_declaration_tags<'a>(fragment: &'a Fragment, out: &mut Vec<&'a DeclarationTag>) {
+    for node in &fragment.nodes {
+        walk_template_node_for_decl_tags(node, out);
+    }
+}
+
+fn walk_template_node_for_decl_tags<'a>(node: &'a TemplateNode, out: &mut Vec<&'a DeclarationTag>) {
+    match node {
+        TemplateNode::DeclarationTag(tag) => {
+            out.push(tag);
+        }
+        TemplateNode::IfBlock(b) => {
+            collect_declaration_tags(&b.consequent, out);
+            if let Some(alt) = &b.alternate {
+                collect_declaration_tags(alt, out);
+            }
+        }
+        TemplateNode::EachBlock(b) => {
+            collect_declaration_tags(&b.body, out);
+            if let Some(fb) = &b.fallback {
+                collect_declaration_tags(fb, out);
+            }
+        }
+        TemplateNode::AwaitBlock(b) => {
+            if let Some(f) = &b.pending {
+                collect_declaration_tags(f, out);
+            }
+            if let Some(f) = &b.then {
+                collect_declaration_tags(f, out);
+            }
+            if let Some(f) = &b.catch {
+                collect_declaration_tags(f, out);
+            }
+        }
+        TemplateNode::KeyBlock(b) => {
+            collect_declaration_tags(&b.fragment, out);
+        }
+        TemplateNode::SnippetBlock(b) => {
+            collect_declaration_tags(&b.body, out);
+        }
+        _ => {}
+    }
+}
+
+/// Report `{let x = …}` declaration tags in the template whose binding is
+/// never reassigned — mirrors what the oracle's ESLint core `prefer-const`
+/// rule does for `VariableDeclaration { kind: "let" }` nodes in the ESTree.
+///
+/// Returns a list of `(start, end, name, fix_start_opt)` tuples.
+fn check_template_declaration_tags(
+    source: &str,
+    reassigned: &HashSet<String>,
+    destructuring_all: bool,
+) -> Vec<(u32, u32, String, Option<u32>)> {
+    let Ok(root) = rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()) else {
+        return Vec::new();
+    };
+    let mut tags: Vec<&DeclarationTag> = Vec::new();
+    with_serialize_arena(&root.arena, || {
+        collect_declaration_tags(&root.fragment, &mut tags);
+    });
+
+    let mut reports = Vec::new();
+    for tag in &tags {
+        // Serialize the declaration expression to JSON so we can inspect its
+        // `kind`, `declarations`, and identifier positions.
+        let decl_json: Option<Value> =
+            with_serialize_arena(&root.arena, || serde_json::to_value(&tag.declaration).ok());
+        let Some(decl_json) = decl_json else {
+            continue;
+        };
+        // Only `let` declarations fire prefer-const.
+        if decl_json.get("kind").and_then(Value::as_str) != Some("let") {
+            continue;
+        }
+        let Some(declarators) = decl_json.get("declarations").and_then(Value::as_array) else {
+            continue;
+        };
+
+        let mut decl_idents: Vec<(u32, u32, String)> = Vec::new(); // (start, end, name)
+        let mut all_const_able = true;
+        let mut every_declarator_has_init = true;
+
+        for d in declarators {
+            let has_init = d.get("init").is_some_and(|i| !i.is_null());
+            if !has_init {
+                every_declarator_has_init = false;
+            }
+            let mut ids = Vec::new();
+            if let Some(id) = d.get("id") {
+                collect_pattern_idents(id, &mut ids);
+            }
+            for id in ids {
+                let name = ident_name(id).unwrap_or("").to_string();
+                let is_reassigned = reassigned.contains(&name);
+                if has_init && !is_reassigned {
+                    let start = node_start(id);
+                    let end = id.get("end").and_then(Value::as_u64).map(|e| e as u32);
+                    if let (Some(s), Some(e)) = (start, end) {
+                        decl_idents.push((s, e, name));
+                    }
+                } else {
+                    all_const_able = false;
+                }
+            }
+        }
+        if decl_idents.is_empty() {
+            continue;
+        }
+        if destructuring_all && !all_const_able {
+            continue;
+        }
+        let fixable = every_declarator_has_init && all_const_able;
+        // The `let` keyword position within the tag: scan forward from tag.start
+        // for the first `l` that starts `let`.
+        let fix_start = if fixable {
+            // Find the `let` keyword start by scanning from tag.start.
+            let src_bytes = source.as_bytes();
+            let mut pos = tag.start as usize;
+            let end = (tag.end as usize).min(src_bytes.len());
+            loop {
+                if pos + 3 > end {
+                    break None;
+                }
+                if &src_bytes[pos..pos + 3] == b"let" {
+                    break Some(pos as u32);
+                }
+                pos += 1;
+            }
+        } else {
+            None
+        };
+        for (s, e, name) in decl_idents {
+            reports.push((
+                s,
+                e,
+                format!("'{name}' is never reassigned. Use 'const' instead."),
+                fix_start,
+            ));
+        }
+    }
+    reports
+}
+
+fn collect_forin_forof_reassignments(program: &Value, out: &mut HashSet<String>) {
+    walk_js(program, |node, _| {
+        let ty = node_type(node);
+        if !matches!(ty, Some("ForOfStatement") | Some("ForInStatement")) {
+            return;
+        }
+        if let Some(left) = node.get("left") {
+            // Only bare patterns — skip `for (const/let/var x of …)`.
+            if node_type(left) == Some("VariableDeclaration") {
+                return;
+            }
+            let mut ids = Vec::new();
+            collect_pattern_idents(left, &mut ids);
+            for id in ids {
+                if let Some(name) = ident_name(id) {
+                    out.insert(name.to_string());
+                }
+            }
+        }
+    });
+}
+
 #[derive(Default)]
 pub struct PreferConst;
 
@@ -270,6 +463,19 @@ impl ScriptRule for PreferConst {
         // the template for `name = …` / `name++` whose LHS is a plain
         // identifier, and folding those names into the not-const-able set.
         collect_template_reassignments(ctx.source(), &mut reassigned);
+        // `for (x of …)` / `for (x in …)` with a bare pattern (not
+        // `VariableDeclaration`) reassign the binding. The rsvelte scope builder
+        // does not mark those as `reassigned`; close the gap by scanning the
+        // script program directly.
+        collect_forin_forof_reassignments(program, &mut reassigned);
+        // The `analyze_scope` path only provides ROOT-scope bindings. Inner-scope
+        // bindings (e.g., `let p = 0` inside a for-loop inside a callback) are
+        // not in `root.bindings`, so their reassignment (`p += 4`) is not in the
+        // `reassigned` set. The `check_program` walk finds them as `let`
+        // declarations and incorrectly flags them. Close the gap by also scanning
+        // the script for any assignment expressions (supplementary pass; only adds
+        // to the set, never removes).
+        walk_assignments(program, &mut reassigned);
 
         let opts = ctx.option0();
         let excluded: Vec<String> = opts
@@ -375,6 +581,17 @@ impl ScriptRule for PreferConst {
             }
         });
 
+        // Also check template `{let x = …}` declaration tags. The oracle's
+        // ESLint core `prefer-const` treats them as ordinary `let` declarations
+        // in the ESTree, so we replicate that by checking the template separately.
+        // Only run for the instance script (or when there's no instance script)
+        // to avoid double-reporting when both instance and module scripts exist.
+        if kind == ScriptKind::Instance {
+            let tag_reports =
+                check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);
+            reports.extend(tag_reports);
+        }
+
         for (start, end, msg, fix_start) in reports {
             match fix_start {
                 Some(decl_start) => ctx.report_with_fix(
@@ -386,6 +603,54 @@ impl ScriptRule for PreferConst {
                         edits: vec![TextEdit {
                             start: decl_start,
                             end: decl_start + 3, // the `let` keyword
+                            new_text: "const".to_string(),
+                        }],
+                    },
+                ),
+                None => ctx.report(start, end, msg),
+            }
+        }
+    }
+}
+
+/// `Rule` implementation for `PreferConst` — handles template-only files (no
+/// `<script>` block) where `ScriptRule::check_program` never fires. When the
+/// root HAS a script block, the `check_program` path already covers the template
+/// declaration tags, so `check_root` is a no-op in that case.
+impl Rule for PreferConst {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        // If there is an instance or module script, `check_program` handles the
+        // template tags. Only proceed for script-less files.
+        if root.instance.is_some() || root.module.is_some() {
+            return;
+        }
+        let opts = ctx.option0();
+        let destructuring_all = opts
+            .and_then(|o| o.get("destructuring"))
+            .and_then(Value::as_str)
+            == Some("all");
+
+        // Build the reassigned set from the template itself.
+        let mut reassigned: HashSet<String> = HashSet::new();
+        collect_template_reassignments(ctx.source(), &mut reassigned);
+
+        let tag_reports =
+            check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);
+        for (start, end, msg, fix_start) in tag_reports {
+            match fix_start {
+                Some(decl_start) => ctx.report_with_fix(
+                    start,
+                    end,
+                    msg,
+                    Fix {
+                        message: "Use `const` instead.".to_string(),
+                        edits: vec![TextEdit {
+                            start: decl_start,
+                            end: decl_start + 3,
                             new_text: "const".to_string(),
                         }],
                     },

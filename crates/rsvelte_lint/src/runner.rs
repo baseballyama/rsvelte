@@ -81,6 +81,14 @@ pub fn lint_source(
                 ),
             );
 
+            // 2d2. block-lang fallback: for files the Svelte parser can't fully
+            // parse (e.g. unknown `<style lang="…">` bodies or invalid TypeScript),
+            // the normal `check_root` path is skipped. Run a source-scan instead
+            // to catch `<script lang="…">` / `<style lang="…">` violations.
+            diags.extend(
+                crate::rules::block_lang::block_lang_source_scan_diagnostics(source, file, config),
+            );
+
             // 2e. Cross-cutting (template + script) source-scan meta-rules.
             diags.extend(crate::rules::experimental_require_slot_types::diagnostics(
                 source, file, config,

@@ -18,8 +18,8 @@ use crate::rules::{
     no_raw_special_elements::NoRawSpecialElements,
     no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
     no_target_blank::NoTargetBlank, no_useless_children_snippet::NoUselessChildrenSnippet,
-    no_useless_mustaches::NoUselessMustaches, require_each_key::RequireEachKey,
-    valid_each_key::ValidEachKey,
+    no_useless_mustaches::NoUselessMustaches, prefer_const::PreferConst,
+    require_each_key::RequireEachKey, valid_each_key::ValidEachKey,
 };
 
 /// Every registered rule's `&'static RuleMeta`, across both the template-AST
@@ -31,11 +31,15 @@ use crate::rules::{
 /// surfaced everywhere (and subjected to upstream-fixture parity).
 #[cfg(feature = "native")]
 pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
+    // Deduplicate by name: a rule registered in both `all_rules()` and
+    // `all_script_rules()` (e.g. `prefer-const`) must appear only once.
+    let mut seen = std::collections::HashSet::new();
     all_rules()
         .iter()
         .map(|r| r.meta())
         .chain(all_script_rules().iter().map(|r| r.meta()))
         .chain(meta_rule_metas())
+        .filter(|m| seen.insert(m.name))
         .collect()
 }
 
@@ -117,6 +121,10 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::block_lang::BlockLang),
         Box::new(crate::rules::no_unused_class_name::NoUnusedClassName),
         Box::new(crate::rules::consistent_selector_style::ConsistentSelectorStyle),
+        // `PreferConst` also lives in `all_script_rules()` for the
+        // `check_program` path; the `Rule` implementation here adds
+        // `check_root` so template-only files (no `<script>`) are covered.
+        Box::new(PreferConst),
     ]
 }
 

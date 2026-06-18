@@ -12,15 +12,21 @@
 //! Port of `eslint-plugin-svelte/src/rules/block-lang.ts`.
 //! Upstream: `meta.type = 'suggestion'`, `hasSuggestions: true`.
 
+use std::path::Path;
+
 use rsvelte_core::ast::css::StyleSheet;
 use rsvelte_core::ast::template::{
     AttributeNode, AttributeValue, AttributeValuePart, Root, Script,
 };
+use rsvelte_core::svelte_check::diagnostic::{Diagnostic, Position, Range};
 use serde_json::Value;
 
+use crate::config::LintConfig;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
+use crate::line_index::LineIndex;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::validator::to_dsev;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/block-lang",
@@ -455,4 +461,147 @@ fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> 
             }
         })
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Source-scan fallback for parse-failure files
+// ---------------------------------------------------------------------------
+
+/// Emit block-lang diagnostics via source scanning for files that the Svelte
+/// parser cannot fully parse (e.g. files with invalid CSS or TypeScript errors).
+/// When the parser succeeds, [`BlockLang::check_root`] handles the rule via the
+/// normal AST path and this function is a no-op (to avoid double-reporting).
+pub fn block_lang_source_scan_diagnostics(
+    source: &str,
+    file: &Path,
+    config: &LintConfig,
+) -> Vec<Diagnostic> {
+    let severity = config.resolve_code(META.name, META.default_severity);
+    if severity == Severity::Off {
+        return Vec::new();
+    }
+
+    // Only run when the full parse would fail — `check_root` covers success.
+    if rsvelte_core::parse(source, rsvelte_core::ParseOptions::default()).is_ok() {
+        return Vec::new();
+    }
+
+    let opts = config.options_for(META.name);
+    let allowed_script = parse_lang_option(opts, "script");
+    let allowed_style = parse_lang_option(opts, "style");
+
+    let li = LineIndex::new(source);
+    let mut out = Vec::new();
+
+    // Check <script> blocks.
+    for block in crate::svelte_scan::script_blocks(source) {
+        let attrs = &block.open_tag_attrs;
+        let lang = crate::svelte_scan::attr_value(attrs, "lang");
+        let actual_opt: Option<String> = lang.map(|s| s.to_lowercase());
+        let allowed_lc: Vec<Option<String>> = allowed_script
+            .iter()
+            .map(|l| l.as_ref().map(|s| s.to_lowercase()))
+            .collect();
+        if !allowed_lc.contains(&actual_opt) {
+            let msg = format!(
+                "The lang attribute of the <script> block should be {}.",
+                pretty_print_langs(&allowed_script)
+            );
+            let (line, column) = li.position(block.tag_start as u32);
+            out.push(Diagnostic {
+                file: file.to_path_buf(),
+                severity: to_dsev(severity),
+                range: Some(Range {
+                    start: Position { line, column },
+                    end: Position { line, column },
+                }),
+                message: msg,
+                code: Some(META.name.to_string()),
+                source: "svelte",
+            });
+        }
+    }
+
+    // Check <style> block.
+    for (tag_start, lang) in style_scan(source) {
+        let actual_opt: Option<String> = if lang.is_empty() {
+            None
+        } else {
+            Some(lang.to_lowercase())
+        };
+        let allowed_lc: Vec<Option<String>> = allowed_style
+            .iter()
+            .map(|l| l.as_ref().map(|s| s.to_lowercase()))
+            .collect();
+        if !allowed_lc.contains(&actual_opt) {
+            let msg = format!(
+                "The lang attribute of the <style> block should be {}.",
+                pretty_print_langs(&allowed_style)
+            );
+            let (line, column) = li.position(tag_start);
+            out.push(Diagnostic {
+                file: file.to_path_buf(),
+                severity: to_dsev(severity),
+                range: Some(Range {
+                    start: Position { line, column },
+                    end: Position { line, column },
+                }),
+                message: msg,
+                code: Some(META.name.to_string()),
+                source: "svelte",
+            });
+        }
+    }
+
+    out
+}
+
+/// Yield `(tag_start_byte, lang)` for every `<style …>` element. `lang` is the
+/// value of a `lang` attribute, or `""` (plain CSS) when absent. Mirrors the
+/// scanner in `valid_style_parse.rs`.
+fn style_scan(source: &str) -> Vec<(u32, String)> {
+    let bytes = source.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + 6 <= bytes.len() {
+        if &bytes[i..i + 6] != b"<style" {
+            i += 1;
+            continue;
+        }
+        let after = bytes.get(i + 6).copied();
+        if !matches!(after, Some(c) if c == b' ' || c == b'\t' || c == b'\n' || c == b'\r' || c == b'>' || c == b'/')
+        {
+            i += 6;
+            continue;
+        }
+        // Read the start tag up to `>`, tracking quotes.
+        let mut j = i + 6;
+        let mut quote: Option<u8> = None;
+        let mut tag_end = None;
+        while j < bytes.len() {
+            let c = bytes[j];
+            match quote {
+                Some(q) => {
+                    if c == q {
+                        quote = None;
+                    }
+                }
+                None => {
+                    if c == b'"' || c == b'\'' {
+                        quote = Some(c);
+                    } else if c == b'>' {
+                        tag_end = Some(j);
+                        break;
+                    }
+                }
+            }
+            j += 1;
+        }
+        let Some(tag_end) = tag_end else { break };
+        let lang =
+            crate::svelte_scan::attr_value(&source[i + 6..tag_end], "lang").unwrap_or_default();
+        out.push((i as u32, lang));
+        i = tag_end + 1;
+    }
+    out
 }
