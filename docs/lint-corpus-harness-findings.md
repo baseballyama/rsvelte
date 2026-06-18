@@ -130,4 +130,31 @@ is justified by an upstream inconsistency, NOT an rsvelte defect — see
 `eslint_plugin_oracle` gate continues to assert the (authoritative) flagging
 behaviour, so rsvelte stays correct.
 
+## H5 — `comment-directive` reportUnusedDisableDirectives on a core ESLint rule (capability gap, EXCLUDED)
+
+**Symptom:** 1 false negative — the oracle reports an
+`<!-- eslint-disable-next-line no-undef -->` as *unused* (the
+`reportUnusedDisableDirectives` doc fixture), rsvelte does not.
+
+**Root cause:** ESLint decides a disable is unused by checking whether the
+disabled rule produced an error on that line. For a **core** ESLint rule like
+`no-undef` — which rsvelte does not implement — rsvelte always sees zero
+findings, so it cannot distinguish "the rule ran and found nothing"
+(→ unused) from "the rule would have fired but we never ran it" (→ used). The
+rule (`comment_directive.rs`) therefore deliberately stays silent for
+unimplemented targets to avoid a false positive.
+
+**Verification:** removing that guard does fire the missed report — but it
+simultaneously introduces a **real FP** on the very next directive in the same
+fixture (`comment-directive.md/4.svelte`), whose line 8 has an undefined
+variable, so the oracle's `no-undef` fires and the disable is genuinely *used*.
+The FN↔FP trade-off confirms the guard is correct and the case is not
+comparable without running core ESLint rules.
+
+**Resolution:** same class as the type-aware rules — excluded at the
+finding level via `MANUAL_EXCLUSIONS` in `lint-verify.mjs` (the svelte/* unused
+-directive behaviour stays compared; only this single core-rule finding is
+dropped). Not an rsvelte defect; not an upstream defect — an inherent scope
+boundary of a svelte-only linter.
+
 <!-- Add further harness/upstream findings below as the burn-down continues. -->

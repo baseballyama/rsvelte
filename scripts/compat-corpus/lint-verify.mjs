@@ -73,11 +73,14 @@ const EXCLUDE = new Set([
 	'svelte/valid-style-parse'
 ]);
 
-// Individual findings that are irreconcilable for a reason OUTSIDE rsvelte's
-// control — NOT a place to hide real divergences. Each entry is a full
-// `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and must carry a
-// documented justification (see docs/lint-corpus-harness-findings.md).
-const VERSION_ARTIFACTS = new Set([
+// Individual findings excluded for a structural reason OUTSIDE rsvelte's
+// control (a version skew in the oracle's tooling, or a capability rsvelte does
+// not implement) — the finding-scoped analogue of the per-rule `EXCLUDE` above,
+// NOT a place to hide real divergences. Each entry is a full
+// `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and MUST carry a
+// documented justification (see docs/lint-corpus-harness-findings.md and
+// docs/upstream-issues.md).
+const MANUAL_EXCLUSIONS = new Set([
 	// H4 — `globals` version split on `localStorage`/`navigator`/`sessionStorage`.
 	// The corpus oracle runs eslint-plugin-svelte against globals@16.5, where
 	// these are node-available, so upstream's `getBrowserGlobals()` (browser ∖
@@ -88,7 +91,20 @@ const VERSION_ARTIFACTS = new Set([
 	// (live globals vs bundled fixtures) disagree; rsvelte matches the
 	// authoritative fixtures. Reported upstream — see the harness-findings doc.
 	'eslint-plugin-svelte/docs/rules/no-top-level-browser-globals.md/1.svelte|+svelte/no-top-level-browser-globals\t25:13\tUnexpected top-level browser global variable "localStorage".',
-	'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".'
+	'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".',
+
+	// `comment-directive` reportUnusedDisableDirectives on a CORE ESLint rule.
+	// The oracle reports an `eslint-disable-next-line no-undef` as unused because
+	// it RAN `no-undef` and it produced no error. rsvelte implements only
+	// `svelte/*` rules, so it cannot tell "no-undef ran and found nothing"
+	// (→ unused) from "no-undef would have fired but we never ran it" (→ used) —
+	// it deliberately stays silent for unimplemented targets to avoid the FP
+	// (verified: removing that guard trades this FN for a real FP on the very
+	// next directive in the same fixture, line 8 having an undefined variable).
+	// Same class as the type-aware `EXCLUDE` rules: not comparable without a
+	// capability rsvelte does not have. The svelte/* unused-directive behaviour
+	// IS still compared (only this single core-rule finding is excluded).
+	"eslint-plugin-svelte/docs/rules/comment-directive.md/4.svelte|-svelte/comment-directive\t11:31\tUnused eslint-disable-next-line directive (no problems were reported from 'no-undef')."
 ]);
 
 function findBinary() {
@@ -238,8 +254,8 @@ function main() {
 		for (const k of rset) if (!oset.has(k)) diffs.push(`${id}|+${k}`); // false positive
 		for (const k of oset) if (!rset.has(k)) diffs.push(`${id}|-${k}`); // false negative
 	}
-	// Drop documented version-artifact findings (outside rsvelte's control).
-	const filtered = diffs.filter((d) => !VERSION_ARTIFACTS.has(d));
+	// Drop documented finding-level exclusions (version skew / capability gap).
+	const filtered = diffs.filter((d) => !MANUAL_EXCLUSIONS.has(d));
 	diffs.length = 0;
 	diffs.push(...filtered);
 	diffs.sort();
