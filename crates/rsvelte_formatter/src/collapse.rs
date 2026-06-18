@@ -1296,7 +1296,8 @@ fn try_collapse(
                 result.push_str(&inner_indent);
                 result.push_str(line);
             }
-            result.push_str(&format!("</{tag}\n{close_indent}>"));
+            use std::fmt::Write as _;
+            let _ = write!(result, "</{tag}\n{close_indent}>");
             return (result != whole).then_some((start, end, result));
         }
         // Same-line hug for single-line open tags: only when the element is at
@@ -2202,12 +2203,30 @@ fn try_hug_mixed(
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
 
-    // Must be mixed (≥1 non-text child) and entirely inline (no comments).
+    // Must be mixed (≥1 non-text child). Comments are always line boundaries.
+    // Flow-block children (IfBlock/EachBlock/…) are not inline nodes but are
+    // allowed here: when a non-block element contains a flow block, prettier
+    // force-breaks it with the hug form even when it would fit on one line
+    // (prettier's `forceBreakContent` / `breakParent` for flow blocks).
     let mut has_non_text = false;
+    let mut has_flow_block = false;
     for n in &fragment.nodes {
         if !matches!(n, TemplateNode::Text(_)) {
             has_non_text = true;
-            if matches!(n, TemplateNode::Comment(_)) || !is_inline_node(n) {
+            if matches!(n, TemplateNode::Comment(_)) {
+                return None;
+            }
+            let is_flow = matches!(
+                n,
+                TemplateNode::IfBlock(_)
+                    | TemplateNode::EachBlock(_)
+                    | TemplateNode::AwaitBlock(_)
+                    | TemplateNode::KeyBlock(_)
+                    | TemplateNode::SnippetBlock(_)
+            );
+            if is_flow {
+                has_flow_block = true;
+            } else if !is_inline_node(n) {
                 return None;
             }
         }
@@ -2295,8 +2314,22 @@ fn try_hug_mixed(
     }
 
     let element_one_line = column + open.width() + raw.width() + close.width();
-    if element_one_line <= line_width {
-        return None; // fits as-is
+    if element_one_line <= line_width && !has_flow_block {
+        return None; // fits as-is (and no forced break needed)
+    }
+
+    // When a flow block child forces a break and the open tag is single-line,
+    // apply the hug form directly. The content (including flow blocks like
+    // `{#if}`) stays verbatim on the inner-indent line — the Doc IR path below
+    // can't handle flow block children (build_children_doc returns None for them),
+    // so this is the only path that produces the correct hug form.
+    // Limit this to cases where the content fits on the inner-indent line so we
+    // don't produce overflowing output.
+    if has_flow_block && !open.contains('\n') {
+        let inner_indent = format!("{indent}  ");
+        let open_no_bracket = &open[..open.len() - 1];
+        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        return (result != whole).then_some((start, end, result));
     }
 
     // Build prettier's `hugStart && hugEnd` element doc and let the printer make
@@ -2436,7 +2469,23 @@ fn try_fill_mixed(
                 return (one_line != whole).then_some((start, end, one_line));
             }
         }
-        return None;
+        // For a block-display element with multiple inline children (expression
+        // tags separated by space text nodes, e.g. `<p>{a} {b} {c}…</p>`) that
+        // overflows 80 cols: fall through to the doc-print break path so each
+        // child lands on its own indented line. A single child is handled more
+        // precisely by `try_break_content_tag_block` (which also reformats the
+        // inner expression), so gate on >1 meaningful child.
+        let non_ws_child_count = fragment
+            .nodes
+            .iter()
+            .filter(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+            .count();
+        let element_one_line = column + open.width() + flat.width() + close.width();
+        if is_block_display(tag) && non_ws_child_count > 1 && element_one_line > line_width {
+            // Fall through to the doc-print break path below.
+        } else {
+            return None;
+        }
     }
 
     if !flat.contains('\n') {

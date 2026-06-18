@@ -15,7 +15,6 @@
 	"flowbite-svelte/src/routes/docs-examples/components/drawer/Top.svelte",
 	"flowbite-svelte/src/routes/docs-examples/components/popover/Description.svelte",
 	"flowbite-svelte/src/routes/docs-examples/components/timeline/TimelineColor.svelte",
-	"flowbite-svelte/src/routes/docs-examples/extend/step-indicator/ClickableForm.svelte",
 	"flowbite-svelte/src/routes/docs-examples/typography/text/TextDecoration.svelte",
 	"flowbite-svelte/src/routes/docs-examples/typography/text/Underline.svelte",
 	"flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/Installcommand copy.svelte",
@@ -46,8 +45,6 @@
 	"svelte/packages/svelte/tests/css/samples/general-siblings-combinator-nested-slots-flattened/input.svelte",
 	"svelte/packages/svelte/tests/css/samples/siblings-combinator-nested-slots-flattened/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
-	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/input.svelte",
-	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/output.svelte",
 	"svelte/packages/svelte/tests/print/samples/formatting/input.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/html-tag-script-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-group-each-15/main.svelte",
@@ -56,6 +53,5 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/async-dont-rebase-new-batch-4/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-template/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte",
-	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
-	"svelte/packages/svelte/tests/validator/samples/a11y-label-has-associated-control/input.svelte"
+	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte"
 ]

@@ -443,7 +443,8 @@ fn push_close_tag(
             {
                 // The last edit is the open-tag replacement `(start, element_end,
                 // rendered_open)` — append `</tag>` to its replacement text.
-                last.2.push_str(&format!("</{tag_name}>"));
+                use std::fmt::Write as _;
+                let _ = write!(last.2, "</{tag_name}>");
             } else {
                 // Fallback: just insert at element_end (may conflict in rare
                 // cases but safe enough for normal source).
@@ -469,7 +470,9 @@ fn push_close_tag(
             // Only apply when ALL trailing bytes are ASCII whitespace — if
             // non-whitespace bytes are present the element has actual trailing
             // content (e.g. `<li>text more</ul>`) that we must not remove.
-            let trailing_ws_only = bytes[..end_idx].iter().rev()
+            let trailing_ws_only = bytes[..end_idx]
+                .iter()
+                .rev()
                 .take_while(|&&b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
                 .count();
             if trailing_ws_only > 0 {
@@ -481,7 +484,11 @@ fn push_close_tag(
                 // indent edit is skipped, so the newline + indent here is
                 // the only whitespace emitted before the close tag.
                 let parent_indent = indent_str(depth, &options.js);
-                edits.push((content_end, element_end, format!("\n{parent_indent}</{tag_name}>")));
+                edits.push((
+                    content_end,
+                    element_end,
+                    format!("\n{parent_indent}</{tag_name}>"),
+                ));
             }
         }
         return;
@@ -569,7 +576,8 @@ fn find_any_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)>
         i = i.checked_sub(1)?;
     }
     // Skip the tag name (alphanumeric / hyphen / colon / dot for custom elements).
-    while i > 0 && matches!(bytes[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b':' | b'.') {
+    while i > 0 && matches!(bytes[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b':' | b'.')
+    {
         i -= 1;
     }
     let slash = i;
