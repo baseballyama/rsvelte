@@ -2306,8 +2306,21 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
     let mut imports = Vec::new();
     let mut rest = String::new();
     let mut current_import: Option<Vec<String>> = None;
+    // Track whether we are inside a template literal across lines.
+    // A line that lies inside a template literal must not be treated as an
+    // import statement even if it starts with `import ` (e.g. a string that
+    // contains example code: `` `import { ${x} } from 'svelte/transition'` ``).
+    // We count unbalanced backticks (outside single/double quotes) to decide.
+    let mut in_template_literal = false;
 
     for line in script.lines() {
+        // Snapshot the template-literal state at the START of this line.  The
+        // state we need for the import-guard check is "were we already inside a
+        // template literal before this line began?".  We then advance the state
+        // for the next iteration.
+        let was_in_template_literal = in_template_literal;
+        in_template_literal = update_template_literal_state_for_indent(line, in_template_literal);
+
         if let Some(ref mut import_lines) = current_import {
             // We're inside a multi-line import. The closing line may carry
             // trailing statements after the import terminator; split them off.
@@ -2338,7 +2351,18 @@ fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<Strin
             }
         } else {
             let trimmed = line.trim();
-            if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
+            // A line that starts with `import` but is inside a template literal
+            // (e.g. example code embedded in a template string) is NOT a real
+            // import and must be routed to `rest`.  Also skip any line whose
+            // potential import-path contains a template interpolation `${…}` —
+            // static import paths cannot have interpolations, so the line is
+            // template-literal content leaking through line-by-line scanning.
+            let is_template_content =
+                was_in_template_literal || memmem::find(trimmed.as_bytes(), b"${").is_some();
+
+            if !is_template_content
+                && (trimmed.starts_with("import ") || trimmed.starts_with("import{"))
+            {
                 if trimmed.contains(';')
                     || is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
@@ -3634,6 +3658,83 @@ mod collapse_destructuring_tests {
         assert!(
             !result.contains("Checkbox.GroupProps"),
             "TS type annotation leaked into output: {result:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod extract_imports_template_literal_tests {
+    use super::extract_imports;
+
+    /// Bug A regression: a line inside a template literal that starts with
+    /// `import` and ends with a backtick must NOT be hoisted as an import.
+    ///
+    /// Reproducer: flowbite-svelte +page.svelte has
+    /// ```svelte
+    /// let importScript = currentTransition !== transitions[0]
+    ///   ? ` // script tag
+    ///         import { ${currentTransition} } from 'svelte/transition'`
+    ///   : "";
+    /// ```
+    /// The line `` import { ${currentTransition} } from 'svelte/transition'` ``
+    /// starts with `import `, has ` from `, and ends with `` ` ``, so it
+    /// accidentally matched the "complete import" heuristic. It must be routed
+    /// to the script body, not hoisted.
+    #[test]
+    fn template_literal_import_like_line_is_not_hoisted() {
+        let script = r#"
+import { blur } from 'svelte/transition';
+let importScript =
+    currentTransition !== transitions[0]
+        ? ` // script tag
+                import { ${currentTransition} } from 'svelte/transition'`
+        : "";
+"#;
+        let (imports, rest) = extract_imports(script);
+        // Only the real import should be hoisted
+        assert_eq!(
+            imports.len(),
+            1,
+            "expected 1 import, got {}: {:?}",
+            imports.len(),
+            imports
+        );
+        assert!(
+            imports[0].contains("svelte/transition"),
+            "hoisted import should be the real one: {:?}",
+            imports
+        );
+        // The template-literal line must appear in the rest body, not vanish
+        assert!(
+            rest.contains("import { ${currentTransition} }"),
+            "template-literal import-like line must remain in rest body: {rest:?}"
+        );
+    }
+
+    /// Lines entirely inside a multi-line template literal must not be treated
+    /// as imports even if they start with `import `.
+    #[test]
+    fn multiline_template_literal_body_not_hoisted() {
+        let script = r#"
+import { x } from './mod';
+const code = `
+import foo from 'bar';
+import baz from 'qux';
+`;
+"#;
+        let (imports, rest) = extract_imports(script);
+        // Only the single real import should be hoisted
+        assert_eq!(
+            imports.len(),
+            1,
+            "expected 1 import, got {}: {:?}",
+            imports.len(),
+            imports
+        );
+        // The template literal lines must survive in rest
+        assert!(
+            rest.contains("import foo from 'bar'"),
+            "template-literal body line must remain in rest: {rest:?}"
         );
     }
 }
