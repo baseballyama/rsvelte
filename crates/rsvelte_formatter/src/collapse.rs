@@ -380,6 +380,13 @@ fn is_run_member(out: &str, node: &TemplateNode) -> bool {
             out.get(node_start(node) as usize..node_end(node) as usize)
                 .is_some_and(|span| !span.contains('\n'))
         }
+        // `<slot>` is parsed as SlotElement (not RegularElement). It is not a
+        // block or whitespace-preserving element, so it participates in inline
+        // runs like any other inline non-block element: a single-line slot is a
+        // run member, a multi-line one is not.
+        TemplateNode::SlotElement(_) => out
+            .get(node_start(node) as usize..node_end(node) as usize)
+            .is_some_and(|span| !span.contains('\n')),
         TemplateNode::Component(_) => {
             // Single-line components (self-closing or with short inline content)
             // participate in inline prose runs — e.g. `text <Icon /> more text`.
@@ -489,6 +496,7 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         && run.iter().any(|n| match n {
             TemplateNode::RegularElement(e) => !e.fragment.nodes.is_empty(),
             TemplateNode::Component(c) => !c.fragment.nodes.is_empty(),
+            TemplateNode::SlotElement(s) => !s.fragment.nodes.is_empty(),
             _ => false,
         });
     if !has_text_word && !has_element_content {
@@ -1355,8 +1363,13 @@ fn try_collapse(
         // close tag). Add 1 extra column to match prettier's fit check so that
         // elements that just barely fit (e.g. 80 cols) without the space are
         // correctly detected as overflowing and use the inner-indent hug form.
-        let trailing_edge_extra = if had_trail && !trims_edge_whitespace(tag) { 1 } else { 0 };
-        let same_line_width = column + open.width() + collapsed.width() + 2 + tag.width() + trailing_edge_extra;
+        let trailing_edge_extra = if had_trail && !trims_edge_whitespace(tag) {
+            1
+        } else {
+            0
+        };
+        let same_line_width =
+            column + open.width() + collapsed.width() + 2 + tag.width() + trailing_edge_extra;
         if same_line_width <= line_width {
             let result = format!("{open}{collapsed}</{tag}\n{indent}>");
             return (result != whole).then_some((start, end, result));
@@ -2767,6 +2780,7 @@ fn build_open_attr_doc(
     let attrs: &[_] = match node {
         TemplateNode::RegularElement(e) => &e.attributes,
         TemplateNode::Component(c) => &c.attributes,
+        TemplateNode::SlotElement(s) => &s.attributes,
         _ => return None,
     };
     if attrs.is_empty() {
@@ -2826,8 +2840,11 @@ fn attribute_span(attr: &rsvelte_core::ast::template::Attribute) -> (u32, u32) {
 
 /// Whether `node` is an inline-display regular element (gets the hug treatment).
 fn is_inline_regular_element(node: &TemplateNode) -> bool {
-    matches!(node, TemplateNode::RegularElement(e)
-        if !is_block_display(e.name.as_str()) && !is_whitespace_preserving(e.name.as_str()))
+    // `<slot>` is parsed as SlotElement but behaves as an inline non-block
+    // element in prose runs — it should be treated the same as a RegularElement.
+    matches!(node, TemplateNode::SlotElement(_))
+        || matches!(node, TemplateNode::RegularElement(e)
+            if !is_block_display(e.name.as_str()) && !is_whitespace_preserving(e.name.as_str()))
 }
 
 /// Build a wrappable doc for a self-closing `Component` with attributes, so that
@@ -2966,9 +2983,8 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                     && !content.starts_with([' ', '\t', '\r', '\n'])
                     && !content.ends_with([' ', '\t', '\r', '\n'])
                 {
-                    let open_doc =
-                        build_open_attr_doc(out, node, tag, true)
-                            .unwrap_or(Doc::Text(open_text[..open_text.len() - 1].to_string()));
+                    let open_doc = build_open_attr_doc(out, node, tag, true)
+                        .unwrap_or(Doc::Text(open_text[..open_text.len() - 1].to_string()));
                     return Some(Doc::Group(vec![
                         open_doc,
                         Doc::Group(vec![Doc::Indent(vec![
@@ -2980,6 +2996,43 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                     ]));
                 }
             }
+        }
+    }
+    // `<slot>` with non-empty content that is fully inline (no `\n`):
+    // prettier hugs start/end when the content is directly adjacent (no leading/
+    // trailing whitespace), even when the content contains nested HTML. Build the
+    // same hug group as `element_hug_parts` but without the `contains('<')` guard.
+    if let TemplateNode::SlotElement(e) = node {
+        let tag = e.name.as_str();
+        let elem_start = e.start as usize;
+        let elem_end = e.end as usize;
+        if let (Some(first), Some(last)) = (e.fragment.nodes.first(), e.fragment.nodes.last())
+            && let (Some(open), Some(content), Some(close)) = (
+                out.get(elem_start..node_start(first) as usize),
+                out.get(node_start(first) as usize..node_end(last) as usize),
+                out.get(node_end(last) as usize..elem_end),
+            )
+            && !open.contains('\n')
+            && !content.contains('\n')
+            && !content.is_empty()
+            && open.ends_with('>')
+            && close.starts_with("</")
+            && !content.starts_with([' ', '\t', '\r', '\n'])
+            && !content.ends_with([' ', '\t', '\r', '\n'])
+        {
+            let open_no_bracket = &open[..open.len() - 1]; // strip trailing `>`
+            let inner_text = format!(">{content}</{tag}");
+            let open_doc = build_open_attr_doc(out, node, tag, true)
+                .unwrap_or_else(|| Doc::Text(open_no_bracket.to_string()));
+            return Some(Doc::Group(vec![
+                open_doc,
+                Doc::Group(vec![Doc::Indent(vec![
+                    Doc::Softline,
+                    Doc::Group(vec![Doc::Text(inner_text)]),
+                ])]),
+                Doc::Softline,
+                Doc::Text(">".to_string()),
+            ]));
         }
     }
     let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
