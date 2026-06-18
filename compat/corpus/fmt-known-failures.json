@@ -6,7 +6,6 @@
 	"flowbite-svelte/src/lib/stepper/VerticalStepper.svelte",
 	"flowbite-svelte/src/routes/admin-dashboard/(sidebar)/crud/products/+page.svelte",
 	"flowbite-svelte/src/routes/blocks/utils/GitHubSourceList.svelte",
-	"flowbite-svelte/src/routes/blocks/utils/icons/Microsoft.svelte",
 	"flowbite-svelte/src/routes/builder/range/+page.svelte",
 	"flowbite-svelte/src/routes/docs-examples/components/drawer/Top.svelte",
 	"flowbite-svelte/src/routes/docs-examples/components/popover/Description.svelte",

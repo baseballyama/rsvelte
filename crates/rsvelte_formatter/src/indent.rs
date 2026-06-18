@@ -932,5 +932,8 @@ fn is_prettier_block_element(tag: &str) -> bool {
 /// these should not be treated as prose glue (it converts to a newline on its
 /// own line in a broken fragment, just like a block element).
 fn is_inline_block_element(tag: &str) -> bool {
-    matches!(tag, "input" | "button" | "select" | "object" | "video" | "audio")
+    matches!(
+        tag,
+        "input" | "button" | "select" | "object" | "video" | "audio"
+    )
 }

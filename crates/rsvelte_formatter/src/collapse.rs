@@ -97,6 +97,22 @@ pub(crate) fn collapse_pure_text_elements(
         tree = t;
     }
 
+    // 1.7-th pass: targeted `try_hug_mixed` sweep for elements whose `indent`
+    // now ends with `>` (non-ws prefix). Pass 1 may have hugged a container
+    // element (e.g. `<defs\n    >`), causing a child element (e.g. `<clipPath>`)
+    // to gain a `    >` prefix. That child's hug was blocked by the parent-edit
+    // ownership in pass 1; this targeted pass applies it without re-running the
+    // full layout suite (which would disturb already-correct prose wrapping).
+    let mut edits1d: Vec<(u32, u32, String)> = Vec::new();
+    collect_hug_mixed_non_ws_prefix(&result, &tree.fragment, line_width, &mut edits1d);
+    if !edits1d.is_empty() {
+        result = apply_edits(&result, edits1d);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
+
     // Second pass: the hug/break edits above may leave a long expression mustache
     // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
     // Member-chain-break those in place — this can't run in the first pass
@@ -563,10 +579,7 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
     // that are already single-line; multi-node runs (with inline elements) that
     // span multiple lines in the formatted output are still reflowed normally.
     // Note: `run` was rebound above to `run[lo..hi]` (whitespace-only edges trimmed).
-    if run.len() == 1
-        && matches!(run[0], TemplateNode::Text(_))
-        && !whole.contains('\n')
-    {
+    if run.len() == 1 && matches!(run[0], TemplateNode::Text(_)) && !whole.contains('\n') {
         return None;
     }
     let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
@@ -678,6 +691,102 @@ fn collect_fill_mixed_only(
                 collect_fill_mixed_only(out, &s.fragment, line_width, options, edits);
             }
             _ => {}
+        }
+    }
+}
+
+/// Pass 1.7: targeted `try_hug_mixed` sweep for elements that have a
+/// non-whitespace prefix (indent ending with `>`). This can occur when pass 1
+/// hugs a container element — e.g. `<defs>` becomes `<defs\n    >` — so a
+/// child element (`<clipPath>`) that was previously at a whitespace indent now
+/// immediately follows the parent's closing `>` on the same line. Pass 1 did
+/// not process the child independently (the parent edit owned the range), so
+/// this pass applies the hug-mixed transform specifically for those cases.
+fn collect_hug_mixed_non_ws_prefix(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        let (start, end, children) = match node {
+            TemplateNode::RegularElement(e) => {
+                if is_whitespace_preserving(e.name.as_str()) {
+                    continue;
+                }
+                // Check if this element has a non-ws-prefix indent ending with `>`.
+                let s = e.start as usize;
+                let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+                let indent = out.get(line_start..s).unwrap_or("");
+                let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
+                if non_ws
+                    && indent.ends_with('>')
+                    && let Some(edit) = try_hug_mixed(
+                        out,
+                        e.name.as_str(),
+                        e.start,
+                        e.end,
+                        &e.fragment,
+                        line_width,
+                    )
+                {
+                    edits.push(edit);
+                    continue; // edit owns this element, don't recurse
+                }
+                (e.start, e.end, vec![&e.fragment])
+            }
+            TemplateNode::Component(c) => {
+                let s = c.start as usize;
+                let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+                let indent = out.get(line_start..s).unwrap_or("");
+                let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
+                if non_ws
+                    && indent.ends_with('>')
+                    && let Some(edit) = try_hug_mixed(
+                        out,
+                        c.name.as_str(),
+                        c.start,
+                        c.end,
+                        &c.fragment,
+                        line_width,
+                    )
+                {
+                    edits.push(edit);
+                    continue;
+                }
+                (c.start, c.end, vec![&c.fragment])
+            }
+            TemplateNode::SlotElement(s) => {
+                let ss = s.start as usize;
+                let line_start = out[..ss].rfind('\n').map_or(0, |i| i + 1);
+                let indent = out.get(line_start..ss).unwrap_or("");
+                let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
+                if non_ws
+                    && indent.ends_with('>')
+                    && let Some(edit) = try_hug_mixed(
+                        out,
+                        s.name.as_str(),
+                        s.start,
+                        s.end,
+                        &s.fragment,
+                        line_width,
+                    )
+                {
+                    edits.push(edit);
+                    continue;
+                }
+                (s.start, s.end, vec![&s.fragment])
+            }
+            _ => {
+                for child in child_fragments(node) {
+                    collect_hug_mixed_non_ws_prefix(out, child, line_width, edits);
+                }
+                continue;
+            }
+        };
+        let _ = (start, end); // suppress unused warnings
+        for child in children {
+            collect_hug_mixed_non_ws_prefix(out, child, line_width, edits);
         }
     }
 }
@@ -994,6 +1103,11 @@ fn collect(
                 }
             }
             TemplateNode::SlotElement(s) => {
+                // A run fill already reflowed this slot inline — its layout is
+                // owned by that edit, so recursing would risk an overlapping edit.
+                if in_consumed_run(s.start, s.end) {
+                    continue;
+                }
                 if let Some(edit) = try_collapse(
                     out,
                     s.name.as_str(),
@@ -2017,7 +2131,9 @@ fn try_fix_pre_child_open_tags(
             let line_start = out[..cs].rfind('\n').map_or(0, |i| i + 1);
             // Measure the full line (from start through the first `\n` after
             // the open-tag `>`, i.e. including the content that follows `>`).
-            let line_nl = out[open_end..].find('\n').map_or(out.len(), |i| open_end + i);
+            let line_nl = out[open_end..]
+                .find('\n')
+                .map_or(out.len(), |i| open_end + i);
             let line = &out[line_start..line_nl];
             if line.width() <= line_width {
                 continue; // fits on one line — no action needed
@@ -2595,9 +2711,23 @@ fn try_hug_mixed(
 
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
-    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+    // Allow a non-whitespace prefix only when it ends with `>` — this happens
+    // when an element is immediately preceded by a parent's closing `>` on the
+    // same line (e.g. `    ><clipPath …>` inside a `<defs\n    >`). In that
+    // case the pure-whitespace part of the prefix is used for inner indentation
+    // and the closing `>` position.
+    let non_ws_prefix = !indent.bytes().all(|b| b == b' ' || b == b'\t');
+    if non_ws_prefix && !indent.ends_with('>') {
         return None;
     }
+    // Extract the pure-whitespace portion of the prefix (everything up to and
+    // not including a trailing non-whitespace `>`) for use in indented output.
+    let ws_indent: &str = if non_ws_prefix {
+        let trim_end_pos = indent.rfind([' ', '\t']).map_or(0, |i| i + 1);
+        &indent[..trim_end_pos]
+    } else {
+        indent
+    };
 
     // When the content is already multi-line (e.g. a child element whose
     // attributes wrapped), prettier still applies the hug form: `>` glues
@@ -2607,9 +2737,9 @@ fn try_hug_mixed(
     // Only handle single-line open tags here; multi-line open tags are
     // handled by the `open.contains('\n')` branch below.
     if raw.contains('\n') && !open.contains('\n') {
-        let inner_indent = format!("{indent}  ");
+        let inner_indent = format!("{ws_indent}  ");
         let open_no_bracket = &open[..open.len() - 1];
-        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>");
         return (result != whole).then_some((start, end, result));
     }
 
@@ -2624,17 +2754,26 @@ fn try_hug_mixed(
         // exposing the real last attribute line.
         let onb = open[..open.len() - 1].trim_end();
         let last_line = onb.rsplit('\n').next().unwrap_or(onb);
-        let inner_indent = format!("{indent}  ");
-        let glued = last_line.width() + 1 + raw.width() + 2 + tag.width();
+        let inner_indent = format!("{ws_indent}  ");
+        // When the element is preceded by non-whitespace on the same line (e.g.
+        // it follows a sibling's close-tag `>`), `last_line` is just the tag
+        // name and does not reflect the true start column. Use `column` (the
+        // element's real start column) in that case so we don't incorrectly
+        // collapse elements whose merged line would exceed `line_width`.
+        let glued = if non_ws_prefix {
+            column + 1 + raw.width() + 2 + tag.width()
+        } else {
+            last_line.width() + 1 + raw.width() + 2 + tag.width()
+        };
         if glued <= line_width {
-            let result = format!("{onb}>{raw}</{tag}\n{indent}>");
+            let result = format!("{onb}>{raw}</{tag}\n{ws_indent}>");
             return (result != whole).then_some((start, end, result));
         }
         // The content is too long to fit even on the inner-indent line. Try to
         // break the content's inner components' attributes using the Doc IR. This
         // handles cases like `<Button\n  >text<Icon class="…"/></Button\n>` where
         // the Icon's attributes need to wrap.
-        let simple = format!("{onb}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        let simple = format!("{onb}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>");
         if simple != whole {
             return Some((start, end, simple));
         }
@@ -2647,7 +2786,7 @@ fn try_hug_mixed(
             let base_level = inner_indent.width() / 2;
             let printed = crate::doc::print(body, line_width, "  ", base_level, inner_col);
             if printed != raw {
-                let result2 = format!("{onb}\n{inner_indent}>{printed}</{tag}\n{indent}>");
+                let result2 = format!("{onb}\n{inner_indent}>{printed}</{tag}\n{ws_indent}>");
                 if result2 != whole {
                     return Some((start, end, result2));
                 }
@@ -2669,9 +2808,9 @@ fn try_hug_mixed(
     // Limit this to cases where the content fits on the inner-indent line so we
     // don't produce overflowing output.
     if has_flow_block && !open.contains('\n') {
-        let inner_indent = format!("{indent}  ");
+        let inner_indent = format!("{ws_indent}  ");
         let open_no_bracket = &open[..open.len() - 1];
-        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{indent}>");
+        let result = format!("{open_no_bracket}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>");
         return (result != whole).then_some((start, end, result));
     }
 
@@ -2703,7 +2842,7 @@ fn try_hug_mixed(
         Doc::Softline,
         Doc::Text(">".to_string()),
     ]);
-    let level = indent.width() / 2;
+    let level = ws_indent.width() / 2;
     let printed = crate::doc::print(elem_doc, line_width, "  ", level, column);
     (printed != whole).then_some((start, end, printed))
 }
