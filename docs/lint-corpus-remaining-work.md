@@ -16,8 +16,37 @@ priority, most user-visible bug). `FN` = oracle reports, rsvelte silent.
 
 ## Snapshot
 
-**70 divergences** (down from 556 at the start of this burn-down pass; a raw
-17,896 / a post-scoping 745 before that). This pass cleared **486** (87%) across:
+**43 divergences** (down from 556 at the start of this burn-down pass; a raw
+17,896 / a post-scoping 745 before that) — **92% cleared**. Beyond the clusters
+below, later passes added: **TS-aware `<script generics="…">`** (parse the value
+as TS to pick the full-text vs key-only message — new
+`rsvelte_core::ts_snippet_is_valid`), **`<script context="module">` attribute
+preserved in lint mode** (so layout rules count it without changing compiler
+output), no-immutable **destructuring reactive assignments** + the **`console`**
+oracle global, and **`$`-store-target** handling in no-reactive-reassign.
+
+The remaining **43** need larger subsystems, documented in
+`docs/lint-corpus-harness-findings.md` and below:
+
+1. **Non-CSS `<style lang>` (~12)** — rsvelte's CSS parser rejects Sass/SCSS, so
+   the file fails to parse and no rule runs (`html-self-closing`,
+   `no-unused-class-name`, …). A lenient skip makes *valid* sass lint but also
+   makes *invalid* scss parse, where the oracle's postcss-scss correctly rejects
+   and stays silent (over-report). Needs a real SCSS validator/parser to tell
+   valid from invalid (tried + reverted the lenient skip).
+2. **no-immutable module/instance (~9)** — a `<script module>` + instance script
+   mis-serialises for lint (`ARENA MISMATCH`: the per-parse arena's `JsNodeId`s
+   don't align across the two programs), so the rule gets empty data. Deep
+   rsvelte_core arena/program-lifecycle fix; does not affect compile output.
+3. **`no-top-level-browser-globals` in template (4)** — must scan template
+   `{expr}` tags with `{#if browser}` *SvelteIfBlock* guards (a guard-tracking
+   template walk). Plus 2 documented globals-version FP (H4).
+4. **Scattered per-rule edges (~16)** — `sort-attributes`/`prefer-const`/
+   `first-attribute-linebreak` on parse-failure files (blocked by #1), the
+   static `this="…"` mid-attribute case, `comment-directive` (needs core
+   `no-undef`), `prefer-svelte-reactivity` cross-script-block Set mutation.
+
+Earlier in this pass cleared **486** (87%) across:
 Cluster E (inline `/* eslint … */` config + JSON5 leniency), Cluster F
 (`<svelte:element/component this={…}>`), Cluster G (browser-globals harness),
 Cluster C/D (kit-pages `src/routes` gate, `goto` namespace import, shorthand
