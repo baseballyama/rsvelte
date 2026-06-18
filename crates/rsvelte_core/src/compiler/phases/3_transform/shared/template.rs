@@ -89,7 +89,13 @@ pub fn sanitize_template_string(s: &str) -> String {
 }
 
 /// Escape a string for use in a single-quoted JavaScript string literal.
-/// Escapes: backslashes, single quotes, newlines, carriage returns, tabs.
+///
+/// Mirrors esrap's `quote()` (esrap `src/languages/ts/index.js`) and the
+/// codegen-side [`escape_string_single`]: only the backslash, the quote
+/// character, `\n` and `\r` are escaped. A tab (and other control characters)
+/// is emitted **literally** — escaping it as `\t` diverges from the official
+/// compiler's output (e.g. multi-line `class="…"` values keep their source
+/// tabs verbatim).
 pub fn escape_js_string(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     for c in s.chars() {
@@ -98,7 +104,6 @@ pub fn escape_js_string(s: &str) -> String {
             '\\' => result.push_str("\\\\"),
             '\n' => result.push_str("\\n"),
             '\r' => result.push_str("\\r"),
-            '\t' => result.push_str("\\t"),
             _ => result.push(c),
         }
     }
@@ -203,7 +208,8 @@ mod tests {
         assert_eq!(escape_js_string("it's"), "it\\'s");
         assert_eq!(escape_js_string("a\\b"), "a\\\\b");
         assert_eq!(escape_js_string("a\nb"), "a\\nb");
-        assert_eq!(escape_js_string("a\tb"), "a\\tb");
+        // Tabs are emitted literally (esrap parity), not escaped as `\t`.
+        assert_eq!(escape_js_string("a\tb"), "a\tb");
         assert_eq!(
             escape_js_string("I don't need to use the argument if I don't want to"),
             "I don\\'t need to use the argument if I don\\'t want to"
