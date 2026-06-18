@@ -73,6 +73,24 @@ const EXCLUDE = new Set([
 	'svelte/valid-style-parse'
 ]);
 
+// Individual findings that are irreconcilable for a reason OUTSIDE rsvelte's
+// control — NOT a place to hide real divergences. Each entry is a full
+// `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and must carry a
+// documented justification (see docs/lint-corpus-harness-findings.md).
+const VERSION_ARTIFACTS = new Set([
+	// H4 — `globals` version split on `localStorage`/`navigator`/`sessionStorage`.
+	// The corpus oracle runs eslint-plugin-svelte against globals@16.5, where
+	// these are node-available, so upstream's `getBrowserGlobals()` (browser ∖
+	// node) EXCLUDES them and the rule does not flag a bare top-level
+	// `localStorage`. rsvelte MUST keep flagging them: eslint-plugin-svelte's
+	// own fixture suite (the `eslint_plugin_oracle` hard gate) declares
+	// `invalid/test03` expecting exactly this report. The two upstream artefacts
+	// (live globals vs bundled fixtures) disagree; rsvelte matches the
+	// authoritative fixtures. Reported upstream — see the harness-findings doc.
+	'eslint-plugin-svelte/docs/rules/no-top-level-browser-globals.md/1.svelte|+svelte/no-top-level-browser-globals\t25:13\tUnexpected top-level browser global variable "localStorage".',
+	'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".'
+]);
+
 function findBinary() {
 	for (const profile of ['release', 'debug']) {
 		const p = path.join(ROOT, 'target', profile, 'rsvelte-lint');
@@ -220,6 +238,10 @@ function main() {
 		for (const k of rset) if (!oset.has(k)) diffs.push(`${id}|+${k}`); // false positive
 		for (const k of oset) if (!rset.has(k)) diffs.push(`${id}|-${k}`); // false negative
 	}
+	// Drop documented version-artifact findings (outside rsvelte's control).
+	const filtered = diffs.filter((d) => !VERSION_ARTIFACTS.has(d));
+	diffs.length = 0;
+	diffs.push(...filtered);
 	diffs.sort();
 
 	const known = fs.existsSync(KNOWN) ? JSON.parse(fs.readFileSync(KNOWN, 'utf8')) : [];
