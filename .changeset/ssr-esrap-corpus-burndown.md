@@ -31,5 +31,13 @@ compiler / esrap, burning down the output-equality corpus:
   accessors reference the hoisted `bind_get()`/`bind_set($$value)` variables.
 - Event-handler attributes (`onclick={…}` etc.) are excluded from `<svelte:element>`
   server spread attributes.
-- A `{#snippet}` body whose sole child is a standalone component/render-tag no
-  longer emits a trailing `<!---->` marker.
+- A `{#snippet}` body — and a component's inline `children`/default-slot whose
+  sole child is a standalone component/render-tag — no longer emits a trailing
+  `<!---->` marker.
+- A typed `$props()` destructure with an object/intersection TS annotation
+  (`{ a, ...rest }: Base & { … }`) strips the annotation correctly instead of
+  leaking it into the rest element (which dropped user-written `$$slots`/`$$events`).
+- A multi-line `$props()` destructure with an interior `// line comment` no longer
+  collapses into unparseable output (the comment swallowing the next property).
+- `const id = $.props_id($$renderer)` is hoisted to the top of the component body,
+  matching upstream's `body.unshift(...)`.
