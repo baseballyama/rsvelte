@@ -72,7 +72,6 @@
 	"flowbite-svelte/src/routes/utils/PlusPlaceholder.svelte",
 	"melt-ui/docs/src/components/preview.svelte",
 	"melt-ui/docs/src/components/transition.svelte",
-	"melt-ui/docs/src/previews/avatar.svelte",
 	"melt-ui/docs/src/previews/dialog.svelte",
 	"melt-ui/docs/src/previews/progress.svelte",
 	"melt-ui/docs/src/previews/radio-group.svelte",
