@@ -17,7 +17,8 @@ use crate::rules::{
     no_object_in_text_mustaches::NoObjectInTextMustaches,
     no_raw_special_elements::NoRawSpecialElements,
     no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
-    no_target_blank::NoTargetBlank, no_useless_children_snippet::NoUselessChildrenSnippet,
+    no_target_blank::NoTargetBlank, no_top_level_browser_globals::NoTopLevelBrowserGlobals,
+    no_useless_children_snippet::NoUselessChildrenSnippet,
     no_useless_mustaches::NoUselessMustaches, prefer_const::PreferConst,
     require_each_key::RequireEachKey, valid_each_key::ValidEachKey,
 };
@@ -125,6 +126,10 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         // `check_program` path; the `Rule` implementation here adds
         // `check_root` so template-only files (no `<script>`) are covered.
         Box::new(PreferConst),
+        // `NoTopLevelBrowserGlobals` also lives in `all_script_rules()` for the
+        // `check_program` path; the `Rule` implementation here adds
+        // `check_root` so template expression tags are checked for browser globals.
+        Box::new(NoTopLevelBrowserGlobals),
     ]
 }
 
