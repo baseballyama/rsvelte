@@ -277,6 +277,10 @@ fn collect_reactive_values(
         }
         if let Some(name) = left.get("name").and_then(Value::as_str)
             && !toplevel.contains(name)
+            // A `$`-prefixed target (`$: $store = …`) is a *store* write, not a
+            // reactive-variable declaration, so reassigning it elsewhere
+            // (`$store++`) is a normal store update and must not be flagged.
+            && !name.starts_with('$')
         {
             names.insert(name.to_string());
             if let Some(p) = pos(left) {

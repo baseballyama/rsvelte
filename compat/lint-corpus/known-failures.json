@@ -35,7 +35,6 @@
 	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/script-comment-input.svelte|-svelte/no-immutable-reactive-statements\t11:5\tThis statement is not reactive because all variables referenced in the reactive statement are immutable.",
 	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/script-comment-svelte4-input.svelte|-svelte/no-immutable-reactive-statements\t11:5\tThis statement is not reactive because all variables referenced in the reactive statement are immutable.",
 	"svelte-eslint-parser/tests/fixtures/parser/ast/pug/each/each01-input.svelte|-svelte/prefer-const\t2:5\t'objs' is never reassigned. Use 'const' instead.",
-	"svelte-eslint-parser/tests/fixtures/parser/ast/reactive-with-var02-input.svelte|+svelte/no-reactive-reassign\t11:23\tAssignment to reactive value '$foo'.",
 	"svelte-eslint-parser/tests/fixtures/parser/ast/reactive-with-var03-input.svelte|-svelte/no-immutable-reactive-statements\t3:8\tThis statement is not reactive because all variables referenced in the reactive statement are immutable.",
 	"svelte-eslint-parser/tests/fixtures/parser/ast/reactive-with-var04-ts-input.svelte|-svelte/no-immutable-reactive-statements\t3:8\tThis statement is not reactive because all variables referenced in the reactive statement are immutable.",
 	"svelte-eslint-parser/tests/fixtures/parser/ast/self-closing-style01-input.svelte|-svelte/html-self-closing\t1:35\tDisallow self-closing on HTML elements.",
