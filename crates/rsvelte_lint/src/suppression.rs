@@ -62,7 +62,11 @@ impl Suppressions {
                 }
             }
             if let Some(rest) = find_after(line, "svelte-ignore") {
-                s.add_line(lineno + 1, rest);
+                // Unlike `eslint-disable`, an empty `<!-- svelte-ignore -->`
+                // (no codes) suppresses NOTHING — Svelte's svelte-ignore needs
+                // explicit codes, and the eslint oracle never lets it disable
+                // `svelte/*` rules. Only add codes when the list is non-empty.
+                s.add_line_no_wildcard(lineno + 1, rest);
             }
         }
 
@@ -80,6 +84,20 @@ impl Suppressions {
     fn add_line(&mut self, line: u32, rest: &str) {
         let entry = self.by_line.entry(line).or_default();
         for id in parse_ids(rest) {
+            entry.insert(id);
+        }
+    }
+
+    /// Like [`add_line`] but an empty id list adds NOTHING (rather than the `*`
+    /// wildcard). Used for `svelte-ignore`, where an empty directive must not
+    /// suppress every rule on the next line.
+    fn add_line_no_wildcard(&mut self, line: u32, rest: &str) {
+        let ids = parse_ids(rest);
+        if ids.len() == 1 && ids[0] == ALL {
+            return; // empty `svelte-ignore` → suppress nothing
+        }
+        let entry = self.by_line.entry(line).or_default();
+        for id in ids {
             entry.insert(id);
         }
     }
