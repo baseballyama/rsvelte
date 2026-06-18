@@ -13,3 +13,9 @@ compiler / esrap, burning down the output-equality corpus:
 - `transform_class_fields_server` no longer mangles JSDoc / block comments in the
   class body of `.svelte.(js|ts)` server modules (it was appending `;` to every
   comment line and joining `*/` to the following method).
+- Component-prop template-literal interpolations that statically evaluate to a
+  defined string are interpolated raw instead of wrapped in `$.stringify(…)`,
+  matching upstream `build_attribute_value`.
+- TypeScript field modifiers (`readonly`, `public`, …) are stripped when lowering
+  public `$derived`/`$derived.by` class fields, so `readonly x = $derived.by(…)`
+  lowers to the correct `get x()/set x($$value)` accessor pair.
