@@ -178,6 +178,7 @@ impl MaxAttributesPerLine {
         el_start: u32,
         attributes: &[Attribute],
         this_span: Option<(u32, u32)>,
+        generics_name: Option<&str>,
     ) {
         let opt = ctx.option0();
         let multiline_max: u32 = opt
@@ -197,10 +198,22 @@ impl MaxAttributesPerLine {
         // `this` at its real position.
         let mut items: Vec<AttrItem> = attributes
             .iter()
-            .map(|a| AttrItem {
-                start: attr_start(a),
-                end: attr_end(a),
-                name: attr_name(src, a),
+            .map(|a| {
+                // On `<script>` a valid `generics="…"` is reported with its full
+                // attribute text (svelte-eslint-parser's SvelteGenericsDirective);
+                // an invalid one keeps the key-only name. `generics_name` carries
+                // the full text when valid.
+                let name = match a {
+                    Attribute::Attribute(n) if n.name == "generics" => generics_name
+                        .map(str::to_string)
+                        .unwrap_or_else(|| attr_name(src, a)),
+                    _ => attr_name(src, a),
+                };
+                AttrItem {
+                    start: attr_start(a),
+                    end: attr_end(a),
+                    name,
+                }
             })
             .collect();
         if let Some((s, e)) = this_span {
@@ -262,56 +275,72 @@ impl Rule for MaxAttributesPerLine {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_tag(ctx, el.start, &el.attributes, None);
+        self.check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_tag(ctx, c.start, &c.attributes, None);
+        self.check_tag(ctx, c.start, &c.attributes, None, None);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_tag(ctx, el.start, &el.attributes, None);
+        self.check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
         // `<svelte:component this={…}>` — the `this` expression is stored
         // separately; reconstruct its span so it counts as the leading attribute.
         let this_span = this_attr_span(ctx.source(), el.expression.start(), el.expression.end());
-        self.check_tag(ctx, el.start, &el.attributes, this_span);
+        self.check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
         // `<svelte:element this={…}>` — same as svelte:component, via `el.tag`.
         let this_span = this_attr_span(ctx.source(), el.tag.start(), el.tag.end());
-        self.check_tag(ctx, el.start, &el.attributes, this_span);
+        self.check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_tag(ctx, el.start, &el.attributes, None);
+        self.check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        // Exclude the `generics` attribute from checking on special elements.
-        //
-        // svelte-eslint-parser converts a valid `generics="T extends ..."` into a
-        // `SvelteGenericsDirective` node (full attribute range → message includes
-        // `generics="..."`) but keeps it as `SvelteAttribute` (key-only) when the
-        // TS generic params have a syntax error. We cannot determine which path the
-        // oracle would take at lint time, so we skip `generics` entirely to avoid
-        // emitting a `+` false-positive divergence. The oracle's findings for
-        // `generics` are tracked separately in known-failures.
-        let attrs: Vec<_> = el
-            .attributes
-            .iter()
-            .filter(|a| {
-                if let Attribute::Attribute(n) = a {
-                    n.name != "generics"
-                } else {
-                    true
-                }
-            })
-            .cloned()
-            .collect();
-        self.check_tag(ctx, el.start, &attrs, None);
+        // On `<script>`, svelte-eslint-parser types a *valid* `generics="…"` as a
+        // `SvelteGenericsDirective` whose message uses the full attribute text,
+        // but keeps an *invalid* one as a `SvelteAttribute` (key-only message).
+        // Decide which by parsing the value as TS; pass the full text when valid.
+        let generics_name = generics_report_name(ctx.source(), &el.attributes);
+        self.check_tag(
+            ctx,
+            el.start,
+            &el.attributes,
+            None,
+            generics_name.as_deref(),
+        );
+    }
+}
+
+/// If the start tag has a `generics="…"` attribute whose value is syntactically
+/// valid TypeScript type parameters, return its full attribute text
+/// (`generics="…"`) — the name svelte-eslint-parser reports for a
+/// `SvelteGenericsDirective`. Returns `None` for no generics attribute or an
+/// invalid value (where the key-only `generics` name applies).
+fn generics_report_name(src: &str, attributes: &[Attribute]) -> Option<String> {
+    let (start, end) = attributes.iter().find_map(|a| match a {
+        Attribute::Attribute(n) if n.name == "generics" => Some((n.start, n.end)),
+        _ => None,
+    })?;
+    let full = src.get(start as usize..end as usize)?;
+    // The value is between the first and last double-quote of `generics="…"`.
+    let q1 = full.find('"')?;
+    let q2 = full.rfind('"')?;
+    if q2 <= q1 {
+        return None;
+    }
+    let value = &full[q1 + 1..q2];
+    let wrapped = format!("type __RsvelteGenerics<{value}> = unknown;");
+    if rsvelte_core::compiler::phases::ts_snippet_is_valid(&wrapped, true) {
+        Some(full.to_string())
+    } else {
+        None
     }
 }

@@ -206,6 +206,28 @@ pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::
     })
 }
 
+/// Whether `source` parses as a valid JS/TS program (no syntax error). Used by
+/// lint rules that need to validate a small TS snippet — e.g. wrapping a
+/// `<script generics="…">` value in a type alias to decide whether it is
+/// syntactically valid TypeScript.
+pub fn ts_snippet_is_valid(source: &str, is_typescript: bool) -> bool {
+    let arena = crate::ast::arena::ParseArena::new();
+    let line_offsets = compute_line_offsets(source, false);
+    crate::ast::arena::with_serialize_arena(&arena, || {
+        let (_program, parse_error) = expression::parse_program_with_error(
+            &arena,
+            source,
+            0,
+            &line_offsets,
+            is_typescript,
+            &[],
+            0,
+            source.len(),
+        );
+        parse_error.is_none()
+    })
+}
+
 /// Parse multiple Svelte components in parallel.
 ///
 /// Uses rayon to parse files concurrently for maximum performance.
