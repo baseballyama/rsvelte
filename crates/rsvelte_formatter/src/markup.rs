@@ -586,7 +586,8 @@ fn push_open_tag(
     // and empty non-self-closing elements (where `shape_two` may break `>` to its
     // own line), the `>` itself is NOT on the attribute line — so the fit check
     // must exclude it. Subtract 1 when either condition applies.
-    let open_fit_width = if !self_closing && one_liner.ends_with('>') && (hug_open || empty_element) {
+    let open_fit_width = if !self_closing && one_liner.ends_with('>') && (hug_open || empty_element)
+    {
         open_one_line_width - 1
     } else {
         open_one_line_width
@@ -1574,8 +1575,7 @@ fn render_attribute_value_sequence(
                     let first_pass =
                         format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
                     let formatted = if narrow_value && is_shallow_value(inner_src) {
-                        let indent_cols =
-                            attr_depth * opts.js.indent_width.value() as usize;
+                        let indent_cols = attr_depth * opts.js.indent_width.value() as usize;
                         let line_width_val = opts.js.line_width.value() as usize;
                         // Two-phase narrowing strategy:
                         //
@@ -1622,7 +1622,10 @@ fn render_attribute_value_sequence(
                             } else {
                                 // Full-extra overflows too: use start-column only.
                                 format_attribute_value_expression(
-                                    inner_src, &opts, attr_depth, extra_start,
+                                    inner_src,
+                                    &opts,
+                                    attr_depth,
+                                    extra_start,
                                 )?
                             }
                         } else {
@@ -1639,7 +1642,10 @@ fn render_attribute_value_sequence(
                                 // the break lands at the right column (trailing text
                                 // is on a subsequent line, not relevant here).
                                 format_attribute_value_expression(
-                                    inner_src, &opts, attr_depth, extra_start,
+                                    inner_src,
+                                    &opts,
+                                    attr_depth,
+                                    extra_start,
                                 )?
                             }
                         }

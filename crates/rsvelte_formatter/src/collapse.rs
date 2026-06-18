@@ -81,6 +81,22 @@ pub(crate) fn collapse_pure_text_elements(
         tree = t;
     }
 
+    // 1.6-th pass: run a targeted `try_collapse` sweep on inline pure-text
+    // elements that were revealed by pass 1's block restructuring. Example: a
+    // `<li><a href="…"\n  class="…">text</a\n></li>` whose `<a>` was not visited
+    // in pass 1 because `try_break_block_multiline_content` owned the `<li>` edit.
+    // After the `<li>` is re-broken, the `<a>` may need its multi-line open tag
+    // hugged (`>text</a\n>` → `\n  >text</a\n>`).
+    let mut edits1c: Vec<(u32, u32, String)> = Vec::new();
+    collect_try_collapse_only(&result, &tree.fragment, line_width, &mut edits1c);
+    if !edits1c.is_empty() {
+        result = apply_edits(&result, edits1c);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
+
     // Second pass: the hug/break edits above may leave a long expression mustache
     // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
     // Member-chain-break those in place — this can't run in the first pass
@@ -571,6 +587,112 @@ fn collect_fill_mixed_only(
     }
 }
 
+/// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
+/// elements. Runs after pass 1 so that block restructuring (e.g.
+/// `try_break_block_multiline_content` on `<li>`) exposes inline children
+/// (`<a>`, `<A>`) that need their multi-line open tags hugged.
+/// Only visits non-block elements; block elements were already handled in
+/// pass 1 and their layout must not be disturbed.
+fn collect_try_collapse_only(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(elem) => {
+                if is_whitespace_preserving(elem.name.as_str()) {
+                    continue;
+                }
+                // Apply try_collapse to non-block elements only.
+                if !is_block_display(elem.name.as_str())
+                    && let Some(edit) = try_collapse(
+                        out,
+                        elem.name.as_str(),
+                        elem.start,
+                        elem.end,
+                        &elem.fragment,
+                        line_width,
+                        Some(node),
+                    )
+                {
+                    edits.push(edit);
+                    continue; // edit owns this element, don't recurse
+                }
+                collect_try_collapse_only(out, &elem.fragment, line_width, edits);
+            }
+            TemplateNode::Component(c) => {
+                if let Some(edit) = try_collapse(
+                    out,
+                    c.name.as_str(),
+                    c.start,
+                    c.end,
+                    &c.fragment,
+                    line_width,
+                    None,
+                ) {
+                    edits.push(edit);
+                    continue;
+                }
+                collect_try_collapse_only(out, &c.fragment, line_width, edits);
+            }
+            TemplateNode::TitleElement(t) => {
+                collect_try_collapse_only(out, &t.fragment, line_width, edits);
+            }
+            TemplateNode::SvelteBody(s)
+            | TemplateNode::SvelteDocument(s)
+            | TemplateNode::SvelteFragment(s)
+            | TemplateNode::SvelteBoundary(s)
+            | TemplateNode::SvelteHead(s)
+            | TemplateNode::SvelteOptions(s)
+            | TemplateNode::SvelteSelf(s)
+            | TemplateNode::SvelteWindow(s) => {
+                collect_try_collapse_only(out, &s.fragment, line_width, edits);
+            }
+            TemplateNode::SvelteComponent(c) => {
+                collect_try_collapse_only(out, &c.fragment, line_width, edits);
+            }
+            TemplateNode::SvelteElement(e) => {
+                collect_try_collapse_only(out, &e.fragment, line_width, edits);
+            }
+            TemplateNode::IfBlock(blk) => {
+                collect_try_collapse_only(out, &blk.consequent, line_width, edits);
+                if let Some(alt) = &blk.alternate {
+                    collect_try_collapse_only(out, alt, line_width, edits);
+                }
+            }
+            TemplateNode::EachBlock(blk) => {
+                collect_try_collapse_only(out, &blk.body, line_width, edits);
+                if let Some(fb) = &blk.fallback {
+                    collect_try_collapse_only(out, fb, line_width, edits);
+                }
+            }
+            TemplateNode::AwaitBlock(blk) => {
+                if let Some(f) = &blk.pending {
+                    collect_try_collapse_only(out, f, line_width, edits);
+                }
+                if let Some(f) = &blk.then {
+                    collect_try_collapse_only(out, f, line_width, edits);
+                }
+                if let Some(f) = &blk.catch {
+                    collect_try_collapse_only(out, f, line_width, edits);
+                }
+            }
+            TemplateNode::KeyBlock(blk) => {
+                collect_try_collapse_only(out, &blk.fragment, line_width, edits);
+            }
+            TemplateNode::SnippetBlock(blk) => {
+                collect_try_collapse_only(out, &blk.body, line_width, edits);
+            }
+            TemplateNode::SlotElement(s) => {
+                collect_try_collapse_only(out, &s.fragment, line_width, edits);
+            }
+            _ => {}
+        }
+    }
+}
+
 fn collect(
     out: &str,
     fragment: &Fragment,
@@ -982,12 +1104,6 @@ fn try_collapse(
     if collapsed.is_empty() {
         return None;
     }
-    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
-    let indent = out.get(line_start..s)?;
-    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
-        return None;
-    }
-    let inner_indent = format!("{indent}  ");
 
     // A pure-inline element (CSS display `inline`: `<a>`, `<span>`, … — not
     // inline-block like `<button>`, not block) is whitespace-sensitive, so it
@@ -1020,12 +1136,32 @@ fn try_collapse(
             //
             // We find the last line of the open tag by locating the last `\n` in
             // `open`; that line starts right after the `\n`.
+            //
+            // For inline elements embedded in flowing text (e.g. `some text <A\n
+            // href="…"\n class="…">word</A\n>`), we can't use the normal
+            // line-start indent because the element is not at the start of its
+            // line. Instead, derive `indent` from `close` (the whitespace before
+            // the final `>` on the last line of the close tag) and `inner_indent`
+            // from the attribute indent in `open`.
             let last_line_start = open.rfind('\n').map_or(0, |i| i + 1);
             let last_open_line = &open[last_line_start..]; // includes trailing `>`
+            // Close-tag indent: whitespace between the last `\n` in close and the
+            // final `>`.  For `</A\n    >` this is `    ` (4 spaces).
+            let close_indent = if let Some(nl) = close.rfind('\n') {
+                &close[nl + 1..close.len().saturating_sub(1)]
+            } else {
+                ""
+            };
+            // Attribute-level indent: element indent + 2 spaces (same as the
+            // single-line hug path). We derive it from `close_indent` rather
+            // than the last open-tag line because the last line could be a
+            // continuation of a multi-line attribute value (e.g. the RHS of an
+            // `onclick={() =>\n  expr}` attribute), not the attribute keyword.
+            let inner_indent = format!("{close_indent}  ");
             let last_line_width = last_open_line.width() + collapsed.width() + 2 + tag.width();
             if last_line_width <= line_width {
                 // Fits: keep the `>` glued to the last attribute line.
-                let result = format!("{open}{collapsed}</{tag}\n{indent}>");
+                let result = format!("{open}{collapsed}</{tag}\n{close_indent}>");
                 return (result != whole).then_some((start, end, result));
             }
             // Doesn't fit: move `>` to a new line at the attribute indent
@@ -1035,9 +1171,20 @@ fn try_collapse(
                 return None;
             }
             let open_no_bracket = &open[..open.len() - 1];
-            let hug = format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{indent}>");
+            let hug =
+                format!("{open_no_bracket}\n{inner_indent}>{collapsed}</{tag}\n{close_indent}>");
             return (hug != whole).then_some((start, end, hug));
         }
+        // Same-line hug for single-line open tags: only when the element is at
+        // the start of its line (so `indent` / `inner_indent` are well-defined).
+        let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+        let indent = out.get(line_start..s)?;
+        if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+            // Element is inline inside text — single-line open tags with no
+            // wrapping are handled by the outer formatter; nothing to fix here.
+            return None;
+        }
+        let inner_indent = format!("{indent}  ");
         // Same-line hug: `<a href="…">text</a\n>` — content stays on the open
         // tag's line. Try this first; only fall through to the inner-indent form
         // when the same-line layout overflows the print width.
@@ -1116,6 +1263,13 @@ fn try_collapse(
     if !((had_lead && had_trail) || trims_edge_whitespace(tag)) {
         return None;
     }
+    // Element must be at the start of its line for the block-break to work.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let inner_indent = format!("{indent}  ");
     let avail = line_width.saturating_sub(inner_indent.width()).max(1);
 
     let mut broken = String::with_capacity(whole.len() + 8);
