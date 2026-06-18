@@ -1629,10 +1629,21 @@ pub(crate) fn transform_props_spread_ex(
 
             // Strip a trailing TS type annotation on the destructuring pattern,
             // e.g. `{ a, ...rest }: SomeProps` → `{ a, ...rest }` (the server
-            // output is plain JS, so the annotation is dropped). Without this the
-            // `ends_with('}')` check below fails for a typed `$props()` and the
-            // `$$slots` / `$$events` exclusion is silently skipped.
-            let pattern = if pattern.starts_with('{') && !pattern.ends_with('}') {
+            // output is plain JS, so the annotation is dropped).
+            //
+            // Previously this was gated on `!pattern.ends_with('}')`, which skipped
+            // the strip when the TS type annotation is itself an object type —
+            // e.g. `{ a, ...rest }: BaseProps & { extra?: string }`. In that case
+            // the pattern ends with `}` (the annotation's closing brace), so the
+            // guard prevented stripping and `rest_name` below acquired the junk
+            // `}: BaseProps & { ... }` tail, corrupting `$$slots`/`$$events` injection.
+            //
+            // The fix: always attempt to strip. Find the FIRST `}` that brings the
+            // depth back to 0 (the destructure's own closing brace). If what follows
+            // it starts with `:`, the rest is a TS annotation — drop it.  When there
+            // is no annotation (plain `{ a, b }`) the closing `}` is the last char
+            // and nothing follows it, so the pattern is returned unchanged.
+            let pattern = if pattern.starts_with('{') {
                 let bytes = pattern.as_bytes();
                 let mut depth = 0i32;
                 let mut close = None;
@@ -3553,6 +3564,76 @@ mod collapse_destructuring_tests {
         assert!(
             !single_line.contains("//"),
             "Standalone comment line survived collapse: {single_line:?}"
+        );
+    }
+
+    /// When a `let { ...restProps }: TypeAnnotation & { ... } = $$props`
+    /// destructure has a TypeScript type annotation with its own JSDoc block
+    /// comment, collapse_multiline_destructuring should still produce a single
+    /// collapsed line that contains `= $$props`.
+    #[test]
+    fn ts_type_annotation_with_jsdoc_collapses_to_single_line() {
+        let input = "\tlet {\n\
+                     \t\tvalue: valueProp = [],\n\
+                     \t\titems = [],\n\
+                     \t\t...restProps\n\
+                     \t}: Checkbox.GroupProps & {\n\
+                     \t\t/**\n\
+                     \t\t * The individual checkbox items.\n\
+                     \t\t */\n\
+                     \t\titems?: string[];\n\
+                     \t} = $$props;\n";
+        let collapsed = collapse_multiline_destructuring(input);
+        let single_line = collapsed
+            .lines()
+            .find(|l| l.contains("= $$props"))
+            .unwrap_or("");
+        assert!(
+            !single_line.is_empty(),
+            "No collapsed line with = $$props found: {collapsed:?}"
+        );
+        assert!(
+            single_line.contains("...restProps"),
+            "restProps missing from collapsed line: {single_line:?}"
+        );
+        assert!(
+            single_line.contains("value: valueProp"),
+            "value prop missing from collapsed line: {single_line:?}"
+        );
+    }
+
+    /// transform_props_spread_ex should add $$slots and $$events even when the
+    /// destructure has a TypeScript type annotation.
+    #[test]
+    fn ts_annotated_props_gets_slots_and_events() {
+        use super::transform_props_spread_ex;
+        let input = "\tlet {\n\
+                     \t\tvalue: valueProp = [],\n\
+                     \t\titems = [],\n\
+                     \t\t...restProps\n\
+                     \t}: Checkbox.GroupProps & {\n\
+                     \t\t/**\n\
+                     \t\t * The individual checkbox items.\n\
+                     \t\t */\n\
+                     \t\titems?: string[];\n\
+                     \t} = $$props;\n";
+        let result = transform_props_spread_ex(input, 0, false);
+        assert!(
+            result.contains("$$slots"),
+            "$$slots missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("$$events"),
+            "$$events missing from output: {result:?}"
+        );
+        assert!(
+            result.contains("...restProps"),
+            "restProps missing from output: {result:?}"
+        );
+        // TS type annotation must not appear in the output
+        assert!(
+            !result.contains("Checkbox.GroupProps"),
+            "TS type annotation leaked into output: {result:?}"
         );
     }
 }
