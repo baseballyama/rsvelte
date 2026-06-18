@@ -1653,10 +1653,22 @@ pub(crate) fn format_attribute_value_expression(
     // open tag is known to wrap, so a long value breaks where prettier puts it
     // (#795).
     let indent_width = options.js.indent_width.value() as usize;
-    let lead = attr_depth * indent_width + extra_lead;
-    let narrowed = (options.js.line_width.value() as usize).saturating_sub(lead);
-    let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+    let indent_cols = attr_depth * indent_width;
+    let line_width_val = options.js.line_width.value() as usize;
+    let lead = indent_cols + extra_lead;
+    // When `extra_lead` alone would already push the first character past the
+    // print width, the expression is guaranteed to overflow. Use the
+    // continuation-line width (`line_width - indent_cols`) instead of
+    // `line_width - lead` (which would be zero or negative) so that OXC still
+    // applies sensible wrapping to the expression's own internal structure —
+    // e.g. a ternary inside a string-sequence attribute breaks at `?`/`:`.
+    let narrowed = if lead >= line_width_val {
+        line_width_val.saturating_sub(indent_cols)
+    } else {
+        line_width_val - lead
+    };
+    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
+        .unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, line_width, false)
 }
 

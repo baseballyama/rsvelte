@@ -582,7 +582,11 @@ fn push_open_tag(
     // content line (`<button …attrs`\n`  >text</button`\n`>`). So the attribute
     // line that must fit is the open tag WITHOUT that trailing `>` — don't wrap
     // the attributes just because the `>` alone tips the tag one column over.
-    let open_fit_width = if hug_open && !self_closing && one_liner.ends_with('>') {
+    // For both hug-open elements (where `>` lands on the hugged-content line)
+    // and empty non-self-closing elements (where `shape_two` may break `>` to its
+    // own line), the `>` itself is NOT on the attribute line — so the fit check
+    // must exclude it. Subtract 1 when either condition applies.
+    let open_fit_width = if !self_closing && one_liner.ends_with('>') && (hug_open || empty_element) {
         open_one_line_width - 1
     } else {
         open_one_line_width
@@ -1570,13 +1574,59 @@ fn render_attribute_value_sequence(
                     let first_pass =
                         format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
                     let formatted = if narrow_value && is_shallow_value(inner_src) {
-                        // extra = lead + `{` + `}` + closing `"` + trailing
-                        let extra = lead_cols + 3 + trailing_cols;
-                        if !first_pass.contains('\n') {
-                            // Single-line: always apply the full narrowing
-                            format_attribute_value_expression(inner_src, &opts, attr_depth, extra)?
+                        let indent_cols =
+                            attr_depth * opts.js.indent_width.value() as usize;
+                        let line_width_val = opts.js.line_width.value() as usize;
+                        // Two-phase narrowing strategy:
+                        //
+                        // Phase 1 (`extra_start`): narrow only by the expression's
+                        // START column (indent + prefix + `{`). When the expression
+                        // wraps to multiple lines, the trailing text after `}` lands
+                        // on the final continuation line — NOT the first — so it must
+                        // NOT influence the first-line break decision.  This fixes
+                        // over-breaking when trailing is large (e.g. a long class list
+                        // after the interpolation).
+                        //
+                        // Phase 2 (`extra_full`): if the phase-1 result is still
+                        // single-line but the full assembled line overflows, the
+                        // trailing DOES land on the same line.  Re-format including
+                        // the trailing columns so OXC places the break at the right
+                        // spot (i.e. the expression is forced to wrap before its
+                        // closing `}` lands at column > line_width).
+                        let extra_start = lead_cols + 1; // chars before `{`
+                        // `+1` for `{`, `+1` for `}`, `+1` for closing `"`
+                        let extra_full = lead_cols + 3 + trailing_cols;
+                        if indent_cols + extra_start >= line_width_val {
+                            // Expression starts at or past the print width — keep
+                            // first_pass (OXC already formatted at indent-only width).
+                            first_pass
+                        } else if !first_pass.contains('\n') {
+                            // Wide first-pass produced a single-line result.
+                            // Check if it fits with trailing on the same line.
+                            let total = indent_cols
+                                + lead_cols
+                                + 1
+                                + first_pass.len()
+                                + 1
+                                + trailing_cols
+                                + 1;
+                            if total <= line_width_val {
+                                // Fits: no narrowing needed
+                                first_pass
+                            } else if indent_cols + extra_full < line_width_val {
+                                // Doesn't fit, and full-extra still leaves room:
+                                // use full narrowing (trailing collapses the width).
+                                format_attribute_value_expression(
+                                    inner_src, &opts, attr_depth, extra_full,
+                                )?
+                            } else {
+                                // Full-extra overflows too: use start-column only.
+                                format_attribute_value_expression(
+                                    inner_src, &opts, attr_depth, extra_start,
+                                )?
+                            }
                         } else {
-                            // Multi-line: check first-line break point
+                            // Multi-line first-pass (at indent-only width).
                             let first_line = first_pass.lines().next().unwrap_or("").trim_end();
                             if first_line.ends_with('{')
                                 || first_line.ends_with('[')
@@ -1585,9 +1635,11 @@ fn render_attribute_value_sequence(
                                 // Expanded call-argument block — keep the wider result
                                 first_pass
                             } else {
-                                // Operator-break — re-format with the narrower width
+                                // Operator-break — re-format at start-column width so
+                                // the break lands at the right column (trailing text
+                                // is on a subsequent line, not relevant here).
                                 format_attribute_value_expression(
-                                    inner_src, &opts, attr_depth, extra,
+                                    inner_src, &opts, attr_depth, extra_start,
                                 )?
                             }
                         }
