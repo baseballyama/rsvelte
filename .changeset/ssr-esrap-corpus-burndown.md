@@ -19,3 +19,12 @@ compiler / esrap, burning down the output-equality corpus:
 - TypeScript field modifiers (`readonly`, `public`, …) are stripped when lowering
   public `$derived`/`$derived.by` class fields, so `readonly x = $derived.by(…)`
   lowers to the correct `get x()/set x($$value)` accessor pair.
+- `transform_class_fields_server` recurses across all classes in a module instead
+  of bailing out at the first class without rune fields (which silently skipped
+  later classes' field lowering).
+- `bind:this` is excluded from `<svelte:element>` server spread attributes, and a
+  dynamic `class` value in a spread object is wrapped in `$.clsx(…)`.
+- Multi-line template-literal interiors in transformed `<script>` blocks are no
+  longer re-indented (their content is part of the string value).
+- `bind:prop={() => get, set}` (SequenceExpression) bindings keep their source
+  position relative to `{...spread}` in `$.spread_props([…])`.
