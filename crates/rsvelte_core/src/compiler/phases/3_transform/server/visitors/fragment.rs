@@ -626,9 +626,25 @@ impl<'a> ServerCodeGenerator<'a> {
             return Ok(None);
         }
 
+        // Compute standalone-ness for the trimmed fragment.
+        // When the slot's sole meaningful child is a non-dynamic Component or
+        // RenderTag, the child itself supplies the hydration boundaries, so the
+        // generated body must NOT add a trailing `<!---->` after it (mirrors
+        // upstream Fragment.js / clean_nodes `is_standalone` → component.js:354
+        // and RenderTag.js:42 `!context.state.is_standalone` guards).
+        // The flag is forwarded to the body generator's `skip_hydration_boundaries`
+        // so that `generate_render_tag` (and `generate_component_usage`) see the
+        // correct context when they decide whether to emit a trailing marker.
+        let is_standalone = self.is_standalone_fragment(
+            &nodes[start_idx..end_idx]
+                .iter()
+                .map(|n| (*n).clone())
+                .collect::<Vec<_>>(),
+        );
+
         // Generate body parts using new_child_generator to forward analysis,
         // store subscription info, and other context from the parent generator.
-        let mut body_generator = self.new_child_generator(false);
+        let mut body_generator = self.new_child_generator(is_standalone);
 
         // Check if first visible content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration.
