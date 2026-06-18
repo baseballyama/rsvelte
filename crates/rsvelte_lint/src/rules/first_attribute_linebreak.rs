@@ -25,7 +25,9 @@ use rsvelte_core::ast::template::{
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::line_index::LineIndex;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/first-attribute-linebreak",
@@ -199,5 +201,9 @@ impl Rule for FirstAttributeLinebreak {
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
         self.check_tag(ctx, el.start, "svelte:element", &el.attributes);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        self.check_tag(ctx, el.start, el.name, &el.attributes);
     }
 }

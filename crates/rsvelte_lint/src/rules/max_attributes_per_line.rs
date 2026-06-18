@@ -23,7 +23,9 @@ use rsvelte_core::ast::template::{
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::line_index::LineIndex;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/max-attributes-per-line",
@@ -286,5 +288,30 @@ impl Rule for MaxAttributesPerLine {
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
         self.check_tag(ctx, el.start, &el.attributes, None);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        // Exclude the `generics` attribute from checking on special elements.
+        //
+        // svelte-eslint-parser converts a valid `generics="T extends ..."` into a
+        // `SvelteGenericsDirective` node (full attribute range → message includes
+        // `generics="..."`) but keeps it as `SvelteAttribute` (key-only) when the
+        // TS generic params have a syntax error. We cannot determine which path the
+        // oracle would take at lint time, so we skip `generics` entirely to avoid
+        // emitting a `+` false-positive divergence. The oracle's findings for
+        // `generics` are tracked separately in known-failures.
+        let attrs: Vec<_> = el
+            .attributes
+            .iter()
+            .filter(|a| {
+                if let Attribute::Attribute(n) = a {
+                    n.name != "generics"
+                } else {
+                    true
+                }
+            })
+            .cloned()
+            .collect();
+        self.check_tag(ctx, el.start, &attrs, None);
     }
 }

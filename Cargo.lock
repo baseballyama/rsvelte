@@ -2202,6 +2202,7 @@ version = "0.7.11"
 dependencies = [
  "anyhow",
  "clap",
+ "compact_str",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",

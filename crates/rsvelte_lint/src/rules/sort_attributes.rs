@@ -36,7 +36,9 @@ use rsvelte_core::ast::template::{
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 use crate::rules::find_this_attr_span;
 
 static META: RuleMeta = RuleMeta {
@@ -693,6 +695,10 @@ impl Rule for SortAttributes {
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        self.check_tag(ctx, &el.attributes);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
         self.check_tag(ctx, &el.attributes);
     }
 }
