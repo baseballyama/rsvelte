@@ -1930,10 +1930,44 @@ fn try_break_block_multiline_content(
     if open.is_empty() || close.is_empty() || content.is_empty() {
         return None;
     }
-    // Open tag must be single-line and end with `>`.
-    if open.contains('\n') || !open.ends_with('>') {
+    // Open tag must end with `>`.
+    if !open.ends_with('>') {
         return None;
     }
+
+    let open_multiline = open.contains('\n');
+
+    if open_multiline {
+        // Multi-line open tag (attributes wrapped): the content must be
+        // single-line and must start immediately after the `>` (no newline).
+        // If content is already on its own line, nothing to do.
+        if content.contains('\n') {
+            return None;
+        }
+        // Content must start on the same line as `>`.
+        if out.as_bytes().get(first_start) == Some(&b'\n') {
+            return None;
+        }
+        // Close tag must start on the same line as the last content char.
+        if out.as_bytes().get(last_end) == Some(&b'\n') {
+            return None;
+        }
+
+        // Derive indent from the last line of the open tag (the `>` line).
+        let last_nl = open.rfind('\n').unwrap();
+        let last_open_line = &open[last_nl + 1..]; // e.g. "    >"
+        let ws_len = last_open_line.len().saturating_sub(last_open_line.trim_start().len());
+        let indent = &last_open_line[..ws_len];
+        if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+            return None;
+        }
+        let inner_indent = format!("{indent}  ");
+
+        let broken = format!("{open}\n{inner_indent}{content}\n{indent}{close}");
+        return (broken != whole).then_some((start, end, broken));
+    }
+
+    // Single-line open tag path.
     // Content must be multi-line (otherwise try_break_block_overflow handles it).
     if !content.contains('\n') {
         return None;

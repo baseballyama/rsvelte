@@ -498,12 +498,16 @@ fn push_open_tag(
     // `>` always breaks to its own line when the open tag wraps — even with text
     // directly after it (block elements trim edge whitespace, so no significant
     // whitespace is injected).
+    // Exception: `<pre>` always hugs `>` to the last attribute — breaking `>` onto
+    // its own line would inject a newline before the content, changing how the
+    // browser renders whitespace-sensitive preformatted text.
     let hug_open = !self_closing
-        && !is_block_element(tag_name)
-        && source
-            .as_bytes()
-            .get(open_tag_end as usize)
-            .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'<');
+        && (tag_name == "pre"
+            || (!is_block_element(tag_name)
+                && source
+                    .as_bytes()
+                    .get(open_tag_end as usize)
+                    .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'<')));
 
     // Build the list of fully-rendered open-tag items (attributes plus any
     // comments interleaved between them), each tagged with its source
