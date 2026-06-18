@@ -56,4 +56,30 @@ only walks `<script>` programs. Tracked in
 
 ---
 
+## H2 — Oracle declared no ES/Web-API globals → ReferenceTracker rules never fired (harness, FIXED)
+
+Same class of bug as H1, for two more rules whose `eslint-utils`
+`ReferenceTracker` is scope-based:
+
+- **`svelte/infinite-reactive-loop`** tracks calls to `setTimeout` /
+  `setInterval` / `queueMicrotask` (`ReferenceTracker.CALL`). With none of those
+  declared as globals, it found zero references and stayed silent — even on its
+  *own* `invalid/queueMicrotask/test01` fixture (15 FP vs rsvelte).
+- **`svelte/prefer-svelte-reactivity`** tracks `new Date/Map/Set/URL/URLSearchParams`
+  (`ReferenceTracker.CONSTRUCT`). With those undeclared it was silent (≈17 FP).
+
+**Verification:** declaring the relevant globals makes the oracle byte-identical
+to rsvelte on every fixture for both rules (confirmed by oracle-only probes on
+`queueMicrotask/setTimeout/setInterval/test01` and
+`url-search-params/append01,delete01`).
+
+**Fix:** the oracle declares a realistic, **collision-safe** global environment —
+`globals.builtin` (ES intrinsics: `Date`/`Map`/`Set`/`Promise`/…) plus the
+universal Web/Node APIs the rules track (`URL`, `URLSearchParams`, the
+`setTimeout`/`setInterval`/`queueMicrotask`/… timer family) plus the curated
+browser-only set from H1. The full `globals.browser` set is still avoided (its
+common identifiers `name`/`event`/`length`/… would collide with locals in
+rsvelte's name-based `no-top-level-browser-globals`). rsvelte's rule logic was
+correct throughout.
+
 <!-- Add further harness/upstream findings below as the burn-down continues. -->
