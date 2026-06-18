@@ -183,7 +183,16 @@ impl Parser<'_> {
         // `is_top_level_script_or_style` branch runs `parser.eat('>', true)`
         // directly (the `/` is never consumed), so `<script foo="bar"/>` is an
         // `expected_token` error at the `/`.
-        let self_closing = if is_top_level_script_or_style && !self.options.loose {
+        //
+        // In lenient (lint) mode we mirror svelte-eslint-parser, which DOES
+        // tolerate a self-closed `<style />` / `<script />` (it produces a
+        // self-closing node so layout/style lint rules can still fire). Allow
+        // the `/` to be consumed so the template parse does not abort — the
+        // compiler keeps `lenient_script: false`, so its output is unchanged.
+        let self_closing = if is_top_level_script_or_style
+            && !self.options.loose
+            && !self.options.lenient_script
+        {
             false
         } else {
             self.eat_optional("/")
@@ -214,13 +223,13 @@ impl Parser<'_> {
         // Handle script and style tags specially
         // Only treat as Svelte script if at root level (not inside another element)
         if name == "script" && !self.is_inside_element() {
-            return self.parse_script_tag(start, attributes);
+            return self.parse_script_tag(start, attributes, self_closing);
         }
 
         // Only treat as Svelte style (component CSS) if at root level (not inside another element)
         // When inside any element (including svelte:head), style should remain as a child element
         if name == "style" && !self.is_inside_element() {
-            return self.parse_style_tag(start, attributes);
+            return self.parse_style_tag(start, attributes, self_closing);
         }
 
         // Handle svelte:options specially - extract and store options

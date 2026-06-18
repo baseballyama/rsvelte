@@ -164,6 +164,124 @@ pub fn extract_selectors(text: &str) -> Vec<ScssSelector> {
     selectors
 }
 
+/// Conservative structural validity check for SCSS/PostCSS source.
+///
+/// The corpus oracle drives its CSS-aware rules (no-unused-class-name,
+/// consistent-selector-style) from a real `postcss-scss` parse, which **fails**
+/// — and therefore reports nothing — on grossly malformed input (e.g. a bare
+/// word statement like `end` with no `:` and no block). rsvelte's
+/// [`extract_selectors`] is a tolerant regex-style scan that never fails, so it
+/// would over-report on such input. This function mirrors postcss-scss's
+/// "does it parse at all?" decision well enough to suppress those false
+/// positives, while staying conservative so it never rejects *valid* SCSS
+/// (false negatives — extracting selectors from genuinely valid SCSS — are
+/// always acceptable; false positives are not).
+///
+/// Returns `false` when the source is definitely not parseable:
+/// - unbalanced `{` / `}`, or
+/// - a non-empty statement terminated by `;` or `}` that is neither a
+///   declaration (`prop: value`) nor an at-rule (`@…`) — i.e. a bare word.
+///
+/// Comments, string literals, and `#{…}` interpolation are skipped so their
+/// contents never trip the heuristic.
+pub fn scss_is_parseable(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let mut pos = 0usize;
+    let mut depth: i32 = 0;
+
+    // Per-statement flags, reset at every `;` / `{` / `}` boundary.
+    let mut seg_content = false;
+    let mut seg_colon = false;
+    let mut seg_first_at = false;
+    let mut seg_first_set = false;
+
+    // A `;`/`}`-terminated statement must be empty, a declaration (has `:`), or
+    // an at-rule (starts with `@`). Anything else is a bare word → unparseable.
+    let stmt_ok = |content: bool, colon: bool, at: bool| -> bool { !content || colon || at };
+
+    while pos < len {
+        let Some(advanced) = skip_ws_comments(bytes, pos) else {
+            break;
+        };
+        if advanced != pos {
+            pos = advanced;
+            continue;
+        }
+        let b = bytes[pos];
+        match b {
+            b'"' | b'\'' => {
+                pos = skip_string(bytes, pos);
+            }
+            b'#' if pos + 1 < len && bytes[pos + 1] == b'{' => {
+                // SCSS interpolation `#{ … }` — skip to the matching `}` so its
+                // inner braces don't perturb depth tracking.
+                let mut p = pos + 2;
+                let mut inner = 1i32;
+                while p < len && inner > 0 {
+                    match bytes[p] {
+                        b'{' => inner += 1,
+                        b'}' => inner -= 1,
+                        _ => {}
+                    }
+                    p += 1;
+                }
+                pos = p;
+                if !seg_first_set {
+                    seg_first_set = true;
+                }
+                seg_content = true;
+            }
+            b'{' => {
+                // Text before `{` was a selector prelude — always valid; reset.
+                depth += 1;
+                pos += 1;
+                seg_content = false;
+                seg_colon = false;
+                seg_first_at = false;
+                seg_first_set = false;
+            }
+            b'}' => {
+                if !stmt_ok(seg_content, seg_colon, seg_first_at) {
+                    return false;
+                }
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+                pos += 1;
+                seg_content = false;
+                seg_colon = false;
+                seg_first_at = false;
+                seg_first_set = false;
+            }
+            b';' => {
+                if !stmt_ok(seg_content, seg_colon, seg_first_at) {
+                    return false;
+                }
+                pos += 1;
+                seg_content = false;
+                seg_colon = false;
+                seg_first_at = false;
+                seg_first_set = false;
+            }
+            _ => {
+                if !seg_first_set {
+                    seg_first_at = b == b'@';
+                    seg_first_set = true;
+                }
+                seg_content = true;
+                if b == b':' {
+                    seg_colon = true;
+                }
+                pos += 1;
+            }
+        }
+    }
+
+    depth == 0
+}
+
 /// Try to advance past whitespace and comments from `pos`. Returns the new
 /// position (same as `pos` if no advancement), or `None` if we hit end.
 fn skip_ws_comments(bytes: &[u8], pos: usize) -> Option<usize> {

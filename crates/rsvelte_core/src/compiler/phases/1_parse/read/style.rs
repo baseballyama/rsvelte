@@ -18,10 +18,29 @@ use memchr::memmem;
 use serde_json::{Map, Value};
 
 use crate::ast::css::{StyleSheet, StyleSheetContent, StyleSheetType};
-use crate::ast::template::TemplateNode;
+use crate::ast::template::{AttributeValue, AttributeValuePart, TemplateNode};
 use crate::error::ParseResult;
 
 use super::super::parser::Parser;
+
+/// Returns `true` when the `<style>` has a `lang` attribute whose value is not
+/// plain CSS (e.g. `sass`, `scss`, `stylus`, `less`, `postcss`). Such a block
+/// is preprocessed before the compiler normally sees it, so its body is NOT
+/// CSS — used (in lenient/lint mode only) to skip CSS-shaped validation that
+/// would otherwise abort the whole-file parse.
+fn has_non_css_lang(attributes: &[crate::ast::Attribute]) -> bool {
+    for attr in attributes {
+        if let crate::ast::Attribute::Attribute(node) = attr
+            && node.name.as_str() == "lang"
+            && let AttributeValue::Sequence(parts) = &node.value
+            && let Some(AttributeValuePart::Text(t)) = parts.first()
+        {
+            let lang = t.data.as_str().trim().to_ascii_lowercase();
+            return !lang.is_empty() && lang != "css";
+        }
+    }
+    false
+}
 
 // ============================================================================
 // Public API
@@ -73,6 +92,7 @@ impl Parser<'_> {
         &mut self,
         start: usize,
         attributes: Vec<crate::ast::Attribute>,
+        self_closing: bool,
     ) -> ParseResult<Option<TemplateNode>> {
         // Check for duplicate style tags
         if self.stylesheet.is_some() {
@@ -82,6 +102,45 @@ impl Parser<'_> {
                 (start, start),
             ));
         }
+
+        // A self-closed `<style />` (lenient/lint mode only) has no content and
+        // no closing tag — produce an empty stylesheet spanning `<style … />` so
+        // layout/style lint rules can still see it. Mirrors svelte-eslint-parser.
+        if self_closing {
+            let here = self.index;
+            let style_attributes: Vec<serde_json::Value> = attributes
+                .iter()
+                .filter_map(|attr| {
+                    if let crate::ast::Attribute::Attribute(attr_node) = attr {
+                        serde_json::to_value(attr_node).ok()
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            self.stylesheet = Some(StyleSheet {
+                node_type: StyleSheetType::StyleSheet,
+                start: start as u32,
+                end: here as u32,
+                attributes: style_attributes,
+                children: Vec::new(),
+                content: StyleSheetContent {
+                    start: here as u32,
+                    end: here as u32,
+                    styles: String::new(),
+                    comment: self.pending_leading_comments.last().cloned(),
+                },
+            });
+            return Ok(None);
+        }
+
+        // Lenient (lint) mode only: a non-CSS `lang` block (sass/scss/stylus/…)
+        // is not CSS, so its body must not drive CSS-shaped validation — that
+        // would spuriously abort the whole template parse and suppress every
+        // other lint on the file. Plain-CSS `<style>` keeps full strictness, so
+        // invalid plain CSS still fails to parse exactly as the official
+        // compiler (and the eslint oracle) treats it.
+        let lenient_non_css = self.options.lenient_script && has_non_css_lang(&attributes);
 
         let content_start = self.index;
 
@@ -113,7 +172,11 @@ impl Parser<'_> {
         // A string that starts with `"` must end with `"`, and `'` must end with `'`.
         // If a string is not properly closed, we report `unexpected_eof`.
         // This corresponds to CSS-Tree's lexer error handling in the official Svelte compiler.
-        {
+        //
+        // Skipped only for a non-CSS `lang` block in lenient (lint) mode (see
+        // `lenient_non_css` above). Plain CSS keeps this check, so invalid plain
+        // CSS still errors exactly as the compiler/oracle do.
+        if !lenient_non_css {
             let mut in_string = false;
             let mut string_byte = 0u8;
             let mut in_block_comment = false;
@@ -207,7 +270,10 @@ impl Parser<'_> {
         // it cannot be valid CSS (no rules can be formed).
         // This corresponds to CSS-Tree's error when encountering invalid CSS in the
         // official Svelte compiler.
-        {
+        //
+        // Skipped only for a non-CSS `lang` block in lenient (lint) mode (see
+        // the string-quote check above).
+        if !lenient_non_css {
             let trimmed = style_content.trim();
             if !trimmed.is_empty() {
                 // Strip CSS comments to check if there's real content
@@ -262,6 +328,12 @@ impl Parser<'_> {
         // silently dropped.
         let css_children = if self.options.defer_script_parse {
             Vec::new() // Will be resolved by ensure_css_parsed() before analysis
+        } else if lenient_non_css {
+            // Non-CSS `lang` block in lint mode: the body is sass/scss/stylus/…,
+            // not CSS — don't parse it as CSS (CSS-aware rules handle the raw
+            // text themselves via their own `lang` branch). Yields no CSS AST
+            // children, so the surrounding template still lints normally.
+            Vec::new()
         } else {
             parse_css_strict(style_content, content_start)?
         };

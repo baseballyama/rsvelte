@@ -329,6 +329,11 @@ impl Rule for NoUnusedClassName {
                 if let Some(_lang) = scss_lang(&css.attributes) {
                     // Best-effort SCSS/PostCSS: extract class names from raw text.
                     let raw = &css.content.styles;
+                    // The oracle's postcss-scss parse fails (and reports nothing)
+                    // on malformed SCSS — mirror that so we don't over-report.
+                    if !crate::rules::scss_selector::scss_is_parseable(raw) {
+                        return;
+                    }
                     extract_selectors(raw)
                         .into_iter()
                         .filter(|s| s.kind == SelectorKind::Class)

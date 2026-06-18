@@ -1048,6 +1048,11 @@ impl Rule for ConsistentSelectorStyle {
             // checkGlobal is not applicable to SCSS (no :global pseudo-class parsing).
             let _ = check_global; // intentionally unused for SCSS path
             let raw = &css.content.styles;
+            // The oracle's postcss-scss parse fails (reporting nothing) on
+            // malformed SCSS — mirror that so we don't over-report.
+            if !crate::rules::scss_selector::scss_is_parseable(raw) {
+                return;
+            }
             let extracted = extract_selectors(raw);
             check_stylesheet_scss(&extracted, css.content.start, &sel, &style, ctx);
         } else if is_plain_css_lang(&css.attributes) {

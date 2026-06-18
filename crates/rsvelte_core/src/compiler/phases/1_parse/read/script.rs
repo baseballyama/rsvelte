@@ -94,25 +94,33 @@ impl Parser<'_> {
     }
 
     /// Parse a `<script>` tag and store it in instance_script or module_script.
+    ///
+    /// `self_closing` is only ever `true` in lenient (lint) mode, where a
+    /// self-closed `<script />` is tolerated to mirror svelte-eslint-parser. In
+    /// that case there is no content and no closing tag to consume — the `/>`
+    /// has already been eaten by the caller.
     pub fn parse_script_tag(
         &mut self,
         start: usize,
         attributes: Vec<crate::ast::Attribute>,
+        self_closing: bool,
     ) -> ParseResult<Option<TemplateNode>> {
         let content_start = self.index;
 
         // Use SIMD-accelerated search for </script instead of byte-by-byte scanning
-        loop {
-            if let Some(offset) = memchr::memmem::find(&self.bytes[self.index..], b"</script") {
-                self.index += offset;
-                if self.is_valid_closing_tag("</script") {
+        if !self_closing {
+            loop {
+                if let Some(offset) = memchr::memmem::find(&self.bytes[self.index..], b"</script") {
+                    self.index += offset;
+                    if self.is_valid_closing_tag("</script") {
+                        break;
+                    }
+                    // Not a valid closing tag (e.g., </scripting), skip past it
+                    self.index += 8;
+                } else {
+                    self.index = self.bytes.len();
                     break;
                 }
-                // Not a valid closing tag (e.g., </scripting), skip past it
-                self.index += 8;
-            } else {
-                self.index = self.bytes.len();
-                break;
             }
         }
 
@@ -120,7 +128,9 @@ impl Parser<'_> {
         let script_content = &self.source[content_start..content_end];
 
         // Consume </script followed by optional whitespace and >
-        if self.match_str("</script") {
+        if self_closing {
+            // Nothing to consume — the self-closing `/>` was already eaten.
+        } else if self.match_str("</script") {
             self.advance_by(8); // consume '</script'
             // Skip whitespace before >
             while !self.is_eof() && self.current_char() != '>' {
