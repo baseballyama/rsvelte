@@ -898,6 +898,14 @@ fn render_multi_line(
         // attribute column by `render_attribute_value_sequence`.)
         if is_string_value_attr(a) {
             out.push_str(a);
+        } else if a.starts_with("/*") {
+            // Block comment sourced verbatim from the open-tag region: its
+            // interior lines already carry the original source indentation
+            // (tabs/spaces from the author). Adding `inner_indent` on top would
+            // double-indent every continuation line, producing mixed
+            // spaces+tabs (#A). Emit verbatim — the leading `inner_indent` was
+            // already pushed above.
+            out.push_str(a);
         } else {
             out.push_str(&crate::reindent::reindent(a, &inner_indent, true));
         }

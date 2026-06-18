@@ -50,24 +50,20 @@ pub(crate) fn format_script(
     }
 
     let allocator = Allocator::default();
-    let source_type = if script.is_typescript {
-        SourceType::ts()
-    } else {
-        SourceType::default()
-    };
+    // Always parse as TypeScript: oxfmt's `.svelte` mode via `prettier-plugin-svelte`
+    // uses `babel-ts` (TypeScript parser) for ALL `<script>` blocks regardless of
+    // `lang="ts"`. TypeScript is a superset of JS so valid JS parses identically,
+    // but the TypeScript source-type flag changes two cosmetic formatting behaviors:
+    //   1. Numeric-looking string keys like `{ '1': 'one' }` are preserved as `"1"`
+    //      rather than being unquoted to `1` (see `can_remove_number_quotes_by_file_type`).
+    //   2. TypeScript class property declarations keep their quotes.
+    // Both of these match the oracle, so using `SourceType::ts()` unconditionally
+    // aligns rsvelte-fmt with oxfmt's `.svelte` behaviour (#D).
+    let source_type = SourceType::ts();
 
-    let mut parser_ret = Parser::new(&allocator, body, source_type)
+    let parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.diagnostics.is_empty() && !script.is_typescript {
-        // oxfmt parses `<script>` content leniently — TS is a superset of JS, so
-        // TS-only syntax in a script without `lang="ts"` (common in docs) still
-        // formats. Fall back to the TS parser when the JS parse fails. Valid JS
-        // never reaches here, so its output is unchanged.
-        parser_ret = Parser::new(&allocator, body, SourceType::ts())
-            .with_options(formatter_parse_options())
-            .parse();
-    }
     if !parser_ret.diagnostics.is_empty() {
         return Err(FormatError::ScriptParse(format!(
             "{:?}",
@@ -134,25 +130,13 @@ pub(crate) fn format_nested_script(
     if body.trim().is_empty() {
         return Ok(None);
     }
-    let is_ts =
-        block[..open_end].contains("lang=\"ts\"") || block[..open_end].contains("lang='ts'");
-
     let allocator = Allocator::default();
-    let source_type = if is_ts {
-        SourceType::ts()
-    } else {
-        SourceType::default()
-    };
-    let mut parser_ret = Parser::new(&allocator, body, source_type)
+    // Same reasoning as format_script: always use TS source type so that
+    // numeric-looking string property keys are preserved (oracle uses babel-ts).
+    let source_type = SourceType::ts();
+    let parser_ret = Parser::new(&allocator, body, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !parser_ret.diagnostics.is_empty() && !is_ts {
-        // Fall back to the TS parser (superset of JS) — matches oxfmt's lenient
-        // parse of a `<script>` without `lang="ts"` that uses TS-only syntax.
-        parser_ret = Parser::new(&allocator, body, SourceType::ts())
-            .with_options(formatter_parse_options())
-            .parse();
-    }
     if !parser_ret.diagnostics.is_empty() {
         // Can't parse → leave the nested script untouched.
         return Ok(None);
