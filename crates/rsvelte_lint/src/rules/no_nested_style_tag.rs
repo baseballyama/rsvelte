@@ -7,7 +7,9 @@
 use rsvelte_core::ast::template::RegularElement;
 
 use crate::context::LintContext;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-nested-style-tag",
@@ -37,6 +39,24 @@ impl Rule for NoNestedStyleTag {
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
         if el.name.eq_ignore_ascii_case("style") {
             ctx.report(el.start, el.end, MESSAGE);
+        }
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        if el.name != "style" {
+            return;
+        }
+        // A self-closing <style /> is not a valid scoped stylesheet.
+        let src = ctx.source().as_bytes();
+        let mut i = el.start as usize;
+        while i < src.len() {
+            if src[i] == b'>' {
+                if i > 0 && src[i - 1] == b'/' {
+                    ctx.report(el.start, el.end, MESSAGE);
+                }
+                break;
+            }
+            i += 1;
         }
     }
 }

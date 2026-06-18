@@ -28,7 +28,9 @@ use rsvelte_core::ast::template::{
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/html-self-closing",
@@ -551,6 +553,25 @@ impl Rule for HtmlSelfClosing {
             &e.attributes,
             &e.fragment.nodes,
             ElementType::Svelte,
+            &opts,
+        );
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        let opts = Options::resolve(ctx);
+        let ty = match el.name {
+            "svelte:options" => ElementType::Svelte,
+            "style" => ElementType::Normal,
+            _ => return, // script: skip
+        };
+        self.check(
+            ctx,
+            el.start,
+            el.end,
+            el.name,
+            &el.attributes,
+            &[],
+            ty,
             &opts,
         );
     }
