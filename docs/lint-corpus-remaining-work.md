@@ -16,25 +16,59 @@ priority, most user-visible bug). `FN` = oracle reports, rsvelte silent.
 
 ## Snapshot
 
-**416 divergences** (down from 556 at the start of this burn-down pass; a raw
-17,896 / a post-scoping 745 before that). Cleared this pass:
-- **Cluster E (inline config)** — honor inline `/* eslint <rule>: … */` comments.
-- **Cluster F (`this={…}`)** — `<svelte:element>`/`<svelte:component>` `this`
-  spliced into the attribute list for `max-attributes-per-line`.
-- **Cluster G (browser globals)** — oracle now declares a curated browser-global
-  environment so the rule is actually exercised (was a harness gap, not a rsvelte
-  bug). See `docs/lint-corpus-harness-findings.md`.
+**70 divergences** (down from 556 at the start of this burn-down pass; a raw
+17,896 / a post-scoping 745 before that). This pass cleared **486** (87%) across:
+Cluster E (inline `/* eslint … */` config + JSON5 leniency), Cluster F
+(`<svelte:element/component this={…}>`), Cluster G (browser-globals harness),
+Cluster C/D (kit-pages `src/routes` gate, `goto` namespace import, shorthand
+`<a {href}>`), **Cluster A (parser: newline-split `{#each … as …}` headers — a
+real compatibility fix, CI-validated against the compile-corpus + runtime
+suites)**, Cluster B (best-effort SCSS/PostCSS selector extraction), the
+`<script>`/`<style>`/`<svelte:options>` layout-rule support (`SpecialElement`
+hook), the oracle global environment for ReferenceTracker rules
+(infinite-reactive-loop, prefer-svelte-reactivity, no-immutable's `console`), the
+`lenient_script` parse path (lint the template even with invalid TS), and many
+per-rule logic fixes (mustache-spacing `{@const}`/pug, prefer-const template
+tags, no-dupe-else-if operand span, require-store computed-key column,
+prefer-style CSS comments, infinite-loop param shadowing, ternary style attrs,
+no-immutable destructuring assignments, …). All harness/upstream-rooted
+decisions are recorded in `docs/lint-corpus-harness-findings.md`.
 
-Already fixed in earlier passes: `prefer-const` (export-prop, `{@render}`-arg
-writes, robustness to analysis errors + bind/destructuring/redeclaration),
-`no-spaces-around-equal-signs` (shorthand), `consistent-selector-style`
-(dynamic-class affixes), `max-attributes-per-line` (shorthand name),
-`html-self-closing` (`<slot>`).
-
-Rules **excluded** from the parity universe (not counted above; see `EXCLUDE`
-in `lint-verify.mjs`): `indent`, `valid-compile`, `valid-style-parse`,
-type-aware rules (`no-unused-props`, `no-navigation-without-resolve`),
+Rules **excluded** from the parity universe (see `EXCLUDE` in `lint-verify.mjs`):
+`indent`, `valid-compile`, `valid-style-parse`, type-aware rules
+(`no-unused-props`, `no-navigation-without-resolve`, `require-event-prefix`),
 Svelte-3/4-only rules, option-required rules.
+
+### Remaining 70 — categorised residuals
+
+The remaining divergences need a few larger subsystems, not per-rule tweaks:
+
+1. **Non-CSS `<style lang>` parse + validity (~12)** — `html-self-closing`,
+   `no-unused-class-name`, some `prefer-const`/`sort-attributes`. rsvelte's CSS
+   parser rejects SCSS/Sass/Less bodies, so the *whole file* fails to parse and
+   no rule runs. A lenient skip (tried) makes *valid* scss lint correctly but
+   also makes *invalid* scss parse — where the oracle's postcss-scss correctly
+   rejects and stays silent — so rsvelte's tolerant SCSS extractor then
+   over-reports. Needs a real SCSS validator to distinguish valid from invalid.
+2. **`max-attributes-per-line` `generics` (~15)** — svelte-eslint-parser types a
+   *valid* `generics="…"` as `SvelteGenericsDirective` (full-text message) but an
+   *invalid* one as `SvelteAttribute` (key-only). rsvelte cannot tell which
+   without parsing the value as TS type parameters. Excluded for now (counts as
+   FN), since reporting it unconditionally would add a FP on the syntax-error
+   fixture.
+3. **`no-immutable-reactive-statements` module/instance combos (~9)** — `<script
+   module>` + instance-script interactions; some are rsvelte parser gaps.
+4. **`no-top-level-browser-globals` in template (4)** — the rule is a
+   `ScriptRule`; it must also scan template `{expr}` tags with `{#if browser}`
+   *SvelteIfBlock* guards.
+5. **Scattered per-rule edges (~30)** — `sort-attributes` (this-in-middle,
+   parse-failure files), `no-reactive-reassign`, `prefer-const` destructure/each,
+   `first-attribute-linebreak` style-directive, `comment-directive`,
+   `prefer-svelte-reactivity` (1, cross-block Set mutation). Several sit on
+   files that fail to parse for residual (1).
+
+The CI `lint-parity` gate (`known-failures.json`) holds at 70; it may only
+shrink. Each residual above is a self-contained follow-up.
 
 ## How to work a cluster
 
