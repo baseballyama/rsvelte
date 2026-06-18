@@ -120,12 +120,15 @@ pub(crate) fn find_this_attr_span(
     if pos == 0 {
         return None;
     }
-    // Step back over optional whitespace before `{`.
+    // Step back over optional whitespace before the value opener.
     while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
         pos -= 1;
     }
-    // Expect `{`.
-    if pos == 0 || src_bytes[pos - 1] != b'{' {
+    // Expect the value opener: `{` for `this={expr}`, or a quote for a static
+    // `this="div"` / `this='div'` (svelte:element with a non-expression `this`,
+    // whose `el.tag` is a Literal spanning the inner string — `expr_end + 1`
+    // still lands just past the matching closing quote, as with `}`).
+    if pos == 0 || !matches!(src_bytes[pos - 1], b'{' | b'"' | b'\'') {
         return None;
     }
     pos -= 1;
