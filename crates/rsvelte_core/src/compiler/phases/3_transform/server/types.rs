@@ -538,6 +538,18 @@ pub(crate) enum ComponentPropItem {
     Props(Vec<String>),
     /// A spread expression (e.g., `props` from `{...props}`)
     Spread(String),
+    /// An inline SequenceExpression bind getter/setter pair at its source position.
+    ///
+    /// Upstream: `SequenceExpression` bindings call `push_prop(…, delay=false)` so they
+    /// occupy their natural position in `props_and_spreads` relative to spreads.
+    /// Only *simple* bindings use `delay=true` and are appended at the end.
+    /// `is_seq = true` means no `$$settled = false` in the setter (mirrors upstream).
+    Binding {
+        prop_name: String,
+        getter_expr: String,
+        setter_expr: String,
+        is_seq: bool,
+    },
 }
 
 /// Check whether a `Vec<ComponentPropItem>` contains any spreads.
@@ -553,7 +565,7 @@ pub(crate) fn collect_all_props(items: &[ComponentPropItem]) -> Vec<String> {
         .iter()
         .flat_map(|item| match item {
             ComponentPropItem::Props(props) => props.clone(),
-            ComponentPropItem::Spread(_) => Vec::new(),
+            ComponentPropItem::Spread(_) | ComponentPropItem::Binding { .. } => Vec::new(),
         })
         .collect()
 }

@@ -309,7 +309,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     if expr_type == "SequenceExpression" {
                         let expr_json = bind.expression.as_json();
-                        // Extract getter and setter from the SequenceExpression
+                        // Extract getter and setter from the SequenceExpression.
+                        // Upstream (component.js line 121-131): SequenceExpression bindings call
+                        // `push_prop(…, delay=false)`, so they are inserted INLINE into
+                        // `props_and_spreads` at their source position (not deferred to the end).
+                        // We mirror this by pushing a `ComponentPropItem::Binding` directly into
+                        // `props_and_spreads`, preserving source order relative to spreads.
                         if let Some(expressions) = expr_json
                             .get("expressions")
                             .and_then(|e| e.as_array())
@@ -349,6 +354,16 @@ impl<'a> ServerCodeGenerator<'a> {
                                     self.source[setter_start..setter_end].trim().to_string();
                                 let setter_expr = self.strip_ts_from_expr(&setter_expr);
                                 let setter_expr = self.wrap_derived_reads(&setter_expr);
+                                // Push inline at source position (delay=false upstream).
+                                // We still also record in bindings for the VarDeclaration hoisting
+                                // that happens below (bind_get/bind_set), but the actual
+                                // getter/setter object is in props_and_spreads for ordering.
+                                props_and_spreads.push(ComponentPropItem::Binding {
+                                    prop_name: prop_name.to_string(),
+                                    getter_expr: getter_expr.clone(),
+                                    setter_expr: setter_expr.clone(),
+                                    is_seq: true,
+                                });
                                 bindings.push(ComponentBinding::SequenceExpression {
                                     prop_name: prop_name.to_string(),
                                     getter_expr,
@@ -421,6 +436,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     ComponentPropItem::Spread(s) => {
                         *s = self.strip_ts_from_expr(s);
                     }
+                    ComponentPropItem::Binding {
+                        getter_expr,
+                        setter_expr,
+                        ..
+                    } => {
+                        *getter_expr = self.strip_ts_from_expr(getter_expr);
+                        *setter_expr = self.strip_ts_from_expr(setter_expr);
+                    }
                 }
             }
         }
@@ -438,6 +461,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     .iter()
                     .any(|p| super::super::helpers::expr_contains_await(p)),
                 ComponentPropItem::Spread(s) => super::super::helpers::expr_contains_await(s),
+                ComponentPropItem::Binding { .. } => false,
             });
 
         // Use ComponentWithBindings if there are any bind directives
@@ -493,6 +517,9 @@ impl<'a> ServerCodeGenerator<'a> {
                                 new_props_and_spreads.push(ComponentPropItem::Spread(s.clone()));
                             }
                         }
+                        // Binding items only appear in ComponentWithBindings (which takes a
+                        // different branch below) so they will not appear here.
+                        ComponentPropItem::Binding { .. } => {}
                     }
                 }
 
