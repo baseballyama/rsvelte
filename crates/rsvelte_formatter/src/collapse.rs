@@ -520,10 +520,16 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
     let whole = out.get(s..e)?;
 
     // The run must start at the beginning of its line so its column = that line's
-    // indentation (all whitespace); otherwise we can't safely reflow it.
+    // indentation (all whitespace); otherwise we can't safely reflow it (a
+    // non-whitespace prefix means the run is mid-line and we can't compute
+    // base_level for multi-line reflow). Exception: when the prefix ends with `>`
+    // (the text immediately follows a close tag on the same line), we still allow
+    // the flat-form collapse — if the whole run fits on one line the edit is safe
+    // regardless of what precedes it. Multi-line reflow is skipped in that case.
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
-    if !indent.is_empty() && !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+    let non_ws_prefix = !indent.is_empty() && !indent.bytes().all(|b| b == b' ' || b == b'\t');
+    if non_ws_prefix && !indent.ends_with('>') {
         return None;
     }
     let indent_cols = indent.width();
@@ -543,6 +549,11 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         // prettier reflows prose that fits onto a single line, so we must emit the
         // flat text rather than leaving the broken input untouched.
         return (flat != whole).then_some((s as u32, e as u32, flat));
+    }
+    // If the prefix was non-whitespace (e.g. text after `></span>`) and the flat
+    // form doesn't fit, we cannot safely compute base_level for multi-line reflow.
+    if non_ws_prefix {
+        return None;
     }
     // A pure-text run (no inline elements) that is already on a single line
     // (no `\n` in `whole`) should not be broken — prettier does not aggressively
