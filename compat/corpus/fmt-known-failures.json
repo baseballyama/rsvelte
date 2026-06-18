@@ -46,7 +46,6 @@
 	"svelte/packages/svelte/tests/css/samples/general-siblings-combinator-nested-slots-flattened/input.svelte",
 	"svelte/packages/svelte/tests/css/samples/siblings-combinator-nested-slots-flattened/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
-	"svelte/packages/svelte/tests/parser-modern/samples/comment-before-function-binding/input.svelte",
 	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/input.svelte",
 	"svelte/packages/svelte/tests/print/samples/declaration-tag-division/output.svelte",
 	"svelte/packages/svelte/tests/print/samples/formatting/input.svelte",
@@ -58,6 +57,5 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/event-attribute-template/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte",
 	"svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte",
-	"svelte/packages/svelte/tests/validator/samples/a11y-label-has-associated-control/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/comment-before-function-binding/input.svelte"
+	"svelte/packages/svelte/tests/validator/samples/a11y-label-has-associated-control/input.svelte"
 ]

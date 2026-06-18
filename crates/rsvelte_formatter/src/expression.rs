@@ -1433,12 +1433,37 @@ pub(crate) fn format_function_binding(
     if inner.is_empty() {
         return Ok(None);
     }
-    // When the brace interior has a leading `/* … */` comment, fall back to
-    // `None` so the caller uses the normal directive-value path (which now also
-    // returns the raw source for leading-comment values via `format_directive_value_extra`).
-    if inner.starts_with("/*") {
-        return Ok(None);
-    }
+    // When the brace interior has a leading `/* … */` block comment, extract
+    // the comment and format the rest as a sequence expression. prettier
+    // preserves the comment and wraps the sequence in outer parens, producing
+    // `{/** comment */ (m1, m2)}`.  We mirror that here so the value stays
+    // single-line (no multi-line attribute value that would force the tag to
+    // wrap).  If the comment extraction or sequence parse fails we fall back to
+    // `None` so the caller uses the normal directive-value path.
+    let leading_block_comment = if inner.starts_with("/*") {
+        // Find the end of the `/* … */` comment.
+        if let Some(rel) = inner.find("*/") {
+            let comment = &inner[..rel + 2]; // e.g. `/** ( */`
+            let rest = inner[rel + 2..].trim();
+            if rest.is_empty() {
+                // Comment-only value: fall back to normal path.
+                return Ok(None);
+            }
+            Some((comment, rest))
+        } else {
+            // Unclosed block comment: fall back.
+            return Ok(None);
+        }
+    } else {
+        None
+    };
+
+    // The source to parse as a sequence: either the full `inner` (no leading
+    // comment) or the rest after the comment.
+    let seq_src = match leading_block_comment {
+        Some((_, rest)) => rest,
+        None => inner,
+    };
 
     // Detect a top-level sequence and recover each member's source span.
     let allocator = Allocator::default();
@@ -1447,7 +1472,7 @@ pub(crate) fn format_function_binding(
     } else {
         SourceType::default()
     };
-    let wrapped = format!("({inner});");
+    let wrapped = format!("({seq_src});");
     let parser_ret = Parser::new(&allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
@@ -1481,12 +1506,30 @@ pub(crate) fn format_function_binding(
     let line_width = options.js.line_width.value() as usize;
     let any_multiline = members.iter().any(|m| m.contains('\n'));
 
-    // Inline candidate: `{m1, m2}` on one line. Keep it inline only when no
-    // member is multi-line and the whole value fits at its rendered column.
+    // Inline candidate: keep it inline only when no member is multi-line and
+    // the whole value fits at its rendered column.
+    // When there is a leading block comment, prettier wraps the sequence in
+    // outer parens — e.g. `{/** comment */ (m1, m2)}` — so we account for the
+    // extra `comment + 2` columns (2 for the parens) in the width check.
     let inline = members.join(", ");
-    let inline_cols = lead_cols + 1 + UnicodeWidthStr::width(inline.as_str()) + 1;
+    let comment_prefix_cols = leading_block_comment
+        .map(|(c, _)| UnicodeWidthStr::width(c) + 1 /* space */)
+        .unwrap_or(0);
+    // +2 for outer parens when there is a comment, +0 otherwise.
+    let outer_parens_cols = if leading_block_comment.is_some() { 2 } else { 0 };
+    let inline_cols = lead_cols
+        + 1  // opening `{`
+        + comment_prefix_cols
+        + outer_parens_cols
+        + UnicodeWidthStr::width(inline.as_str())
+        + 1; // closing `}`
     if !any_multiline && inline_cols <= line_width {
-        return Ok(Some(format!("{{{inline}}}")));
+        return Ok(Some(if let Some((comment, _)) = leading_block_comment {
+            // `{/** comment */ (m1, m2)}`
+            format!("{{{comment} ({inline})}}")
+        } else {
+            format!("{{{inline}}}")
+        }));
     }
 
     // Broken form: each member on its own line, indented one level, braces on
@@ -1497,7 +1540,12 @@ pub(crate) fn format_function_binding(
     } else {
         " ".repeat(indent_width)
     };
-    let mut out = String::from("{\n");
+    // When there is a leading block comment, include it on the first line.
+    let mut out = if let Some((comment, _)) = leading_block_comment {
+        format!("{{{comment}\n")
+    } else {
+        String::from("{\n")
+    };
     for (i, m) in members.iter().enumerate() {
         out.push_str(&crate::reindent::reindent(m, &one_level, false));
         if i + 1 < members.len() {
