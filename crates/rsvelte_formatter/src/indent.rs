@@ -416,7 +416,32 @@ fn collect_indent_edits_inner(
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_str()));
                 if !has_trailing_ws {
                     let last_end = crate::collapse::template_node_span(last).1;
+                    // The `\n{parent_indent}` insert and any synthetic close
+                    // tag for an implicitly-closed element are both zero-length
+                    // inserts at `last_end`. `apply_edits` applies same-start
+                    // edits in their original push order (stable sort). We push
+                    // the newline FIRST so it ends up earlier in the vec; the
+                    // close tag is pushed second. When applied in descending-
+                    // start order the close tag insert fires last and lands at
+                    // the same position as the newline (now the position of the
+                    // newly-inserted `\n`), placing `</tag>` BEFORE the `\n`:
+                    //   `<duiv>\n</duiv>\n</div>` — correct layout.
                     edits.push((last_end, last_end, format!("\n{parent_indent}")));
+                    // Implicitly-closed RegularElement: insert synthetic </tag>.
+                    if let TemplateNode::RegularElement(e) = last {
+                        if source
+                            .as_bytes()
+                            .get(e.end as usize - 1)
+                            .copied()
+                            != Some(b'>')
+                        {
+                            edits.push((
+                                last_end,
+                                last_end,
+                                format!("</{}>", e.name.as_str()),
+                            ));
+                        }
+                    }
                 }
             }
         }

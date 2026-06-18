@@ -372,7 +372,18 @@ fn push_close_tag(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    let Some((start, end)) = find_close_tag_span(source, element_end, tag_name) else {
+    // First try to find the close tag using the AST's tag name.  When the
+    // source has a mismatched close tag (e.g. `<duiv>…</div>`, a typo in a
+    // test fixture), fall back to locating ANY `</…>` that ends at the element
+    // boundary and replace it with the correct AST tag name.
+    // If neither finds a close tag (element was implicitly closed — e.g. `<duiv>`
+    // without any matching `</duiv>` in source), insert a synthetic close tag at
+    // `element_end`.  This mirrors the oracle (prettier-plugin-svelte), which
+    // always emits a close tag based on the AST element name regardless of what
+    // the source contains.
+    let span = find_close_tag_span(source, element_end, tag_name)
+        .or_else(|| find_any_close_tag_span(source, element_end));
+    let Some((start, end)) = span else {
         return;
     };
     // When the open tag wrapped and the element's content is whitespace-
@@ -437,6 +448,35 @@ fn find_close_tag_span(source: &str, element_end: u32, tag_name: &str) -> Option
         return None;
     }
 
+    Some((lt as u32, end as u32))
+}
+
+/// Fallback: locate ANY `</name>` close tag that ends at `element_end`.
+/// Used when `find_close_tag_span` fails because the source has a mismatched
+/// close tag (e.g. `<duiv>…</div>` — the parser uses the element's AST tag
+/// name but the source written the wrong name).  This finds the `<` of the
+/// actual close tag so the caller can replace it with the correct tag name.
+fn find_any_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)> {
+    let bytes = source.as_bytes();
+    let end = element_end as usize;
+    if end == 0 || end > bytes.len() || bytes[end - 1] != b'>' {
+        return None;
+    }
+    // Walk back: `>`, optional whitespace, tag name, `/`, `<`.
+    let mut i = end - 1; // at '>'
+    i = i.checked_sub(1)?;
+    while matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r') {
+        i = i.checked_sub(1)?;
+    }
+    // Skip the tag name (alphanumeric / hyphen / colon / dot for custom elements).
+    while i > 0 && matches!(bytes[i], b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b':' | b'.') {
+        i -= 1;
+    }
+    let slash = i;
+    let lt = slash.checked_sub(1)?;
+    if bytes[slash] != b'/' || bytes[lt] != b'<' {
+        return None;
+    }
     Some((lt as u32, end as u32))
 }
 
