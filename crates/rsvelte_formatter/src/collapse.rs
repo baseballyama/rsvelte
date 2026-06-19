@@ -592,7 +592,19 @@ fn try_fill_run(
         return None;
     }
     let indent_cols = indent.width();
-    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse)?;
+    // Use word-first fill format only when the source `whole` is already
+    // multi-line (contains a newline). For single-line sources the
+    // separator-first format is correct: prettier's fill keeps the last word
+    // on the same line via the `ps.len()==2` path even if it slightly
+    // overflows (last-word overflow tolerance). For multi-line sources the
+    // separator-first format can place words at incorrect break points (e.g.
+    // `<strong>Root-cause analysis</strong> for production issues with
+    // deployment context.` where separator-first keeps "deployment" on the
+    // overflowing line instead of breaking before it). Word-first format
+    // correctly breaks at the first word that doesn't fit, so multi-line
+    // sources get the right reflowed layout.
+    let use_word_first = whole.contains('\n');
+    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
     let base_level = indent_cols / 2;
     // Flat width (a hardline forces multi-line).
     let flat = crate::doc::print(
@@ -3122,13 +3134,17 @@ fn try_fill_mixed(
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
 /// whitespace are dropped (the element wrapper owns that newline).
 fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
-    build_children_doc_nodes(out, &fragment.nodes, false)
+    build_children_doc_nodes(out, &fragment.nodes, false, false)
 }
 
+// `use_word_first`: when true, a trailing text node that follows a non-void
+// inline element and starts with a space is converted to word-first format.
+// Only pass `true` from `try_fill_run` where the element fits flat in context.
 fn build_children_doc_nodes(
     out: &str,
     nodes: &[TemplateNode],
     allow_elem_expr_collapse: bool,
+    use_word_first: bool,
 ) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let n = nodes.len();
@@ -3208,8 +3224,29 @@ fn build_children_doc_nodes(
                             docs.push(Doc::Group(vec![prev, Doc::Line]));
                         }
                         tl = true;
+                    } else if use_word_first && !prev_is_void_inline && n == 2 {
+                        // Last text node after a non-void inline element when the
+                        // caller requested word-first format (i.e. `try_fill_run`),
+                        // and the run has exactly 2 nodes (element + text).
+                        // Wrap the element in Group([prev, Line]) so the fill starts
+                        // with a word; the fill algorithm then correctly breaks at
+                        // the right boundary instead of placing an overflowing word
+                        // on the current line via the separator-first pair-fits check.
+                        // Only safe when the element is known to fit flat (guaranteed
+                        // by try_fill_run's non-ws-prefix guard and indentation check).
+                        // Void elements (input, br, img) keep the old behavior since
+                        // their text content (e.g. " °F") should stay glued to them.
+                        // Restrict to n==2 (single element + text): longer runs have
+                        // middle nodes handled by the `!trim_right` branch already;
+                        // applying Group([elem, Line]) to the tail element of a 5-node
+                        // run shifts the fill structure in a way that breaks the
+                        // intermediate word-wrap boundaries.
+                        if let Some(prev) = docs.pop() {
+                            docs.push(Doc::Group(vec![prev, Doc::Line]));
+                        }
+                        tl = true;
                     }
-                    // trim_right && !prev_is_void_inline: fall through to old behavior.
+                    // trim_right && (prev_is_void_inline || !use_word_first): old behavior.
                 }
                 // Trailing space before an inline element: trim it from this fill
                 // and flag the element to carry the leading `line` (hug in place):

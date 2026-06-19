@@ -14,7 +14,6 @@
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
 	"shadcn-svelte/docs/src/lib/components/docs-sidebar.svelte",
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
-	"shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/activate-agent-dialog.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte",
