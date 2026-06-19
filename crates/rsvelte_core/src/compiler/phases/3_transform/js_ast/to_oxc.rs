@@ -737,7 +737,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(self.ab.expression_import(SPAN, source, options, None))
             }
             JsExpr::Function(func) => self.function(func),
-            // TODO: Yield / Class.
+            JsExpr::Yield(y) => {
+                let argument = match y.argument {
+                    Some(id) => Some(self.expr_id(id)?),
+                    None => None,
+                };
+                Some(self.ab.expression_yield(SPAN, y.delegate, argument))
+            }
+            // TODO: Class.
             // Bail on opaque Raw / Spanned (the CRITICAL RULE).
             _ => None,
         }
@@ -814,8 +821,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 self.ab
                     .member_expression_computed(SPAN, object, property, m.optional)
             }
-            // TODO: PrivateIdentifier.
-            JsMemberProperty::PrivateIdentifier(_) => return None,
+            JsMemberProperty::PrivateIdentifier(name) => {
+                // The IR stores the bare name (no leading `#`, matching the
+                // ESTree `PrivateIdentifier.name` convention); codegen and the
+                // esrap printer both add the `#`, so pass the name verbatim.
+                let field = self.ab.private_identifier(SPAN, self.str(name));
+                self.ab
+                    .member_expression_private_field_expression(SPAN, object, field, m.optional)
+            }
         };
         Some(member)
     }
@@ -872,30 +885,78 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                     ));
                 }
                 JsObjectMember::Property(p) => {
-                    // First slice: non-method, non-computed, init-kind only.
-                    if p.method || p.computed {
-                        return None;
-                    }
-                    if !matches!(p.kind, JsPropertyKind::Init) {
-                        return None; // bail on getter/setter
-                    }
-                    let key = self.property_key(&p.key)?;
-                    let value = self.expr_id(p.value)?;
-                    props.push(ObjectPropertyKind::ObjectProperty(
-                        self.ab.alloc_object_property(
-                            SPAN,
-                            PropertyKind::Init,
-                            key,
-                            value,
-                            false,
-                            p.shorthand,
-                            false,
-                        ),
-                    ));
+                    let prop = self.object_property(p)?;
+                    props.push(ObjectPropertyKind::ObjectProperty(prop));
                 }
             }
         }
         Some(self.ab.expression_object(SPAN, props))
+    }
+
+    /// Build a boxed [`ObjectProperty`] from an IR [`JsProperty`].
+    ///
+    /// Handles plain `key: value`, computed keys (`[expr]: value`), method
+    /// shorthand (`key() {}`), and getter / setter accessors (`get key() {}` /
+    /// `set key() {}`). Mirrors codegen's [`emit_object_member`] exactly so the
+    /// esrap output stays byte-identical: in particular codegen's `auto_method`
+    /// heuristic treats any non-computed `Init` property whose value is a
+    /// (non-arrow) function expression as a method shorthand, so we set
+    /// `method: true` for that shape too — without it esrap would print
+    /// `key: function() {}` instead of the `key() {}` codegen emits.
+    fn object_property(
+        &self,
+        p: &JsProperty,
+    ) -> Option<oxc_allocator::Box<'a, oxc_ast::ast::ObjectProperty<'a>>> {
+        let kind = match p.kind {
+            JsPropertyKind::Init => PropertyKind::Init,
+            JsPropertyKind::Get => PropertyKind::Get,
+            JsPropertyKind::Set => PropertyKind::Set,
+        };
+
+        // A getter / setter / method renders from `kind` + `method` + a bare
+        // function value (esrap emits the concise method form, not `key:
+        // function(){}`). For all of these the value MUST be a non-arrow
+        // function expression; bail otherwise. Additionally, mirror codegen's
+        // `auto_method`: a non-computed `Init` property with a function value is
+        // emitted as a method shorthand even when `method` is false.
+        let value_is_function = matches!(self.arena.get_expr(p.value), JsExpr::Function(_));
+        let is_accessor = !matches!(p.kind, JsPropertyKind::Init);
+        let auto_method =
+            !p.computed && matches!(p.kind, JsPropertyKind::Init) && value_is_function;
+        let method = p.method || auto_method;
+
+        if (is_accessor || method) && !value_is_function {
+            // `get`/`set`/method shape requires a function value to be faithful.
+            return None;
+        }
+
+        let key = if p.computed {
+            match &p.key {
+                JsPropertyKey::Computed(id) => {
+                    let expr = self.expr_id(*id)?;
+                    PropertyKey::from(expr)
+                }
+                // A computed key that is structurally an identifier or literal
+                // (`[name]: …` / `[0]: …`): build the key from that expression.
+                JsPropertyKey::Identifier(name) => {
+                    let expr = self.ab.expression_identifier(SPAN, self.str(name));
+                    PropertyKey::from(expr)
+                }
+                JsPropertyKey::Literal(lit) => {
+                    let expr = self.literal(lit)?;
+                    PropertyKey::from(expr)
+                }
+            }
+        } else {
+            self.property_key(&p.key)?
+        };
+
+        let value = self.expr_id(p.value)?;
+
+        Some(
+            self.ab
+                .alloc_object_property(SPAN, kind, key, value, method, p.shorthand, p.computed),
+        )
     }
 
     fn property_key(&self, key: &JsPropertyKey) -> Option<PropertyKey<'a>> {
