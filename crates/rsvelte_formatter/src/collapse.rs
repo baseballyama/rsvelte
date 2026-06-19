@@ -269,6 +269,24 @@ fn reformat_pre_inner(
         return None;
     }
 
+    // After the recursive format, child elements (Components like `<Button>`)
+    // whose open tags are multi-line may have `>` on its own line because the
+    // formatter doesn't know they're inside `<pre>` (no `isPreTagContent` hug).
+    // Fix those: move `>` back to hug the last attribute line (Sub-case B only
+    // — overflow-breaking Sub-case A doesn't apply here since we're at narrowed
+    // width and the outer re-indent will shift everything anyway).
+    let formatted = {
+        let sub_root_pre = parse(formatted, ParseOptions::default()).ok()?;
+        let pre_fix_edits =
+            fix_pre_child_hug_only(formatted, &sub_root_pre.fragment);
+        if pre_fix_edits.is_empty() {
+            formatted.to_string()
+        } else {
+            apply_edits(formatted, pre_fix_edits)
+        }
+    };
+    let formatted = formatted.trim_end_matches('\n');
+
     // Determine which line-starts in `formatted` are element-direct whitespace
     // (→ tabs). Everything else stays spaces.
     let sub_root = parse(formatted, ParseOptions::default()).ok()?;
@@ -347,10 +365,15 @@ fn collect_pre_tab_lines(
         {
             set.insert(line_start);
         }
-        // An element's own close tag is element-direct trailing whitespace.
-        if let TemplateNode::RegularElement(e) = node {
-            collect_pre_tab_lines(formatted, &e.fragment, true, set);
-            let ne = node_end(node) as usize;
+        // An element's (or component's) own close tag is element-direct
+        // trailing whitespace — use tabs.
+        let (child_frag, child_end_pos) = match node {
+            TemplateNode::RegularElement(e) => (Some(&e.fragment), Some(node_end(node) as usize)),
+            TemplateNode::Component(c) => (Some(&c.fragment), Some(node_end(node) as usize)),
+            _ => (None, None),
+        };
+        if let (Some(frag), Some(ne)) = (child_frag, child_end_pos) {
+            collect_pre_tab_lines(formatted, frag, true, set);
             let close_ls = formatted[..ne.saturating_sub(1)]
                 .rfind('\n')
                 .map_or(0, |i| i + 1);
@@ -2730,6 +2753,67 @@ fn try_break_pre_own_attrs(
     (result != whole).then_some((s as u32, e as u32, result))
 }
 
+/// Fix the `>` placement for direct children of a `<pre>` inner-content
+/// fragment that was re-formatted via [`reformat_pre_inner`].  Only applies
+/// Sub-case B (hug `>` to last attribute line): elements whose open tags are
+/// multi-line and end with `\n{spaces}>` should have `>` moved to hug the
+/// last attr, matching prettier's `isPreTagContent` behavior. Sub-case A
+/// (overflow-breaking) is deliberately omitted here — the content is already
+/// at a narrowed width and the outer re-indent will handle real column layout.
+fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, String)> {
+    let mut edits = Vec::new();
+    for node in &fragment.nodes {
+        let (child_start, child_end, child_fragment) = match node {
+            TemplateNode::RegularElement(e) => (e.start, e.end, &e.fragment),
+            TemplateNode::Component(c) => (c.start, c.end, &c.fragment),
+            _ => continue,
+        };
+        let cs = child_start as usize;
+        let ce = child_end as usize;
+        let Some(whole) = out.get(cs..ce) else {
+            continue;
+        };
+        // Only act on multi-line open tags.
+        let open_end = if let Some(first_child_node) = child_fragment.nodes.first() {
+            node_start(first_child_node) as usize
+        } else {
+            continue;
+        };
+        let Some(open) = out.get(cs..open_end) else {
+            continue;
+        };
+        if !open.contains('\n') {
+            continue;
+        }
+        // Strip trailing whitespace to find the actual `>` of the open tag.
+        let open_tag_only = open.trim_end_matches(|c: char| c.is_ascii_whitespace());
+        if !open_tag_only.ends_with('>') {
+            continue;
+        }
+        let Some(last_nl) = open_tag_only.rfind('\n') else {
+            continue;
+        };
+        let after_last_nl = &open_tag_only[last_nl + 1..];
+        // The line immediately before `>` must consist only of spaces (the
+        // non-hug `>` placement).
+        if !after_last_nl[..after_last_nl.len() - 1]
+            .bytes()
+            .all(|b| b == b' ')
+        {
+            continue;
+        }
+        // Move `>` to hug the last attribute line, preserving any element-direct
+        // whitespace (tabs/newline) between `>` and the first child.
+        let trailing_ws = &open[open_tag_only.len()..];
+        let new_open = format!("{}>", &open_tag_only[..last_nl]);
+        let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+        if result != whole {
+            edits.push((child_start, child_end, result));
+        }
+    }
+    edits
+}
+
 /// Fix open-tag `>` placement for direct child elements of `<pre>` (or
 /// `<textarea>`).  Two sub-cases:
 ///
@@ -2771,16 +2855,20 @@ fn try_fix_pre_child_open_tags(
     let iw = options.js.indent_width.value() as usize;
 
     for node in &fragment.nodes {
-        let TemplateNode::RegularElement(child) = node else {
-            continue;
+        // Handle both RegularElement and Component — both can appear as direct
+        // children of `<pre>` and need the same open-tag `>` placement fix.
+        let (child_start, child_end, child_fragment) = match node {
+            TemplateNode::RegularElement(e) => (e.start, e.end, &e.fragment),
+            TemplateNode::Component(c) => (c.start, c.end, &c.fragment),
+            _ => continue,
         };
-        let cs = child.start as usize;
-        let ce = child.end as usize;
+        let cs = child_start as usize;
+        let ce = child_end as usize;
         let Some(whole) = out.get(cs..ce) else {
             continue;
         };
         // Find where the child's open tag ends (position right after `>`).
-        let open_end = if let Some(first_child_node) = child.fragment.nodes.first() {
+        let open_end = if let Some(first_child_node) = child_fragment.nodes.first() {
             node_start(first_child_node) as usize
         } else {
             continue; // empty element – nothing to fix
@@ -2823,25 +2911,38 @@ fn try_fix_pre_child_open_tags(
                 &out[open_end..ce],
             );
             if result != whole {
-                edits.push((child.start, child.end, result));
+                edits.push((child_start, child_end, result));
             }
         }
         // Sub-case B: multi-line open tag with `>` dropped to its own line.
         else if open.contains('\n') {
-            // The open tag must end with `\n{spaces}>` (non-hug form).
-            if let Some(last_nl) = open.rfind('\n') {
-                let after_last_nl = &open[last_nl + 1..];
-                if after_last_nl.ends_with('>')
-                    && after_last_nl[..after_last_nl.len() - 1]
+            // `open` runs from the child's start up to the first child's AST
+            // start, so it may include whitespace / tabs that follow the `>`
+            // (element-direct whitespace before the first child node). Strip
+            // trailing whitespace to find where the actual `>` is.
+            let open_tag_only = open.trim_end_matches(|c: char| c.is_ascii_whitespace());
+            // The open tag (stripped) must end with `\n{spaces}>` (non-hug form).
+            if open_tag_only.ends_with('>') {
+                if let Some(last_nl) = open_tag_only.rfind('\n') {
+                    let after_last_nl = &open_tag_only[last_nl + 1..];
+                    // The line before `>` must consist entirely of spaces (the
+                    // indent for the non-hug `>` placement).
+                    if after_last_nl[..after_last_nl.len() - 1]
                         .bytes()
                         .all(|b| b == b' ')
-                {
-                    // Move `>` to hug the last attribute line (remove the
-                    // `\n{spaces}` before `>`).
-                    let new_open = format!("{}>", &open[..last_nl]);
-                    let result = format!("{new_open}{}", &out[open_end..ce]);
-                    if result != whole {
-                        edits.push((child.start, child.end, result));
+                    {
+                        // Move `>` to hug the last attribute line (remove the
+                        // `\n{spaces}` before `>`). Keep the whitespace between
+                        // `>` and the first child intact (it's element-direct
+                        // whitespace, e.g. tabs).
+                        let trailing_ws = &open[open_tag_only.len()..];
+                        let new_open =
+                            format!("{}>", &open_tag_only[..last_nl]);
+                        let result =
+                            format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+                        if result != whole {
+                            edits.push((child_start, child_end, result));
+                        }
                     }
                 }
             }
