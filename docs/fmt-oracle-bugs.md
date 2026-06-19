@@ -294,6 +294,7 @@ break heuristics with prettier upstream; until then these are excluded with
 | `flowbite-svelte/.../timeline/TimelineColor.svelte` | In a long `class="…{cond ? a : b}"`, the oracle breaks the ternary **condition** at `===` (`status ===\n 'completed'`); oxc either keeps `===` together or breaks every nested condition. Ternary-break granularity differs. |
 | `flowbite-svelte/.../blocks/utils/GitHubSourceList.svelte` | An IIFE `((rootDir) => …)(arg)`: the oracle breaks the arrow **parameter list** (`((\n rootDir,\n) => …)`), oxc breaks the IIFE **call argument**. |
 | `flowbite-svelte/.../builder/range/+page.svelte` | Template-literal `${}` substitution indentation inside `<script>`: the oracle indents a ternary inside `${ … }` two levels deeper than oxc. |
+| `flowbite-svelte/.../forms/tags/Tags.svelte` | In a `{#if a && b.some((t) => … === c.trim().toLowerCase())}` header the oracle breaks ONLY the inner member chain (`c\n.trim()\n.toLowerCase()`), keeping `a && b.some(...)` on line 1; oxc breaks the `&&`/call-args instead. Break-priority differs; oxc cannot produce the chain-only break. |
 
 Filing target: `oxc_formatter` (the break-point heuristics for conditional
 expressions, IIFE/arrow parameter lists, and template-literal substitutions).

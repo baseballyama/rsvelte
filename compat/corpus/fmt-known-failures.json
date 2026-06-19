@@ -1,10 +1,4 @@
 [
-	"flowbite-svelte/src/lib/forms/tags/Tags.svelte",
-	"flowbite-svelte/src/lib/mega-menu/MegaMenu.svelte",
-	"flowbite-svelte/src/routes/docs-examples/components/drawer/Top.svelte",
-	"flowbite-svelte/src/routes/docs-examples/components/popover/Description.svelte",
-	"flowbite-svelte/src/routes/docs-examples/typography/text/TextDecoration.svelte",
-	"flowbite-svelte/src/routes/docs-examples/typography/text/Underline.svelte",
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/playground/(components)/code-viewer.svelte"
