@@ -97,10 +97,24 @@
     to_oxc は oxc literal の raw 経由）に置換。**★Raw-elim スライスの検証は二重★**: IR + codegen を触るので
     **flag-OFF（codegen 不変＝コーパス 120 no-NEW + byte-exact fixtures）と flag-ON（to_oxc が新ノードを処理）の両方**を検証する
     （to_oxc-only スライスは flag-ON だけで済んだが、Raw-elim は codegen も変えるため flag-OFF も必須）。
-    残 client Raw クラスタ（構築箇所、~56）: `bind_directive.rs`(14, 手書き arrow＝本体が文字列組立で最難),
-    `mod.rs`(11), `await_block.rs`(4), `shared/utils.rs`(3, reactive-update), `declaration_tag.rs`(3),
-    `shared/{declarations,component}.rs`(各2), `program.rs`(2), `const_tag.rs`(2), `expression_converter.rs`(残11、
-    多くは `/* Unknown */` 等の到達しない fallback でリアルプログラムを塞がない→優先度低)。
+    残 client Raw クラスタ（構築箇所、~56）と**精査済みの性質（重要：mechanical ではない）**:
+    - **`declarations.rs`(2) / `program.rs`(2)＝load-bearing opacity**: `JsExpr::Identifier(name) => JsExpr::Raw(name)`。
+      これは setter callee を `apply_transforms_to_expression` の prop-read 変換（`x→x()`）から**不可視にする意図**
+      （コメント明記。Identifier に戻すと `x(value)`→`x()(value)` に二重変換し回帰）。構造化するには
+      **`apply_transforms` がスキップする「不変 Identifier」**を導入する（例: `JsExpr` に opaque-identifier 概念追加、
+      apply_transforms で Raw 同様スキップ、codegen/to_oxc は Identifier として扱う）。IR 追加＋apply_transforms/codegen/to_oxc 4点。
+    - **`const_tag.rs`(2) / `declaration_tag.rs`(3)＝文字列組立の文**: `Raw(format!("const {} = {};", pattern_str, init_str))`,
+      `Raw(rhs)` 等。pattern_str/init_str/rhs を**構造化（JsStatement::VariableDeclaration / 構造化 init）**するには
+      上流の文字列生成を構造化ノードに置換要。
+    - **`shared/component.rs`(4) / `bind_directive.rs`(14)＝手書き arrow getter/setter（最難）**: 本体が文字列。
+      `JsExpr::Arrow` + 構造化 body に分解。setter_body/getter 文字列の生成元から構造化が必要。
+    - **`shared/utils.rs`(3)**: `Raw(collection_expr)`（each コレクション式の生テキスト）等＝任意式テキスト。
+    - **`mod.rs`(11) / `await_block.rs`(4)**: 未精査。比較的 mechanical なものがあるか次セッションで grep 精査。
+    - **`expression_converter.rs`(残11)**: 多くは `/* Unknown */`/`/* Array */`/ChainExpression-missing 等の**到達しない fallback**
+      ＝リアルプログラムを塞がない（converter が bail しても実害なし）→優先度最低。`pattern_to_string`(2) は分割代入を式位置で
+      文字列化＝to_oxc の pattern 処理を流用して構造化可能。
+    **総括**: literal-spelling（済）以外の残 Raw は load-bearing or 文字列組立で、各々**慎重な構造リデザイン**が要る。
+    mechanical な一括処理は不可。1クラスタずつ、dual flag-off/on 検証で。
     **次フェーズ（flag を ON にする前の本丸）**: (a) Class + assignment-target 分割代入は**追加済み**、(b) **client visitor が生成する
     ~191 個の `Raw(...)` を構造化ノードに置換**（structured な式/文を Raw 文字列で組み立てている箇所＝
     bind_directive.rs の手書き arrow、bridge.rs の SSR テンプレ等。これが減るほど converter が `None` で codegen に
