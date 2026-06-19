@@ -710,8 +710,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 )
             }
             JsExpr::Assignment(a) => {
-                let target = self.simple_assignment_target(self.arena.get_expr(a.left))?;
-                let left = oxc_ast::ast::AssignmentTarget::from(target);
+                let left = self.assignment_target(self.arena.get_expr(a.left))?;
                 let right = self.expr_id(a.right)?;
                 Some(
                     self.ab
@@ -744,10 +743,157 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 };
                 Some(self.ab.expression_yield(SPAN, y.delegate, argument))
             }
-            // TODO: Class.
+            JsExpr::Class(class) => self.class(class),
             // Bail on opaque Raw / Spanned (the CRITICAL RULE).
             _ => None,
         }
+    }
+
+    /// Build a `class … { … }` expression from the IR. Mirrors codegen's
+    /// [`emit_class_expression`] / [`emit_class_member`] exactly so the esrap
+    /// output stays byte-identical.
+    ///
+    /// Handles the `id`, `extends` (super class), method members (constructor /
+    /// method / getter / setter, static or instance, computed or plain keys),
+    /// and field members (`static`/instance, computed or plain, with or without
+    /// an initializer). **Bails** (`None`) on static blocks (codegen emits them
+    /// but the structural printer cannot reproduce them faithfully here) and on
+    /// any computed key shape or member value that cannot be faithfully mapped.
+    fn class(&self, class: &JsClassExpression) -> Option<Expression<'a>> {
+        use oxc_ast::ast::{
+            ClassType, MethodDefinitionKind, MethodDefinitionType, PropertyDefinitionType,
+        };
+
+        let id = class
+            .id
+            .as_ref()
+            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+
+        let super_class = match class.super_class {
+            Some(id) => Some(self.expr_id(id)?),
+            None => None,
+        };
+
+        let mut elements = self.ab.vec_with_capacity(class.body.body.len());
+        for member in &class.body.body {
+            match member {
+                JsClassMember::Method(method) => {
+                    let kind = match method.kind {
+                        JsMethodKind::Constructor => MethodDefinitionKind::Constructor,
+                        JsMethodKind::Method => MethodDefinitionKind::Method,
+                        JsMethodKind::Get => MethodDefinitionKind::Get,
+                        JsMethodKind::Set => MethodDefinitionKind::Set,
+                    };
+                    let key = self.class_member_key(&method.key, method.computed)?;
+                    // The method value is a (non-arrow) function expression; build
+                    // a boxed `Function` with `FunctionType::FunctionExpression`,
+                    // bailing on any param / body shape that cannot be reproduced.
+                    let value = self.method_function(&method.value)?;
+                    elements.push(self.ab.class_element_method_definition(
+                        SPAN,
+                        MethodDefinitionType::MethodDefinition,
+                        self.ab.vec(),
+                        key,
+                        value,
+                        kind,
+                        method.computed,
+                        method.is_static,
+                        false,
+                        false,
+                        None,
+                    ));
+                }
+                JsClassMember::Property(prop) => {
+                    let key = self.class_member_key(&prop.key, prop.computed)?;
+                    let value = match prop.value {
+                        Some(id) => Some(self.expr_id(id)?),
+                        None => None,
+                    };
+                    elements.push(self.ab.class_element_property_definition(
+                        SPAN,
+                        PropertyDefinitionType::PropertyDefinition,
+                        self.ab.vec(),
+                        key,
+                        oxc_ast::NONE,
+                        value,
+                        prop.computed,
+                        prop.is_static,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        None,
+                    ));
+                }
+                // Static blocks (and any future member kind) are not reproducible
+                // by the structural printer; bail the whole class.
+                JsClassMember::StaticBlock(_) => return None,
+            }
+        }
+
+        let body = self.ab.class_body(SPAN, elements);
+        Some(self.ab.expression_class(
+            SPAN,
+            ClassType::ClassExpression,
+            self.ab.vec(),
+            id,
+            oxc_ast::NONE,
+            super_class,
+            oxc_ast::NONE,
+            self.ab.vec(),
+            body,
+            false,
+            false,
+        ))
+    }
+
+    /// Build a class member's [`PropertyKey`]. A computed key holds an arbitrary
+    /// expression (only `JsPropertyKey::Computed` is meaningful there); a plain
+    /// key reuses [`property_key`] (identifier / literal). Bails on a computed
+    /// shape that is not a `Computed` expression.
+    fn class_member_key(&self, key: &JsPropertyKey, computed: bool) -> Option<PropertyKey<'a>> {
+        if computed {
+            match key {
+                JsPropertyKey::Computed(id) => {
+                    let expr = self.expr_id(*id)?;
+                    Some(PropertyKey::from(expr))
+                }
+                _ => None,
+            }
+        } else {
+            self.property_key(key)
+        }
+    }
+
+    /// Build a boxed `Function` from an IR [`JsFunctionExpression`] used as a
+    /// class method value. Mirrors [`function`] but returns the boxed node the
+    /// method-definition builder expects. Bails (via [`formal_params`] /
+    /// [`statements`]) on any param or body shape that cannot be reproduced.
+    fn method_function(
+        &self,
+        func: &JsFunctionExpression,
+    ) -> Option<oxc_allocator::Box<'a, oxc_ast::ast::Function<'a>>> {
+        let id = func
+            .id
+            .as_ref()
+            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+        let params = self.formal_params(&func.params)?;
+        let stmts = self.statements(&func.body.body)?;
+        let body = self.ab.function_body(SPAN, self.ab.vec(), stmts);
+        Some(self.ab.alloc_function(
+            SPAN,
+            FunctionType::FunctionExpression,
+            id,
+            func.is_generator,
+            func.is_async,
+            false,
+            oxc_ast::NONE,
+            oxc_ast::NONE,
+            params,
+            oxc_ast::NONE,
+            Some(body),
+        ))
     }
 
     fn literal(&self, lit: &JsLiteral) -> Option<Expression<'a>> {
@@ -872,6 +1018,152 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             }
             _ => None,
         }
+    }
+
+    /// Build a full [`AssignmentTarget`] from an IR expression used as an
+    /// assignment / for-of left-hand side. This is a SEPARATE type system from
+    /// binding patterns: identifiers and members reuse [`simple_assignment_target`],
+    /// while `[a, b] = …` / `{ a } = …` destructuring lowers to the dedicated
+    /// `ArrayAssignmentTarget` / `ObjectAssignmentTarget` pattern variants.
+    ///
+    /// The IR represents the destructuring LHS as a `JsExpr::Array` /
+    /// `JsExpr::Object` used in pattern position (codegen just `emit_expression`s
+    /// it), with holes as `None` array elements, rest as `JsExpr::Spread`, and
+    /// defaults as a nested `JsExpr::Assignment`. **Bails** (`None`) on anything
+    /// that cannot be faithfully reproduced: a non-last rest, a spread inside an
+    /// object target, a computed object-pattern key we cannot reconstruct, a
+    /// getter / setter / method object member, or any nested target shape that
+    /// itself bails.
+    fn assignment_target(&self, expr: &JsExpr) -> Option<oxc_ast::ast::AssignmentTarget<'a>> {
+        match expr {
+            JsExpr::Array(arr) => {
+                let mut elements = self.ab.vec_with_capacity(arr.elements.len());
+                let mut rest: Option<
+                    oxc_allocator::Box<'a, oxc_ast::ast::AssignmentTargetRest<'a>>,
+                > = None;
+                let last = arr.elements.len().saturating_sub(1);
+                for (i, el) in arr.elements.iter().enumerate() {
+                    match el {
+                        None => elements.push(None),
+                        Some(JsExpr::Spread(inner)) => {
+                            // A rest element must be the last element.
+                            if i != last {
+                                return None;
+                            }
+                            let target = self.assignment_target(self.arena.get_expr(*inner))?;
+                            rest = Some(self.ab.alloc_assignment_target_rest(SPAN, target));
+                        }
+                        Some(e) => elements.push(Some(self.assignment_target_maybe_default(e)?)),
+                    }
+                }
+                let array = self.ab.alloc_array_assignment_target(SPAN, elements, rest);
+                Some(oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(array))
+            }
+            JsExpr::Object(obj) => {
+                let mut props = self.ab.vec_with_capacity(obj.properties.len());
+                let mut rest: Option<
+                    oxc_allocator::Box<'a, oxc_ast::ast::AssignmentTargetRest<'a>>,
+                > = None;
+                let last = obj.properties.len().saturating_sub(1);
+                for (i, member) in obj.properties.iter().enumerate() {
+                    match member {
+                        JsObjectMember::SpreadElement(id) => {
+                            // A rest property must be the last entry.
+                            if i != last {
+                                return None;
+                            }
+                            let target = self.assignment_target(self.arena.get_expr(*id))?;
+                            rest = Some(self.ab.alloc_assignment_target_rest(SPAN, target));
+                        }
+                        JsObjectMember::Property(p) => {
+                            // Only plain `key: value` / shorthand `{ key }` /
+                            // `{ key = default }` are representable as object
+                            // assignment targets — never get/set/method.
+                            if !matches!(p.kind, JsPropertyKind::Init) || p.method {
+                                return None;
+                            }
+                            let prop = self.assignment_target_property(p)?;
+                            props.push(prop);
+                        }
+                    }
+                }
+                let object = self.ab.alloc_object_assignment_target(SPAN, props, rest);
+                Some(oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(
+                    object,
+                ))
+            }
+            // Plain identifier / simple member: reuse the simple-target helper.
+            _ => {
+                let simple = self.simple_assignment_target(expr)?;
+                Some(oxc_ast::ast::AssignmentTarget::from(simple))
+            }
+        }
+    }
+
+    /// Build an [`AssignmentTargetMaybeDefault`] for an array element or object
+    /// property value. A nested `JsExpr::Assignment` with the plain `=` operator
+    /// is a default (`[a = 1] = …`); anything else is a bare nested target.
+    fn assignment_target_maybe_default(
+        &self,
+        expr: &JsExpr,
+    ) -> Option<oxc_ast::ast::AssignmentTargetMaybeDefault<'a>> {
+        if let JsExpr::Assignment(a) = expr
+            && matches!(a.operator, JsAssignmentOp::Assign)
+        {
+            let binding = self.assignment_target(self.arena.get_expr(a.left))?;
+            let init = self.expr_id(a.right)?;
+            return Some(
+                self.ab
+                    .assignment_target_maybe_default_assignment_target_with_default(
+                        SPAN, binding, init,
+                    ),
+            );
+        }
+        let target = self.assignment_target(expr)?;
+        Some(oxc_ast::ast::AssignmentTargetMaybeDefault::from(target))
+    }
+
+    /// Build an [`AssignmentTargetProperty`] from an IR object property used in
+    /// an object assignment target. Shorthand `{ a }` / `{ a = 1 }` lowers to
+    /// `AssignmentTargetPropertyIdentifier`; an explicit `key: value` (with an
+    /// optional default on the value) lowers to `AssignmentTargetPropertyProperty`.
+    /// Bails on a computed key that is not a `Computed` expression.
+    fn assignment_target_property(
+        &self,
+        p: &JsProperty,
+    ) -> Option<oxc_ast::ast::AssignmentTargetProperty<'a>> {
+        // Shorthand: `{ a }` or `{ a = default }`. The IR value is the bare
+        // identifier (or an `a = default` assignment) and the key matches it.
+        if p.shorthand && !p.computed {
+            let value = self.arena.get_expr(p.value);
+            let (name, init) = match value {
+                JsExpr::Identifier(name) => (name.as_str(), None),
+                JsExpr::Assignment(a) if matches!(a.operator, JsAssignmentOp::Assign) => {
+                    match self.arena.get_expr(a.left) {
+                        JsExpr::Identifier(name) => (name.as_str(), Some(self.expr_id(a.right)?)),
+                        _ => return None,
+                    }
+                }
+                _ => return None,
+            };
+            let binding = self.ab.identifier_reference(SPAN, self.str(name));
+            return Some(
+                oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+                    self.ab
+                        .alloc_assignment_target_property_identifier(SPAN, binding, init),
+                ),
+            );
+        }
+
+        // Explicit `key: value` (value may carry a default).
+        let key = self.class_member_key(&p.key, p.computed)?;
+        let binding = self.assignment_target_maybe_default(self.arena.get_expr(p.value))?;
+        Some(
+            oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyProperty(
+                self.ab
+                    .alloc_assignment_target_property_property(SPAN, key, binding, p.computed),
+            ),
+        )
     }
 
     fn object(&self, o: &JsObjectExpression) -> Option<Expression<'a>> {
