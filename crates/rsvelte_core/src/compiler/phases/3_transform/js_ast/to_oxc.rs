@@ -30,8 +30,9 @@ use super::nodes::*;
 use oxc_allocator::Vec as ArenaVec;
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::{
-    Argument, ArrayExpressionElement, Expression, FormalParameterKind, ObjectPropertyKind,
-    PropertyKey, PropertyKind, Statement, VariableDeclarationKind,
+    Argument, ArrayExpressionElement, ChainElement, Expression, FormalParameterKind, FunctionType,
+    ObjectPropertyKind, PropertyKey, PropertyKind, RegExp, RegExpFlags, RegExpPattern, Statement,
+    VariableDeclarationKind,
 };
 use oxc_span::SPAN;
 use oxc_syntax::number::{BigintBase, NumberBase};
@@ -320,7 +321,19 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         .expression_update(SPAN, update_op(u.operator), u.prefix, target),
                 )
             }
-            // TODO: Function / Yield / Class / Chain / ImportExpression.
+            JsExpr::Chain(chain) => self.chain(chain),
+            JsExpr::ImportExpression { source, options } => {
+                let source = self.expr_id(*source)?;
+                let options = match options {
+                    Some(id) => Some(self.expr_id(*id)?),
+                    None => None,
+                };
+                // `phase` (`import.defer` / `import.source`) is not represented
+                // in the IR; pass `None`.
+                Some(self.ab.expression_import(SPAN, source, options, None))
+            }
+            JsExpr::Function(func) => self.function(func),
+            // TODO: Yield / Class.
             // Bail on opaque Raw / Spanned (the CRITICAL RULE).
             _ => None,
         }
@@ -353,8 +366,28 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             JsLiteral::Boolean(b) => Some(self.ab.expression_boolean_literal(SPAN, *b)),
             JsLiteral::Null => Some(self.ab.expression_null_literal(SPAN)),
             JsLiteral::Undefined => Some(self.ab.expression_identifier(SPAN, "undefined")),
-            // TODO: Regex.
-            JsLiteral::Regex { .. } => None,
+            JsLiteral::Regex { pattern, flags } => {
+                // Build the flags bitset faithfully from the source spelling;
+                // bail on any unrecognised flag character so we never guess.
+                let mut flag_bits = RegExpFlags::empty();
+                for ch in flags.chars() {
+                    flag_bits |= RegExpFlags::try_from(ch).ok()?;
+                }
+                let regex = RegExp {
+                    pattern: RegExpPattern {
+                        text: self.str(pattern).into(),
+                        pattern: None,
+                    },
+                    flags: flag_bits,
+                };
+                // esrap prints `raw` verbatim when present, so emit the exact
+                // `/pattern/flags` source spelling.
+                let raw = self.str(&format!("/{pattern}/{flags}"));
+                Some(
+                    self.ab
+                        .expression_reg_exp_literal(SPAN, regex, Some(raw.into())),
+                )
+            }
         }
     }
 
@@ -503,6 +536,54 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             params,
             oxc_ast::NONE,
             body,
+        ))
+    }
+
+    /// Build an optional-chaining wrapper (`a?.b`, `a?.()`). The inner IR
+    /// expression must be a member or call expression (one of which carries the
+    /// `optional: true` somewhere in the chain); bail on anything else.
+    fn chain(&self, chain: &JsChainExpression) -> Option<Expression<'a>> {
+        let inner = self.arena.get_expr(chain.expression);
+        let element: ChainElement<'a> = match inner {
+            JsExpr::Member(m) => {
+                let member = self.member_expr(m)?;
+                ChainElement::from(member)
+            }
+            JsExpr::Call(c) => {
+                let callee = self.expr_id(c.callee)?;
+                let args = self.arguments(&c.arguments)?;
+                let call =
+                    self.ab
+                        .alloc_call_expression(SPAN, callee, oxc_ast::NONE, args, c.optional);
+                ChainElement::CallExpression(call)
+            }
+            _ => return None,
+        };
+        Some(self.ab.expression_chain(SPAN, element))
+    }
+
+    /// Build a function expression. Reuses [`formal_params`] (which bails on
+    /// destructuring params) and [`statements`] for the body.
+    fn function(&self, func: &JsFunctionExpression) -> Option<Expression<'a>> {
+        let id = func
+            .id
+            .as_ref()
+            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+        let params = self.formal_params(&func.params)?;
+        let stmts = self.statements(&func.body.body)?;
+        let body = self.ab.function_body(SPAN, self.ab.vec(), stmts);
+        Some(self.ab.expression_function(
+            SPAN,
+            FunctionType::FunctionExpression,
+            id,
+            func.is_generator,
+            func.is_async,
+            false,
+            oxc_ast::NONE,
+            oxc_ast::NONE,
+            params,
+            oxc_ast::NONE,
+            Some(body),
         ))
     }
 
