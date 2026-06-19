@@ -17,7 +17,6 @@
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/activate-agent-dialog.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/create/vercel/activate-agent-dialog.svelte",
-	"shadcn-svelte/docs/src/lib/registry/examples/data-table-demo.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte",

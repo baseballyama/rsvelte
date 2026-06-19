@@ -813,7 +813,34 @@ fn push_bare_expression(
             // e.g. `{#each ["a", "b", "c", …] as x}` stays on one line.
             && !starts_with_array_or_object_literal(formatted.as_str())
     {
+        // First, try at the full line width — OXC may already decide to break
+        // when the expression alone overflows.
         let multi = format_expr_core(slice, options, options.js.line_width, false)?;
+        // If full-width didn't break, try a narrower width computed from how
+        // much room the expression actually has in the block header:
+        //   available = full_width − lead_width − suffix_len
+        // This mirrors the oracle's decision: a method chain breaks when the
+        // complete header line overflows, even if the expression alone fits
+        // within `full_width`.  We only use the narrowed result when OXC breaks
+        // it as a method chain (hard line breaks starting with `.`).
+        let multi = if multi.contains('\n') {
+            multi
+        } else {
+            let expr_len = UnicodeWidthStr::width(formatted.as_str());
+            let available = full_width.saturating_sub(lead_width + suffix_len);
+            // Only narrow when the expression genuinely doesn't fit in the
+            // available space; use `expr_len - 1` as the narrowed width to
+            // force the break while giving inner content maximum room.
+            if expr_len > available {
+                let narrowed_width = oxc_formatter_core::LineWidth::try_from(
+                    (expr_len.saturating_sub(1)).max(1) as u16,
+                )
+                .unwrap_or(options.js.line_width);
+                format_expr_core(slice, options, narrowed_width, false)?
+            } else {
+                multi
+            }
+        };
         if multi.contains('\n')
                 && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
                 // prettier-plugin-svelte's `forceSingleLine: true` (removeLines) collapses
