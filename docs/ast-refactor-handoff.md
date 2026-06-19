@@ -33,12 +33,24 @@
     フィクスチャは合うはず、ただし要全フィクスチャ検証）。**注意**: `Raw` のうち「リテラルの逐語保存」
     （`expression_converter.rs` の二重引用符文字列 217 / 特殊数値 237 / bigint 251）は **テキスト処理ではなくトークン保存**で
     良性、優先度低。本当に潰すべきは文字列**構築/連結**型 Raw（import.meta の `format!`、SSR bridge の文字列組立等）。
-  - **第1スライス着地**: `JsExpr::Super` variant 新設（nodes.rs + codegen.rs + has_await/apply_transforms/
-    collect_reactive_references の3つの網羅 match に leaf として追加）で `JsExpr::Raw("super")` を駆逐。
-    検証: コーパス 120 据え置き・build/clippy/fmt clean。**次の client Raw 候補**: `MetaProperty`(import.meta, leaf,
-    専用 variant で), dynamic `import(...)`(source/options を持つので sub-expr 走査要), `bind_directive.rs`(15)。
-    **新 variant 追加時は必ず**: nodes.rs enum + codegen.rs arm + 網羅 match 群（has_await_expression_arena,
-    apply_transforms_to_expression_with_shadowed, collect_reactive_references_inner 等。`cargo check` が未カバーを列挙）。
+  - **着地済みスライス（2件、leaf node）**: `JsExpr::Super`（`Raw("super")` 駆逐）と
+    `JsExpr::MetaProperty(meta, property)`（`Raw(format!("{}.{}", …))`＝import.meta 駆逐）。各々コーパス 120 据え置き・
+    build/clippy/fmt clean・CI（前者）green。**新 variant 追加手順（必須・実証済み）**: nodes.rs enum +
+    codegen.rs arm + 網羅 match 群に leaf として追加（`has_await_expression_arena`,
+    `apply_transforms_to_expression_with_shadowed` の `=> expr.clone()` 群,
+    `collect_reactive_references_inner` の terminal 群）。`cargo check -p rsvelte_core` が未カバー match を全列挙するので
+    それを潰す（leaf は This/Super と同じ群へ）。1スライス＝napi build(~2m40s)+corpus(~13s)+clippy。
+  - **leaf Raw は概ね枯れた**。残る client Raw は **sub-expression を持つ**ため leaf 追加より surface が大きい:
+    dynamic `import(source, options)`（現状 `generate_expr` で source/options を**先食い文字列化**＝真に潰すべき
+    テキスト生成。`ImportExpression{source:ExprId, options:Option<ExprId>}` 化には has_await/apply_transforms/
+    collect_reactive **に加え codegen の演算子優先順位/括弧付け group 群**(codegen.rs 962/1263/1299/1329/1602)へも
+    正しく追加要), 分割代入 LHS パターン(`pattern_to_string`), `bind_directive.rs`(15, 手書き arrow)。
+    `expression_converter.rs` の「Unknown」fallback(1851/1856/1866)や literal 逐語保存(217/237/251)は良性で対象外。
+    → これらは**集中した専用作業**向き（session 終盤の細切れ grinding より、まとめて慎重に）。
+  - **最終的な本丸**: client を `js_ast::codegen` から「oxc AST 構築 + `rsvelte_esrap::print`」へ big-bang 切替
+    （esrap 出力＝公式コンパイラ準拠なのでフィクスチャは原理上一致するはずだが、**全 byte-exact フィクスチャ + コーパス
+    での検証必須**）。Raw 全廃はその前提条件。server 側は `normalize_script_with_oxc` が既に esrap なので、
+    Step 1（`$$C$$` hex コメント密輸 → esrap comment hooks `print_with_hooks` へ）で server のテキスト後処理を消す。
 - **2026-06-19 PR #1097（Step 2a: derived script-path 3 パスを AST 化、全てバイト一致・コーパス 120 据え置き）**:
   derived バインディングの script 経路テキスト処理を **元の妥当な script 上の単一 AST パス** に統合。
   旧テキスト走査は全て post-wrap の **不正 JS**（`count()++` / `count() = x`：call は代入先になれず再パース不能）を
