@@ -634,11 +634,59 @@ fn try_fill_run(
     // The edit covers content only; an edge text node's leading/trailing
     // whitespace is the separator to the surrounding (non-run) siblings and must
     // survive (e.g. the blank line before a following `<style>`).
+    //
+    // Detect if the first text node has leading whitespace (before the current `s`
+    // trimming). This is used below to produce prettier's "inverted" fill structure
+    // ([Line/Hardline, word, Line, word, ...]) which gives "last-word overflow
+    // tolerance" — the final word in a pair stays on the current line as text
+    // even when the pair would overflow, matching prettier-plugin-svelte's
+    // `splitTextToDocs` output which always starts with a separator when the text
+    // begins with whitespace.
+    let first_text_orig_start = match first {
+        TemplateNode::Text(t) => Some(t.start as usize),
+        _ => None,
+    };
     let mut s = node_start(first) as usize;
-    if let TemplateNode::Text(t) = first {
+    let first_text_leading_ws_kind: Option<bool> = if let TemplateNode::Text(t) = first {
         let d = out.get(t.start as usize..t.end as usize)?;
-        s += d.len() - d.trim_start().len();
+        let leading_len = d.len() - d.trim_start().len();
+        if leading_len > 0 {
+            // true  = starts with SINGLE newline + indent, e.g. "\n    word"
+            //         (Case B: prettier does NOT trim → inverted fill with hardline prefix)
+            // false = starts with spaces only, e.g. " word"
+            //         (Case A: inverted fill with line prefix)
+            // None  = starts with double newline "\n\n..." — prettier uses double
+            //         hardline prefix which falls back to normal fill; skip both cases.
+            s += leading_len;
+            if d.starts_with("\n\n") {
+                // Double-newline: prettier prepends two hardlines making the fill
+                // normal word-first after the hardlines — don't apply inverted logic.
+                None
+            } else {
+                let starts_with_newline = d.starts_with('\n');
+                Some(starts_with_newline)
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    // For Case A (space-only leading whitespace): include the leading space in the
+    // edit region by moving s back by 1. This ensures the fill output (which starts
+    // with a space from the inverted leading Line) replaces the space rather than
+    // doubling it. Only include ONE space (the char immediately before s).
+    let s_before_case_a_adjust = s;
+    if matches!(first_text_leading_ws_kind, Some(false)) {
+        // Move s back by 1 to include the single leading space in the edit range.
+        // This keeps the indent computation correct (the space is already counted
+        // in indent_cols since s was advanced past it).
+        if s > 0 && out.as_bytes().get(s - 1) == Some(&b' ') {
+            s -= 1;
+        }
     }
+    let _ = s_before_case_a_adjust; // suppress unused-variable warning
+
     let mut e = node_end(last) as usize;
     if let TemplateNode::Text(t) = last {
         let d = out.get(t.start as usize..t.end as usize)?;
@@ -696,6 +744,41 @@ fn try_fill_run(
     // sources get the right reflowed layout.
     let use_word_first = whole.contains('\n');
     let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
+    // Prepend a leading Line/Hardline to the fill doc to produce prettier's
+    // "inverted" fill structure when the first text node had leading whitespace.
+    // This matches prettier-plugin-svelte's `splitTextToDocs` which places a `line`
+    // (or `hardline`) before the first word when the text starts with whitespace,
+    // giving "last-word overflow tolerance": when a pair [Line, word] doesn't fit
+    // but Line alone fits, the word stays on the current line as text (it is the
+    // whitespace item in Break mode, which for Doc::Text still prints inline).
+    //
+    // Case A (starts with spaces only): prepend Doc::Line to get prettier's
+    // "inverted" fill structure `[Line, word, Line, word, ...]`.
+    //
+    // Case B (starts with newline, single-line content): prepend Doc::Hardline.
+    // This mirrors `splitTextToDocs` when the text is NOT trimmed by prettier
+    // (e.g., text between two block siblings like `<h3>` + text + `<span>`).
+    // When the text is single-line (no `\n` in `whole`), prettier's fill
+    // does not trim and uses the inverted structure with hardline prefix.
+    // When the text is multi-line (`use_word_first=true`), prettier HAS trimmed
+    // the leading whitespace (first-child path) and uses normal fill — do not
+    // prepend.
+    // Case B: only applies when the text node is preceded by a CLOSE TAG
+    // (e.g. `</h3>\n    text`). In this situation prettier's `handleTextChild`
+    // does NOT call `trimTextNodeLeft` (because the text starts with a linebreak)
+    // so `splitTextToDocs` sees the raw text and produces the inverted structure
+    // `[hardline, word, line, word, ...]`. When the text is the FIRST child of its
+    // parent element, the element printer DOES call `trimTextNodeLeft`, resulting in
+    // a normal fill structure — so Case B must NOT apply there.
+    let first_text_follows_close_tag =
+        first_text_orig_start.is_some_and(|ts| text_preceded_by_close_tag(out, ts));
+    let content_doc = match first_text_leading_ws_kind {
+        Some(false) => prepend_leading_to_fill(content_doc, crate::doc::Doc::Line),
+        Some(true) if first_text_follows_close_tag => {
+            prepend_leading_to_fill(content_doc, crate::doc::Doc::Hardline)
+        }
+        _ => content_doc,
+    };
     // Flat width (a hardline forces multi-line).
     let flat = crate::doc::print(
         crate::doc::Doc::Group(vec![content_doc.clone()]),
@@ -727,7 +810,24 @@ fn try_fill_run(
     if run.len() == 1 && matches!(run[0], TemplateNode::Text(_)) && !whole.contains('\n') {
         return None;
     }
-    let printed = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
+    let printed_raw = crate::doc::print(content_doc, line_width, "  ", base_level, indent_cols);
+    // For Case B (hardline-prefixed inverted fill), the printed output begins with
+    // "\n<indent>" from the Hardline. Strip this prefix so the edit replaces only
+    // the word content starting at `s` (the existing "\n<indent>" before `s` in the
+    // source stays in place).
+    let printed = if matches!(first_text_leading_ws_kind, Some(true))
+        && first_text_follows_close_tag
+        && printed_raw.starts_with('\n')
+    {
+        let indent_str = "  ".repeat(base_level);
+        printed_raw
+            .strip_prefix('\n')
+            .and_then(|r| r.strip_prefix(indent_str.as_str()))
+            .unwrap_or(&printed_raw)
+            .to_string()
+    } else {
+        printed_raw
+    };
     // If the doc had no break points (e.g. two adjacent inline-block elements
     // like `<button>A</button><button>B</button>` with no text between them),
     // `print` produces the same flat single-line string regardless of
@@ -3920,6 +4020,56 @@ fn try_fill_mixed(
 
 /// Port of prettier-plugin-svelte's `printChildren` for inline (prose) content:
 /// a `Concat` of each text node's `fill(splitTextToDocs)` and each inline
+/// Prepend `leading` (a `Doc::Line` or `Doc::Hardline`) to the outermost
+/// `Doc::Fill` within `doc`. This produces prettier's "inverted" fill
+/// structure `[Line/Hardline, word, Line, word, ...]` for text nodes that
+/// started with whitespace, giving "last-word overflow tolerance".
+fn prepend_leading_to_fill(doc: crate::doc::Doc, leading: crate::doc::Doc) -> crate::doc::Doc {
+    use crate::doc::Doc;
+    match doc {
+        Doc::Concat(mut items) => {
+            if let Some(Doc::Fill(parts)) = items.first_mut() {
+                parts.insert(0, leading);
+            }
+            Doc::Concat(items)
+        }
+        Doc::Fill(mut parts) => {
+            parts.insert(0, leading);
+            Doc::Fill(parts)
+        }
+        other => other,
+    }
+}
+
+/// Returns `true` when the character immediately before `text_start` in `out`
+/// is the `>` of a **close tag** (e.g. `</h3>`) rather than an open tag.
+/// Used to decide whether a newline-leading text node was trimmed by prettier's
+/// `trimTextNodeLeft` (first-child path → open tag before it) or not (between
+/// block siblings → close tag before it).
+fn text_preceded_by_close_tag(out: &str, text_start: usize) -> bool {
+    if text_start == 0 {
+        return false;
+    }
+    // The character immediately before the text node must be `>`.
+    let before = &out[..text_start];
+    if !before.ends_with('>') {
+        return false;
+    }
+    // Search backwards (at most 512 bytes) for the matching `<`.
+    // Ensure search_start is on a valid UTF-8 char boundary.
+    let mut search_start = before.len().saturating_sub(512);
+    while search_start < before.len() && !before.is_char_boundary(search_start) {
+        search_start += 1;
+    }
+    let search = &before[search_start..];
+    let rel_pos = match search.rfind('<') {
+        Some(p) => p,
+        None => return false,
+    };
+    // If the char after `<` is `/`, it's a close tag.
+    search.as_bytes().get(rel_pos + 1) == Some(&b'/')
+}
+
 /// element's hug `Group`. Boundary whitespace is handled so an element can hug in
 /// place (the preceding text fill's trailing `line` stays flat) or move to a
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
