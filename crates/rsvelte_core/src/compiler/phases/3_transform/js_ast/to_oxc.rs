@@ -604,6 +604,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     fn expr(&self, expr: &JsExpr) -> Option<Expression<'a>> {
         match expr {
             JsExpr::Identifier(name) => Some(self.ab.expression_identifier(SPAN, self.str(name))),
+            JsExpr::OpaqueIdentifier(name) => {
+                Some(self.ab.expression_identifier(SPAN, self.str(name)))
+            }
             JsExpr::Literal(lit) => self.literal(lit),
             JsExpr::This => Some(self.ab.expression_this(SPAN)),
             JsExpr::Super => Some(Expression::Super(self.ab.alloc_super(SPAN))),

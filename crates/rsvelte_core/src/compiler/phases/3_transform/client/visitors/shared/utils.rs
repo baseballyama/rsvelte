@@ -1388,6 +1388,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
         | JsExpr::MetaProperty(_, _)
         | JsExpr::ImportExpression { .. }
         | JsExpr::Raw(_)
+        | JsExpr::OpaqueIdentifier(_)
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
@@ -2517,6 +2518,7 @@ fn collect_reactive_references_inner(
         | JsExpr::Super
         | JsExpr::MetaProperty(_, _)
         | JsExpr::Raw(_)
+        | JsExpr::OpaqueIdentifier(_)
         | JsExpr::Spread(_)
         | JsExpr::New(_)
         | JsExpr::Class(_)

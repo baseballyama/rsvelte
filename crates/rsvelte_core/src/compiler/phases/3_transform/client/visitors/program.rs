@@ -547,7 +547,7 @@ fn prop_assign(
     // Use Raw callee to prevent apply_transforms_to_expression from applying
     // the prop read transform (which would turn `items(value)` into `items()(value)`).
     let callee = match node {
-        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
         _ => node,
     };
     b::call(arena, callee, vec![value])
@@ -629,7 +629,7 @@ fn prop_bindable_mutate(
     // the prop read transform (which would turn `items(mutation, true)` into
     // `items()(mutation, true)`).
     let callee = match node {
-        JsExpr::Identifier(ref name) => JsExpr::Raw(name.clone()),
+        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
         _ => node,
     };
     b::call(arena, callee, vec![mutation, b::boolean(true)])

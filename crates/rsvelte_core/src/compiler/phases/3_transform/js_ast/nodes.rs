@@ -326,6 +326,10 @@ pub struct JsCatchClause {
 pub enum JsExpr {
     /// Identifier
     Identifier(CompactString),
+    /// An identifier in already-final form: skipped by the transform passes
+    /// (like `Raw`) but treated as a plain identifier by codegen / to_oxc.
+    /// Used for prop setter callees that must not be re-read-transformed.
+    OpaqueIdentifier(CompactString),
     /// Literal value
     Literal(JsLiteral),
     /// Template literal

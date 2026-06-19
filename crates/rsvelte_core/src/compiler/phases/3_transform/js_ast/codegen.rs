@@ -817,6 +817,7 @@ impl<'a> JsCodegen<'a> {
     fn emit_expression(&mut self, expr: &JsExpr) {
         match expr {
             JsExpr::Identifier(name) => self.output.push_str(name),
+            JsExpr::OpaqueIdentifier(name) => self.output.push_str(name),
             JsExpr::Literal(lit) => self.emit_literal(lit),
             JsExpr::TemplateLiteral(template) => self.emit_template_literal(template),
             JsExpr::TaggedTemplate(tagged) => self.emit_tagged_template(tagged),
