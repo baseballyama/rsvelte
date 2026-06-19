@@ -665,8 +665,7 @@ fn try_fill_run(
     let non_ws_prefix = !indent.is_empty() && !indent.bytes().all(|b| b == b' ' || b == b'\t');
     // A "close-tag prefix" ends with `>` or `> ` — we can safely derive base_level
     // from the leading whitespace (everything before the `>` or `</tag>` tail).
-    let is_close_tag_prefix =
-        non_ws_prefix && (indent.ends_with('>') || indent.ends_with("> "));
+    let is_close_tag_prefix = non_ws_prefix && (indent.ends_with('>') || indent.ends_with("> "));
     if non_ws_prefix && !is_close_tag_prefix {
         return None;
     }
@@ -676,7 +675,10 @@ fn try_fill_run(
     // characters). This ensures continuation lines align with the parent element's
     // indentation rather than the visual column of the close tag.
     let base_level = if is_close_tag_prefix {
-        let ws_len = indent.bytes().take_while(|&b| b == b' ' || b == b'\t').count();
+        let ws_len = indent
+            .bytes()
+            .take_while(|&b| b == b' ' || b == b'\t')
+            .count();
         ws_len / 2
     } else {
         indent_cols / 2

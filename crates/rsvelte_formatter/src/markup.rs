@@ -747,19 +747,18 @@ fn push_open_tag(
     // overflow and wraps the open tag.  This is specifically limited to `}`-
     // prefixed cases to avoid false positives when the preceding character is
     // `>` (a close tag) or anything that changes between source and formatted.
-    let leading_indent_width = if element_start > 0
-        && source.as_bytes().get(element_start as usize - 1) == Some(&b'}')
-    {
-        let line_start = source[..element_start as usize]
-            .rfind('\n')
-            .map_or(0, |i| i + 1);
-        let source_col = source
-            .get(line_start..element_start as usize)
-            .map_or(0, |prefix| prefix.width());
-        std::cmp::max(depth_indent_width, source_col)
-    } else {
-        depth_indent_width
-    };
+    let leading_indent_width =
+        if element_start > 0 && source.as_bytes().get(element_start as usize - 1) == Some(&b'}') {
+            let line_start = source[..element_start as usize]
+                .rfind('\n')
+                .map_or(0, |i| i + 1);
+            let source_col = source
+                .get(line_start..element_start as usize)
+                .map_or(0, |prefix| prefix.width());
+            std::cmp::max(depth_indent_width, source_col)
+        } else {
+            depth_indent_width
+        };
     let line_width = options.js.line_width.value() as usize;
 
     // A multi-line attribute value (e.g. a multi-line arrow handler or a
@@ -824,7 +823,16 @@ fn push_open_tag(
         && element_overflows
         && is_block_element(tag_name);
 
-    let wrapped = !(rendered_attrs.is_empty() || fits_one_line) || shape_two || force_wrap_block;
+    // A no-attribute hug-open element (e.g. `<code>`) whose position overflows
+    // the line needs its `>` moved to the content's line — the same hug-break
+    // that prettier applies when there are attributes.  This fires only when
+    // the element is already at an overflowing column (detected via source_col
+    // from the `}` prefix check) so that normal in-line `<code>` stays flat.
+    let hug_overflow = rendered_attrs.is_empty() && hug_open && !self_closing && !open_fits;
+    let wrapped = !(rendered_attrs.is_empty() || fits_one_line)
+        || shape_two
+        || force_wrap_block
+        || hug_overflow;
 
     // Second pass: once we know the open tag wraps (attributes each on their own
     // line at `attr_depth`), re-render the attributes narrowing each value
@@ -1114,12 +1122,18 @@ fn render_multi_line(
             out.push_str(&reindent_attr_with_raw_text(a, &inner_indent));
         }
     }
-    if hug_open && !self_closing {
+    if hug_open && !self_closing && !attrs.is_empty() {
         // Whitespace-sensitive inline content: glue the `>` to the last
         // attribute line so no significant whitespace is injected before the
         // content (#798). The collapse pass (`try_hug_mixed`) later decides
         // whether to keep it glued or move it to a new indented line, depending
         // on whether the resulting line would overflow the print width.
+        out.push('>');
+    } else if hug_open && !self_closing {
+        // No attributes but the element still needs the `>` on the
+        // content's line (overflow hug): emit `<tagname\n{inner_indent}>`.
+        out.push('\n');
+        out.push_str(&inner_indent);
         out.push('>');
     } else {
         out.push('\n');
