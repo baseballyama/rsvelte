@@ -146,6 +146,20 @@ pub(crate) fn collapse_pure_text_elements(
         tree = t;
     }
 
+    // 1.95-th pass: re-collapse broken open tags whose single-line form now fits
+    // at their current column. Undoes incorrect pass-1 breaks that were caused
+    // by a long preceding line; after pass 1.9 has broken inline elements to
+    // shorten those lines, the previously-broken sibling open tag may now fit.
+    let mut edits1g: Vec<(u32, u32, String)> = Vec::new();
+    collect_recollapse_open_tag(&result, &tree.fragment, line_width, &mut edits1g);
+    if !edits1g.is_empty() {
+        result = apply_edits(&result, edits1g);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
+
     // Second pass: the hug/break edits above may leave a long expression mustache
     // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
     // Member-chain-break those in place — this can't run in the first pass
@@ -976,6 +990,30 @@ fn collect_break_inline_open_tag(
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(e) => {
+                // For block/whitespace-preserving elements that are EMPTY (no
+                // children, no attributes), break the open tag when the whole
+                // line overflows and there is inline content after the element.
+                // Example: `  <script></script>{@html ...}` (86 chars) →
+                //          `  <script\n  ></script>{@html ...}`.
+                let elem_fragment_empty = e
+                    .fragment
+                    .nodes
+                    .iter()
+                    .all(|n| matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+                if (is_block_display(e.name.as_str()) || is_whitespace_preserving(e.name.as_str()))
+                    && e.attributes.is_empty()
+                    && elem_fragment_empty
+                    && let Some(edit) = try_break_empty_block_open_tag(
+                        out,
+                        e.name.as_str(),
+                        e.start,
+                        e.end,
+                        line_width,
+                    )
+                {
+                    edits.push(edit);
+                    continue;
+                }
                 if is_whitespace_preserving(e.name.as_str()) {
                     continue;
                 }
@@ -1032,7 +1070,8 @@ fn try_break_inline_open_tag(
     fragment: &Fragment,
     line_width: usize,
 ) -> Option<(u32, u32, String)> {
-    // Must have attributes to break.
+    // Must have attributes to break. Zero-attribute elements in hug_start=true
+    // contexts can't be broken safely without tree-level indent information.
     if attrs.is_empty() {
         return None;
     }
@@ -1161,10 +1200,6 @@ fn try_break_inline_open_tag(
         // Strip trailing `>` to get `</tag`, then we'll append `\n{indent}>`.
         let close_tag_without_angle = close_tag_text.strip_suffix('>')?;
 
-        // Build attrs string without the surrounding `<tag` / `>` for Option B check.
-        // The open tag without close-angle is `<tag attr1 attr2` (space-joined).
-        // For Option A, attrs are each on their own line with inner_indent.
-
         // Check if Option B fits: `{before}<tag attr1 attrN` (no `>`) ≤ line_width.
         // We use the open_tag minus the trailing `>` character.
         let open_tag_without_angle = open_tag.strip_suffix('>')?;
@@ -1207,6 +1242,194 @@ fn try_break_inline_open_tag(
         }
         Some((elem_start, elem_end, broken))
     }
+}
+
+/// Try to break the open tag of an EMPTY block/whitespace-preserving element
+/// (no attributes, no children) that sits at line-start on a line that overflows
+/// because of following inline content.
+///
+/// Example (`html-tag-script-2`):
+///   `  <script></script>{@html `...`}` (86 chars, overflows 80)
+/// → `  <script\n  ></script>{@html `...`}`
+///
+/// Prettier-plugin-svelte breaks the `<tagname>` open tag to `<tagname\n{indent}>`
+/// when the full line (element + following sibling content) would overflow. This
+/// gives prettier a break point even though the element itself has nothing to split.
+fn try_break_empty_block_open_tag(
+    out: &str,
+    tag: &str,
+    elem_start: u32,
+    elem_end: u32,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    let s = elem_start as usize;
+
+    // The expected open tag is `<tagname>` with no attributes.
+    let expected_open = format!("<{tag}>");
+    let open_len = expected_open.len();
+    let open_tag = out.get(s..s + open_len)?;
+    if open_tag != expected_open {
+        return None; // has attributes or not this form
+    }
+    let open_tag_end = s + open_len;
+
+    // Check the line containing the element.
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = out[elem_end as usize..]
+        .find('\n')
+        .map_or(out.len(), |i| elem_end as usize + i);
+    let line = out.get(line_start..line_end)?;
+
+    // Line must overflow.
+    if line.width() <= line_width {
+        return None;
+    }
+
+    // There must be non-whitespace content AFTER the element's close tag on this
+    // line. If the element itself is the only thing on the line, this pass is not
+    // needed (another pass handles that case).
+    let after_elem = out.get(elem_end as usize..line_end)?;
+    if after_elem.bytes().all(|b| b.is_ascii_whitespace()) {
+        return None;
+    }
+
+    // The element must start at a pure-whitespace line prefix (it's at the indent
+    // column, not following other inline content on the same line).
+    let before = out.get(line_start..s)?;
+    if !before.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    let indent = before;
+
+    // Break: `<tagname\n{indent}>`
+    let broken = format!("<{tag}\n{indent}>");
+    Some((elem_start, open_tag_end as u32, broken))
+}
+
+/// Pass 1.95: re-collapse broken open tags whose single-line form now fits at
+/// their current column. This undoes incorrect breaks from pass 1 that were
+/// caused by a long preceding line; after pass 1.9 has broken inline elements
+/// to shorten those lines, the previously-broken element may now sit at a
+/// shorter column and fit on one line.
+///
+/// Example (TextDecoration.svelte): pass 1 broke the red `<Span>` open tag
+/// because it was on the same 199-char line as the green `<Span>`. After pass
+/// 1.9 broke the green `<Span>`, the red `<Span>` moved to a line starting
+/// with `  >, ` (column 5). Its single-line form (74 chars) now fits: 5+74=79.
+fn collect_recollapse_open_tag(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(e) => {
+                if is_whitespace_preserving(e.name.as_str()) {
+                    continue;
+                }
+                if let Some(edit) = try_recollapse_open_tag(
+                    out,
+                    e.name.as_str(),
+                    &e.attributes,
+                    e.start,
+                    &e.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                }
+                collect_recollapse_open_tag(out, &e.fragment, line_width, edits);
+            }
+            TemplateNode::Component(c) => {
+                if let Some(edit) = try_recollapse_open_tag(
+                    out,
+                    c.name.as_str(),
+                    &c.attributes,
+                    c.start,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                }
+                collect_recollapse_open_tag(out, &c.fragment, line_width, edits);
+            }
+            _ => {
+                for child in child_fragments(node) {
+                    collect_recollapse_open_tag(out, child, line_width, edits);
+                }
+            }
+        }
+    }
+}
+
+fn try_recollapse_open_tag(
+    out: &str,
+    tag: &str,
+    attrs: &[rsvelte_core::ast::template::Attribute],
+    elem_start: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    if attrs.is_empty() {
+        return None;
+    }
+    let first = fragment.nodes.first()?;
+    let open_tag_end = node_start(first) as usize;
+    let open_tag = out.get(elem_start as usize..open_tag_end)?;
+
+    // Open tag must be multi-line (contains `\n`) to be worth recollapsing.
+    if !open_tag.contains('\n') {
+        return None;
+    }
+    // Open tag must end with `>`.
+    if !open_tag.ends_with('>') {
+        return None;
+    }
+
+    // The element must have non-whitespace text before it on the same line.
+    // Elements at line start were broken by pass 1 for their own reasons (e.g.,
+    // a long attribute list) — we only recollapse elements that were broken
+    // because of the long PRECEDING CONTEXT, which is reflected by having
+    // non-whitespace content before them on the same line.
+    let elem_start_usize = elem_start as usize;
+    let line_start = out[..elem_start_usize].rfind('\n').map_or(0, |i| i + 1);
+    let before = out.get(line_start..elem_start_usize)?;
+    if before.is_empty() || before.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None; // element is at line start — don't recollapse
+    }
+
+    // Only recollapse when the content after `>` starts with whitespace
+    // (hug_start=false). For hug_start=true elements, the multi-line open tag
+    // is part of the hug break pattern and must not be collapsed back to a
+    // single-line form — collapsing would inline the content and break the
+    // close-tag `>` structure.
+    let first_child_text = out.get(open_tag_end..node_end(first) as usize)?;
+    if !first_child_text.starts_with([' ', '\t', '\r', '\n']) {
+        return None; // hug_start=true — don't recollapse
+    }
+
+    // Build the single-line form: `<tag attr1 attr2>`.
+    let mut single_line = format!("<{tag}");
+    for attr in attrs {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        // If any attribute is multi-line, can't collapse to single line.
+        if atext.contains('\n') {
+            return None;
+        }
+        single_line.push(' ');
+        single_line.push_str(atext);
+    }
+    single_line.push('>');
+
+    // Check if single-line form fits at the element's current column.
+    let col = before.width();
+    if col + single_line.width() > line_width {
+        return None;
+    }
+
+    // Only emit if the forms differ.
+    (single_line != open_tag).then_some((elem_start, open_tag_end as u32, single_line))
 }
 
 /// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
@@ -4217,15 +4440,17 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             .nodes
             .iter()
             .all(|n| matches!(n, TemplateNode::Text(_)))
+        && let (Some(first), Some(last)) = (e.fragment.nodes.first(), e.fragment.nodes.last())
     {
-        if let (Some(first), Some(last)) = (e.fragment.nodes.first(), e.fragment.nodes.last()) {
-            let elem_start = e.start as usize;
-            let elem_end = e.end as usize;
-            let content_start = node_start(first) as usize;
-            let content_end = node_end(last) as usize;
-            let open = out.get(elem_start..content_start)?;
-            let content = out.get(content_start..content_end)?;
-            let close_tag = out.get(content_end..elem_end)?;
+        let elem_start = e.start as usize;
+        let elem_end = e.end as usize;
+        let content_start = node_start(first) as usize;
+        let content_end = node_end(last) as usize;
+        if let (Some(open), Some(content), Some(close_tag)) = (
+            out.get(elem_start..content_start),
+            out.get(content_start..content_end),
+            out.get(content_end..elem_end),
+        ) {
             // Only simple single-line hugged content (no whitespace edges).
             if !open.contains('\n')
                 && !content.contains('\n')
