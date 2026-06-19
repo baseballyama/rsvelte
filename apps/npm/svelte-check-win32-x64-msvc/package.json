@@ -8,14 +8,14 @@
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/svelte-check-win32-x64-msvc"
   },
+  "files": [
+    "svelte-check.exe"
+  ],
   "os": [
     "win32"
   ],
   "cpu": [
     "x64"
-  ],
-  "files": [
-    "svelte-check.exe"
   ],
   "publishConfig": {
     "access": "public"

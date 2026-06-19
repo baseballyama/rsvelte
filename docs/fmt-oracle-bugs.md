@@ -21,11 +21,13 @@ would require rsvelte to produce broken output.
 ### 1. Nested-rest destructuring silently dropped → `...undefined`
 
 **Ids:**
+
 - `svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructured-array-nested-rest/main.svelte`
 - `svelte/packages/svelte/tests/runtime-legacy/samples/await-then-destruct-array-nested-rest/main.svelte`
 - `svelte/packages/svelte/tests/validator/samples/rest-eachblock-binding-nested-rest/input.svelte`
 
 **Input (minimal):**
+
 ```svelte
 {#each array as [first, second, ...[third, ...{ length }]]}
   {first} {second} {third} {length}
@@ -33,6 +35,7 @@ would require rsvelte to produce broken output.
 ```
 
 **Oracle (buggy) output:**
+
 ```svelte
 {#each array as [first, second, ...undefined]}
   {first} {second} {third} {length}
@@ -40,6 +43,7 @@ would require rsvelte to produce broken output.
 ```
 
 **rsvelte-fmt (correct) output:**
+
 ```svelte
 {#each array as [first, second, ...[third, ...{ length }]]}
   {first} {second} {third} {length}
@@ -63,16 +67,19 @@ corruption bug — the runtime breaks because bound names disappear.
 **Id:** `svelte/packages/svelte/tests/runtime-legacy/samples/block-expression-assign/main.svelte`
 
 **Input (minimal):**
+
 ```svelte
 {@const x = (h = 0)}
 ```
 
 **Oracle (buggy) output:**
+
 ```svelte
 {@const x = (h = 0}
 ```
 
 **rsvelte-fmt (correct) output:**
+
 ```svelte
 {@const x = (h = 0)}
 ```
@@ -90,10 +97,13 @@ the closing paren of a `ParenthesizedExpression` inside a `ConstTag` is dropped.
 ### 3. `<textarea>` whitespace collapse
 
 **Ids:**
+
 - `svelte/packages/svelte/tests/runtime-legacy/samples/textarea-content/main.svelte`
 - `svelte/packages/svelte/tests/validator/samples/textarea-value-children/input.svelte`
+- `svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte` (adversarial: multi-line `<textarea>` body with split/garbage close-tags; oxfmt collapses the whitespace-significant body onto one line, rsvelte preserves it)
 
 **Input (minimal):**
+
 ```svelte
 <textarea id="textarea">
   A
@@ -102,11 +112,13 @@ the closing paren of a `ParenthesizedExpression` inside a `ConstTag` is dropped.
 ```
 
 **Oracle (buggy) output:**
+
 ```svelte
 <textarea id="textarea"> A B </textarea>
 ```
 
 **rsvelte-fmt (correct) output:**
+
 ```svelte
 <textarea id="textarea">
   A
@@ -130,11 +142,13 @@ for `textarea` — it should not reflow the child text nodes.
 ### 4. CSS tab/space indentation mixing
 
 **Ids:**
+
 - `svelte/packages/svelte/tests/css/samples/comment-html/input.svelte`
 - `svelte/packages/svelte/tests/css/samples/comments-after-last-selector/input.svelte`
 - `svelte/packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte`
 
 **Input example (`comments-after-last-selector`):**
+
 ```css
 .foo,  /* some comment */
 .bar /* some other comment */ {
@@ -143,6 +157,7 @@ for `textarea` — it should not reflow the child text nodes.
 ```
 
 **Oracle (buggy) output:**
+
 ```css
 .foo,  /* some comment */
 	.bar /* some other comment */ {
@@ -174,14 +189,16 @@ lines.
 ### 5. Malformed `<script>`/`<style>` close tag loses body content
 
 **Ids:**
+
 - `svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-script-tag/input.svelte`
 - `svelte/packages/svelte/tests/parser-legacy/samples/whitespace-after-style-tag/input.svelte`
 
 **Input (`whitespace-after-script-tag`):**
+
 ```svelte
 <script>
   let name = "world";
-</script     
+</script
 
 
 
@@ -190,16 +207,18 @@ lines.
 
 <h1>Hello {name}!</h1>
 ```
+
 (The `</script` close tag has whitespace and newlines before the `>`.)
 
 **Oracle (buggy) output:**
+
 ```svelte
 <script></script>
 
 <h1>Hello {name}!</h1>
 ```
 
-**rsvelte-fmt output:**  rsvelte preserves the body (it cannot fully close the
+**rsvelte-fmt output:** rsvelte preserves the body (it cannot fully close the
 tag either due to the unusual syntax, so it keeps the literal source).
 
 **What prettier-plugin-svelte does wrong:** When the `</script>` or `</style>`
@@ -220,6 +239,7 @@ block.
 **Id:** `svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte`
 
 **Input (offending construct):**
+
 ```svelte
 {#snippet counter5(c?: number = 5)}
   {c}
@@ -248,12 +268,12 @@ fixtures contain Svelte 4 syntax (legacy `let:` directives, SCSS `$`-variables
 in `lang="scss"` stylesheets, `slot=` attributes) that rsvelte's Svelte 5
 compiler correctly rejects or formats differently.
 
-| Id | Reason |
-|---|---|
-| `tests/migrate/samples/css-ignore/input.svelte` | `lang="scss"` with `$font-stack` variable — `css_expected_identifier` parse error |
-| `tests/migrate/samples/css-ignore/output.svelte` | Same — SCSS output of the migrator |
-| `tests/migrate/samples/slot-non-identifier/output.svelte` | Svelte 4 `let:` directives + `slot=` attributes |
-| `tests/migrate/samples/slot-usages/output.svelte` | Svelte 4 slot migration output |
+| Id                                                        | Reason                                                                            |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `tests/migrate/samples/css-ignore/input.svelte`           | `lang="scss"` with `$font-stack` variable — `css_expected_identifier` parse error |
+| `tests/migrate/samples/css-ignore/output.svelte`          | Same — SCSS output of the migrator                                                |
+| `tests/migrate/samples/slot-non-identifier/output.svelte` | Svelte 4 `let:` directives + `slot=` attributes                                   |
+| `tests/migrate/samples/slot-usages/output.svelte`         | Svelte 4 slot migration output                                                    |
 
 ---
 

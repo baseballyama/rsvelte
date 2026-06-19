@@ -1,7 +1,7 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
 The formatter-parity track (`scripts/compat-corpus/fmt.mjs` + `fmt-verify.mjs`,
-wired into the `Formatter parity` CI job) formats every `.svelte` *component* in
+wired into the `Formatter parity` CI job) formats every `.svelte` _component_ in
 the corpus — sveltejs/svelte + svelte.dev, real files plus ```svelte markdown
 blocks — with both **rsvelte-fmt** and the **oxfmt(`svelte: true`) oracle**
 (prettier-plugin-svelte for the Svelte structure + oxc for embedded JS/CSS, which
@@ -11,18 +11,18 @@ ratchet (`compat/corpus/fmt-known-failures.json`) may only shrink.
 Status as of 2026-06-15 (branch `feat/corpus-fmt-parity`, Svelte 5.56.2,
 svelte.dev@`49ee73732aef`, oxfmt 0.53.0):
 
-| metric | count |
-|---|---|
-| components in the parity set (oracle-included, CI/Linux) | 6,059 |
-| byte-identical to the oracle (macOS local) | 6,004 |
-| **known failures (local, macOS)** | **55** (from an initial 431) |
+| metric                                                   | count                        |
+| -------------------------------------------------------- | ---------------------------- |
+| components in the parity set (oracle-included, CI/Linux) | 6,059                        |
+| byte-identical to the oracle (macOS local)               | 6,004                        |
+| **known failures (local, macOS)**                        | **55** (from an initial 431) |
 
 **Burn-down 431 → 55 (376 fixed, 0 regressions at every step).** The CI/Linux
 baseline (`fmt-known-failures.json`) additionally carries ~13 loose
 declaration-tag entries macOS `oxfmt` skips — see the cross-platform note in
 `scripts/compat-corpus/README.md`; shrink the baseline only from a CI run.
 
-### Important: a large share of the residual is *oracle bugs*, not rsvelte bugs
+### Important: a large share of the residual is _oracle bugs_, not rsvelte bugs
 
 The hard byte gate compares against `oxfmt(svelte:true)` =
 prettier-plugin-svelte. On the deep long tail, that oracle is frequently **wrong**
@@ -42,7 +42,7 @@ Confirmed oracle-bug classes in the residual (rsvelte is correct):
 - **`{@const x = (h = 0)}` → `{@const x = (h = 0}`** — oxfmt drops the closing
   paren, producing invalid Svelte. (`block-expression-assign`.)
 - **`<textarea>` whitespace** — oxfmt collapses whitespace-significant `<textarea>`
-  content (`\n  A\n  B\n` → ` A B `) with inconsistent per-case rules.
+  content (`\n  A\n  B\n` → `A B`) with inconsistent per-case rules.
   (`textarea-content`, `textarea-value-children`.)
 - **CSS selector-list indentation mixes tabs and spaces** — `  .foo,` then
   `\t.bar` in one selector list. (`comment-html`, `comments-after-last-selector`,
@@ -118,10 +118,10 @@ exclusions).
   - Mixed-content text-node splitting: text adjacent to inline elements is
     split differently (e.g. `">span text</span> more text"` wraps differently).
     (`flowbite-svelte/Toc.svelte`, `reactive-import-statement`.)
-  - Call-argument wrapping inside attribute values (e.g. `class="{fn({status})}"` 
+  - Call-argument wrapping inside attribute values (e.g. `class="{fn({status})}"`
     vs multi-line).
-  These require the full prettier `fill`/`group` child-layout port (see
-  `docs/fmt-layout-port-plan.md`).
+    These require the full prettier `fill`/`group` child-layout port (see
+    `docs/fmt-layout-port-plan.md`).
 
 - **~8 — comment continuation indenting inside element openers.** A block
   comment whose interior lines preserve original tab indentation when rsvelte

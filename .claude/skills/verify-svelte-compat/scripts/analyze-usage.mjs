@@ -6,13 +6,13 @@
 //
 // Output: a single JSON object on stdout with the detected metadata.
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { execSync } from 'node:child_process';
+import fs from "node:fs";
+import path from "node:path";
+import { execSync } from "node:child_process";
 
 const target = process.argv[2];
 if (!target) {
-  console.error('usage: analyze-usage.mjs <target-path>');
+  console.error("usage: analyze-usage.mjs <target-path>");
   process.exit(64);
 }
 
@@ -24,7 +24,7 @@ if (!fs.existsSync(targetAbs)) {
 
 function readJsonSafe(p) {
   try {
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
+    return JSON.parse(fs.readFileSync(p, "utf8"));
   } catch {
     return null;
   }
@@ -34,22 +34,22 @@ function fileExists(rel) {
   return fs.existsSync(path.join(targetAbs, rel));
 }
 
-const rootPkg = readJsonSafe(path.join(targetAbs, 'package.json')) || {};
+const rootPkg = readJsonSafe(path.join(targetAbs, "package.json")) || {};
 const allDeps = {
   ...(rootPkg.dependencies || {}),
   ...(rootPkg.devDependencies || {}),
   ...(rootPkg.peerDependencies || {}),
 };
 
-const hasWorkspaces = !!rootPkg.workspaces || fileExists('pnpm-workspace.yaml');
+const hasWorkspaces = !!rootPkg.workspaces || fileExists("pnpm-workspace.yaml");
 const monorepoPackages = [];
 if (hasWorkspaces) {
   // best-effort: scan top-level package directories
-  for (const dir of ['packages', 'apps', 'sites']) {
+  for (const dir of ["packages", "apps", "sites"]) {
     const full = path.join(targetAbs, dir);
     if (fs.existsSync(full)) {
       for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
-        if (entry.isDirectory() && fs.existsSync(path.join(full, entry.name, 'package.json'))) {
+        if (entry.isDirectory() && fs.existsSync(path.join(full, entry.name, "package.json"))) {
           monorepoPackages.push(`${dir}/${entry.name}`);
         }
       }
@@ -58,15 +58,15 @@ if (hasWorkspaces) {
 }
 
 // Build system detection
-let buildSystem = 'other';
-if (allDeps['@sveltejs/kit'] || fileExists('svelte.config.js') || fileExists('svelte.config.ts')) {
-  buildSystem = 'kit';
-} else if (allDeps['vite'] || fileExists('vite.config.js') || fileExists('vite.config.ts')) {
-  buildSystem = 'vite';
-} else if (allDeps['webpack']) {
-  buildSystem = 'webpack';
-} else if (allDeps['rollup']) {
-  buildSystem = 'rollup';
+let buildSystem = "other";
+if (allDeps["@sveltejs/kit"] || fileExists("svelte.config.js") || fileExists("svelte.config.ts")) {
+  buildSystem = "kit";
+} else if (allDeps["vite"] || fileExists("vite.config.js") || fileExists("vite.config.ts")) {
+  buildSystem = "vite";
+} else if (allDeps["webpack"]) {
+  buildSystem = "webpack";
+} else if (allDeps["rollup"]) {
+  buildSystem = "rollup";
 }
 
 // .svelte file count (skip heavy directories)
@@ -81,18 +81,18 @@ function countSvelteFiles(dir, depth = 0) {
   }
   for (const entry of entries) {
     if (
-      entry.name === 'node_modules' ||
-      entry.name === '.git' ||
-      entry.name === 'dist' ||
-      entry.name === 'build' ||
-      entry.name === '.svelte-kit' ||
-      entry.name === 'target' ||
-      entry.name.startsWith('.')
+      entry.name === "node_modules" ||
+      entry.name === ".git" ||
+      entry.name === "dist" ||
+      entry.name === "build" ||
+      entry.name === ".svelte-kit" ||
+      entry.name === "target" ||
+      entry.name.startsWith(".")
     )
       continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) count += countSvelteFiles(full, depth + 1);
-    else if (entry.isFile() && entry.name.endsWith('.svelte')) count += 1;
+    else if (entry.isFile() && entry.name.endsWith(".svelte")) count += 1;
   }
   return count;
 }
@@ -107,10 +107,10 @@ let compilerEntryPoints = [];
 let alreadySwapped = false;
 try {
   const lsOut = execSync(`git -C "${targetAbs}" ls-files`, {
-    encoding: 'utf8',
+    encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
-  const tracked = lsOut.split('\n').filter(Boolean);
+  const tracked = lsOut.split("\n").filter(Boolean);
   const sourcePat = /\.(js|ts|mjs|mts|cjs|cts)$/;
   const testPat = /(^|\/)(tests?|__tests__|e2e|examples?|fixtures?|spec)(\/|$)/;
   const importPat = /(?:from\s+|require\(\s*)['"](svelte\/compiler|@rsvelte\/compiler)['"]/;
@@ -119,7 +119,7 @@ try {
     if (!sourcePat.test(rel) || testPat.test(rel)) continue;
     let content;
     try {
-      content = fs.readFileSync(path.join(targetAbs, rel), 'utf8');
+      content = fs.readFileSync(path.join(targetAbs, rel), "utf8");
     } catch {
       continue;
     }
@@ -138,28 +138,28 @@ const testCommands = [];
 const buildCommands = [];
 for (const key of Object.keys(scripts)) {
   if (/^(test|spec|check)(:|$)/.test(key)) testCommands.push(`pnpm ${key}`);
-  if (/^build(:|$)/.test(key) || key === 'build') buildCommands.push(`pnpm ${key}`);
+  if (/^build(:|$)/.test(key) || key === "build") buildCommands.push(`pnpm ${key}`);
 }
 
 // Type classification
 //   tool      — own source imports svelte/compiler (the repo IS or wraps a Svelte tool)
 //   monorepo  — workspace root containing multiple packages; one of them is likely a tool
 //   app       — many .svelte components but no compiler import (consumer of Svelte)
-let type = 'unknown';
+let type = "unknown";
 
 if (compilerEntryPoints.length > 0) {
-  type = hasWorkspaces && monorepoPackages.length > 1 ? 'monorepo' : 'tool';
+  type = hasWorkspaces && monorepoPackages.length > 1 ? "monorepo" : "tool";
 } else if (hasWorkspaces && monorepoPackages.length > 1) {
-  type = 'monorepo';
+  type = "monorepo";
 } else if (svelteFileCount >= 1) {
-  type = 'app';
+  type = "app";
 }
 
 const result = {
   name: rootPkg.name || path.basename(targetAbs),
   type,
   alreadySwapped,
-  svelteVersion: allDeps['svelte'] || allDeps['@sveltejs/kit'] || null,
+  svelteVersion: allDeps["svelte"] || allDeps["@sveltejs/kit"] || null,
   buildSystem,
   compilerEntryPoints,
   testCommands,
@@ -170,4 +170,4 @@ const result = {
   scripts: Object.keys(scripts),
 };
 
-process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+process.stdout.write(JSON.stringify(result, null, 2) + "\n");

@@ -2,22 +2,26 @@
   "name": "@rsvelte/svelte2tsx",
   "version": "0.1.18",
   "description": "Rust-powered svelte2tsx — generates TSX from Svelte source",
+  "keywords": [
+    "rust",
+    "svelte",
+    "svelte2tsx",
+    "tsx",
+    "wasm"
+  ],
+  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/svelte2tsx#readme",
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baseballyama/rsvelte.git",
     "directory": "apps/npm/svelte2tsx"
   },
-  "homepage": "https://github.com/baseballyama/rsvelte/tree/main/apps/npm/svelte2tsx#readme",
-  "bugs": {
-    "url": "https://github.com/baseballyama/rsvelte/issues"
-  },
-  "keywords": [
-    "svelte",
-    "svelte2tsx",
-    "tsx",
-    "rust",
-    "wasm"
+  "files": [
+    "index.js",
+    "index.d.ts"
   ],
   "type": "module",
   "main": "./index.js",
@@ -28,14 +32,10 @@
       "import": "./index.js"
     }
   },
-  "files": [
-    "index.js",
-    "index.d.ts"
-  ],
-  "dependencies": {
-    "@rsvelte/compiler": "workspace:^"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@rsvelte/compiler": "workspace:^"
   }
 }

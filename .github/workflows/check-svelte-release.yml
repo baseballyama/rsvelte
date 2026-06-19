@@ -8,7 +8,7 @@ name: check-svelte-release
 on:
   workflow_dispatch:
   schedule:
-    - cron: '23 6 * * *' # Daily at 06:23 UTC
+    - cron: "23 6 * * *" # Daily at 06:23 UTC
 
 permissions:
   contents: read

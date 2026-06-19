@@ -650,7 +650,10 @@ fn try_fill_run(
     // correctly breaks at the first word that doesn't fit, so multi-line
     // sources get the right reflowed layout.
     let use_word_first = whole.contains('\n');
-    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
+    let content_doc = match build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first) {
+        Some(d) => d,
+        None => return None,
+    };
     let base_level = indent_cols / 2;
     // Flat width (a hardline forces multi-line).
     let flat = crate::doc::print(

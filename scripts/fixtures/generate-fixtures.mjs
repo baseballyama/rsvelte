@@ -10,10 +10,10 @@
  *   npm run generate-fixtures -- --verbose      # Show detailed progress
  */
 
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Import Svelte compiler functions from source (the pinned submodule's
 // `src/compiler`), not the pre-built `compiler/index.js` bundle. The checked-in
@@ -26,78 +26,78 @@ import {
   parse,
   compile,
   compileModule,
-} from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
+} from "../../submodules/svelte/packages/svelte/src/compiler/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '../..');
-const SVELTE_TESTS = path.join(ROOT, 'submodules/svelte/packages/svelte/tests');
+const ROOT = path.resolve(__dirname, "../..");
+const SVELTE_TESTS = path.join(ROOT, "submodules/svelte/packages/svelte/tests");
 
 // Get Svelte commit hash
 function getSvelteCommitHash() {
-  return execSync('git rev-parse HEAD', {
-    cwd: path.join(ROOT, 'submodules/svelte'),
-    encoding: 'utf-8',
+  return execSync("git rev-parse HEAD", {
+    cwd: path.join(ROOT, "submodules/svelte"),
+    encoding: "utf-8",
   }).trim();
 }
 
 // Category definitions with their specific handlers
 const CATEGORIES = {
-  'parser-modern': {
-    mainFile: 'input.svelte',
+  "parser-modern": {
+    mainFile: "input.svelte",
     handler: generateParserFixture,
   },
-  'parser-legacy': {
-    mainFile: 'input.svelte',
+  "parser-legacy": {
+    mainFile: "input.svelte",
     handler: generateParserLegacyFixture,
   },
   snapshot: {
-    mainFile: 'index.svelte',
+    mainFile: "index.svelte",
     handler: generateSnapshotFixture,
   },
   css: {
-    mainFile: 'input.svelte',
+    mainFile: "input.svelte",
     handler: generateCssFixture,
   },
   validator: {
-    mainFile: 'input.svelte',
-    altMainFile: 'input.svelte.js',
+    mainFile: "input.svelte",
+    altMainFile: "input.svelte.js",
     handler: generateValidatorFixture,
   },
-  'compiler-errors': {
-    mainFile: 'main.svelte',
-    altMainFile: 'main.svelte.js',
+  "compiler-errors": {
+    mainFile: "main.svelte",
+    altMainFile: "main.svelte.js",
     handler: generateCompilerErrorFixture,
   },
   hydration: {
-    mainFile: 'main.svelte',
+    mainFile: "main.svelte",
     handler: generateRuntimeFixture,
   },
-  'runtime-runes': {
-    mainFile: 'main.svelte',
+  "runtime-runes": {
+    mainFile: "main.svelte",
     handler: generateRuntimeFixture,
   },
-  'runtime-legacy': {
-    mainFile: 'main.svelte',
+  "runtime-legacy": {
+    mainFile: "main.svelte",
     handler: generateRuntimeFixture,
   },
-  'runtime-browser': {
-    mainFile: 'main.svelte',
+  "runtime-browser": {
+    mainFile: "main.svelte",
     handler: generateRuntimeBrowserFixture,
   },
-  'server-side-rendering': {
-    mainFile: 'main.svelte',
+  "server-side-rendering": {
+    mainFile: "main.svelte",
     handler: generateSsrFixture,
   },
   preprocess: {
-    mainFile: 'input.svelte',
+    mainFile: "input.svelte",
     handler: generatePreprocessFixture,
   },
   print: {
-    mainFile: 'input.svelte',
+    mainFile: "input.svelte",
     handler: generatePrintFixture,
   },
   sourcemaps: {
-    mainFile: 'input.svelte',
+    mainFile: "input.svelte",
     handler: generateSourcemapsFixture,
   },
 };
@@ -113,13 +113,13 @@ function parseArgs() {
   };
 
   for (const arg of args) {
-    if (arg.startsWith('--category=')) {
-      options.category = arg.split('=')[1];
-    } else if (arg.startsWith('--sample=')) {
-      options.sample = arg.split('=')[1];
-    } else if (arg === '--force') {
+    if (arg.startsWith("--category=")) {
+      options.category = arg.split("=")[1];
+    } else if (arg.startsWith("--sample=")) {
+      options.sample = arg.split("=")[1];
+    } else if (arg === "--force") {
       options.force = true;
-    } else if (arg === '--verbose' || arg === '-v') {
+    } else if (arg === "--verbose" || arg === "-v") {
       options.verbose = true;
     }
   }
@@ -129,7 +129,7 @@ function parseArgs() {
 
 // Load _config.js from sample directory
 async function loadConfig(sampleDir) {
-  const configPath = path.join(sampleDir, '_config.js');
+  const configPath = path.join(sampleDir, "_config.js");
   if (fs.existsSync(configPath)) {
     try {
       const config = await import(configPath);
@@ -147,14 +147,14 @@ async function loadConfig(sampleDir) {
 // Only parses top-level fields that our test runner also supports.
 function parseConfigText(configPath) {
   try {
-    const text = fs.readFileSync(configPath, 'utf-8');
+    const text = fs.readFileSync(configPath, "utf-8");
     const config = {};
 
     // Parse top-level accessors: true/false (not inside compileOptions block)
     // This is the main field that affects fixture generation for runtime-legacy tests
     const accessorsMatch = text.match(/^\s*accessors\s*:\s*(true|false)\b/m);
     if (accessorsMatch) {
-      config.accessors = accessorsMatch[1] === 'true';
+      config.accessors = accessorsMatch[1] === "true";
     }
 
     // Propagate `compileOptions: { hmr: true }` so HMR-specific fixtures are
@@ -165,7 +165,7 @@ function parseConfigText(configPath) {
     // would cause many cross-suite regressions.
     const hmrMatch = text.match(/compileOptions\s*:\s*\{[^}]*\bhmr\s*:\s*(true|false)\b/);
     if (hmrMatch) {
-      config.compileOptions = { hmr: hmrMatch[1] === 'true' };
+      config.compileOptions = { hmr: hmrMatch[1] === "true" };
     }
 
     // Propagate `compileOptions.experimental.async`. New snapshot fixtures
@@ -175,7 +175,7 @@ function parseConfigText(configPath) {
     if (asyncMatch) {
       config.compileOptions = {
         ...(config.compileOptions ?? {}),
-        experimental: { async: asyncMatch[1] === 'true' },
+        experimental: { async: asyncMatch[1] === "true" },
       };
     }
 
@@ -189,71 +189,71 @@ function parseConfigText(configPath) {
 function cleanAst(ast) {
   return JSON.parse(
     JSON.stringify(ast, (key, value) => {
-      if (key === 'metadata') return undefined;
+      if (key === "metadata") return undefined;
       return value;
-    })
+    }),
   );
 }
 
 // === Category Handlers ===
 
 async function generateParserFixture(sampleDir, outputDir, _config) {
-  const inputPath = path.join(sampleDir, 'input.svelte');
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const inputPath = path.join(sampleDir, "input.svelte");
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   try {
     const ast = parse(source, { modern: true });
     const cleanedAst = cleanAst(ast);
 
     fs.mkdirSync(outputDir, { recursive: true });
-    fs.writeFileSync(path.join(outputDir, 'ast.json'), JSON.stringify(cleanedAst, null, 2));
+    fs.writeFileSync(path.join(outputDir, "ast.json"), JSON.stringify(cleanedAst, null, 2));
 
     return { success: true };
   } catch (e) {
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
-      JSON.stringify({ code: e.code ?? 'parse_error', message: e.message }, null, 2)
+      path.join(outputDir, "error.json"),
+      JSON.stringify({ code: e.code ?? "parse_error", message: e.message }, null, 2),
     );
     return { success: true, isError: true };
   }
 }
 
 async function generateParserLegacyFixture(sampleDir, outputDir, _config) {
-  const inputPath = path.join(sampleDir, 'input.svelte');
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const inputPath = path.join(sampleDir, "input.svelte");
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   try {
     const ast = parse(source, { modern: false });
     const cleanedAst = cleanAst(ast);
 
     fs.mkdirSync(outputDir, { recursive: true });
-    fs.writeFileSync(path.join(outputDir, 'ast.json'), JSON.stringify(cleanedAst, null, 2));
+    fs.writeFileSync(path.join(outputDir, "ast.json"), JSON.stringify(cleanedAst, null, 2));
 
     return { success: true };
   } catch (e) {
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
-      JSON.stringify({ code: e.code ?? 'parse_error', message: e.message }, null, 2)
+      path.join(outputDir, "error.json"),
+      JSON.stringify({ code: e.code ?? "parse_error", message: e.message }, null, 2),
     );
     return { success: true, isError: true };
   }
 }
 
 async function generateSnapshotFixture(sampleDir, outputDir, config) {
-  const inputPath = path.join(sampleDir, 'index.svelte');
+  const inputPath = path.join(sampleDir, "index.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No index.svelte found' };
+    return { success: false, error: "No index.svelte found" };
   }
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   // Extract sample name from directory path for correct component naming
   const sampleName = path.basename(sampleDir);
 
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
-    css: config.compileOptions?.css ?? 'external',
+    css: config.compileOptions?.css ?? "external",
     ...config.compileOptions,
   };
 
@@ -263,7 +263,7 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
   try {
     const clientResult = compile(source, {
       ...compileOptions,
-      generate: 'client',
+      generate: "client",
       // Use sample_name/index.svelte to match official Svelte test expectations
       // This ensures correct component naming (e.g., "Bind_component_snippet" instead of "Index")
       filename: `${sampleName}/index.svelte`,
@@ -281,7 +281,7 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
   try {
     const serverResult = compile(source, {
       ...compileOptions,
-      generate: 'server',
+      generate: "server",
       // Use sample_name/index.svelte to match official Svelte test expectations
       filename: `${sampleName}/index.svelte`,
     });
@@ -297,20 +297,20 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
   fs.mkdirSync(outputDir, { recursive: true });
 
   if (results.client?.js) {
-    fs.writeFileSync(path.join(outputDir, 'client.js'), results.client.js);
+    fs.writeFileSync(path.join(outputDir, "client.js"), results.client.js);
   }
   if (results.server?.js) {
-    fs.writeFileSync(path.join(outputDir, 'server.js'), results.server.js);
+    fs.writeFileSync(path.join(outputDir, "server.js"), results.server.js);
   }
   if (results.client?.css) {
-    fs.writeFileSync(path.join(outputDir, 'css.css'), results.client.css);
+    fs.writeFileSync(path.join(outputDir, "css.css"), results.client.css);
   }
 
   const allWarnings = [...(results.client?.warnings ?? []), ...(results.server?.warnings ?? [])];
-  fs.writeFileSync(path.join(outputDir, 'warnings.json'), JSON.stringify(allWarnings, null, 2));
+  fs.writeFileSync(path.join(outputDir, "warnings.json"), JSON.stringify(allWarnings, null, 2));
 
   fs.writeFileSync(
-    path.join(outputDir, 'metadata.json'),
+    path.join(outputDir, "metadata.json"),
     JSON.stringify(
       {
         compileOptions,
@@ -320,111 +320,111 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
         },
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 
   return { success: true };
 }
 
 async function generateCssFixture(sampleDir, outputDir, config) {
-  const inputPath = path.join(sampleDir, 'input.svelte');
+  const inputPath = path.join(sampleDir, "input.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No input.svelte found' };
+    return { success: false, error: "No input.svelte found" };
   }
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   const compileOptions = {
     dev: false,
-    css: 'external',
+    css: "external",
     ...config.compileOptions,
   };
 
   try {
     const result = compile(source, {
       ...compileOptions,
-      generate: 'client',
-      filename: 'input.svelte',
+      generate: "client",
+      filename: "input.svelte",
     });
 
     fs.mkdirSync(outputDir, { recursive: true });
 
-    fs.writeFileSync(path.join(outputDir, 'css.css'), result.css?.code ?? '');
+    fs.writeFileSync(path.join(outputDir, "css.css"), result.css?.code ?? "");
 
     fs.writeFileSync(
-      path.join(outputDir, 'warnings.json'),
-      JSON.stringify(result.warnings.map(normalizeWarning), null, 2)
+      path.join(outputDir, "warnings.json"),
+      JSON.stringify(result.warnings.map(normalizeWarning), null, 2),
     );
 
     fs.writeFileSync(
-      path.join(outputDir, 'metadata.json'),
-      JSON.stringify({ compileOptions }, null, 2)
+      path.join(outputDir, "metadata.json"),
+      JSON.stringify({ compileOptions }, null, 2),
     );
 
     return { success: true };
   } catch (e) {
     fs.mkdirSync(outputDir, { recursive: true });
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
-      JSON.stringify({ code: e.code ?? 'compile_error', message: e.message }, null, 2)
+      path.join(outputDir, "error.json"),
+      JSON.stringify({ code: e.code ?? "compile_error", message: e.message }, null, 2),
     );
     return { success: true, isError: true };
   }
 }
 
 async function generateValidatorFixture(sampleDir, outputDir, config) {
-  let inputPath = path.join(sampleDir, 'input.svelte');
+  let inputPath = path.join(sampleDir, "input.svelte");
   let isModule = false;
 
   if (!fs.existsSync(inputPath)) {
-    inputPath = path.join(sampleDir, 'input.svelte.js');
+    inputPath = path.join(sampleDir, "input.svelte.js");
     isModule = true;
   }
 
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No input file found' };
+    return { success: false, error: "No input file found" };
   }
 
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   fs.mkdirSync(outputDir, { recursive: true });
 
   try {
     let result;
     if (isModule) {
-      result = compileModule(source, { filename: 'input.svelte.js' });
+      result = compileModule(source, { filename: "input.svelte.js" });
     } else {
       result = compile(source, {
-        generate: 'client',
-        filename: 'input.svelte',
+        generate: "client",
+        filename: "input.svelte",
       });
     }
 
     fs.writeFileSync(
-      path.join(outputDir, 'warnings.json'),
-      JSON.stringify(result.warnings.map(normalizeWarning), null, 2)
+      path.join(outputDir, "warnings.json"),
+      JSON.stringify(result.warnings.map(normalizeWarning), null, 2),
     );
 
-    fs.writeFileSync(path.join(outputDir, 'errors.json'), '[]');
+    fs.writeFileSync(path.join(outputDir, "errors.json"), "[]");
 
     return { success: true };
   } catch (e) {
-    fs.writeFileSync(path.join(outputDir, 'warnings.json'), '[]');
+    fs.writeFileSync(path.join(outputDir, "warnings.json"), "[]");
 
     fs.writeFileSync(
-      path.join(outputDir, 'errors.json'),
+      path.join(outputDir, "errors.json"),
       JSON.stringify(
         [
           {
-            code: e.code ?? 'unknown',
+            code: e.code ?? "unknown",
             message: e.message,
             start: e.start,
             end: e.end,
           },
         ],
         null,
-        2
-      )
+        2,
+      ),
     );
 
     return { success: true };
@@ -432,19 +432,19 @@ async function generateValidatorFixture(sampleDir, outputDir, config) {
 }
 
 async function generateCompilerErrorFixture(sampleDir, outputDir, config) {
-  let inputPath = path.join(sampleDir, 'main.svelte');
+  let inputPath = path.join(sampleDir, "main.svelte");
   let isModule = false;
 
   if (!fs.existsSync(inputPath)) {
-    inputPath = path.join(sampleDir, 'main.svelte.js');
+    inputPath = path.join(sampleDir, "main.svelte.js");
     isModule = true;
   }
 
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No input file found' };
+    return { success: false, error: "No input file found" };
   }
 
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   fs.mkdirSync(outputDir, { recursive: true });
 
@@ -455,41 +455,41 @@ async function generateCompilerErrorFixture(sampleDir, outputDir, config) {
 
   try {
     if (isModule) {
-      compileModule(source, { ...compileOptions, filename: 'main.svelte.js' });
+      compileModule(source, { ...compileOptions, filename: "main.svelte.js" });
     } else {
       compile(source, {
         ...compileOptions,
-        generate: 'client',
-        filename: 'main.svelte',
+        generate: "client",
+        filename: "main.svelte",
       });
     }
 
     // Should not reach here - we expect an error
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
-      JSON.stringify({ unexpected: 'Compilation succeeded when error expected' }, null, 2)
+      path.join(outputDir, "error.json"),
+      JSON.stringify({ unexpected: "Compilation succeeded when error expected" }, null, 2),
     );
 
-    return { success: false, error: 'Expected compilation error' };
+    return { success: false, error: "Expected compilation error" };
   } catch (e) {
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
+      path.join(outputDir, "error.json"),
       JSON.stringify(
         {
-          code: e.code ?? 'unknown',
+          code: e.code ?? "unknown",
           message: e.message,
           start: e.start,
           end: e.end,
           position: e.position,
         },
         null,
-        2
-      )
+        2,
+      ),
     );
 
     fs.writeFileSync(
-      path.join(outputDir, 'metadata.json'),
-      JSON.stringify({ compileOptions }, null, 2)
+      path.join(outputDir, "metadata.json"),
+      JSON.stringify({ compileOptions }, null, 2),
     );
 
     return { success: true };
@@ -497,27 +497,29 @@ async function generateCompilerErrorFixture(sampleDir, outputDir, config) {
 }
 
 async function generateRuntimeFixture(sampleDir, outputDir, config) {
-  const inputPath = path.join(sampleDir, 'main.svelte');
+  const inputPath = path.join(sampleDir, "main.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No main.svelte found' };
+    return { success: false, error: "No main.svelte found" };
   }
 
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   // Determine if this is a runtime-runes test based on the output path
-  const isRuntimeRunes = outputDir.includes('/runtime-runes/');
-  const isRuntimeLegacy = outputDir.includes('/runtime-legacy/');
+  const isRuntimeRunes = outputDir.includes("/runtime-runes/");
+  const isRuntimeLegacy = outputDir.includes("/runtime-legacy/");
 
   // For runtime-legacy tests, accessors defaults to true (matching official test runner behavior)
   // See svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224:
   //   accessors: 'accessors' in config ? config.accessors : true
   const accessorsDefault = isRuntimeLegacy
-    ? ('accessors' in config ? config.accessors : true)
+    ? "accessors" in config
+      ? config.accessors
+      : true
     : undefined;
 
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
-    css: config.compileOptions?.css ?? 'external',
+    css: config.compileOptions?.css ?? "external",
     // Enable experimental.async for runtime-runes tests
     // This matches the official Svelte compiler behavior and test configuration
     ...(isRuntimeRunes ? { experimental: { async: true } } : {}),
@@ -534,13 +536,13 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
   try {
     const clientResult = compile(source, {
       ...compileOptions,
-      generate: 'client',
-      filename: 'main.svelte',
+      generate: "client",
+      filename: "main.svelte",
     });
     results.client = clientResult;
-    fs.writeFileSync(path.join(outputDir, 'client.js'), clientResult.js.code);
+    fs.writeFileSync(path.join(outputDir, "client.js"), clientResult.js.code);
     if (clientResult.css?.code) {
-      fs.writeFileSync(path.join(outputDir, 'css.css'), clientResult.css.code);
+      fs.writeFileSync(path.join(outputDir, "css.css"), clientResult.css.code);
     }
   } catch (e) {
     results.clientError = e.message;
@@ -550,11 +552,11 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
   try {
     const serverResult = compile(source, {
       ...compileOptions,
-      generate: 'server',
-      filename: 'main.svelte',
+      generate: "server",
+      filename: "main.svelte",
     });
     results.server = serverResult;
-    fs.writeFileSync(path.join(outputDir, 'server.js'), serverResult.js.code);
+    fs.writeFileSync(path.join(outputDir, "server.js"), serverResult.js.code);
   } catch (e) {
     results.serverError = e.message;
   }
@@ -563,10 +565,10 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
     ...(results.client?.warnings?.map(normalizeWarning) ?? []),
     ...(results.server?.warnings?.map(normalizeWarning) ?? []),
   ];
-  fs.writeFileSync(path.join(outputDir, 'warnings.json'), JSON.stringify(allWarnings, null, 2));
+  fs.writeFileSync(path.join(outputDir, "warnings.json"), JSON.stringify(allWarnings, null, 2));
 
   fs.writeFileSync(
-    path.join(outputDir, 'metadata.json'),
+    path.join(outputDir, "metadata.json"),
     JSON.stringify(
       {
         compileOptions,
@@ -574,24 +576,24 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
         serverError: results.serverError,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 
   return { success: true };
 }
 
 async function generateRuntimeBrowserFixture(sampleDir, outputDir, config) {
-  const inputPath = path.join(sampleDir, 'main.svelte');
+  const inputPath = path.join(sampleDir, "main.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No main.svelte found' };
+    return { success: false, error: "No main.svelte found" };
   }
 
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
-    css: config.compileOptions?.css ?? 'external',
+    css: config.compileOptions?.css ?? "external",
     ...config.compileOptions,
   };
 
@@ -600,42 +602,42 @@ async function generateRuntimeBrowserFixture(sampleDir, outputDir, config) {
   try {
     const result = compile(source, {
       ...compileOptions,
-      generate: 'client',
-      filename: 'main.svelte',
+      generate: "client",
+      filename: "main.svelte",
     });
 
-    fs.writeFileSync(path.join(outputDir, 'client.js'), result.js.code);
+    fs.writeFileSync(path.join(outputDir, "client.js"), result.js.code);
     if (result.css?.code) {
-      fs.writeFileSync(path.join(outputDir, 'css.css'), result.css.code);
+      fs.writeFileSync(path.join(outputDir, "css.css"), result.css.code);
     }
 
     fs.writeFileSync(
-      path.join(outputDir, 'warnings.json'),
-      JSON.stringify(result.warnings.map(normalizeWarning), null, 2)
+      path.join(outputDir, "warnings.json"),
+      JSON.stringify(result.warnings.map(normalizeWarning), null, 2),
     );
 
     fs.writeFileSync(
-      path.join(outputDir, 'metadata.json'),
-      JSON.stringify({ compileOptions }, null, 2)
+      path.join(outputDir, "metadata.json"),
+      JSON.stringify({ compileOptions }, null, 2),
     );
 
     return { success: true };
   } catch (e) {
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
-      JSON.stringify({ code: e.code ?? 'compile_error', message: e.message }, null, 2)
+      path.join(outputDir, "error.json"),
+      JSON.stringify({ code: e.code ?? "compile_error", message: e.message }, null, 2),
     );
     return { success: true, isError: true };
   }
 }
 
 async function generateSsrFixture(sampleDir, outputDir, config) {
-  const inputPath = path.join(sampleDir, 'main.svelte');
+  const inputPath = path.join(sampleDir, "main.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No main.svelte found' };
+    return { success: false, error: "No main.svelte found" };
   }
 
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
@@ -647,27 +649,27 @@ async function generateSsrFixture(sampleDir, outputDir, config) {
   try {
     const result = compile(source, {
       ...compileOptions,
-      generate: 'server',
-      filename: 'main.svelte',
+      generate: "server",
+      filename: "main.svelte",
     });
 
-    fs.writeFileSync(path.join(outputDir, 'server.js'), result.js.code);
+    fs.writeFileSync(path.join(outputDir, "server.js"), result.js.code);
 
     fs.writeFileSync(
-      path.join(outputDir, 'warnings.json'),
-      JSON.stringify(result.warnings.map(normalizeWarning), null, 2)
+      path.join(outputDir, "warnings.json"),
+      JSON.stringify(result.warnings.map(normalizeWarning), null, 2),
     );
 
     fs.writeFileSync(
-      path.join(outputDir, 'metadata.json'),
-      JSON.stringify({ compileOptions }, null, 2)
+      path.join(outputDir, "metadata.json"),
+      JSON.stringify({ compileOptions }, null, 2),
     );
 
     return { success: true };
   } catch (e) {
     fs.writeFileSync(
-      path.join(outputDir, 'error.json'),
-      JSON.stringify({ code: e.code ?? 'compile_error', message: e.message }, null, 2)
+      path.join(outputDir, "error.json"),
+      JSON.stringify({ code: e.code ?? "compile_error", message: e.message }, null, 2),
     );
     return { success: true, isError: true };
   }
@@ -677,36 +679,36 @@ async function generatePreprocessFixture(sampleDir, outputDir, config) {
   // Preprocess requires specific preprocessor functions from _config.js
   // These often have complex dependencies, so we skip if no valid config
   if (!config.preprocess) {
-    return { success: false, error: 'No preprocess config' };
+    return { success: false, error: "No preprocess config" };
   }
 
-  const inputPath = path.join(sampleDir, 'input.svelte');
+  const inputPath = path.join(sampleDir, "input.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No input.svelte found' };
+    return { success: false, error: "No input.svelte found" };
   }
 
   // Skip for now - preprocess configs are complex
-  return { success: false, error: 'Preprocess tests require manual handling' };
+  return { success: false, error: "Preprocess tests require manual handling" };
 }
 
 async function generatePrintFixture(sampleDir, outputDir, _config) {
-  const inputPath = path.join(sampleDir, 'input.svelte');
+  const inputPath = path.join(sampleDir, "input.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No input.svelte found' };
+    return { success: false, error: "No input.svelte found" };
   }
 
   // Note: print() function may not be exported from compiler
   // This would require direct import from src/compiler/print/
-  return { success: false, error: 'Print tests require direct src import' };
+  return { success: false, error: "Print tests require direct src import" };
 }
 
 async function generateSourcemapsFixture(sampleDir, outputDir, config) {
-  const inputPath = path.join(sampleDir, 'input.svelte');
+  const inputPath = path.join(sampleDir, "input.svelte");
   if (!fs.existsSync(inputPath)) {
-    return { success: false, error: 'No input.svelte found' };
+    return { success: false, error: "No input.svelte found" };
   }
 
-  const source = fs.readFileSync(inputPath, 'utf-8');
+  const source = fs.readFileSync(inputPath, "utf-8");
 
   const compileOptions = {
     dev: false,
@@ -719,15 +721,15 @@ async function generateSourcemapsFixture(sampleDir, outputDir, config) {
   try {
     const clientResult = compile(source, {
       ...compileOptions,
-      generate: 'client',
-      filename: 'input.svelte',
+      generate: "client",
+      filename: "input.svelte",
     });
 
-    fs.writeFileSync(path.join(outputDir, 'client.js'), clientResult.js.code);
+    fs.writeFileSync(path.join(outputDir, "client.js"), clientResult.js.code);
     if (clientResult.js.map) {
       fs.writeFileSync(
-        path.join(outputDir, 'client.js.map'),
-        JSON.stringify(clientResult.js.map, null, 2)
+        path.join(outputDir, "client.js.map"),
+        JSON.stringify(clientResult.js.map, null, 2),
       );
     }
   } catch {
@@ -738,15 +740,15 @@ async function generateSourcemapsFixture(sampleDir, outputDir, config) {
   try {
     const serverResult = compile(source, {
       ...compileOptions,
-      generate: 'server',
-      filename: 'input.svelte',
+      generate: "server",
+      filename: "input.svelte",
     });
 
-    fs.writeFileSync(path.join(outputDir, 'server.js'), serverResult.js.code);
+    fs.writeFileSync(path.join(outputDir, "server.js"), serverResult.js.code);
     if (serverResult.js.map) {
       fs.writeFileSync(
-        path.join(outputDir, 'server.js.map'),
-        JSON.stringify(serverResult.js.map, null, 2)
+        path.join(outputDir, "server.js.map"),
+        JSON.stringify(serverResult.js.map, null, 2),
       );
     }
   } catch {
@@ -754,8 +756,8 @@ async function generateSourcemapsFixture(sampleDir, outputDir, config) {
   }
 
   fs.writeFileSync(
-    path.join(outputDir, 'metadata.json'),
-    JSON.stringify({ compileOptions }, null, 2)
+    path.join(outputDir, "metadata.json"),
+    JSON.stringify({ compileOptions }, null, 2),
   );
 
   return { success: true };
@@ -776,13 +778,13 @@ function normalizeWarning(w) {
 async function generateFixtures(options) {
   const commitHash = getSvelteCommitHash();
   const shortHash = commitHash.slice(0, 12);
-  const fixturesDir = path.join(ROOT, 'fixtures', shortHash);
+  const fixturesDir = path.join(ROOT, "fixtures", shortHash);
 
   console.log(`Generating fixtures for Svelte commit: ${shortHash}`);
   console.log(`Output directory: ${fixturesDir}`);
 
   if (fs.existsSync(fixturesDir) && !options.force) {
-    console.log('Fixtures already exist. Use --force to regenerate.');
+    console.log("Fixtures already exist. Use --force to regenerate.");
     return;
   }
 
@@ -807,7 +809,7 @@ async function generateFixtures(options) {
       continue;
     }
 
-    const samplesDir = path.join(SVELTE_TESTS, categoryId, 'samples');
+    const samplesDir = path.join(SVELTE_TESTS, categoryId, "samples");
 
     if (!fs.existsSync(samplesDir)) {
       console.log(`Skipping ${categoryId}: samples directory not found`);
@@ -820,7 +822,7 @@ async function generateFixtures(options) {
       .readdirSync(samplesDir)
       .filter((name) => {
         const fullPath = path.join(samplesDir, name);
-        return fs.statSync(fullPath).isDirectory() && !name.startsWith('.');
+        return fs.statSync(fullPath).isDirectory() && !name.startsWith(".");
       })
       .filter((name) => !options.sample || name === options.sample)
       .sort();
@@ -844,10 +846,10 @@ async function generateFixtures(options) {
         if (result.success) {
           if (result.isError) {
             categoryStats.errors++;
-            if (options.verbose) console.log('OK (error case)');
+            if (options.verbose) console.log("OK (error case)");
           } else {
             categoryStats.success++;
-            if (options.verbose) console.log('OK');
+            if (options.verbose) console.log("OK");
           }
         } else {
           categoryStats.failed++;
@@ -862,20 +864,20 @@ async function generateFixtures(options) {
 
     manifest.categories[categoryId] = categoryStats;
     console.log(
-      `  ${categoryStats.success}/${categoryStats.total} succeeded, ${categoryStats.errors} error cases, ${categoryStats.failed} skipped`
+      `  ${categoryStats.success}/${categoryStats.total} succeeded, ${categoryStats.errors} error cases, ${categoryStats.failed} skipped`,
     );
   }
 
   // Write manifest
-  fs.writeFileSync(path.join(fixturesDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  fs.writeFileSync(path.join(fixturesDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
-  console.log('\nFixture generation complete!');
-  console.log(`Manifest written to: ${path.join(fixturesDir, 'manifest.json')}`);
+  console.log("\nFixture generation complete!");
+  console.log(`Manifest written to: ${path.join(fixturesDir, "manifest.json")}`);
 }
 
 // Run
 const options = parseArgs();
 generateFixtures(options).catch((e) => {
-  console.error('Fatal error:', e);
+  console.error("Fatal error:", e);
   process.exit(1);
 });

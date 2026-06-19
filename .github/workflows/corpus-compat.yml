@@ -26,42 +26,42 @@ on:
   push:
     branches: [main]
     paths:
-      - 'crates/**'
-      - 'scripts/compat-corpus/**'
-      - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
-      - 'pnpm-lock.yaml'
-      - 'compat/corpus/**'
-      - 'submodules/svelte'
-      - 'submodules/svelte.dev'
-      - 'submodules/language-tools'
-      - 'submodules/bits-ui'
-      - 'submodules/flowbite-svelte'
-      - 'submodules/melt-ui'
-      - 'submodules/shadcn-svelte'
-      - 'scripts/compat-corpus/corpus-sources.json'
-      - '.gitmodules'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/corpus-compat.yml'
+      - "crates/**"
+      - "scripts/compat-corpus/**"
+      - "scripts/fixtures/fmt-corpus.oxfmtrc.json"
+      - "pnpm-lock.yaml"
+      - "compat/corpus/**"
+      - "submodules/svelte"
+      - "submodules/svelte.dev"
+      - "submodules/language-tools"
+      - "submodules/bits-ui"
+      - "submodules/flowbite-svelte"
+      - "submodules/melt-ui"
+      - "submodules/shadcn-svelte"
+      - "scripts/compat-corpus/corpus-sources.json"
+      - ".gitmodules"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/corpus-compat.yml"
   pull_request:
     paths:
-      - 'crates/**'
-      - 'scripts/compat-corpus/**'
-      - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
-      - 'pnpm-lock.yaml'
-      - 'compat/corpus/**'
-      - 'submodules/svelte'
-      - 'submodules/svelte.dev'
-      - 'submodules/language-tools'
-      - 'submodules/bits-ui'
-      - 'submodules/flowbite-svelte'
-      - 'submodules/melt-ui'
-      - 'submodules/shadcn-svelte'
-      - 'scripts/compat-corpus/corpus-sources.json'
-      - '.gitmodules'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/corpus-compat.yml'
+      - "crates/**"
+      - "scripts/compat-corpus/**"
+      - "scripts/fixtures/fmt-corpus.oxfmtrc.json"
+      - "pnpm-lock.yaml"
+      - "compat/corpus/**"
+      - "submodules/svelte"
+      - "submodules/svelte.dev"
+      - "submodules/language-tools"
+      - "submodules/bits-ui"
+      - "submodules/flowbite-svelte"
+      - "submodules/melt-ui"
+      - "submodules/shadcn-svelte"
+      - "scripts/compat-corpus/corpus-sources.json"
+      - ".gitmodules"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/corpus-compat.yml"
 
 concurrency:
   group: corpus-compat-${{ github.workflow }}-${{ github.ref }}
@@ -100,7 +100,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -204,7 +204,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -274,7 +274,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          node-version: "24"
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9

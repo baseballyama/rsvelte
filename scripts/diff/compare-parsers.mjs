@@ -42,17 +42,17 @@ const cleanSvelteAst = JSON.parse(
   JSON.stringify(svelteAst, (key, value) => {
     if (key === "metadata") return undefined;
     return value;
-  })
+  }),
 );
 
 // Parse with Rust
 console.log("Parsing with Rust...");
 let rustAst;
 try {
-  const rustOutput = execSync(
-    `cargo run --release -- "${inputFile}"`,
-    { encoding: "utf-8", cwd: process.cwd() }
-  );
+  const rustOutput = execSync(`cargo run --release -- "${inputFile}"`, {
+    encoding: "utf-8",
+    cwd: process.cwd(),
+  });
   rustAst = JSON.parse(rustOutput);
 } catch (error) {
   console.error("Rust parse error:", error.message);

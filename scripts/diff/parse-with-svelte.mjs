@@ -30,7 +30,7 @@ try {
     JSON.stringify(ast, (key, value) => {
       if (key === "metadata") return undefined;
       return value;
-    })
+    }),
   );
 
   console.log(JSON.stringify(cleanAst, null, 2));

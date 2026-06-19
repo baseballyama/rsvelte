@@ -8,53 +8,50 @@
 // platform-resolved npm wrapper) so the script works in-tree without
 // needing the `staging` step that copies artifacts into npm packages.
 
-import { dirname, join } from 'node:path';
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = join(here, '../..');
+const repoRoot = join(here, "../..");
 
 // Prefer the in-tree release cdylib so test results reflect the
 // latest `cargo build --release`. Fall back to the staged
 // `apps/npm/vite-plugin-svelte-native-*/rsvelte.node` so the script works
 // after publish-style staging too.
 function loadBinding() {
-	const staged = join(
-		repoRoot,
-		`apps/npm/vite-plugin-svelte-native-${triple()}/rsvelte.node`,
-	);
-	const cdylib = join(repoRoot, 'target/release/librsvelte_core.dylib');
-	for (const candidate of [cdylib, staged]) {
-		try {
-			return require(candidate);
-		} catch {}
-	}
-	throw new Error(
-		`Couldn't load NAPI binding. Tried:\n  - ${cdylib}\n  - ${staged}\n` +
-			`Build first: cargo build --release --features napi --lib`,
-	);
+  const staged = join(repoRoot, `apps/npm/vite-plugin-svelte-native-${triple()}/rsvelte.node`);
+  const cdylib = join(repoRoot, "target/release/librsvelte_core.dylib");
+  for (const candidate of [cdylib, staged]) {
+    try {
+      return require(candidate);
+    } catch {}
+  }
+  throw new Error(
+    `Couldn't load NAPI binding. Tried:\n  - ${cdylib}\n  - ${staged}\n` +
+      `Build first: cargo build --release --features napi --lib`,
+  );
 }
 
 function triple() {
-	if (process.platform === 'darwin') {
-		if (process.arch === 'arm64') return 'darwin-arm64';
-		if (process.arch === 'x64') return 'darwin-x64';
-	}
-	if (process.platform === 'linux') {
-		if (process.arch === 'x64') return 'linux-x64-gnu';
-		if (process.arch === 'arm64') return 'linux-arm64-gnu';
-	}
-	if (process.platform === 'win32' && process.arch === 'x64') {
-		return 'win32-x64-msvc';
-	}
-	throw new Error(`Unsupported: ${process.platform}-${process.arch}`);
+  if (process.platform === "darwin") {
+    if (process.arch === "arm64") return "darwin-arm64";
+    if (process.arch === "x64") return "darwin-x64";
+  }
+  if (process.platform === "linux") {
+    if (process.arch === "x64") return "linux-x64-gnu";
+    if (process.arch === "arm64") return "linux-arm64-gnu";
+  }
+  if (process.platform === "win32" && process.arch === "x64") {
+    return "win32-x64-msvc";
+  }
+  throw new Error(`Unsupported: ${process.platform}-${process.arch}`);
 }
 
 const binding = loadBinding();
 const { decodeEnvelope, decodeBatch } = await import(
-	`file://${join(repoRoot, 'apps/npm/vite-plugin-svelte-native/envelope.js')}`
+  `file://${join(repoRoot, "apps/npm/vite-plugin-svelte-native/envelope.js")}`
 ).then((m) => m.default ?? m);
 
 const SOURCE = `
@@ -72,144 +69,140 @@ const SOURCE = `
 <button onclick={() => count++}>clicked {count}</button>
 `;
 
-const OPTIONS = { filename: 'App.svelte', generate: 'client' };
+const OPTIONS = { filename: "App.svelte", generate: "client" };
 
 function describe(label, result) {
-	const codeLen = result.js?.code?.length ?? 0;
-	const hasMap = result.js?.map != null;
-	const hasCss = result.css != null;
-	const cssCodeLen = result.css?.code?.length ?? 0;
-	const warnings = result.warnings?.length ?? 0;
-	console.log(
-		`${label.padEnd(28)}  js.code=${codeLen}b  js.map=${hasMap}  ` +
-			`css=${hasCss}(${cssCodeLen}b)  warnings=${warnings}  runes=${result.metadata?.runes}`,
-	);
-	return { codeLen, hasMap, hasCss, cssCodeLen, warnings };
+  const codeLen = result.js?.code?.length ?? 0;
+  const hasMap = result.js?.map != null;
+  const hasCss = result.css != null;
+  const cssCodeLen = result.css?.code?.length ?? 0;
+  const warnings = result.warnings?.length ?? 0;
+  console.log(
+    `${label.padEnd(28)}  js.code=${codeLen}b  js.map=${hasMap}  ` +
+      `css=${hasCss}(${cssCodeLen}b)  warnings=${warnings}  runes=${result.metadata?.runes}`,
+  );
+  return { codeLen, hasMap, hasCss, cssCodeLen, warnings };
 }
 
-console.log('=== Raw-transfer sanity check ===\n');
+console.log("=== Raw-transfer sanity check ===\n");
 
 // --- Step 0: legacy JSON path (baseline) -----------------------------------
 const legacy = binding.compile(SOURCE, OPTIONS);
-const baseline = describe('legacy (compile)', legacy);
+const baseline = describe("legacy (compile)", legacy);
 
 // --- Step 1: structured Buffers -------------------------------------------
 const bufResult = binding.compileBuffers(SOURCE, OPTIONS);
 const step1 = {
-	codeLen: bufResult.js.code.length,
-	hasMap: bufResult.js.map != null,
-	hasCss: bufResult.css != null,
-	cssCodeLen: bufResult.css?.code?.length ?? 0,
-	warnings: bufResult.warnings.length,
+  codeLen: bufResult.js.code.length,
+  hasMap: bufResult.js.map != null,
+  hasCss: bufResult.css != null,
+  cssCodeLen: bufResult.css?.code?.length ?? 0,
+  warnings: bufResult.warnings.length,
 };
 console.log(
-	`step1 (compileBuffers)        js.code=${step1.codeLen}b  ` +
-		`js.map=${step1.hasMap}  css=${step1.hasCss}(${step1.cssCodeLen}b)  ` +
-		`warnings=${step1.warnings}  runes=${bufResult.runes}`,
+  `step1 (compileBuffers)        js.code=${step1.codeLen}b  ` +
+    `js.map=${step1.hasMap}  css=${step1.hasCss}(${step1.cssCodeLen}b)  ` +
+    `warnings=${step1.warnings}  runes=${bufResult.runes}`,
 );
 
 // --- Step 2: envelope ------------------------------------------------------
 const envBuf = binding.compileEnvelope(SOURCE, OPTIONS);
 console.log(`envelope buffer size: ${envBuf.byteLength}b`);
 const envDecoded = decodeEnvelope(envBuf);
-const step2 = describe('step2 (compileEnvelope)', envDecoded);
+const step2 = describe("step2 (compileEnvelope)", envDecoded);
 
 // --- Step 3: zero-copy envelope -------------------------------------------
 const zcBuf = binding.compileEnvelopeZeroCopy(SOURCE, OPTIONS);
 console.log(`zero-copy buffer size: ${zcBuf.byteLength}b`);
 const zcDecoded = decodeEnvelope(zcBuf);
-const step3 = describe('step3 (zero-copy envelope)', zcDecoded);
+const step3 = describe("step3 (zero-copy envelope)", zcDecoded);
 
 // --- Verify parity --------------------------------------------------------
 function assertEq(label, a, b) {
-	if (a !== b) {
-		console.error(`FAIL ${label}: ${JSON.stringify(a)} !== ${JSON.stringify(b)}`);
-		process.exitCode = 1;
-	}
+  if (a !== b) {
+    console.error(`FAIL ${label}: ${JSON.stringify(a)} !== ${JSON.stringify(b)}`);
+    process.exitCode = 1;
+  }
 }
 
-console.log('\n=== Parity ===');
-assertEq('js.code (legacy vs envelope)', legacy.js.code, envDecoded.js.code);
-assertEq('js.code (legacy vs zero-copy)', legacy.js.code, zcDecoded.js.code);
-assertEq('js.code (legacy vs buffers)', legacy.js.code, bufResult.js.code.toString('utf8'));
+console.log("\n=== Parity ===");
+assertEq("js.code (legacy vs envelope)", legacy.js.code, envDecoded.js.code);
+assertEq("js.code (legacy vs zero-copy)", legacy.js.code, zcDecoded.js.code);
+assertEq("js.code (legacy vs buffers)", legacy.js.code, bufResult.js.code.toString("utf8"));
 
 // Compare CSS code by content
 if (legacy.css) {
-	assertEq('css.code (legacy vs envelope)', legacy.css.code, envDecoded.css.code);
-	assertEq('css.code (legacy vs zero-copy)', legacy.css.code, zcDecoded.css.code);
-	assertEq('css.hasGlobal (legacy vs envelope)', legacy.css.hasGlobal, envDecoded.css.hasGlobal);
-	assertEq('css.hasGlobal (legacy vs zero-copy)', legacy.css.hasGlobal, zcDecoded.css.hasGlobal);
+  assertEq("css.code (legacy vs envelope)", legacy.css.code, envDecoded.css.code);
+  assertEq("css.code (legacy vs zero-copy)", legacy.css.code, zcDecoded.css.code);
+  assertEq("css.hasGlobal (legacy vs envelope)", legacy.css.hasGlobal, envDecoded.css.hasGlobal);
+  assertEq("css.hasGlobal (legacy vs zero-copy)", legacy.css.hasGlobal, zcDecoded.css.hasGlobal);
 }
 
 // Source map JSON parity
 const legacyMap = legacy.js.map ? JSON.stringify(legacy.js.map) : null;
 const envMap = envDecoded.js.map ? JSON.stringify(envDecoded.js.map) : null;
 const zcMap = zcDecoded.js.map ? JSON.stringify(zcDecoded.js.map) : null;
-assertEq('js.map (legacy vs envelope)', legacyMap, envMap);
-assertEq('js.map (legacy vs zero-copy)', legacyMap, zcMap);
+assertEq("js.map (legacy vs envelope)", legacyMap, envMap);
+assertEq("js.map (legacy vs zero-copy)", legacyMap, zcMap);
 
-assertEq('metadata.runes (legacy vs envelope)', legacy.metadata.runes, envDecoded.metadata.runes);
+assertEq("metadata.runes (legacy vs envelope)", legacy.metadata.runes, envDecoded.metadata.runes);
 
 // Warnings: ensure equal lengths (more detailed parity is harder because
 // of object property ordering, but length + first-warning code is enough
 // to confirm the lazy decoder is working).
 assertEq(
-	'warnings.length (legacy vs envelope)',
-	legacy.warnings.length,
-	envDecoded.warnings.length,
+  "warnings.length (legacy vs envelope)",
+  legacy.warnings.length,
+  envDecoded.warnings.length,
 );
 assertEq(
-	'warnings.length (legacy vs zero-copy)',
-	legacy.warnings.length,
-	zcDecoded.warnings.length,
+  "warnings.length (legacy vs zero-copy)",
+  legacy.warnings.length,
+  zcDecoded.warnings.length,
 );
 
 if (process.exitCode) {
-	console.error('\n❌ FAIL');
+  console.error("\n❌ FAIL");
 } else {
-	console.log('\n✅ All four paths produce identical results');
+  console.log("\n✅ All four paths produce identical results");
 }
 
 // --- Micro-benchmark ------------------------------------------------------
-console.log('\n=== Micro-benchmark (1000 iterations, no warm-up) ===');
+console.log("\n=== Micro-benchmark (1000 iterations, no warm-up) ===");
 const N = 1000;
 
 function bench(label, fn) {
-	const t0 = process.hrtime.bigint();
-	for (let i = 0; i < N; i++) fn();
-	const t1 = process.hrtime.bigint();
-	const ns = Number(t1 - t0);
-	const usPerOp = ns / N / 1000;
-	console.log(`${label.padEnd(40)}  ${usPerOp.toFixed(2)} µs/op`);
+  const t0 = process.hrtime.bigint();
+  for (let i = 0; i < N; i++) fn();
+  const t1 = process.hrtime.bigint();
+  const ns = Number(t1 - t0);
+  const usPerOp = ns / N / 1000;
+  console.log(`${label.padEnd(40)}  ${usPerOp.toFixed(2)} µs/op`);
 }
 
 // Warm-up (V8 tier-up)
 for (let i = 0; i < 200; i++) binding.compile(SOURCE, OPTIONS);
 
-bench('legacy JSON         (no .code read)', () => binding.compile(SOURCE, OPTIONS));
-bench('legacy JSON         (read .code)', () => {
-	const r = binding.compile(SOURCE, OPTIONS);
-	void r.js.code.length;
+bench("legacy JSON         (no .code read)", () => binding.compile(SOURCE, OPTIONS));
+bench("legacy JSON         (read .code)", () => {
+  const r = binding.compile(SOURCE, OPTIONS);
+  void r.js.code.length;
 });
-bench('compileBuffers      (no .code read)', () =>
-	binding.compileBuffers(SOURCE, OPTIONS),
-);
-bench('compileBuffers      (read .code)', () => {
-	const r = binding.compileBuffers(SOURCE, OPTIONS);
-	void r.js.code.toString('utf8').length;
+bench("compileBuffers      (no .code read)", () => binding.compileBuffers(SOURCE, OPTIONS));
+bench("compileBuffers      (read .code)", () => {
+  const r = binding.compileBuffers(SOURCE, OPTIONS);
+  void r.js.code.toString("utf8").length;
 });
-bench('compileEnvelope     (no .code read)', () =>
-	binding.compileEnvelope(SOURCE, OPTIONS),
-);
-bench('compileEnvelope     (decode + read .code)', () => {
-	const buf = binding.compileEnvelope(SOURCE, OPTIONS);
-	const r = decodeEnvelope(buf);
-	void r.js.code.length;
+bench("compileEnvelope     (no .code read)", () => binding.compileEnvelope(SOURCE, OPTIONS));
+bench("compileEnvelope     (decode + read .code)", () => {
+  const buf = binding.compileEnvelope(SOURCE, OPTIONS);
+  const r = decodeEnvelope(buf);
+  void r.js.code.length;
 });
-bench('compileEnvelopeZC   (decode + read .code)', () => {
-	const buf = binding.compileEnvelopeZeroCopy(SOURCE, OPTIONS);
-	const r = decodeEnvelope(buf);
-	void r.js.code.length;
+bench("compileEnvelopeZC   (decode + read .code)", () => {
+  const buf = binding.compileEnvelopeZeroCopy(SOURCE, OPTIONS);
+  const r = decodeEnvelope(buf);
+  void r.js.code.length;
 });
 
 // --- GC stress for the zero-copy arena ------------------------------------
@@ -218,30 +211,30 @@ bench('compileEnvelopeZC   (decode + read .code)', () => {
 // or crashes (use-after-free in the finalizer). Run with
 // `node --expose-gc scripts/dev/test-raw-transfer.mjs` to actually trigger
 // the GC pass; without --expose-gc we just rely on the natural GC.
-console.log('\n=== GC stress (zero-copy arena) ===');
+console.log("\n=== GC stress (zero-copy arena) ===");
 const beforeRss = process.memoryUsage.rss();
 const ITER = 5000;
 for (let i = 0; i < ITER; i++) {
-	const buf = binding.compileEnvelopeZeroCopy(SOURCE, OPTIONS);
-	const r = decodeEnvelope(buf);
-	// Touch every lazy field so the buffer view is realised, then drop.
-	void r.js.code.length;
-	void r.js.map?.version;
-	if (r.css) void r.css.code.length;
-	if (i % 500 === 0 && typeof global.gc === 'function') global.gc();
+  const buf = binding.compileEnvelopeZeroCopy(SOURCE, OPTIONS);
+  const r = decodeEnvelope(buf);
+  // Touch every lazy field so the buffer view is realised, then drop.
+  void r.js.code.length;
+  void r.js.map?.version;
+  if (r.css) void r.css.code.length;
+  if (i % 500 === 0 && typeof global.gc === "function") global.gc();
 }
-if (typeof global.gc === 'function') {
-	global.gc();
-	global.gc();
+if (typeof global.gc === "function") {
+  global.gc();
+  global.gc();
 }
 const afterRss = process.memoryUsage.rss();
 const grewMb = (afterRss - beforeRss) / 1024 / 1024;
 console.log(
-	`${ITER} zero-copy compiles → RSS grew ${grewMb.toFixed(1)} MiB ` +
-		`(threshold for "leak" is ~${(ITER * 0.001).toFixed(0)} MiB — much higher means missing finalizer)`,
+  `${ITER} zero-copy compiles → RSS grew ${grewMb.toFixed(1)} MiB ` +
+    `(threshold for "leak" is ~${(ITER * 0.001).toFixed(0)} MiB — much higher means missing finalizer)`,
 );
-if (typeof global.gc !== 'function') {
-	console.log('(run with --expose-gc for a tighter signal)');
+if (typeof global.gc !== "function") {
+  console.log("(run with --expose-gc for a tighter signal)");
 }
 
 // --- Larger source: amplify the boundary cost ratio -----------------------
@@ -250,58 +243,60 @@ if (typeof global.gc !== 'function') {
 // boundary is ~5-15% of total. A bigger source shifts the ratio so
 // the marshaling difference is more visible. We use the actual docs
 // homepage (~20KB) as a realistic upper bound.
-import { readFileSync } from 'node:fs';
-const BIG_PATH = join(repoRoot, 'apps/playground/src/routes/+page.svelte');
+import { readFileSync } from "node:fs";
+const BIG_PATH = join(repoRoot, "apps/playground/src/routes/+page.svelte");
 let BIG_SOURCE;
 try {
-	BIG_SOURCE = readFileSync(BIG_PATH, 'utf8');
+  BIG_SOURCE = readFileSync(BIG_PATH, "utf8");
 } catch {
-	console.log('\n(skipping large-source benchmark — apps/playground/src/routes/+page.svelte not present)');
-	BIG_SOURCE = null;
+  console.log(
+    "\n(skipping large-source benchmark — apps/playground/src/routes/+page.svelte not present)",
+  );
+  BIG_SOURCE = null;
 }
 if (BIG_SOURCE) {
-	console.log(`\n=== Large-source benchmark (${BIG_SOURCE.length} bytes, ${N} iter) ===`);
-	const BIG_OPTS = { filename: '+page.svelte', generate: 'client' };
-	// Warm-up
-	for (let i = 0; i < 100; i++) binding.compile(BIG_SOURCE, BIG_OPTS);
+  console.log(`\n=== Large-source benchmark (${BIG_SOURCE.length} bytes, ${N} iter) ===`);
+  const BIG_OPTS = { filename: "+page.svelte", generate: "client" };
+  // Warm-up
+  for (let i = 0; i < 100; i++) binding.compile(BIG_SOURCE, BIG_OPTS);
 
-	bench('legacy        (read .code + .map)', () => {
-		const r = binding.compile(BIG_SOURCE, BIG_OPTS);
-		void r.js.code.length;
-		void (r.js.map && JSON.stringify(r.js.map).length);
-	});
-	bench('compileBuffers (read .code + .map)', () => {
-		const r = binding.compileBuffers(BIG_SOURCE, BIG_OPTS);
-		void r.js.code.toString('utf8').length;
-		if (r.js.map) void r.js.map.toString('utf8').length;
-	});
-	bench('envelope       (decode + read .code+.map)', () => {
-		const buf = binding.compileEnvelope(BIG_SOURCE, BIG_OPTS);
-		const r = decodeEnvelope(buf);
-		void r.js.code.length;
-		void (r.js.map && JSON.stringify(r.js.map).length);
-	});
-	bench('envelopeZC     (decode + read .code+.map)', () => {
-		const buf = binding.compileEnvelopeZeroCopy(BIG_SOURCE, BIG_OPTS);
-		const r = decodeEnvelope(buf);
-		void r.js.code.length;
-		void (r.js.map && JSON.stringify(r.js.map).length);
-	});
-	bench('envelope       (no decode — just transfer)', () => {
-		void binding.compileEnvelope(BIG_SOURCE, BIG_OPTS).byteLength;
-	});
-	bench('envelopeZC     (no decode — just transfer)', () => {
-		void binding.compileEnvelopeZeroCopy(BIG_SOURCE, BIG_OPTS).byteLength;
-	});
+  bench("legacy        (read .code + .map)", () => {
+    const r = binding.compile(BIG_SOURCE, BIG_OPTS);
+    void r.js.code.length;
+    void (r.js.map && JSON.stringify(r.js.map).length);
+  });
+  bench("compileBuffers (read .code + .map)", () => {
+    const r = binding.compileBuffers(BIG_SOURCE, BIG_OPTS);
+    void r.js.code.toString("utf8").length;
+    if (r.js.map) void r.js.map.toString("utf8").length;
+  });
+  bench("envelope       (decode + read .code+.map)", () => {
+    const buf = binding.compileEnvelope(BIG_SOURCE, BIG_OPTS);
+    const r = decodeEnvelope(buf);
+    void r.js.code.length;
+    void (r.js.map && JSON.stringify(r.js.map).length);
+  });
+  bench("envelopeZC     (decode + read .code+.map)", () => {
+    const buf = binding.compileEnvelopeZeroCopy(BIG_SOURCE, BIG_OPTS);
+    const r = decodeEnvelope(buf);
+    void r.js.code.length;
+    void (r.js.map && JSON.stringify(r.js.map).length);
+  });
+  bench("envelope       (no decode — just transfer)", () => {
+    void binding.compileEnvelope(BIG_SOURCE, BIG_OPTS).byteLength;
+  });
+  bench("envelopeZC     (no decode — just transfer)", () => {
+    void binding.compileEnvelopeZeroCopy(BIG_SOURCE, BIG_OPTS).byteLength;
+  });
 }
 
 // --- compileBatch sanity + benchmark --------------------------------------
-console.log('\n=== compileBatch ===');
+console.log("\n=== compileBatch ===");
 const BATCH = [
-	{ source: SOURCE, options: { filename: 'a.svelte', generate: 'client' } },
-	{ source: SOURCE, options: { filename: 'b.svelte', generate: 'client' } },
-	{ source: '<bogus invalid svelte', options: { filename: 'bad.svelte' } },
-	{ source: SOURCE, options: { filename: 'd.svelte', generate: 'client' } },
+  { source: SOURCE, options: { filename: "a.svelte", generate: "client" } },
+  { source: SOURCE, options: { filename: "b.svelte", generate: "client" } },
+  { source: "<bogus invalid svelte", options: { filename: "bad.svelte" } },
+  { source: SOURCE, options: { filename: "d.svelte", generate: "client" } },
 ];
 
 const batchResults = binding.compileBatch(BATCH);
@@ -309,115 +304,109 @@ const decoded = decodeBatch(batchResults);
 console.log(`batch buffer size: ${batchResults.byteLength}b for ${BATCH.length} entries`);
 console.log(`decoded length: ${decoded.length}`);
 for (let i = 0; i < decoded.length; i++) {
-	const r = decoded[i];
-	if (r instanceof Error) {
-		console.log(`  [${i}] ERR: ${r.message.slice(0, 60).replace(/\n/g, ' ')}`);
-	} else {
-		console.log(`  [${i}] OK: js.code=${r.js.code.length}b`);
-	}
+  const r = decoded[i];
+  if (r instanceof Error) {
+    console.log(`  [${i}] ERR: ${r.message.slice(0, 60).replace(/\n/g, " ")}`);
+  } else {
+    console.log(`  [${i}] OK: js.code=${r.js.code.length}b`);
+  }
 }
 
-const expectedOks = BATCH.filter((b) => !b.source.startsWith('<bogus')).length;
+const expectedOks = BATCH.filter((b) => !b.source.startsWith("<bogus")).length;
 const actualOks = decoded.filter((r) => !(r instanceof Error)).length;
-assertEq('compileBatch ok count', expectedOks, actualOks);
-assertEq('compileBatch err count', BATCH.length - expectedOks, decoded.length - actualOks);
+assertEq("compileBatch ok count", expectedOks, actualOks);
+assertEq("compileBatch err count", BATCH.length - expectedOks, decoded.length - actualOks);
 
 // Per-file vs batch micro-benchmark
-console.log('\n=== Batch vs loop (16 files, 200 iter) ===');
+console.log("\n=== Batch vs loop (16 files, 200 iter) ===");
 const LOOP_FILES = Array.from({ length: 16 }, (_, i) => ({
-	source: SOURCE,
-	options: { filename: `f${i}.svelte`, generate: 'client' },
+  source: SOURCE,
+  options: { filename: `f${i}.svelte`, generate: "client" },
 }));
 for (let i = 0; i < 50; i++) binding.compileBatch(LOOP_FILES); // warm-up
 
 function microBench(label, fn) {
-	const ITER = 200;
-	const t0 = process.hrtime.bigint();
-	for (let i = 0; i < ITER; i++) fn();
-	const t1 = process.hrtime.bigint();
-	const ns = Number(t1 - t0);
-	console.log(`${label.padEnd(40)}  ${(ns / ITER / 1000).toFixed(1)} µs/iter`);
+  const ITER = 200;
+  const t0 = process.hrtime.bigint();
+  for (let i = 0; i < ITER; i++) fn();
+  const t1 = process.hrtime.bigint();
+  const ns = Number(t1 - t0);
+  console.log(`${label.padEnd(40)}  ${(ns / ITER / 1000).toFixed(1)} µs/iter`);
 }
 
-microBench('loop: 16x binding.compile()', () => {
-	for (const f of LOOP_FILES) binding.compile(f.source, f.options);
+microBench("loop: 16x binding.compile()", () => {
+  for (const f of LOOP_FILES) binding.compile(f.source, f.options);
 });
-microBench('loop: 16x compileEnvelope+decode', () => {
-	for (const f of LOOP_FILES) decodeEnvelope(binding.compileEnvelope(f.source, f.options));
+microBench("loop: 16x compileEnvelope+decode", () => {
+  for (const f of LOOP_FILES) decodeEnvelope(binding.compileEnvelope(f.source, f.options));
 });
-microBench('batch: 1x compileBatch(16)', () => {
-	binding.compileBatch(LOOP_FILES);
+microBench("batch: 1x compileBatch(16)", () => {
+  binding.compileBatch(LOOP_FILES);
 });
-microBench('batch: compileBatch+decodeBatch(16)', () => {
-	decodeBatch(binding.compileBatch(LOOP_FILES));
+microBench("batch: compileBatch+decodeBatch(16)", () => {
+  decodeBatch(binding.compileBatch(LOOP_FILES));
 });
 
 // --- mapBytes / mapText fast paths ---------------------------------------
-console.log('\n=== Sourcemap accessors (16-file batch, 200 iter) ===');
-microBench('decode + JSON.parse(.map)', () => {
-	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
-	for (const r of arr) if (!(r instanceof Error)) void r.js.map?.version;
+console.log("\n=== Sourcemap accessors (16-file batch, 200 iter) ===");
+microBench("decode + JSON.parse(.map)", () => {
+  const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+  for (const r of arr) if (!(r instanceof Error)) void r.js.map?.version;
 });
-microBench('decode + .mapText (raw JSON)', () => {
-	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
-	for (const r of arr) if (!(r instanceof Error)) void r.js.mapText?.length;
+microBench("decode + .mapText (raw JSON)", () => {
+  const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+  for (const r of arr) if (!(r instanceof Error)) void r.js.mapText?.length;
 });
-microBench('decode + .mapBytes (Buffer)', () => {
-	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
-	for (const r of arr) if (!(r instanceof Error)) void r.js.mapBytes?.byteLength;
+microBench("decode + .mapBytes (Buffer)", () => {
+  const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+  for (const r of arr) if (!(r instanceof Error)) void r.js.mapBytes?.byteLength;
 });
 
 // Disk-emit simulation: the realistic Vite / rolldown use case.
 // Legacy: parse JSON → stringify back → write. mapText skips the
 // parse+stringify cycle entirely.
 console.log('\n=== Sourcemap "emit to disk" simulation (16-file batch) ===');
-microBench('parse(.map) + JSON.stringify (round-trip)', () => {
-	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
-	for (const r of arr) if (!(r instanceof Error) && r.js.map) JSON.stringify(r.js.map);
+microBench("parse(.map) + JSON.stringify (round-trip)", () => {
+  const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+  for (const r of arr) if (!(r instanceof Error) && r.js.map) JSON.stringify(r.js.map);
 });
-microBench('.mapText (no parse, ready to write)', () => {
-	const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
-	for (const r of arr) if (!(r instanceof Error) && r.js.mapText) void r.js.mapText.length;
+microBench(".mapText (no parse, ready to write)", () => {
+  const arr = decodeBatch(binding.compileBatch(LOOP_FILES));
+  for (const r of arr) if (!(r instanceof Error) && r.js.mapText) void r.js.mapText.length;
 });
 
 // --- Async compile sanity --------------------------------------------------
-console.log('\n=== Async compile ===');
-if (typeof binding.compileEnvelopeAsync === 'function') {
-	const buf = await binding.compileEnvelopeAsync(SOURCE, OPTIONS);
-	const r = decodeEnvelope(buf);
-	console.log(`compileEnvelopeAsync → js.code=${r.js.code.length}b, runes=${r.metadata.runes}`);
-	assertEq('async parity js.code', envDecoded.js.code, r.js.code);
+console.log("\n=== Async compile ===");
+if (typeof binding.compileEnvelopeAsync === "function") {
+  const buf = await binding.compileEnvelopeAsync(SOURCE, OPTIONS);
+  const r = decodeEnvelope(buf);
+  console.log(`compileEnvelopeAsync → js.code=${r.js.code.length}b, runes=${r.metadata.runes}`);
+  assertEq("async parity js.code", envDecoded.js.code, r.js.code);
 
-	const batchBuf = await binding.compileBatchAsync(LOOP_FILES);
-	const batchArr = decodeBatch(batchBuf);
-	console.log(`compileBatchAsync(16) → ${batchArr.length} entries`);
-	assertEq('async batch length', LOOP_FILES.length, batchArr.length);
+  const batchBuf = await binding.compileBatchAsync(LOOP_FILES);
+  const batchArr = decodeBatch(batchBuf);
+  console.log(`compileBatchAsync(16) → ${batchArr.length} entries`);
+  assertEq("async batch length", LOOP_FILES.length, batchArr.length);
 
-	// Concurrency: 4 parallel compiles. With AsyncTask each runs on a
-	// separate worker thread, so total time should approach max(t_i)
-	// rather than sum(t_i) — modulo libuv's thread-pool size (default 4).
-	console.log('\n=== Async concurrency (4 parallel compiles, 50 iter) ===');
-	const ASYNC_ITER = 50;
-	async function asyncBench(label, fn) {
-		const t0 = process.hrtime.bigint();
-		for (let i = 0; i < ASYNC_ITER; i++) await fn();
-		const t1 = process.hrtime.bigint();
-		console.log(
-			`${label.padEnd(40)}  ${(Number(t1 - t0) / ASYNC_ITER / 1000).toFixed(1)} µs/iter`,
-		);
-	}
-	const BIG_PER_CALL = BIG_SOURCE ?? SOURCE;
-	const BIG_PER_OPTS = BIG_SOURCE
-		? { filename: '+page.svelte', generate: 'client' }
-		: OPTIONS;
-	await asyncBench('sync: 4x compile sequentially', async () => {
-		for (let k = 0; k < 4; k++) binding.compile(BIG_PER_CALL, BIG_PER_OPTS);
-	});
-	await asyncBench('async: 4x compileEnvelopeAsync in parallel', async () => {
-		await Promise.all(
-			Array.from({ length: 4 }, () =>
-				binding.compileEnvelopeAsync(BIG_PER_CALL, BIG_PER_OPTS),
-			),
-		);
-	});
+  // Concurrency: 4 parallel compiles. With AsyncTask each runs on a
+  // separate worker thread, so total time should approach max(t_i)
+  // rather than sum(t_i) — modulo libuv's thread-pool size (default 4).
+  console.log("\n=== Async concurrency (4 parallel compiles, 50 iter) ===");
+  const ASYNC_ITER = 50;
+  async function asyncBench(label, fn) {
+    const t0 = process.hrtime.bigint();
+    for (let i = 0; i < ASYNC_ITER; i++) await fn();
+    const t1 = process.hrtime.bigint();
+    console.log(`${label.padEnd(40)}  ${(Number(t1 - t0) / ASYNC_ITER / 1000).toFixed(1)} µs/iter`);
+  }
+  const BIG_PER_CALL = BIG_SOURCE ?? SOURCE;
+  const BIG_PER_OPTS = BIG_SOURCE ? { filename: "+page.svelte", generate: "client" } : OPTIONS;
+  await asyncBench("sync: 4x compile sequentially", async () => {
+    for (let k = 0; k < 4; k++) binding.compile(BIG_PER_CALL, BIG_PER_OPTS);
+  });
+  await asyncBench("async: 4x compileEnvelopeAsync in parallel", async () => {
+    await Promise.all(
+      Array.from({ length: 4 }, () => binding.compileEnvelopeAsync(BIG_PER_CALL, BIG_PER_OPTS)),
+    );
+  });
 }

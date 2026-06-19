@@ -43,6 +43,7 @@ The existing script handles the mechanical upgrade:
 ```
 
 This does:
+
 1. `git checkout svelte@<VERSION>` in the submodule
 2. `pnpm install && pnpm build` in `svelte/packages/svelte/`
 3. `npm run generate-fixtures -- --force`
@@ -51,6 +52,7 @@ This does:
 6. Update docs preview runtime version
 
 If the script fails at any step, troubleshoot:
+
 - **pnpm install fails**: Try `pnpm install --no-frozen-lockfile`
 - **pnpm build fails**: Check Node.js version (need >=22), check for new build deps
 - **generate-fixtures fails**: The Svelte API may have changed; inspect the error
@@ -69,9 +71,11 @@ git diff svelte@<OLD_VERSION>..svelte@<NEW_VERSION> -- packages/svelte/src/compi
 ```
 
 Also check the Svelte changelog:
+
 - https://github.com/sveltejs/svelte/blob/main/packages/svelte/CHANGELOG.md
 
 Focus on:
+
 - New syntax or template features
 - Changed code generation output
 - New/removed/renamed compiler options
@@ -104,18 +108,19 @@ for (const [cat, data] of Object.entries(r.categories)) {
 
 Group failures by root cause. Common patterns after a Svelte upgrade:
 
-| Pattern | Typical Cause | Fix Strategy |
-|---------|---------------|--------------|
-| New AST node type | Svelte added new syntax | Add node to parser + AST types |
-| Changed code output | Codegen logic updated | Update transform phase to match |
-| New compiler option | New option added | Add to CompileOptions + plumb through |
-| New warning/error code | New validation rules | Add to validator phase |
-| CSS output changed | Scoping logic updated | Update CSS transform |
-| Renamed internal APIs | Refactoring in Svelte | Mirror the rename |
+| Pattern                | Typical Cause           | Fix Strategy                          |
+| ---------------------- | ----------------------- | ------------------------------------- |
+| New AST node type      | Svelte added new syntax | Add node to parser + AST types        |
+| Changed code output    | Codegen logic updated   | Update transform phase to match       |
+| New compiler option    | New option added        | Add to CompileOptions + plumb through |
+| New warning/error code | New validation rules    | Add to validator phase                |
+| CSS output changed     | Scoping logic updated   | Update CSS transform                  |
+| Renamed internal APIs  | Refactoring in Svelte   | Mirror the rename                     |
 
 ### Step 2.3: Create a prioritized fix list
 
 Order failures by:
+
 1. **Parser failures first** — everything downstream depends on correct parsing
 2. **Compiler errors** — error detection is independent
 3. **Validator warnings** — warning detection is independent
@@ -131,6 +136,7 @@ Order failures by:
 For EACH failing test:
 
 1. **Read the official Svelte implementation** to understand the expected behavior:
+
    ```bash
    # The reference implementation is in the submodule
    cat svelte/packages/svelte/src/compiler/phases/1-parse/<relevant-file>.js
@@ -139,6 +145,7 @@ For EACH failing test:
    ```
 
 2. **Compare expected vs actual output**:
+
    ```bash
    # Load fixture (expected output from the JS compiler)
    cat fixtures/${COMMIT}/<category>/<sample>/client.js
@@ -155,6 +162,7 @@ For EACH failing test:
    - Error/warning changes → `src/error/`
 
 4. **Run the specific test** to verify the fix:
+
    ```bash
    cargo test --release <test_name> -- --nocapture
    ```
@@ -247,6 +255,7 @@ npm run update-docs
 ```
 
 This updates:
+
 - `README.md` — compatibility table
 - `apps/playground/static/test-results.json` — dashboard data
 

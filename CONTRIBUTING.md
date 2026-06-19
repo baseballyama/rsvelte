@@ -24,6 +24,7 @@ debug a failure. For the higher-level project goals, see [`AGENTS.md`](AGENTS.md
 ### Native (recommended for daily work)
 
 You need:
+
 - Rust **1.90+** (see `Cargo.toml` `rust-version`). Use `rustup update stable`.
 - Node.js **20+** and **pnpm 10+** (the repo's package scripts assume pnpm).
 - Git with submodule support.
@@ -120,11 +121,11 @@ runner prints a canonical diff on mismatch, and runs the suite single-threaded.
 These are read by `crates/rsvelte_core/tests/common/mod.rs::compare_js_with_debug` and apply to
 suites that delegate through it (currently `crates/rsvelte_core/tests/runtime.rs`):
 
-| Var                 | Effect                                                   |
-|---------------------|----------------------------------------------------------|
-| `DEBUG_TEST=<name>` | Print canonical expected/actual diff for the named test  |
-| `DEBUG_ALL=1`       | Print canonical diffs for every failing test             |
-| `DEBUG_RAW=<name>`  | Also write raw + canonical inputs to `/tmp/debug_*.js`   |
+| Var                     | Effect                                                   |
+| ----------------------- | -------------------------------------------------------- |
+| `DEBUG_TEST=<name>`     | Print canonical expected/actual diff for the named test  |
+| `DEBUG_ALL=1`           | Print canonical diffs for every failing test             |
+| `DEBUG_RAW=<name>`      | Also write raw + canonical inputs to `/tmp/debug_*.js`   |
 | `WRITE_ACTUAL_OUTPUT=1` | Write `_actual.<ext>` next to every fixture even on pass |
 
 ## Adding or fixing a test
@@ -167,14 +168,17 @@ silently agree with broken output forever.
    `_actual.*` files for every diverging fixture.
 
 2. **Look at the canonical diff.**
+
    ```bash
    DEBUG_TEST=<sample> cargo test --test runtime -- --nocapture
    ```
+
    The `+` lines are what we produced; `-` lines are what we should have
    produced. Both sides are already canonicalized, so any difference is a real
    semantic divergence — not a whitespace artifact.
 
 3. **Look at raw outputs if the canonical diff is unhelpful.**
+
    ```bash
    DEBUG_RAW=<sample> cargo test --test runtime -- --nocapture
    ls /tmp/debug_raw_*.js /tmp/debug_canonical_*.js

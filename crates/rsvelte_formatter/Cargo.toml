@@ -31,7 +31,9 @@ thiserror = "2.0"
 unicode-width = "0.2"
 
 [dev-dependencies]
-criterion = { version = "4.7.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
+criterion = { version = "4.7.0", features = [
+  "html_reports",
+], package = "codspeed-criterion-compat" }
 
 [[bench]]
 name = "formatter"

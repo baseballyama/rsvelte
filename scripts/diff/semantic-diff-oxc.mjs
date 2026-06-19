@@ -5,24 +5,34 @@
  * Writes both JS and RS outputs to temp files, then uses the Rust
  * canonicalize_js function (same as test suite) to normalize before comparing.
  */
-import { createRequire } from 'module';
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { createRequire } from "module";
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '../..');
+const ROOT = path.resolve(__dirname, "../..");
 
-const svelte = await import(path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js'));
+const svelte = await import(
+  path.join(ROOT, "submodules/svelte/packages/svelte/src/compiler/index.js")
+);
 let rsvelte;
 for (const p of [
-  path.join(ROOT, 'svelte/rsvelte.linux-x64-gnu.node'),
-  path.join(ROOT, 'svelte/rsvelte.linux-arm64-gnu.node'),
-  path.join(ROOT, 'svelte/rsvelte.darwin-arm64.node'),
-]) { try { rsvelte = require(p); break; } catch {} }
-if (!rsvelte) { console.error('No rsvelte binding'); process.exit(1); }
+  path.join(ROOT, "svelte/rsvelte.linux-x64-gnu.node"),
+  path.join(ROOT, "svelte/rsvelte.linux-arm64-gnu.node"),
+  path.join(ROOT, "svelte/rsvelte.darwin-arm64.node"),
+]) {
+  try {
+    rsvelte = require(p);
+    break;
+  } catch {}
+}
+if (!rsvelte) {
+  console.error("No rsvelte binding");
+  process.exit(1);
+}
 
 // Use a Rust binary for OXC canonicalization
 // Build it if needed
@@ -112,15 +122,16 @@ if (jCan === rCan) {
 }
 `;
 
-fs.writeFileSync('/tmp/canon-compare.cjs', CANON_SCRIPT);
+fs.writeFileSync("/tmp/canon-compare.cjs", CANON_SCRIPT);
 
 function findSvelteFiles(dir) {
   const files = [];
   if (!fs.existsSync(dir)) return files;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const f = path.join(dir, e.name);
-    if (e.isDirectory() && e.name !== 'node_modules' && e.name !== '.git') files.push(...findSvelteFiles(f));
-    else if (e.isFile() && e.name.endsWith('.svelte')) files.push(f);
+    if (e.isDirectory() && e.name !== "node_modules" && e.name !== ".git")
+      files.push(...findSvelteFiles(f));
+    else if (e.isFile() && e.name.endsWith(".svelte")) files.push(f);
   }
   return files;
 }
@@ -128,71 +139,102 @@ function findSvelteFiles(dir) {
 const cleanEnv = { ...process.env };
 delete cleanEnv.LD_PRELOAD;
 
-const REPOS = path.join(ROOT, '.real-world-tests');
+const REPOS = path.join(ROOT, ".real-world-tests");
 const projects = [
-  { name: 'immich', dir: path.join(REPOS, 'immich/web/src') },
-  { name: 'gradio', dir: path.join(REPOS, 'gradio/js') },
+  { name: "immich", dir: path.join(REPOS, "immich/web/src") },
+  { name: "gradio", dir: path.join(REPOS, "gradio/js") },
 ];
 
-let total = 0, match = 0, diff = 0, rsErr = 0, jsErr = 0, bothErr = 0;
-const diffs = [], rsErrors = [];
+let total = 0,
+  match = 0,
+  diff = 0,
+  rsErr = 0,
+  jsErr = 0,
+  bothErr = 0;
+const diffs = [],
+  rsErrors = [];
 
 for (const proj of projects) {
   const files = findSvelteFiles(proj.dir);
-  let pm = 0, pd = 0;
+  let pm = 0,
+    pd = 0;
   for (const file of files) {
     total++;
-    const src = fs.readFileSync(file, 'utf-8');
+    const src = fs.readFileSync(file, "utf-8");
     const rel = path.relative(path.join(REPOS, proj.name), file);
-    const opts = { filename: rel, generate: 'client', css: 'external', dev: false };
+    const opts = { filename: rel, generate: "client", css: "external", dev: false };
 
     let jc, rc, je, re;
-    try { jc = svelte.compile(src, opts).js.code; } catch (e) { je = e.message; }
-    try { rc = rsvelte.compile(src, opts).js.code; } catch (e) { re = e.message; }
+    try {
+      jc = svelte.compile(src, opts).js.code;
+    } catch (e) {
+      je = e.message;
+    }
+    try {
+      rc = rsvelte.compile(src, opts).js.code;
+    } catch (e) {
+      re = e.message;
+    }
 
-    if (je && re) { bothErr++; continue; }
-    if (je) { jsErr++; continue; }
-    if (re) { rsErr++; rsErrors.push(`${proj.name}/${rel}: ${re.substring(0, 150)}`); continue; }
+    if (je && re) {
+      bothErr++;
+      continue;
+    }
+    if (je) {
+      jsErr++;
+      continue;
+    }
+    if (re) {
+      rsErr++;
+      rsErrors.push(`${proj.name}/${rel}: ${re.substring(0, 150)}`);
+      continue;
+    }
 
     // Write to temp files and compare
-    fs.writeFileSync('/tmp/js_out.js', jc);
-    fs.writeFileSync('/tmp/rs_out.js', rc);
+    fs.writeFileSync("/tmp/js_out.js", jc);
+    fs.writeFileSync("/tmp/rs_out.js", rc);
 
     try {
-      const result = execSync('node /tmp/canon-compare.cjs /tmp/js_out.js /tmp/rs_out.js', {
-        encoding: 'utf-8', env: cleanEnv, timeout: 5000,
+      const result = execSync("node /tmp/canon-compare.cjs /tmp/js_out.js /tmp/rs_out.js", {
+        encoding: "utf-8",
+        env: cleanEnv,
+        timeout: 5000,
       }).trim();
 
-      if (result === 'MATCH') { match++; pm++; }
-      else {
-        diff++; pd++;
+      if (result === "MATCH") {
+        match++;
+        pm++;
+      } else {
+        diff++;
+        pd++;
         if (diffs.length < 25) {
-          const lines = result.split('\n');
+          const lines = result.split("\n");
           diffs.push({
             file: `${proj.name}/${rel}`,
-            js: lines[1] || '',
-            rs: lines[2] || '',
+            js: lines[1] || "",
+            rs: lines[2] || "",
           });
         }
       }
     } catch {
-      diff++; pd++;
+      diff++;
+      pd++;
     }
   }
   const compiled = pm + pd;
-  console.log(`${proj.name}: ${pm}/${compiled} match (${(pm/compiled*100).toFixed(1)}%)`);
+  console.log(`${proj.name}: ${pm}/${compiled} match (${((pm / compiled) * 100).toFixed(1)}%)`);
 }
 
 const compiled = match + diff;
 console.log(`\n=== TOTAL ===`);
 console.log(`Files: ${total}, Both compiled: ${compiled}`);
-console.log(`Semantically equal: ${match}/${compiled} (${(match/compiled*100).toFixed(1)}%)`);
+console.log(`Semantically equal: ${match}/${compiled} (${((match / compiled) * 100).toFixed(1)}%)`);
 console.log(`Semantic diff: ${diff}`);
 console.log(`Rust errors: ${rsErr}, JS errors: ${jsErr}`);
 
 if (rsErrors.length) {
   console.log(`\n=== Rust-Only Errors ===`);
-  rsErrors.forEach(e => console.log(`  ${e}`));
+  rsErrors.forEach((e) => console.log(`  ${e}`));
 }
 
 if (diffs.length) {

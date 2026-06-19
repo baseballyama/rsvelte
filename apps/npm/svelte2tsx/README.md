@@ -19,7 +19,7 @@ Requires Node.js 18+. The WebAssembly bundle ships with the package — no nativ
 ## Usage
 
 ```js
-import { svelte2tsx } from '@rsvelte/svelte2tsx';
+import { svelte2tsx } from "@rsvelte/svelte2tsx";
 
 const source = `
 <script lang="ts">
@@ -30,24 +30,21 @@ const source = `
 `;
 
 const result = await svelte2tsx(source, {
-  filename: 'Hello.svelte',
+  filename: "Hello.svelte",
   isTsFile: true,
-  version: '5',
+  version: "5",
 });
 
-console.log(result.code);          // TSX source
-console.log(result.map);           // source map (string | null)
+console.log(result.code); // TSX source
+console.log(result.map); // source map (string | null)
 console.log(result.exportedNames); // { props: ['name'], all: [...] }
-console.log(result.events);        // { eventName: type, ... }
+console.log(result.events); // { eventName: type, ... }
 ```
 
 ## API
 
 ```ts
-function svelte2tsx(
-  source: string,
-  options?: Svelte2TsxOptions
-): Promise<Svelte2TsxResult>;
+function svelte2tsx(source: string, options?: Svelte2TsxOptions): Promise<Svelte2TsxResult>;
 
 interface Svelte2TsxOptions {
   /** Source filename used in the generated TSX `// @filename:` directive and source maps. */
@@ -55,13 +52,13 @@ interface Svelte2TsxOptions {
   /** `<script lang="ts">` — emit real TS annotations. Otherwise JSDoc only. Default: false. */
   isTsFile?: boolean;
   /** `'ts'` (default) for type-check TSX, `'dts'` for ambient declarations. */
-  mode?: 'ts' | 'dts';
+  mode?: "ts" | "dts";
   /** Generate accessor getters/setters on the component class. */
   accessors?: boolean;
   /** HTML namespace for element type inference. */
-  namespace?: 'html' | 'svg' | 'mathml';
+  namespace?: "html" | "svg" | "mathml";
   /** Svelte version this component targets. Default: '5'. */
-  version?: '4' | '5';
+  version?: "4" | "5";
 }
 
 interface Svelte2TsxResult {
@@ -84,7 +81,7 @@ The async signature differs slightly from the upstream package, which is synchro
 - You're already using `svelte2tsx` and want to test whether the Rust port produces equivalent output for your project.
 - You're using [`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check) — this package powers its `.tsx` shadow-file generation.
 
-If you just want to *compile* a Svelte component to JS, use [`@rsvelte/compiler`](https://www.npmjs.com/package/@rsvelte/compiler) instead — `svelte2tsx` is for TS tooling, not runtime output.
+If you just want to _compile_ a Svelte component to JS, use [`@rsvelte/compiler`](https://www.npmjs.com/package/@rsvelte/compiler) instead — `svelte2tsx` is for TS tooling, not runtime output.
 
 ## Compatibility
 
