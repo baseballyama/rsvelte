@@ -248,7 +248,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 }
                 // Check for BigInt (raw ends with 'n')
                 if raw.ends_with('n') {
-                    return JsExpr::Raw(raw.to_string().into());
+                    return JsExpr::Literal(JsLiteral::BigInt(raw.to_string().into()));
                 }
                 JsExpr::Literal(JsLiteral::Null)
             }

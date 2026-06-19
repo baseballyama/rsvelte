@@ -288,6 +288,7 @@ pub fn build_template(
                             match lit {
                                 JsLiteral::String(s) => last.push_str(s),
                                 JsLiteral::Number(n) => last.push_str(&n.to_string()),
+                                JsLiteral::BigInt(s) => last.push_str(s),
                                 JsLiteral::Boolean(b) => last.push_str(&b.to_string()),
                                 JsLiteral::Null => last.push_str("null"),
                                 JsLiteral::Undefined => last.push_str("undefined"),

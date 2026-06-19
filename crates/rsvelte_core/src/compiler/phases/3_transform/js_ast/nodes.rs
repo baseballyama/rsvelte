@@ -402,6 +402,9 @@ pub enum JsExpr {
 pub enum JsLiteral {
     String(CompactString),
     Number(f64),
+    /// BigInt literal, stored as its raw source text including the trailing `n`
+    /// (e.g. `123n`, `0x1fn`) so the exact representation is preserved.
+    BigInt(CompactString),
     Boolean(bool),
     Null,
     Undefined,

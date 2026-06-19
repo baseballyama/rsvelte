@@ -930,6 +930,7 @@ impl<'a> JsCodegen<'a> {
             JsLiteral::Boolean(b) => {
                 self.output.push_str(if *b { "true" } else { "false" });
             }
+            JsLiteral::BigInt(s) => self.output.push_str(s),
             JsLiteral::Null => self.output.push_str("null"),
             JsLiteral::Undefined => self.output.push_str("undefined"),
             JsLiteral::Regex { pattern, flags } => {
