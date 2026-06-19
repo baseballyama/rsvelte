@@ -650,13 +650,36 @@ fn push_open_tag(
     // Exception: `<pre>` always hugs `>` to the last attribute — breaking `>` onto
     // its own line would inject a newline before the content, changing how the
     // browser renders whitespace-sensitive preformatted text.
+    // Whether `tag_name` is a Svelte Component (uppercase-initial or `svelte:*`).
+    let is_component = tag_name.starts_with("svelte:")
+        || tag_name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_uppercase());
     let hug_open = !self_closing
         && (tag_name == "pre"
             || (!is_block_element(tag_name)
                 && source
                     .as_bytes()
                     .get(open_tag_end as usize)
-                    .is_some_and(|&b| !b.is_ascii_whitespace() && b != b'<')));
+                    .is_some_and(|&b| {
+                        if b == b'<' {
+                            // The byte after `>` is `<`: either a child element or the
+                            // close tag (`</tag>`).
+                            // - For plain HTML inline elements, prettier never hugs a
+                            //   leading element child (the `>` breaks to its own line).
+                            // - For Svelte Components, prettier uses `shouldHugStart` for
+                            //   element children (non-whitespace-sensitive). Hug when the
+                            //   next byte is NOT `/` (child, not close tag).
+                            is_component
+                                && source
+                                    .as_bytes()
+                                    .get(open_tag_end as usize + 1)
+                                    .is_some_and(|&b2| b2 != b'/')
+                        } else {
+                            !b.is_ascii_whitespace()
+                        }
+                    })));
 
     // Build the list of fully-rendered open-tag items (attributes plus any
     // comments interleaved between them), each tagged with its source
@@ -1535,10 +1558,7 @@ fn render_single_expression_value(
                         if extra_lead < prefix {
                             // Widening would give more room — try the wider result.
                             let wider = format_attribute_value_expression(
-                                inner_src,
-                                options,
-                                attr_depth,
-                                extra_lead,
+                                inner_src, options, attr_depth, extra_lead,
                             )?;
                             // Only use the wider result if it is still multi-line
                             // (ensures the break happened — single-line would mean we
@@ -1910,8 +1930,7 @@ fn render_attribute_value_sequence(
                                     // continuation line.
                                     let base_width = line_width_val.saturating_sub(indent_cols);
                                     let expr_len = visual_width(first_pass.as_str());
-                                    let force_extra =
-                                        base_width.saturating_sub(expr_len) + 1;
+                                    let force_extra = base_width.saturating_sub(expr_len) + 1;
                                     let forced = format_attribute_value_expression(
                                         inner_src,
                                         &opts,

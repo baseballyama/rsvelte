@@ -502,8 +502,7 @@ fn fill_inline_runs(
     // ({#if}/{#each}/…) whose run covers all non-whitespace content — NOT for
     // element bodies (`<P>`) where prettier preserves the line break regardless.
     let has_non_run_block_siblings = nodes.iter().any(|n| {
-        !is_run_member(out, n)
-            && !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+        !is_run_member(out, n) && !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
     });
     let allow_elem_expr_collapse = is_block_body && !has_non_run_block_siblings;
 
@@ -899,12 +898,12 @@ fn collect_break_block_non_ws_prefix(
                     if !whole.contains('\n') && column + whole.width() > line_width {
                         // Find first and last non-whitespace children.
                         if let (Some(first_child), Some(last_child)) = (
-                            e.fragment.nodes.iter().find(|n| {
-                                !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
-                            }),
-                            e.fragment.nodes.iter().rfind(|n| {
-                                !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
-                            }),
+                            e.fragment.nodes.iter().find(
+                                |n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                            ),
+                            e.fragment.nodes.iter().rfind(
+                                |n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()),
+                            ),
                         ) {
                             let first_start = node_start(first_child) as usize;
                             let last_end = node_end(last_child) as usize;
@@ -923,9 +922,7 @@ fn collect_break_block_non_ws_prefix(
                         }
                     }
                 }
-                for child in &[&e.fragment] {
-                    collect_break_block_non_ws_prefix(out, child, line_width, edits);
-                }
+                collect_break_block_non_ws_prefix(out, &e.fragment, line_width, edits);
             }
             _ => {
                 for child in child_fragments(node) {
@@ -1051,7 +1048,14 @@ fn collect(
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     let mut consumed: Vec<(u32, u32)> = Vec::new();
-    fill_inline_runs(out, fragment, line_width, is_block_body, edits, &mut consumed);
+    fill_inline_runs(
+        out,
+        fragment,
+        line_width,
+        is_block_body,
+        edits,
+        &mut consumed,
+    );
     let in_consumed_run =
         |start: u32, end: u32| consumed.iter().any(|&(s, e)| s <= start && end <= e);
     for node in &fragment.nodes {
@@ -2025,7 +2029,10 @@ fn try_break_inline_content_tag(
     // would split it unnecessarily. Leave it for the fill.
     // Note: a suffix glued directly to the `}` (like `px)` in `{getPixels(...)}px)`)
     // is NOT a fill-run word separator — it's a unit suffix, so we still break it.
-    if out.get(ee..line_end).is_some_and(|rest| rest.starts_with(' ') || rest.starts_with('\t')) {
+    if out
+        .get(ee..line_end)
+        .is_some_and(|rest| rest.starts_with(' ') || rest.starts_with('\t'))
+    {
         return None;
     }
     let _start_col = current_column(out, es as u32);
@@ -2856,7 +2863,10 @@ fn try_hug_mixed(
                 // (e.g. `<Component><div>…</div></Component>`). Components have
                 // block-level semantics so their block children can be hugged.
                 let is_block_child_of_component = is_component_tag(tag)
-                    && matches!(n, TemplateNode::RegularElement(_) | TemplateNode::Component(_));
+                    && matches!(
+                        n,
+                        TemplateNode::RegularElement(_) | TemplateNode::Component(_)
+                    );
                 if !is_block_child_of_component {
                     return None;
                 }
@@ -2884,8 +2894,52 @@ fn try_hug_mixed(
     let raw_trail_ws_only = is_component_tag(tag)
         && !raw.starts_with([' ', '\t', '\r', '\n'])
         && raw.ends_with([' ', '\t', '\r', '\n']);
-    if raw.starts_with([' ', '\t', '\r', '\n'])
-        || (raw.ends_with([' ', '\t', '\r', '\n']) && !raw_trail_ws_only)
+    // Extra exception for Components whose open tag was formatted with `hug_open=true`
+    // by markup.rs (the `>` is glued to the last attribute, not on its own line):
+    //   `<Component\n  attr>` (hug_open=true) vs `<Component\n  attr\n>` (false).
+    // When `hug_open=true`, `open` ends with a non-`\n` char before `>`, and `raw`
+    // starts with `\n{inner_indent}` (the child content is on the next indented line).
+    // We strip that leading `\n{inner_indent}` from `raw` to produce `adj_raw` so the
+    // `open.contains('\n')` path below can apply the correct hug transform.
+    // Detect whether markup.rs used `hug_open=true` for this component: the `>`
+    // is glued to the last attribute line (not on its own indented line).  In that
+    // case the text between the last `\n` in `open` and the trailing `>` is the
+    // last attribute content (non-whitespace), whereas `hug_open=false` leaves only
+    // whitespace (the outer indent) between the last `\n` and `>`.
+    let open_hug_form = if let Some(nl_pos) = open.rfind('\n') {
+        // `after_last_nl` = text between last newline and trailing `>`.
+        let after_last_nl = &open[nl_pos + 1..open.len().saturating_sub(1)];
+        !after_last_nl.bytes().all(|b| b == b' ' || b == b'\t')
+    } else {
+        false
+    };
+    let adj_raw: Option<&str> = if is_component_tag(tag)
+        && open_hug_form // `>` glued to last attribute (hug_open=true from markup)
+        && raw.starts_with('\n')
+    {
+        // Compute outer indent of the component.
+        let line_start_a = out[..s].rfind('\n').map_or(0, |i| i + 1);
+        let outer_ind_a = out.get(line_start_a..s).unwrap_or("");
+        if outer_ind_a.bytes().all(|b| b == b' ' || b == b'\t') {
+            let inner_ind_a = format!("{outer_ind_a}  ");
+            let prefix_a = format!("\n{inner_ind_a}");
+            if raw.starts_with(prefix_a.as_str()) && !raw[prefix_a.len()..].starts_with([' ', '\t'])
+            {
+                Some(&raw[prefix_a.len()..])
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    // When we have an adjusted raw (hug_open form), skip the standard early-return
+    // for leading whitespace and jump directly to the `open.contains('\n')` handler.
+    if adj_raw.is_none()
+        && (raw.starts_with([' ', '\t', '\r', '\n'])
+            || (raw.ends_with([' ', '\t', '\r', '\n']) && !raw_trail_ws_only))
     {
         return None;
     }
@@ -2932,6 +2986,17 @@ fn try_hug_mixed(
         return (result != whole).then_some((start, end, result));
     }
 
+    // When an adjusted raw is available (the markup pass used hug_open=true and
+    // glued `>` to the last attribute), use adj_raw instead of raw for the
+    // `open.contains('\n')` block.  adj_raw has the leading `\n{inner_indent}`
+    // stripped so the content is directly adjacent to `>`.
+    let raw = adj_raw.unwrap_or(raw);
+    // Recompute raw_trail_ws_only with the possibly-updated `raw` (adj_raw may end
+    // with whitespace even though the original `raw` started with whitespace).
+    let raw_trail_ws_only = is_component_tag(tag)
+        && !raw.starts_with([' ', '\t', '\r', '\n'])
+        && raw.ends_with([' ', '\t', '\r', '\n']);
+
     // A multi-line open tag means markup already attribute-wrapped it. prettier's
     // hugged-content group glues `>{content}</tag` to the last attribute line (with
     // the final `>` on its own line) when it fits after the last attr, otherwise
@@ -2962,7 +3027,16 @@ fn try_hug_mixed(
         // break the content's inner components' attributes using the Doc IR. This
         // handles cases like `<Button\n  >text<Icon class="…"/></Button\n>` where
         // the Icon's attributes need to wrap.
-        let simple = format!("{onb}\n{inner_indent}>{raw}</{tag}\n{ws_indent}>");
+        // For Components where raw ends with whitespace (trailing newline before
+        // `</Tag>`), the trailing whitespace provides the natural line break — use
+        // `</{tag}>` directly without an additional `\n{ws_indent}>`.  This matches
+        // the `raw_trail_ws_only` logic in the single-line-open path.
+        let close_form = if raw_trail_ws_only {
+            format!("</{tag}>")
+        } else {
+            format!("</{tag}\n{ws_indent}>")
+        };
+        let simple = format!("{onb}\n{inner_indent}>{raw}{close_form}");
         if simple != whole {
             return Some((start, end, simple));
         }
@@ -2975,7 +3049,7 @@ fn try_hug_mixed(
             let base_level = inner_indent.width() / 2;
             let printed = crate::doc::print(body, line_width, "  ", base_level, inner_col);
             if printed != raw {
-                let result2 = format!("{onb}\n{inner_indent}>{printed}</{tag}\n{ws_indent}>");
+                let result2 = format!("{onb}\n{inner_indent}>{printed}{close_form}");
                 if result2 != whole {
                     return Some((start, end, result2));
                 }
@@ -2996,8 +3070,9 @@ fn try_hug_mixed(
             let raw_deferred = &raw[..raw.len() - 1]; // trim the trailing `>`
             let deferred_inner = inner_indent.width() + 1 + raw_deferred.width();
             if deferred_inner <= line_width {
-                let result3 =
-                    format!("{onb}\n{inner_indent}>{raw_deferred}\n{inner_indent}></{tag}\n{ws_indent}>");
+                let result3 = format!(
+                    "{onb}\n{inner_indent}>{raw_deferred}\n{inner_indent}></{tag}\n{ws_indent}>"
+                );
                 if result3 != whole {
                     return Some((start, end, result3));
                 }
@@ -3430,10 +3505,12 @@ fn build_children_doc_nodes(
                 // separate lines.  Only collapse when the next node is an
                 // ExpressionTag / HtmlTag / etc. (a non-element inline atom).
                 let next_is_not_element = i + 1 < n
-                    && !matches!(&nodes[i + 1],
+                    && !matches!(
+                        &nodes[i + 1],
                         TemplateNode::RegularElement(_)
                             | TemplateNode::Component(_)
-                            | TemplateNode::SlotElement(_));
+                            | TemplateNode::SlotElement(_)
+                    );
                 let use_soft_break = allow_elem_expr_collapse
                     && ws_only
                     && !trim_left
@@ -3753,13 +3830,12 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                                 Doc::Text(format!("</{tag}")),
                             ])])
                         })
-                        .unwrap_or_else(|| Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]));
+                        .unwrap_or_else(|| {
+                            Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))])
+                        });
                     return Some(Doc::Group(vec![
                         open_doc,
-                        Doc::Group(vec![Doc::Indent(vec![
-                            Doc::Softline,
-                            inner_content_doc,
-                        ])]),
+                        Doc::Group(vec![Doc::Indent(vec![Doc::Softline, inner_content_doc])]),
                         Doc::Softline,
                         Doc::Text(">".to_string()),
                     ]));
@@ -3857,20 +3933,16 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
     // Flat: `<button>Hello...</button>` (Softline = nothing in flat mode) ✓
     // Break: `<button>Hello...</button\n  >` (close `>` deferred to next indent line)
     // Gate: only inline-block without attributes, text-only single-line content.
-    if let TemplateNode::RegularElement(e) = node {
-        let tag = e.name.as_str();
-        if is_inline_block(tag)
-            && e.attributes.is_empty()
-            && !e.fragment.nodes.is_empty()
-            && e.fragment
-                .nodes
-                .iter()
-                .all(|n| matches!(n, TemplateNode::Text(_)))
-        {
-            if let (Some(first), Some(last)) = (
-                e.fragment.nodes.first(),
-                e.fragment.nodes.last(),
-            ) {
+    if let TemplateNode::RegularElement(e) = node
+        && is_inline_block(e.name.as_str())
+        && e.attributes.is_empty()
+        && !e.fragment.nodes.is_empty()
+        && e.fragment
+            .nodes
+            .iter()
+            .all(|n| matches!(n, TemplateNode::Text(_)))
+    {
+        if let (Some(first), Some(last)) = (e.fragment.nodes.first(), e.fragment.nodes.last()) {
                 let elem_start = e.start as usize;
                 let elem_end = e.end as usize;
                 let content_start = node_start(first) as usize;
@@ -3896,7 +3968,6 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                         Doc::Text(">".to_string()),
                     ]));
                 }
-            }
         }
     }
     let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
