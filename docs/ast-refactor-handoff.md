@@ -18,6 +18,18 @@
 - **ワークツリー**: `/Users/baseballyama/git/rsvelte-ssr-esrap`（origin/main の worktree。ユーザー指示によりワークツリーで作業）。
 - 残コーパス失敗は `compat/corpus/known-failures.json`（120件）。CI ラチェットは縮小のみ許可。
 
+### 進捗ログ
+- **2026-06-19 PR #1097**: Step 2a の最初のスライス着地。derived の **update 式**
+  （`count++` → `$.update_derived(count)`、`--count` → `$.update_derived_pre(count, -1)`）を
+  AST read-wrap パス `server::derived_reads_ast::visit_update_expression` に統合
+  （**元の妥当な script** 上で `UpdateExpression{argument: AssignmentTargetIdentifier}` を直接ローワリング）。
+  旧テキスト走査 `rewrite_derived_update_expressions` は post-wrap の **不正 JS** `count()++`
+  （call は代入先になれず再パース不能）を走査していた＝§4 の問題そのもの。テキスト走査は
+  `wrap_derived_reads_in_script` の **バイトスキャナ fallback 経路でのみ** 生存させ両経路をバイト一致に保った。
+  検証: コーパス 120 件据え置き（NEW 0）、`derived_reads_ast` 19/19（+6）、clippy/fmt clean。
+  **次**: 同じ AST パスへ **assignment** ローワリング（`count = x` → `count(x)`、複合/論理展開）を統合（§7 step 1, task 残）。
+  RHS の read-wrap + `count` 重複 + 構造変換を1パスで byte-identical に出すのが難所（§4 単一パス必須）。
+
 ### 再開手順
 ```bash
 cd /Users/baseballyama/git/rsvelte-ssr-esrap
