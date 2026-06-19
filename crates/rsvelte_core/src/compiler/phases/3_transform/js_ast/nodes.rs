@@ -366,6 +366,9 @@ pub enum JsExpr {
     This,
     /// `super` keyword (as a member/call base, e.g. `super.foo()` / `super()`).
     Super,
+    /// Meta property `meta.property` (e.g. `import.meta`, `new.target`). Both
+    /// parts are keyword/identifier tokens, so it is a terminal leaf.
+    MetaProperty(CompactString, CompactString),
     /// Await expression
     Await(ExprId),
     /// Yield expression

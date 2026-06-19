@@ -1385,6 +1385,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
         JsExpr::Literal(_)
         | JsExpr::This
         | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
         | JsExpr::Raw(_)
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
@@ -2513,6 +2514,7 @@ fn collect_reactive_references_inner(
         JsExpr::Literal(_)
         | JsExpr::This
         | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
         | JsExpr::Raw(_)
         | JsExpr::Spread(_)
         | JsExpr::New(_)

@@ -572,6 +572,7 @@ fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
         | JsExpr::Literal(_)
         | JsExpr::This
         | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
         | JsExpr::Raw(_)
         | JsExpr::Class(_) => false,
     }

@@ -840,6 +840,11 @@ impl<'a> JsCodegen<'a> {
             }
             JsExpr::This => self.output.push_str("this"),
             JsExpr::Super => self.output.push_str("super"),
+            JsExpr::MetaProperty(meta, property) => {
+                self.output.push_str(meta);
+                self.output.push('.');
+                self.output.push_str(property);
+            }
             JsExpr::Await(inner_id) => {
                 self.output.push_str("await ");
                 let arg = self.arena.get_expr(*inner_id);

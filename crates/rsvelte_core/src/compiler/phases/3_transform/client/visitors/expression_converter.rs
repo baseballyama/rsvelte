@@ -1838,7 +1838,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                         .and_then(|p| p.get("name"))
                         .and_then(|n| n.as_str())
                         .unwrap_or("meta");
-                    JsExpr::Raw(format!("{}.{}", meta, property).into())
+                    JsExpr::MetaProperty(meta.into(), property.into())
                 }
                 "ObjectPattern" | "ArrayPattern" => {
                     // Destructuring patterns used as LHS in assignment expressions.
