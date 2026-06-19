@@ -69,6 +69,24 @@
     検証は `pnpm run generate-fixtures` 後に `cargo test --release --test runtime --test compiler_fixtures`（byte-exact gate）。
     なお `cargo test` のターゲット名は `runtime` / `compiler_fixtures` / `compiler_err` 等（`snapshot`/`ssr` という単一ターゲットは無い。
     ssr は `ssr_*` 個別ファイル）。`svelte_check` bin が時々リンク失敗（既知 flaky）。
+  - **★ direct-AST Step 3 の土台着地（PR #1097, flag-gated・byte-exact 検証済み）★**:
+    新モジュール `js_ast/to_oxc.rs` の `program_to_oxc(&JsProgram, &JsArena, &Allocator) -> Option<Program>`＝
+    client `js_ast` IR を **oxc `AstBuilder` で oxc `Program` に直接構築** → `rsvelte_esrap::print` で印字
+    （codegen を介さない真の direct-AST）。**安全機構**: 未対応 variant / `Raw` / `Spanned` で `None` を返し、
+    呼び出し側（client/mod.rs）は codegen にフォールバック＝部分対応でも常に正しい。`RSVELTE_CLIENT_TO_OXC` env flag で
+    gate（**既定 OFF**＝コミット状態は無変更でグリーン）。**flag ON で byte-exact 検証済み: runtime 19/19・
+    compiler_fixtures 17/17 パス**（フィクスチャ内の全 structured client program で codegen とバイト一致を実証）。
+    対応済み: 大半の式（identifier/literal/this/super/meta-property/member/call/new/binary/logical/unary/conditional/
+    sequence/array/object/spread/await/void/arrow）+ 一般的な文（expression/return/var-decl(識別子のみ)/block/empty/
+    debugger/throw/break/continue/if）。bail: template-literal/tagged-template/function/update/assignment/yield/class/
+    chain/import-expr、分割代入パターン、import/export/loops/switch/try、全 Raw。
+    **次の作業（burn-down）**: bail している variant を1種ずつ `to_oxc.rs` に追加（oxc AstBuilder API は
+    `~/.cargo/git/checkouts/oxc-2492aa67f5b41d4f/37a34a1/crates/oxc_ast/src/generated/ast_builder.rs` 参照。
+    `NONE` は `oxc_ast::NONE`、文字列は `ab.allocator.alloc_str(s)`、`ab.expression_identifier(SPAN, &str)` 等）。
+    各追加ごとに `RSVELTE_CLIENT_TO_OXC=1 cargo test --release --test runtime --test compiler_fixtures`（byte-exact gate。
+    ※ `parse_profile`/`svelte_check` bin が時々リンク失敗＝flaky、リトライで通る）。Raw が全廃 + 全 variant 対応 +
+    コメントストリーム（Step 1: `print_with_hooks` 経由）が揃ったら flag を**既定 ON** に反転 → codegen 削除。
+    template-literal は IR の cooked/raw を oxc TemplateElement に、assignment/update は演算子マップ追加でほぼ機械的。
   - **最終的な本丸**: client を `js_ast::codegen` から「oxc AST 構築 + `rsvelte_esrap::print`」へ big-bang 切替
     （esrap 出力＝公式コンパイラ準拠なのでフィクスチャは原理上一致するはずだが、**全 byte-exact フィクスチャ + コーパス
     での検証必須**）。Raw 全廃はその前提条件。server 側は `normalize_script_with_oxc` が既に esrap なので、
