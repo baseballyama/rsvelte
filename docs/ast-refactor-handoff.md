@@ -77,9 +77,11 @@
     gate（**既定 OFF**＝コミット状態は無変更でグリーン）。**flag ON で byte-exact 検証済み: runtime 19/19・
     compiler_fixtures 17/17 パス**（フィクスチャ内の全 structured client program で codegen とバイト一致を実証）。
     対応済み: 大半の式（identifier/literal/this/super/meta-property/member/call/new/binary/logical/unary/conditional/
-    sequence/array/object/spread/await/void/arrow）+ 一般的な文（expression/return/var-decl(識別子のみ)/block/empty/
-    debugger/throw/break/continue/if）。bail: template-literal/tagged-template/function/update/assignment/yield/class/
-    chain/import-expr、分割代入パターン、import/export/loops/switch/try、全 Raw。
+    sequence/array/object/spread/await/void/arrow/**template-literal/tagged-template/assignment(識別子+非optional member)/update**）
+    + 一般的な文（expression/return/var-decl(識別子のみ)/block/empty/debugger/throw/break/continue/if）。
+    **残 bail**: function-expr/yield/class/chain/import-expr、分割代入パターン（var-decl/arrow params/assignment target）、
+    import/export/function-decl/loops(for/for-of/while/do-while)/switch/labeled/try、object の method/getter/setter/computed、
+    member の private-identifier、regex literal、全 Raw/Spanned/RawMapped。
     **次の作業（burn-down）**: bail している variant を1種ずつ `to_oxc.rs` に追加（oxc AstBuilder API は
     `~/.cargo/git/checkouts/oxc-2492aa67f5b41d4f/37a34a1/crates/oxc_ast/src/generated/ast_builder.rs` 参照。
     `NONE` は `oxc_ast::NONE`、文字列は `ab.allocator.alloc_str(s)`、`ab.expression_identifier(SPAN, &str)` 等）。
