@@ -2547,6 +2547,13 @@ pub(crate) fn unthunk_bare_derived_arg(script: &str) -> String {
     if derived_names.is_empty() {
         return script.to_string();
     }
+    // Prefer the AST pass (resolves the `$.derived(() => NAME())` shape
+    // structurally); fall back to the byte scanner below on a parse failure.
+    if let Some(out) =
+        super::unthunk_derived_ast::unthunk_bare_derived_arg_ast(script, &derived_names)
+    {
+        return out;
+    }
     let bytes = script.as_bytes();
     let needle = b"$.derived(() => ";
     let mut out = String::with_capacity(script.len());

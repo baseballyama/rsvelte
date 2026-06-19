@@ -17,6 +17,7 @@ pub mod transform_legacy;
 pub mod transform_script;
 pub mod transform_store;
 pub mod types;
+pub(crate) mod unthunk_derived_ast;
 pub mod visitors;
 
 use super::TransformError;
