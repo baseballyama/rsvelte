@@ -1885,13 +1885,46 @@ fn render_attribute_value_sequence(
                                     inner_src, &opts, attr_depth, extra_full,
                                 )?
                             } else {
-                                // Full-extra overflows too: use start-column only.
-                                format_attribute_value_expression(
+                                // Full-extra overflows too: the trailing literal is very
+                                // long and all approaches overflow.
+                                // First try start-column narrowing (the original approach).
+                                let start_result = format_attribute_value_expression(
                                     inner_src,
                                     &opts,
                                     attr_depth,
                                     extra_start,
-                                )?
+                                )?;
+                                if start_result.contains('\n') {
+                                    // Start-column narrowing already breaks the expression
+                                    // — use it (matches the oracle's break point for long
+                                    // ternaries where the expression itself is wider than
+                                    // the available space after the prefix).
+                                    start_result
+                                } else {
+                                    // Start-column didn't break (expression fits at extra_start).
+                                    // The expression is short relative to base_width but the
+                                    // trailing text is enormous.  Force the minimum break:
+                                    // `narrowed = expr_len - 1` so OXC breaks the expression
+                                    // itself (e.g. ternary at `?`/`:` or comparison at `===`),
+                                    // accepting that the trailing text may overflow on the last
+                                    // continuation line.
+                                    let base_width = line_width_val.saturating_sub(indent_cols);
+                                    let expr_len = visual_width(first_pass.as_str());
+                                    let force_extra =
+                                        base_width.saturating_sub(expr_len) + 1;
+                                    let forced = format_attribute_value_expression(
+                                        inner_src,
+                                        &opts,
+                                        attr_depth,
+                                        force_extra,
+                                    )?;
+                                    if forced.contains('\n') {
+                                        forced
+                                    } else {
+                                        // Still can't break — keep start-column result.
+                                        start_result
+                                    }
+                                }
                             }
                         } else {
                             // Multi-line first-pass (at indent-only width).
