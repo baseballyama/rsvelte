@@ -2970,3 +2970,133 @@ fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
     result.push_str(&joined[open_pos + 1..]);
     Some(result)
 }
+
+/// Convert OXC's `fn({ k: v, ... })` / `fn({\n  k: v,\n})` form to
+/// prettier-plugin-svelte's "outer-expanded-arg" form:
+/// ```text
+/// fn(
+///   { k: v },        // object fits on one line
+/// )
+/// ```
+/// or:
+/// ```text
+/// fn(
+///   {
+///     k: v,
+///   },               // object needed multi-line
+/// )
+/// ```
+///
+/// This is used for embedded mustache expressions inside quoted attributes
+/// (`class="... {fn({...})}"`) where OXC always places the object literal
+/// immediately after the `(`, but prettier-plugin-svelte separates the arg
+/// onto its own line with a trailing comma (the "expanded-arg" marker).
+///
+/// Returns `None` when the input doesn't match the expected shape:
+/// - Not a call expression ending with `)` or `})`.
+/// - Has multiple arguments (more than one top-level comma at depth 0).
+/// - The single argument is not an object literal `{...}`.
+pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String> {
+    let s = s.trim();
+    // Must end with `)` (single-line) or `})` (multi-line)
+    if !s.ends_with(')') {
+        return None;
+    }
+    // Find the outermost opening `(` that matches the final `)`.
+    let close_pos = s.len() - 1;
+    let bytes = s.as_bytes();
+    let mut depth: i32 = 0;
+    let mut open_paren: Option<usize> = None;
+    for i in (0..close_pos).rev() {
+        match bytes[i] {
+            b')' => depth += 1,
+            b'(' => {
+                if depth == 0 {
+                    open_paren = Some(i);
+                    break;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    let open_paren = open_paren?;
+    // The prefix before `(` must be non-empty (it's the function/callee).
+    if open_paren == 0 {
+        return None;
+    }
+    let prefix = &s[..open_paren];
+    // The argument body between `(` and `)`.
+    let arg_body = s[open_paren + 1..close_pos].trim();
+    // The argument must be an object literal `{...}`.
+    if !arg_body.starts_with('{') {
+        return None;
+    }
+    // Ensure it's a single object arg: only `{...}` at the top level (no
+    // top-level commas outside the object braces).
+    let arg_trimmed = arg_body.trim_end_matches(',').trim();
+    if !arg_trimmed.starts_with('{') || !arg_trimmed.ends_with('}') {
+        return None;
+    }
+    // Verify balanced braces (no stray top-level commas between separate args).
+    let mut brace_depth: i32 = 0;
+    let mut paren_depth: i32 = 0;
+    let mut bracket_depth: i32 = 0;
+    let mut has_top_level_comma = false;
+    for (i, &b) in arg_trimmed.as_bytes().iter().enumerate() {
+        match b {
+            b'{' => brace_depth += 1,
+            b'}' => brace_depth -= 1,
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'[' => bracket_depth += 1,
+            b']' => bracket_depth -= 1,
+            b',' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 && i > 0 => {
+                has_top_level_comma = true;
+                break;
+            }
+            _ => {}
+        }
+    }
+    if has_top_level_comma || brace_depth != 0 {
+        return None;
+    }
+    // Build the expanded form.
+    let indent = " ".repeat(indent_width);
+    if !arg_body.contains('\n') {
+        // Single-line object: `fn(\n  { k: v },\n)`
+        // Strip trailing comma from the object literal if present (we add a new one).
+        let arg_clean = arg_body.trim_end_matches(',').trim();
+        Some(format!("{prefix}(\n{indent}{arg_clean},\n)"))
+    } else {
+        // Multi-line object: re-indent each line inside the `{...}` by one extra
+        // level, then wrap with `fn(\n  {\n    ...\n  },\n)`.
+        let lines: Vec<&str> = arg_body.lines().collect();
+        if lines.is_empty() {
+            return None;
+        }
+        // First line should be `{` (possibly with spaces, from OXC).
+        // Last line should be `}` or `},` (the closing brace).
+        let first = lines[0].trim();
+        let last = lines[lines.len() - 1].trim().trim_end_matches(',');
+        if first != "{" || last != "}" {
+            return None;
+        }
+        let mut result = format!("{prefix}(\n{indent}{{\n");
+        // Interior lines (everything except first `{` and last `}`).
+        for line in &lines[1..lines.len() - 1] {
+            let trimmed = line.trim_start();
+            if trimmed.is_empty() {
+                result.push('\n');
+            } else {
+                result.push_str(&indent);
+                result.push_str(&indent);
+                result.push_str(trimmed);
+                result.push('\n');
+            }
+        }
+        result.push_str(&indent);
+        result.push_str("},\n)");
+        Some(result)
+    }
+}

@@ -34,7 +34,7 @@ use rsvelte_core::ast::template::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::error::FormatError;
-use crate::expression::format_attribute_value_expression;
+use crate::expression::{expand_obj_arg_call, format_attribute_value_expression};
 use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
@@ -1857,6 +1857,13 @@ fn render_attribute_value_sequence(
                             AttributeValuePart::ExpressionTag(_) => 0,
                         })
                         .sum();
+                    // Whether there are trailing expression tags after this one.
+                    // When true, the closing `)` of an expanded-arg form would land
+                    // on a line followed by the next interpolation, producing
+                    // `fn(\n  {...},\n)} {expr}` which the oracle does NOT emit.
+                    let has_trailing_expr = parts[i + 1..]
+                        .iter()
+                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
                     let first_pass =
                         format_attribute_value_expression(inner_src, &opts, attr_depth, 0)?;
                     let formatted = if narrow_value && is_shallow_value(inner_src) {
@@ -1882,9 +1889,36 @@ fn render_attribute_value_sequence(
                         // `+1` for `{`, `+1` for `}`, `+1` for closing `"`
                         let extra_full = lead_cols + 3 + trailing_cols;
                         if indent_cols + extra_start >= line_width_val {
-                            // Expression starts at or past the print width — keep
-                            // first_pass (OXC already formatted at indent-only width).
-                            first_pass
+                            // Expression starts at or past the print width.
+                            // OXC formatted at indent-only width. When there are no
+                            // trailing interpolations, apply the prettier-style
+                            // outer expansion for single-object-arg calls:
+                            // - Single-line `fn({ k: v })` → `fn(\n  { k: v },\n)`
+                            // - Multi-line `fn({\n  k: v,\n})` → `fn(\n  {\n    k: v,\n  },\n)`
+                            let indent_w = opts.js.indent_width.value() as usize;
+                            if !has_trailing_expr {
+                                let first_line_fp =
+                                    first_pass.lines().next().unwrap_or("").trim_end();
+                                // Try expansion for multi-line `fn({` form.
+                                let try_expand = if first_pass.contains('\n')
+                                    && (first_line_fp.ends_with('{')
+                                        || first_line_fp.ends_with('['))
+                                {
+                                    expand_obj_arg_call(&first_pass, indent_w)
+                                } else if !first_pass.contains('\n') {
+                                    // Single-line `fn({ k: v })` — try outer expansion.
+                                    expand_obj_arg_call(&first_pass, indent_w)
+                                } else {
+                                    None
+                                };
+                                if let Some(expanded) = try_expand {
+                                    expanded
+                                } else {
+                                    first_pass
+                                }
+                            } else {
+                                first_pass
+                            }
                         } else if !first_pass.contains('\n') {
                             // Wide first-pass produced a single-line result.
                             // Check if it fits with trailing on the same line.
@@ -1940,8 +1974,22 @@ fn render_attribute_value_sequence(
                                     if forced.contains('\n') {
                                         forced
                                     } else {
-                                        // Still can't break — keep start-column result.
-                                        start_result
+                                        // Still can't break via width narrowing.
+                                        // For `fn({ key: val })` calls without trailing
+                                        // expressions, prettier-plugin-svelte expands to
+                                        // `fn(\n  { key: val },\n)` — apply that.
+                                        let indent_w = opts.js.indent_width.value() as usize;
+                                        if !has_trailing_expr {
+                                            if let Some(expanded) =
+                                                expand_obj_arg_call(&start_result, indent_w)
+                                            {
+                                                expanded
+                                            } else {
+                                                start_result
+                                            }
+                                        } else {
+                                            start_result
+                                        }
                                     }
                                 }
                             }
@@ -1952,8 +2000,23 @@ fn render_attribute_value_sequence(
                                 || first_line.ends_with('[')
                                 || first_line.ends_with('(')
                             {
-                                // Expanded call-argument block — keep the wider result
-                                first_pass
+                                // OXC expanded the call argument block (`fn({` / `fn([`).
+                                // prettier-plugin-svelte instead keeps the arg on its own
+                                // line: `fn(\n  {\n    ...\n  },\n)`. Apply that transform
+                                // when the expression is a single-object-arg call and
+                                // there are no trailing interpolations.
+                                let indent_w = opts.js.indent_width.value() as usize;
+                                if !has_trailing_expr {
+                                    if let Some(expanded) =
+                                        expand_obj_arg_call(&first_pass, indent_w)
+                                    {
+                                        expanded
+                                    } else {
+                                        first_pass
+                                    }
+                                } else {
+                                    first_pass
+                                }
                             } else {
                                 // Operator-break — re-format at start-column width so
                                 // the break lands at the right column (trailing text
