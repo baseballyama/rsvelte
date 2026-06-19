@@ -1697,6 +1697,32 @@ pub(crate) fn reformat_content_at_width(
 /// width) for spots where a break can't survive — block headers and the like.
 /// The result may otherwise be multi-line, with continuation lines at
 /// `oxc_formatter`'s own relative indent (measured from column 0).
+/// Returns `true` if `s` contains the keyword `await` (not as part of a larger
+/// identifier like `awaiting` or `getAwaited`).
+fn has_word_await(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i + 5 <= bytes.len() {
+        if &bytes[i..i + 5] == b"await" {
+            let before_ok = i == 0
+                || !matches!(
+                    bytes[i - 1],
+                    b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'$'
+                );
+            let after_ok = i + 5 >= bytes.len()
+                || !matches!(
+                    bytes[i + 5],
+                    b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'$'
+                );
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 fn format_expr_core(
     expr_source: &str,
     options: &FormatOptions,
@@ -1750,7 +1776,7 @@ fn format_expr_core(
     // TS_CONST_PREFIX.len() == 20
     const TS_CONST_PREFIX_LEN: u16 = 20;
 
-    let expr_has_await = options.typescript && expr_source.contains("await");
+    let expr_has_await = options.typescript && has_word_await(expr_source);
 
     let (wrapped, source_type, use_const_wrapper) = if expr_has_await {
         // Case A: TS + await — use const wrapper to avoid multi-line breaking
@@ -1965,7 +1991,7 @@ fn format_content_expression_with_prefix(
     // First-pass width: same as format_content_expression (narrowed only by indent).
     let narrowed = full_width.saturating_sub(lead);
     let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+        oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16).unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, line_width, false)?;
     // Overflow re-check: a single-line result that overflows when the actual
     // prefix (braces + keyword) is counted must be re-formatted at a narrower
@@ -1976,7 +2002,7 @@ fn format_content_expression_with_prefix(
         && lead + overhead + UnicodeWidthStr::width(formatted.as_str()) > full_width
     {
         let narrowed2 = full_width.saturating_sub(lead + overhead);
-        let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2 as u16)
+        let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2.max(1) as u16)
             .unwrap_or(options.js.line_width);
         format_expr_core(expr_source, options, lw2, false)?
     } else {
@@ -2037,7 +2063,7 @@ fn format_const_declaration(
     // double-count `const ;` and wrongly break tags that fit inline.
     let narrowed = full_width.saturating_sub(lead + 2);
     let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+        oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16).unwrap_or(options.js.line_width);
 
     let mut js = options.js.clone();
     js.line_width = line_width;
@@ -2104,7 +2130,7 @@ fn format_declaration_tag_body(
     // rendered column.
     let narrowed = full_width.saturating_sub(lead + 1);
     let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+        oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16).unwrap_or(options.js.line_width);
 
     let mut js = options.js.clone();
     js.line_width = line_width;
@@ -2938,6 +2964,11 @@ fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
         .map(|l| l.trim_start())
         .collect::<Vec<_>>()
         .join(" ");
+    // Bail if the source contains string literals — delimiter scanning would be
+    // ambiguous (a `(` or `)` inside a string would corrupt the depth walk).
+    if joined.contains('\'') || joined.contains('"') || joined.contains('`') {
+        return None;
+    }
     // The joined form should end with `, )` (trailing comma from expanded args
     // followed by the closing `)`).
     if !joined.ends_with(", )") {
@@ -3002,6 +3033,11 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
     if !s.ends_with(')') {
         return None;
     }
+    // Bail if source contains string literals — delimiter scanning would be
+    // ambiguous (a `{`, `(`, or `,` inside a string would corrupt depth walks).
+    if s.contains('\'') || s.contains('"') || s.contains('`') {
+        return None;
+    }
     // Find the outermost opening `(` that matches the final `)`.
     let close_pos = s.len() - 1;
     let bytes = s.as_bytes();
@@ -3061,6 +3097,28 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
     if has_top_level_comma || brace_depth != 0 {
         return None;
     }
+    // Bail out when the object literal contains nested objects — the
+    // re-indentation logic doesn't handle them correctly.
+    {
+        let mut depth = 0i32;
+        let mut has_nested = false;
+        for ch in arg_trimmed.chars() {
+            match ch {
+                '{' => {
+                    depth += 1;
+                    if depth > 1 {
+                        has_nested = true;
+                        break;
+                    }
+                }
+                '}' => depth -= 1,
+                _ => {}
+            }
+        }
+        if has_nested {
+            return None;
+        }
+    }
     // Build the expanded form.
     let indent = " ".repeat(indent_width);
     if !arg_body.contains('\n') {
@@ -3098,5 +3156,102 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
         result.push_str(&indent);
         result.push_str("},\n)");
         Some(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_word_await_detects_standalone() {
+        assert!(has_word_await("await foo"));
+        assert!(has_word_await("x = await bar()"));
+        assert!(has_word_await("(await x)"));
+    }
+
+    #[test]
+    fn has_word_await_rejects_subword() {
+        assert!(!has_word_await("getAwaiter"));
+        assert!(!has_word_await("awaiting"));
+        assert!(!has_word_await("noawait"));
+        assert!(!has_word_await("$await"));
+        assert!(!has_word_await("_await"));
+    }
+
+    #[test]
+    fn has_word_await_empty() {
+        assert!(!has_word_await(""));
+        assert!(!has_word_await("foo bar"));
+    }
+
+    #[test]
+    fn collapse_expanded_arg_form_normal() {
+        // Typical multi-line → collapsed form
+        let multi = "options.filter((opt) =>\n  selectedValues.has(opt.value),\n)";
+        let result = collapse_expanded_arg_form(multi);
+        assert!(result.is_some(), "expected Some for normal multi-line call");
+        let s = result.unwrap();
+        assert!(s.contains("( "), "result should have `( ` after open paren");
+        assert!(s.ends_with(", )"), "result should end with `, )`");
+    }
+
+    #[test]
+    fn collapse_expanded_arg_form_none_on_single_line() {
+        // Single-line input cannot be collapsed (fewer than 2 lines)
+        let single = "foo(bar)";
+        assert!(collapse_expanded_arg_form(single).is_none());
+    }
+
+    #[test]
+    fn collapse_expanded_arg_form_none_when_last_line_not_paren() {
+        // Last line is not `)` alone — bail
+        let s = "foo(\n  bar\n}";
+        assert!(collapse_expanded_arg_form(s).is_none());
+    }
+
+    #[test]
+    fn collapse_expanded_arg_form_none_on_string_literal() {
+        // FIX 4: bail on string literals
+        let multi = "fn(\"hello\",\n)";
+        assert!(collapse_expanded_arg_form(multi).is_none());
+    }
+
+    #[test]
+    fn expand_obj_arg_call_single_object() {
+        let s = "fn({ key: value })";
+        let result = expand_obj_arg_call(s, 2);
+        assert!(result.is_some(), "expected Some for single-object call");
+        let out = result.unwrap();
+        assert!(out.contains("fn(\n"), "result should start with fn(");
+        assert!(out.contains("{ key: value },"), "result should contain object with trailing comma");
+    }
+
+    #[test]
+    fn expand_obj_arg_call_none_on_multi_arg() {
+        // Two top-level arguments — must return None
+        let s = "fn({ key: value }, extra)";
+        assert!(expand_obj_arg_call(s, 2).is_none());
+    }
+
+    #[test]
+    fn expand_obj_arg_call_none_on_nested_object() {
+        // FIX 3: nested object inside arg — bail
+        let s = "fn({ outer: { inner: 1 } })";
+        assert!(expand_obj_arg_call(s, 2).is_none());
+    }
+
+    #[test]
+    fn expand_obj_arg_call_none_on_string_literal() {
+        // FIX 4: bail on string literals
+        let s = "fn({ key: \"value\" })";
+        assert!(expand_obj_arg_call(s, 2).is_none());
+    }
+
+    #[test]
+    fn expand_obj_arg_call_none_on_non_object_arg() {
+        // Non-object single arg — must return None
+        let s = "fn(someVariable)";
+        assert!(expand_obj_arg_call(s, 2).is_none());
     }
 }

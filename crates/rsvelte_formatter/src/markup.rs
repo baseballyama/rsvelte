@@ -963,16 +963,20 @@ fn open_tag_name_end(source: &str, element_start: u32) -> usize {
 /// elements never hug their start/end (`shouldHugStart` / `shouldHugEnd` return
 /// false), so when their open tag wraps the closing `>` always breaks onto its
 /// own line — even when text content sits directly after it.
-fn is_block_element(tag_name: &str) -> bool {
+/// Canonical list of HTML block-display elements shared with the collapse pass.
+/// Does NOT include `script` / `style` — those are whitespace-preserving in the
+/// collapse pass (handled by `is_whitespace_preserving`) but count as block
+/// elements here for open-tag layout purposes.
+pub(crate) fn is_html_block_display_element(tag_name: &str) -> bool {
     matches!(
         tag_name,
         "address"
             | "article"
             | "aside"
             | "blockquote"
+            | "dd"
             | "details"
             | "dialog"
-            | "dd"
             | "div"
             | "dl"
             | "dt"
@@ -996,12 +1000,16 @@ fn is_block_element(tag_name: &str) -> bool {
             | "ol"
             | "p"
             | "pre"
-            | "script"
             | "section"
-            | "style"
             | "table"
             | "ul"
     )
+}
+
+fn is_block_element(tag_name: &str) -> bool {
+    // `script` and `style` are block elements for open-tag layout purposes even
+    // though the collapse pass treats them as whitespace-preserving separately.
+    is_html_block_display_element(tag_name) || matches!(tag_name, "script" | "style")
 }
 
 fn is_void_element(tag_name: &str) -> bool {

@@ -2373,42 +2373,10 @@ fn current_column(out: &str, pos: u32) -> usize {
 /// leading/trailing whitespace of their text content. Everything else keeps a
 /// single edge space. Mirrors prettier's `CSS_DISPLAY_DEFAULTS`.
 fn is_block_display(tag: &str) -> bool {
-    matches!(
-        tag,
-        "address"
-            | "article"
-            | "aside"
-            | "blockquote"
-            | "dd"
-            | "details"
-            | "dialog"
-            | "div"
-            | "dl"
-            | "dt"
-            | "fieldset"
-            | "figcaption"
-            | "figure"
-            | "footer"
-            | "form"
-            | "h1"
-            | "h2"
-            | "h3"
-            | "h4"
-            | "h5"
-            | "h6"
-            | "header"
-            | "hgroup"
-            | "hr"
-            | "li"
-            | "main"
-            | "nav"
-            | "ol"
-            | "p"
-            | "pre"
-            | "section"
-            | "table"
-            | "ul"
-    )
+    // Delegates to the canonical shared list in markup.rs.
+    // `script` / `style` are intentionally excluded here — they are handled
+    // by `is_whitespace_preserving` in this pass instead.
+    crate::markup::is_html_block_display_element(tag)
 }
 
 fn is_whitespace_preserving(tag: &str) -> bool {
@@ -2920,25 +2888,25 @@ fn try_fix_pre_child_open_tags(
             // trailing whitespace to find where the actual `>` is.
             let open_tag_only = open.trim_end_matches(|c: char| c.is_ascii_whitespace());
             // The open tag (stripped) must end with `\n{spaces}>` (non-hug form).
-            if open_tag_only.ends_with('>') {
-                if let Some(last_nl) = open_tag_only.rfind('\n') {
-                    let after_last_nl = &open_tag_only[last_nl + 1..];
-                    // The line before `>` must consist entirely of spaces (the
-                    // indent for the non-hug `>` placement).
-                    if after_last_nl[..after_last_nl.len() - 1]
-                        .bytes()
-                        .all(|b| b == b' ')
-                    {
-                        // Move `>` to hug the last attribute line (remove the
-                        // `\n{spaces}` before `>`). Keep the whitespace between
-                        // `>` and the first child intact (it's element-direct
-                        // whitespace, e.g. tabs).
-                        let trailing_ws = &open[open_tag_only.len()..];
-                        let new_open = format!("{}>", &open_tag_only[..last_nl]);
-                        let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
-                        if result != whole {
-                            edits.push((child_start, child_end, result));
-                        }
+            if open_tag_only.ends_with('>')
+                && let Some(last_nl) = open_tag_only.rfind('\n')
+            {
+                let after_last_nl = &open_tag_only[last_nl + 1..];
+                // The line before `>` must consist entirely of spaces (the
+                // indent for the non-hug `>` placement).
+                if after_last_nl[..after_last_nl.len() - 1]
+                    .bytes()
+                    .all(|b| b == b' ')
+                {
+                    // Move `>` to hug the last attribute line (remove the
+                    // `\n{spaces}` before `>`). Keep the whitespace between
+                    // `>` and the first child intact (it's element-direct
+                    // whitespace, e.g. tabs).
+                    let trailing_ws = &open[open_tag_only.len()..];
+                    let new_open = format!("{}>", &open_tag_only[..last_nl]);
+                    let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+                    if result != whole {
+                        edits.push((child_start, child_end, result));
                     }
                 }
             }
@@ -4741,4 +4709,73 @@ fn is_html_void_element(tag: &str) -> bool {
             | "track"
             | "wbr"
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rsvelte_core::ast::template::{FragmentMetadata, FragmentType, Text};
+
+    fn make_fragment_with_text(data: &str) -> Fragment {
+        Fragment {
+            node_type: FragmentType::Fragment,
+            nodes: vec![TemplateNode::Text(Text {
+                start: 0,
+                end: data.len() as u32,
+                raw: data.into(),
+                data: data.into(),
+            })],
+            metadata: FragmentMetadata::default(),
+        }
+    }
+
+    fn make_empty_fragment() -> Fragment {
+        Fragment {
+            node_type: FragmentType::Fragment,
+            nodes: vec![],
+            metadata: FragmentMetadata::default(),
+        }
+    }
+
+    #[test]
+    fn fragment_has_prose_word_with_text() {
+        let fragment = make_fragment_with_text("hello world");
+        assert!(fragment_has_prose_word(&fragment));
+    }
+
+    #[test]
+    fn fragment_has_prose_word_empty_text() {
+        // Whitespace-only text node has no prose word
+        let fragment = make_fragment_with_text("   ");
+        assert!(!fragment_has_prose_word(&fragment));
+    }
+
+    #[test]
+    fn fragment_has_prose_word_empty_fragment() {
+        let fragment = make_empty_fragment();
+        assert!(!fragment_has_prose_word(&fragment));
+    }
+
+    #[test]
+    fn is_block_display_standard_elements() {
+        assert!(is_block_display("div"));
+        assert!(is_block_display("p"));
+        assert!(is_block_display("ul"));
+        assert!(is_block_display("h1"));
+        assert!(is_block_display("section"));
+    }
+
+    #[test]
+    fn is_block_display_excludes_script_style() {
+        // script/style are whitespace-preserving in collapse pass, not block-display
+        assert!(!is_block_display("script"));
+        assert!(!is_block_display("style"));
+    }
+
+    #[test]
+    fn is_block_display_excludes_inline_elements() {
+        assert!(!is_block_display("span"));
+        assert!(!is_block_display("a"));
+        assert!(!is_block_display("strong"));
+    }
 }
