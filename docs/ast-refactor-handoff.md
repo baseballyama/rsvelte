@@ -54,6 +54,21 @@
     正しく追加要), 分割代入 LHS パターン(`pattern_to_string`), `bind_directive.rs`(15, 手書き arrow)。
     `expression_converter.rs` の「Unknown」fallback(1851/1856/1866)や literal 逐語保存(217/237/251)は良性で対象外。
     → これらは**集中した専用作業**向き（session 終盤の細切れ grinding より、まとめて慎重に）。
+  - **★★ 決定的知見（2026-06-19 実験、big-bang を大幅 de-risk）★★**: client の最終出力（`js_ast::codegen::generate`
+    の文字列）を **oxc parse → `rsvelte_esrap::print` で再印字**する実験的ポストパスを入れて全 byte-exact suite を測定:
+    **`runtime` 19/19・`compiler_fixtures` 17/17・コーパス 120（NEW 0）すべてバイト一致でパス**（コメント込み）。
+    → **手書き client codegen の出力は、それを再パースして esrap 印字したものと完全にバイト一致**＝
+    codegen は既に esrap を完璧に模倣している。重要な含意:
+    1. **direct-AST 版 Step 3（client visitor が oxc AST を直接構築 → esrap 印字）は一致出力を出すと実証済み**
+       （esrap がターゲットで、codegen が既に esrap と一致するため）。big-bang のリスクは出力一致ではなく**実装量**のみ。
+    2. **コメント位置はクライアントでは問題にならない**（再パース+esrap でも全フィクスチャ一致）。Step 1（コメントストリーム）は
+       サーバの `$$C$$` 除去には要るが、クライアント big-bang のブロッカーではない。
+    実験はコミットせず revert 済み（理由: ポストパスは codegen を**消さず** esrap を上乗せするだけ＝テキスト処理は残り、
+    かつ parse+print 二度手間の **perf 退行**。handoff §non-goals の「perf 退行は profile してから」に反する）。
+    **次セッションの推奨**: この実証を踏まえ、**direct-AST 版 Step 3**（codegen を消して oxc AST 直接構築）を本命として進める。
+    検証は `pnpm run generate-fixtures` 後に `cargo test --release --test runtime --test compiler_fixtures`（byte-exact gate）。
+    なお `cargo test` のターゲット名は `runtime` / `compiler_fixtures` / `compiler_err` 等（`snapshot`/`ssr` という単一ターゲットは無い。
+    ssr は `ssr_*` 個別ファイル）。`svelte_check` bin が時々リンク失敗（既知 flaky）。
   - **最終的な本丸**: client を `js_ast::codegen` から「oxc AST 構築 + `rsvelte_esrap::print`」へ big-bang 切替
     （esrap 出力＝公式コンパイラ準拠なのでフィクスチャは原理上一致するはずだが、**全 byte-exact フィクスチャ + コーパス
     での検証必須**）。Raw 全廃はその前提条件。server 側は `normalize_script_with_oxc` が既に esrap なので、
