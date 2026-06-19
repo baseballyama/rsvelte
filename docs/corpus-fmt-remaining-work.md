@@ -1,5 +1,31 @@
 # Formatter-parity corpus: remaining work (burn-down playbook)
 
+> **Status 2026-06-20 (branch `feat/fmt-corpus-100`, unified corpus incl.
+> bits-ui/flowbite/melt/shadcn, ~9,715 components, oxfmt 0.54.0):
+> 295 → 9 known failures, 0 regressions, 21 documented exclusions**
+> (`compat/corpus/fmt-oracle-excluded.json` + `docs/fmt-oracle-bugs.md`).
+>
+> The 9 remaining are all genuine rsvelte **HTML child-layout** limitations that
+> need the faithful prettier `printChildren` port (`docs/fmt-layout-port-plan.md`
+> Increment 7) — a larger Doc-IR change carrying real regression risk to the
+> ~9,685 passing files, so it is deferred to a dedicated effort rather than
+> rushed. They are:
+>
+> | id | missing mechanism |
+> |---|---|
+> | `flowbite-svelte/.../forms/tags/Tags.svelte` | break a method chain inside a `{#if … .some((t) => … .trim().toLowerCase())}` block-header arrow body |
+> | `flowbite-svelte/.../mega-menu/MegaMenu.svelte` | inline `{#if}` followed by an overflowing `<div>` open tag must break |
+> | `flowbite-svelte/.../drawer/Top.svelte`, `.../popover/Description.svelte` | prose `fill` word-boundary / last-word-overflow tolerance |
+> | `flowbite-svelte/.../text/TextDecoration.svelte`, `.../text/Underline.svelte` | prose `fill` around a trailing inline `</Span>` |
+> | `flowbite-svelte/.../utils/ExampleWrapper.svelte` | inline `{#if}` + `<code>` content break inside `<pre>` context |
+> | `shadcn-svelte/.../theme-customizer-code.svelte`, `.../code-viewer.svelte` | nested inline `<span>` collapse/break inside `<code>` inside `<pre>` |
+>
+> A prior faithful prose-`fill` attempt regressed 16 other files, confirming
+> these need the unified `printChildren` port (separator-first fill + the 4-case
+> assembly), not point patches. The historical narrative below is retained.
+
+---
+
 The formatter-parity track (`scripts/compat-corpus/fmt.mjs` + `fmt-verify.mjs`,
 wired into the `Formatter parity` CI job) formats every `.svelte` _component_ in
 the corpus — sveltejs/svelte + svelte.dev, real files plus ```svelte markdown
