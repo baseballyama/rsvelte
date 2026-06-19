@@ -51,7 +51,7 @@ pub(crate) fn collapse_pure_text_elements(
     // post-pass, so skipping the no-op ones keeps the common case to a single
     // extra parse (or zero, when nothing collapses).
     let mut edits: Vec<(u32, u32, String)> = Vec::new();
-    collect(out, &root.fragment, line_width, options, &mut edits);
+    collect(out, &root.fragment, line_width, false, options, &mut edits);
     let mut result = out.to_string();
     let mut tree = root;
     if !edits.is_empty() {
@@ -464,6 +464,7 @@ fn fill_inline_runs(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    is_block_body: bool,
     edits: &mut Vec<(u32, u32, String)>,
     consumed: &mut Vec<(u32, u32)>,
 ) {
@@ -477,6 +478,19 @@ fn fill_inline_runs(
     // already well-laid-out) we still try reflowing as one run so broken
     // sub-runs (e.g., `<strong>x</strong>\n  {y}` split by the indent pass
     // inside an `{#if}` block body) can collapse back to `<strong>x</strong> {y}`.
+    //
+    // `allow_elem_expr_collapse` controls whether a ws-only single-newline
+    // separator after a phrasing-content inline element can be treated as a
+    // soft break (Doc::Line) so `<strong>x</strong>\n{y}` collapses to one
+    // line when it fits.  This is only permitted for FLOW BLOCK bodies
+    // ({#if}/{#each}/…) whose run covers all non-whitespace content — NOT for
+    // element bodies (`<P>`) where prettier preserves the line break regardless.
+    let has_non_run_block_siblings = nodes.iter().any(|n| {
+        !is_run_member(out, n)
+            && !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+    });
+    let allow_elem_expr_collapse = is_block_body && !has_non_run_block_siblings;
+
     let mut i = 0;
     while i < nodes.len() {
         if !is_run_member(out, &nodes[i]) {
@@ -487,7 +501,7 @@ fn fill_inline_runs(
         while j < nodes.len() && is_run_member(out, &nodes[j]) {
             j += 1;
         }
-        if let Some(edit) = try_fill_run(out, &nodes[i..j], line_width) {
+        if let Some(edit) = try_fill_run(out, &nodes[i..j], line_width, allow_elem_expr_collapse) {
             consumed.push((edit.0, edit.1));
             edits.push(edit);
         }
@@ -496,7 +510,19 @@ fn fill_inline_runs(
 }
 
 /// Reflow one inline-prose run (a node slice) in place when it overflows.
-fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u32, u32, String)> {
+///
+/// `allow_elem_expr_collapse` — when true, a whitespace-only single-newline
+/// separator that immediately follows a content inline element (e.g.
+/// `<strong>x</strong>\n  {y}`) is treated as a soft break (Doc::Line) so the
+/// run can collapse to one line in flat mode.  Pass `true` when the run
+/// covers ALL non-whitespace content of its parent fragment (no block siblings
+/// like `{#if}`/`{#each}` outside the run).
+fn try_fill_run(
+    out: &str,
+    run: &[TemplateNode],
+    line_width: usize,
+    allow_elem_expr_collapse: bool,
+) -> Option<(u32, u32, String)> {
     // Trim whitespace-only edge text nodes — the surrounding layout owns them.
     let mut lo = 0;
     let mut hi = run.len();
@@ -566,7 +592,7 @@ fn try_fill_run(out: &str, run: &[TemplateNode], line_width: usize) -> Option<(u
         return None;
     }
     let indent_cols = indent.width();
-    let content_doc = build_children_doc_nodes(out, run)?;
+    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse)?;
     let base_level = indent_cols / 2;
     // Flat width (a hardline forces multi-line).
     let flat = crate::doc::print(
@@ -918,11 +944,12 @@ fn collect(
     out: &str,
     fragment: &Fragment,
     line_width: usize,
+    is_block_body: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     let mut consumed: Vec<(u32, u32)> = Vec::new();
-    fill_inline_runs(out, fragment, line_width, edits, &mut consumed);
+    fill_inline_runs(out, fragment, line_width, is_block_body, edits, &mut consumed);
     let in_consumed_run =
         |start: u32, end: u32| consumed.iter().any(|&(s, e)| s <= start && end <= e);
     for node in &fragment.nodes {
@@ -1045,7 +1072,7 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &elem.fragment, line_width, options, edits);
+                    collect(out, &elem.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::Component(c) => {
@@ -1092,7 +1119,7 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &c.fragment, line_width, options, edits);
+                    collect(out, &c.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::TitleElement(t) => {
@@ -1116,7 +1143,7 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &t.fragment, line_width, options, edits);
+                    collect(out, &t.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::SlotElement(s) => {
@@ -1149,7 +1176,7 @@ fn collect(
                 {
                     edits.push(edit);
                 } else {
-                    collect(out, &s.fragment, line_width, options, edits);
+                    collect(out, &s.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::SvelteBoundary(s) => {
@@ -1164,7 +1191,7 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &s.fragment, line_width, options, edits);
+                    collect(out, &s.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::SvelteHead(s)
@@ -1172,7 +1199,7 @@ fn collect(
             | TemplateNode::SvelteDocument(s)
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteWindow(s) => {
-                collect(out, &s.fragment, line_width, options, edits)
+                collect(out, &s.fragment, line_width, false, options, edits)
             }
             TemplateNode::SvelteFragment(s) | TemplateNode::SvelteSelf(s) => {
                 if let Some(edit) = try_collapse(
@@ -1195,7 +1222,7 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &s.fragment, line_width, options, edits);
+                    collect(out, &s.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::SvelteComponent(c) => {
@@ -1219,7 +1246,7 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &c.fragment, line_width, options, edits);
+                    collect(out, &c.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::SvelteElement(e) => {
@@ -1243,13 +1270,13 @@ fn collect(
                 ) {
                     edits.push(edit);
                 } else {
-                    collect(out, &e.fragment, line_width, options, edits);
+                    collect(out, &e.fragment, line_width, false, options, edits);
                 }
             }
             TemplateNode::IfBlock(blk) => {
-                collect(out, &blk.consequent, line_width, options, edits);
+                collect(out, &blk.consequent, line_width, true, options, edits);
                 if let Some(alt) = &blk.alternate {
-                    collect(out, alt, line_width, options, edits);
+                    collect(out, alt, line_width, true, options, edits);
                 }
             }
             TemplateNode::EachBlock(blk) => {
@@ -1258,21 +1285,21 @@ fn collect(
                 {
                     edits.push(edit);
                 } else {
-                    collect(out, &blk.body, line_width, options, edits);
+                    collect(out, &blk.body, line_width, true, options, edits);
                 }
                 if let Some(fb) = &blk.fallback {
-                    collect(out, fb, line_width, options, edits);
+                    collect(out, fb, line_width, true, options, edits);
                 }
             }
             TemplateNode::AwaitBlock(blk) => {
                 if let Some(f) = &blk.pending {
-                    collect(out, f, line_width, options, edits);
+                    collect(out, f, line_width, true, options, edits);
                 }
                 if let Some(f) = &blk.then {
-                    collect(out, f, line_width, options, edits);
+                    collect(out, f, line_width, true, options, edits);
                 }
                 if let Some(f) = &blk.catch {
-                    collect(out, f, line_width, options, edits);
+                    collect(out, f, line_width, true, options, edits);
                 }
             }
             TemplateNode::KeyBlock(blk) => {
@@ -1281,10 +1308,15 @@ fn collect(
                 {
                     edits.push(edit);
                 } else {
-                    collect(out, &blk.fragment, line_width, options, edits);
+                    collect(out, &blk.fragment, line_width, true, options, edits);
                 }
             }
-            TemplateNode::SnippetBlock(blk) => collect(out, &blk.body, line_width, options, edits),
+            TemplateNode::SnippetBlock(blk) => {
+                // Snippet bodies are NOT treated as inline-collapse block bodies —
+                // prettier keeps `<span>...</span>\n{value}` on separate lines in
+                // snippet bodies even when they fit on one line. Use false here.
+                collect(out, &blk.body, line_width, false, options, edits)
+            }
             _ => {}
         }
     }
@@ -3090,10 +3122,14 @@ fn try_fill_mixed(
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
 /// whitespace are dropped (the element wrapper owns that newline).
 fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
-    build_children_doc_nodes(out, &fragment.nodes)
+    build_children_doc_nodes(out, &fragment.nodes, false)
 }
 
-fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::doc::Doc> {
+fn build_children_doc_nodes(
+    out: &str,
+    nodes: &[TemplateNode],
+    allow_elem_expr_collapse: bool,
+) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
     let n = nodes.len();
     let mut docs: Vec<Doc> = Vec::new();
@@ -3197,17 +3233,64 @@ fn build_children_doc_nodes(out: &str, nodes: &[TemplateNode]) -> Option<crate::
                     tr = true;
                     ws_prev = true;
                 }
-                let parts = split_text_to_docs(txt, tl, tr);
-                if ws_only {
-                    // Whitespace-only separator (between mustaches / atoms): emit
-                    // the bare `line`(s) so they break with the surrounding
-                    // element group (prettier's `splitTextToDocs` returns a bare
-                    // line here, governed by the parent group's break mode) rather
-                    // than a lone `Fill` that always prints flat.
-                    //
-                    docs.extend(parts);
+                // Special case: when `allow_elem_expr_collapse` is true (the run
+                // covers all non-whitespace content of the parent fragment, meaning
+                // there are no block siblings like `{#if}`/`{#each}` outside the
+                // run), a whitespace-only single-newline separator that immediately
+                // follows a content inline element (prev_inline) can be a soft break
+                // (Doc::Line) instead of a hard break. This lets the enclosing group
+                // collapse the run to one line in flat mode when it fits.
+                //
+                // Example: `<strong>{x}</strong>\n    {feature.endText}` inside an
+                // `{#if}` body — the `\n    ` should be Doc::Line so the two nodes
+                // collapse to `<strong>{x}</strong> {feature.endText}` when the line
+                // fits. This does NOT fire when there are block siblings (e.g.
+                // `<strong>{title}</strong>` before a `{#if}` block) because
+                // `allow_elem_expr_collapse` is false in that case.
+                // A "phrasing content" inline element is one that acts as a
+                // prose carrier (e.g. `<strong>`, `<em>`, `<a>`, `<span>`):
+                // not block-display, not inline-block (button/select/input),
+                // not whitespace-preserving, and has actual content children
+                // (non-void). This mirrors the `prev_is_inline_html` logic
+                // in indent.rs that suppresses space-to-newline conversion
+                // after such elements.
+                let prev_is_phrasing_inline = i > 0
+                    && matches!(&nodes[i - 1], TemplateNode::RegularElement(e)
+                        if !is_block_display(e.name.as_str())
+                            && !is_inline_block(e.name.as_str())
+                            && !is_whitespace_preserving(e.name.as_str())
+                            && !e.fragment.nodes.is_empty());
+                // The following node must NOT be another inline element —
+                // two sibling elements (`<a>home</a>\n<a>about</a>`) stay on
+                // separate lines.  Only collapse when the next node is an
+                // ExpressionTag / HtmlTag / etc. (a non-element inline atom).
+                let next_is_not_element = i + 1 < n
+                    && !matches!(&nodes[i + 1],
+                        TemplateNode::RegularElement(_)
+                            | TemplateNode::Component(_)
+                            | TemplateNode::SlotElement(_));
+                let use_soft_break = allow_elem_expr_collapse
+                    && ws_only
+                    && !trim_left
+                    && !trim_right
+                    && prev_is_phrasing_inline
+                    && next_is_not_element
+                    && txt.chars().filter(|&c| c == '\n').count() == 1;
+                if use_soft_break {
+                    docs.push(Doc::Line);
                 } else {
-                    docs.push(Doc::Fill(parts));
+                    let parts = split_text_to_docs(txt, tl, tr);
+                    if ws_only {
+                        // Whitespace-only separator (between mustaches / atoms): emit
+                        // the bare `line`(s) so they break with the surrounding
+                        // element group (prettier's `splitTextToDocs` returns a bare
+                        // line here, governed by the parent group's break mode) rather
+                        // than a lone `Fill` that always prints flat.
+                        //
+                        docs.extend(parts);
+                    } else {
+                        docs.push(Doc::Fill(parts));
+                    }
                 }
             }
             other if is_inline_regular_element(other) => {
