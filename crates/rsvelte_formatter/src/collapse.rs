@@ -129,6 +129,23 @@ pub(crate) fn collapse_pure_text_elements(
         tree = t;
     }
 
+    // 1.9-th pass: break the open tag of inline/component elements that appear on
+    // an overflowing line with non-whitespace text before them. Example:
+    //   `      Explore … of <span class="font-medium …">`  (>80 cols)
+    // → `      Explore … of <span\n        class="font-medium …"\n      >`
+    // Only fires for elements whose open tag is currently single-line and whose
+    // content has leading whitespace (hug_start=false), to avoid disturbing the
+    // already-correct hug layouts from earlier passes.
+    let mut edits1f: Vec<(u32, u32, String)> = Vec::new();
+    collect_break_inline_open_tag(&result, &tree.fragment, line_width, &mut edits1f);
+    if !edits1f.is_empty() {
+        result = apply_edits(&result, edits1f);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
+
     // Second pass: the hug/break edits above may leave a long expression mustache
     // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
     // Member-chain-break those in place — this can't run in the first pass
@@ -931,6 +948,168 @@ fn collect_break_block_non_ws_prefix(
             }
         }
     }
+}
+
+/// Pass 1.9: break the open tag of inline/component elements that land on an
+/// overflowing line with non-whitespace text before them.
+///
+/// Pattern:
+///   `      Explore … of <span class="font-medium …">`  (>80 cols)
+/// becomes:
+///   `      Explore … of <span\n        class="font-medium …"\n      >`
+///
+/// Only fires when:
+/// - The element has at least one attribute.
+/// - The element's open tag is currently single-line.
+/// - The line containing the element's open `<` overflows the print width.
+/// - There is non-whitespace text before the element on the same line.
+/// - The element's content starts with whitespace (`hug_start=false`).
+///
+/// The broken form uses the line's leading-whitespace as `indent` and
+/// `indent + "  "` as `inner_indent` for attributes.
+fn collect_break_inline_open_tag(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(e) => {
+                if is_whitespace_preserving(e.name.as_str()) {
+                    continue;
+                }
+                // Only inline (non-block) regular elements.
+                if !is_block_display(e.name.as_str())
+                    && let Some(edit) = try_break_inline_open_tag(
+                        out,
+                        e.name.as_str(),
+                        &e.attributes,
+                        e.start,
+                        &e.fragment,
+                        line_width,
+                    )
+                {
+                    edits.push(edit);
+                    // Don't skip recursion: children at higher positions are safe
+                    // because apply_edits processes edits from high→low position.
+                }
+                collect_break_inline_open_tag(out, &e.fragment, line_width, edits);
+            }
+            TemplateNode::Component(c) => {
+                if let Some(edit) = try_break_inline_open_tag(
+                    out,
+                    c.name.as_str(),
+                    &c.attributes,
+                    c.start,
+                    &c.fragment,
+                    line_width,
+                ) {
+                    edits.push(edit);
+                }
+                collect_break_inline_open_tag(out, &c.fragment, line_width, edits);
+            }
+            _ => {
+                for child in child_fragments(node) {
+                    collect_break_inline_open_tag(out, child, line_width, edits);
+                }
+            }
+        }
+    }
+}
+
+/// Try to break the open tag of an inline/component element whose line overflows
+/// and has non-whitespace text before it. Returns `None` when the conditions
+/// are not met or the element is already correctly broken.
+fn try_break_inline_open_tag(
+    out: &str,
+    tag: &str,
+    attrs: &[rsvelte_core::ast::template::Attribute],
+    elem_start: u32,
+    fragment: &Fragment,
+    line_width: usize,
+) -> Option<(u32, u32, String)> {
+    // Must have attributes to break.
+    if attrs.is_empty() {
+        return None;
+    }
+    // Must have at least one child so we can locate the end of the open tag
+    // (the `>` is immediately followed by the first child's start position).
+    let first = fragment.nodes.first()?;
+    let open_tag_end = node_start(first) as usize;
+
+    // Get the open tag text (from `<` to just after `>`).
+    let open_tag = out.get(elem_start as usize..open_tag_end)?;
+
+    // Open tag must be single-line (not already broken) and end with `>`.
+    if open_tag.contains('\n') || !open_tag.ends_with('>') {
+        return None;
+    }
+
+    // Check the line containing the element's opening `<`.
+    let elem_start_usize = elem_start as usize;
+    let line_start = out[..elem_start_usize].rfind('\n').map_or(0, |i| i + 1);
+    // Line end: find the next `\n` starting from after the open tag.
+    let line_end = out[open_tag_end..]
+        .find('\n')
+        .map_or(out.len(), |i| open_tag_end + i);
+    let line = out.get(line_start..line_end)?;
+
+    // Line must overflow.
+    if line.width() <= line_width {
+        return None;
+    }
+
+    // There must be non-whitespace text before the element on this line.
+    let before = out.get(line_start..elem_start_usize)?;
+    if before.is_empty() || before.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None; // element is at line start — not our target
+    }
+
+    // Only handle hug_start=false: content must start with whitespace.
+    // When content starts directly (no leading whitespace), the hug pattern is
+    // more complex and is deferred to avoid regressions.
+    let first_content = out.get(open_tag_end..node_end(first) as usize)?;
+    if !first_content.starts_with([' ', '\t', '\r', '\n']) {
+        return None; // hug_start=true — skip for now
+    }
+
+    // Extract leading whitespace of the line as the base indent for the tag.
+    let ws_end = before
+        .char_indices()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(before.len(), |(i, _)| i);
+    let indent = &before[..ws_end];
+    let inner_indent = format!("{indent}  ");
+
+    // Collect attribute texts; bail on any multi-line attribute.
+    let mut attr_texts: Vec<&str> = Vec::with_capacity(attrs.len());
+    for attr in attrs {
+        let (as_, ae) = attribute_span(attr);
+        let atext = out.get(as_ as usize..ae as usize)?;
+        if atext.contains('\n') {
+            return None;
+        }
+        attr_texts.push(atext);
+    }
+
+    // Build the broken open tag:
+    //   <tag
+    //     attr1
+    //     attr2
+    //   >
+    let mut broken = format!("<{tag}");
+    for atext in &attr_texts {
+        broken.push('\n');
+        broken.push_str(&inner_indent);
+        broken.push_str(atext);
+    }
+    broken.push('\n');
+    broken.push_str(indent);
+    broken.push('>');
+
+    // Only emit if different from the current open tag.
+    (broken != open_tag).then_some((elem_start, open_tag_end as u32, broken))
 }
 
 /// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
@@ -3943,31 +4122,31 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
             .all(|n| matches!(n, TemplateNode::Text(_)))
     {
         if let (Some(first), Some(last)) = (e.fragment.nodes.first(), e.fragment.nodes.last()) {
-                let elem_start = e.start as usize;
-                let elem_end = e.end as usize;
-                let content_start = node_start(first) as usize;
-                let content_end = node_end(last) as usize;
-                let open = out.get(elem_start..content_start)?;
-                let content = out.get(content_start..content_end)?;
-                let close_tag = out.get(content_end..elem_end)?;
-                // Only simple single-line hugged content (no whitespace edges).
-                if !open.contains('\n')
-                    && !content.contains('\n')
-                    && open.ends_with('>')
-                    && close_tag.starts_with("</")
-                    && close_tag.ends_with('>')
-                    && !content.starts_with([' ', '\t', '\r', '\n'])
-                    && !content.ends_with([' ', '\t', '\r', '\n'])
-                {
-                    // Everything except the final `>` of the close tag.
-                    let without_final_gt =
-                        format!("{open}{content}{}", &close_tag[..close_tag.len() - 1]);
-                    return Some(Doc::Group(vec![
-                        Doc::Text(without_final_gt),
-                        Doc::Softline,
-                        Doc::Text(">".to_string()),
-                    ]));
-                }
+            let elem_start = e.start as usize;
+            let elem_end = e.end as usize;
+            let content_start = node_start(first) as usize;
+            let content_end = node_end(last) as usize;
+            let open = out.get(elem_start..content_start)?;
+            let content = out.get(content_start..content_end)?;
+            let close_tag = out.get(content_end..elem_end)?;
+            // Only simple single-line hugged content (no whitespace edges).
+            if !open.contains('\n')
+                && !content.contains('\n')
+                && open.ends_with('>')
+                && close_tag.starts_with("</")
+                && close_tag.ends_with('>')
+                && !content.starts_with([' ', '\t', '\r', '\n'])
+                && !content.ends_with([' ', '\t', '\r', '\n'])
+            {
+                // Everything except the final `>` of the close tag.
+                let without_final_gt =
+                    format!("{open}{content}{}", &close_tag[..close_tag.len() - 1]);
+                return Some(Doc::Group(vec![
+                    Doc::Text(without_final_gt),
+                    Doc::Softline,
+                    Doc::Text(">".to_string()),
+                ]));
+            }
         }
     }
     let span = out.get(node_start(node) as usize..node_end(node) as usize)?;

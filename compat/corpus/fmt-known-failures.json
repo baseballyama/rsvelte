@@ -10,7 +10,6 @@
 	"flowbite-svelte/src/routes/docs-examples/components/timeline/TimelineColor.svelte",
 	"flowbite-svelte/src/routes/docs-examples/typography/text/TextDecoration.svelte",
 	"flowbite-svelte/src/routes/docs-examples/typography/text/Underline.svelte",
-	"flowbite-svelte/src/routes/landing/Components.svelte",
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte",
