@@ -1583,26 +1583,38 @@ pub(crate) fn format_function_binding(
         }));
     }
 
-    // Broken form: each member on its own line, indented one level, braces on
-    // their own lines. The caller's open-tag rewrite re-indents these
-    // continuation lines out to the attribute column.
+    // Broken form: braces on their own lines.  prettier-plugin-svelte first tries
+    // to fit ALL members on a single intermediate line — e.g.
+    //   `bind:checked={\n  getter, setter\n}`.
+    // Only if the combined members line overflows does it fall back to one member
+    // per line.  Check: does `inline` fit at the inner indent level?
     let one_level = if options.js.indent_style.is_tab() {
         "\t".to_string()
     } else {
         " ".repeat(indent_width)
     };
+    let inner_indent_cols = (attr_depth + 1) * indent_width;
+    let inline_on_one_line =
+        !any_multiline && inner_indent_cols + UnicodeWidthStr::width(inline.as_str()) <= line_width;
+
     // When there is a leading block comment, include it on the first line.
     let mut out = if let Some((comment, _)) = leading_block_comment {
         format!("{{{comment}\n")
     } else {
         String::from("{\n")
     };
-    for (i, m) in members.iter().enumerate() {
-        out.push_str(&crate::reindent::reindent(m, &one_level, false));
-        if i + 1 < members.len() {
-            out.push(',');
-        }
+    if inline_on_one_line && leading_block_comment.is_none() {
+        // All members fit on one line inside the braces.
+        out.push_str(&crate::reindent::reindent(&inline, &one_level, false));
         out.push('\n');
+    } else {
+        for (i, m) in members.iter().enumerate() {
+            out.push_str(&crate::reindent::reindent(m, &one_level, false));
+            if i + 1 < members.len() {
+                out.push(',');
+            }
+            out.push('\n');
+        }
     }
     out.push('}');
     Ok(Some(out))

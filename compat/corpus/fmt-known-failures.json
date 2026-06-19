@@ -29,7 +29,6 @@
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/playground/(components)/code-viewer.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-faceted-filter.svelte",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-view-options.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
 	"svelte/packages/svelte/tests/print/samples/formatting/input.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/samples/html-tag-script-2/main.svelte",
