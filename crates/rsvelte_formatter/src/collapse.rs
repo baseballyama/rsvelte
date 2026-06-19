@@ -649,17 +649,38 @@ fn try_fill_run(
     // The run must start at the beginning of its line so its column = that line's
     // indentation (all whitespace); otherwise we can't safely reflow it (a
     // non-whitespace prefix means the run is mid-line and we can't compute
-    // base_level for multi-line reflow). Exception: when the prefix ends with `>`
-    // (the text immediately follows a close tag on the same line), we still allow
-    // the flat-form collapse — if the whole run fits on one line the edit is safe
-    // regardless of what precedes it. Multi-line reflow is skipped in that case.
+    // base_level for multi-line reflow).
+    //
+    // Exception 1: when the prefix ends with `>` (text immediately follows a close
+    // tag on the same line with no space), we allow flat-form collapse. If the whole
+    // run fits on one line the edit is safe regardless of what precedes it.
+    //
+    // Exception 2: when the prefix ends with `> ` (close tag + trailing space), e.g.
+    // `  </Span> tools, so…` or `    > for Flowbite…`. In this case we can derive
+    // `base_level` from the leading-whitespace portion of the indent (before the `>`),
+    // and the visual column where the text begins is `indent_cols`. This allows both
+    // flat-form collapse AND multi-line reflow for text that follows a close tag.
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
     let non_ws_prefix = !indent.is_empty() && !indent.bytes().all(|b| b == b' ' || b == b'\t');
-    if non_ws_prefix && !indent.ends_with('>') {
+    // A "close-tag prefix" ends with `>` or `> ` — we can safely derive base_level
+    // from the leading whitespace (everything before the `>` or `</tag>` tail).
+    let is_close_tag_prefix =
+        non_ws_prefix && (indent.ends_with('>') || indent.ends_with("> "));
+    if non_ws_prefix && !is_close_tag_prefix {
         return None;
     }
     let indent_cols = indent.width();
+    // For close-tag prefixes, derive base_level from just the whitespace bytes
+    // before the `>` or `> ` tail, not from indent_cols (which includes the tag
+    // characters). This ensures continuation lines align with the parent element's
+    // indentation rather than the visual column of the close tag.
+    let base_level = if is_close_tag_prefix {
+        let ws_len = indent.bytes().take_while(|&b| b == b' ' || b == b'\t').count();
+        ws_len / 2
+    } else {
+        indent_cols / 2
+    };
     // Use word-first fill format only when the source `whole` is already
     // multi-line (contains a newline). For single-line sources the
     // separator-first format is correct: prettier's fill keeps the last word
@@ -673,7 +694,6 @@ fn try_fill_run(
     // sources get the right reflowed layout.
     let use_word_first = whole.contains('\n');
     let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
-    let base_level = indent_cols / 2;
     // Flat width (a hardline forces multi-line).
     let flat = crate::doc::print(
         crate::doc::Doc::Group(vec![content_doc.clone()]),
@@ -689,9 +709,9 @@ fn try_fill_run(
         // flat text rather than leaving the broken input untouched.
         return (flat != whole).then_some((s as u32, e as u32, flat));
     }
-    // If the prefix was non-whitespace (e.g. text after `></span>`) and the flat
-    // form doesn't fit, we cannot safely compute base_level for multi-line reflow.
-    if non_ws_prefix {
+    // If the prefix was non-whitespace and NOT a recognized close-tag prefix
+    // (`>` or `> `), we cannot safely compute base_level for multi-line reflow.
+    if non_ws_prefix && !is_close_tag_prefix {
         return None;
     }
     // A pure-text run (no inline elements) that is already on a single line
