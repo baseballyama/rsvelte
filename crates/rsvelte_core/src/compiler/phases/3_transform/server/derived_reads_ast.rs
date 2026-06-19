@@ -14,12 +14,18 @@
 //! - member property `obj.foo` / object key `{ foo: … }` / declaration name
 //!   `let foo` are `IdentifierName` / `BindingIdentifier`, never visited by
 //!   `visit_identifier_reference`.
-//! - assignment targets (`foo = x`), update args (`foo++`), member bases
-//!   (`foo.x`), ternary arms, and spread (`...foo`) all surface as
-//!   `IdentifierReference` and are wrapped — matching the scanner, which wraps
-//!   them too (the `foo() = x` / `foo()++` intermediates are fixed by the
-//!   downstream `rewrite_derived_assignments` / `rewrite_derived_update_expressions`
-//!   text passes, left unchanged by this PR).
+//! - assignment targets (`foo = x`) and member bases (`foo.x`), ternary arms,
+//!   and spread (`...foo`) all surface as `IdentifierReference` and are wrapped
+//!   — matching the scanner, which wraps them too (the `foo() = x` intermediate
+//!   is fixed by the downstream `rewrite_derived_assignments` text pass, left
+//!   unchanged by this PR).
+//! - update expressions (`foo++` / `--foo`) on a plain derived are lowered to
+//!   the server helper directly here (`$.update_derived(foo)` /
+//!   `$.update_derived_pre(foo)`), in the same pass and over the *original
+//!   valid* script. The previous textual pass (`rewrite_derived_update_expressions`)
+//!   scanned the post-wrap intermediate `foo()++` — which is not valid JS (a
+//!   call is not an assignment target) and so cannot be re-parsed — and now
+//!   runs only on the byte-scanner fallback path. See `visit_update_expression`.
 //! - shadowing is resolved by scope: a reference binding to an inner scope is
 //!   left alone.
 //! - template-literal interpolations are ordinary sub-expressions in the AST,
@@ -199,6 +205,58 @@ impl<'a, 'sem, 'ast> Visit<'ast> for DerivedReadCollector<'a, 'sem> {
         // wrapped by `visit_identifier_reference` during the walk below.
         walk::walk_call_expression(self, call);
     }
+
+    fn visit_update_expression(&mut self, update: &UpdateExpression<'ast>) {
+        // Svelte 5.53.2 (upstream `6aa7b9c64` "fix: update expressions on server
+        // deriveds"): `count++` / `--count` on a derived must lower to the
+        // `$.update_derived(count)` / `$.update_derived_pre(count)` helpers.
+        //
+        // This is done here, in the read-wrapping pass over the *original valid*
+        // script, rather than in the old downstream `rewrite_derived_update_expressions`
+        // text scan: that scan ran on the post-wrap intermediate `count()++`,
+        // which is not valid JS (the operand of `++` must be a reference, not a
+        // call), so it could never be re-parsed into an AST. Over the raw script
+        // a bare derived update is `UpdateExpression { argument:
+        // AssignmentTargetIdentifier }`.
+        //
+        // We mirror the text scan's match set exactly so the swap is byte-identical:
+        // only a plain derived declared in *this* script (`derived_names`, never
+        // `extra_derived`) and not `var`-declared (those read as `count?.()`,
+        // which the scanner required to be plain `()` and so left untouched) is
+        // lowered; a shadowed inner binding is left to the normal walk.
+        if let SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &update.argument {
+            let name = id.name.as_str();
+            if self.derived_names.contains(name)
+                && !self.derived_var_names.contains(name)
+                && !self.is_shadowed(id)
+            {
+                let helper = if update.prefix {
+                    "$.update_derived_pre"
+                } else {
+                    "$.update_derived"
+                };
+                // `--` decrements via a `, -1` second argument (upstream
+                // `b.call(helper, node, op === '--' && b.literal(-1))`).
+                let neg = if update.operator == UpdateOperator::Decrement {
+                    ", -1"
+                } else {
+                    ""
+                };
+                self.edits.push((
+                    update.span.start,
+                    update.span.end,
+                    format!("{helper}({name}{neg})"),
+                ));
+                // The argument identifier becomes the bare helper arg — do not
+                // also wrap it as a read. Returning without walking leaves it
+                // unvisited; the skip-span is belt-and-suspenders for any future
+                // re-walk.
+                self.skip_spans.insert(id.span.start);
+                return;
+            }
+        }
+        walk::walk_update_expression(self, update);
+    }
 }
 
 #[cfg(test)]
@@ -311,6 +369,67 @@ mod tests {
         )
         .unwrap();
         assert_eq!(out, "let x = d() + 1;");
+    }
+
+    #[test]
+    fn lowers_postfix_update() {
+        assert_eq!(
+            wrap("count++;", &["count"]).unwrap(),
+            "$.update_derived(count);"
+        );
+        assert_eq!(
+            wrap("count--;", &["count"]).unwrap(),
+            "$.update_derived(count, -1);"
+        );
+    }
+
+    #[test]
+    fn lowers_prefix_update() {
+        assert_eq!(
+            wrap("++count;", &["count"]).unwrap(),
+            "$.update_derived_pre(count);"
+        );
+        assert_eq!(
+            wrap("--count;", &["count"]).unwrap(),
+            "$.update_derived_pre(count, -1);"
+        );
+    }
+
+    #[test]
+    fn update_in_expression_context() {
+        // The derived update lowers; the surrounding `let x =` read context is
+        // untouched (an UpdateExpression is not itself a derived read).
+        assert_eq!(
+            wrap("let x = count++;", &["count"]).unwrap(),
+            "let x = $.update_derived(count);"
+        );
+    }
+
+    #[test]
+    fn update_on_var_derived_left_to_read_wrap() {
+        // `var`-declared deriveds read as `count?.()`; the old text scanner only
+        // matched plain `()` and left the update untouched — reproduce that by
+        // falling through to the read wrap (`count?.()++`).
+        let out = wrap_derived_reads_ast(
+            "count++;",
+            &names(&["count"]),
+            &names(&["count"]),
+            &FxHashSet::default(),
+        )
+        .unwrap();
+        assert_eq!(out, "count?.()++;");
+    }
+
+    #[test]
+    fn update_on_shadowed_binding_left_alone() {
+        assert!(wrap("function f(count) { count++; }", &["count"]).is_none());
+    }
+
+    #[test]
+    fn update_on_member_target_wraps_base_only() {
+        // `obj.count++` — `count` is a property, but a derived `obj` base is
+        // still wrapped as a read via the normal walk.
+        assert_eq!(wrap("obj.count++;", &["obj"]).unwrap(), "obj().count++;");
     }
 
     #[test]
