@@ -2794,7 +2794,7 @@ fn starts_with_array_or_object_literal(formatted: &str) -> bool {
 /// 4. Joining with spaces / no separator as appropriate.
 ///
 /// Example input:
-/// ```
+/// ```text
 /// [
 ///   { label: "Today", value: 0 },
 ///   { label: "Tomorrow", value: 1 },

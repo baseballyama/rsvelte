@@ -2652,7 +2652,7 @@ fn split_open_tag_attrs(attrs: &str) -> Vec<&str> {
 ///
 /// Example: `<pre class="language-svelte !-mt-2 mb-0">{processedCode}</pre>` at
 /// column 10 (85 chars total) →
-/// ```
+/// ```text
 ///   <pre
 ///     class="language-svelte !-mt-2 mb-0">{processedCode}</pre>
 /// ```
@@ -2785,7 +2785,7 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
 ///
 /// **A — one-liner overflows**: `<code id="x">long content` → insert
 /// `\n{gt_indent}` before the `>` of the open tag:
-/// ```
+/// ```text
 ///     <pre><code id="x"
 ///             >long content
 /// ```
@@ -2794,7 +2794,7 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
 /// its own line (the default for non-block elements whose content starts with
 /// whitespace). Inside `<pre>` that is wrong — a newline before the content
 /// would inject significant whitespace. Convert to hug form:
-/// ```
+/// ```text
 ///     <pre><code
 ///         id="x"
 ///         class="y">raw content
