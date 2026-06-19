@@ -88,5 +88,20 @@
 		"id": "svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt collapses whitespace-significant <textarea> content (multi-line garbage + split close-tags) onto one line, destroying whitespace the textarea would render; same class as textarea-content/textarea-value-children. rsvelte preserves the content."
+	},
+	{
+		"id": "flowbite-svelte/src/routes/docs-examples/components/timeline/TimelineColor.svelte",
+		"class": "engine-divergence",
+		"reason": "oxc vs prettier ternary line-break granularity: in a long class= the oracle breaks the ternary CONDITION at === while oxc either keeps === together or breaks every nested condition. JS-engine choice (rsvelte uses oxc by design); not width-fixable. Upstream oxc-alignment item."
+	},
+	{
+		"id": "flowbite-svelte/src/routes/blocks/utils/GitHubSourceList.svelte",
+		"class": "engine-divergence",
+		"reason": "oxc vs prettier IIFE break point: oracle breaks the arrow PARAMETER list ((\n rootDir,\n) => ...), oxc breaks the IIFE CALL argument. Both valid; JS-engine choice. Upstream oxc-alignment item."
+	},
+	{
+		"id": "flowbite-svelte/src/routes/builder/range/+page.svelte",
+		"class": "engine-divergence",
+		"reason": "oxc vs prettier template-literal ${} substitution indentation inside <script> (ternary indented 8/10 spaces by the oracle vs 4/6 by oxc). JS-engine formatting of the script body; rsvelte delegates to oxc_formatter. Upstream oxc-alignment item."
 	}
 ]

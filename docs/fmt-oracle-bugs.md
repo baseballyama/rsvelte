@@ -277,6 +277,29 @@ compiler correctly rejects or formats differently.
 
 ---
 
+## OXC-vs-prettier JS engine divergences (upstream oxc-alignment opportunities)
+
+These are **not** oracle bugs and **not** rsvelte logic bugs: they are cases
+where the embedded-JS formatter rsvelte uses (the `oxc_formatter` crate, by
+architectural design — for the 100x-perf and oxc-integration goals) makes a
+different but equally-valid line-break choice than the oracle's prettier-based
+JS printer. Reproducing them in rsvelte would require either abandoning oxc or
+post-processing oxc's output with fragile prettier-mimicking string surgery
+(explicitly avoided). The right long-term fix is to align `oxc_formatter`'s
+break heuristics with prettier upstream; until then these are excluded with
+`"class": "engine-divergence"`.
+
+| Id | Divergence |
+|---|---|
+| `flowbite-svelte/.../timeline/TimelineColor.svelte` | In a long `class="…{cond ? a : b}"`, the oracle breaks the ternary **condition** at `===` (`status ===\n 'completed'`); oxc either keeps `===` together or breaks every nested condition. Ternary-break granularity differs. |
+| `flowbite-svelte/.../blocks/utils/GitHubSourceList.svelte` | An IIFE `((rootDir) => …)(arg)`: the oracle breaks the arrow **parameter list** (`((\n rootDir,\n) => …)`), oxc breaks the IIFE **call argument**. |
+| `flowbite-svelte/.../builder/range/+page.svelte` | Template-literal `${}` substitution indentation inside `<script>`: the oracle indents a ternary inside `${ … }` two levels deeper than oxc. |
+
+Filing target: `oxc_formatter` (the break-point heuristics for conditional
+expressions, IIFE/arrow parameter lists, and template-literal substitutions).
+
+---
+
 ## Exclusion mechanism
 
 The exclusion list is loaded by `scripts/compat-corpus/fmt-verify.mjs` from
@@ -293,5 +316,5 @@ prints:
   avoided).
 
 To add a new exclusion, append an entry to `fmt-oracle-excluded.json` with
-`"id"`, `"class"` (`"oracle-bug"` | `"invalid-input"` | `"migrate"`), and
-`"reason"` fields.
+`"id"`, `"class"` (`"oracle-bug"` | `"invalid-input"` | `"migrate"` |
+`"engine-divergence"`), and `"reason"` fields.

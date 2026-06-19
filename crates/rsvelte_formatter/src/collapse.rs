@@ -277,8 +277,7 @@ fn reformat_pre_inner(
     // width and the outer re-indent will shift everything anyway).
     let formatted = {
         let sub_root_pre = parse(formatted, ParseOptions::default()).ok()?;
-        let pre_fix_edits =
-            fix_pre_child_hug_only(formatted, &sub_root_pre.fragment);
+        let pre_fix_edits = fix_pre_child_hug_only(formatted, &sub_root_pre.fragment);
         if pre_fix_edits.is_empty() {
             formatted.to_string()
         } else {
@@ -673,8 +672,7 @@ fn try_fill_run(
     // correctly breaks at the first word that doesn't fit, so multi-line
     // sources get the right reflowed layout.
     let use_word_first = whole.contains('\n');
-    let content_doc =
-        build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
+    let content_doc = build_children_doc_nodes(out, run, allow_elem_expr_collapse, use_word_first)?;
     let base_level = indent_cols / 2;
     // Flat width (a hardline forces multi-line).
     let flat = crate::doc::print(
@@ -2936,10 +2934,8 @@ fn try_fix_pre_child_open_tags(
                         // `>` and the first child intact (it's element-direct
                         // whitespace, e.g. tabs).
                         let trailing_ws = &open[open_tag_only.len()..];
-                        let new_open =
-                            format!("{}>", &open_tag_only[..last_nl]);
-                        let result =
-                            format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
+                        let new_open = format!("{}>", &open_tag_only[..last_nl]);
+                        let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
                         if result != whole {
                             edits.push((child_start, child_end, result));
                         }
