@@ -194,14 +194,15 @@ fn transform_script_content_inner(
     // `rewrite_derived_update_expressions` text scan ran on the invalid post-wrap
     // intermediate `name()++`; it now survives only inside the byte-scanner
     // fallback in `wrap_derived_reads_in_script`.
+    //
+    // It likewise lowers derived *assignments* (`likes = x` → `likes(x)`,
+    // compound/logical operators expanding via `build_assignment_value` —
+    // `likes += 1` → `likes(likes() + 1)`, `flag &&= x` → `flag(flag() && x)`;
+    // upstream `AssignmentExpression.js`) in the same AST walk — see
+    // `derived_reads_ast::visit_assignment_expression`. The old downstream
+    // `rewrite_derived_assignments` text scan ran on the invalid post-wrap
+    // intermediate `likes() = x`; it now survives only inside that fallback.
     let script = wrap_derived_reads_in_script(&script, extra_derived);
-    // Assignments to deriveds become setter calls on the server (upstream
-    // `AssignmentExpression.js` server visitor): `likes = x` → `likes(x)`,
-    // and compound operators expand via `build_assignment_value` —
-    // `likes += 1` → `likes(likes() + 1)`, `flag &&= x` → `flag(flag() && x)`.
-    // After `wrap_derived_reads_in_script` the LHS read is already `likes()`,
-    // so we rewrite the `likes() <op>= rhs` shape here.
-    let script = rewrite_derived_assignments(&script);
     // Svelte 5.55.5 (upstream `b771df3`): `$derived(<bare_derived>)` should
     // emit `$.derived(<bare_derived>)` directly (no thunk), because the
     // server runtime treats a derived passed in this slot as a re-callable
@@ -1872,10 +1873,12 @@ fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>)
         i = next;
     }
     // The AST path (above, `wrap_derived_reads_ast`) lowers derived update
-    // expressions in-pass; this byte-scanner fallback only wraps reads, so apply
-    // the textual `name()++` → `$.update_derived(name)` rewrite here to keep the
+    // expressions and assignments in-pass; this byte-scanner fallback only wraps
+    // reads, so apply the textual `name()++` → `$.update_derived(name)` and
+    // `name() = rhs` → `name(rhs)` rewrites here (in pipeline order) to keep the
     // two paths byte-identical.
-    rewrite_derived_update_expressions(&out)
+    let out = rewrite_derived_update_expressions(&out);
+    rewrite_derived_assignments(&out)
 }
 
 /// True when an identifier at byte range `[start, end)` is in object-literal
@@ -2198,6 +2201,13 @@ fn rewrite_derived_update_expressions(script: &str) -> String {
 }
 
 /// Rewrite assignments to derived bindings into setter calls.
+///
+/// **Fallback only.** The primary path lowers derived assignments structurally
+/// in `derived_reads_ast::wrap_derived_reads_ast` (over the original valid AST);
+/// this textual scan now runs solely on the byte-scanner fallback in
+/// `wrap_derived_reads_in_script`, taken only when the intermediate script fails
+/// to parse as a standalone module. Slated for removal with that fallback
+/// (Step 5).
 ///
 /// Mirrors the upstream server `AssignmentExpression.js` visitor: when the
 /// assignment target is a bare identifier whose binding is a derived

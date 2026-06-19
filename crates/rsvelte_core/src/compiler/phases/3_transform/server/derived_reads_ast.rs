@@ -14,18 +14,21 @@
 //! - member property `obj.foo` / object key `{ foo: … }` / declaration name
 //!   `let foo` are `IdentifierName` / `BindingIdentifier`, never visited by
 //!   `visit_identifier_reference`.
-//! - assignment targets (`foo = x`) and member bases (`foo.x`), ternary arms,
-//!   and spread (`...foo`) all surface as `IdentifierReference` and are wrapped
-//!   — matching the scanner, which wraps them too (the `foo() = x` intermediate
-//!   is fixed by the downstream `rewrite_derived_assignments` text pass, left
-//!   unchanged by this PR).
+//! - member bases (`foo.x`), ternary arms, and spread (`...foo`) all surface as
+//!   `IdentifierReference` and are wrapped — matching the scanner, which wraps
+//!   them too.
 //! - update expressions (`foo++` / `--foo`) on a plain derived are lowered to
 //!   the server helper directly here (`$.update_derived(foo)` /
-//!   `$.update_derived_pre(foo)`), in the same pass and over the *original
-//!   valid* script. The previous textual pass (`rewrite_derived_update_expressions`)
-//!   scanned the post-wrap intermediate `foo()++` — which is not valid JS (a
-//!   call is not an assignment target) and so cannot be re-parsed — and now
-//!   runs only on the byte-scanner fallback path. See `visit_update_expression`.
+//!   `$.update_derived_pre(foo)`); see `visit_update_expression`.
+//! - assignments to a derived (`foo = x` → `foo(x)`, `foo += 1` →
+//!   `foo(foo() + 1)`) are lowered to setter calls here; see
+//!   `visit_assignment_expression`.
+//!   Both update and assignment lowering happen in this same pass and over the
+//!   *original valid* script. The previous textual passes
+//!   (`rewrite_derived_update_expressions` / `rewrite_derived_assignments`)
+//!   scanned the post-wrap intermediates `foo()++` / `foo() = x` — which are not
+//!   valid JS (a call is not an assignment target) and so cannot be re-parsed —
+//!   and now run only on the byte-scanner fallback path.
 //! - shadowing is resolved by scope: a reference binding to an inner scope is
 //!   left alone.
 //! - template-literal interpolations are ordinary sub-expressions in the AST,
@@ -43,7 +46,7 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 use rustc_hash::FxHashSet;
 
 use super::super::shared::ast_rewrite;
@@ -257,6 +260,55 @@ impl<'a, 'sem, 'ast> Visit<'ast> for DerivedReadCollector<'a, 'sem> {
         }
         walk::walk_update_expression(self, update);
     }
+
+    fn visit_assignment_expression(&mut self, assign: &AssignmentExpression<'ast>) {
+        // Assignments to a derived become setter calls on the server (upstream
+        // `AssignmentExpression.js` server visitor): `likes = x` → `likes(x)`,
+        // compound operators expand via `build_assignment_value` —
+        // `likes += 1` → `likes(likes() + 1)`, `flag &&= x` → `flag(flag() && x)`.
+        //
+        // Done here, in the read-wrapping pass over the *original valid* script,
+        // rather than in the old downstream `rewrite_derived_assignments` text
+        // scan: that scan ran on the post-wrap intermediate `likes() = x`, which
+        // is not valid JS (a call is not an assignment target) and so could never
+        // be re-parsed. Over the raw script a bare derived assignment is
+        // `AssignmentExpression { left: AssignmentTargetIdentifier }`.
+        //
+        // Expressed as non-overlapping edits so the RHS keeps its own read-wrap
+        // edits: skip the LHS identifier (it stays the bare setter callee),
+        // replace the `op=` gap (`left.end .. right.start`) with `(` (plain `=`)
+        // or `(likes() <binop> ` (compound), and append `)` after the RHS. Nested
+        // `a = b = 1` resolves because the inner assignment is rewritten on the
+        // walk, its inserts coexisting with the outer's. Whitespace around the
+        // operator is collapsed exactly as the text pass did.
+        if let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left {
+            let name = id.name.as_str();
+            // Mirror the text pass: only a plain derived declared in this script
+            // (`derived_names`, never `extra_derived`), not shadowed. Unlike the
+            // update scan, `var`-declared deriveds ARE handled (the text scan's
+            // `maybe_call` branch matched `name?.()` too) — `suffix()` picks the
+            // right read form.
+            if self.derived_names.contains(name) && !self.is_shadowed(id) {
+                // The LHS becomes the bare setter callee — do not wrap it as a read.
+                self.skip_spans.insert(id.span.start);
+                let gap = if assign.operator == AssignmentOperator::Assign {
+                    "(".to_string()
+                } else {
+                    // `op=` → `(name<read> <op-without-`=`> ` (build_assignment_value).
+                    let op = assign.operator.as_str();
+                    let binop = &op[..op.len() - 1];
+                    format!("({}{} {} ", name, self.suffix(name), binop)
+                };
+                let rhs_span = assign.right.span();
+                self.edits.push((id.span.end, rhs_span.start, gap));
+                self.edits
+                    .push((rhs_span.end, rhs_span.end, ")".to_string()));
+            }
+        }
+        // Walk so RHS reads / nested derived assignments are rewritten; the LHS
+        // identifier (if claimed above) is left alone via `skip_spans`.
+        walk::walk_assignment_expression(self, assign);
+    }
 }
 
 #[cfg(test)]
@@ -326,10 +378,76 @@ mod tests {
     }
 
     #[test]
-    fn wraps_assignment_lhs() {
-        // Matches the scanner: produces the `count() = 1` intermediate that
-        // `rewrite_derived_assignments` later fixes to `count(1)`.
-        assert_eq!(wrap("count = 1;", &["count"]).unwrap(), "count() = 1;");
+    fn lowers_simple_assignment() {
+        // The whole assignment lowers to a setter call directly (previously the
+        // pass produced `count() = 1` and a downstream text pass fixed it).
+        assert_eq!(wrap("count = 1;", &["count"]).unwrap(), "count(1);");
+    }
+
+    #[test]
+    fn lowers_compound_assignment() {
+        assert_eq!(
+            wrap("count += 1;", &["count"]).unwrap(),
+            "count(count() + 1);"
+        );
+        assert_eq!(
+            wrap("count -= other;", &["count", "other"]).unwrap(),
+            "count(count() - other());"
+        );
+    }
+
+    #[test]
+    fn lowers_logical_assignment() {
+        assert_eq!(
+            wrap("flag &&= x;", &["flag"]).unwrap(),
+            "flag(flag() && x);"
+        );
+        assert_eq!(
+            wrap("flag ??= x;", &["flag"]).unwrap(),
+            "flag(flag() ?? x);"
+        );
+    }
+
+    #[test]
+    fn lowers_nested_assignment() {
+        assert_eq!(wrap("a = b = 1;", &["a", "b"]).unwrap(), "a(b(1));");
+    }
+
+    #[test]
+    fn assignment_wraps_rhs_reads() {
+        // `count = other` — the RHS read of another derived is still wrapped.
+        assert_eq!(
+            wrap("count = other;", &["count", "other"]).unwrap(),
+            "count(other());"
+        );
+    }
+
+    #[test]
+    fn assignment_on_var_derived_uses_maybe_call_read() {
+        let out = wrap_derived_reads_ast(
+            "count += 1;",
+            &names(&["count"]),
+            &names(&["count"]),
+            &FxHashSet::default(),
+        )
+        .unwrap();
+        // Setter callee is bare; the compound read uses `?.()`.
+        assert_eq!(out, "count(count?.() + 1);");
+    }
+
+    #[test]
+    fn assignment_member_target_left_to_read_wrap() {
+        // `obj.count = 1` — member target, not a bare derived; the derived `obj`
+        // base is wrapped as a read but the assignment is not lowered.
+        assert_eq!(
+            wrap("obj.count = 1;", &["obj"]).unwrap(),
+            "obj().count = 1;"
+        );
+    }
+
+    #[test]
+    fn assignment_on_shadowed_binding_left_alone() {
+        assert!(wrap("function f(count) { count = 1; }", &["count"]).is_none());
     }
 
     #[test]
