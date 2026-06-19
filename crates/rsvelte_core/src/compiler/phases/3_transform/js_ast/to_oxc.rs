@@ -35,7 +35,9 @@ use oxc_ast::ast::{
 };
 use oxc_span::SPAN;
 use oxc_syntax::number::{BigintBase, NumberBase};
-use oxc_syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator};
+use oxc_syntax::operator::{
+    AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
+};
 
 /// Convert a whole [`JsProgram`] into an oxc [`oxc_ast::ast::Program`].
 ///
@@ -290,8 +292,35 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 Some(self.ab.expression_unary(SPAN, UnaryOperator::Void, arg))
             }
             JsExpr::Arrow(arrow) => self.arrow(arrow),
-            // TODO: TemplateLiteral / TaggedTemplate / Function / Update /
-            // Assignment / Yield / Class / Chain / ImportExpression.
+            JsExpr::TemplateLiteral(tpl) => {
+                let tpl = self.template_literal(tpl)?;
+                Some(Expression::TemplateLiteral(self.ab.alloc(tpl)))
+            }
+            JsExpr::TaggedTemplate(t) => {
+                let tag = self.expr_id(t.tag)?;
+                let quasi = self.template_literal(&t.quasi)?;
+                Some(
+                    self.ab
+                        .expression_tagged_template(SPAN, tag, oxc_ast::NONE, quasi),
+                )
+            }
+            JsExpr::Assignment(a) => {
+                let target = self.simple_assignment_target(self.arena.get_expr(a.left))?;
+                let left = oxc_ast::ast::AssignmentTarget::from(target);
+                let right = self.expr_id(a.right)?;
+                Some(
+                    self.ab
+                        .expression_assignment(SPAN, assignment_op(a.operator), left, right),
+                )
+            }
+            JsExpr::Update(u) => {
+                let target = self.simple_assignment_target(self.arena.get_expr(u.argument))?;
+                Some(
+                    self.ab
+                        .expression_update(SPAN, update_op(u.operator), u.prefix, target),
+                )
+            }
+            // TODO: Function / Yield / Class / Chain / ImportExpression.
             // Bail on opaque Raw / Spanned (the CRITICAL RULE).
             _ => None,
         }
@@ -330,6 +359,12 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     }
 
     fn member(&self, m: &JsMemberExpression) -> Option<Expression<'a>> {
+        Some(Expression::from(self.member_expr(m)?))
+    }
+
+    /// Build a [`MemberExpression`] node from the IR member expression. Shared
+    /// by the `Member` expression arm and the assignment-target helper.
+    fn member_expr(&self, m: &JsMemberExpression) -> Option<oxc_ast::ast::MemberExpression<'a>> {
         let object = self.expr_id(m.object)?;
         let member = match &m.property {
             JsMemberProperty::Identifier(name) => {
@@ -345,7 +380,48 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             // TODO: PrivateIdentifier.
             JsMemberProperty::PrivateIdentifier(_) => return None,
         };
-        Some(Expression::from(member))
+        Some(member)
+    }
+
+    /// Build a [`TemplateLiteral`] node from the IR template literal. Shared by
+    /// the `TemplateLiteral` and `TaggedTemplate` expression arms.
+    fn template_literal(
+        &self,
+        tpl: &JsTemplateLiteral,
+    ) -> Option<oxc_ast::ast::TemplateLiteral<'a>> {
+        let mut quasis = self.ab.vec_with_capacity(tpl.quasis.len());
+        for q in &tpl.quasis {
+            let value = oxc_ast::ast::TemplateElementValue {
+                raw: self.str(&q.raw).into(),
+                cooked: Some(self.str(&q.cooked).into()),
+            };
+            quasis.push(self.ab.template_element(SPAN, value, q.tail));
+        }
+        let mut expressions = self.ab.vec_with_capacity(tpl.expressions.len());
+        for e in &tpl.expressions {
+            expressions.push(self.expr(e)?);
+        }
+        Some(self.ab.template_literal(SPAN, quasis, expressions))
+    }
+
+    /// Build a [`SimpleAssignmentTarget`] from an IR expression used as an
+    /// assignment / update target. Only a plain identifier or a simple
+    /// (non-optional) member expression are supported; bail on anything else.
+    fn simple_assignment_target(
+        &self,
+        expr: &JsExpr,
+    ) -> Option<oxc_ast::ast::SimpleAssignmentTarget<'a>> {
+        match expr {
+            JsExpr::Identifier(name) => Some(
+                self.ab
+                    .simple_assignment_target_assignment_target_identifier(SPAN, self.str(name)),
+            ),
+            JsExpr::Member(m) if !m.optional => {
+                let member = self.member_expr(m)?;
+                Some(oxc_ast::ast::SimpleAssignmentTarget::from(member))
+            }
+            _ => None,
+        }
     }
 
     fn object(&self, o: &JsObjectExpression) -> Option<Expression<'a>> {
@@ -513,6 +589,34 @@ fn logical_op(op: JsLogicalOp) -> LogicalOperator {
         JsLogicalOp::And => LogicalOperator::And,
         JsLogicalOp::Or => LogicalOperator::Or,
         JsLogicalOp::NullishCoalescing => LogicalOperator::Coalesce,
+    }
+}
+
+fn assignment_op(op: JsAssignmentOp) -> AssignmentOperator {
+    match op {
+        JsAssignmentOp::Assign => AssignmentOperator::Assign,
+        JsAssignmentOp::AddAssign => AssignmentOperator::Addition,
+        JsAssignmentOp::SubAssign => AssignmentOperator::Subtraction,
+        JsAssignmentOp::MulAssign => AssignmentOperator::Multiplication,
+        JsAssignmentOp::DivAssign => AssignmentOperator::Division,
+        JsAssignmentOp::ModAssign => AssignmentOperator::Remainder,
+        JsAssignmentOp::PowAssign => AssignmentOperator::Exponential,
+        JsAssignmentOp::ShlAssign => AssignmentOperator::ShiftLeft,
+        JsAssignmentOp::ShrAssign => AssignmentOperator::ShiftRight,
+        JsAssignmentOp::UShrAssign => AssignmentOperator::ShiftRightZeroFill,
+        JsAssignmentOp::BitAndAssign => AssignmentOperator::BitwiseAnd,
+        JsAssignmentOp::BitOrAssign => AssignmentOperator::BitwiseOR,
+        JsAssignmentOp::BitXorAssign => AssignmentOperator::BitwiseXOR,
+        JsAssignmentOp::AndAssign => AssignmentOperator::LogicalAnd,
+        JsAssignmentOp::OrAssign => AssignmentOperator::LogicalOr,
+        JsAssignmentOp::NullishAssign => AssignmentOperator::LogicalNullish,
+    }
+}
+
+fn update_op(op: JsUpdateOp) -> UpdateOperator {
+    match op {
+        JsUpdateOp::Increment => UpdateOperator::Increment,
+        JsUpdateOp::Decrement => UpdateOperator::Decrement,
     }
 }
 
