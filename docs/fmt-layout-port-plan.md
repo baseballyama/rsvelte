@@ -61,3 +61,22 @@ Doc primitives the layout relies on: `group`, `indent`, `dedent`, `softline`,
 - Perf: keep the single re-parse already used by collapse; don't add another.
 
 See `docs/corpus-fmt-remaining-work.md` for the live failure breakdown.
+
+## Tracked follow-up: collapse re-parse count (perf)
+
+The incremental burndown grew `collapse::collapse_pure_text_elements` into several
+sequentially-gated passes (1, 1.5, 1.6, 1.7, 1.8, 1.9, 1.95, 2, 3). Each pass
+re-parses the document only when it produced edits, so the typical file pays 1–3
+parses, but a worst-case file that triggers every pass pays up to ~9 full
+`parse()` calls, and `reformat_pre_inner` compounds this by recursively calling
+`crate::format()` for `<pre>`/`<textarea>` bodies. This is the original "keep the
+single re-parse" gotcha drifting under incremental pressure. It is **not** a
+correctness problem (CI runs the full ~9,715-component corpus well within the
+job timeout) but it is the natural place to reclaim formatter performance.
+
+Recommended dedicated follow-up (do with a benchmark, not under burndown
+pressure): replace the ad-hoc passes with a single `run_collapse_pass(result,
+tree, collect_fn)` runner that re-parses at most once per *changed* pass and
+ideally fuse the 1.x passes into one widened collection, and give
+`reformat_pre_inner` an internal `format_inner` that skips the collapse cascade.
+Add a worst-case re-parse-count assertion/bench so it can't silently regrow.
