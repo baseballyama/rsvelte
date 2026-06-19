@@ -79,9 +79,15 @@
     対応済み: 大半の式（identifier/literal/this/super/meta-property/member/call/new/binary/logical/unary/conditional/
     sequence/array/object/spread/await/void/arrow/**template-literal/tagged-template/assignment(識別子+非optional member)/update**）
     + 一般的な文（expression/return/var-decl(識別子のみ)/block/empty/debugger/throw/break/continue/if）。
-    **残 bail**: function-expr/yield/class/chain/import-expr、分割代入パターン（var-decl/arrow params/assignment target）、
-    import/export/function-decl/loops(for/for-of/while/do-while)/switch/labeled/try、object の method/getter/setter/computed、
-    member の private-identifier、regex literal、全 Raw/Spanned/RawMapped。
+    **対応拡大（burn-down 4スライス着地・各々 flag-ON byte-exact green）**: + assignment/update/template-literal/
+    tagged-template + function-expr/chain/import-expr/regex + **import/export/function-decl 文**（実コンポーネント解放）
+    + **制御フロー文 for/for-of/for-in/for-await/while/do-while/switch/labeled/try**。
+    **残 bail（次の作業）**: `JsExpr::Yield` / `JsExpr::Class`（式）、**分割代入パターン**（var-decl の id / 関数・arrow params /
+    assignment target / for-of left / catch param — 最大の残 unlock）、object property の method/getter/setter/computed、
+    member の private-identifier、全 Raw/Spanned/RawMapped。分割代入は object/array binding pattern を
+    `ab.binding_pattern_*` で構築（default/rest/hole/nested 注意、不明は bail）。
+    各スライスは subagent に `to_oxc.rs` の variant 追加を委譲 → メインが diff レビュー + 中央 byte-exact 検証
+    （`RSVELTE_CLIENT_TO_OXC=1 cargo test --release --test runtime --test compiler_fixtures`、flaky bin はリトライ）→ commit。
     **次の作業（burn-down）**: bail している variant を1種ずつ `to_oxc.rs` に追加（oxc AstBuilder API は
     `~/.cargo/git/checkouts/oxc-2492aa67f5b41d4f/37a34a1/crates/oxc_ast/src/generated/ast_builder.rs` 参照。
     `NONE` は `oxc_ast::NONE`、文字列は `ab.allocator.alloc_str(s)`、`ab.expression_identifier(SPAN, &str)` 等）。
