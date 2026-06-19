@@ -750,7 +750,7 @@ fn push_bare_expression(
     expr: &Expression,
     options: &FormatOptions,
     depth: usize,
-    _prefix_len: usize,
+    prefix_len: usize,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<u32, FormatError> {
     let (Some(start), Some(end)) = (expr.start(), expr.end()) else {
@@ -765,6 +765,11 @@ fn push_bare_expression(
     }
     let indent_width = options.js.indent_width.value() as usize;
     let full_width = options.js.line_width.value() as usize;
+    // Compute the header suffix length — the text from the expression end to the
+    // closing `}` of the block header (inclusive).  For `{#each expr as x (k)}`,
+    // this is ` as x (k)}`.  For `{#if cond}`, it is `}`.  We scan the source
+    // looking for the first `}` that is not nested inside `{…}`, `(…)`, or `[…]`.
+    let suffix_len = compute_header_suffix_len(source, end as usize);
     // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
     // prettier-plugin-svelte uses `forceSingleLine: true` (internally `removeLines`)
@@ -776,7 +781,10 @@ fn push_bare_expression(
     // width into multiple lines, even with `Expand::Never` and `LineWidth::MAX`.
     // When the source expression is an array or object literal with no newlines,
     // collapse the multi-line OXC output back to a single line to match oracle.
-    let formatted = if formatted.contains('\n') && starts_with_array_or_object_literal(slice) && !slice.contains('\n') {
+    let formatted = if formatted.contains('\n')
+        && starts_with_array_or_object_literal(slice)
+        && !slice.contains('\n')
+    {
         collapse_multiline_to_single_line(&formatted)
     } else {
         formatted
@@ -791,35 +799,52 @@ fn push_bare_expression(
     // When wrapping, we pass the full `line_width` to OXC.  Continuation lines
     // carry only the block's indent (not the keyword prefix), so using the full
     // width avoids over-wrapping inner call arguments.
-    let formatted =
-        if !formatted.contains('\n') && UnicodeWidthStr::width(formatted.as_str()) > full_width
+    // Compute the full visible start-of-line width: indentation + block keyword prefix.
+    // prettier-plugin-svelte breaks a block-header expression when the COMPLETE header
+    // line (indent + keyword + expression + suffix-after-expression) would overflow the
+    // print width, not just when the expression alone is wider than the print width.
+    // E.g. `{#each table.call().filter() as column (column)}` can overflow even though
+    // `table.call().filter()` alone fits within 80 chars.
+    let lead_width = depth * indent_width + prefix_len;
+    let formatted = if !formatted.contains('\n')
+            && lead_width + UnicodeWidthStr::width(formatted.as_str()) + suffix_len > full_width
             // prettier-plugin-svelte never breaks array or object literals in
             // block headers even when they are far wider than the print width —
             // e.g. `{#each ["a", "b", "c", …] as x}` stays on one line.
             && !starts_with_array_or_object_literal(formatted.as_str())
-        {
-            let multi = format_expr_core(slice, options, options.js.line_width, false)?;
-            if multi.contains('\n')
+    {
+        let multi = format_expr_core(slice, options, options.js.line_width, false)?;
+        if multi.contains('\n')
                 && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
-            {
-                // reindent prepends the prefix to each continuation line ON TOP of
-                // OXC's own 2-space indent, so we pass `depth * indent_width` (not
-                // `(depth+1) * indent_width`).  The result is:
-                //   OXC indent (2) + prefix (depth*2) = (depth+1)*2 — correct.
-                let cont_indent = if options.js.indent_style.is_tab() {
-                    "\t".repeat(depth)
-                } else {
-                    " ".repeat(depth * indent_width)
-                };
-                crate::reindent::reindent(&multi, &cont_indent, true)
+                // prettier-plugin-svelte's `forceSingleLine: true` (removeLines) collapses
+                // non-hard line breaks produced by OXC back to a single line.  OXC uses
+                // "soft" breaks (argument wrapping) for call-expression arguments, which
+                // prettier's removeLines removes, keeping the expression single-line.
+                // For method chain call expressions (`call().method()`), the break form
+                // uses hard line breaks between chain parts (starting each continuation
+                // line with `.`), which removeLines keeps — so the oracle DOES break those.
+                // Only accept the multi-line form when OXC broke it as a method chain
+                // (i.e. at least one continuation line starts with `.` after trimming).
+                && is_method_chain_break(&multi)
+        {
+            // reindent prepends the prefix to each continuation line ON TOP of
+            // OXC's own 2-space indent, so we pass `depth * indent_width` (not
+            // `(depth+1) * indent_width`).  The result is:
+            //   OXC indent (2) + prefix (depth*2) = (depth+1)*2 — correct.
+            let cont_indent = if options.js.indent_style.is_tab() {
+                "\t".repeat(depth)
             } else {
-                // OXC kept it on one line, or broke at a logical operator —
-                // keep the inline version.
-                formatted
-            }
+                " ".repeat(depth * indent_width)
+            };
+            crate::reindent::reindent(&multi, &cont_indent, true)
         } else {
+            // OXC kept it on one line, broke at a logical operator, or broke
+            // using soft (argument) breaks — keep the inline version.
             formatted
-        };
+        }
+    } else {
+        formatted
+    };
 
     // prettier-plugin-svelte wraps assignment expressions in block-header
     // positions with parentheses to make intent clear:
@@ -2702,10 +2727,7 @@ fn collapse_multiline_to_single_line(formatted: &str) -> String {
     let first = lines[0].trim();
     let last = lines[lines.len() - 1].trim();
     // Collect inner lines (between first and last).
-    let inner: Vec<&str> = lines[1..lines.len() - 1]
-        .iter()
-        .map(|l| l.trim())
-        .collect();
+    let inner: Vec<&str> = lines[1..lines.len() - 1].iter().map(|l| l.trim()).collect();
     if inner.is_empty() {
         // Empty array/object: e.g. `[\n]` → `[]`
         return format!("{first}{last}");
@@ -2719,6 +2741,77 @@ fn collapse_multiline_to_single_line(formatted: &str) -> String {
     }
     let joined = items.join(" ");
     format!("{first}{joined}{last}")
+}
+
+/// Computes the length of the block-header "suffix" — the text from the end of the
+/// block's expression to the closing `}` of the header line (inclusive).
+///
+/// For `{#each items as x (k)}`, if `expr_end` points right after `items`, the suffix
+/// is ` as x (k)}` (length 12).  For `{#if cond}` with `expr_end` after `cond`, the
+/// suffix is `}` (length 1).
+///
+/// We scan forward through `source` starting at `expr_end`, tracking brace/paren/bracket
+/// depth, and stop at the first `}` that returns us to depth 0.
+fn compute_header_suffix_len(source: &str, expr_end: usize) -> usize {
+    let tail = match source.get(expr_end..) {
+        Some(t) => t,
+        None => return 0,
+    };
+    let mut depth: i32 = 0;
+    let mut len = 0usize;
+    let mut in_string: Option<char> = None;
+    let chars: Vec<char> = tail.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        len += c.len_utf8();
+        match in_string {
+            Some(q) => {
+                if c == '\\' {
+                    // skip next char
+                    i += 1;
+                    if i < chars.len() {
+                        len += chars[i].len_utf8();
+                    }
+                } else if c == q {
+                    in_string = None;
+                }
+            }
+            None => match c {
+                '"' | '\'' | '`' => in_string = Some(c),
+                '{' | '(' | '[' => depth += 1,
+                '}' => {
+                    if depth == 0 {
+                        // This `}` closes the block header — include it and stop.
+                        return len;
+                    }
+                    depth -= 1;
+                }
+                ')' | ']' if depth > 0 => {
+                    depth -= 1;
+                }
+                '\n' => {
+                    // If we hit a newline before finding the closing `}`, the
+                    // header closes on the next line — return current len (0 suffix).
+                    return 0;
+                }
+                _ => {}
+            },
+        }
+        i += 1;
+    }
+    0
+}
+
+/// Returns `true` when OXC's multi-line output represents a method-chain break —
+/// i.e. at least one continuation line starts with `.` after trimming whitespace.
+/// This distinguishes call-chain breaks (hardlines in prettier, kept by removeLines)
+/// from argument-wrapping breaks (softlines in prettier, removed by removeLines).
+fn is_method_chain_break(multi: &str) -> bool {
+    multi
+        .lines()
+        .skip(1)
+        .any(|line| line.trim_start().starts_with('.'))
 }
 
 fn outer_parens_match(inner: &str) -> bool {
