@@ -3,10 +3,53 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{needs_clsx, prop_string};
 use super::super::types::OutputPart;
+use super::shared::utils::has_top_level_comma;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
 use std::fmt::Write as _;
+
+/// Wrap `expr` in parentheses if it contains a top-level comma (sequence expression),
+/// so that `$.clsx(a, b)` is not mis-parsed as a two-argument call.
+/// Mirrors `paren_if_sequence` in element.rs.
+fn paren_if_sequence(expr: String) -> String {
+    if has_top_level_comma(&expr) {
+        format!("({})", expr)
+    } else {
+        expr
+    }
+}
+
+/// Returns `true` when `name` starts with `"on"` AND `value` is a single
+/// expression (not a boolean flag or plain text).
+///
+/// Mirrors upstream `is_event_attribute` from
+/// `svelte/packages/svelte/src/compiler/utils/ast.js`:
+///
+/// ```js
+/// export function is_event_attribute(attribute) {
+///     return is_expression_attribute(attribute) && attribute.name.startsWith('on');
+/// }
+/// ```
+///
+/// Only expression-valued `on*` attributes are DOM event handlers.  A plain
+/// text value like `onload="doSomething()"` is **not** an event handler in
+/// Svelte's sense and must not be silently dropped.
+fn is_event_attribute_value(name: &str, value: &AttributeValue) -> bool {
+    if !name.starts_with("on") {
+        return false;
+    }
+    match value {
+        // Direct expression tag (e.g. `onclick={handler}`)
+        AttributeValue::Expression(_) => true,
+        // Single-element sequence containing an ExpressionTag
+        AttributeValue::Sequence(parts) => {
+            parts.len() == 1 && matches!(parts[0], AttributeValuePart::ExpressionTag(_))
+        }
+        // Boolean true or plain-text values are not event handlers
+        AttributeValue::True(_) => false,
+    }
+}
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_element(
@@ -321,11 +364,37 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::Attribute(node) => {
                     let name = node.name.as_str();
+                    // Skip event-handler attributes in SSR — they have no server
+                    // representation.  Mirrors upstream's `is_event_attribute` check in
+                    // `build_element_attributes` (shared/element.js line 71):
+                    //   } else if (is_event_attribute(attribute)) {
+                    // where `is_event_attribute` = name.startsWith('on') AND value is a
+                    // single ExpressionTag (not a plain text value).
+                    if is_event_attribute_value(name, &node.value) {
+                        continue;
+                    }
                     let value = self.extract_attribute_value_as_string(node)?;
+                    // Wrap dynamic class attribute in $.clsx() so arrays/objects are
+                    // normalised to a class string. Mirrors the needs_clsx check in
+                    // build_spread_object / build_element_attributes:
+                    // upstream `2-analyze/visitors/Attribute.js` sets `needs_clsx` when
+                    // `name === "class"` and the expression is not a Literal,
+                    // TemplateLiteral, or BinaryExpression.
+                    let value = if name == "class" && needs_clsx(&node.value) {
+                        format!("$.clsx({})", paren_if_sequence(value))
+                    } else {
+                        value
+                    };
                     object_parts.push(prop_string(name, &value));
                 }
                 Attribute::BindDirective(bind) => {
                     let name = bind.name.as_str();
+                    // bind:this is a client-only DOM reference; skip on server.
+                    // Upstream: build_element_attributes (shared/element.js line 113)
+                    // filters `bind:this` before the spread object is assembled.
+                    if name == "this" {
+                        continue;
+                    }
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {

@@ -1737,6 +1737,14 @@ impl<'opt> Printer<'opt> {
                     obj_or_array: false,
                     is_elision: false,
                     render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                        // esrap's `sequence` visits each property through the `_`
+                        // wildcard, which flushes any comment positioned before it
+                        // (`{ a, /* c */ b } = x` or a `// line` comment before a
+                        // destructured prop). Mirror that per property — a `// line`
+                        // comment also forces the sequence multiline (via the
+                        // `newline()` in `write_comment`), so it can't swallow the
+                        // following token (`tabindex = // c 0` → unparseable).
+                        p.flush_leading(child, span.start, p.line_of(span.start));
                         p.binding_property(prop, child);
                     }),
                 }
@@ -1750,6 +1758,7 @@ impl<'opt> Printer<'opt> {
                 obj_or_array: false,
                 is_elision: false,
                 render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    p.flush_leading(child, span.start, p.line_of(span.start));
                     child.write("...");
                     p.binding_pattern(&rest.argument, child);
                 }),

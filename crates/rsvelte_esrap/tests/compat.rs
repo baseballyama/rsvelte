@@ -31,6 +31,18 @@ fn ts_type_annotation() {
     );
 }
 
+/// A `// line` comment positioned before a destructured property must force the
+/// object pattern multiline and sit on its own line — mirroring esrap's `_`
+/// wildcard, which flushes leading comments before every node. Without this the
+/// comment swallows the following token (`tabindex = // for safari 0,`), making
+/// the output unparseable. Oracle (esrap 2.2.11) verified byte-for-byte.
+#[test]
+fn object_pattern_leading_line_comment_forces_multiline() {
+    let input =
+        "let {\n\tchildren,\n\tid = 1,\n\t// for safari\n\ttabindex = 0,\n\t...rest\n} = $$props;";
+    assert_eq!(print_src(input, false), input);
+}
+
 #[test]
 fn ts_module_and_mapped_type() {
     let input = "declare module \"svelte\" {\n}\n\ntype M = { [K in keyof JSON]: K }\n";

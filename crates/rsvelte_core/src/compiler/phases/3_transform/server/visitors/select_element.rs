@@ -573,6 +573,22 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     }
                 }
+                Attribute::BindDirective(bind) => {
+                    // Mirror upstream `build_spread_object`: for `<option>` (which always goes
+                    // through `prepare_element_spread_object`), ALL bind directives are included
+                    // in the attributes object as `name: expr` — no `bind:this` exclusion here,
+                    // unlike the non-spread `build_element_attributes` path. This is what causes
+                    // `bind:this={ref}` to become `this: ref` in the option attrs object.
+                    let name = bind.name.as_str();
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = self.strip_ts_from_expr(&expr);
+                        let expr = self.transform_store_refs(&expr);
+                        attr_entries.push(prop_string(name, &expr));
+                    }
+                }
                 Attribute::SpreadAttribute(spread) => {
                     let expr_start = spread.expression.start().unwrap_or(0) as usize;
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;

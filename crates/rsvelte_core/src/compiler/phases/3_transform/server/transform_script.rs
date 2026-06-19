@@ -241,28 +241,33 @@ fn transform_script_content_inner(
             continue;
         }
 
-        // If we're inside a multi-line template literal, pass through as-is
+        // If we're inside a multi-line template literal, pass through verbatim.
+        // Template literal interior text must not be re-indented — the raw
+        // content (spaces, tabs, etc.) is part of the string value.
         if in_template_literal {
             // Check if this line closes the template literal
             in_template_literal = !line_closes_template_literal(line);
-            if line.starts_with('\t') {
-                result.push_str(line);
-            } else if trimmed.is_empty() {
-                // skip empty lines
-            } else {
-                result.push('\t');
-                result.push_str(trimmed);
-            }
+            result.push_str(line);
             result.push('\n');
             continue;
         }
 
         let line = format_js_line(line);
-        // Check next non-empty line to determine if current line is a continuation
+        // Check next non-empty, non-comment code line to determine if the current line is a
+        // continuation.  Skipping comment lines is critical for method chains that have `//` or
+        // `/* */` annotations between chain links, e.g.:
+        //
+        //   const parts = username
+        //       // Insert space before capitals
+        //       .replace(/([a-z])([A-Z])/g, "$1 $2")
+        //
+        // Without skipping comments, `next_trimmed` would point at the `// Insert…` line, which
+        // does not start with `.`, so `add_statement_semicolon` would erroneously terminate
+        // `const parts = username` with a `;`, orphaning the rest of the chain.
         let next_trimmed = all_lines[(line_idx + 1)..]
             .iter()
-            .find(|l| !l.trim().is_empty())
             .map(|l| l.trim())
+            .find(|t| !t.is_empty() && !t.starts_with("//") && !t.starts_with("/*"))
             .unwrap_or("");
         let line = add_statement_semicolon(&line, next_trimmed);
 
@@ -5244,6 +5249,51 @@ fn add_statement_semicolon(line: &str, next_trimmed: &str) -> String {
     line.to_string()
 }
 
+/// Strip leading TypeScript field modifiers from a class field LHS token and
+/// return the field-name-only slice (with leading `#` preserved for ergonomic
+/// private fields).
+///
+/// The modifiers we strip are the ones that appear **before** the identifier in
+/// TypeScript class declarations: `readonly`, `public`, `private`, `protected`,
+/// `override`, `accessor`, `declare`, `abstract`.  We intentionally leave
+/// `static` in place — a `static $derived.by` field keeps its `static` keyword
+/// on the backing `#field` declaration in the upstream output, and skipping it
+/// here would change semantics.
+///
+/// Examples:
+///   "readonly props"        → "props"
+///   "public readonly foo"   → "foo"
+///   "protected #bar"        → "#bar"
+///   "props"                 → "props"  (no change)
+///   "#raw"                  → "#raw"   (no change)
+fn strip_ts_field_modifiers(lhs: &str) -> &str {
+    const MODIFIERS: &[&str] = &[
+        "readonly ",
+        "public ",
+        "private ",
+        "protected ",
+        "override ",
+        "accessor ",
+        "declare ",
+        "abstract ",
+    ];
+    let mut s = lhs.trim();
+    // Keep stripping as long as a known modifier prefix is found.
+    loop {
+        let mut stripped = false;
+        for &m in MODIFIERS {
+            if let Some(rest) = s.strip_prefix(m) {
+                s = rest.trim_start();
+                stripped = true;
+            }
+        }
+        if !stripped {
+            break;
+        }
+    }
+    s
+}
+
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let script_bytes = script.as_bytes();
@@ -5292,6 +5342,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         Field(String),
         Method(Vec<String>),
         ArrowFn(Vec<String>),
+        /// A block or line comment that must be emitted verbatim without any
+        /// surrounding blank-line separators or semicolons.
+        Comment(Vec<String>),
     }
 
     #[derive(Debug, Clone)]
@@ -5334,6 +5387,13 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut in_plain_field = false;
     let mut plain_field_lines: Vec<String> = Vec::new();
     let mut plain_field_depth: i32 = 0;
+
+    // For block comments (`/** … */` / `/* … */`) inside class bodies: accumulate
+    // lines until the closing `*/` and push them as a `ClassMember::Comment` so the
+    // emitter writes them verbatim, without appending `;` to each line (the Field
+    // emitter would otherwise turn `/**` into `/**;` etc.).
+    let mut in_block_comment = false;
+    let mut block_comment_lines: Vec<String> = Vec::new();
 
     let all_lines: Vec<&str> = class_body.lines().collect();
 
@@ -5477,7 +5537,40 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
+        // Accumulate a multi-line block comment (`/** … */` or `/* … */`).
+        // Comment lines must be emitted verbatim: the Field emitter would
+        // otherwise append `;` to every comment line.
+        if in_block_comment {
+            block_comment_lines.push(line.to_string());
+            if trimmed.contains("*/") {
+                in_block_comment = false;
+                members.push(ClassMember::Comment(block_comment_lines.clone()));
+                block_comment_lines.clear();
+            }
+            continue;
+        }
+
         if trimmed.is_empty() {
+            continue;
+        }
+
+        // Detect the start of a block comment that spans more than one line.
+        // Single-line `/* … */` comments are handled here too (the closing `*/`
+        // is on the same line so `in_block_comment` stays false after this).
+        if trimmed.starts_with("/*") {
+            if trimmed.contains("*/") {
+                // Entire block comment fits on one line — emit verbatim.
+                members.push(ClassMember::Comment(vec![line.to_string()]));
+            } else {
+                in_block_comment = true;
+                block_comment_lines.clear();
+                block_comment_lines.push(line.to_string());
+            }
+            continue;
+        }
+        // Single-line `//` comments: emit verbatim (no `;` should be added).
+        if trimmed.starts_with("//") {
+            members.push(ClassMember::Comment(vec![line.to_string()]));
             continue;
         }
 
@@ -5592,73 +5685,74 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             || memmem::find(trimmed_bytes, b"=$derived(").is_some()
             || memmem::find(trimmed_bytes, b"= $derived.by(").is_some()
             || memmem::find(trimmed_bytes, b"=$derived.by(").is_some();
-        if is_derived_field {
-            let is_private = trimmed.starts_with('#');
-            if let Some(eq_pos) = trimmed.find('=') {
-                let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
+        if is_derived_field && let Some(eq_pos) = trimmed.find('=') {
+            // Strip TypeScript field modifiers (readonly, public, private, protected, …)
+            // so that e.g. `readonly props = $derived.by(…)` yields name="props" not
+            // "readonly props". The `#` ergonomic-private prefix is preserved.
+            let lhs_bare = strip_ts_field_modifiers(&trimmed[..eq_pos]);
+            let is_private = lhs_bare.starts_with('#');
+            let name = lhs_bare.trim_start_matches('#').to_string();
 
-                let (derived_pattern, is_derived_by) =
-                    if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
-                        ("$derived.by(", true)
+            let (derived_pattern, is_derived_by) =
+                if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
+                    ("$derived.by(", true)
+                } else {
+                    ("$derived(", false)
+                };
+
+            if let Some(derived_pos) = memmem::find(trimmed_bytes, derived_pattern.as_bytes()) {
+                let value_start = derived_pos + derived_pattern.len();
+                let after_paren = &trimmed[value_start..];
+
+                if let Some(value_end) = find_matching_paren_server(after_paren) {
+                    let value = after_paren[..value_end].to_string();
+                    let sanitized_name = sanitize_identifier(&name);
+                    let private_name = if is_private {
+                        format!("#{}", sanitized_name)
                     } else {
-                        ("$derived(", false)
+                        backing_private(&name)
                     };
 
-                if let Some(derived_pos) = memmem::find(trimmed_bytes, derived_pattern.as_bytes()) {
-                    let value_start = derived_pos + derived_pattern.len();
-                    let after_paren = &trimmed[value_start..];
-
-                    if let Some(value_end) = find_matching_paren_server(after_paren) {
-                        let value = after_paren[..value_end].to_string();
-                        let sanitized_name = sanitize_identifier(&name);
-                        let private_name = if is_private {
-                            format!("#{}", sanitized_name)
-                        } else {
-                            backing_private(&name)
-                        };
-
-                        let value_str = value.trim();
-                        let wrapped_value = if value_str.starts_with('{') {
-                            format!("({})", value_str)
-                        } else {
-                            value_str.to_string()
-                        };
-
-                        let transformed_line = if is_derived_by {
-                            format!("{} = $.derived({})", private_name, wrapped_value)
-                        } else {
-                            format!("{} = $.derived(() => {})", private_name, wrapped_value)
-                        };
-
-                        members.push(ClassMember::Field(transformed_line));
-
-                        derived_fields.push(DerivedField {
-                            name,
-                            is_private,
-                            constructor_declared: false,
-                        });
-                        continue;
+                    let value_str = value.trim();
+                    let wrapped_value = if value_str.starts_with('{') {
+                        format!("({})", value_str)
                     } else {
-                        // Multiline derived field - accumulate until parens balance
-                        in_derived_field = true;
-                        derived_accum = trimmed.to_string();
-                        derived_paren_depth = 0;
-                        for c in trimmed.chars() {
-                            match c {
-                                '(' | '{' | '[' => derived_paren_depth += 1,
-                                ')' | '}' | ']' => derived_paren_depth -= 1,
-                                _ => {}
-                            }
+                        value_str.to_string()
+                    };
+
+                    let transformed_line = if is_derived_by {
+                        format!("{} = $.derived({})", private_name, wrapped_value)
+                    } else {
+                        format!("{} = $.derived(() => {})", private_name, wrapped_value)
+                    };
+
+                    members.push(ClassMember::Field(transformed_line));
+
+                    derived_fields.push(DerivedField {
+                        name,
+                        is_private,
+                        constructor_declared: false,
+                    });
+                    continue;
+                } else {
+                    // Multiline derived field - accumulate until parens balance
+                    in_derived_field = true;
+                    derived_accum = trimmed.to_string();
+                    derived_paren_depth = 0;
+                    for c in trimmed.chars() {
+                        match c {
+                            '(' | '{' | '[' => derived_paren_depth += 1,
+                            ')' | '}' | ']' => derived_paren_depth -= 1,
+                            _ => {}
                         }
-                        derived_field_name = name;
-                        derived_field_is_private = is_private;
-                        derived_field_is_by = is_derived_by;
-                        continue;
                     }
+                    derived_field_name = name;
+                    derived_field_is_private = is_private;
+                    derived_field_is_by = is_derived_by;
+                    continue;
                 }
             }
         }
-
         let is_state_field = memmem::find(trimmed_bytes, b"= $state(").is_some()
             || memmem::find(trimmed_bytes, b"=$state(").is_some()
             || memmem::find(trimmed_bytes, b"= $state.raw(").is_some()
@@ -5837,7 +5931,31 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         .collect();
 
     if derived_fields.is_empty() && !has_state_fields {
-        return script.to_string();
+        // This class has no $derived/$state fields to transform, but subsequent
+        // classes in the same source file might. Recurse on everything after the
+        // closing `}` of this class so those classes are not skipped.
+        //
+        // The previous `return script.to_string()` here was the root cause of the
+        // bits-ui regression: when a class with no rune fields appeared between two
+        // classes that DO have rune fields (e.g. `ToggleGroupRootState` between
+        // `ToggleGroupMultipleState` and `ToggleGroupItemState`, or the numeric-
+        // segment subclasses before `DateFieldDayPeriodSegmentState`), the early
+        // return short-circuited the recursion and the subsequent classes' fields
+        // were never lowered by the SERVER transform. The CLIENT transform then
+        // processed those fields instead, emitting the wrong
+        // `set x(value) { $.set(this.#x, value); }` shape.
+        let after_class_body = &script[class_body_end + 1..];
+        let after_class_transformed = transform_class_fields_server(after_class_body);
+        // Fast path: if nothing changed downstream, return the original script
+        // unmodified (avoids an allocation when no subsequent class needs work).
+        if after_class_transformed == after_class_body {
+            return script.to_string();
+        }
+        return format!(
+            "{}{}",
+            &script[..class_body_end + 1],
+            after_class_transformed
+        );
     }
 
     let mut new_class_body = String::new();
@@ -5863,9 +5981,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         );
     }
 
+    // Track whether the previous emitted member was a `Comment` so that the
+    // Method emitter can skip its usual leading blank-line separator when a
+    // JSDoc comment directly precedes a method (matching upstream output).
+    let mut last_was_comment = false;
+
     for member in &members {
         match member {
             ClassMember::Field(line) => {
+                last_was_comment = false;
                 // Skip fields that have been converted to constructor-declared derived fields
                 // e.g., `product;` should be skipped when `this.product = $derived(...)` was found
                 let field_name = line
@@ -5985,9 +6109,15 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     }
                 }
 
-                new_class_body.push('\n');
+                // Skip the usual blank-line separator when a block comment
+                // directly precedes this method (the comment's trailing `\n`
+                // already provides the line break).
+                if !last_was_comment {
+                    new_class_body.push('\n');
+                }
                 new_class_body.push_str(&transformed);
                 new_class_body.push('\n');
+                last_was_comment = false;
             }
             ClassMember::ArrowFn(lines) => {
                 new_class_body.push('\n');
@@ -5995,6 +6125,16 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     new_class_body.push_str(line);
                     new_class_body.push('\n');
                 }
+                last_was_comment = false;
+            }
+            ClassMember::Comment(lines) => {
+                // Emit verbatim, no surrounding blank-line separators and
+                // absolutely no semicolons — comments are not statements.
+                for line in lines {
+                    new_class_body.push_str(line);
+                    new_class_body.push('\n');
+                }
+                last_was_comment = true;
             }
         }
     }
@@ -7727,5 +7867,475 @@ mod destructure_helper_tests {
         // the multibyte target name.
         let names = extract_destructured_names_simple("{ café: renamed, π = 1 }");
         assert!(names.contains(&"renamed".to_string()), "{names:?}");
+    }
+}
+
+#[cfg(test)]
+mod class_field_server_tests {
+    use super::transform_class_fields_server;
+
+    /// Upstream ClassBody.js emits the setter as:
+    ///   b.method('set', b.key(name), [b.id('$$value')],
+    ///            [b.return(b.call(member, b.id('$$value')))])
+    /// i.e. parameter named `$$value` and body `return this.#<name>($$value);`.
+    ///
+    /// Verify that `transform_class_fields_server` generates exactly that shape
+    /// for a public `$derived.by` field — including when sibling fields appear
+    /// both before and after the class constructor (the bits-ui toggle-group
+    /// regression: `isPressed`, `snippetProps`, `props` all got `value` / no
+    /// `return` when `#tabIndex = $state(0)` and methods intervened).
+    #[test]
+    fn derived_setter_uses_dollar_dollar_value_and_return() {
+        // Mirrors the shape of `ToggleGroupItemState` from bits-ui which triggered
+        // the regression: public $derived.by fields before AND after the constructor,
+        // with methods and a $state field in between.
+        let input = r#"class ToggleGroupItemState {
+  static create(opts) {
+    return new ToggleGroupItemState(opts);
+  }
+  opts;
+  #isDisabled = $derived.by(
+    () => this.opts.disabled.current
+  );
+  isPressed = $derived.by(() => this.root.includesItem(this.opts.value.current));
+  constructor(opts, root) {
+    this.opts = opts;
+    this.root = root;
+  }
+  onclick(_) {
+    if (this.#isDisabled) return;
+  }
+  #tabIndex = $state(0);
+  snippetProps = $derived.by(() => ({
+    pressed: this.isPressed
+  }));
+  props = $derived.by(
+    () => ({
+      id: this.opts.id.current,
+    })
+  );
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // The getter should call the private backing field without argument.
+        assert!(
+            out.contains("get isPressed() {") && out.contains("return this.#isPressed();"),
+            "isPressed getter not found or malformed:\n{out}"
+        );
+        // The setter must use `$$value` (not `value`) and must have `return`.
+        assert!(
+            out.contains("set isPressed($$value)"),
+            "setter param must be $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#isPressed($$value);"),
+            "setter body must have `return this.#isPressed($$value);`, got:\n{out}"
+        );
+
+        // Same checks for the post-constructor public fields.
+        assert!(
+            out.contains("set snippetProps($$value)"),
+            "snippetProps setter param must be $$value:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#snippetProps($$value);"),
+            "snippetProps setter body must have return:\n{out}"
+        );
+        assert!(
+            out.contains("set props($$value)"),
+            "props setter param must be $$value:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "props setter body must have return:\n{out}"
+        );
+
+        // Sanity: private fields must NOT generate public get/set accessors.
+        assert!(
+            !out.contains("set isDisabled("),
+            "private #isDisabled must not get a public setter:\n{out}"
+        );
+    }
+
+    /// Regression test: TypeScript field modifiers (`readonly`, `public`, `protected`, etc.)
+    /// must be stripped before computing the field name in `transform_class_fields_server`.
+    ///
+    /// Before the fix, `readonly props = $derived.by(() => 1)` produced name
+    /// `"readonly props"` instead of `"props"`, so the field was not lowered into
+    /// the correct `get props()` / `set props($$value)` accessor pair.
+    #[test]
+    fn readonly_modifier_stripped_from_derived_field_name() {
+        let input = r#"class ToggleGroupBaseState {
+  someMethod() {
+    return 42;
+  }
+  readonly props = $derived.by(() => 1);
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // The backing private field should be `#props`, not `#readonly_props` or similar.
+        assert!(
+            out.contains("#props"),
+            "backing private field #props not found:\n{out}"
+        );
+
+        // The getter must exist with the unmodified name `props`.
+        assert!(
+            out.contains("get props() {") && out.contains("return this.#props();"),
+            "get props() accessor not correctly generated:\n{out}"
+        );
+
+        // The setter must use `$$value` (not `value`) and have `return`.
+        assert!(
+            out.contains("set props($$value)"),
+            "setter param must be $$value:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "setter body must have `return this.#props($$value);`:\n{out}"
+        );
+
+        // The keyword `readonly` must NOT appear as part of an identifier in the output.
+        // (The backing field `#props` and accessor `props` both drop the modifier.)
+        assert!(
+            !out.contains("readonly_props") && !out.contains("readonly props"),
+            "modifier `readonly` leaked into field name:\n{out}"
+        );
+    }
+
+    /// Regression test: public $derived.by fields that appear AFTER the constructor
+    /// AND after regular methods must still emit the `$$value`/`return` setter shape.
+    ///
+    /// This reproduces the DateFieldDayPeriodSegmentState and ToggleGroupItemState
+    /// bugs: a class whose last member is a public `$derived.by(...)` field (after
+    /// methods that contain callbacks with `{}`) was being missed by the server
+    /// transform, causing the CLIENT shape (`set props(value)`) to leak through.
+    #[test]
+    fn derived_field_after_method_with_callbacks() {
+        // Minimal reproduction of DateFieldDayPeriodSegmentState structure:
+        // - static create method
+        // - constructor
+        // - onkeydown method that has nested callbacks with {}
+        // - readonly props = $derived.by(...) as the LAST member
+        let input = r#"export class DateFieldDayPeriodSegmentState {
+  static create(opts) {
+    return new DateFieldDayPeriodSegmentState(opts);
+  }
+
+  readonly opts;
+  readonly root;
+  #announcer;
+
+  constructor(opts, root) {
+    this.opts = opts;
+    this.root = root;
+    this.#announcer = root.announcer;
+  }
+
+  onkeydown(e) {
+    if (e.ctrlKey) return;
+
+    if (isArrowUp(e.key) || isArrowDown(e.key)) {
+      this.root.updateSegment("dayPeriod", (prev) => {
+        if (prev === "AM") {
+          const next = "PM";
+          this.#announcer.announce(next);
+          return next;
+        }
+        const next = "AM";
+        this.#announcer.announce(next);
+        return next;
+      });
+      return;
+    }
+
+    if (isBackspace(e.key)) {
+      this.root.updateSegment("dayPeriod", () => {
+        const next = "AM";
+        this.#announcer.announce(next);
+        return next;
+      });
+    }
+
+    if (e.key === "A" || e.key === "P") {
+      this.root.updateSegment("dayPeriod", () => {
+        const next = e.key === "A" ? "AM" : "PM";
+        this.#announcer.announce(next);
+        return next;
+      });
+    }
+  }
+
+  readonly props = $derived.by(() => {
+    const segmentValues = this.root.segmentValues;
+    if (!("dayPeriod" in segmentValues)) return;
+
+    const valueMin = 0;
+    const valueMax = 12;
+    const valueNow = segmentValues.dayPeriod === "AM" ? 0 : 12;
+    const valueText = segmentValues.dayPeriod ?? "AM";
+
+    return {
+      id: this.opts.id.current,
+      "aria-label": "AM/PM",
+      "aria-valuemin": valueMin,
+      "aria-valuemax": valueMax,
+      "aria-valuenow": valueNow,
+      "aria-valuetext": valueText,
+    };
+  });
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // The setter must use `$$value` (not `value`) and must have `return`.
+        assert!(
+            out.contains("set props($$value)"),
+            "setter param must be $$value (DateFieldDayPeriodSegmentState pattern), got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "setter body must have `return this.#props($$value);`, got:\n{out}"
+        );
+        // No client-shaped setter should leak through.
+        assert!(
+            !out.contains("set props(value)"),
+            "client-shaped setter leaked through:\n{out}"
+        );
+    }
+
+    /// Regression test: ToggleGroupItemState pattern — readonly isPressed with
+    /// single-line $derived.by (the field that triggered the original report).
+    #[test]
+    fn toggle_group_item_state_is_pressed_readonly() {
+        // Mirrors ToggleGroupItemState exactly as it appears in the source.
+        let input = r#"export class ToggleGroupItemState {
+  static create(opts) {
+    return new ToggleGroupItemState(opts);
+  }
+  readonly opts;
+  readonly root;
+  readonly attachment;
+  readonly #isDisabled = $derived.by(
+    () => this.opts.disabled.current || this.root.opts.disabled.current
+  );
+  readonly isPressed = $derived.by(() => this.root.includesItem(this.opts.value.current));
+  readonly #ariaChecked = $derived.by(() => {
+    return this.root.isMulti ? undefined : getAriaChecked(this.isPressed, false);
+  });
+  readonly #ariaPressed = $derived.by(() => {
+    return this.root.isMulti ? boolToStr(this.isPressed) : undefined;
+  });
+  constructor(opts, root) {
+    this.opts = opts;
+    this.root = root;
+    this.onclick = this.onclick.bind(this);
+    this.onkeydown = this.onkeydown.bind(this);
+  }
+  #toggleItem() {
+    if (this.#isDisabled) return;
+  }
+  onclick(_) {
+    if (this.#isDisabled) return;
+  }
+  onkeydown(e) {
+    if (this.#isDisabled) return;
+  }
+  #tabIndex = $state(0);
+  readonly snippetProps = $derived.by(() => ({
+    pressed: this.isPressed,
+  }));
+  readonly props = $derived.by(
+    () => ({
+      id: this.opts.id.current,
+      role: this.root.isMulti ? undefined : "radio",
+    }) as const
+  );
+}"#;
+        let out = transform_class_fields_server(input);
+
+        assert!(
+            out.contains("set isPressed($$value)"),
+            "isPressed setter must use $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#isPressed($$value);"),
+            "isPressed setter must have return, got:\n{out}"
+        );
+        assert!(
+            out.contains("set snippetProps($$value)"),
+            "snippetProps setter must use $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("set props($$value)"),
+            "props setter must use $$value, got:\n{out}"
+        );
+        assert!(
+            out.contains("return this.#props($$value);"),
+            "props setter must have return, got:\n{out}"
+        );
+        assert!(
+            !out.contains("set isPressed(value)"),
+            "client-shaped isPressed setter leaked:\n{out}"
+        );
+        assert!(
+            !out.contains("set props(value)"),
+            "client-shaped props setter leaked:\n{out}"
+        );
+    }
+
+    /// Regression: a class with NO $derived/$state fields between two classes
+    /// that DO have such fields must NOT cause the second class's fields to be
+    /// skipped.  The previous early-return at `derived_fields.is_empty() &&
+    /// !has_state_fields` returned `script.to_string()` — discarding any
+    /// subsequent recursive work — instead of forwarding the recursion.
+    ///
+    /// Mirrors the shape of `ToggleGroupRootState` (static-create-only, no rune
+    /// fields) sitting between `ToggleGroupMultipleState` (has rune fields) and
+    /// `ToggleGroupItemState` (has rune fields).
+    #[test]
+    fn class_with_no_rune_fields_between_two_classes_that_do() {
+        let input = r#"class First {
+  readonly value = $derived.by(() => 1);
+}
+class Middle {
+  static create(opts) {
+    return new Middle(opts);
+  }
+}
+class Last {
+  readonly result = $derived.by(() => 2);
+}"#;
+        let out = transform_class_fields_server(input);
+
+        // First class: correctly lowered.
+        assert!(
+            out.contains("set value($$value)"),
+            "First.value setter must use $$value:\n{out}"
+        );
+        // Last class: must also be lowered even though Middle had no rune fields.
+        assert!(
+            out.contains("set result($$value)"),
+            "Last.result setter must use $$value (Middle early-return bug):\n{out}"
+        );
+        // No client-shaped setters.
+        assert!(
+            !out.contains("set value(value)") && !out.contains("set result(value)"),
+            "client-shaped setter leaked through:\n{out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod method_chain_comment_semicolon_tests {
+    use super::transform_script_content_with_imports;
+    use rustc_hash::FxHashSet;
+
+    /// A method chain where every `.method(...)` link is preceded by a `//` comment
+    /// must NOT have a spurious `;` inserted after the first line of the declaration.
+    ///
+    /// Source pattern (from melt-ui avatar.svelte):
+    ///
+    ///   const parts = username
+    ///       // Insert space before capitals in camelCase/PascalCase
+    ///       .replace(/([a-z])([A-Z])/g, "$1 $2")
+    ///       // Split by common separators
+    ///       .split(/[\s\-_/.]+/)
+    ///       // Remove empty parts
+    ///       .filter((part) => part.length > 0);
+    ///
+    /// Before the fix, `next_trimmed` pointed at the comment line (not `.replace`), so
+    /// `add_statement_semicolon` incorrectly terminated after `username`, producing
+    /// `const parts = username;` and orphaning the chain links.
+    #[test]
+    fn method_chain_with_interleaved_line_comments_no_spurious_semicolon() {
+        let input = "const parts = username\n\
+            \t// Insert space before capitals in camelCase/PascalCase\n\
+            \t.replace(/([a-z])([A-Z])/g, \"$1 $2\")\n\
+            \t// Split by common separators\n\
+            \t.split(/[\\s\\-_/.]+/)\n\
+            \t// Remove empty parts\n\
+            \t.filter((part) => part.length > 0);";
+        let out = transform_script_content_with_imports(
+            input,
+            &FxHashSet::default(),
+            &FxHashSet::default(),
+            false,
+        );
+        assert!(
+            !out.contains("username;"),
+            "Spurious semicolon after `username` breaks the method chain:\n{out}"
+        );
+        assert!(
+            out.contains(".replace("),
+            "`.replace(` chain link missing from output:\n{out}"
+        );
+        assert!(
+            out.contains(".split("),
+            "`.split(` chain link missing from output:\n{out}"
+        );
+        assert!(
+            out.contains(".filter("),
+            "`.filter(` chain link missing from output:\n{out}"
+        );
+    }
+
+    /// Same scenario but with a `/* */` block comment between chain links.
+    #[test]
+    fn method_chain_with_interleaved_block_comments_no_spurious_semicolon() {
+        let input = "const parts = username\n\
+            \t/* Insert space before capitals */\n\
+            \t.replace(/([a-z])([A-Z])/g, \"$1 $2\");";
+        let out = transform_script_content_with_imports(
+            input,
+            &FxHashSet::default(),
+            &FxHashSet::default(),
+            false,
+        );
+        assert!(
+            !out.contains("username;"),
+            "Spurious semicolon after `username` with block-comment intervening:\n{out}"
+        );
+        assert!(
+            out.contains(".replace("),
+            "`.replace(` chain link missing from output:\n{out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod template_literal_indentation_tests {
+    use super::transform_script_content_with_imports;
+    use rustc_hash::FxHashSet;
+
+    /// Template literal interior lines must be passed through verbatim (no
+    /// added tab, no trimming).  The flowbite-svelte blockquote builder uses:
+    ///   let generatedCode = $derived((() => {
+    ///     return `<Blockquote${propsString}>
+    ///   ${text}
+    /// </Blockquote>`;
+    ///   })());
+    /// The `  ${text}` line (2 leading spaces) must survive unchanged — it is
+    /// the raw content of the template string, not JavaScript indentation.
+    #[test]
+    fn template_literal_interior_not_reindented() {
+        let input = "let generatedCode = $derived(\n  (() => {\n    return `<Blockquote>\n  ${text}\n</Blockquote>`;\n  })()\n);";
+        let out = transform_script_content_with_imports(
+            input,
+            &FxHashSet::default(),
+            &FxHashSet::default(),
+            false,
+        );
+        assert!(
+            !out.contains("\t${text}") && !out.contains("\t</Blockquote>"),
+            "Template literal interior line got extra tab indentation:\n{out}"
+        );
+        assert!(
+            out.contains("  ${text}"),
+            "Template literal interior `  ${{text}}` was corrupted:\n{out}"
+        );
+        assert!(
+            out.contains("</Blockquote>`"),
+            "Template literal closing line was corrupted:\n{out}"
+        );
     }
 }
