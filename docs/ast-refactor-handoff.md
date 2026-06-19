@@ -19,6 +19,26 @@
 - 残コーパス失敗は `compat/corpus/known-failures.json`（120件）。CI ラチェットは縮小のみ許可。
 
 ### 進捗ログ
+- **2026-06-19 PR #1097（Step 1+3 開始: client `js_ast` の Raw 削減、コーパス 120 据え置き）**:
+  ユーザー判断で「大物の Step 1+3」を開始。**調査で判明した地形（重要）**:
+  - **サーバ codegen は既に `rsvelte_esrap::print` 経由**（`server/build.rs::normalize_script_with_oxc`、
+    oxc parse → esrap print）。残る `$$C$$` hex コメント密輸 + `decode_in_call_comment_placeholders` と
+    `esrap_layout.rs` の reflow が Step 1（コメントストリーム）で消す対象。
+  - **client codegen は手書き `js_ast::codegen::generate`（codegen.rs 3305行）**＝Step 3 の本丸。
+    `js_ast` IR に `Raw(String)` エスケープが **~198箇所**。多い順: `server/bridge.rs`(49, SSR markers),
+    `client/.../expression_converter.rs`(46, JSON-AST→JsExpr の fallback), `server/build.rs`(25),
+    `client/.../bind_directive.rs`(15), `client/mod.rs`(11), `client/.../shared/utils.rs`(10)。
+  - **常時グリーンな漸進戦略**: client の `Raw(...)` を、codegen が既に扱う**構造化 JsExpr/JsStatement variant**へ
+    置換して surface を縮小 → 最終的に client を oxc AST + esrap に big-bang 切替（esrap 出力＝公式と一致するので
+    フィクスチャは合うはず、ただし要全フィクスチャ検証）。**注意**: `Raw` のうち「リテラルの逐語保存」
+    （`expression_converter.rs` の二重引用符文字列 217 / 特殊数値 237 / bigint 251）は **テキスト処理ではなくトークン保存**で
+    良性、優先度低。本当に潰すべきは文字列**構築/連結**型 Raw（import.meta の `format!`、SSR bridge の文字列組立等）。
+  - **第1スライス着地**: `JsExpr::Super` variant 新設（nodes.rs + codegen.rs + has_await/apply_transforms/
+    collect_reactive_references の3つの網羅 match に leaf として追加）で `JsExpr::Raw("super")` を駆逐。
+    検証: コーパス 120 据え置き・build/clippy/fmt clean。**次の client Raw 候補**: `MetaProperty`(import.meta, leaf,
+    専用 variant で), dynamic `import(...)`(source/options を持つので sub-expr 走査要), `bind_directive.rs`(15)。
+    **新 variant 追加時は必ず**: nodes.rs enum + codegen.rs arm + 網羅 match 群（has_await_expression_arena,
+    apply_transforms_to_expression_with_shadowed, collect_reactive_references_inner 等。`cargo check` が未カバーを列挙）。
 - **2026-06-19 PR #1097（Step 2a: derived script-path 3 パスを AST 化、全てバイト一致・コーパス 120 据え置き）**:
   derived バインディングの script 経路テキスト処理を **元の妥当な script 上の単一 AST パス** に統合。
   旧テキスト走査は全て post-wrap の **不正 JS**（`count()++` / `count() = x`：call は代入先になれず再パース不能）を
