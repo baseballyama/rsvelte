@@ -113,6 +113,22 @@ pub(crate) fn collapse_pure_text_elements(
         tree = t;
     }
 
+    // 1.8-th pass: break block-display elements that land at a non-ws `>` prefix.
+    // Pass 1 may produce a Component hug like `<Component\n  ><div>…</div>…`
+    // where the `<div>` is now at a `  >` prefix and overflows the line width.
+    // `try_break_block_overflow` normally requires a pure-whitespace indent, so
+    // this targeted sweep extracts the ws portion from `  >` and re-applies the
+    // block-break logic.
+    let mut edits1e: Vec<(u32, u32, String)> = Vec::new();
+    collect_break_block_non_ws_prefix(&result, &tree.fragment, line_width, &mut edits1e);
+    if !edits1e.is_empty() {
+        result = apply_edits(&result, edits1e);
+        let Ok(t) = parse(&result, parse_opts) else {
+            return Ok(result);
+        };
+        tree = t;
+    }
+
     // Second pass: the hug/break edits above may leave a long expression mustache
     // on an overflowing line (a hugged element's trailing `{a.b().c()}`).
     // Member-chain-break those in place — this can't run in the first pass
@@ -842,6 +858,80 @@ fn collect_hug_mixed_non_ws_prefix(
         let _ = (start, end); // suppress unused warnings
         for child in children {
             collect_hug_mixed_non_ws_prefix(out, child, line_width, edits);
+        }
+    }
+}
+
+/// Pass 1.8: break block-display elements that land at a non-ws `>` prefix.
+///
+/// When pass 1 hugs a Component (`<Component\n  ><div>…</div></Component\n>`),
+/// the `<div>` is placed immediately after the hugged `>` — its "indent" is
+/// `  >` (non-whitespace).  `try_break_block_overflow` normally requires a
+/// pure-whitespace indent, so pass 1 can't handle this.  This targeted pass
+/// extracts the whitespace portion (`  `) from the `  >` prefix and applies
+/// the block-break logic manually.
+fn collect_break_block_non_ws_prefix(
+    out: &str,
+    fragment: &Fragment,
+    line_width: usize,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(e) => {
+                if is_whitespace_preserving(e.name.as_str()) {
+                    continue;
+                }
+                let s = e.start as usize;
+                let end = e.end as usize;
+                let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+                let indent = out.get(line_start..s).unwrap_or("");
+                let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
+                if non_ws && indent.ends_with('>') && is_block_display(e.name.as_str()) {
+                    // Extract the whitespace-only portion of the prefix.
+                    let ws_indent: &str = {
+                        let trim_pos = indent.rfind([' ', '\t']).map_or(0, |i| i + 1);
+                        &indent[..trim_pos]
+                    };
+                    // Only act when the whole element is on one line and overflows.
+                    let whole = out.get(s..end).unwrap_or("");
+                    let column = indent.width() + 1; // +1 for the `>` char
+                    if !whole.contains('\n') && column + whole.width() > line_width {
+                        // Find first and last non-whitespace children.
+                        if let (Some(first_child), Some(last_child)) = (
+                            e.fragment.nodes.iter().find(|n| {
+                                !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                            }),
+                            e.fragment.nodes.iter().rfind(|n| {
+                                !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                            }),
+                        ) {
+                            let first_start = node_start(first_child) as usize;
+                            let last_end = node_end(last_child) as usize;
+                            let open = out.get(s..first_start).unwrap_or("");
+                            let close = out.get(last_end..end).unwrap_or("");
+                            let content = out.get(first_start..last_end).unwrap_or("");
+                            if open.ends_with('>') && !content.is_empty() {
+                                let inner_indent = format!("{ws_indent}  ");
+                                let broken =
+                                    format!("{open}\n{inner_indent}{content}\n{ws_indent}{close}");
+                                if broken != whole {
+                                    edits.push((e.start, e.end, broken));
+                                    continue; // edit owns this element
+                                }
+                            }
+                        }
+                    }
+                }
+                for child in &[&e.fragment] {
+                    collect_break_block_non_ws_prefix(out, child, line_width, edits);
+                }
+            }
+            _ => {
+                for child in child_fragments(node) {
+                    collect_break_block_non_ws_prefix(out, child, line_width, edits);
+                }
+            }
         }
     }
 }
@@ -2762,7 +2852,14 @@ fn try_hug_mixed(
             if is_flow {
                 has_flow_block = true;
             } else if !is_inline_node(n) {
-                return None;
+                // For Components, also allow block-display RegularElement children
+                // (e.g. `<Component><div>…</div></Component>`). Components have
+                // block-level semantics so their block children can be hugged.
+                let is_block_child_of_component = is_component_tag(tag)
+                    && matches!(n, TemplateNode::RegularElement(_) | TemplateNode::Component(_));
+                if !is_block_child_of_component {
+                    return None;
+                }
             }
         }
     }
@@ -2881,6 +2978,28 @@ fn try_hug_mixed(
                 let result2 = format!("{onb}\n{inner_indent}>{printed}</{tag}\n{ws_indent}>");
                 if result2 != whole {
                     return Some((start, end, result2));
+                }
+            }
+        }
+        // Last-resort: defer the trailing `>` of the last element's close tag to the
+        // next line so the combined `  >{content}</{tag}` line fits.  This matches
+        // prettier's "shouldHugEnd" close-tag deferral when the content is adjacent
+        // (shouldHugStart) and the full inner line would overflow the print width.
+        // Concretely: `<Component\n  >{a}</button></Component\n>` overflows as one
+        // line; deferring produces `<Component\n  >{a}</button\n  ></Component\n>`.
+        // Only fire when:
+        //   - The raw content (all on one line) ends with `>`.
+        //   - Removing the trailing `>` makes the inner line fit.
+        //   - The result differs from the current form.
+        let full_inner = inner_indent.width() + 1 + raw.width() + 2 + tag.width();
+        if full_inner > line_width && !raw.contains('\n') && raw.ends_with('>') {
+            let raw_deferred = &raw[..raw.len() - 1]; // trim the trailing `>`
+            let deferred_inner = inner_indent.width() + 1 + raw_deferred.width();
+            if deferred_inner <= line_width {
+                let result3 =
+                    format!("{onb}\n{inner_indent}>{raw_deferred}\n{inner_indent}></{tag}\n{ws_indent}>");
+                if result3 != whole {
+                    return Some((start, end, result3));
                 }
             }
         }
@@ -3726,6 +3845,58 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                 Doc::Softline,
                 Doc::Text(">".to_string()),
             ]));
+        }
+    }
+    // Inline-block element WITHOUT attributes but WITH simple text content:
+    // produce a hug doc where the CLOSE `>` can defer to the next line when
+    // the combined line (element + following content) overflows the print width.
+    // This handles e.g. `<button>Hello, this is a test</button>` inside a
+    // Component's hug body where the Component's close tag tips the line over 80.
+    // The doc is:
+    //   Group(["<button>Hello...</button", Softline, ">"])
+    // Flat: `<button>Hello...</button>` (Softline = nothing in flat mode) ✓
+    // Break: `<button>Hello...</button\n  >` (close `>` deferred to next indent line)
+    // Gate: only inline-block without attributes, text-only single-line content.
+    if let TemplateNode::RegularElement(e) = node {
+        let tag = e.name.as_str();
+        if is_inline_block(tag)
+            && e.attributes.is_empty()
+            && !e.fragment.nodes.is_empty()
+            && e.fragment
+                .nodes
+                .iter()
+                .all(|n| matches!(n, TemplateNode::Text(_)))
+        {
+            if let (Some(first), Some(last)) = (
+                e.fragment.nodes.first(),
+                e.fragment.nodes.last(),
+            ) {
+                let elem_start = e.start as usize;
+                let elem_end = e.end as usize;
+                let content_start = node_start(first) as usize;
+                let content_end = node_end(last) as usize;
+                let open = out.get(elem_start..content_start)?;
+                let content = out.get(content_start..content_end)?;
+                let close_tag = out.get(content_end..elem_end)?;
+                // Only simple single-line hugged content (no whitespace edges).
+                if !open.contains('\n')
+                    && !content.contains('\n')
+                    && open.ends_with('>')
+                    && close_tag.starts_with("</")
+                    && close_tag.ends_with('>')
+                    && !content.starts_with([' ', '\t', '\r', '\n'])
+                    && !content.ends_with([' ', '\t', '\r', '\n'])
+                {
+                    // Everything except the final `>` of the close tag.
+                    let without_final_gt =
+                        format!("{open}{content}{}", &close_tag[..close_tag.len() - 1]);
+                    return Some(Doc::Group(vec![
+                        Doc::Text(without_final_gt),
+                        Doc::Softline,
+                        Doc::Text(">".to_string()),
+                    ]));
+                }
+            }
         }
     }
     let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
