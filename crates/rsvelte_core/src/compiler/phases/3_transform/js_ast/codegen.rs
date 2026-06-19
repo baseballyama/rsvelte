@@ -845,6 +845,15 @@ impl<'a> JsCodegen<'a> {
                 self.output.push('.');
                 self.output.push_str(property);
             }
+            JsExpr::ImportExpression { source, options } => {
+                self.output.push_str("import(");
+                self.emit_expression(self.arena.get_expr(*source));
+                if let Some(options_id) = options {
+                    self.output.push_str(", ");
+                    self.emit_expression(self.arena.get_expr(*options_id));
+                }
+                self.output.push(')');
+            }
             JsExpr::Await(inner_id) => {
                 self.output.push_str("await ");
                 let arg = self.arena.get_expr(*inner_id);

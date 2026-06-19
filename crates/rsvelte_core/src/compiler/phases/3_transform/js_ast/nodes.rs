@@ -369,6 +369,16 @@ pub enum JsExpr {
     /// Meta property `meta.property` (e.g. `import.meta`, `new.target`). Both
     /// parts are keyword/identifier tokens, so it is a terminal leaf.
     MetaProperty(CompactString, CompactString),
+    /// Dynamic import call `import(source[, options])`. The source/options are
+    /// held as already-converted sub-expressions and emitted lazily by codegen
+    /// (replacing the old eager `generate_expr` + `Raw` stringification). Treated
+    /// as a terminal in the analysis passes (await / transform / reactive-ref
+    /// collection), mirroring the opaque `Raw` it replaced, so the sub-expressions
+    /// are not re-transformed after conversion.
+    ImportExpression {
+        source: ExprId,
+        options: Option<ExprId>,
+    },
     /// Await expression
     Await(ExprId),
     /// Yield expression
