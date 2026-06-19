@@ -19,16 +19,26 @@
 - 残コーパス失敗は `compat/corpus/known-failures.json`（120件）。CI ラチェットは縮小のみ許可。
 
 ### 進捗ログ
-- **2026-06-19 PR #1097**: Step 2a の最初のスライス着地。derived の **update 式**
-  （`count++` → `$.update_derived(count)`、`--count` → `$.update_derived_pre(count, -1)`）を
-  AST read-wrap パス `server::derived_reads_ast::visit_update_expression` に統合
-  （**元の妥当な script** 上で `UpdateExpression{argument: AssignmentTargetIdentifier}` を直接ローワリング）。
-  旧テキスト走査 `rewrite_derived_update_expressions` は post-wrap の **不正 JS** `count()++`
-  （call は代入先になれず再パース不能）を走査していた＝§4 の問題そのもの。テキスト走査は
-  `wrap_derived_reads_in_script` の **バイトスキャナ fallback 経路でのみ** 生存させ両経路をバイト一致に保った。
-  検証: コーパス 120 件据え置き（NEW 0）、`derived_reads_ast` 19/19（+6）、clippy/fmt clean。
-  **次**: 同じ AST パスへ **assignment** ローワリング（`count = x` → `count(x)`、複合/論理展開）を統合（§7 step 1, task 残）。
-  RHS の read-wrap + `count` 重複 + 構造変換を1パスで byte-identical に出すのが難所（§4 単一パス必須）。
+- **2026-06-19 PR #1097（Step 2a: derived script-path 3 パスを AST 化、全てバイト一致・コーパス 120 据え置き）**:
+  derived バインディングの script 経路テキスト処理を **元の妥当な script 上の単一 AST パス** に統合。
+  旧テキスト走査は全て post-wrap の **不正 JS**（`count()++` / `count() = x`：call は代入先になれず再パース不能）を
+  走査していた＝§4 の問題そのもの。各旧走査は `wrap_derived_reads_in_script` の **バイトスキャナ fallback 経路でのみ** 生存。
+  1. **update 式** `count++`→`$.update_derived(count)`、`--count`→`$.update_derived_pre(count, -1)`
+     を `derived_reads_ast::visit_update_expression`（`UpdateExpression{argument: AssignmentTargetIdentifier}`）。
+  2. **assignment** `count = x`→`count(x)`、複合/論理 `count += 1`→`count(count() + 1)` を
+     `derived_reads_ast::visit_assignment_expression`。LHS を skip_spans でバイパス→`op=` gap を `(` か
+     `(name<read> <binop> ` に置換→RHS 末尾に `)` 追加、という **非重複編集** で RHS の read-wrap と
+     入れ子 `a = b = 1` を1パスで両立（stable right-to-left splice）。
+  3. **$.derived thunk 畳み込み** `$.derived(() => name())`→`$.derived(name)` を新モジュール `unthunk_derived_ast`
+     （post-wrap 妥当 JS なので普通に再パース）。
+  検証: コーパス 120 据え置き（NEW 0）、`derived_reads_ast` 26/26・`unthunk_derived_ast` 5/5、clippy/fmt clean、CI green。
+  **次（task #3 継続）**: 残る script 経路バイトスキャナを順に AST 化。候補（孤立・妥当 JS 優先）:
+  `remove_rune_statement`（$effect/$inspect 除去・コメント密輸と絡む＝やや難）、`transform_class_fields_server`、
+  store-sub `transform_store_*`。**地雷回避**: template 経路（`wrap_derived_reads_for_template` 84箇所＝§4）、
+  `$state.snapshot`（§5）、`each_array` 連番（§5）は単独で触らない。
+  大物 = `js_ast` の `Raw(` ~185箇所→oxc AST + esrap（Step 1+3）、blocker 解析（Step 4）、fallback 削除（Step 5）。
+  **重要**: 各 `*_ast.rs` パスは「AST 駆動のテキスト編集（splice）」であり最終形ではない。ゴール（テキスト処理ゼロ）には
+  Step 1+3 で出力 IR 自体を AST 化し、Step 5 で fallback バイトスキャナを全削除する必要がある。
 
 ### 再開手順
 ```bash
