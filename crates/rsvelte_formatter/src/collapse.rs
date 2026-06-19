@@ -1929,6 +1929,15 @@ fn try_break_inline_content_tag(
     if out.get(ee..line_end)?.contains('{') {
         return None;
     }
+    // If the rightmost `{…}` is followed by a space (indicating prose fill words
+    // continue on the same line), this expression is in a fill run that the fill
+    // algorithm already broke at the word boundary. Breaking the expression here
+    // would split it unnecessarily. Leave it for the fill.
+    // Note: a suffix glued directly to the `}` (like `px)` in `{getPixels(...)}px)`)
+    // is NOT a fill-run word separator — it's a unit suffix, so we still break it.
+    if out.get(ee..line_end).is_some_and(|rest| rest.starts_with(' ') || rest.starts_with('\t')) {
+        return None;
+    }
     let _start_col = current_column(out, es as u32);
     // Continuation lands at the line's own indent + one level.
     let indent = &out[line_start..es];
@@ -3612,11 +3621,25 @@ fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
                 {
                     let open_doc = build_open_attr_doc(out, node, tag, true)
                         .unwrap_or(Doc::Text(open_text[..open_text.len() - 1].to_string()));
+                    // Build a fill doc for the content so mixed text+expr content
+                    // (e.g. `count {await delay(count)} | …`) can fill-wrap when
+                    // the element is inside a multi-element run and overflows.
+                    // Fall back to a flat text atom when the content has no fill
+                    // break points (e.g. a pure text "resolve" that fits inline).
+                    let inner_content_doc = build_children_doc(out, &e.fragment)
+                        .map(|body| {
+                            Doc::Group(vec![Doc::Concat(vec![
+                                Doc::Text(">".to_string()),
+                                body,
+                                Doc::Text(format!("</{tag}")),
+                            ])])
+                        })
+                        .unwrap_or_else(|| Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]));
                     return Some(Doc::Group(vec![
                         open_doc,
                         Doc::Group(vec![Doc::Indent(vec![
                             Doc::Softline,
-                            Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
+                            inner_content_doc,
                         ])]),
                         Doc::Softline,
                         Doc::Text(">".to_string()),
