@@ -91,7 +91,17 @@
     **→ converter は variant-complete。全 JS 構文を byte-identical に変換可能。残る bail は `Raw`/`Spanned`/`RawMapped`（不透明テキスト）のみ。**
     各スライスは subagent に `to_oxc.rs` の variant 追加を委譲 → メインが diff レビュー + 中央 byte-exact 検証
     （`RSVELTE_CLIENT_TO_OXC=1 cargo test --release --test runtime --test compiler_fixtures`、flaky bin はリトライループ）→ commit。
-    **次フェーズ（flag を ON にする前の本丸）**: (a) Class + assignment-target 分割代入を追加、(b) **client visitor が生成する
+    **Raw-elimination フェーズ開始済み**（client Raw 59→56）: 第1スライスで `expression_converter.rs` の
+    リテラル逐語保存 Raw 3個（二重引用符文字列・非正規数値 `1_000_000` 等）を構造化
+    `JsLiteral::RawString{value,raw}` / `RawNumber{value,raw}`（codegen は raw 逐語出力＝旧 Raw とバイト一致、
+    to_oxc は oxc literal の raw 経由）に置換。**★Raw-elim スライスの検証は二重★**: IR + codegen を触るので
+    **flag-OFF（codegen 不変＝コーパス 120 no-NEW + byte-exact fixtures）と flag-ON（to_oxc が新ノードを処理）の両方**を検証する
+    （to_oxc-only スライスは flag-ON だけで済んだが、Raw-elim は codegen も変えるため flag-OFF も必須）。
+    残 client Raw クラスタ（構築箇所、~56）: `bind_directive.rs`(14, 手書き arrow＝本体が文字列組立で最難),
+    `mod.rs`(11), `await_block.rs`(4), `shared/utils.rs`(3, reactive-update), `declaration_tag.rs`(3),
+    `shared/{declarations,component}.rs`(各2), `program.rs`(2), `const_tag.rs`(2), `expression_converter.rs`(残11、
+    多くは `/* Unknown */` 等の到達しない fallback でリアルプログラムを塞がない→優先度低)。
+    **次フェーズ（flag を ON にする前の本丸）**: (a) Class + assignment-target 分割代入は**追加済み**、(b) **client visitor が生成する
     ~191 個の `Raw(...)` を構造化ノードに置換**（structured な式/文を Raw 文字列で組み立てている箇所＝
     bind_directive.rs の手書き arrow、bridge.rs の SSR テンプレ等。これが減るほど converter が `None` で codegen に
     fallback せず direct-AST で出せるプログラムが増える）、(c) **コメントストリーム**（Phase-1 `Root.comments` →
