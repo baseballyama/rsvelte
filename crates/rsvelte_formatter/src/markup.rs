@@ -1996,11 +1996,8 @@ fn render_attribute_value_sequence(
                         } else {
                             // Multi-line first-pass (at indent-only width).
                             let first_line = first_pass.lines().next().unwrap_or("").trim_end();
-                            if first_line.ends_with('{')
-                                || first_line.ends_with('[')
-                                || first_line.ends_with('(')
-                            {
-                                // OXC expanded the call argument block (`fn({` / `fn([`).
+                            if first_line.ends_with('{') || first_line.ends_with('(') {
+                                // OXC expanded a call argument block (`fn({` / `fn(`).
                                 // prettier-plugin-svelte instead keeps the arg on its own
                                 // line: `fn(\n  {\n    ...\n  },\n)`. Apply that transform
                                 // when the expression is a single-object-arg call and
@@ -2018,9 +2015,10 @@ fn render_attribute_value_sequence(
                                     first_pass
                                 }
                             } else {
-                                // Operator-break — re-format at start-column width so
-                                // the break lands at the right column (trailing text
-                                // is on a subsequent line, not relevant here).
+                                // Operator-break or computed-member-access break (`?.[`)
+                                // — re-format at start-column width so the break lands
+                                // where the brace column dictates (trailing text is on a
+                                // subsequent line, not relevant here).
                                 format_attribute_value_expression(
                                     inner_src,
                                     &opts,
