@@ -864,9 +864,26 @@ fn push_bare_expression(
                 " ".repeat(depth * indent_width)
             };
             crate::reindent::reindent(&multi, &cont_indent, true)
+        } else if multi.contains('\n')
+            && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
+        {
+            // OXC broke at call-argument expansion (expanded args, not method chain).
+            // prettier-plugin-svelte's `removeLines` / `forceSingleLine` collapses the
+            // newlines back to spaces but PRESERVES the expanded-args markers: a leading
+            // space after the outermost `(` and a trailing `, ` before the closing `)`.
+            // This produces `call( arg, )` rather than `call(arg)`.
+            //
+            // Detect: OXC's joined-lines form ends with `, )` (trailing comma inside the
+            // outermost call). If so, insert a space after the matching opening `(` to
+            // match the oracle's expanded-arg-collapsed form.
+            if let Some(collapsed) = collapse_expanded_arg_form(&multi) {
+                collapsed
+            } else {
+                formatted
+            }
         } else {
-            // OXC kept it on one line, broke at a logical operator, or broke
-            // using soft (argument) breaks — keep the inline version.
+            // OXC kept it on one line, broke at a logical operator, or couldn't
+            // determine an expanded-arg form — keep the inline version.
             formatted
         }
     } else {
@@ -2868,4 +2885,88 @@ fn outer_parens_match(inner: &str) -> bool {
         }
     }
     depth == 0
+}
+
+/// When OXC's multi-line output represents an expanded call-argument break
+/// where the ARROW BODY (not the outer call) was expanded, collapse all the
+/// lines into a single line and insert a leading space after the outermost
+/// opening `(`.
+///
+/// This mimics prettier-plugin-svelte's `removeLines` / `forceSingleLine`
+/// behavior: soft-breaks inside a call-argument list are collapsed to spaces,
+/// BUT the expanded-args markers (`( ` prefix and `, )` suffix) are preserved.
+///
+/// Example:
+/// ```text
+/// input:
+///   options.filter((opt) =>
+///     selectedValues.has(opt.value),
+///   )
+/// output: options.filter( (opt) => selectedValues.has(opt.value), )
+/// ```
+///
+/// Returns `None` when:
+/// - The last line is not just `)` (not an expanded call-arg form).
+/// - The joined form doesn't end with `, )`.
+/// - The first line ends with `(` — this indicates the OUTER call was fully
+///   expanded (OXC put all args on a new line starting with `(`), which means
+///   prettier-plugin-svelte keeps the expression single-line WITHOUT the
+///   expanded-arg markers.  These cases must stay as the inline form.
+fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
+    // Step 1: join all lines into a single line, trimming leading whitespace
+    // from each continuation line.
+    let lines: Vec<&str> = multi.trim_end_matches(';').trim().lines().collect();
+    if lines.len() < 2 {
+        return None;
+    }
+    // The last line should be `)` alone (the closing of the outermost call).
+    let last = lines[lines.len() - 1].trim();
+    if last != ")" {
+        return None;
+    }
+    // When the FIRST line ends with `(`, OXC expanded the outer call completely
+    // (all args on a new line). prettier-plugin-svelte's `removeLines` collapses
+    // this back to the inline form WITHOUT expanded-arg markers — so oracle keeps
+    // it single-line. Do NOT apply the expanded form in this case.
+    let first = lines[0].trim_end();
+    if first.ends_with('(') {
+        return None;
+    }
+    // Join all lines with a single space, trimming each line's leading whitespace.
+    let joined = lines
+        .iter()
+        .map(|l| l.trim_start())
+        .collect::<Vec<_>>()
+        .join(" ");
+    // The joined form should end with `, )` (trailing comma from expanded args
+    // followed by the closing `)`).
+    if !joined.ends_with(", )") {
+        return None;
+    }
+    // Step 2: find the outermost `(` that matches the trailing `)` and insert
+    // a space after it to produce the `( arg, )` form.
+    let close_pos = joined.len() - 1; // position of the trailing `)`
+    let mut depth: i32 = 0;
+    let bytes = joined.as_bytes();
+    let mut open_pos: Option<usize> = None;
+    for i in (0..close_pos).rev() {
+        match bytes[i] {
+            b')' => depth += 1,
+            b'(' => {
+                if depth == 0 {
+                    open_pos = Some(i);
+                    break;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    let open_pos = open_pos?;
+    // Insert a space after the opening `(` to produce the `( arg, )` form.
+    let mut result = String::with_capacity(joined.len() + 1);
+    result.push_str(&joined[..open_pos + 1]);
+    result.push(' ');
+    result.push_str(&joined[open_pos + 1..]);
+    Some(result)
 }

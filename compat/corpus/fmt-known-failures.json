@@ -13,10 +13,6 @@
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte",
 	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/playground/(components)/code-viewer.svelte",
-	"shadcn-svelte/docs/src/routes/(app)/(layout)/examples/tasks/components/data-table-faceted-filter.svelte",
-	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte",
-	"svelte/packages/svelte/tests/runtime-browser/samples/html-tag-script-2/main.svelte"
+	"svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte"
 ]
