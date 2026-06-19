@@ -30,9 +30,9 @@ use super::nodes::*;
 use oxc_allocator::Vec as ArenaVec;
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::{
-    Argument, ArrayExpressionElement, ChainElement, Expression, FormalParameterKind, FunctionType,
-    ImportOrExportKind, ObjectPropertyKind, PropertyKey, PropertyKind, RegExp, RegExpFlags,
-    RegExpPattern, Statement, VariableDeclarationKind,
+    Argument, ArrayExpressionElement, ChainElement, Expression, ForStatementInit, ForStatementLeft,
+    FormalParameterKind, FunctionType, ImportOrExportKind, ObjectPropertyKind, PropertyKey,
+    PropertyKind, RegExp, RegExpFlags, RegExpPattern, Statement, VariableDeclarationKind,
 };
 use oxc_span::SPAN;
 use oxc_syntax::number::{BigintBase, NumberBase};
@@ -145,10 +145,149 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 let decl = oxc_ast::ast::Declaration::FunctionDeclaration(func);
                 Some(Statement::from(decl))
             }
-            // TODO: For / ForOf / While / DoWhile / Switch / Labeled / Try.
-            // Bail on opaque Raw / RawMapped (the CRITICAL RULE).
+            JsStatement::For(for_stmt) => self.for_statement(for_stmt),
+            JsStatement::ForOf(for_of) => self.for_of_statement(for_of),
+            JsStatement::While(w) => {
+                let test = self.expr_id(w.test)?;
+                let body = self.stmt(self.arena.get_stmt(w.body))?;
+                Some(self.ab.statement_while(SPAN, test, body))
+            }
+            JsStatement::DoWhile(d) => {
+                let body = self.stmt(self.arena.get_stmt(d.body))?;
+                let test = self.expr_id(d.test)?;
+                Some(self.ab.statement_do_while(SPAN, body, test))
+            }
+            JsStatement::Switch(s) => self.switch_statement(s),
+            JsStatement::Labeled(l) => {
+                let label = self.ab.label_identifier(SPAN, self.str(&l.label));
+                let body = self.stmt(self.arena.get_stmt(l.body))?;
+                Some(self.ab.statement_labeled(SPAN, label, body))
+            }
+            JsStatement::Try(t) => self.try_statement(t),
+            // Bail on opaque Raw / RawMapped (the CRITICAL RULE) and any other
+            // variant not explicitly handled above.
             _ => None,
         }
+    }
+
+    /// Build a `for (init; test; update) body` statement. Bails on init forms
+    /// that cannot be faithfully mapped (e.g. destructuring var-decl bindings).
+    fn for_statement(&self, for_stmt: &JsForStatement) -> Option<Statement<'a>> {
+        let init = match &for_stmt.init {
+            None => None,
+            Some(JsForInit::Variable(decl)) => {
+                let var_decl = self.variable_declaration_node(decl)?;
+                Some(ForStatementInit::VariableDeclaration(var_decl))
+            }
+            Some(JsForInit::Expression(id)) => {
+                let expr = self.expr_id(*id)?;
+                Some(ForStatementInit::from(expr))
+            }
+        };
+        let test = match for_stmt.test {
+            Some(id) => Some(self.expr_id(id)?),
+            None => None,
+        };
+        let update = match for_stmt.update {
+            Some(id) => Some(self.expr_id(id)?),
+            None => None,
+        };
+        let body = self.stmt(self.arena.get_stmt(for_stmt.body))?;
+        Some(self.ab.statement_for(SPAN, init, test, update, body))
+    }
+
+    /// Build a `for (left of right)` / `for await (left of right)` statement,
+    /// or a `for (left in right)` statement when `is_for_in` is set. Bails on
+    /// destructuring / complex left-hand sides.
+    fn for_of_statement(&self, for_of: &JsForOfStatement) -> Option<Statement<'a>> {
+        let left = match &for_of.left {
+            JsForOfLeft::Variable(decl) => {
+                let var_decl = self.variable_declaration_node(decl)?;
+                ForStatementLeft::VariableDeclaration(var_decl)
+            }
+            JsForOfLeft::Pattern(pattern) => {
+                // Only a plain identifier / simple member assignment target is
+                // representable; reuse the assignment-target helper which bails
+                // on anything else.
+                let target = match pattern {
+                    JsPattern::Identifier(name) => self
+                        .ab
+                        .simple_assignment_target_assignment_target_identifier(
+                            SPAN,
+                            self.str(name),
+                        ),
+                    _ => return None,
+                };
+                let assignment_target = oxc_ast::ast::AssignmentTarget::from(target);
+                ForStatementLeft::from(assignment_target)
+            }
+        };
+        let right = self.expr_id(for_of.right)?;
+        let body = self.stmt(self.arena.get_stmt(for_of.body))?;
+        if for_of.is_for_in {
+            // `for await (… in …)` is not valid syntax; bail if it appears.
+            if for_of.is_await {
+                return None;
+            }
+            Some(self.ab.statement_for_in(SPAN, left, right, body))
+        } else {
+            Some(
+                self.ab
+                    .statement_for_of(SPAN, for_of.is_await, left, right, body),
+            )
+        }
+    }
+
+    /// Build a `switch (disc) { case … }` statement.
+    fn switch_statement(&self, s: &JsSwitchStatement) -> Option<Statement<'a>> {
+        let discriminant = self.expr_id(s.discriminant)?;
+        let mut cases = self.ab.vec_with_capacity(s.cases.len());
+        for case in &s.cases {
+            let test = match case.test {
+                Some(id) => Some(self.expr_id(id)?),
+                None => None,
+            };
+            let consequent = self.statements(&case.consequent)?;
+            cases.push(self.ab.switch_case(SPAN, test, consequent));
+        }
+        Some(self.ab.statement_switch(SPAN, discriminant, cases))
+    }
+
+    /// Build a `try { } catch (e) { } finally { }` statement. Bails on a
+    /// destructuring catch parameter.
+    fn try_statement(&self, t: &JsTryStatement) -> Option<Statement<'a>> {
+        let block_stmts = self.statements(&t.block.body)?;
+        let block = self.ab.alloc_block_statement(SPAN, block_stmts);
+
+        let handler = match &t.handler {
+            None => None,
+            Some(catch) => {
+                let param = match &catch.param {
+                    None => None,
+                    Some(JsPattern::Identifier(name)) => {
+                        let pattern = self
+                            .ab
+                            .binding_pattern_binding_identifier(SPAN, self.str(name));
+                        Some(self.ab.catch_parameter(SPAN, pattern, oxc_ast::NONE))
+                    }
+                    // Destructuring catch params are not handled in this slice.
+                    Some(_) => return None,
+                };
+                let body_stmts = self.statements(&catch.body.body)?;
+                let body = self.ab.alloc_block_statement(SPAN, body_stmts);
+                Some(self.ab.catch_clause(SPAN, param, body))
+            }
+        };
+
+        let finalizer = match &t.finalizer {
+            None => None,
+            Some(block) => {
+                let stmts = self.statements(&block.body)?;
+                Some(self.ab.alloc_block_statement(SPAN, stmts))
+            }
+        };
+
+        Some(self.ab.statement_try(SPAN, block, handler, finalizer))
     }
 
     /// Build a module-source `StringLiteral`. Codegen emits the source verbatim
@@ -232,15 +371,8 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         // form (`export { a, b as c }`) are mutually exclusive in the IR (only
         // a variable declaration is representable as the declaration form).
         let (declaration, specifiers) = if let Some(decl) = &export.declaration {
-            let var_stmt = self.variable_declaration(decl)?;
-            // `variable_declaration` returns a `Statement::VariableDeclaration`;
-            // unwrap it back into the `Declaration` the export node wants.
-            let declaration = match var_stmt {
-                Statement::VariableDeclaration(d) => {
-                    oxc_ast::ast::Declaration::VariableDeclaration(d)
-                }
-                _ => return None,
-            };
+            let var_decl = self.variable_declaration_node(decl)?;
+            let declaration = oxc_ast::ast::Declaration::VariableDeclaration(var_decl);
             (Some(declaration), self.ab.vec())
         } else {
             let mut specs = self.ab.vec_with_capacity(export.specifiers.len());
@@ -333,6 +465,18 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     }
 
     fn variable_declaration(&self, decl: &JsVariableDeclaration) -> Option<Statement<'a>> {
+        let var_decl = self.variable_declaration_node(decl)?;
+        Some(Statement::VariableDeclaration(var_decl))
+    }
+
+    /// Build a boxed [`VariableDeclaration`] node from the IR. Shared by the
+    /// `VariableDeclaration` statement arm, the `ExportNamed` declaration path,
+    /// and the `for (let … ; …)` / `for (… of …)` loop initializers. Bails on
+    /// destructuring binding patterns (only plain identifiers handled here).
+    fn variable_declaration_node(
+        &self,
+        decl: &JsVariableDeclaration,
+    ) -> Option<oxc_allocator::Box<'a, oxc_ast::ast::VariableDeclaration<'a>>> {
         let kind = match decl.kind {
             JsVariableKind::Var => VariableDeclarationKind::Var,
             JsVariableKind::Let => VariableDeclarationKind::Let,
@@ -364,8 +508,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             ));
         }
 
-        let var_decl = self.ab.declaration_variable(SPAN, kind, declarators, false);
-        Some(Statement::from(var_decl))
+        Some(
+            self.ab
+                .alloc_variable_declaration(SPAN, kind, declarators, false),
+        )
     }
 
     // -- expressions --------------------------------------------------------
