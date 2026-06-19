@@ -95,6 +95,7 @@ pub(crate) fn print(
                         out.push(' ');
                         pos += 1;
                     }
+                    // Softline in flat mode = nothing
                 } else {
                     trim_trailing_blanks(&mut out);
                     out.push('\n');

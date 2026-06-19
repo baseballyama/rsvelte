@@ -767,6 +767,20 @@ fn push_bare_expression(
     let full_width = options.js.line_width.value() as usize;
     // First format inline (single-line) to get the canonical expression text.
     let formatted = format_inline_expression(slice, options)?;
+    // prettier-plugin-svelte uses `forceSingleLine: true` (internally `removeLines`)
+    // for block-header expressions like `{#each}`, `{#if}`, etc.  This means all
+    // non-hard line breaks in the formatted expression doc are replaced by spaces,
+    // producing a single-line result even for wide array/object literals.
+    //
+    // OXC's formatter (unlike prettier) always breaks arrays/objects of significant
+    // width into multiple lines, even with `Expand::Never` and `LineWidth::MAX`.
+    // When the source expression is an array or object literal with no newlines,
+    // collapse the multi-line OXC output back to a single line to match oracle.
+    let formatted = if formatted.contains('\n') && starts_with_array_or_object_literal(slice) && !slice.contains('\n') {
+        collapse_multiline_to_single_line(&formatted)
+    } else {
+        formatted
+    };
     // prettier-plugin-svelte wraps a block-header expression across lines when
     // the expression itself is longer than the print width (OXC at `full_width`
     // would break it).  When the expression fits within `full_width` — even if
@@ -778,7 +792,12 @@ fn push_bare_expression(
     // carry only the block's indent (not the keyword prefix), so using the full
     // width avoids over-wrapping inner call arguments.
     let formatted =
-        if !formatted.contains('\n') && UnicodeWidthStr::width(formatted.as_str()) > full_width {
+        if !formatted.contains('\n') && UnicodeWidthStr::width(formatted.as_str()) > full_width
+            // prettier-plugin-svelte never breaks array or object literals in
+            // block headers even when they are far wider than the print width —
+            // e.g. `{#each ["a", "b", "c", …] as x}` stays on one line.
+            && !starts_with_array_or_object_literal(formatted.as_str())
+        {
             let multi = format_expr_core(slice, options, options.js.line_width, false)?;
             if multi.contains('\n')
                 && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
@@ -2643,6 +2662,63 @@ fn strip_outer_parens(s: &str) -> &str {
 fn first_line_ends_with_logical_op(first_line: &str) -> bool {
     let t = first_line.trim_end();
     t.ends_with("&&") || t.ends_with("||") || t.ends_with("??")
+}
+
+/// Returns `true` when the expression source starts with `[` or `{`
+/// (an array literal or object literal).  prettier-plugin-svelte never breaks
+/// these in block-header positions even when they are far wider than the print
+/// width — e.g. `{#each ["a", "b", …] as x}` stays on one line regardless.
+fn starts_with_array_or_object_literal(formatted: &str) -> bool {
+    let t = formatted.trim_start();
+    t.starts_with('[') || t.starts_with('{')
+}
+
+/// Collapse a multi-line OXC-formatted array or object literal back to a
+/// single line, matching prettier-plugin-svelte's `removeLines` / `forceSingleLine`
+/// behaviour for block-header expressions.
+///
+/// OXC always breaks wide arrays/objects into multiple lines (with trailing
+/// commas on the last element), but prettier-plugin-svelte keeps them on one
+/// line in `{#each}`, `{#if}`, etc. headers.  We replicate this by:
+///
+/// 1. Splitting the multi-line output into lines.
+/// 2. Trimming leading whitespace from each inner line.
+/// 3. Removing the trailing comma from the last element before `]` / `}`.
+/// 4. Joining with spaces / no separator as appropriate.
+///
+/// Example input:
+/// ```
+/// [
+///   { label: "Today", value: 0 },
+///   { label: "Tomorrow", value: 1 },
+/// ]
+/// ```
+/// Example output: `[{ label: "Today", value: 0 }, { label: "Tomorrow", value: 1 }]`
+fn collapse_multiline_to_single_line(formatted: &str) -> String {
+    let lines: Vec<&str> = formatted.lines().collect();
+    if lines.len() < 2 {
+        return formatted.to_string();
+    }
+    let first = lines[0].trim();
+    let last = lines[lines.len() - 1].trim();
+    // Collect inner lines (between first and last).
+    let inner: Vec<&str> = lines[1..lines.len() - 1]
+        .iter()
+        .map(|l| l.trim())
+        .collect();
+    if inner.is_empty() {
+        // Empty array/object: e.g. `[\n]` → `[]`
+        return format!("{first}{last}");
+    }
+    // Join inner items. The last inner item has a trailing comma added by OXC;
+    // remove it so the single-line form doesn't have a trailing comma.
+    let mut items: Vec<&str> = inner.clone();
+    // Strip trailing comma from the last non-empty item.
+    if let Some(last_item) = items.last_mut() {
+        *last_item = last_item.trim_end_matches(',').trim_end();
+    }
+    let joined = items.join(" ");
+    format!("{first}{joined}{last}")
 }
 
 fn outer_parens_match(inner: &str) -> bool {
