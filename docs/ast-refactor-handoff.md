@@ -40,6 +40,13 @@
     `apply_transforms_to_expression_with_shadowed` の `=> expr.clone()` 群,
     `collect_reactive_references_inner` の terminal 群）。`cargo check -p rsvelte_core` が未カバー match を全列挙するので
     それを潰す（leaf は This/Super と同じ群へ）。1スライス＝napi build(~2m40s)+corpus(~13s)+clippy。
+  - **着地済み追加（sub-expression を持つ node の手本）**: `JsExpr::ImportExpression{source, options}` で
+    dynamic `import(...)` を構造化。**重要な手本**: 旧 Raw は変換時に `generate_expr` で source/options を**先食い文字列化**して
+    凍結＝後段の解析パスから不可視だった。これをバイト一致で再現するため、新 node は sub-ExprId を持つが
+    **解析3パスでは terminal 扱い**（has_await/apply_transforms/collect_reactive の Raw と同じ群に追加、再変換しない）、
+    codegen のみが lazy に emit。codegen の優先順位 `matches!` 述語は **import() は call 同様 atomic なので変更不要**
+    （Call が載っていない＝括弧不要のデフォルト）。これで `generate_expr` 先食い（真のテキスト生成）を除去。
+    検証: コーパス 120 据え置き・build/clippy/fmt clean。
   - **leaf Raw は概ね枯れた**。残る client Raw は **sub-expression を持つ**ため leaf 追加より surface が大きい:
     dynamic `import(source, options)`（現状 `generate_expr` で source/options を**先食い文字列化**＝真に潰すべき
     テキスト生成。`ImportExpression{source:ExprId, options:Option<ExprId>}` 化には has_await/apply_transforms/
