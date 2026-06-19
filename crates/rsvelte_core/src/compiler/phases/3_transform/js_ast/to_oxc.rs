@@ -31,8 +31,8 @@ use oxc_allocator::Vec as ArenaVec;
 use oxc_ast::AstBuilder;
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ChainElement, Expression, FormalParameterKind, FunctionType,
-    ObjectPropertyKind, PropertyKey, PropertyKind, RegExp, RegExpFlags, RegExpPattern, Statement,
-    VariableDeclarationKind,
+    ImportOrExportKind, ObjectPropertyKind, PropertyKey, PropertyKind, RegExp, RegExpFlags,
+    RegExpPattern, Statement, VariableDeclarationKind,
 };
 use oxc_span::SPAN;
 use oxc_syntax::number::{BigintBase, NumberBase};
@@ -137,11 +137,184 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 };
                 Some(self.ab.statement_if(SPAN, test, consequent, alternate))
             }
-            // TODO: Import / ExportDefault / ExportNamed / FunctionDeclaration /
-            // For / ForOf / While / DoWhile / Switch / Labeled / Try.
+            JsStatement::Import(import) => self.import_declaration(import),
+            JsStatement::ExportNamed(export) => self.export_named(export),
+            JsStatement::ExportDefault(export) => self.export_default(export),
+            JsStatement::FunctionDeclaration(func) => {
+                let func = self.build_function(func, FunctionType::FunctionDeclaration)?;
+                let decl = oxc_ast::ast::Declaration::FunctionDeclaration(func);
+                Some(Statement::from(decl))
+            }
+            // TODO: For / ForOf / While / DoWhile / Switch / Labeled / Try.
             // Bail on opaque Raw / RawMapped (the CRITICAL RULE).
             _ => None,
         }
+    }
+
+    /// Build a module-source `StringLiteral`. Codegen emits the source verbatim
+    /// between single quotes with **no escaping** (see `emit_import` /
+    /// `emit_export_named`), so we set `raw` to the exact `'source'` spelling to
+    /// make esrap reproduce it byte-for-byte regardless of quote options.
+    fn module_source(&self, source: &str) -> oxc_ast::ast::StringLiteral<'a> {
+        let raw = self.str(&format!("'{source}'"));
+        self.ab
+            .string_literal(SPAN, self.str(source), Some(raw.into()))
+    }
+
+    /// Build a `ModuleExportName::IdentifierName` from a plain name.
+    fn module_export_name(&self, name: &str) -> oxc_ast::ast::ModuleExportName<'a> {
+        self.ab
+            .module_export_name_identifier_name(SPAN, self.str(name))
+    }
+
+    fn import_declaration(&self, import: &JsImportDeclaration) -> Option<Statement<'a>> {
+        // A bare side-effect import (`import 'x'`) has no specifiers section.
+        // Codegen treats the specifier list as empty when it is empty OR its
+        // first entry is `SideEffect`; mirror that to decide `None` vs `Some`.
+        let has_specifiers = !import.specifiers.is_empty()
+            && !matches!(import.specifiers[0], JsImportSpecifier::SideEffect);
+
+        let specifiers = if has_specifiers {
+            let mut specs = self.ab.vec_with_capacity(import.specifiers.len());
+            for spec in &import.specifiers {
+                match spec {
+                    JsImportSpecifier::Default(name) => {
+                        let local = self.ab.binding_identifier(SPAN, self.str(name));
+                        specs.push(
+                            self.ab
+                                .import_declaration_specifier_import_default_specifier(SPAN, local),
+                        );
+                    }
+                    JsImportSpecifier::Namespace(name) => {
+                        let local = self.ab.binding_identifier(SPAN, self.str(name));
+                        specs.push(
+                            self.ab
+                                .import_declaration_specifier_import_namespace_specifier(
+                                    SPAN, local,
+                                ),
+                        );
+                    }
+                    JsImportSpecifier::Named { imported, local } => {
+                        let imported = self.module_export_name(imported);
+                        let local = self.ab.binding_identifier(SPAN, self.str(local));
+                        specs.push(self.ab.import_declaration_specifier_import_specifier(
+                            SPAN,
+                            imported,
+                            local,
+                            ImportOrExportKind::Value,
+                        ));
+                    }
+                    // A `SideEffect` specifier alongside real ones would mean
+                    // `has_specifiers` is true but a bare side-effect entry is
+                    // present; that mixed shape is not representable, so bail.
+                    JsImportSpecifier::SideEffect => return None,
+                }
+            }
+            Some(specs)
+        } else {
+            None
+        };
+
+        let source = self.module_source(&import.source);
+        let decl = self.ab.module_declaration_import_declaration(
+            SPAN,
+            specifiers,
+            source,
+            None,
+            oxc_ast::NONE,
+            ImportOrExportKind::Value,
+        );
+        Some(Statement::from(decl))
+    }
+
+    fn export_named(&self, export: &JsExportNamed) -> Option<Statement<'a>> {
+        // The declaration form (`export const/let/var …`) and the specifier
+        // form (`export { a, b as c }`) are mutually exclusive in the IR (only
+        // a variable declaration is representable as the declaration form).
+        let (declaration, specifiers) = if let Some(decl) = &export.declaration {
+            let var_stmt = self.variable_declaration(decl)?;
+            // `variable_declaration` returns a `Statement::VariableDeclaration`;
+            // unwrap it back into the `Declaration` the export node wants.
+            let declaration = match var_stmt {
+                Statement::VariableDeclaration(d) => {
+                    oxc_ast::ast::Declaration::VariableDeclaration(d)
+                }
+                _ => return None,
+            };
+            (Some(declaration), self.ab.vec())
+        } else {
+            let mut specs = self.ab.vec_with_capacity(export.specifiers.len());
+            for spec in &export.specifiers {
+                let local = self.module_export_name(&spec.local);
+                let exported = self.module_export_name(&spec.exported);
+                specs.push(self.ab.export_specifier(
+                    SPAN,
+                    local,
+                    exported,
+                    ImportOrExportKind::Value,
+                ));
+            }
+            (None, specs)
+        };
+
+        // The IR has no re-export source (`export { x } from 'y'`); always None.
+        let decl = self.ab.module_declaration_export_named_declaration(
+            SPAN,
+            declaration,
+            specifiers,
+            None,
+            ImportOrExportKind::Value,
+            oxc_ast::NONE,
+        );
+        Some(Statement::from(decl))
+    }
+
+    fn export_default(&self, export: &JsExportDefault) -> Option<Statement<'a>> {
+        let kind = match &export.declaration {
+            JsExportDefaultDeclaration::Function(func) => {
+                let func = self.build_function(func, FunctionType::FunctionDeclaration)?;
+                oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(func)
+            }
+            JsExportDefaultDeclaration::Expression(id) => {
+                let expr = self.expr_id(*id)?;
+                oxc_ast::ast::ExportDefaultDeclarationKind::from(expr)
+            }
+        };
+        let decl = self
+            .ab
+            .module_declaration_export_default_declaration(SPAN, kind);
+        Some(Statement::from(decl))
+    }
+
+    /// Build a boxed `Function` node from an IR function declaration. Shared by
+    /// the `FunctionDeclaration` statement arm and the `export default function`
+    /// path. Reuses [`formal_params`] (which bails on destructuring) and
+    /// [`statements`] for the body, mirroring the [`function`] expression helper.
+    fn build_function(
+        &self,
+        func: &JsFunctionDeclaration,
+        func_type: FunctionType,
+    ) -> Option<oxc_allocator::Box<'a, oxc_ast::ast::Function<'a>>> {
+        let id = func
+            .id
+            .as_ref()
+            .map(|name| self.ab.binding_identifier(SPAN, self.str(name)));
+        let params = self.formal_params(&func.params)?;
+        let stmts = self.statements(&func.body.body)?;
+        let body = self.ab.function_body(SPAN, self.ab.vec(), stmts);
+        Some(self.ab.alloc_function(
+            SPAN,
+            func_type,
+            id,
+            func.is_generator,
+            func.is_async,
+            false,
+            oxc_ast::NONE,
+            oxc_ast::NONE,
+            params,
+            oxc_ast::NONE,
+            Some(body),
+        ))
     }
 
     /// Convert a slice of IR statements into an arena `Vec`, bailing on any
