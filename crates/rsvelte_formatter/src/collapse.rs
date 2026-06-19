@@ -260,7 +260,22 @@ fn reformat_pre_inner(
     let full_width = options.js.line_width.value() as usize;
     // Format the children standalone, but narrowed so a depth-0 layout matches the
     // breaks at the real `content_depth`.
-    let narrowed = full_width.saturating_sub(content_depth * iw).max(20);
+    //
+    // Element-direct children of `<pre>` are re-indented with TABS (1 char each)
+    // rather than spaces (`iw` chars each).  The sub-format sees space indentation,
+    // so a line at sub-depth D appears as `D*iw` chars, but in the final output the
+    // tab-indented prefix uses only `D + content_depth` chars (one per tab level).
+    // Using `content_depth * iw` as the narrowing over-narrows for tab lines,
+    // causing hug-overflow on elements that would fit when tab-indented.
+    //
+    // The saving per sub-depth level is `iw - 1` chars (tab = 1 vs space = iw).
+    // We add one level's saving (`iw - 1`) to account for the typical case where
+    // grandchildren at sub-depth 1 (e.g. `<span>` inside `<code>` inside `<pre>`)
+    // are tab-lines in the final output.
+    let narrowed = full_width
+        .saturating_sub(content_depth)
+        .saturating_add(iw - 1)
+        .max(20);
     let mut sub_opts = options.clone();
     sub_opts.js.line_width = oxc_formatter_core::LineWidth::try_from(narrowed as u16).ok()?;
     let formatted = crate::format(raw_inner.trim_matches(['\n', '\r']), &sub_opts).ok()?;
