@@ -986,6 +986,7 @@ fn collect_break_inline_open_tag(
                         e.name.as_str(),
                         &e.attributes,
                         e.start,
+                        e.end,
                         &e.fragment,
                         line_width,
                     )
@@ -1002,6 +1003,7 @@ fn collect_break_inline_open_tag(
                     c.name.as_str(),
                     &c.attributes,
                     c.start,
+                    c.end,
                     &c.fragment,
                     line_width,
                 ) {
@@ -1026,6 +1028,7 @@ fn try_break_inline_open_tag(
     tag: &str,
     attrs: &[rsvelte_core::ast::template::Attribute],
     elem_start: u32,
+    elem_end: u32,
     fragment: &Fragment,
     line_width: usize,
 ) -> Option<(u32, u32, String)> {
@@ -1066,14 +1069,6 @@ fn try_break_inline_open_tag(
         return None; // element is at line start — not our target
     }
 
-    // Only handle hug_start=false: content must start with whitespace.
-    // When content starts directly (no leading whitespace), the hug pattern is
-    // more complex and is deferred to avoid regressions.
-    let first_content = out.get(open_tag_end..node_end(first) as usize)?;
-    if !first_content.starts_with([' ', '\t', '\r', '\n']) {
-        return None; // hug_start=true — skip for now
-    }
-
     // Extract leading whitespace of the line as the base indent for the tag.
     let ws_end = before
         .char_indices()
@@ -1093,23 +1088,125 @@ fn try_break_inline_open_tag(
         attr_texts.push(atext);
     }
 
-    // Build the broken open tag:
-    //   <tag
-    //     attr1
-    //     attr2
-    //   >
-    let mut broken = format!("<{tag}");
-    for atext in &attr_texts {
-        broken.push('\n');
-        broken.push_str(&inner_indent);
-        broken.push_str(atext);
-    }
-    broken.push('\n');
-    broken.push_str(indent);
-    broken.push('>');
+    // Check whether content starts with whitespace (hug_start=false) or directly
+    // after `>` (hug_start=true).
+    let first_child_text = out.get(open_tag_end..node_end(first) as usize)?;
+    let hug_start = !first_child_text.starts_with([' ', '\t', '\r', '\n']);
 
-    // Only emit if different from the current open tag.
-    (broken != open_tag).then_some((elem_start, open_tag_end as u32, broken))
+    if !hug_start {
+        // hug_start=false: build broken open tag with `>` on its own line.
+        //   <tag
+        //     attr1
+        //     attr2
+        //   >
+        let mut broken = format!("<{tag}");
+        for atext in &attr_texts {
+            broken.push('\n');
+            broken.push_str(&inner_indent);
+            broken.push_str(atext);
+        }
+        broken.push('\n');
+        broken.push_str(indent);
+        broken.push('>');
+
+        // Only emit if different from the current open tag.
+        (broken != open_tag).then_some((elem_start, open_tag_end as u32, broken))
+    } else {
+        // hug_start=true: the element's content starts directly after `>` with no
+        // whitespace. We need to break the open tag so that `>content</tag` stays
+        // glued, and the close tag's `>` goes on its own line at the base indent.
+        //
+        // Only apply when the element has at least 2 attributes. Single-attribute
+        // elements are left inline even if the line overflows, matching prettier's
+        // behavior of not breaking short inline elements that can't be meaningfully
+        // split without disrupting reading flow.
+        if attr_texts.len() < 2 {
+            return None;
+        }
+
+        // The whole element text: `<tag attrs>content</tag>`
+        // We replace it with one of two patterns depending on whether
+        // `{before}<tag attrs_without_close_angle` fits in line_width:
+        //
+        // Option A (attrs need full break):
+        //   <tag
+        //     attr1
+        //     attrN>content</tag
+        //   >
+        //
+        // Option B (only close-angle needs to break):
+        //   <tag attr1 attrN
+        //     >content</tag
+        //   >
+
+        let elem_end_usize = elem_end as usize;
+        // The whole element text must be single-line (no internal newlines except
+        // possibly in content — skip if element is already multi-line).
+        let whole = out.get(elem_start_usize..elem_end_usize)?;
+        if whole.contains('\n') {
+            return None;
+        }
+
+        // Find the close tag: `</tag>` is the suffix.
+        // We locate `</tag` working backwards from elem_end.
+        let close_pat = format!("</{tag}");
+        let close_rel = whole.rfind(close_pat.as_str())?;
+        let content = whole.get(open_tag.len()..close_rel)?; // text between open `>` and `</tag`
+        // The close tag `>` is the last character.
+        if !whole.ends_with('>') {
+            return None;
+        }
+        // close_tag_text = `</tag>` (everything from close_rel to end)
+        let close_tag_text = whole.get(close_rel..)?;
+        // Strip trailing `>` to get `</tag`, then we'll append `\n{indent}>`.
+        let close_tag_without_angle = close_tag_text.strip_suffix('>')?;
+
+        // Build attrs string without the surrounding `<tag` / `>` for Option B check.
+        // The open tag without close-angle is `<tag attr1 attr2` (space-joined).
+        // For Option A, attrs are each on their own line with inner_indent.
+
+        // Check if Option B fits: `{before}<tag attr1 attrN` (no `>`) ≤ line_width.
+        // We use the open_tag minus the trailing `>` character.
+        let open_tag_without_angle = open_tag.strip_suffix('>')?;
+        let option_b_prefix_len = before.width() + open_tag_without_angle.width();
+
+        let broken = if option_b_prefix_len <= line_width {
+            // Option B: keep `<tag attrs` on the current line, break at `>`.
+            //   <tag attr1 attrN
+            //     >content</tag
+            //   >
+            format!(
+                "{open_tag_without_angle}\n{inner_indent}>{content}{close_tag_without_angle}\n{indent}>"
+            )
+        } else {
+            // Option A: break each attr onto its own line.
+            //   <tag
+            //     attr1
+            //     attrN>content</tag
+            //   >
+            let mut broken = format!("<{tag}");
+            for (i, atext) in attr_texts.iter().enumerate() {
+                broken.push('\n');
+                broken.push_str(&inner_indent);
+                broken.push_str(atext);
+                // Last attr: close angle `>` and content stay on the same line.
+                if i == attr_texts.len() - 1 {
+                    broken.push('>');
+                    broken.push_str(content);
+                    broken.push_str(close_tag_without_angle);
+                    broken.push('\n');
+                    broken.push_str(indent);
+                    broken.push('>');
+                }
+            }
+            broken
+        };
+
+        if broken == whole {
+            return None;
+        }
+        Some((elem_start, elem_end, broken))
+    }
 }
 
 /// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
