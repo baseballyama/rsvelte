@@ -2761,11 +2761,11 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
         };
         let after_last_nl = &open_tag_only[last_nl + 1..];
         // The line immediately before `>` must consist only of spaces (the
-        // non-hug `>` placement).
-        if !after_last_nl[..after_last_nl.len() - 1]
-            .bytes()
-            .all(|b| b == b' ')
-        {
+        // non-hug `>` placement). `open_tag_only` ends with `>`, so strip it.
+        let Some(before_gt) = after_last_nl.strip_suffix('>') else {
+            continue;
+        };
+        if !before_gt.bytes().all(|b| b == b' ') {
             continue;
         }
         // Move `>` to hug the last attribute line, preserving any element-direct
@@ -2893,10 +2893,11 @@ fn try_fix_pre_child_open_tags(
             {
                 let after_last_nl = &open_tag_only[last_nl + 1..];
                 // The line before `>` must consist entirely of spaces (the
-                // indent for the non-hug `>` placement).
-                if after_last_nl[..after_last_nl.len() - 1]
-                    .bytes()
-                    .all(|b| b == b' ')
+                // indent for the non-hug `>` placement). `open_tag_only` ends
+                // with `>` (guarded above), so strip it.
+                if after_last_nl
+                    .strip_suffix('>')
+                    .is_some_and(|s| s.bytes().all(|b| b == b' '))
                 {
                     // Move `>` to hug the last attribute line (remove the
                     // `\n{spaces}` before `>`). Keep the whitespace between

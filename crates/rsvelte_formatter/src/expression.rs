@@ -1990,8 +1990,8 @@ fn format_content_expression_with_prefix(
     let full_width = options.js.line_width.value() as usize;
     // First-pass width: same as format_content_expression (narrowed only by indent).
     let narrowed = full_width.saturating_sub(lead);
-    let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16).unwrap_or(options.js.line_width);
+    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
+        .unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, line_width, false)?;
     // Overflow re-check: a single-line result that overflows when the actual
     // prefix (braces + keyword) is counted must be re-formatted at a narrower
@@ -2062,8 +2062,8 @@ fn format_const_declaration(
     // subtracted — subtracting the full `{@const }` width here would
     // double-count `const ;` and wrongly break tags that fit inline.
     let narrowed = full_width.saturating_sub(lead + 2);
-    let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16).unwrap_or(options.js.line_width);
+    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
+        .unwrap_or(options.js.line_width);
 
     let mut js = options.js.clone();
     js.line_width = line_width;
@@ -2129,8 +2129,8 @@ fn format_declaration_tag_body(
     // `lead + 2 - 1 = lead + 1` to make OXC's break threshold match the
     // rendered column.
     let narrowed = full_width.saturating_sub(lead + 1);
-    let line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16).unwrap_or(options.js.line_width);
+    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
+        .unwrap_or(options.js.line_width);
 
     let mut js = options.js.clone();
     js.line_width = line_width;
@@ -3224,7 +3224,10 @@ mod tests {
         assert!(result.is_some(), "expected Some for single-object call");
         let out = result.unwrap();
         assert!(out.contains("fn(\n"), "result should start with fn(");
-        assert!(out.contains("{ key: value },"), "result should contain object with trailing comma");
+        assert!(
+            out.contains("{ key: value },"),
+            "result should contain object with trailing comma"
+        );
     }
 
     #[test]
