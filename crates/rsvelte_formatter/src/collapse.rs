@@ -1885,19 +1885,25 @@ fn try_break_inline_content_tag(
     if out.get(ee..line_end)?.contains('{') {
         return None;
     }
-    let start_col = current_column(out, es as u32);
-    // Continuation lands at the line's own indent + one level (the chain dots).
+    let _start_col = current_column(out, es as u32);
+    // Continuation lands at the line's own indent + one level.
     let indent = &out[line_start..es];
     let lead_ws: String = indent.chars().take_while(|c| c.is_whitespace()).collect();
     let cont_cols = lead_ws.width();
-    // Force oxc to break: narrow the width by the columns the inner expression
-    // already sits at (its start column) plus the glued trailing text (`}</td…`).
-    let inner_start_col = start_col + 1; // past the `{`
-    let trailing = out.get(ee..line_end)?.width();
-    let width = line_width
-        .saturating_sub(inner_start_col + 1 + trailing)
-        .max(1);
     let inner = span.get(1..span.len() - 1)?.trim();
+    // Force OXC to break the expression at the MINIMUM narrowing: use
+    // `width = single_line_len - 1` (one char narrower than the flat form).
+    // This forces exactly the outermost break (e.g. a call expression breaks its
+    // argument list) while giving inner content the widest possible budget —
+    // avoiding deep over-breaking when the expression is inside a long line.
+    // Previously we computed `width = line_width - inner_start_col - 1 - trailing`,
+    // which used the expression's column in the file. For a mustache that sits
+    // deep on the line (e.g. at column 65 in an 80-col file), this gave a width
+    // as small as 13, causing `df.format(date.end.toDate(getLocalTimeZone()))`
+    // to break all the way down to `toDate(\n  getLocalTimeZone(),\n)` instead
+    // of the expected `df.format(\n  date.end.toDate(getLocalTimeZone()),\n)`.
+    let single_line_len = UnicodeWidthStr::width(inner);
+    let width = single_line_len.saturating_sub(1).max(1);
     let wrapped =
         crate::expression::reformat_content_at_width(inner, options, width, cont_cols).ok()?;
     if !wrapped.contains('\n') {
