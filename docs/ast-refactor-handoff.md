@@ -86,9 +86,9 @@
     （object/array/rest/default/hole/nested、var-decl/params/for-of/catch、共有 `binding_pattern` helper）
     + **yield / private-field member(`obj.#x`) / object property の method/getter/setter/computed**
     （codegen の `auto_method` 規則を再現）。
-    **残 bail（変数レベル）**: `JsExpr::Class`（クラス式・クラス本体）、**assignment-target 分割代入**
-    （`[a,b] = x` / `{a} = x`。oxc `AssignmentTarget*Pattern` 型＝binding pattern とは別系統、`simple_assignment_target` 拡張要）。
-    これら + 全 Raw/Spanned/RawMapped のみ。**つまり converter はほぼ全 JS 構文を byte-identical に変換できる状態**。
+    **+ Class（メソッド/フィールド/computed key/super、static-block と decorator は bail）+ assignment-target 分割代入**
+    （`[a,b]=x` / `{a}=x`、IR は Array/Object 式を pattern 位置で再利用、oxc `Array/ObjectAssignmentTarget` 構築）。
+    **→ converter は variant-complete。全 JS 構文を byte-identical に変換可能。残る bail は `Raw`/`Spanned`/`RawMapped`（不透明テキスト）のみ。**
     各スライスは subagent に `to_oxc.rs` の variant 追加を委譲 → メインが diff レビュー + 中央 byte-exact 検証
     （`RSVELTE_CLIENT_TO_OXC=1 cargo test --release --test runtime --test compiler_fixtures`、flaky bin はリトライループ）→ commit。
     **次フェーズ（flag を ON にする前の本丸）**: (a) Class + assignment-target 分割代入を追加、(b) **client visitor が生成する
