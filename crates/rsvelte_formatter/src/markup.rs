@@ -738,7 +738,28 @@ fn push_open_tag(
 
     let one_liner = render_one_line(tag_name, &rendered_attrs, self_closing);
 
-    let leading_indent_width = indent_visual_width(depth, &options.js);
+    // Structural estimate: `depth × indent_width`.
+    let depth_indent_width = indent_visual_width(depth, &options.js);
+    // When the element appears inline immediately after a block tag closer `}`
+    // on the same source line (e.g. `{#if cond}<div …>` or `{:else}<span>`),
+    // the actual column of the element's `<` is higher than the depth estimate.
+    // Use the source column in that case so the fit check correctly detects
+    // overflow and wraps the open tag.  This is specifically limited to `}`-
+    // prefixed cases to avoid false positives when the preceding character is
+    // `>` (a close tag) or anything that changes between source and formatted.
+    let leading_indent_width = if element_start > 0
+        && source.as_bytes().get(element_start as usize - 1) == Some(&b'}')
+    {
+        let line_start = source[..element_start as usize]
+            .rfind('\n')
+            .map_or(0, |i| i + 1);
+        let source_col = source
+            .get(line_start..element_start as usize)
+            .map_or(0, |prefix| prefix.width());
+        std::cmp::max(depth_indent_width, source_col)
+    } else {
+        depth_indent_width
+    };
     let line_width = options.js.line_width.value() as usize;
 
     // A multi-line attribute value (e.g. a multi-line arrow handler or a
