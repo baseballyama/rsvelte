@@ -571,6 +571,7 @@ fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
         JsExpr::Identifier(_)
         | JsExpr::Literal(_)
         | JsExpr::This
+        | JsExpr::Super
         | JsExpr::Raw(_)
         | JsExpr::Class(_) => false,
     }

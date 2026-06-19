@@ -364,6 +364,8 @@ pub enum JsExpr {
     Spread(ExprId),
     /// This expression
     This,
+    /// `super` keyword (as a member/call base, e.g. `super.foo()` / `super()`).
+    Super,
     /// Await expression
     Await(ExprId),
     /// Yield expression

@@ -839,6 +839,7 @@ impl<'a> JsCodegen<'a> {
                 self.emit_expression(self.arena.get_expr(*inner_id));
             }
             JsExpr::This => self.output.push_str("this"),
+            JsExpr::Super => self.output.push_str("super"),
             JsExpr::Await(inner_id) => {
                 self.output.push_str("await ");
                 let arg = self.arena.get_expr(*inner_id);

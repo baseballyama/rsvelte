@@ -1384,6 +1384,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
         // Expressions that don't need transformation
         JsExpr::Literal(_)
         | JsExpr::This
+        | JsExpr::Super
         | JsExpr::Raw(_)
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
@@ -2511,6 +2512,7 @@ fn collect_reactive_references_inner(
         // Terminal nodes or nodes that don't contain expressions
         JsExpr::Literal(_)
         | JsExpr::This
+        | JsExpr::Super
         | JsExpr::Raw(_)
         | JsExpr::Spread(_)
         | JsExpr::New(_)

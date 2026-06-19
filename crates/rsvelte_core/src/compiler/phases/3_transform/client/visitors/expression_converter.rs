@@ -1796,7 +1796,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "UpdateExpression" => convert_update_expression(obj, context),
                 "SequenceExpression" => convert_sequence_expression(obj, context),
                 "ThisExpression" => JsExpr::This,
-                "Super" => JsExpr::Raw("super".into()),
+                "Super" => JsExpr::Super,
                 "ClassExpression" => convert_class_expression(obj, context),
                 "NewExpression" => convert_new_expression(obj, context),
                 "AwaitExpression" => convert_await_expression(obj, context),
