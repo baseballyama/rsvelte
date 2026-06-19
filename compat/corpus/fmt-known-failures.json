@@ -13,7 +13,6 @@
 	"flowbite-svelte/src/routes/docs-examples/typography/text/Underline.svelte",
 	"flowbite-svelte/src/routes/landing/Components.svelte",
 	"flowbite-svelte/src/routes/utils/ExampleWrapper.svelte",
-	"shadcn-svelte/docs/src/lib/components/code-tabs.svelte",
 	"shadcn-svelte/docs/src/lib/components/docs-sidebar.svelte",
 	"shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte",
 	"shadcn-svelte/docs/src/lib/registry/examples/create/preview/cards/activate-agent-dialog.svelte",

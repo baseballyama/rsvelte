@@ -1560,23 +1560,26 @@ fn render_single_expression_value(
                     //
                     // Oracle rule: a 1-char overflow (total line = line_width + 1) is
                     // tolerated — oracle keeps the value single-line.  Only when the
-                    // overflow is >= 2 chars do we need a tighter narrowing.
+                    // overflow is >= 2 chars do we apply a tighter narrowing.
                     //
                     // Default narrowing: `arrow_extra = prefix - indent_width`
                     // (one level of indented room for the arrow body).
                     //
-                    // Tight narrowing (overflow >= 2): also consider
-                    // `base_width - inline_len + 1`, which is the minimum extra_lead
-                    // that forces OXC to break the top-level call.  Take the max of
-                    // the two so we only tighten when needed and always give the body
-                    // at least `prefix - indent_width` columns of room.
+                    // Tight narrowing (overflow >= 2): use `base_width - inline_len + 1`.
+                    // This is the minimum extra_lead that forces OXC to break the
+                    // top-level arrow (since narrowed = inline_len - 1 < inline_len),
+                    // while giving the continuation body the widest possible budget
+                    // (narrowed = inline_len - 1, far more room than prefix-based
+                    // narrowing).  Do NOT take max with `prefix - indent_width` because
+                    // that over-narrows the body when `prefix` is large (e.g. a
+                    // 15-char attribute name like `onValueChange`).
                     let base_width = line_width.saturating_sub(indent_cols);
                     let inline_len = visual_width(&formatted);
                     let inline_total = indent_cols + prefix + 1 + inline_len + 1;
                     let arrow_extra = if inline_total > line_width + 1 {
-                        // Overflow >= 2: may need tight narrowing to force the break.
-                        (prefix.saturating_sub(indent_width))
-                            .max(base_width.saturating_sub(inline_len) + 1)
+                        // Overflow >= 2: use tight narrowing to force the arrow break
+                        // while giving the body maximum room.
+                        base_width.saturating_sub(inline_len) + 1
                     } else {
                         // Overflow == 1: oracle allows it to stay single-line.
                         prefix.saturating_sub(indent_width)
