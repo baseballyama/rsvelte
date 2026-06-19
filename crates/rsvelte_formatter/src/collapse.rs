@@ -301,16 +301,36 @@ fn reformat_pre_inner(
     };
     let formatted = formatted.trim_end_matches('\n');
 
+    // Whether the original content was hugged directly after `>` (no leading
+    // whitespace). When hugged, the first line stays inline (no leading `\n`)
+    // and subsequent lines are re-indented normally.
+    let hugged = !raw_inner.starts_with(|c: char| c.is_ascii_whitespace());
+
+    // Hugged first-line overflow fix: the sub-format doesn't know the actual
+    // column of the first inline line (it equals `prefix_col`, the column of the
+    // `>` that closes the `<pre>` open tag).  An inline element at sub-column
+    // `col` has actual column `prefix_col + col`.  When the element overflows at
+    // the actual column, apply a hug-break in `formatted` so re-indentation
+    // produces the correct prettier `hugStart && hugEnd` layout.
+    let first_line_fixed: Option<String> = if hugged {
+        let gt_pos = inner_start - 1; // position of the closing `>` of the open tag
+        let gt_line_start = out[..gt_pos].rfind('\n').map_or(0, |i| i + 1);
+        let prefix_col = gt_pos - gt_line_start + 1; // columns before first inner char
+        fix_pre_hugged_first_line(formatted, prefix_col, full_width, iw)
+    } else {
+        None
+    };
+    let formatted: &str = if let Some(ref fixed) = first_line_fixed {
+        fixed.trim_end_matches('\n')
+    } else {
+        formatted
+    };
+
     // Determine which line-starts in `formatted` are element-direct whitespace
     // (→ tabs). Everything else stays spaces.
     let sub_root = parse(formatted, ParseOptions::default()).ok()?;
     let mut tab_lines: HashSet<usize> = HashSet::new();
     collect_pre_tab_lines(formatted, &sub_root.fragment, true, &mut tab_lines);
-
-    // Whether the original content was hugged directly after `>` (no leading
-    // whitespace). When hugged, the first line stays inline (no leading `\n`)
-    // and subsequent lines are re-indented normally.
-    let hugged = !raw_inner.starts_with(|c: char| c.is_ascii_whitespace());
 
     // Re-indent every line: shift by `content_depth` levels; tab-marked lines use
     // tabs, the rest use spaces.
@@ -413,6 +433,184 @@ fn apply_edits(src: &str, mut edits: Vec<(u32, u32, String)>) -> String {
         result.replace_range(start as usize..end as usize, &text);
     }
     result
+}
+
+/// For a `<pre>` whose content is hugged (starts inline after `>`), the
+/// sub-format doesn't know the actual column of the first line.  An inline
+/// element at sub-column `col` has actual column `prefix_col + col` in the
+/// final output.  When such an element overflows `full_width`, apply a hug-break
+/// so re-indentation produces the correct prettier layout.
+///
+/// Only applies to attribute-free inline `RegularElement`s whose content is
+/// directly adjacent (shouldHugStart && shouldHugEnd) and fits on a single line
+/// in the sub-format.  Elements with attributes are already handled by the
+/// existing markup/collapse passes.
+///
+/// Returns `Some(modified_formatted)` if a break was applied, `None` otherwise.
+fn fix_pre_hugged_first_line(
+    formatted: &str,
+    prefix_col: usize,
+    full_width: usize,
+    iw: usize,
+) -> Option<String> {
+    // Quick exit: if the first line is short enough, no overflow is possible.
+    let first_line_end = formatted.find('\n').unwrap_or(formatted.len());
+    if prefix_col.saturating_add(first_line_end) <= full_width {
+        return None;
+    }
+    let Ok(sub_root) = parse(formatted, ParseOptions::default()) else {
+        return None;
+    };
+    let mut edits: Vec<(usize, usize, String)> = Vec::new();
+    collect_pre_first_line_hug_breaks(
+        formatted,
+        &sub_root.fragment,
+        prefix_col,
+        full_width,
+        iw,
+        0,
+        &mut edits,
+    );
+    if edits.is_empty() {
+        return None;
+    }
+    // Apply edits right-to-left so earlier offsets stay valid.
+    edits.sort_by_key(|(s, _, _)| std::cmp::Reverse(*s));
+    let mut result = formatted.to_string();
+    for (s, e, rep) in edits {
+        result.replace_range(s..e, &rep);
+    }
+    Some(result)
+}
+
+/// Recursively find inline RegularElements (no attributes) on line 0 of
+/// `formatted` that overflow at `prefix_col + col_in_formatted` and collect
+/// hug-break edits.  `block_depth` counts the number of flow-block bodies
+/// that enclose this fragment at the first line.
+fn collect_pre_first_line_hug_breaks(
+    formatted: &str,
+    fragment: &Fragment,
+    prefix_col: usize,
+    full_width: usize,
+    iw: usize,
+    block_depth: usize,
+    edits: &mut Vec<(usize, usize, String)>,
+) {
+    for node in &fragment.nodes {
+        let s = node_start(node) as usize;
+        // Skip nodes that start on a later line.
+        if formatted[..s].contains('\n') {
+            continue;
+        }
+        match node {
+            TemplateNode::RegularElement(e) => {
+                let e_start = e.start as usize;
+                let e_end = e.end as usize;
+                let tag = e.name.as_str();
+                // Only attribute-free inline elements (attributes are handled by the
+                // existing multi-line open-tag hug paths in the collapse pass).
+                if !e.attributes.is_empty()
+                    || is_block_display(tag)
+                    || is_whitespace_preserving(tag)
+                {
+                    continue;
+                }
+                // Skip if the element itself already spans multiple lines.
+                let elem_text = match formatted.get(e_start..e_end) {
+                    Some(t) => t,
+                    None => continue,
+                };
+                if elem_text.contains('\n') {
+                    continue;
+                }
+                // Open tag must end with `>` directly after tag name (no attrs).
+                let open_end_rel = match elem_text.find('>') {
+                    Some(i) => i + 1,
+                    None => continue,
+                };
+                let open_end = e_start + open_end_rel;
+                let close_start = match elem_text.rfind("</") {
+                    Some(i) => e_start + i,
+                    None => continue,
+                };
+                if close_start <= open_end {
+                    continue;
+                }
+                let content = match formatted.get(open_end..close_start) {
+                    Some(c) => c,
+                    None => continue,
+                };
+                // Require directly adjacent content (shouldHugStart && shouldHugEnd).
+                if content.is_empty()
+                    || content.starts_with([' ', '\t', '\r', '\n'])
+                    || content.ends_with([' ', '\t', '\r', '\n'])
+                    || content.contains('\n')
+                {
+                    continue;
+                }
+                // Compute actual column of this element.
+                let line_start_of_elem = formatted[..e_start].rfind('\n').map_or(0, |i| i + 1);
+                let col_in_fmt = e_start - line_start_of_elem;
+                let actual_col = prefix_col + col_in_fmt;
+                let elem_len = e_end - e_start; // byte length ≈ display width for ASCII
+                if actual_col + elem_len <= full_width {
+                    continue; // fits — no break needed
+                }
+                // Build the hug-break replacement.
+                // `inner_indent`: the `>` that opens the content sits at
+                //   `(block_depth + 1) * iw` spaces (one extra level for the hug).
+                // `ws_indent`: the closing `>` of `</tag>` sits at
+                //   `block_depth * iw` spaces (back to the element's block level).
+                let inner_indent = " ".repeat((block_depth + 1) * iw);
+                let ws_indent = " ".repeat(block_depth * iw);
+                let open_no_bracket = match formatted.get(e_start..open_end - 1) {
+                    Some(s) => s,
+                    None => continue,
+                };
+                let rep =
+                    format!("{open_no_bracket}\n{inner_indent}>{content}</{tag}\n{ws_indent}>");
+                edits.push((e_start, e_end, rep));
+            }
+            TemplateNode::IfBlock(blk) => {
+                // Consequent body is one level deeper.
+                collect_pre_first_line_hug_breaks(
+                    formatted,
+                    &blk.consequent,
+                    prefix_col,
+                    full_width,
+                    iw,
+                    block_depth + 1,
+                    edits,
+                );
+                // Alternate (`{:else}`) is at the same block_depth as the if.
+                if let Some(alt) = &blk.alternate {
+                    collect_pre_first_line_hug_breaks(
+                        formatted,
+                        alt,
+                        prefix_col,
+                        full_width,
+                        iw,
+                        block_depth,
+                        edits,
+                    );
+                }
+            }
+            other => {
+                // EachBlock, AwaitBlock, KeyBlock, SnippetBlock — recurse with + 1.
+                for child in child_fragments(other) {
+                    collect_pre_first_line_hug_breaks(
+                        formatted,
+                        child,
+                        prefix_col,
+                        full_width,
+                        iw,
+                        block_depth + 1,
+                        edits,
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// Recursively visit every expression mustache and member-chain-break any that
