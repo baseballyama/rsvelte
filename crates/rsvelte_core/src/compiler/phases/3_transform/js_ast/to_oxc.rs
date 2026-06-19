@@ -907,6 +907,17 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                         .expression_numeric_literal(SPAN, *n, None, NumberBase::Decimal),
                 )
             }
+            JsLiteral::RawString { value, raw } => Some(self.ab.expression_string_literal(
+                SPAN,
+                self.str(value),
+                Some(self.str(raw).into()),
+            )),
+            JsLiteral::RawNumber { value, raw } => Some(self.ab.expression_numeric_literal(
+                SPAN,
+                *value,
+                Some(self.str(raw).into()),
+                NumberBase::Decimal,
+            )),
             JsLiteral::BigInt(raw) => {
                 // The IR stores the raw source spelling including the trailing
                 // `n` (e.g. `123n`). esrap prints from the raw text, but the

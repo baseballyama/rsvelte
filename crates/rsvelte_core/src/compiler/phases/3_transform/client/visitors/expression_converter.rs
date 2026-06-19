@@ -214,7 +214,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
         } => match value {
             LiteralValue::String(s) => {
                 if raw.starts_with('"') {
-                    JsExpr::Raw(raw.to_string().into())
+                    JsExpr::Literal(JsLiteral::RawString {
+                        value: s.to_string().into(),
+                        raw: raw.to_string().into(),
+                    })
                 } else {
                     JsExpr::Literal(JsLiteral::String(s.to_string().into()))
                 }
@@ -234,7 +237,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 if raw_str == codegen_str {
                     JsExpr::Literal(JsLiteral::Number(*n))
                 } else {
-                    JsExpr::Raw(raw.to_string().into())
+                    JsExpr::Literal(JsLiteral::RawNumber {
+                        value: *n,
+                        raw: raw.to_string().into(),
+                    })
                 }
             }
             LiteralValue::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
@@ -1952,7 +1958,10 @@ fn convert_literal(
             if let Some(Value::String(raw)) = obj.get("raw")
                 && raw.starts_with('"')
             {
-                return JsExpr::Raw(raw.clone().into());
+                return JsExpr::Literal(JsLiteral::RawString {
+                    value: s.clone().into(),
+                    raw: raw.clone().into(),
+                });
             }
             JsExpr::Literal(JsLiteral::String(s.clone().into()))
         }
