@@ -82,12 +82,23 @@
     **対応拡大（burn-down 4スライス着地・各々 flag-ON byte-exact green）**: + assignment/update/template-literal/
     tagged-template + function-expr/chain/import-expr/regex + **import/export/function-decl 文**（実コンポーネント解放）
     + **制御フロー文 for/for-of/for-in/for-await/while/do-while/switch/labeled/try**。
-    **残 bail（次の作業）**: `JsExpr::Yield` / `JsExpr::Class`（式）、**分割代入パターン**（var-decl の id / 関数・arrow params /
-    assignment target / for-of left / catch param — 最大の残 unlock）、object property の method/getter/setter/computed、
-    member の private-identifier、全 Raw/Spanned/RawMapped。分割代入は object/array binding pattern を
-    `ab.binding_pattern_*` で構築（default/rest/hole/nested 注意、不明は bail）。
+    **さらに着地（burn-down 計6スライス、各々 flag-ON byte-exact green）**: + **分割代入 binding pattern**
+    （object/array/rest/default/hole/nested、var-decl/params/for-of/catch、共有 `binding_pattern` helper）
+    + **yield / private-field member(`obj.#x`) / object property の method/getter/setter/computed**
+    （codegen の `auto_method` 規則を再現）。
+    **残 bail（変数レベル）**: `JsExpr::Class`（クラス式・クラス本体）、**assignment-target 分割代入**
+    （`[a,b] = x` / `{a} = x`。oxc `AssignmentTarget*Pattern` 型＝binding pattern とは別系統、`simple_assignment_target` 拡張要）。
+    これら + 全 Raw/Spanned/RawMapped のみ。**つまり converter はほぼ全 JS 構文を byte-identical に変換できる状態**。
     各スライスは subagent に `to_oxc.rs` の variant 追加を委譲 → メインが diff レビュー + 中央 byte-exact 検証
-    （`RSVELTE_CLIENT_TO_OXC=1 cargo test --release --test runtime --test compiler_fixtures`、flaky bin はリトライ）→ commit。
+    （`RSVELTE_CLIENT_TO_OXC=1 cargo test --release --test runtime --test compiler_fixtures`、flaky bin はリトライループ）→ commit。
+    **次フェーズ（flag を ON にする前の本丸）**: (a) Class + assignment-target 分割代入を追加、(b) **client visitor が生成する
+    ~191 個の `Raw(...)` を構造化ノードに置換**（structured な式/文を Raw 文字列で組み立てている箇所＝
+    bind_directive.rs の手書き arrow、bridge.rs の SSR テンプレ等。これが減るほど converter が `None` で codegen に
+    fallback せず direct-AST で出せるプログラムが増える）、(c) **コメントストリーム**（Phase-1 `Root.comments` →
+    `rsvelte_esrap::print_with_hooks` の `get_leading`/`get_trailing`。現状 converter は synthetic Program でコメント無し＝
+    コメント付きプログラムは codegen fallback に頼っている可能性。要 hooks 実装）。(a)(b)(c) が揃ったら
+    `RSVELTE_CLIENT_TO_OXC` を**既定 ON** に反転 → `js_ast::codegen`(3305行) と client/formatting 後処理を削除 →
+    client がテキスト codegen ゼロ・完全 AST ベースに。
     **次の作業（burn-down）**: bail している variant を1種ずつ `to_oxc.rs` に追加（oxc AstBuilder API は
     `~/.cargo/git/checkouts/oxc-2492aa67f5b41d4f/37a34a1/crates/oxc_ast/src/generated/ast_builder.rs` 参照。
     `NONE` は `oxc_ast::NONE`、文字列は `ab.allocator.alloc_str(s)`、`ab.expression_identifier(SPAN, &str)` 等）。
