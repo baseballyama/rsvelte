@@ -264,14 +264,10 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             Some(catch) => {
                 let param = match &catch.param {
                     None => None,
-                    Some(JsPattern::Identifier(name)) => {
-                        let pattern = self
-                            .ab
-                            .binding_pattern_binding_identifier(SPAN, self.str(name));
+                    Some(pat) => {
+                        let pattern = self.binding_pattern(pat)?;
                         Some(self.ab.catch_parameter(SPAN, pattern, oxc_ast::NONE))
                     }
-                    // Destructuring catch params are not handled in this slice.
-                    Some(_) => return None,
                 };
                 let body_stmts = self.statements(&catch.body.body)?;
                 let body = self.ab.alloc_block_statement(SPAN, body_stmts);
@@ -485,15 +481,9 @@ impl<'a, 'arena> Cx<'a, 'arena> {
 
         let mut declarators = self.ab.vec_with_capacity(decl.declarations.len());
         for d in &decl.declarations {
-            // Only plain `BindingIdentifier` ids for this slice; bail on
-            // destructuring patterns (TODO).
-            let name = match &d.id {
-                JsPattern::Identifier(name) => name,
-                _ => return None,
-            };
-            let binding = self
-                .ab
-                .binding_pattern_binding_identifier(SPAN, self.str(name));
+            // Identifier or destructuring binding pattern; `binding_pattern`
+            // bails on anything it cannot faithfully reproduce.
+            let binding = self.binding_pattern(&d.id)?;
             let init = match d.init {
                 Some(id) => Some(self.expr_id(id)?),
                 None => None,
@@ -512,6 +502,101 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             self.ab
                 .alloc_variable_declaration(SPAN, kind, declarators, false),
         )
+    }
+
+    // -- binding patterns ---------------------------------------------------
+
+    /// Build an oxc [`BindingPattern`] from an IR [`JsPattern`], recursing into
+    /// object / array / assignment / rest sub-patterns. Returns `None` (so the
+    /// whole conversion falls back to string codegen) on anything that cannot be
+    /// faithfully reproduced: a top-level bare `Rest` (only valid nested inside
+    /// an object / array, handled there), a rest property/element that is not
+    /// last, or any computed object-pattern key (which we cannot reconstruct
+    /// structurally).
+    fn binding_pattern(&self, pat: &JsPattern) -> Option<oxc_ast::ast::BindingPattern<'a>> {
+        match pat {
+            JsPattern::Identifier(name) => Some(
+                self.ab
+                    .binding_pattern_binding_identifier(SPAN, self.str(name)),
+            ),
+            JsPattern::Object(obj) => {
+                let mut props = self.ab.vec_with_capacity(obj.properties.len());
+                let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::BindingRestElement<'a>>> =
+                    None;
+                let last = obj.properties.len().saturating_sub(1);
+                for (i, member) in obj.properties.iter().enumerate() {
+                    match member {
+                        JsObjectPatternProperty::Property {
+                            key,
+                            value,
+                            computed,
+                            shorthand,
+                        } => {
+                            let key = if *computed {
+                                // A computed key holds an arbitrary expression;
+                                // only `JsPropertyKey::Computed` is meaningful.
+                                match key {
+                                    JsPropertyKey::Computed(id) => {
+                                        let expr = self.expr_id(*id)?;
+                                        PropertyKey::from(expr)
+                                    }
+                                    _ => return None,
+                                }
+                            } else {
+                                self.property_key(key)?
+                            };
+                            let value = self.binding_pattern(value)?;
+                            props.push(
+                                self.ab
+                                    .binding_property(SPAN, key, value, *shorthand, *computed),
+                            );
+                        }
+                        JsObjectPatternProperty::Rest(inner) => {
+                            // A rest property must be the last entry.
+                            if i != last {
+                                return None;
+                            }
+                            let inner = self.binding_pattern(inner)?;
+                            rest = Some(self.ab.alloc_binding_rest_element(SPAN, inner));
+                        }
+                    }
+                }
+                Some(self.ab.binding_pattern_object_pattern(SPAN, props, rest))
+            }
+            JsPattern::Array(arr) => {
+                let mut elements = self.ab.vec_with_capacity(arr.elements.len());
+                let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::BindingRestElement<'a>>> =
+                    None;
+                let last = arr.elements.len().saturating_sub(1);
+                for (i, el) in arr.elements.iter().enumerate() {
+                    match el {
+                        None => elements.push(None),
+                        Some(JsPattern::Rest(inner)) => {
+                            // A rest element must be the last element.
+                            if i != last {
+                                return None;
+                            }
+                            let inner = self.binding_pattern(inner)?;
+                            rest = Some(self.ab.alloc_binding_rest_element(SPAN, inner));
+                        }
+                        Some(el) => elements.push(Some(self.binding_pattern(el)?)),
+                    }
+                }
+                Some(self.ab.binding_pattern_array_pattern(SPAN, elements, rest))
+            }
+            JsPattern::Assignment(JsAssignmentPattern { left, right }) => {
+                let left = self.binding_pattern(left)?;
+                let right = self.expr_id(*right)?;
+                Some(
+                    self.ab
+                        .binding_pattern_assignment_pattern(SPAN, left, right),
+                )
+            }
+            // A bare `Rest` only ever appears nested inside an object / array
+            // pattern (handled above) or as the last function parameter (handled
+            // in `formal_params`); reaching it directly is not representable.
+            JsPattern::Rest(_) => None,
+        }
     }
 
     // -- expressions --------------------------------------------------------
@@ -906,18 +991,32 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         ))
     }
 
-    /// Convert function parameters. Only plain `BindingIdentifier` params are
-    /// handled for this slice; bail on any complex pattern.
+    /// Convert function parameters, handling destructuring patterns and a
+    /// trailing rest param (`...args`). Bails (via `binding_pattern`) on any
+    /// pattern that cannot be faithfully reproduced, or on a rest param that is
+    /// not the last parameter.
     fn formal_params(&self, params: &[JsPattern]) -> Option<oxc_ast::ast::FormalParameters<'a>> {
         let mut items = self.ab.vec_with_capacity(params.len());
-        for p in params {
-            let name = match p {
-                JsPattern::Identifier(name) => name,
-                _ => return None,
-            };
-            let pattern = self
-                .ab
-                .binding_pattern_binding_identifier(SPAN, self.str(name));
+        let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::FormalParameterRest<'a>>> = None;
+        let last = params.len().saturating_sub(1);
+        for (i, p) in params.iter().enumerate() {
+            if let JsPattern::Rest(inner) = p {
+                // A rest parameter must be the last parameter and lives in the
+                // dedicated `rest` slot, not the `items` list.
+                if i != last {
+                    return None;
+                }
+                let pattern = self.binding_pattern(inner)?;
+                let rest_el = self.ab.binding_rest_element(SPAN, pattern);
+                rest = Some(self.ab.alloc_formal_parameter_rest(
+                    SPAN,
+                    self.ab.vec(),
+                    rest_el,
+                    oxc_ast::NONE,
+                ));
+                continue;
+            }
+            let pattern = self.binding_pattern(p)?;
             items.push(self.ab.formal_parameter(
                 SPAN,
                 self.ab.vec(),
@@ -934,7 +1033,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
             SPAN,
             FormalParameterKind::ArrowFormalParameters,
             items,
-            oxc_ast::NONE,
+            rest,
         ))
     }
 
