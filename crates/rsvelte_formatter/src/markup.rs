@@ -1509,7 +1509,51 @@ fn render_single_expression_value(
             // (`{` and `}` each count as 1 char around the expression)
             if indent_cols + prefix + 1 + visual_width(&formatted) + 1 > line_width {
                 if is_shallow_value(inner_src) {
-                    format_attribute_value_expression(inner_src, options, attr_depth, prefix)?
+                    // For a shallow expression (call / ternary / binary / logical chain),
+                    // first try re-formatting with `extra_lead = prefix`.  If that
+                    // produces a single-line result (i.e., the expression still fits
+                    // within the narrowed width), keep it — the oracle allows the
+                    // attribute line to overflow slightly in that case.
+                    // If the `prefix`-narrowed result is MULTI-LINE (the top-level call
+                    // was forced to break), check whether widening to `single_line_len`
+                    // would keep the inner arguments on one line: using
+                    // `narrowed = single_line_len` is the minimum that forces the break
+                    // while giving arguments the widest possible budget.
+                    // Example: `cn(value !== framework && "text-transparent")` (44 chars)
+                    // at attr_depth=15 (base_width=50): `prefix=7` gives narrowed=43 and
+                    // over-breaks the `&&` argument (arg=44 > 43).  Widening to
+                    // narrowed=44 (= single_line_len) keeps the argument on one line
+                    // (arg=44 ≤ 44).
+                    let prefix_result =
+                        format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
+                    if prefix_result.contains('\n') {
+                        // The `prefix` narrowing forced a break. Try widening to
+                        // `single_line_len` to give inner content more room.
+                        let base_width = line_width.saturating_sub(indent_cols);
+                        let single_line_len = visual_width(&formatted);
+                        let extra_lead = base_width.saturating_sub(single_line_len);
+                        if extra_lead < prefix {
+                            // Widening would give more room — try the wider result.
+                            let wider = format_attribute_value_expression(
+                                inner_src,
+                                options,
+                                attr_depth,
+                                extra_lead,
+                            )?;
+                            // Only use the wider result if it is still multi-line
+                            // (ensures the break happened — single-line would mean we
+                            // accidentally collapsed and we should keep the prefix result).
+                            if wider.contains('\n') {
+                                wider
+                            } else {
+                                prefix_result
+                            }
+                        } else {
+                            prefix_result
+                        }
+                    } else {
+                        prefix_result
+                    }
                 } else if inner_src.contains("=>") {
                     // Arrow function: narrow by prefix − one indent so the body
                     // lands exactly one level deep.
