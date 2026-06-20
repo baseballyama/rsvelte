@@ -1644,6 +1644,72 @@ mod tests {
         );
     }
 
+    /// Dynamic-component SSR guard parity with the `transform_server` oracle:
+    ///   - `<svelte:component this={Cmp} a={x}/>` (always dynamic), and
+    ///   - `<Foo.Bar/>` (dynamic via a member-expression component name).
+    ///
+    /// Both must lower to the guarded
+    /// `if (<expr>) { $$renderer.push('<!--[-->'); <expr>($$renderer, props);
+    /// $$renderer.push('<!--]-->'); } else { $$renderer.push('<!--[!-->');
+    /// $$renderer.push('<!--]-->'); }` form. The FULL output diverges only in the
+    /// instance prologue / hoisted imports, so this gate isolates the
+    /// `$$renderer`-touching region (from the first `if (` / `$$renderer.push`
+    /// line onward) and compares it whitespace-collapsed (the corpus pipeline
+    /// reconciles esrap's multi-line layout vs the text oracle via oxfmt).
+    #[test]
+    fn ast_matches_oracle_dynamic_component() {
+        let cases: &[(&str, &str)] = &[
+            (
+                "svelte-component",
+                "<script>let Cmp = $state(null); let x = $state(1);</script>z<svelte:component this={Cmp} a={x}/>",
+            ),
+            (
+                "member-expression",
+                "<script>import Foo from './Foo.svelte'; let x = $state(1);</script>z<Foo.Bar a={x}/>",
+            ),
+        ];
+
+        // Collect the component region: every line from the first one that opens
+        // the dynamic `if (` guard onward (the guarded block + its markers).
+        let guard_region = |dump: &str| -> Vec<String> {
+            let normd = norm_blocks(dump);
+            let all: Vec<String> = normd.lines().map(str::to_string).collect();
+            match all.iter().position(|l| l.starts_with("if (")) {
+                Some(pos) => all[pos..].to_vec(),
+                None => Vec::new(),
+            }
+        };
+        // Collapse whitespace AND strip the oracle's cosmetic parens around a
+        // bare-identifier callee (`(Cmp)($$renderer, …)` vs `Cmp($$renderer, …)`).
+        // The text oracle parenthesizes the `<svelte:component this={Cmp}>` callee;
+        // oxfmt elides this in the corpus output-equality pipeline. KNOWN COSMETIC
+        // GAP — normalize it here so the structural guard is what's under test.
+        let collapse = |v: &[String]| {
+            let joined = v.join(" ").split_whitespace().collect::<Vec<_>>().join(" ");
+            joined.replace("(Cmp)(", "Cmp(")
+        };
+
+        let mut failures = Vec::new();
+        for (label, src) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let og = guard_region(&ours);
+            let orl = guard_region(&oracle);
+            let matched = !og.is_empty() && collapse(&og) == collapse(&orl);
+            eprintln!(
+                "=== {label}: {src} === {}\n  ours:   {og:?}\n  oracle: {orl:?}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                failures.push(*label);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "dynamic-component guard differs from oracle for: {failures:?}"
+        );
+    }
+
     fn oracle_dump(source: &str) -> String {
         let parse_options = ParseOptions {
             modern: true,

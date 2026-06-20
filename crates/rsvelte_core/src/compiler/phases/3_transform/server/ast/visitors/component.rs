@@ -47,18 +47,25 @@
 //!   remaining gap — the body renders in the surrounding `state` scope.
 //! - AttachTag (`@attach`) blocker bookkeeping is skipped.
 //! - custom-CSS `--*` props (`$.css_props`) are skipped.
-//! - the `dynamic` branch (`SvelteComponent` / dynamic `<Foo>`) — no
-//!   `if (Foo) { … }` guard; emitted as the plain static call.
 //! - async blocker wrapping (`optimiser.render_block`).
+//!
+//! The `dynamic` branch IS ported: a `<svelte:component>` (always dynamic) or a
+//! `<Foo>` / `<Foo.Bar>` whose Phase-2 `metadata.dynamic` is set wraps the call
+//! in `if (<expr>) { $$renderer.push('<!--[-->'); <expr>($$renderer, props);
+//! $$renderer.push('<!--]-->'); } else { $$renderer.push('<!--[!-->');
+//! $$renderer.push('<!--]-->'); }` (markers `BLOCK_OPEN` / `BLOCK_OPEN_ELSE` /
+//! `BLOCK_CLOSE`). The trailing `<!---->` empty comment is suppressed for the
+//! dynamic path (the guard supplies its own close marker).
 
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, Fragment, FragmentType, SnippetBlock,
     SpreadAttribute, TemplateNode,
 };
+use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::{Expression as OxcExpression, ObjectPropertyKind, Statement};
 
-use super::shared::{EMPTY_COMMENT, TemplateEntry};
+use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, EMPTY_COMMENT, TemplateEntry};
 
 /// One entry of upstream's `props_and_spreads` list: either a contiguous group
 /// of plain object properties, or a single spread expression.
@@ -67,43 +74,76 @@ enum PropGroup<'a> {
     Spread(OxcExpression<'a>),
 }
 
-/// Visit a `<Foo .../>` component (static path).
+/// Visit a `<Foo .../>` component.
+///
+/// Upstream's `dynamic` flag is `node.type === 'SvelteComponent' ||
+/// (node.type === 'Component' && node.metadata.dynamic)` — for a plain
+/// `<Foo>` / `<Foo.Bar>` the dynamic guard is emitted only when Phase 2 marked
+/// `metadata.dynamic` (member-expression component, or a non-`Normal` binding
+/// in runes mode).
 pub fn visit_component<'a>(
     node: &crate::ast::template::Component,
     state: &mut ServerTransformState<'a>,
 ) {
     // Upstream: `context.visit(b.member_id(node.name))` — a dotted name like
     // `ns.Comp` becomes the member chain; a bare name an identifier.
-    let expr = state.b.member_id(node.name.as_str());
-    build_inline_component(&node.attributes, &node.fragment, expr, state);
+    let name = node.name.to_string();
+    let dynamic = node.metadata.dynamic;
+    build_inline_component(
+        &node.attributes,
+        &node.fragment,
+        |s| s.b.member_id(&name),
+        dynamic,
+        state,
+    );
 }
 
-/// Visit a `<svelte:component this={expr}/>` element (static path).
+/// Visit a `<svelte:component this={expr}/>` element. `SvelteComponent` is
+/// ALWAYS dynamic upstream (`node.type === 'SvelteComponent'`), so the guarded
+/// `if (<expr>) { … } else { … }` form is always emitted.
 pub fn visit_svelte_component<'a>(
     node: &crate::ast::template::SvelteComponentElement,
     state: &mut ServerTransformState<'a>,
 ) {
-    let expr = state.visit_expr(&node.expression);
-    build_inline_component(&node.attributes, &node.fragment, expr, state);
+    build_inline_component(
+        &node.attributes,
+        &node.fragment,
+        |s| s.visit_expr(&node.expression),
+        true,
+        state,
+    );
 }
 
-/// Visit a `<svelte:self .../>` element (static path).
+/// Visit a `<svelte:self .../>` element. `SvelteSelf` is never dynamic (the
+/// component is always defined), so the plain direct-call path is used.
 pub fn visit_svelte_self<'a>(
     node: &crate::ast::template::SvelteElement,
     state: &mut ServerTransformState<'a>,
 ) {
     let name = state.analysis.name.clone();
-    let expr = state.b.id(&name);
-    build_inline_component(&node.attributes, &node.fragment, expr, state);
+    build_inline_component(
+        &node.attributes,
+        &node.fragment,
+        |s| s.b.id(&name),
+        false,
+        state,
+    );
 }
 
 /// The shared inline-component lowering (props-object path).
+///
+/// `make_expression` builds the component callee expression; for a `dynamic`
+/// component it is invoked TWICE — once for the `if (<expr>)` guard test and
+/// once for the `<expr>($$renderer, props)` call — so the read-wrapped /
+/// member-chain shape is identical on both sides.
 fn build_inline_component<'a, 'b>(
     attributes: &'b [Attribute],
     fragment: &'b Fragment,
-    expression: OxcExpression<'a>,
+    mut make_expression: impl FnMut(&mut ServerTransformState<'a>) -> OxcExpression<'a>,
+    dynamic: bool,
     state: &mut ServerTransformState<'a>,
 ) {
+    let expression = make_expression(state);
     // `props_and_spreads`: a list of plain-prop groups + spread expressions,
     // mirroring upstream's `Array<Property[] | Expression>`.
     let mut groups: Vec<PropGroup<'a>> = Vec::new();
@@ -186,6 +226,30 @@ fn build_inline_component<'a, 'b>(
         .call(expression, vec![state.b.id("$$renderer"), props_expression]);
     let mut statement = state.b.stmt(call);
 
+    // Dynamic component guard (upstream `shared/component.js`):
+    //
+    // ```js
+    // if (<expr>) {
+    //     $$renderer.push('<!--[-->');   // BLOCK_OPEN
+    //     <expr>($$renderer, props);
+    //     $$renderer.push('<!--]-->');   // BLOCK_CLOSE
+    // } else {
+    //     $$renderer.push('<!--[!-->');  // BLOCK_OPEN_ELSE
+    //     $$renderer.push('<!--]-->');   // BLOCK_CLOSE
+    // }
+    // ```
+    //
+    // The test re-uses the SAME callee expression (rebuilt via `make_expression`)
+    // so a member chain / read-wrapped identifier matches on both sides.
+    if dynamic {
+        let test = make_expression(state);
+        let b = state.b;
+        let push = |s: &str, b: B<'a>| b.stmt(b.call("$$renderer.push", vec![b.string(s)]));
+        let consequent = b.block(vec![push(BLOCK_OPEN, b), statement, push(BLOCK_CLOSE, b)]);
+        let alternate = b.block(vec![push(BLOCK_OPEN_ELSE, b), push(BLOCK_CLOSE, b)]);
+        statement = b.if_stmt(test, consequent, Some(alternate));
+    }
+
     // Upstream: `if (snippet_declarations.length > 0) statement = b.block([...])`.
     if !snippet_declarations.is_empty() {
         let mut block_body = snippet_declarations;
@@ -195,7 +259,10 @@ fn build_inline_component<'a, 'b>(
     state.template.push(TemplateEntry::Stmt(statement));
 
     // Non-dynamic, non-async, non-standalone, no custom-CSS props → `<!---->`.
-    if !state.is_standalone {
+    // A dynamic component already pushed its own `<!--]-->` close marker inside
+    // the guard, so the trailing empty comment is suppressed (upstream's
+    // `!dynamic` condition on the `empty_comment` push).
+    if !dynamic && !state.is_standalone {
         state
             .template
             .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
