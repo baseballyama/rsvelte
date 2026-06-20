@@ -246,14 +246,36 @@ fn transform_script<'a>(
                     continue;
                 }
                 let slice = &src[es.span.start as usize..es.span.end as usize];
-                if let Some(rehomed) = state.reparse_statement(slice) {
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    // Read-wrap the whole statement: derived / store reads (`d` →
+                    // `d()`, `$x` → `$.store_get(...)`), derived / store WRITES &
+                    // UPDATES (`count++` → `$.update_derived(count)`), and private
+                    // `this.#derived` reads — exactly as upstream's tree-wide
+                    // server `Identifier` / `AssignmentExpression` / `UpdateExpression`
+                    // / `MemberExpression` visitors fire on every instance-body node.
+                    super::read_wrap::wrap_reads_in_statement(
+                        &mut rehomed,
+                        state.b,
+                        state.analysis,
+                        state.analysis.root.instance_scope_index,
+                    );
                     out.push(rehomed);
                 }
             }
             other => {
                 let span = other.span();
                 let slice = &src[span.start as usize..span.end as usize];
-                if let Some(rehomed) = state.reparse_statement(slice) {
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    // Same whole-statement read-wrap for every other re-homed
+                    // verbatim instance statement (function declarations, `if` /
+                    // `for` / blocks, class declarations — the private-derived
+                    // member wrap applies inside class bodies).
+                    super::read_wrap::wrap_reads_in_statement(
+                        &mut rehomed,
+                        state.b,
+                        state.analysis,
+                        state.analysis.root.instance_scope_index,
+                    );
                     out.push(rehomed);
                 }
             }
@@ -997,9 +1019,22 @@ fn lower_variable_declaration<'a>(
         match rune {
             None => {
                 // Non-rune declarator: re-parse the whole declarator span as a
-                // `let <decl>;` so the pattern + (unchanged) init survive verbatim.
+                // `let <decl>;` so the pattern + init survive verbatim, then
+                // read-wrap the INIT so derived / store reads & updates inside it
+                // become getters (`let postfix = count++` →
+                // `let postfix = $.update_derived(count)`; `let x = d` →
+                // `let x = d()`). Mirrors upstream's tree-wide server visitors,
+                // which visit every non-rune `VariableDeclarator` init.
                 let slice = &src[d.span.start as usize..d.span.end as usize];
-                if let Some((pat, init)) = state.reparse_declarator(slice, kind) {
+                if let Some((pat, mut init)) = state.reparse_declarator(slice, kind) {
+                    if let Some(e) = init.as_mut() {
+                        super::read_wrap::wrap_reads(
+                            e,
+                            b,
+                            state.analysis,
+                            state.analysis.root.instance_scope_index,
+                        );
+                    }
                     decls.push((pat, init));
                 }
             }

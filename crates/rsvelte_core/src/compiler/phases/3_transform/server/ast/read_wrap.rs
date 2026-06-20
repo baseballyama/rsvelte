@@ -69,11 +69,18 @@ struct ReadWrap<'a, 'b> {
     /// there). Each-item / snippet-param bindings resolve to non-derived /
     /// non-store kinds, so they are never wrongly wrapped.
     scope_idx: usize,
-    /// Stack of name-sets shadowed by enclosing function / arrow parameters.
-    /// A name present in ANY frame resolves to a LOCAL binding, so it is never
-    /// wrapped (mirrors upstream's `context.state.scope.get(name)` returning a
-    /// param binding rather than the component store_sub binding).
+    /// Stack of name-sets shadowed by enclosing function / arrow parameters AND
+    /// by block / function-body local declarations. A name present in ANY frame
+    /// resolves to a LOCAL binding, so it is never wrapped (mirrors upstream's
+    /// `context.state.scope.get(name)` returning the nearest enclosing
+    /// declaration rather than the component store_sub / derived binding).
     shadowed: Vec<FxHashSet<String>>,
+    /// Stack of private-field-name sets (`#doubled`, …) that resolve to a
+    /// `$derived` / `$derived.by` class field in the enclosing class. A member
+    /// expression `<obj>.#name` whose private property is in the top frame is
+    /// read-wrapped to a CALL `<obj>.#name()` (写经 server `MemberExpression.js`).
+    /// Empty when not inside a runes-mode class with derived private fields.
+    private_derived: Vec<FxHashSet<String>>,
 }
 
 /// How a given name should be rewritten as a read.
@@ -138,6 +145,20 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
             }
             _ => ReadKind::Keep,
         }
+    }
+
+    /// Whether `expr` is a member expression `<obj>.#field` whose private
+    /// property resolves to a `$derived` / `$derived.by` field of the enclosing
+    /// class (写经 server `MemberExpression.js`: runes-mode + `PrivateIdentifier`
+    /// property + `state_fields.get('#name')` is `$derived` / `$derived.by`).
+    fn is_private_derived_member(&self, expr: &Expression<'a>) -> bool {
+        let Expression::PrivateFieldExpression(m) = expr else {
+            return false;
+        };
+        let name = m.field.name.as_str();
+        self.private_derived
+            .last()
+            .is_some_and(|frame| frame.contains(name))
     }
 
     /// Classify how a WRITE to `name` should be lowered.
@@ -272,6 +293,31 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
                 | AssignmentTarget::ArrayAssignmentTarget(_)
         ) {
             return self.lower_destructure_assignment(expr);
+        }
+
+        // Private-derived field WRITE: `this.#x = value` (a non-declaration write
+        // to a `$derived` private field) → `this.#x(build_assignment_value(...))`
+        // (写经 server `AssignmentExpression.js::build_assignment`, the
+        // `field.type === '$derived'` + `PrivateIdentifier` branch). A constructor
+        // field DECLARATION (`this.#x = $derived(...)`) is left as an assignment.
+        if let AssignmentTarget::PrivateFieldExpression(pf) = &assign.left
+            && matches!(pf.object, oxc_ast::ast::Expression::ThisExpression(_))
+            && self
+                .private_derived
+                .last()
+                .is_some_and(|frame| frame.contains(pf.field.name.as_str()))
+            && !callee_is_field_rune_expr(&assign.right)
+        {
+            let field_name = format!("#{}", pf.field.name.as_str());
+            let op = assign.operator;
+            let taken = std::mem::replace(expr, b.void0()).into_assignment_expression()?;
+            let mut taken = taken.unbox();
+            self.visit_expression(&mut taken.right);
+            // `build_assignment_value`: for compound ops the LHS read is the
+            // already-call-wrapped private member (`this.#x()`).
+            let left = b.call(b.member(b.this(), &field_name), vec![]);
+            let value = self.build_assignment_value(op, left, taken.right);
+            return Some(b.call(b.member(b.this(), &field_name), vec![value]));
         }
 
         let (root_name, is_bare) = Self::target_root(&assign.left)?;
@@ -450,6 +496,40 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
     }
 }
 
+/// Collect the names DECLARED directly within a list of statements (a block /
+/// function body) so they shadow any same-named component-level derived / store
+/// binding within that scope. Mirrors upstream `state.scope.get(name)` resolving
+/// to the nearest enclosing declaration: a local `let value = 0` inside a
+/// `$.derived(() => …)` thunk must NOT be read-wrapped as `value()`.
+///
+/// We collect `let`/`const`/`var`/`function`/`class` declaration names. `var` and
+/// `function` are function-scoped, `let`/`const`/`class` block-scoped, but for the
+/// purpose of "is this name a local declaration that shadows the instance binding"
+/// collecting all of them at every block boundary is conservatively correct: any
+/// name declared anywhere in the enclosing function body chain shadows.
+fn collect_block_decl_names(stmts: &[Statement], out: &mut FxHashSet<String>) {
+    for stmt in stmts {
+        match stmt {
+            Statement::VariableDeclaration(vd) => {
+                for d in vd.declarations.iter() {
+                    collect_binding_pattern_names(&d.id, out);
+                }
+            }
+            Statement::FunctionDeclaration(f) => {
+                if let Some(id) = &f.id {
+                    out.insert(id.name.to_string());
+                }
+            }
+            Statement::ClassDeclaration(c) => {
+                if let Some(id) = &c.id {
+                    out.insert(id.name.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// A dotted/indexed access path from a destructuring RHS root (`obj` →
 /// `obj.foo`, `obj[0]`, `obj.foo.bar`). Built lazily so a store leaf and a
 /// non-store leaf share the same accessor synthesis.
@@ -571,6 +651,102 @@ fn collect_maybe_default(
     }
 }
 
+/// Whether `init` is a `$derived(...)` / `$derived.by(...)` call in EITHER the
+/// pre-lowering rune shape (`$derived`) or the post-lowering helper shape
+/// (`$.derived`). Used to identify private-`$derived` class fields regardless of
+/// whether the class-field lowering has already run.
+fn is_derived_call(init: &Expression) -> bool {
+    let Expression::CallExpression(call) = init else {
+        return false;
+    };
+    callee_is_derived(&call.callee)
+}
+
+/// Whether a callee names `$derived` / `$derived.by` (pre-lowering) or
+/// `$.derived` (post-lowering).
+fn callee_is_derived(callee: &Expression) -> bool {
+    match callee {
+        Expression::Identifier(id) => id.name == "$derived",
+        Expression::StaticMemberExpression(m) => {
+            // `$derived.by` or `$.derived`.
+            match &m.object {
+                Expression::Identifier(o) if o.name == "$derived" => m.property.name == "by",
+                Expression::Identifier(o) if o.name == "$" => m.property.name == "derived",
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Whether a callee names a rune that DECLARES a class field value (`$state` /
+/// `$state.raw` / `$derived` / `$derived.by`) — used to distinguish a constructor
+/// field DECLARATION (`this.#x = $derived(...)`, keep as assignment) from a plain
+/// WRITE to a derived field (`this.#x = 3`, lower to a call).
+fn callee_is_field_rune(callee: &Expression) -> bool {
+    match callee {
+        Expression::Identifier(id) => id.name == "$state" || id.name == "$derived",
+        Expression::StaticMemberExpression(m) => {
+            matches!(&m.object, Expression::Identifier(o) if o.name == "$state" || o.name == "$derived")
+                || matches!(&m.object, Expression::Identifier(o) if o.name == "$")
+                    && (m.property.name == "derived" || m.property.name == "state")
+        }
+        _ => false,
+    }
+}
+
+/// Whether `init` is a class-field-rune CALL (`$state(...)` / `$derived(...)` /
+/// the lowered `$.derived(...)` / `$.state(...)`). Used to keep a constructor
+/// field DECLARATION assignment as-is rather than lowering it to a derived call.
+fn callee_is_field_rune_expr(init: &Expression) -> bool {
+    match init {
+        Expression::CallExpression(call) => callee_is_field_rune(&call.callee),
+        _ => false,
+    }
+}
+
+/// Collect the PRIVATE field names (`#doubled`, …) that are `$derived` /
+/// `$derived.by` in `class`, from both `PropertyDefinition` initializers
+/// (`#x = $derived(...)`) and constructor `this.#x = $derived(...)` assignments
+/// (写经 analyze `ClassBody` `state_fields` + server `MemberExpression.js` lookup
+/// keyed by `#name`). Detection is shape-based so it works whether or not the
+/// class-field lowering (`$derived` → `$.derived`) has already run.
+fn collect_private_derived_fields(class: &oxc_ast::ast::Class, out: &mut FxHashSet<String>) {
+    use oxc_ast::ast::{ClassElement, Expression as E, MethodDefinitionKind, Statement as S};
+    for el in class.body.body.iter() {
+        match el {
+            ClassElement::PropertyDefinition(p) => {
+                if let Some(name) = p.key.private_name()
+                    && let Some(init) = &p.value
+                    && is_derived_call(init)
+                {
+                    out.insert(name.as_str().to_string());
+                }
+            }
+            ClassElement::MethodDefinition(m) if m.kind == MethodDefinitionKind::Constructor => {
+                let Some(body) = m.value.body.as_ref() else {
+                    continue;
+                };
+                for stmt in body.statements.iter() {
+                    let S::ExpressionStatement(es) = stmt else {
+                        continue;
+                    };
+                    let E::AssignmentExpression(assign) = &es.expression else {
+                        continue;
+                    };
+                    if let AssignmentTarget::PrivateFieldExpression(pf) = &assign.left
+                        && matches!(pf.object, E::ThisExpression(_))
+                        && is_derived_call(&assign.right)
+                    {
+                        out.insert(pf.field.name.as_str().to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Collect identifier names declared by a binding pattern (function params).
 fn collect_binding_pattern_names(pat: &oxc_ast::ast::BindingPattern, out: &mut FxHashSet<String>) {
     use oxc_ast::ast::BindingPattern as P;
@@ -622,6 +798,21 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
                     oxc_ast_visit::walk_mut::walk_expression(self, expr);
                 }
             }
+            // A member read `<obj>.#field` whose private property resolves to a
+            // `$derived` class field → wrap as a CALL (写经 `MemberExpression.js`).
+            // The object is still walked so `<obj>` reads (e.g. a `self` alias) are
+            // unaffected and any nested members are handled.
+            Expression::StaticMemberExpression(_)
+            | Expression::ComputedMemberExpression(_)
+            | Expression::PrivateFieldExpression(_) => {
+                if self.is_private_derived_member(expr) {
+                    oxc_ast_visit::walk_mut::walk_expression(self, expr);
+                    let taken = std::mem::replace(expr, self.b.void0());
+                    *expr = self.b.call(taken, vec![]);
+                } else {
+                    oxc_ast_visit::walk_mut::walk_expression(self, expr);
+                }
+            }
             _ => oxc_ast_visit::walk_mut::walk_expression(self, expr),
         }
     }
@@ -633,6 +824,9 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
     ) {
         let mut frame = FxHashSet::default();
         Self::collect_param_names(&it.params, &mut frame);
+        if let Some(body) = it.body.as_ref() {
+            collect_block_decl_names(&body.statements, &mut frame);
+        }
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_function(self, it, flags);
         self.shadowed.pop();
@@ -644,9 +838,26 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
     ) {
         let mut frame = FxHashSet::default();
         Self::collect_param_names(&it.params, &mut frame);
+        collect_block_decl_names(&it.body.statements, &mut frame);
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, it);
         self.shadowed.pop();
+    }
+
+    fn visit_block_statement(&mut self, it: &mut oxc_ast::ast::BlockStatement<'a>) {
+        let mut frame = FxHashSet::default();
+        collect_block_decl_names(&it.body, &mut frame);
+        self.shadowed.push(frame);
+        oxc_ast_visit::walk_mut::walk_block_statement(self, it);
+        self.shadowed.pop();
+    }
+
+    fn visit_class(&mut self, it: &mut oxc_ast::ast::Class<'a>) {
+        let mut frame = FxHashSet::default();
+        collect_private_derived_fields(it, &mut frame);
+        self.private_derived.push(frame);
+        oxc_ast_visit::walk_mut::walk_class(self, it);
+        self.private_derived.pop();
     }
 }
 
@@ -684,6 +895,7 @@ pub fn wrap_reads<'a>(
         analysis,
         scope_idx,
         shadowed: Vec::new(),
+        private_derived: Vec::new(),
     };
     visitor.visit_expression(expr);
 }
@@ -705,6 +917,7 @@ pub fn wrap_reads_in_statement<'a>(
         analysis,
         scope_idx,
         shadowed: Vec::new(),
+        private_derived: Vec::new(),
     };
     visitor.visit_statement(stmt);
 }

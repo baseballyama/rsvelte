@@ -5015,4 +5015,90 @@ mod tests {
             "legacy store-cluster SSR differs from oracle for: {mismatches:?}"
         );
     }
+
+    /// Server instance-body derived / store / class-private-derived read-wrap
+    /// cluster (runtime-runes). The new SSR pipeline previously left derived /
+    /// store reads inside re-homed verbatim instance statements UNCALLED (`d` →
+    /// `d`, not `d()`), and did not wrap private `this.#derived` reads in class
+    /// getters / methods / constructors. Each fixture's `main.svelte` is lowered
+    /// through BOTH pipelines and compared via the esrap `canon` reprint (the same
+    /// gate the corpus harness uses), so a match means the runtime suite passes
+    /// (the text-based oracle passes these fixtures).
+    ///
+    /// Covered (must MATCH):
+    /// - top-level derived reads & updates: `derived-update-server`
+    ///   (`count++` → `$.update_derived(count)`), `derived-unowned-12`
+    ///   (`linked.current++` → `linked().current++`), `derived-server-memoization`
+    ///   (`console.log(d)` → `console.log(d())`), `class-state-effect-derived` /
+    ///   `class-state-extended-effect-derived` (`counter;` → `counter();`).
+    /// - scope-aware shadowing (NO over-wrap): `derived-shadowed` /
+    ///   `effect-inside-derived` (an inner `const value = 0` / `let value = 0`
+    ///   shadowing an outer derived binding must NOT be read-wrapped).
+    /// - class private-`$derived` reads: `deriveds-in-constructor`
+    ///   (`this.#derived` → `this.#derived()` in a field-init thunk + constructor),
+    ///   `class-state-derived-private` (`self.#doubled()` / `this.#tripled()` in
+    ///   getters), `writable-derived-3` (private-derived reads in getters AND
+    ///   `this.#x = 3` derived WRITES → `this.#x(3)`).
+    ///
+    /// The 4 fixtures that remain blocked on ORTHOGONAL axes are intentionally NOT
+    /// asserted here (their derived reads ARE now correct; they diverge only on
+    /// unrelated features): `effect-active-derived` (`$effect.tracking()` → `false`
+    /// lowering), `class-state-derived-2` (`export class` keyword stripping),
+    /// `derived-read-outside-reaction` (constructor-derived stray public-field
+    /// removal), `derived-map` (source-comment preservation).
+    #[test]
+    fn ast_matches_oracle_derived_readwrap_cluster() {
+        let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let base =
+            manifest.join("../../submodules/svelte/packages/svelte/tests/runtime-runes/samples");
+        let names = [
+            "derived-stale-value",
+            "derived-update-server",
+            "derived-unowned-3",
+            "derived-unowned-5",
+            "derived-unowned-12",
+            "derived-cleanup-old-value",
+            "derived-server-memoization",
+            "untrack-own-deriveds",
+            "derived-in-expression",
+            "deriveds-in-constructor",
+            "derived-shadowed",
+            "effect-inside-derived",
+            "class-state-effect-derived",
+            "class-state-derived-private",
+            "class-state-derived-unowned",
+            "class-state-extended-effect-derived",
+            "class-state-constructor-derived-unowned",
+            "writable-derived-3",
+            "read-version-previous-reaction",
+        ];
+        let mut mismatches = Vec::new();
+        for n in names {
+            let p = base.join(n).join("main.svelte");
+            let Ok(src) = std::fs::read_to_string(&p) else {
+                // Submodule not checked out — skip silently.
+                eprintln!("SKIP (no main.svelte): {n}");
+                continue;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            let (Some(co), Some(cr)) = (canon(&ours), canon(&oracle)) else {
+                eprintln!(
+                    "\n######### CANON-FAIL: {n} #########\n=OURS=\n{ours}\n=ORACLE=\n{oracle}"
+                );
+                mismatches.push(n);
+                continue;
+            };
+            if co != cr {
+                eprintln!(
+                    "\n######### DIFFER: {n} #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(n);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "derived read-wrap SSR differs from oracle for: {mismatches:?}"
+        );
+    }
 }
