@@ -52,7 +52,7 @@ rayon = { version = "1.10", optional = true }
 # used only to statically parse `eslint.config.js` for the config importer.
 oxc_allocator = { version = "0.136", optional = true }
 oxc_parser = { version = "0.136", optional = true }
-oxc_ast = { version = "0.136", optional = true }
+oxc_ast = { version = "0.137", optional = true }
 oxc_ast_visit = { version = "0.136", optional = true }
 oxc_span = { version = "0.136", optional = true }
 
