@@ -1005,8 +1005,50 @@ pub fn server_component_ast<'a>(
 
         // export default <Name>;
         program_body.push(b.export_default_expr(b.id(component_name)));
+    } else if options.dev {
+        // -- dev component export (upstream lines 356-376) ------------------
+        // In dev mode the component is a NAMED function declaration followed by
+        // a `<Name>.render = function () { throw ... }` stub (so the legacy
+        // Svelte-4 `Component.render()` API throws a helpful error), then
+        // `export default <Name>;`.
+        program_body.push(component_fn);
+
+        let render_target = b.member(b.id(component_name), "render");
+        let render_params = b.params(vec![], None);
+        let throw_msg = "Component.render(...) is no longer valid in Svelte 5. \
+See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information";
+        let render_body = b.body(vec![b.throw_error(throw_msg)]);
+        let render_fn = b.function_expr(None, render_params, render_body, false);
+        program_body.push(b.stmt(b.assignment(
+            oxc_ast::ast::AssignmentOperator::Assign,
+            render_target,
+            render_fn,
+        )));
+
+        program_body.push(b.export_default_expr(b.id(component_name)));
     } else {
         program_body.push(b.export_default_fn(component_fn));
+    }
+
+    // -- dev FILENAME assignment (upstream lines 381-388) -------------------
+    // `<Name>[$.FILENAME] = '<filename>';` is unshifted to the FRONT of the
+    // module body (ahead of the namespace import) so the runtime can print
+    // useful error messages. The async-flags side-effect import (already at
+    // `hoisted[0]` when `use_async`) must stay ahead of it, so insert AFTER
+    // any leading `import 'svelte/internal/flags/async';`.
+    if options.dev {
+        let filename = options.filename.as_deref().unwrap_or("");
+        // `b.member(id, '$.FILENAME', computed=true)` → `<Name>[$.FILENAME]`,
+        // where the computed key `$.FILENAME` is itself the member expression
+        // `$.FILENAME` (namespace `$` dot-access `FILENAME`).
+        let filename_target = b.member_computed(b.id(component_name), b.member_id("$.FILENAME"));
+        let filename_stmt = b.stmt(b.assignment(
+            oxc_ast::ast::AssignmentOperator::Assign,
+            filename_target,
+            b.string(filename),
+        ));
+        let insert_at = if state.eval_inputs.use_async { 1 } else { 0 };
+        program_body.insert(insert_at, filename_stmt);
     }
 
     let program = b.program(program_body);
@@ -3141,6 +3183,89 @@ mod tests {
         let oracle =
             super::super::transform_server(&analysis, &ast, source, &options).expect("server");
         (ours, oracle)
+    }
+
+    /// DEV-mode SSR instrumentation parity with the (correct) text-based
+    /// `transform_server` oracle. Dev mode adds, 写经 upstream
+    /// `3-transform/server/transform-server.js` + `RegularElement.js`:
+    ///
+    /// 1. `<Name>[$.FILENAME] = '<filename>';` at module-scope front (l.381-388).
+    /// 2. A NAMED `function <Name>(...)` declaration + `<Name>.render = function
+    ///    () { throw new Error(...) }` stub + `export default <Name>;` (l.356-376).
+    /// 3. Per-`RegularElement` `$.push_element($$renderer, '<tag>', <line>,
+    ///    <col>)` after the opening tag and `$.pop_element()` after the close
+    ///    (RegularElement.js l.94-107 / l.211-213). `<line>`/`<col>` are the
+    ///    1-based line / 0-based column of `node.start`.
+    ///
+    /// Compared via [`canon_js`] (the runtime-equivalence canonicalizer), so a
+    /// match means the dev-mode SSR runtime suite passes for these fixtures.
+    #[test]
+    fn ast_matches_oracle_dev_instrumentation() {
+        // Inline component sanity samples (element-location shapes the fixtures
+        // below don't all exercise: void, nested, single-element).
+        let inline: &[(&str, &str)] = &[
+            ("simple", "<script>let x = $state(0)</script><p>{x}</p>"),
+            ("nested", "<div><p>{1}</p><span>hi</span></div>"),
+            ("void", "<input type=\"text\"><p>after</p>"),
+        ];
+        let mut mismatches = Vec::new();
+        for (name, src) in inline {
+            let (ours, oracle) = run_both_opts(src, |o| o.dev = true);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!(
+                    "===== {name} DIFFER =====\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push((*name).to_string());
+            }
+        }
+
+        // Real runtime-runes dev-mode fixtures whose ENTIRE SSR output now
+        // matches the oracle under `canon_js`. The dev-instrumentation pieces
+        // (FILENAME / named-fn + render stub / push_element + pop_element) match
+        // for ALL the originally-targeted fixtures; the three excluded below
+        // (`inspect-derived`, `effect-cleanup`, `error-boundary-reset-premature`)
+        // have ORTHOGONAL remaining diffs that are NOT dev instrumentation:
+        //   - `inspect-derived` — the oracle preserves a `/** @type {...} */`
+        //     JSDoc on `let { push } = $$props;` (instance-script comment
+        //     preservation, a separate gap).
+        //   - `effect-cleanup` — the oracle preserves a trailing
+        //     `// @ts-expect-error` line comment in the component body.
+        //   - `error-boundary-reset-premature` — the new pipeline emits the
+        //     `{#snippet failed}` hoist + `$.prevent_snippet_stringification`
+        //     ordering differently from the oracle (snippet/boundary codegen).
+        // In all three the `$.push_element(...)`/`$.pop_element()`/`$.FILENAME`
+        // output is byte-identical to the oracle.
+        let fixtures = [
+            "inspect",
+            "inspect-deep",
+            "inspect-multiple",
+            "inspect-nested-state",
+            "effect-order",
+            "nested-effect-conflict",
+            "lifecycle-render-order-for-children",
+        ];
+        for dir in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let (ours, oracle) = run_both_opts(&src, |o| o.dev = true);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!(
+                    "===== {dir} DIFFER =====\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(dir.to_string());
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "dev-mode SSR instrumentation differs from oracle for: {mismatches:?}"
+        );
     }
 
     /// `props_id` entry assembly (upstream lines 253-258): a top-level

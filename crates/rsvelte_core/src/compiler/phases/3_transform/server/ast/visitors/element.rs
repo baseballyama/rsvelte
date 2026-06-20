@@ -152,6 +152,18 @@ fn emit_element_body<'a>(
         if is_void { "/>" } else { ">" }.to_string(),
     ));
 
+    // -- dev element-location instrumentation (写经 RegularElement.js l.94-107)
+    // In dev mode, after the opening tag, push `$.push_element($$renderer,
+    // '<name>', <line>, <col>)`. The location is `locator(node.start)` — a
+    // 1-based line + 0-based column. For a void element, the matching
+    // `$.pop_element()` follows immediately (RegularElement.js l.211-213 only
+    // runs when there are children, but void elements have none — upstream's
+    // pop is gated on `!node_is_void` paths; the oracle emits pop right after
+    // push for void).
+    if state.options.dev {
+        push_element_dev(node, name, state);
+    }
+
     // -- children -----------------------------------------------------------
     if !is_void {
         let namespace = if node.metadata.svg {
@@ -193,7 +205,40 @@ fn emit_element_body<'a>(
         state
             .template
             .push(TemplateEntry::Literal(format!("</{name}>")));
+        // -- dev `$.pop_element()` (写经 RegularElement.js l.211-213) --------
+        if state.options.dev {
+            state.template.push(TemplateEntry::Stmt(
+                state.b.stmt(state.b.call("$.pop_element", vec![])),
+            ));
+        }
+    } else if state.options.dev {
+        // Void element: the `$.pop_element()` immediately follows the
+        // `$.push_element(...)` (the void element has no children) — matches
+        // the oracle's void-path pop.
+        state.template.push(TemplateEntry::Stmt(
+            state.b.stmt(state.b.call("$.pop_element", vec![])),
+        ));
     }
+}
+
+/// Emit the dev-mode `$.push_element($$renderer, '<name>', <line>, <col>)`
+/// statement into the template buffer. The location is the 1-based line /
+/// 0-based column of `node.start`, computed via the existing (read-only)
+/// `locate_in_source` helper from the legacy server pipeline.
+fn push_element_dev<'a>(node: &RegularElement, name: &str, state: &mut ServerTransformState<'a>) {
+    let (line, col) =
+        super::super::super::visitors::element::locate_in_source(state.source, node.start as usize);
+    let b = state.b;
+    let call = b.call(
+        "$.push_element",
+        vec![
+            b.id("$$renderer"),
+            b.string(name),
+            b.number(line as f64),
+            b.number(col as f64),
+        ],
+    );
+    state.template.push(TemplateEntry::Stmt(b.stmt(call)));
 }
 
 /// Whether the element has any attribute / spread value with an inline `await`
