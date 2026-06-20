@@ -253,9 +253,22 @@ fn lower_decl_init<'a>(
 
     let arg_expr = |state: &ServerTransformState<'a>| -> OxcExpression<'a> {
         match first_arg_slice {
-            Some(slice) => state
-                .reparse_slice_owned(slice)
-                .unwrap_or_else(|| state.b.void0()),
+            Some(slice) => {
+                let mut e = state
+                    .reparse_slice_owned(slice)
+                    .unwrap_or_else(|| state.b.void0());
+                // Read-wrap the init/thunk body so derived/store reads inside a
+                // `$state(...)` / `$derived(...)` initializer become getters
+                // (e.g. `$derived(a + 1)` thunk → `() => a() + 1`). Mirrors
+                // routing script value expressions through `visit_expr`.
+                super::read_wrap::wrap_reads(
+                    &mut e,
+                    state.b,
+                    state.analysis,
+                    state.analysis.root.instance_scope_index,
+                );
+                e
+            }
             None => state.b.void0(),
         }
     };

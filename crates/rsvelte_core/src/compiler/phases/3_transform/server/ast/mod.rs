@@ -15,6 +15,7 @@
 //! This module is NOT yet wired into [`super::transform_server`]; it exists so
 //! the crate keeps compiling while the AST pipeline is built out.
 
+pub mod read_wrap;
 pub mod script;
 pub mod visitors;
 
@@ -151,6 +152,21 @@ impl<'a> ServerTransformState<'a> {
     /// the simple cases (bare identifiers / member chains) but the store-sub /
     /// derived-call / props rewrites are still TODO.
     pub fn visit_expr(&self, expr: &Expression) -> OxcExpression<'a> {
+        let mut out = self.visit_expr_raw(expr);
+        read_wrap::wrap_reads(
+            &mut out,
+            self.b,
+            self.analysis,
+            self.analysis.root.instance_scope_index,
+        );
+        out
+    }
+
+    /// Convert a parsed template [`Expression`] to an oxc [`OxcExpression`]
+    /// WITHOUT the read-wrapping pass — the verbatim shape conversion. Used by
+    /// [`Self::visit_expr`] before wrapping, and available to callers that need
+    /// the un-wrapped expression.
+    pub fn visit_expr_raw(&self, expr: &Expression) -> OxcExpression<'a> {
         let node = expr.as_node();
         if let Some(converted) = jsnode_to_oxc_expr(&node, self.arena, self.allocator) {
             return converted;
@@ -818,6 +834,118 @@ mod tests {
             "shell missing:\n{out}"
         );
         assert!(!out.contains("let n"), "TS body should be skipped:\n{out}");
+    }
+
+    /// READ-WRAPPING single pass — the crux gate. Asserts the wrapped reads
+    /// produced by the AST pipeline are exactly what upstream's
+    /// `Identifier.js`/`build_getter` produce. Several oracle outputs ALSO
+    /// constant-fold (`scope.evaluate` → `<p>0</p>`), object-literal `$derived`
+    /// args reparse to `void 0` (a pre-existing arg-reparse skeleton gap), and
+    /// `$$props` routes through the `$$renderer.component(...)` wrapper — all
+    /// ORTHOGONAL to read-wrapping. So this gate asserts the read-wrapping
+    /// SUBSTRINGS (must appear) and the anti-substrings (must NOT appear,
+    /// e.g. a derived read left un-called), which the oracle confirms when it
+    /// does not constant-fold the read away.
+    #[test]
+    fn ast_matches_oracle_read_wrapping() {
+        // (src, must_contain[], must_not_contain[]).
+        let cases: &[(&str, &[&str], &[&str])] = &[
+            // double is derived → double(); count is state inside thunk → NOT wrapped.
+            (
+                "<script>let count = $state(0); let double = $derived(count * 2);</script><p>{double}</p>",
+                &["$.escape(double())", "$.derived(() => count * 2)"],
+                &["$.escape(double)", "count()"],
+            ),
+            // count is state → NOT wrapped; double → double().
+            (
+                "<script>let count = $state(0); let double = $derived(count * 2);</script><p>{double} {count}</p>",
+                &["$.escape(double())", "$.escape(count)"],
+                &["count()", "$.escape(double)"],
+            ),
+            // props identifier passthrough (name is a Prop → unchanged). FULL match.
+            (
+                "<script>let { name } = $props();</script><p>{name}</p>",
+                &["$.escape(name)", "let { name } = $$props;"],
+                &["name()"],
+            ),
+            // chained derived: b → b(); inside b's thunk a → a().
+            (
+                "<script>let a = $derived(1); let b = $derived(a + 1);</script><p>{b}</p>",
+                &["$.derived(() => a() + 1)", "$.escape(b())"],
+                &["$.escape(b)"],
+            ),
+            // $$props member read → $$sanitized_props.x
+            (
+                "<p>{$$props.x}</p>",
+                &["$.escape($$sanitized_props.x)"],
+                &["$.escape($$props.x)"],
+            ),
+            // derived read inside a member chain: obj() . k
+            (
+                "<script>let obj = $derived(x);</script><p>{obj.k}</p>",
+                &["$.escape(obj().k)"],
+                &["$.escape(obj.k)"],
+            ),
+            // derived currying — a call of a derived binding: d()(x)
+            (
+                "<script>let d = $derived(fn);</script><p>{d(1)}</p>",
+                &["$.escape(d()(1))"],
+                &[],
+            ),
+            // multiple derived reads in one expression: both wrapped.
+            (
+                "<script>let a = $derived(1); let b = $derived(2);</script><p>{a + b}</p>",
+                &["a() + b()"],
+                &[],
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, musts, mustnots) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let on = norm(&ours);
+            let mut ok = true;
+            for m in *musts {
+                if !on.contains(&norm(m)) {
+                    ok = false;
+                }
+            }
+            for n in *mustnots {
+                if on.contains(&norm(n)) {
+                    ok = false;
+                }
+            }
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if ok { "OK" } else { "FAIL" }
+            );
+            if !ok {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "read-wrapping shape wrong for: {failures:?}"
+        );
+    }
+
+    /// Store subscription read-wrapping: `$c` → `$.store_get(...)`. The
+    /// `$$store_subs` declaration + the template `unsubscribe_stores` cleanup are
+    /// a KNOWN GAP in the AST skeleton (separate entry assembly), so the FULL
+    /// component diverges. We assert only that the READ ITSELF is wrapped into a
+    /// `$.store_get($$store_subs ??= {}, "$c", c)` shape (which the oracle also
+    /// produces).
+    #[test]
+    fn store_sub_read_wrapping_shape() {
+        let src = "<script>import { writable } from 'svelte/store'; const c = writable(0);</script><p>{$c}</p>";
+        let ours = run(src);
+        let oracle = oracle_dump(src);
+        eprintln!("--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+        assert!(
+            ours.contains("$.store_get($$store_subs ??= {}, '$c', c)")
+                || ours.contains("$.store_get($$store_subs ??= {}, \"$c\", c)"),
+            "store read not wrapped as $.store_get(...):\n{ours}"
+        );
     }
 
     #[test]
