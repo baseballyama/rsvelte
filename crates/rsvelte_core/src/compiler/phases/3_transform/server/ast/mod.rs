@@ -1004,15 +1004,15 @@ mod tests {
         // five blocks) must still match byte-for-byte.
         let chain = "<script>\n  function complex1() {\n    return 1;\n  }\n\n  let foo = $state(true);\n  let blocking = $derived(await foo);\n</script>\n\n{#if foo}\n  foo\n{:else if bar}\n  bar\n{:else}\n  else\n{/if}\n\n{#if await foo}\n  foo\n{:else if bar}\n  bar\n{:else if await baz}\n  baz\n{:else}\n  else\n{/if}\n\n{#if await foo > 10}\n  foo\n{:else if bar}\n  bar\n{:else if await foo > 5}\n  baz\n{:else}\n  else\n{/if}\n\n{#if simple1}\n  foo\n{:else if simple2 > 10}\n  bar\n{:else if complex1() * complex2 > 100}\n  baz\n{:else}\n  else\n{/if}\n\n{#if blocking > 10}\n  foo\n{:else if blocking > 5}\n  bar\n{:else}\n  else\n{/if}\n";
         let (ours, oracle) = run_async_both(chain);
-        // Drop ONLY the instance-script declaration lines that lower the
-        // `$derived(await foo)` (the orthogonal axis), keeping every `blocking()`
-        // reference inside the 5th block's tests intact.
-        let ours_n = strip_instance_decls(&ours);
-        let oracle_n = strip_instance_decls(&oracle);
+        // The instance `let blocking = $derived(await foo)` now lowers to the
+        // async-derived form (`var blocking;` + `blocking = await
+        // $.async_derived(() => foo)` in the `$$renderer.run([…])` prelude), so the
+        // WHOLE component — instance prelude AND the five IfBlocks — matches the
+        // oracle byte-for-byte (post-`norm_blocks`).
         assert_eq!(
-            ours_n, oracle_n,
-            "async-if-chain IfBlock structure differs from oracle (instance \
-             `$derived(await)` line excluded):\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
+            norm_blocks(&ours),
+            norm_blocks(&oracle),
+            "async-if-chain output differs from oracle:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
         );
     }
 
@@ -1046,22 +1046,25 @@ mod tests {
         }
     }
 
-    /// Strip ONLY the instance-script declaration lines that lower a
-    /// `$derived(await …)` (the orthogonal axis not covered by Stage 2a):
-    /// `let blocking = $.derived(…)`, `var blocking;`, and the
-    /// `var $$promises = $$renderer.run([…])` prelude. Everything after (the
-    /// IfBlock template body) is compared verbatim.
-    fn strip_instance_decls(s: &str) -> String {
-        norm_blocks(s)
-            .lines()
-            .filter(|l| {
-                let t = l.trim_start();
-                !(t.starts_with("let blocking")
-                    || t.starts_with("var blocking")
-                    || t.starts_with("var $$promises"))
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+    /// SSR async `$derived(await …)` instance lowering (写经
+    /// `VariableDeclaration.js:87-96`): a `let x = $derived(await EXPR)` under
+    /// `experimental.async` lowers to `await $.async_derived(() => EXPR)`, which the
+    /// async-body split then hoists as `var x;` + `x = await $.async_derived(…)`
+    /// inside `$$renderer.run([…])`. Asserts the whole instance prelude matches the
+    /// text-based oracle byte-for-byte.
+    #[test]
+    fn ast_matches_oracle_async_derived_instance() {
+        let src = "<script>\n\tlet foo = true;\n\tlet blocking = $derived(await foo);\n</script>\n\n{blocking}\n";
+        let (ours, oracle) = run_async_both(src);
+        assert!(
+            ours.contains("$.async_derived(() => foo)"),
+            "expected `await $.async_derived(() => foo)` in instance lowering:\n{ours}"
+        );
+        assert_eq!(
+            norm_blocks(&ours),
+            norm_blocks(&oracle),
+            "async `$derived(await …)` instance lowering differs from oracle:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
+        );
     }
 
     /// `let:` directives on components / slotted elements lower to a second

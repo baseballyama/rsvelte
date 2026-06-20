@@ -37,8 +37,10 @@
 //!   buffer and every re-slice cuts from `src`, never from `state.source`).
 //!   Template-side TS (e.g. `{x as T}`) is NOT stripped here — the OLD oracle
 //!   strips TS from its final output, which this slice does not (KNOWN GAP).
-//! - async `$derived` (`$derived(await …)`) — lowered as a plain `$.derived`
-//!   thunk (no `await $.async_derived(...)`).
+//! - async `$derived` (`$derived(await …)`) under `experimental.async` →
+//!   `await $.async_derived(() => <value>)` (top-level `await` stripped; nested
+//!   await keeps the thunk `async`). In sync mode it stays the plain
+//!   `$.derived(() => <value>)` thunk.
 //! - destructured-`$state` / `$state.raw` patterns ARE expanded via
 //!   `create_state_declarators` + `extract_paths` (`tmp` temp + `$$array =
 //!   $.to_array(tmp, N)` for array/iterable destructures + per-leaf
@@ -745,10 +747,71 @@ fn lower_decl_init<'a>(
 
     match rune {
         DeclRune::State => Some(arg_expr(state)),
-        DeclRune::Derived => Some(b.call("$.derived", vec![b.thunk(arg_expr(state), false)])),
+        DeclRune::Derived => {
+            // Async `$derived(await EXPR)` lowering (写经
+            // `3-transform/server/visitors/VariableDeclaration.js:87-96`): when the
+            // derived argument carries a TOP-LEVEL `await` AND the component is
+            // compiled with `experimental.async`, the derived becomes
+            // `await $.async_derived(b.thunk(value, true))`. Upstream's
+            // `AwaitExpression` server visitor strips the leading `await` from the
+            // value before it reaches the thunk, so `$derived(await foo)` lowers to
+            // `await $.async_derived(() => foo)`. A remaining NESTED await keeps the
+            // thunk `async` (`async () => …`); otherwise it is an ordinary
+            // `() => …` thunk. Without an await — or in sync mode — it stays the
+            // plain synchronous `$.derived(() => <value>)` shape (UNCHANGED).
+            let mut e = arg_expr(state);
+            if state.eval_inputs.use_async
+                && let OxcExpression::AwaitExpression(_) = &e
+            {
+                // Strip the top-level `await` (mirrors the server `AwaitExpression`
+                // visitor returning its inner argument in this context).
+                if let OxcExpression::AwaitExpression(await_box) = e {
+                    e = await_box.unbox().argument;
+                }
+                // A surviving nested await forces an `async () => …` thunk.
+                let nested_await = expr_has_await(&e);
+                Some(b.await_expr(b.call("$.async_derived", vec![b.thunk(e, nested_await)])))
+            } else {
+                Some(b.call("$.derived", vec![b.thunk(e, false)]))
+            }
+        }
         DeclRune::DerivedBy => Some(b.call("$.derived", vec![arg_expr(state)])),
         DeclRune::Props | DeclRune::PropsId => None,
     }
+}
+
+/// Whether an oxc expression contains an `AwaitExpression` anywhere in its
+/// subtree (but NOT inside a nested function / arrow body — those `await`s
+/// belong to a different async scope). Used to decide whether an
+/// `$.async_derived(...)` thunk must stay `async` after the top-level `await`
+/// has been stripped (写经 the old text pipeline's nested-await check).
+fn expr_has_await(expr: &OxcExpression) -> bool {
+    use oxc_ast_visit::Visit;
+    struct AwaitFinder {
+        found: bool,
+    }
+    impl<'a> Visit<'a> for AwaitFinder {
+        fn visit_await_expression(&mut self, _it: &oxc_ast::ast::AwaitExpression<'a>) {
+            self.found = true;
+        }
+        // Do NOT descend into nested function / arrow bodies: their `await`s
+        // belong to a separate async scope and must not keep the outer thunk
+        // async.
+        fn visit_function(
+            &mut self,
+            _it: &oxc_ast::ast::Function<'a>,
+            _flags: oxc_syntax::scope::ScopeFlags,
+        ) {
+        }
+        fn visit_arrow_function_expression(
+            &mut self,
+            _it: &oxc_ast::ast::ArrowFunctionExpression<'a>,
+        ) {
+        }
+    }
+    let mut f = AwaitFinder { found: false };
+    f.visit_expression(expr);
+    f.found
 }
 
 /// Walk a `$props()` LHS pattern and rewrite every `$bindable(...)` default in
