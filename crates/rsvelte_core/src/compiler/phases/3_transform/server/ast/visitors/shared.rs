@@ -103,8 +103,9 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                 last.push_str(&escape_html(data));
             }
             SeqNode::Comment(data) => {
+                use std::fmt::Write as _;
                 let last = quasis.last_mut().unwrap();
-                last.push_str(&format!("<!--{data}-->"));
+                let _ = write!(last, "<!--{data}-->");
             }
             SeqNode::Expr(expr) => {
                 let visited = state.visit_expr(expr);
