@@ -137,6 +137,14 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         } else {
             "html"
         };
+        // 写经 upstream `RegularElement`: STICKY-set `state.preserve_whitespace`
+        // for the subtree when this element is a `<pre>` / `<textarea>`, so nested
+        // elements inside a `<pre>` keep their inner whitespace. Save/restore so a
+        // sibling subtree is unaffected.
+        let saved_preserve_ws = state.preserve_whitespace;
+        if matches!(name, "pre" | "textarea") {
+            state.preserve_whitespace = true;
+        }
         if let Some(content) = content {
             // Content bind: render the bound value as the body when truthy,
             // otherwise fall back to the element's own (trimmed) children.
@@ -157,6 +165,7 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
                     .push(TemplateEntry::Literal("<!>".to_string()));
             }
         }
+        state.preserve_whitespace = saved_preserve_ws;
         state
             .template
             .push(TemplateEntry::Literal(format!("</{name}>")));
@@ -649,7 +658,18 @@ pub(super) fn build_element_attributes<'a>(
                     // expression survives, then inlines it at element.js line 257).
                     // For `class`/`style` (`trim_ws`) text chunks are whitespace-
                     // collapsed per-part; the css-hash join below applies the trim.
-                    if let Some(folded) = fold_sequence_static(parts, trim_ws, state) {
+                    //
+                    // 写经 upstream `build_attribute_value`: the `scope.evaluate`
+                    // constant-fold path ONLY runs in the multi-element array
+                    // branch (`value.length > 1`). A SINGLE `{expr}` value
+                    // (`length === 1`) is returned as the raw expression and is
+                    // NEVER folded to a literal — so `readonly="{false}"` keeps
+                    // `$.attr('readonly', false, true)` (a boolean), and
+                    // `value='{false}'` keeps `$.attr('value', false)`, rather than
+                    // collapsing to the stringified `"false"`. Require >1 parts.
+                    if parts.len() > 1
+                        && let Some(folded) = fold_sequence_static(parts, trim_ws, state)
+                    {
                         let mut literal_value = folded;
                         if is_class && let Some(hash) = css_hash {
                             literal_value = format!("{literal_value} {hash}").trim().to_string();
@@ -816,12 +836,28 @@ fn build_element_spread_attributes<'a>(
                 }
                 let name = get_attribute_name(node, a);
                 let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
-                let value = build_attribute_value(&a.value, trim_ws, state);
+                let mut value = build_attribute_value(&a.value, trim_ws, state);
+                // 写经 upstream `build_element_attributes` `class` arm: a
+                // `class={...}` marked `needs_clsx` is wrapped in `$.clsx(...)` so
+                // the runtime flattens array / object class forms before the merge.
+                if name == "class" && a.metadata.needs_clsx {
+                    value = state.b.call("$.clsx", vec![value]);
+                }
                 props.push(state.b.init(&name, value));
+            }
+            Attribute::BindDirective(bind) => {
+                // 写经 upstream `build_element_attributes` BindDirective arm: the
+                // converted synthetic attribute (`bind:value` → `value`,
+                // `bind:group` → `checked` membership test) is fed into the merged
+                // spread object. Reuse [`build_bind_directive`] so the spread path
+                // matches the non-spread path (skipped binds yield `None`).
+                if let Some((name, value)) = build_bind_directive(node, bind, state) {
+                    props.push(state.b.init(&name, value));
+                }
             }
             Attribute::ClassDirective(dir) => class_directives.push(dir),
             Attribute::StyleDirective(dir) => style_directives.push(dir),
-            // `bind:` / `use:` / `@attach`: KNOWN GAP in the spread path.
+            // `use:` / `@attach`: KNOWN GAP in the spread path.
             _ => {}
         }
     }
@@ -1161,16 +1197,25 @@ fn prepare_element_spread_object<'a>(
             Attribute::Attribute(a) => {
                 let name = get_attribute_name(node, a);
                 let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
-                let value = build_attribute_value(&a.value, trim_ws, state);
+                let mut value = build_attribute_value(&a.value, trim_ws, state);
+                // 写经 upstream `build_element_attributes` `class` arm: a
+                // `class={...}` whose analysis marked `needs_clsx` is wrapped in
+                // `$.clsx(...)` so the runtime flattens arrays / objects of class
+                // names before they land in the merged spread object.
+                if name == "class" && a.metadata.needs_clsx {
+                    value = state.b.call("$.clsx", vec![value]);
+                }
                 props.push(state.b.init(&name, value));
             }
             Attribute::BindDirective(bind) => {
-                // `build_spread_object` BindDirective arm: a sequence `{get, set}`
-                // calls `get()`, otherwise the visited expression is used as-is.
+                // 写经 upstream `build_spread_object` BindDirective arm (the
+                // `<select>`/`<option>`-special path): the bound expression is
+                // emitted directly under its `get_attribute_name`, with NO
+                // `bind:value`-on-select skip and NO `bind:group` → `checked`
+                // transform (those are specific to `build_element_attributes`, the
+                // generic-element spread path). A `{get, set}` sequence would call
+                // `get()` — KNOWN GAP: the whole expression is used as-is.
                 let name = get_bind_attribute_name(node, bind.name.as_str());
-                // `build_spread_object` BindDirective arm: a `{get, set}` sequence
-                // would call `get()`, but we don't decompose it (KNOWN GAP) — the
-                // visited whole expression is used directly for both shapes.
                 let value = state.visit_expr(&bind.expression);
                 props.push(state.b.init(&name, value));
             }

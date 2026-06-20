@@ -95,7 +95,13 @@ pub fn process_children_inner<'a>(
     is_block_parent: bool,
     state: &mut ServerTransformState<'a>,
 ) {
-    let preserve_whitespace = state.options.preserve_whitespace
+    // 写经 upstream `RegularElement` `preserve_whitespace: state.preserve_whitespace
+    // || name === 'pre' || name === 'textarea'`: STICKY — once an ancestor `<pre>`
+    // / `<textarea>` turned it on (recorded in `state.preserve_whitespace`), every
+    // descendant fragment keeps it, so a nested `<span>` inside a `<pre>` preserves
+    // its inner whitespace. The immediate-parent check is kept as a belt-and-braces
+    // fallback (the element visitor also sets the sticky flag before recursing).
+    let preserve_whitespace = state.preserve_whitespace
         || parent.is_some_and(|el| matches!(el.name.as_str(), "pre" | "textarea"));
 
     // 写经 `clean_nodes` (utils.js:148-151): author HTML comments are dropped
@@ -653,7 +659,23 @@ pub fn build_fragment_body<'a>(
     // restored afterward.
     let saved_snippet_inits = std::mem::take(&mut state.snippet_inits);
 
-    process_children_inner(&fragment.nodes, None, "html", is_text_first_parent, state);
+    // 写经 upstream `Fragment.js` → `clean_nodes(..., infer_namespace(...))`: a
+    // fragment whose direct RegularElement children are all SVG (or all MathML)
+    // adopts that namespace, so whitespace-only text between them is removable
+    // (`can_remove_entirely`) just like inside an `<svg>` element. The root
+    // fragment defaults to `html`; refine it from the children.
+    let fragment_namespace =
+        crate::compiler::phases::phase3_transform::server::visitors::fragment::infer_namespace_from_nodes_owned(
+            &fragment.nodes,
+            "html",
+        );
+    process_children_inner(
+        &fragment.nodes,
+        None,
+        &fragment_namespace,
+        is_text_first_parent,
+        state,
+    );
     let template = std::mem::replace(&mut state.template, saved);
     let mut body = build_template(template, state);
 

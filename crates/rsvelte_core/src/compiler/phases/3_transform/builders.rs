@@ -1042,17 +1042,14 @@ impl<'a> B<'a> {
 /// `sanitize_template_string`): backtick, backslash, and `${` are escaped.
 fn sanitize_template_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        let c = bytes[i] as char;
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
         match c {
             '`' => out.push_str("\\`"),
             '\\' => out.push_str("\\\\"),
-            '$' if i + 1 < bytes.len() && bytes[i + 1] == b'{' => out.push_str("\\$"),
+            '$' if chars.peek() == Some(&'{') => out.push_str("\\$"),
             _ => out.push(c),
         }
-        i += 1;
     }
     out
 }

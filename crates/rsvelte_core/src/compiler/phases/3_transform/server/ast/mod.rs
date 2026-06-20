@@ -69,6 +69,12 @@ pub struct ServerTransformState<'a> {
     /// `state.is_standalone`). Set for the root fragment in
     /// [`server_component_ast`]; block visitors leave it as-is for now.
     pub is_standalone: bool,
+    /// Sticky whitespace-preservation flag (写经 upstream `state.preserve_whitespace`).
+    /// Seeded from `options.preserve_whitespace` and turned ON (and never off
+    /// again for the subtree) by an ancestor `<pre>` / `<textarea>`, so a nested
+    /// `<span>` inside a `<pre>` keeps its inner whitespace. The element visitor
+    /// saves/restores it around its children.
+    pub preserve_whitespace: bool,
     /// Monotonic counter for `each_array` / `$$index` unique-name suffixes,
     /// mirroring upstream's `state.scope.root.unique('each_array')`. The first
     /// each block uses bare `each_array` / `$$index`; subsequent ones append
@@ -176,6 +182,7 @@ impl<'a> ServerTransformState<'a> {
             arena,
             allocator,
             is_standalone: false,
+            preserve_whitespace: options.preserve_whitespace,
             each_index: 0,
             eval_inputs: EvalInputs::default(),
             body_counter: 0,
@@ -1170,6 +1177,62 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "destructured-derived output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// SPREAD / ATTRIBUTE / html-entities SSR element-codegen parity with the
+    /// (correct) `transform_server` oracle. Each fixture below is a runtime
+    /// fixture the oracle passes; matching it (post `norm_blocks`) means the
+    /// runtime suite passes too.
+    #[test]
+    fn ast_matches_oracle_spread_attr_entities() {
+        let fixtures: &[(&str, &str)] = &[
+            ("runtime-legacy", "class-with-spread"),
+            ("runtime-legacy", "class-with-dynamic-attribute-and-spread"),
+            ("runtime-legacy", "spread-element-input"),
+            ("runtime-legacy", "spread-element-multiple-dependencies"),
+            ("runtime-legacy", "binding-indirect-spread"),
+            ("runtime-legacy", "attribute-boolean-false"),
+            ("runtime-legacy", "attribute-prefer-expression"),
+            ("runtime-legacy", "html-entities"),
+            ("runtime-legacy", "html-entities-inside-attributes"),
+            ("runtime-legacy", "nbsp"),
+            ("runtime-legacy", "nbsp-div"),
+            ("runtime-legacy", "preserve-whitespaces"),
+            ("runtime-legacy", "svg-multiple"),
+            ("runtime-legacy", "dynamic-element-svg-inherit-namespace"),
+        ];
+        let mut mismatches: Vec<String> = Vec::new();
+        for (suite, dir) in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/{}/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                suite,
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            // The runtime gate is `canon_js` (oxc parse → codegen), the SAME
+            // canonicalizer `tests/common::canonicalize_js` applies — it
+            // normalizes formatting (line-wrapping, trailing commas) while
+            // preserving structure. Matching under it means the runtime suite
+            // passes (the oracle passes these fixtures). `binding-indirect-spread`
+            // only differs in esrap's long-call line-wrapping, which `canon_js`
+            // collapses.
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!("=== {dir} DIFFER ===\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+                mismatches.push(dir.to_string());
+            } else {
+                eprintln!("=== {dir} MATCH ===");
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "spread/attr/entities output differs from oracle for: {mismatches:?}"
         );
     }
 
