@@ -14,8 +14,11 @@
 //!   - boolean attribute (`disabled`) → ` disabled=""` literal,
 //!   - dynamic single-expression (`name={x}`) → `${$.attr('name', x, <bool>)}`,
 //!   - mixed text+expr value (`href="/{slug}"`) → `${$.attr('name', `/${$.stringify(slug)}`)}`,
-//!   - `class={x}` → `${$.attr_class(x, <css_hash?>)}`,
-//!   - `style={x}` → `${$.attr_style(x)}`,
+//!   - `class={x}` → `${$.attr_class(x, <css_hash?>, <class:directives?>)}`,
+//!   - `style={x}` → `${$.attr_style(x, <style:directives?>)}`,
+//!   - `class:foo={cond}` → folded into the 3rd `$.attr_class` arg `{ 'foo': cond }`,
+//!   - `style:color={c}` → folded into the 2nd `$.attr_style` arg `{ color: c }`
+//!     (a `|important` directive splits the arg into `[normal, important]`),
 //!   - the CSS scope-class injection,
 //!   - spread (`{...obj}`) → the whole-element `$.attributes({ ...merged },
 //!     css_hash?, classes?, styles?, flags?)` form (see
@@ -48,7 +51,7 @@
 //!   See [`emit_select_special`] / [`emit_option_special`] /
 //!   [`prepare_element_spread_object`].
 //!
-//! 写经 gaps (TODO): `class:` / `style:` / `use:` directives on the non-spread
+//! 写经 gaps (TODO): `use:` directives on the non-spread
 //! path, the get/set `{get, set}` select bind form (the option's synthetic value
 //! sequence is not decomposed), the dev `push_element` markers on the option
 //! wrapper, `<script>` / `<style>` raw-text branches, the get/set `{get, set}` bind form,
@@ -504,6 +507,33 @@ fn build_element_attributes<'a>(
 
     let has_class_dir_or_spread = has_class_directive_or_spread(node);
 
+    // -- collect `class:` / `style:` directives -----------------------------
+    //
+    // Port of the `ClassDirective` / `StyleDirective` arms of upstream
+    // `build_element_attributes`: directives are gathered up-front and fed to
+    // `build_attr_class` (3rd arg) / `build_attr_style` (2nd arg) when the
+    // matching `class` / `style` attribute is emitted. When the element has a
+    // directive but no real `class` / `style` attribute, Phase 2 has already
+    // synthesised an empty `class=""` / `style=""` attribute (see
+    // `2_analyze/mod.rs` "We need an empty class/style"), so the per-attribute
+    // loop below still encounters a `class` / `style` to attach them to.
+    let class_directives: Vec<&crate::ast::template::ClassDirective> = node
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::ClassDirective(d) => Some(d),
+            _ => None,
+        })
+        .collect();
+    let style_directives: Vec<&crate::ast::template::StyleDirective> = node
+        .attributes
+        .iter()
+        .filter_map(|a| match a {
+            Attribute::StyleDirective(d) => Some(d),
+            _ => None,
+        })
+        .collect();
+
     // Track whether ANY `class` attribute (static or dynamic) was emitted; the
     // fresh-scope-class injection only happens when there is none AND no class
     // directive/spread.
@@ -540,7 +570,10 @@ fn build_element_attributes<'a>(
         }
 
         let Attribute::Attribute(a) = attr else {
-            // Spread / class:/style:/use:/attach directives: KNOWN GAP (skipped).
+            // `class:` / `style:` directives are consumed up-front into
+            // `class_directives` / `style_directives` (fed to `build_attr_class`
+            // / `build_attr_style` when the synthetic-or-real `class` / `style`
+            // attribute is emitted). `use:` / `@attach` remain a KNOWN GAP.
             continue;
         };
 
@@ -570,76 +603,81 @@ fn build_element_attributes<'a>(
 
         // -- the literal fast-path (`value === true` or text attribute) ------
         // Mirrors upstream's `can_use_literal && (value === true || is_text)`.
-        // `can_use_literal` is false when a matching class/style DIRECTIVE
-        // exists — but directives are a gap here, so for a static text value we
-        // always take the literal path.
-        match &a.value {
-            AttributeValue::True(_) => {
-                let mut literal_value = String::new();
-                if is_class && let Some(hash) = css_hash {
-                    literal_value = format!(" {hash}").trim().to_string();
-                }
-                if !is_class || !literal_value.is_empty() {
-                    state.template.push(TemplateEntry::Literal(format!(
-                        " {name}=\"{literal_value}\""
-                    )));
-                }
-                continue;
-            }
-            AttributeValue::Sequence(parts) => {
-                if let Some(text) = static_text_of(parts, trim_ws) {
-                    // Pure-text attribute → literal.
-                    let mut literal_value = text;
+        // `can_use_literal` is FALSE for `class` when a `class:` directive exists
+        // (and for `style` when a `style:` directive exists), so the attribute
+        // routes through `$.attr_class` / `$.attr_style` instead (the directives
+        // object is the directive carrier). Mirrors upstream lines 222-224.
+        let can_use_literal = (!is_class || class_directives.is_empty())
+            && (!is_style || style_directives.is_empty());
+        if can_use_literal {
+            match &a.value {
+                AttributeValue::True(_) => {
+                    let mut literal_value = String::new();
                     if is_class && let Some(hash) = css_hash {
-                        literal_value = format!("{literal_value} {hash}").trim().to_string();
+                        literal_value = format!(" {hash}").trim().to_string();
                     }
                     if !is_class || !literal_value.is_empty() {
                         state.template.push(TemplateEntry::Literal(format!(
-                            " {name}=\"{}\"",
-                            escape_attr(&literal_value)
+                            " {name}=\"{literal_value}\""
                         )));
                     }
                     continue;
                 }
-                // Mixed text+expression where EVERY expression part folds to a
-                // known value (`scope.evaluate`): inline all parts and emit a
-                // static attribute (mirrors the oracle's all-inline branch in
-                // `build_attribute_value`). Restricted to non-whitespace-
-                // insensitive attrs so the simple concat matches the oracle.
-                if !trim_ws && let Some(folded) = fold_sequence_static(parts, state) {
-                    let mut literal_value = folded;
-                    if is_class && let Some(hash) = css_hash {
-                        literal_value = format!("{literal_value} {hash}").trim().to_string();
+                AttributeValue::Sequence(parts) => {
+                    if let Some(text) = static_text_of(parts, trim_ws) {
+                        // Pure-text attribute → literal.
+                        let mut literal_value = text;
+                        if is_class && let Some(hash) = css_hash {
+                            literal_value = format!("{literal_value} {hash}").trim().to_string();
+                        }
+                        if !is_class || !literal_value.is_empty() {
+                            state.template.push(TemplateEntry::Literal(format!(
+                                " {name}=\"{}\"",
+                                escape_attr(&literal_value)
+                            )));
+                        }
+                        continue;
                     }
-                    if !is_class || !literal_value.is_empty() {
-                        state.template.push(TemplateEntry::Literal(format!(
-                            " {name}=\"{}\"",
-                            escape_attr(&literal_value)
-                        )));
+                    // Mixed text+expression where EVERY expression part folds to a
+                    // known value (`scope.evaluate`): inline all parts and emit a
+                    // static attribute (mirrors the oracle's all-inline branch in
+                    // `build_attribute_value`). Restricted to non-whitespace-
+                    // insensitive attrs so the simple concat matches the oracle.
+                    if !trim_ws && let Some(folded) = fold_sequence_static(parts, state) {
+                        let mut literal_value = folded;
+                        if is_class && let Some(hash) = css_hash {
+                            literal_value = format!("{literal_value} {hash}").trim().to_string();
+                        }
+                        if !is_class || !literal_value.is_empty() {
+                            state.template.push(TemplateEntry::Literal(format!(
+                                " {name}=\"{}\"",
+                                escape_attr(&literal_value)
+                            )));
+                        }
+                        continue;
                     }
-                    continue;
+                    // Mixed text+expression: fall through to the dynamic value build.
                 }
-                // Mixed text+expression: fall through to the dynamic value build.
-            }
-            AttributeValue::Expression(tag) => {
-                // A single STRING-LITERAL expression inlines as a static
-                // attribute (mirrors the oracle's `extract_literal_value`, which
-                // inlines string literals only — numeric / boolean literals keep
-                // `$.attr(...)`). Non-literal expressions fall through.
-                if let Some(s) = string_literal_of(&tag.expression) {
-                    let mut literal_value = s;
-                    if is_class && let Some(hash) = css_hash {
-                        literal_value = format!("{literal_value} {hash}").trim().to_string();
+                AttributeValue::Expression(tag) => {
+                    // A single STRING-LITERAL expression inlines as a static
+                    // attribute (mirrors the oracle's `extract_literal_value`, which
+                    // inlines string literals only — numeric / boolean literals keep
+                    // `$.attr(...)`). Non-literal expressions fall through.
+                    if let Some(s) = string_literal_of(&tag.expression) {
+                        let mut literal_value = s;
+                        if is_class && let Some(hash) = css_hash {
+                            literal_value = format!("{literal_value} {hash}").trim().to_string();
+                        }
+                        if !is_class || !literal_value.is_empty() {
+                            state.template.push(TemplateEntry::Literal(format!(
+                                " {name}=\"{}\"",
+                                escape_attr(&literal_value)
+                            )));
+                        }
+                        continue;
                     }
-                    if !is_class || !literal_value.is_empty() {
-                        state.template.push(TemplateEntry::Literal(format!(
-                            " {name}=\"{}\"",
-                            escape_attr(&literal_value)
-                        )));
-                    }
-                    continue;
+                    // Other single expressions: fall through to dynamic value build.
                 }
-                // Other single expressions: fall through to dynamic value build.
             }
         }
 
@@ -655,14 +693,14 @@ fn build_element_attributes<'a>(
             if a.metadata.needs_clsx {
                 value = state.b.call("$.clsx", vec![value]);
             }
-            // `$.attr_class(expr, css_hash?, directives?)`. directives = class
-            // directives (gap → None here).
-            let call = build_attr_class(value, css_hash, state);
+            // `$.attr_class(expr, css_hash?, directives?)`. directives = the
+            // `class:` directive object (`{ 'name': value }`), 3rd arg.
+            let call = build_attr_class(value, css_hash, &class_directives, state);
             push_interp(state, call);
         } else if is_style {
-            // `$.attr_style(expr, directives?)`. directives = style directives
-            // (gap → None here).
-            let call = state.b.call_opt("$.attr_style", vec![Some(value), None]);
+            // `$.attr_style(expr, directives?)`. directives = the `style:`
+            // directive object/array, 2nd arg.
+            let call = build_attr_style(value, &style_directives, state);
             push_interp(state, call);
         } else {
             // `$.attr('name', value, is_boolean && true)`.
@@ -1254,20 +1292,119 @@ fn push_interp<'a>(state: &mut ServerTransformState<'a>, call: OxcExpression<'a>
     });
 }
 
-/// `build_attr_class(expression, css_hash, directives=None)` — the no-directive
-/// server form. Mirrors `shared/element.js::build_attr_class`: when `hash` is
-/// set and the expression is a runtime value (always, here — we don't constant
-/// fold), the hash is passed as the 2nd arg.
+/// `build_attr_class(expression, css_hash, directives)` — the server form.
+/// Faithful port of `shared/element.js::build_attr_class`:
+///   - `directives` (3rd arg) = `{ 'name': value }` object from the `class:`
+///     directives (QUOTED keys, via `b.literal(directive.name)` upstream);
+///     elided (dropped as trailing `None`) when there are none,
+///   - hash folding: when `hash` is set AND `expression` is a STRING LITERAL,
+///     the hash is appended into the literal (`'value hash'.trim()`) and the
+///     2nd `css_hash` arg is left `void 0`; otherwise the hash is passed as the
+///     2nd arg `b.literal(hash)`.
 fn build_attr_class<'a>(
     expression: OxcExpression<'a>,
     css_hash: Option<&str>,
-    state: &ServerTransformState<'a>,
+    class_directives: &[&crate::ast::template::ClassDirective],
+    state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
-    // 3rd arg (directives) is a KNOWN GAP → always None (dropped as trailing).
+    // -- directives object (3rd arg) ----------------------------------------
+    let directives_arg = if class_directives.is_empty() {
+        None
+    } else {
+        let members = class_directives
+            .iter()
+            .map(|dir| {
+                let val = state.visit_expr(&dir.expression);
+                // QUOTED key (`b.literal(directive.name)`) → string-literal key.
+                state.b.prop(
+                    oxc_ast::ast::PropertyKind::Init,
+                    oxc_ast::ast::PropertyKey::from(state.b.string(dir.name.as_str())),
+                    val,
+                    false,
+                    false,
+                    false,
+                )
+            })
+            .collect();
+        Some(state.b.object(members))
+    };
+
+    // -- hash folding (1st arg) / css_hash (2nd arg) ------------------------
+    let (value_arg, css_hash_arg) = match (css_hash, &expression) {
+        (Some(hash), OxcExpression::StringLiteral(lit)) => {
+            // Fold the hash into the literal; leave css_hash undefined.
+            let folded = format!("{} {hash}", lit.value.as_str()).trim().to_string();
+            (state.b.string(&folded), None)
+        }
+        (Some(hash), _) => (expression, Some(state.b.string(hash))),
+        (None, _) => (expression, None),
+    };
+
+    // `$.attr_class(value, css_hash?, directives?)`. `call_opt` drops trailing
+    // `None`s and prints interior `None`s as `void 0`.
     state.b.call_opt(
         "$.attr_class",
-        vec![Some(expression), css_hash.map(|h| state.b.string(h)), None],
+        vec![Some(value_arg), css_hash_arg, directives_arg],
     )
+}
+
+/// `build_attr_style(expression, directives)` — the server form. Faithful port
+/// of `shared/element.js::build_attr_style`. The `directives` (2nd arg) is built
+/// from the `style:` directives:
+///   - each becomes `name: value` (UNQUOTED key via `b.init`; name lowercased
+///     unless it is a custom property `--…`; bare `style:x` uses the shorthand
+///     identifier `x`),
+///   - directives WITHOUT the `|important` modifier go in a `normal` object;
+///     those WITH it go in an `important` object,
+///   - when ANY important directive exists, the arg is the two-element array
+///     `[normalObject, importantObject]`; otherwise just the normal object,
+///   - elided (dropped as trailing `None`) when there are no directives.
+fn build_attr_style<'a>(
+    expression: OxcExpression<'a>,
+    style_directives: &[&crate::ast::template::StyleDirective],
+    state: &mut ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    let directives_arg = if style_directives.is_empty() {
+        None
+    } else {
+        let mut normal: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
+        let mut important: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
+        for dir in style_directives {
+            let val = if matches!(dir.value, AttributeValue::True(_)) {
+                state.b.id(dir.name.as_str())
+            } else {
+                build_attribute_value(&dir.value, true, state)
+            };
+            let mut sname = dir.name.to_string();
+            if !sname.starts_with("--") {
+                sname = sname.to_lowercase();
+            }
+            let prop = state.b.init(&sname, val);
+            if style_directive_is_important(dir) {
+                important.push(prop);
+            } else {
+                normal.push(prop);
+            }
+        }
+        if important.is_empty() {
+            Some(state.b.object(normal))
+        } else {
+            Some(state.b.array(vec![
+                Some(state.b.object(normal)),
+                Some(state.b.object(important)),
+            ]))
+        }
+    };
+
+    // `$.attr_style(value, directives?)`. `call_opt` drops the trailing `None`.
+    state
+        .b
+        .call_opt("$.attr_style", vec![Some(expression), directives_arg])
+}
+
+/// Whether a `style:` directive carries the `|important` modifier.
+fn style_directive_is_important(dir: &crate::ast::template::StyleDirective) -> bool {
+    dir.modifiers.iter().any(|m| m.as_str() == "important")
 }
 
 /// Port of `build_attribute_value` for a NON-text-fast-path value (single

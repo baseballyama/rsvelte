@@ -2193,6 +2193,85 @@ mod tests {
         );
     }
 
+    /// `class:` / `style:` directives on a NON-spread element lower to the 3rd
+    /// arg of `$.attr_class(value, hash, { 'name': value })` / the 2nd arg of
+    /// `$.attr_style(value, { name: value })`. Parity with the `transform_server`
+    /// oracle. Covers:
+    ///   - `class:foo={a}` (no class attr; synthetic `class=""`)  → `('', void 0, { 'foo': a })`
+    ///   - `class="x" class:foo={a}` + scope hash (hash folded)    → `('x svelte-…', void 0, { 'foo': a })`
+    ///   - `style:color={c}` (synthetic `style=""`)                → `('', { color: c })`
+    ///   - `style:color|important={c}` (important array split)     → `('', [{}, { color: c }])`
+    ///   - multiple class / mixed important style directives,
+    ///   - dynamic `class={'y'}` + a class directive (clsx-wrapped value).
+    #[test]
+    fn ast_matches_oracle_class_style_directives() {
+        // Collapse runs of spaces so a purely-cosmetic empty-object rendering
+        // (the text-based `transform_server` oracle prints `{  }`, the AST/esrap
+        // printer + the OFFICIAL compiler print `{}`) does not register as a
+        // structural diff — the corpus pipeline normalises this via oxfmt.
+        fn norm_ws(s: &str) -> String {
+            let mut out = String::with_capacity(s.len());
+            let mut last_space = false;
+            for ch in norm(s).chars() {
+                if ch == ' ' {
+                    if !last_space {
+                        out.push(ch);
+                    }
+                    last_space = true;
+                } else {
+                    out.push(ch);
+                    last_space = false;
+                }
+            }
+            // Collapse an empty object `{ }` (oracle) to `{}` (AST / official).
+            out.replace("{ }", "{}")
+        }
+        let samples = [
+            "<script>let a = $state(true);</script><div class:foo={a}></div>",
+            "<script>let a = $state(true);</script><div class=\"x\" class:foo={a}></div><style>div{color:red}</style>",
+            "<script>let c = $state('red');</script><div style:color={c}></div>",
+            "<script>let c = $state('red');</script><div style:color|important={c}></div>",
+            "<script>let a = $state(true); let b = $state(false);</script><div class:foo={a} class:bar={b}></div>",
+            "<script>let c = $state('red'); let d = $state('1px');</script><div style:color={c} style:padding|important={d}></div>",
+            // shorthand boolean class directive (no script binding)
+            "<span class:foo={true}></span>",
+            // custom-property style directive (QUOTED `'--foo'` key) with a
+            // static value
+            "<div style:--foo=\"bar\"></div>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_ws(&ours) == norm_ws(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "class:/style: directive codegen differs from oracle for: {mismatches:?}"
+        );
+
+        // `class={'y'}` (a string-literal class) + a `class:` directive: the AST
+        // pipeline matches the OFFICIAL compiler, which does NOT clsx-wrap a
+        // non-clsx (Literal) class value — `$.attr_class('y', void 0, { 'foo': a })`.
+        // The text-based `transform_server` oracle over-eagerly wraps it in
+        // `$.clsx(...)` here, so it is asserted against the upstream-correct shape
+        // directly rather than the (divergent) oracle.
+        let ours =
+            run("<script>let a = $state(true);</script><div class={'y'} class:foo={a}></div>");
+        assert!(
+            ours.contains("$.attr_class('y', void 0, { 'foo': a })"),
+            "class={{'y'}} + class:foo should match the official compiler's \
+             non-clsx-wrapped form, got:\n{ours}"
+        );
+    }
+
     #[test]
     fn trivial_component_skeleton() {
         let out = run("<p>hello</p>");
