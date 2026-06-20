@@ -778,6 +778,65 @@ mod tests {
         }
     }
 
+    /// Component PROPS-OBJECT + `$.spread_props` parity with the
+    /// `transform_server` oracle. Each sample declares the referenced bindings in
+    /// an instance `<script>` (with a child import) so the expression prop values
+    /// resolve identically in both pipelines. The FULL output still diverges in
+    /// the hoisted `import Foo …;` (instance-script gap) and in the legacy
+    /// instance prologue, so this gate isolates the `Foo($$renderer, …)` CALL
+    /// line and asserts it matches the oracle byte-for-byte. Covers:
+    ///   - expr-only props        → `{ a: x }`
+    ///   - mixed literal + expr   → `{ a: x, b: 'lit', c: 1 + 1 }`
+    ///   - spread-only            → `$.spread_props([spread])`
+    ///   - interleaved spread     → `$.spread_props([{ a: x }, spread, { b: y }])`
+    #[test]
+    fn ast_matches_oracle_component_props() {
+        // A `$state` binding keeps both pipelines' instance bodies in lockstep
+        // (`let x = …;`) so only the component-CALL line is under test.
+        let decls = "let x = $state(1); let y = $state(2); let spread = $state({});";
+        let cases: &[&str] = &[
+            // expr-only single prop
+            "<Foo a={x} />",
+            // mixed literal + expr + constant-expr props
+            "<Foo a={x} b=\"lit\" c={1 + 1} />",
+            // spread-only
+            "<Foo {...spread} />",
+            // interleaved spread (props / spread / props)
+            "<Foo a={x} {...spread} b={y} />",
+            // two leading spreads then props
+            "<Foo {...spread} {...spread} a={x} />",
+        ];
+        // Extract the `Foo($$renderer, …)` call line (the whole statement, which
+        // esrap prints on a single line for these shapes).
+        let call_line = |dump: &str| -> Option<String> {
+            dump.lines()
+                .map(str::trim)
+                .find(|l| l.starts_with("Foo($$renderer"))
+                .map(str::to_string)
+        };
+
+        let mut failures = Vec::new();
+        for body in cases {
+            let src = format!("<script>import Foo from './Foo.svelte'; {decls}</script>z{body}");
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            let ol = call_line(&ours);
+            let orl = call_line(&oracle);
+            let matched = ol.is_some() && ol == orl;
+            eprintln!(
+                "=== {body} === {}\n  ours:   {ol:?}\n  oracle: {orl:?}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                failures.push(*body);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "component props-object differs from oracle for: {failures:?}"
+        );
+    }
+
     fn oracle_dump(source: &str) -> String {
         let parse_options = ParseOptions {
             modern: true,
