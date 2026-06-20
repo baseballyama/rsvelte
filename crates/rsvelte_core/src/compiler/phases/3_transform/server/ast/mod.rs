@@ -1182,6 +1182,139 @@ mod tests {
         );
     }
 
+    /// LEGACY (non-runes) instance/module script transform parity with the
+    /// `transform_server` oracle. Each sample is a plain Svelte-4-style component
+    /// (no runes) whose instance body the AST pipeline must now emit identically.
+    /// Asserts a required instance/hoisted line appears in BOTH pipelines (and
+    /// for the whole-output samples, full normalized equality).
+    #[test]
+    fn ast_matches_oracle_legacy_script_samples() {
+        // (src, must-appear line in BOTH outputs)
+        let cases: &[(&str, &str)] = &[
+            // bare export let → $$props['name']
+            (
+                "<script>export let name;</script><p>{name}</p>",
+                "let name = $$props['name'];",
+            ),
+            // export let with simple default → $.fallback(prop, default)
+            (
+                "<script>export let count = 0;</script><p>{count}</p>",
+                "let count = $.fallback($$props['count'], 0);",
+            ),
+            // export let with non-simple default (object) → thunk + true
+            (
+                "<script>export let opts = { a: 1 };</script><p>x</p>",
+                "let opts = $.fallback($$props['opts'], () => ({ a: 1 }), true);",
+            ),
+            // plain legacy let kept
+            ("<script>let a = 1;</script><p>{a}</p>", "let a = 1;"),
+            // reactive $: → label kept, hoisted let, appended. (Source must put
+            // `$:` on its OWN line: the oracle's reactive-var hoist extraction is
+            // line-based, so a single-line `$:` is not recognised by it.)
+            (
+                "<script>let a = 1;\n$: b = a * 2;</script><p>{b}</p>",
+                "$: b = a * 2;",
+            ),
+            // reactive hoisted let (legacy_reactive binding gets a `let b;`).
+            (
+                "<script>let a = 1;\n$: b = a * 2;</script><p>{b}</p>",
+                "let b;",
+            ),
+            // legacy event handler instance var kept (on: itself may not render)
+            (
+                "<script>let x = 0;</script><button on:click={() => x++}>{x}</button>",
+                "let x = 0;",
+            ),
+            // module (non-runes) export const at module scope — a REAL ES module
+            // export, kept verbatim (NOT prop-lowered).
+            (
+                "<script context=\"module\">export const FOO = 1;</script><p>x</p>",
+                "export const FOO = 1;",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let on = norm(&ours);
+            let want = norm(must_have);
+            let ours_ok = on.contains(&want);
+            let oracle_ok = norm(&oracle).contains(&want);
+            eprintln!(
+                "=== SRC: {src} === ours={} oracle={}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if ours_ok { "OK" } else { "MISSING" },
+                if oracle_ok { "OK" } else { "MISSING" },
+            );
+            if !ours_ok || !oracle_ok {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "legacy-script lowering differs from oracle for: {failures:?}"
+        );
+    }
+
+    /// Instance-body (script prologue) byte-parity with the oracle. The FULL
+    /// output still diverges on ORTHOGONAL gaps (the `$.bind_props(...)` trailer,
+    /// `scope.evaluate` constant-folding of template reads, block indentation),
+    /// so this gate isolates the instance SCRIPT region — every body line emitted
+    /// up to the first `$$renderer` template statement must match the oracle.
+    #[test]
+    fn ast_matches_oracle_legacy_instance_prologue() {
+        let samples = [
+            "<script>export let name;</script><p>{name}</p>",
+            "<script>export let count = 0;</script><p>{count}</p>",
+            "<script>export let label = 'hi';</script><p>{label}</p>",
+            "<script>let a = 1;\nlet b = 2;</script><p>x</p>",
+            "<script>let a = 1;\n$: b = a * 2;</script><p>x</p>",
+            // NOTE: a lifecycle import (`onMount`) triggers the orthogonal
+            // `$$renderer.component(...)` body wrapper (a separate KNOWN GAP), so
+            // it's excluded here — the import hoisting itself is covered by the
+            // script_samples test's hoisted-line assertions.
+        ];
+        // Extract the function-body lines emitted BEFORE the first $$renderer
+        // statement (the instance script prologue), trimmed.
+        let prologue = |dump: &str| -> Vec<String> {
+            let mut out = Vec::new();
+            let mut in_fn = false;
+            for l in dump.lines() {
+                let t = l.trim();
+                if t.starts_with("export default function App") {
+                    in_fn = true;
+                    continue;
+                }
+                if !in_fn || t.is_empty() {
+                    continue;
+                }
+                if t.starts_with("$$renderer") {
+                    break;
+                }
+                out.push(t.to_string());
+            }
+            out
+        };
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let op = prologue(&ours);
+            let orp = prologue(&oracle);
+            let matched = op == orp;
+            eprintln!(
+                "=== SRC: {src} === {}\n  ours-prologue:   {op:?}\n  oracle-prologue: {orp:?}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "legacy instance-prologue differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn props_prologue_emitted() {
         // Legacy `$$props` access sets `uses_props` -> `$$sanitized_props`

@@ -36,6 +36,7 @@
 
 use super::ServerTransformState;
 use crate::ast::template::Script;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use oxc_ast::ast::{Expression as OxcExpression, Statement, VariableDeclarationKind};
 use oxc_span::GetSpan;
 
@@ -108,8 +109,9 @@ fn is_removed_effect_stmt(expr: &OxcExpression) -> bool {
     }
 }
 
-/// Parse + lower a single script into transformed top-level statements.
-/// `import_sink` receives instance-script imports to hoist (`None` for module).
+/// Parse + lower a single RUNES-mode script into transformed top-level
+/// statements. `import_sink` receives instance-script imports to hoist (`None`
+/// for module).
 fn transform_script<'a>(
     script: &Script,
     state: &mut ServerTransformState<'a>,
@@ -281,6 +283,398 @@ fn lower_decl_init<'a>(
     }
 }
 
+// ===========================================================================
+// LEGACY (non-runes) branch — port of upstream's non-runes
+// `VariableDeclaration` / `LabeledStatement` server visitors plus the
+// `reactive_statements` hoist+append loop in `transform-server.js`.
+// ===========================================================================
+
+/// Parse + lower a single LEGACY (non-runes) script into transformed top-level
+/// statements. `import_sink` receives imports to hoist (`None` for module).
+///
+/// Emitted forms (写经 `VariableDeclaration.js` non-runes `else` branch and
+/// `transform-server.js:147-177`):
+/// - `import …` → hoisted (dropped from body).
+/// - `export let x` → `let x = $$props['x'];`
+/// - `export let x = <d>` → `let x = $.fallback($$props['x'], <d>[, true]);`
+///   where the fallback shape mirrors `build_fallback`:
+///     - simple default → `$.fallback($$props['x'], <d>)`
+///     - everything else → `$.fallback($$props['x'], () => <d>, true)`
+///       (a no-arg fn call `() => f()` collapses to `f` via `b.thunk`).
+/// - plain `let`/`const`/`var`/`function`/`class`/expr → kept (re-parsed);
+///   value expressions routed through the read-wrapping pass.
+/// - top-level `$: …` → label stripped-but-kept (`$: …`), the statement
+///   APPENDED after all other instance statements, and a hoisted
+///   `let <legacy_reactive vars>;` prepended (topologically pre-ordered by
+///   Phase 2's `reactive_statements`).
+fn transform_script_legacy<'a>(
+    script: &Script,
+    state: &mut ServerTransformState<'a>,
+    mut import_sink: Option<&mut Vec<Statement<'a>>>,
+    is_instance: bool,
+) -> Vec<Statement<'a>> {
+    // KNOWN GAP: TypeScript components skipped wholesale.
+    if super::super::helpers::script_is_typescript(script) {
+        return Vec::new();
+    }
+
+    let (Some(start), Some(end)) = (script.content.start(), script.content.end()) else {
+        return Vec::new();
+    };
+    let (start, end) = (start as usize, end as usize);
+    if end <= start || end > state.source.len() {
+        return Vec::new();
+    }
+    let src = &state.source[start..end];
+
+    let alloc = oxc_allocator::Allocator::default();
+    let owned = alloc.alloc_str(src);
+    let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() {
+        return Vec::new();
+    }
+
+    let mut out: Vec<Statement<'a>> = Vec::new();
+    // Reactive `$:` statements are appended AFTER all other statements (mirrors
+    // upstream's `for (const [node] of analysis.reactive_statements) instance
+    // .body.push(statement[1])`). Collected here, flushed at the end.
+    let mut reactive: Vec<Statement<'a>> = Vec::new();
+    // legacy_reactive var names that need a hoisted `let <names>;` declaration.
+    let mut reactive_decl_names: Vec<String> = Vec::new();
+
+    for stmt in ret.program.body.iter() {
+        match stmt {
+            Statement::ImportDeclaration(imp) => {
+                let slice = &src[imp.span.start as usize..imp.span.end as usize];
+                if let Some(rehomed) = state.reparse_statement(slice) {
+                    match import_sink.as_deref_mut() {
+                        Some(sink) => sink.push(rehomed),
+                        None => out.push(rehomed),
+                    }
+                }
+            }
+            Statement::ExportNamedDeclaration(exp) => {
+                if !is_instance {
+                    // MODULE script: `export const FOO = 1` is a REAL ES module
+                    // export, not a prop — upstream's `server_module` keeps it
+                    // verbatim (export keyword included). Re-parse the whole
+                    // statement span.
+                    let span = exp.span();
+                    let slice = &src[span.start as usize..span.end as usize];
+                    if let Some(rehomed) = state.reparse_statement(slice) {
+                        out.push(rehomed);
+                    }
+                    continue;
+                }
+                // INSTANCE script: `export let x …` → props (the `export` keyword
+                // is dropped and the declaration prop-lowered, mirroring upstream's
+                // `ExportNamedDeclaration` global visitor `return
+                // context.visit(node.declaration)` feeding the non-runes
+                // `VariableDeclaration` branch).
+                let Some(decl) = exp.declaration.as_ref() else {
+                    // `export { a, b }` with no declaration → dropped (`b.empty`).
+                    continue;
+                };
+                match decl {
+                    oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
+                        if let Some(lowered) = lower_legacy_var_decl(vd, src, state, true) {
+                            out.push(lowered);
+                        }
+                    }
+                    other => {
+                        // `export function` / `export class` → keep the inner
+                        // declaration verbatim (re-parsed from its source span).
+                        let span = other.span();
+                        let slice = &src[span.start as usize..span.end as usize];
+                        if let Some(rehomed) = state.reparse_statement(slice) {
+                            out.push(rehomed);
+                        }
+                    }
+                }
+            }
+            Statement::VariableDeclaration(vd) => {
+                if let Some(lowered) = lower_legacy_var_decl(vd, src, state, false) {
+                    out.push(lowered);
+                }
+            }
+            Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$" => {
+                // Top-level legacy reactive `$:` statement. Upstream keeps the
+                // `$` label (people may `break $`) and appends the body to the
+                // instance run after everything else.
+                let span = ls.span();
+                let slice = &src[span.start as usize..span.end as usize];
+                if let Some(rehomed) = state.reparse_statement(slice) {
+                    // Hoist `let <name>;` for any legacy_reactive binding
+                    // assigned to by this statement (写经 the `extract_identifiers`
+                    // + `legacy_reactive` check). We detect `$: <name> = …`.
+                    collect_legacy_reactive_decls(&ls.body, state, &mut reactive_decl_names);
+                    reactive.push(rehomed);
+                }
+            }
+            Statement::ExpressionStatement(es) => {
+                if is_removed_effect_stmt(&es.expression) {
+                    continue;
+                }
+                let slice = &src[es.span.start as usize..es.span.end as usize];
+                if let Some(rehomed) = state.reparse_statement(slice) {
+                    out.push(rehomed);
+                }
+            }
+            other => {
+                let span = other.span();
+                let slice = &src[span.start as usize..span.end as usize];
+                if let Some(rehomed) = state.reparse_statement(slice) {
+                    out.push(rehomed);
+                }
+            }
+        }
+    }
+
+    // Prepend the hoisted `let <reactive vars>;` declaration (if any) and append
+    // the reactive statements at the end. `reactive_statements` (Phase 2) already
+    // gives the topological order; we use Phase-2's iteration order via the
+    // collected names, deduped, matching upstream's `legacy_reactive_declarations`
+    // unshift.
+    if !reactive_decl_names.is_empty() {
+        let b = state.b;
+        let pairs: Vec<_> = reactive_decl_names
+            .iter()
+            .map(|n| (b.id_pat(n), None))
+            .collect();
+        out.insert(
+            0,
+            b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs),
+        );
+    }
+    out.extend(reactive);
+    out
+}
+
+/// Lower a legacy `VariableDeclaration`. `is_export` marks `export let …`
+/// declarators whose simple-identifier bindings are bindable props.
+fn lower_legacy_var_decl<'a>(
+    vd: &oxc_ast::ast::VariableDeclaration,
+    src: &str,
+    state: &mut ServerTransformState<'a>,
+    is_export: bool,
+) -> Option<Statement<'a>> {
+    let b = state.b;
+    let kind = match vd.kind {
+        VariableDeclarationKind::Const => VariableDeclarationKind::Const,
+        VariableDeclarationKind::Var => VariableDeclarationKind::Var,
+        _ => VariableDeclarationKind::Let,
+    };
+
+    let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> = Vec::new();
+
+    for d in vd.declarations.iter() {
+        // An `export let <id>` declarator with a simple identifier binding that
+        // resolves to a bindable/normal prop → lower to `$$props['<alias>']`.
+        let prop_name: Option<String> = if is_export {
+            if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &d.id {
+                Some(legacy_prop_alias(state, id.name.as_str()))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(alias) = prop_name {
+            // `let x = $$props['alias']` or `… = $.fallback($$props['alias'], …)`.
+            let pat_span = d.id.span();
+            let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
+            let Some(pat) = state.reparse_pattern(pat_slice) else {
+                continue;
+            };
+            let prop = b.member_computed(b.id("$$props"), b.string(&alias));
+            let init = match d.init.as_ref() {
+                None => prop,
+                Some(init) => {
+                    let init_span = init.span();
+                    let dslice = &src[init_span.start as usize..init_span.end as usize];
+                    let mut default_expr = state
+                        .reparse_slice_owned(dslice)
+                        .unwrap_or_else(|| b.void0());
+                    super::read_wrap::wrap_reads(
+                        &mut default_expr,
+                        b,
+                        state.analysis,
+                        state.analysis.root.instance_scope_index,
+                    );
+                    build_legacy_fallback(state, prop, default_expr, init)
+                }
+            };
+            decls.push((pat, Some(init)));
+            continue;
+        }
+
+        // Plain (non-export, or non-identifier-export) declarator. Re-parse the
+        // whole declarator and route its init through read-wrapping.
+        let slice = &src[d.span.start as usize..d.span.end as usize];
+        if let Some((pat, mut init)) = state.reparse_declarator(slice, kind) {
+            if let Some(init) = init.as_mut() {
+                super::read_wrap::wrap_reads(
+                    init,
+                    b,
+                    state.analysis,
+                    state.analysis.root.instance_scope_index,
+                );
+            }
+            decls.push((pat, init));
+        }
+    }
+
+    if decls.is_empty() {
+        return None;
+    }
+    Some(b.var_decl_from_pairs(kind, decls))
+}
+
+/// Resolve the prop alias for an `export let <name>` binding (`prop_alias ?? name`).
+fn legacy_prop_alias(state: &ServerTransformState, name: &str) -> String {
+    if let Some(idx) = state
+        .analysis
+        .root
+        .get_binding(name, state.analysis.root.instance_scope_index)
+    {
+        let binding = &state.analysis.root.bindings[idx];
+        if let Some(alias) = &binding.prop_alias {
+            return alias.clone();
+        }
+    }
+    name.to_string()
+}
+
+/// Build the `$.fallback(...)` init for an `export let x = <default>` (写经
+/// `build_fallback`): a simple default value emits `$.fallback(prop, default)`;
+/// anything else emits `$.fallback(prop, () => default, true)` (the thunk
+/// auto-collapses a bare no-arg call `() => f()` to `f`).
+fn build_legacy_fallback<'a>(
+    state: &ServerTransformState<'a>,
+    prop: OxcExpression<'a>,
+    default_expr: OxcExpression<'a>,
+    raw_init: &OxcExpression,
+) -> OxcExpression<'a> {
+    let b = state.b;
+    if is_simple_default(raw_init) {
+        b.call("$.fallback", vec![prop, default_expr])
+    } else {
+        let thunk = b.thunk(default_expr, false);
+        b.call("$.fallback", vec![prop, thunk, b.id("true")])
+    }
+}
+
+/// Whether the classification-AST `init` expression is a "simple" default value
+/// per upstream's `is_simple_expression` (Literal / Identifier / Arrow / Fn,
+/// and Conditional / Binary / Logical recursively over simple operands).
+fn is_simple_default(init: &OxcExpression) -> bool {
+    use OxcExpression as E;
+    match init {
+        E::BooleanLiteral(_)
+        | E::NullLiteral(_)
+        | E::NumericLiteral(_)
+        | E::BigIntLiteral(_)
+        | E::RegExpLiteral(_)
+        | E::StringLiteral(_)
+        | E::Identifier(_)
+        | E::ArrowFunctionExpression(_)
+        | E::FunctionExpression(_) => true,
+        E::ConditionalExpression(c) => {
+            is_simple_default(&c.test)
+                && is_simple_default(&c.consequent)
+                && is_simple_default(&c.alternate)
+        }
+        E::BinaryExpression(bin) => is_simple_default(&bin.left) && is_simple_default(&bin.right),
+        E::LogicalExpression(l) => is_simple_default(&l.left) && is_simple_default(&l.right),
+        _ => false,
+    }
+}
+
+/// Collect the legacy_reactive var names assigned to by a `$: <name> = …` body,
+/// so a hoisted `let <name>;` is emitted (写经 the `extract_identifiers` walk
+/// over the assignment LHS, filtered to `binding.kind === 'legacy_reactive'`).
+fn collect_legacy_reactive_decls(
+    body: &Statement,
+    state: &ServerTransformState,
+    out: &mut Vec<String>,
+) {
+    let Statement::ExpressionStatement(es) = body else {
+        return;
+    };
+    let OxcExpression::AssignmentExpression(assign) = &es.expression else {
+        return;
+    };
+    let mut names: Vec<String> = Vec::new();
+    collect_assignment_target_idents(&assign.left, &mut names);
+    for name in names {
+        if let Some(idx) = state
+            .analysis
+            .root
+            .get_binding(&name, state.analysis.root.instance_scope_index)
+        {
+            if state.analysis.root.bindings[idx].kind == BindingKind::LegacyReactive
+                && !out.contains(&name)
+            {
+                out.push(name);
+            }
+        }
+    }
+}
+
+/// Extract identifier names from an assignment target (simple id, or destructure
+/// array/object pattern leaves).
+fn collect_assignment_target_idents(
+    target: &oxc_ast::ast::AssignmentTarget,
+    out: &mut Vec<String>,
+) {
+    use oxc_ast::ast::AssignmentTarget as T;
+    match target {
+        T::AssignmentTargetIdentifier(id) => out.push(id.name.to_string()),
+        T::ArrayAssignmentTarget(arr) => {
+            for el in arr.elements.iter().flatten() {
+                collect_assignment_maybe_default(el, out);
+            }
+            if let Some(rest) = &arr.rest {
+                collect_assignment_target_idents(&rest.target, out);
+            }
+        }
+        T::ObjectAssignmentTarget(obj) => {
+            for prop in obj.properties.iter() {
+                match prop {
+                    oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+                        p,
+                    ) => out.push(p.binding.name.to_string()),
+                    oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
+                        collect_assignment_maybe_default(&p.binding, out);
+                    }
+                }
+            }
+            if let Some(rest) = &obj.rest {
+                collect_assignment_target_idents(&rest.target, out);
+            }
+        }
+        // A member-expression target (`obj.x = …`) declares nothing.
+        _ => {}
+    }
+}
+
+/// Handle an `AssignmentTargetMaybeDefault` element (`x` or `x = default`).
+fn collect_assignment_maybe_default(
+    el: &oxc_ast::ast::AssignmentTargetMaybeDefault,
+    out: &mut Vec<String>,
+) {
+    use oxc_ast::ast::AssignmentTargetMaybeDefault as M;
+    match el {
+        M::AssignmentTargetWithDefault(d) => collect_assignment_target_idents(&d.binding, out),
+        other => {
+            if let Some(t) = other.as_assignment_target() {
+                collect_assignment_target_idents(t, out);
+            }
+        }
+    }
+}
+
 /// Public entry: transform the instance script into component-body statements,
 /// pushing any imports onto `state.hoisted`.
 pub fn transform_instance<'a>(
@@ -290,12 +684,12 @@ pub fn transform_instance<'a>(
     let Some(script) = ast.instance.as_deref() else {
         return Vec::new();
     };
-    // KNOWN GAP: only the runes branch is implemented.
-    if !state.analysis.runes {
-        return Vec::new();
-    }
     let mut imports: Vec<Statement<'a>> = Vec::new();
-    let body = transform_script(script, state, Some(&mut imports));
+    let body = if state.analysis.runes {
+        transform_script(script, state, Some(&mut imports))
+    } else {
+        transform_script_legacy(script, state, Some(&mut imports), true)
+    };
     for imp in imports {
         state.hoisted.push(imp);
     }
@@ -310,8 +704,12 @@ pub fn transform_module<'a>(
     let Some(script) = ast.module.as_deref() else {
         return Vec::new();
     };
-    if !state.analysis.runes {
-        return Vec::new();
+    if state.analysis.runes {
+        transform_script(script, state, None)
+    } else {
+        // Module (non-runes): no instance-scope props / reactive `$:` (a
+        // top-level `$:` in a module body is NOT a reactive statement), so
+        // `is_instance = false`.
+        transform_script_legacy(script, state, None, false)
     }
-    transform_script(script, state, None)
 }
