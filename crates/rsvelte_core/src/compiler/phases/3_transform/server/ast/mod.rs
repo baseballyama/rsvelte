@@ -3484,6 +3484,38 @@ mod tests {
             .unwrap();
     }
 
+    /// Destructured `$state` (object / array / iterable) lowers via
+    /// `create_state_declarators` (`tmp` + `$$array = $.to_array(...)` +
+    /// per-leaf declarators), and a `$props()` default that reads a store
+    /// (`{ value = $page }`) read-wraps to `$.store_get(...)`. All three are
+    /// the official SSR fixtures `destructure-state`, `destructure-state-iterable`,
+    /// and `store-init-props`; assert byte-equality with the text-based oracle.
+    #[test]
+    fn ast_matches_oracle_destructure_state_and_store_init() {
+        let samples = [
+            "<script>\n\tlet [level, custom] = $state([10, \"Admin\"])\n</script>\n\n{level}, {custom}",
+            "<script>\n\tlet count = 0;\n\tfunction* test(){\n\t\twhile (true) {\n\t\t\tyield count++;\n\t\t}\n\t}\n\tlet [one, two] = $state(test())\n</script>\n\n{one}, {two}",
+            "<script>\n\tlet { a, b } = $state({ a: 1, b: 2 })\n</script>\n{a}{b}",
+            "<script>\n\timport { writable } from 'svelte/store';\n\tconst page = writable(1);\n\tconst { value = $page } = $props();\n</script>\n\n{value}",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            if !matched {
+                eprintln!(
+                    "=== SRC: {src} === DIFFER\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "destructure-state / store-init output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     #[ignore = "corpus measurement harness; run with --ignored --nocapture"]
     fn corpus_new_vs_oracle() {

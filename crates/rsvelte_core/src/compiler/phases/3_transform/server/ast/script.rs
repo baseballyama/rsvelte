@@ -39,10 +39,14 @@
 //!   strips TS from its final output, which this slice does not (KNOWN GAP).
 //! - async `$derived` (`$derived(await …)`) — lowered as a plain `$.derived`
 //!   thunk (no `await $.async_derived(...)`).
-//! - complex destructured-`$derived` / destructured-`$state` patterns (the
-//!   `extract_paths` expansion) — the binding pattern is kept verbatim and the
-//!   init lowered, which is correct for object/identifier patterns but NOT for
-//!   the leaf-rename cases.
+//! - destructured-`$state` / `$state.raw` patterns ARE expanded via
+//!   `create_state_declarators` + `extract_paths` (`tmp` temp + `$$array =
+//!   $.to_array(tmp, N)` for array/iterable destructures + per-leaf
+//!   declarators). KNOWN GAPS: no `tmp`/`$$array` deconfliction against
+//!   user-declared bindings; rest elements, computed `[expr]` keys, and
+//!   `build_fallback` default wrapping are not handled. Destructured
+//!   `$derived` / `$derived.by` (the `$$d` / `$$derived_array` / `$.derived`
+//!   form) is still kept verbatim (NOT expanded).
 
 use super::ServerTransformState;
 use crate::ast::template::Script;
@@ -337,7 +341,19 @@ fn lower_variable_declaration<'a>(
                 let Some(pat) = state.reparse_pattern(pat_slice) else {
                     continue;
                 };
-                decls.push((pat, new_init));
+                // A destructured `$state` / `$state.raw` init expands via
+                // `create_state_declarators` into a `tmp` temp + (for array
+                // patterns) a `$$array = $.to_array(tmp, N)` insert + one leaf
+                // declarator per path (写经 `VariableDeclaration.js:229-247`).
+                // Identifier patterns (and every other rune) keep the verbatim
+                // single declarator.
+                if matches!(rune, DeclRune::State)
+                    && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
+                {
+                    create_state_declarators(pat, new_init, state, &mut decls);
+                } else {
+                    decls.push((pat, new_init));
+                }
             }
         }
     }
@@ -346,6 +362,133 @@ fn lower_variable_declaration<'a>(
         return None;
     }
     Some(b.var_decl_from_pairs(kind, decls))
+}
+
+/// Port of upstream `create_state_declarators` (`VariableDeclaration.js:229-247`)
+/// for a destructured `$state(...)` / `$state.raw(...)` declarator.
+///
+/// `let [x, y] = $state([1, 2])` →
+/// ```js
+/// let tmp = [1, 2],
+///     $$array = $.to_array(tmp, 2),
+///     x = $$array[0],
+///     y = $$array[1];
+/// ```
+/// `let { a, b } = $state({ a: 1, b: 2 })` →
+/// ```js
+/// let tmp = { a: 1, b: 2 }, a = tmp.a, b = tmp.b;
+/// ```
+/// The temp + every array-conversion insert use `scope.generate('tmp')` /
+/// `scope.generate('$$array')`; here the component instance scope has no
+/// `tmp` / `$$array` bindings for these fixtures, so the names are emitted
+/// verbatim (KNOWN GAP: no deconfliction against user-declared `tmp`/`$$array`).
+fn create_state_declarators<'a>(
+    pat: oxc_ast::ast::BindingPattern<'a>,
+    value: Option<OxcExpression<'a>>,
+    state: &ServerTransformState<'a>,
+    decls: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)>,
+) {
+    let b = state.b;
+    let tmp_name = "tmp";
+
+    // `let tmp = <value>`
+    decls.push((b.id_pat(tmp_name), value));
+
+    let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
+    let mut inserts: Vec<OxcExpression<'a>> = Vec::new();
+    extract_paths(pat, b.id(tmp_name), state, &mut paths, &mut inserts);
+
+    // `$$array = $.to_array(tmp, N)` inserts (one per array sub-pattern).
+    for value in inserts {
+        decls.push((b.id_pat("$$array"), Some(value)));
+    }
+
+    // Leaf declarators: `x = $$array[0]`, `a = tmp.a`, …
+    for (node, expr) in paths {
+        decls.push((node, Some(expr)));
+    }
+}
+
+/// Port of upstream `_extract_paths` (`utils/ast.js:269-415`) over an oxc
+/// `BindingPattern`. Walks the destructure tree, pushing one `(leaf_pattern,
+/// access_expression)` pair per terminal binding into `paths`, and one
+/// `$.to_array(...)` expression per `ArrayPattern` into `inserts` (the caller
+/// names the corresponding `$$array` temp and substitutes it as the array base).
+///
+/// Handles identifier / object / array / assignment(default) patterns. Rest
+/// elements and computed/non-identifier object keys fall through verbatim
+/// (KNOWN GAP — not exercised by the in-scope SSR fixtures).
+fn extract_paths<'a>(
+    pat: oxc_ast::ast::BindingPattern<'a>,
+    expression: OxcExpression<'a>,
+    state: &ServerTransformState<'a>,
+    paths: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)>,
+    inserts: &mut Vec<OxcExpression<'a>>,
+) {
+    use oxc_ast::ast::BindingPattern;
+    let b = state.b;
+    match pat {
+        BindingPattern::BindingIdentifier(_) => {
+            paths.push((pat, expression));
+        }
+        BindingPattern::ObjectPattern(obj) => {
+            let obj = obj.unbox();
+            // Rest elements are a KNOWN GAP; only the property leaves are walked.
+            for prop in obj.properties {
+                let base = expression_clone(&expression, state);
+                // Upstream: `b.member(expression, prop.key,
+                // prop.computed || prop.key.type !== 'Identifier')`. A plain
+                // identifier key (non-computed) → static `expr.key`; otherwise
+                // (computed, string/numeric literal, …) → `expr[<key>]`.
+                let is_static = prop.key.is_identifier() && !prop.computed;
+                let object_expression = if is_static {
+                    let name = prop.key.name().unwrap_or(std::borrow::Cow::Borrowed(""));
+                    b.member(base, &name)
+                } else if let Some(name) = prop.key.static_name() {
+                    b.member_computed(base, b.string(&name))
+                } else {
+                    // Computed `[expr]` key — KNOWN GAP; keep the base verbatim.
+                    base
+                };
+                extract_paths(prop.value, object_expression, state, paths, inserts);
+            }
+        }
+        BindingPattern::ArrayPattern(arr) => {
+            let arr = arr.unbox();
+            // `$$array = $.to_array(<expression>, <len>)` (rest-less length;
+            // rest patterns are a KNOWN GAP, so always emit the length arg).
+            let len = arr.elements.len();
+            let to_array = b.call("$.to_array", vec![expression, b.number(len as f64)]);
+            inserts.push(to_array);
+
+            for (i, element) in arr.elements.into_iter().enumerate() {
+                if let Some(element) = element {
+                    // `$$array[i]`
+                    let array_expression = b.member_computed(b.id("$$array"), b.number(i as f64));
+                    extract_paths(element, array_expression, state, paths, inserts);
+                }
+            }
+        }
+        BindingPattern::AssignmentPattern(asgn) => {
+            let asgn = asgn.unbox();
+            // `<left> = <expression> ?? <right>`-style fallback. Upstream uses
+            // `build_fallback`; for SSR `$state` defaults the simplest faithful
+            // shape is keeping the access expression (defaults are evaluated
+            // client-side). KNOWN GAP: no `build_fallback` wrapping.
+            extract_paths(asgn.left, expression, state, paths, inserts);
+        }
+    }
+}
+
+/// Deep-clone an expression into the state allocator. Used to duplicate the
+/// accumulated base expression for each object-pattern property access (oxc
+/// `member(...)` consumes its `object`, so each property needs its own copy).
+fn expression_clone<'a>(
+    expr: &OxcExpression<'a>,
+    state: &ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    use oxc_allocator::CloneIn;
+    expr.clone_in(state.allocator)
 }
 
 /// Build the lowered `init` for a detected rune. The call argument source slice
@@ -448,15 +591,22 @@ struct BindableStrip<'a, 'b> {
 
 impl<'a, 'b> VisitMut<'a> for BindableStrip<'a, 'b> {
     fn visit_assignment_pattern(&mut self, it: &mut oxc_ast::ast::AssignmentPattern<'a>) {
-        if let Some(mut replacement) = bindable_default(&mut it.right, self.b) {
-            super::read_wrap::wrap_reads(
-                &mut replacement,
-                self.b,
-                self.analysis,
-                self.analysis.root.instance_scope_index,
-            );
+        if let Some(replacement) = bindable_default(&mut it.right, self.b) {
             it.right = replacement;
         }
+        // Read-wrap the default expression so reads inside it get the server
+        // getter transform — `{ value = $page }` → `$.store_get($$store_subs
+        // ??= {}, '$page', page)` (store_sub), `= derived` → `= derived()`,
+        // etc. This mirrors upstream visiting `declarator.init` (the whole
+        // pattern, including AssignmentPattern defaults) through the server
+        // `Identifier` visitor, and also covers the wrapped `$bindable(...)`
+        // replacement above.
+        super::read_wrap::wrap_reads(
+            &mut it.right,
+            self.b,
+            self.analysis,
+            self.analysis.root.instance_scope_index,
+        );
         // Recurse into the (left) sub-pattern so nested destructure defaults
         // (`{ a: { b = $bindable() } }`) are also handled.
         oxc_ast_visit::walk_mut::walk_assignment_pattern(self, it);
