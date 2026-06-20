@@ -4,6 +4,9 @@
 //!
 //! This module is organized to match the Svelte compiler structure.
 
+/// New AST-based server codegen (Phase-3 rewrite). Built ADDITIVELY alongside
+/// the existing text-based pipeline; not yet wired into [`transform_server`].
+pub mod ast;
 pub(crate) mod await_save_ast;
 pub mod bridge;
 pub mod build;

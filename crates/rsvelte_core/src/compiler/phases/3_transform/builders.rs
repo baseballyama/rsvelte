@@ -20,7 +20,7 @@ use oxc_ast::AstBuilder;
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, BindingPattern, BindingRestElement, Expression,
     FormalParameterKind, FormalParameters, FunctionBody, FunctionType, IdentifierName,
-    MemberExpression, ObjectPropertyKind, PropertyKey, PropertyKind, Statement,
+    ImportOrExportKind, MemberExpression, ObjectPropertyKind, PropertyKey, PropertyKind, Statement,
     TemplateElementValue, VariableDeclarationKind,
 };
 use oxc_span::SPAN;
@@ -645,6 +645,137 @@ impl<'a> B<'a> {
         self.ab.statement_throw(SPAN, err)
     }
 
+    // -- imports & exports --------------------------------------------------
+
+    /// `import * as <as_name> from '<source>';` (upstream `b.import_all`).
+    ///
+    /// The source string is emitted verbatim between single quotes (no
+    /// escaping), matching the established `module_source` convention so esrap
+    /// reproduces `'svelte/internal/server'` byte-for-byte.
+    pub fn import_all(self, as_name: &str, source: &str) -> Statement<'a> {
+        let local = self.ab.binding_identifier(SPAN, self.str(as_name));
+        let mut specs = self.ab.vec_with_capacity(1);
+        specs.push(
+            self.ab
+                .import_declaration_specifier_import_namespace_specifier(SPAN, local),
+        );
+        let decl = self.ab.module_declaration_import_declaration(
+            SPAN,
+            Some(specs),
+            self.module_source(source),
+            None,
+            oxc_ast::NONE,
+            ImportOrExportKind::Value,
+        );
+        Statement::from(decl)
+    }
+
+    /// `import { a, b as c } from '<source>';` (upstream `b.imports`).
+    ///
+    /// Each `(imported, local)` pair becomes a named specifier. An empty
+    /// `parts` list yields a side-effect import `import '<source>';`.
+    pub fn imports(self, parts: Vec<(&str, &str)>, source: &str) -> Statement<'a> {
+        let specifiers = if parts.is_empty() {
+            None
+        } else {
+            let mut specs = self.ab.vec_with_capacity(parts.len());
+            for (imported, local) in parts {
+                let imported_name = self.module_export_name(imported);
+                let local_id = self.ab.binding_identifier(SPAN, self.str(local));
+                specs.push(self.ab.import_declaration_specifier_import_specifier(
+                    SPAN,
+                    imported_name,
+                    local_id,
+                    ImportOrExportKind::Value,
+                ));
+            }
+            Some(specs)
+        };
+        let decl = self.ab.module_declaration_import_declaration(
+            SPAN,
+            specifiers,
+            self.module_source(source),
+            None,
+            oxc_ast::NONE,
+            ImportOrExportKind::Value,
+        );
+        Statement::from(decl)
+    }
+
+    /// `export default <decl>;` where `<decl>` is a function declaration
+    /// statement (upstream `b.export_default` of a `FunctionDeclaration`).
+    ///
+    /// Accepts the [`Statement`] produced by [`B::function_declaration`] and
+    /// re-wraps its inner `Function` as the default-export declaration.
+    pub fn export_default_fn(self, fn_decl: Statement<'a>) -> Statement<'a> {
+        let kind = match fn_decl {
+            Statement::FunctionDeclaration(func) => {
+                oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(func)
+            }
+            other => {
+                // Not a function declaration: fall back to expression form by
+                // wrapping as an identifier is not possible, so treat the
+                // statement as an error-free passthrough is unsupported — only
+                // function declarations are produced by the entry assembly.
+                return other;
+            }
+        };
+        let decl = self
+            .ab
+            .module_declaration_export_default_declaration(SPAN, kind);
+        Statement::from(decl)
+    }
+
+    /// `export default <expr>;` (upstream `b.export_default` of an expression).
+    pub fn export_default_expr(self, expr: Expression<'a>) -> Statement<'a> {
+        let kind = oxc_ast::ast::ExportDefaultDeclarationKind::from(expr);
+        let decl = self
+            .ab
+            .module_declaration_export_default_declaration(SPAN, kind);
+        Statement::from(decl)
+    }
+
+    /// Build a module-source `StringLiteral` emitted verbatim between single
+    /// quotes (mirrors `to_oxc.rs::module_source`).
+    fn module_source(self, source: &str) -> oxc_ast::ast::StringLiteral<'a> {
+        let raw = self.str(&format!("'{source}'"));
+        self.ab
+            .string_literal(SPAN, self.str(source), Some(raw.into()))
+    }
+
+    /// Build a `ModuleExportName::IdentifierName` from a plain name.
+    fn module_export_name(self, name: &str) -> oxc_ast::ast::ModuleExportName<'a> {
+        self.ab
+            .module_export_name_identifier_name(SPAN, self.str(name))
+    }
+
+    /// `target <op> value` assignment expression (upstream `b.assignment`).
+    ///
+    /// `target` must be a simple assignment target — an identifier or a member
+    /// expression (the only forms the entry assembly produces).
+    pub fn assignment(
+        self,
+        op: AssignmentOperator,
+        target: Expression<'a>,
+        value: Expression<'a>,
+    ) -> Expression<'a> {
+        use oxc_ast::ast::AssignmentTarget;
+        let lhs: AssignmentTarget<'a> = match target {
+            Expression::Identifier(id) => AssignmentTarget::from(
+                self.ab
+                    .simple_assignment_target_assignment_target_identifier(
+                        SPAN,
+                        self.str(id.name.as_str()),
+                    ),
+            ),
+            other => match MemberExpression::try_from(other) {
+                Ok(member) => AssignmentTarget::from(member),
+                Err(_) => panic!("assignment target must be an identifier or member expression"),
+            },
+        };
+        self.ab.expression_assignment(SPAN, op, lhs, value)
+    }
+
     /// Assemble a module [`Program`](oxc_ast::ast::Program) from top-level
     /// statements, ready for [`rsvelte_esrap::print`].
     pub fn program(self, body: Vec<Statement<'a>>) -> oxc_ast::ast::Program<'a> {
@@ -784,6 +915,26 @@ mod tests {
         // import.meta — member_id builds a.b chains; use a plain path here.
         let out = print(|b| vec![b.stmt(b.member_id("a.b.c"))]);
         assert_eq!(out.trim(), "a.b.c;");
+    }
+
+    #[test]
+    fn import_all_namespace() {
+        // import * as $ from "svelte/internal/server";
+        let out = print(|b| vec![b.import_all("$", "svelte/internal/server")]);
+        assert_eq!(out.trim(), "import * as $ from 'svelte/internal/server';");
+    }
+
+    #[test]
+    fn imports_named_and_side_effect() {
+        // import { render as $$_render } from "svelte/server";
+        let out = print(|b| vec![b.imports(vec![("render", "$$_render")], "svelte/server")]);
+        assert_eq!(
+            out.trim(),
+            "import { render as $$_render } from 'svelte/server';"
+        );
+        // side-effect import (empty parts)
+        let out2 = print(|b| vec![b.imports(vec![], "svelte/internal/flags/async")]);
+        assert_eq!(out2.trim(), "import 'svelte/internal/flags/async';");
     }
 
     /// Architectural spike: prove an oxc 0.136 AST parsed from source can be
