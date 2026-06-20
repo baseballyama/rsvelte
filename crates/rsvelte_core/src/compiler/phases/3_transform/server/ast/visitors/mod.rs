@@ -42,6 +42,7 @@ pub mod if_block;
 pub mod key_block;
 pub mod render_tag;
 pub mod shared;
+pub mod slot_element;
 pub mod snippet_block;
 pub mod svelte_boundary;
 pub mod svelte_element;
@@ -86,6 +87,7 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         TemplateNode::SvelteBoundary(node) => svelte_boundary::visit_svelte_boundary(node, state),
         TemplateNode::SvelteHead(node) => svelte_head::visit_svelte_head(node, state),
         TemplateNode::TitleElement(node) => title_element::visit_title_element(node, state),
+        TemplateNode::SlotElement(node) => slot_element::visit_slot_element(node, state),
         TemplateNode::SvelteFragment(node) => {
             // Port of upstream server `SvelteFragment` — push the visited child
             // fragment as a `{ ... }` block statement.
@@ -102,7 +104,7 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         TemplateNode::SvelteBody(node) => svelte_special::visit_svelte_body(node, state),
         // `<svelte:options>` is compile-time-only — no server visitor, emit nothing.
         TemplateNode::SvelteOptions(node) => svelte_special::visit_svelte_options(node, state),
-        // TODO: ConstTag, SlotElement, DeclarationTag, DebugTag, AttachTag —
+        // TODO: ConstTag, DeclarationTag, DebugTag, AttachTag —
         // emit nothing for now.
         _ => {}
     }

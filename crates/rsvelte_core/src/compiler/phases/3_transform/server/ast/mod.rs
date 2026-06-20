@@ -832,6 +832,52 @@ mod tests {
         );
     }
 
+    /// `<slot>` (SlotElement) SSR structural parity with the `transform_server`
+    /// oracle. Covers the default slot, a named slot with fallback content, a slot
+    /// with a slot-prop (`{x}`), an empty default slot (no fallback → `null`), and
+    /// a slot prop with a literal value. Compared STRUCTURALLY (the `$.slot(...)`
+    /// call args / fallback thunk shape / `<!--[-->` … `<!--]-->` markers).
+    #[test]
+    fn ast_matches_oracle_slot_element() {
+        let samples = [
+            // default slot, no fallback → fallback `null`.
+            "<slot></slot>",
+            // named slot with fallback content.
+            "<slot name=\"header\">fallback</slot>",
+            // default slot with a slot prop (`{x}` shorthand).
+            "<script>let x = 1;</script><slot {x}></slot>",
+            // named slot with a literal prop and fallback.
+            "<slot name=\"item\" label=\"hi\">default</slot>",
+            // default slot with fallback markup.
+            "<slot><p>none</p></slot>",
+        ];
+        // The text-based `transform_server` oracle hardcodes DOUBLE quotes for a
+        // slot prop's string literal (`build_attribute_value_expr`), while the AST
+        // pipeline emits esrap's SINGLE-quoted literal — the same single-quoted
+        // form the oracle itself uses for *component* props and which matches the
+        // official compiler. The corpus comparison normalizes quote style via
+        // oxfmt, so this is a pure oracle quirk; normalize `"` → `'` here so the
+        // gate asserts STRUCTURAL parity, not the oracle's quote bug.
+        let norm_quotes = |s: &str| norm_blocks(s).replace('"', "'");
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_quotes(&ours) == norm_quotes(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "AST slot output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
     /// IfBlock structural parity with the `transform_server` oracle, exercising
     /// the shapes that the `is_text_first` anchor fix unblocked. Covers:
     ///   - bare `{#if}`, `{:else}`, `{:else if}` chains, empty body,
