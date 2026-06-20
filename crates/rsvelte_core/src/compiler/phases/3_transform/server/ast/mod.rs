@@ -928,10 +928,7 @@ mod tests {
     ///
     /// Upstream's server `EachBlock.js` never references `node.key` — the key
     /// only drives client-side keyed reconciliation — so a keyed each renders
-    /// byte-identically to the same each without a key. These samples assert the
-    /// AST pipeline matches the oracle for keyed each (with and without
-    /// `{:else}`, with an index, and over a `$state`-bound list), exactly like
-    /// the unkeyed samples in `ast_matches_oracle_block_samples`.
+    /// byte-identically to the same each without a key.
     #[test]
     fn ast_matches_oracle_keyed_each() {
         let samples = [
@@ -963,6 +960,43 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "keyed EachBlock output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
+    /// `{@const}` (ConstTag) and `{@debug}` (DebugTag) structural parity with the
+    /// `transform_server` oracle.
+    #[test]
+    fn ast_matches_oracle_const_debug_tags() {
+        let samples = [
+            // {@const} inside {#if}: const inline, then the reader push.
+            "{#if true}{@const x = 2 + 3}<p>{x}</p>{/if}",
+            // {@const} reading an each-context binding (read-wrapped init).
+            "{#each [1, 2] as n}{@const d = n * 2}<li>{d}</li>{/each}",
+            // {@const} with a destructuring pattern.
+            "{#if true}{@const { a, b } = obj}<p>{a}{b}</p>{/if}",
+            // {@debug} with identifiers reading instance state.
+            "<script>let y = $state(0);</script>{@debug y}",
+            // {@debug} with multiple identifiers.
+            "<script>let a = $state(0); let b = $state(1);</script>{@debug a, b}",
+            // bare {@debug} (no identifiers) → lone debugger.
+            "{@debug}",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "const/debug-tag output differs from oracle (structurally) for: {mismatches:?}"
         );
     }
 

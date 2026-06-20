@@ -36,6 +36,8 @@
 
 pub mod await_block;
 pub mod component;
+pub mod const_tag;
+pub mod debug_tag;
 pub mod each_block;
 pub mod element;
 pub mod if_block;
@@ -104,8 +106,14 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
         TemplateNode::SvelteBody(node) => svelte_special::visit_svelte_body(node, state),
         // `<svelte:options>` is compile-time-only — no server visitor, emit nothing.
         TemplateNode::SvelteOptions(node) => svelte_special::visit_svelte_options(node, state),
-        // TODO: ConstTag, DeclarationTag, DebugTag, AttachTag —
-        // emit nothing for now.
+        // `{@const x = expr}` → `const x = expr;` (sync path; async blocker
+        // lowering is a KNOWN GAP). Emitted inline as a statement that flushes
+        // the joinable run so it precedes the sibling pushes that read it.
+        TemplateNode::ConstTag(node) => const_tag::visit_const_tag(node, state),
+        // `{@debug a, b}` → `console.log({ a, b }); debugger;` (sync,
+        // blocker-free path; async_block wrapping is a KNOWN GAP).
+        TemplateNode::DebugTag(node) => debug_tag::visit_debug_tag(node, state),
+        // TODO: DeclarationTag, AttachTag — emit nothing for now.
         _ => {}
     }
 }

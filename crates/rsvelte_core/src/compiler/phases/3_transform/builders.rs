@@ -682,6 +682,12 @@ impl<'a> B<'a> {
         self.ab.statement_empty(SPAN)
     }
 
+    /// `debugger;` statement (upstream `b.debugger`).
+    #[inline]
+    pub fn debugger(self) -> Statement<'a> {
+        self.ab.statement_debugger(SPAN)
+    }
+
     /// `target++` / `target--` / `++target` / `--target` (upstream `b.update`).
     pub fn update(
         self,
