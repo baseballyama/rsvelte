@@ -102,9 +102,21 @@ pub fn process_children_inner<'a>(
     // 写经 `clean_nodes` → `Fragment` visitor: when the parent is a fragment /
     // block body and the first surviving child is Text / ExpressionTag, prepend
     // `<!---->` so the leading text isn't glued to the previous fragment.
+    //
+    // Upstream computes `is_text_first` from the first node of `trimmed`, which
+    // has already had the hoisted / SSR-invisible nodes pulled out of `regular`
+    // (`{@const}` / `{#snippet}` / `<svelte:head>` / `<title>` / and the
+    // window/document/body/options special elements). So a leading
+    // `<svelte:window …/>` does NOT consume the text-first slot — the following
+    // text is still text-first and gets the `<!---->` anchor. Mirror that by
+    // skipping those node kinds when locating the first surviving child.
+    let first_visible = cleaned
+        .iter()
+        .map(|c| c.as_ref())
+        .find(|n| !is_text_first_hoisted(n));
     if is_block_parent
         && matches!(
-            cleaned.first().map(|c| c.as_ref()),
+            first_visible,
             Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
         )
     {
@@ -262,6 +274,28 @@ fn clean_whitespace<'n>(
     }
 
     out
+}
+
+/// Whether `node` is one of the hoisted / SSR-invisible node kinds that
+/// upstream's `clean_nodes` pulls out of `regular` BEFORE computing the Fragment
+/// visitor's `is_text_first` flag — so it does NOT consume the text-first slot.
+/// Mirrors the text oracle's `first_visible_idx` filter (`SvelteOptions`,
+/// `ConstTag`, `DeclarationTag`, `DebugTag`, `SnippetBlock`, `SvelteHead`,
+/// `TitleElement`, `SvelteBody`, `SvelteWindow`, `SvelteDocument`).
+fn is_text_first_hoisted(node: &TemplateNode) -> bool {
+    matches!(
+        node,
+        TemplateNode::SvelteOptions(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::SnippetBlock(_)
+            | TemplateNode::SvelteHead(_)
+            | TemplateNode::TitleElement(_)
+            | TemplateNode::SvelteBody(_)
+            | TemplateNode::SvelteWindow(_)
+            | TemplateNode::SvelteDocument(_)
+    )
 }
 
 /// A joinable sibling captured during [`process_children`].

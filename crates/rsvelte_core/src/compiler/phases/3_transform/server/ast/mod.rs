@@ -949,6 +949,71 @@ mod tests {
         );
     }
 
+    /// Special-element parity with the `transform_server` oracle for
+    /// `<svelte:window>` / `<svelte:document>` / `<svelte:body>` /
+    /// `<svelte:head>` (with a real `<meta>` child) / `<svelte:options>`.
+    ///
+    /// - `<svelte:window>` / `<svelte:document>` / `<svelte:options>` must emit
+    ///   NO markup (no upstream server visitor).
+    /// - `<svelte:body>` renders its children INLINE (upstream `context.next()`),
+    ///   but the analyzer FORBIDS children on `<svelte:body>`
+    ///   (`svelte_meta_invalid_content`), so in practice the inline walk is over
+    ///   an empty fragment and emits nothing — asserted as no-markup below.
+    /// - `<svelte:head><meta …></svelte:head>` lowers to `$.head(...)`.
+    ///
+    /// All compared STRUCTURALLY (indentation-insensitive) like the block samples.
+    #[test]
+    fn ast_matches_oracle_special_elements() {
+        // (src, compare_against_oracle?). The SvelteBody-with-children sample is
+        // upstream-faithful (children rendered) but the OLD text oracle drops it,
+        // so that one is asserted on its own invariant instead of oracle parity.
+        let oracle_samples = [
+            // window / document event-handler hosts → no markup, before some text.
+            "<svelte:window on:resize={f}/>text",
+            "<svelte:document on:visibilitychange={f}/>text",
+            // <svelte:options> compile-time-only → no markup.
+            "<svelte:options runes={false}/><p>x</p>",
+            // <svelte:head> with a real <meta> child.
+            "<svelte:head><meta name=\"x\" content=\"y\"></svelte:head>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in oracle_samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "special-element output differs from oracle for: {mismatches:?}"
+        );
+
+        // SvelteWindow / SvelteDocument / SvelteBody / SvelteOptions must emit no
+        // markup at all (window/document/options have no upstream server visitor;
+        // SvelteBody renders its children inline but the analyzer forbids
+        // children, so the inline walk is over an empty fragment). With no
+        // siblings, the whole component body has zero pushes.
+        for src in [
+            "<svelte:window on:keydown={f}/>",
+            "<svelte:document on:click={f}/>",
+            "<svelte:body on:click={f}/>",
+            "<svelte:options namespace=\"html\"/>",
+        ] {
+            let out = run(src);
+            eprintln!("=== empty-output {src} ===\n{out}");
+            assert!(
+                !out.contains("$$renderer.push"),
+                "special element `{src}` unexpectedly emitted markup:\n{out}"
+            );
+        }
+    }
+
     /// Component visitor: `<Foo />` / `<Foo a="x" b={y} />`. The component import
     /// makes the instance non-empty (a hoisted `import Foo from './Foo.svelte';`
     /// that the not-yet-ported instance-script transform omits), so the FULL

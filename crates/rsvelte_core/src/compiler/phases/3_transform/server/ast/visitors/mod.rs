@@ -46,6 +46,7 @@ pub mod snippet_block;
 pub mod svelte_boundary;
 pub mod svelte_element;
 pub mod svelte_head;
+pub mod svelte_special;
 pub mod title_element;
 
 use super::ServerTransformState;
@@ -92,8 +93,17 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
             let block = shared::build_fragment_block(&node.fragment, false, state);
             state.template.push(TemplateEntry::Stmt(block));
         }
-        // TODO: ConstTag, SlotElement, SvelteWindow/Document/Body,
-        // DeclarationTag, DebugTag, AttachTag — emit nothing for now.
+        // `<svelte:window>` / `<svelte:document>` have no upstream server visitor
+        // — emit nothing (binding/handler hosts only).
+        TemplateNode::SvelteWindow(node) | TemplateNode::SvelteDocument(node) => {
+            svelte_special::visit_svelte_window_or_document(node, state);
+        }
+        // `<svelte:body>` renders its children INLINE (upstream `context.next()`).
+        TemplateNode::SvelteBody(node) => svelte_special::visit_svelte_body(node, state),
+        // `<svelte:options>` is compile-time-only — no server visitor, emit nothing.
+        TemplateNode::SvelteOptions(node) => svelte_special::visit_svelte_options(node, state),
+        // TODO: ConstTag, SlotElement, DeclarationTag, DebugTag, AttachTag —
+        // emit nothing for now.
         _ => {}
     }
 }
