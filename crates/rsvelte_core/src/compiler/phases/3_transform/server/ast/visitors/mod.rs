@@ -34,8 +34,13 @@
 //!   PropertyDefinition, ImportDeclaration (instance hoist),
 //!   ExportNamedDeclaration (instance unwrap), LabeledStatement (legacy `$:`)
 
+pub mod await_block;
+pub mod each_block;
 pub mod element;
+pub mod if_block;
+pub mod key_block;
 pub mod shared;
+pub mod snippet_block;
 
 use super::ServerTransformState;
 use crate::ast::template::TemplateNode;
@@ -61,8 +66,12 @@ pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>)
                 exprs: vec![html],
             });
         }
-        // TODO: Component, SvelteElement, IfBlock, EachBlock, AwaitBlock,
-        // KeyBlock, SnippetBlock, RenderTag, ConstTag, TitleElement,
+        TemplateNode::IfBlock(node) => if_block::visit_if_block(node, state),
+        TemplateNode::EachBlock(node) => each_block::visit_each_block(node, state),
+        TemplateNode::KeyBlock(node) => key_block::visit_key_block(node, state),
+        TemplateNode::SnippetBlock(node) => snippet_block::visit_snippet_block(node, state),
+        TemplateNode::AwaitBlock(node) => await_block::visit_await_block(node, state),
+        // TODO: Component, SvelteElement, RenderTag, ConstTag, TitleElement,
         // SlotElement, Svelte* special elements, etc. — emit nothing for now.
         _ => {}
     }

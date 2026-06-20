@@ -60,6 +60,11 @@ pub struct ServerTransformState<'a> {
     pub arena: &'a crate::ast::arena::ParseArena,
     /// The oxc allocator (for the re-parse fallback).
     pub allocator: &'a Allocator,
+    /// Monotonic counter for `each_array` / `$$index` unique-name suffixes,
+    /// mirroring upstream's `state.scope.root.unique('each_array')`. The first
+    /// each block uses bare `each_array` / `$$index`; subsequent ones append
+    /// `_1`, `_2`, … (matching the text-based oracle's `each_counter`).
+    pub each_index: usize,
 }
 
 impl<'a> ServerTransformState<'a> {
@@ -84,6 +89,7 @@ impl<'a> ServerTransformState<'a> {
             source,
             arena,
             allocator,
+            each_index: 0,
         }
     }
 
@@ -314,6 +320,24 @@ mod tests {
             .join("\n")
     }
 
+    /// Indentation-insensitive normalizer for the block-visitor comparison.
+    ///
+    /// The text-based `transform_server` oracle emits block bodies at an
+    /// inconsistent leading indentation (the `if`/`for`/`{}` body statements are
+    /// printed at column 0, one tab shy of the esrap-correct depth). The
+    /// AST pipeline prints structurally via esrap, which indents correctly, so a
+    /// raw diff is pure leading-whitespace noise. The corpus output-equality
+    /// pipeline collapses exactly this via oxfmt; mirror that here by stripping
+    /// every line's leading whitespace before comparison so the gate asserts
+    /// STRUCTURAL equality (markers / statement order / expressions).
+    fn norm_blocks(s: &str) -> String {
+        s.lines()
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     /// Compare the AST pipeline output against the `transform_server` oracle for
     /// every sample, printing both and which match exactly.
     #[test]
@@ -346,6 +370,55 @@ mod tests {
             mismatches.is_empty(),
             "AST output differs from oracle for: {mismatches:?}"
         );
+    }
+
+    /// Compare the AST pipeline against the `transform_server` oracle for the
+    /// block visitors (IfBlock / EachBlock / KeyBlock / SnippetBlock /
+    /// AwaitBlock). Samples are chosen to exercise the sync, blocker-free paths
+    /// with literal / each-context conditions so the (empty) instance-script
+    /// transform doesn't interfere.
+    #[test]
+    fn ast_matches_oracle_block_samples() {
+        let samples = [
+            // KeyBlock
+            "{#key 1}<p>x</p>{/key}",
+            // IfBlock
+            "{#if true}<p>a</p>{/if}",
+            "{#if true}<p>a</p>{:else}<p>b</p>{/if}",
+            "{#if true}<p>a</p>{:else if false}<p>b</p>{:else}<p>c</p>{/if}",
+            // EachBlock
+            "{#each [1, 2, 3] as n}<li>{n}</li>{/each}",
+            "{#each [1, 2, 3] as n, i}<li>{i}</li>{/each}",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "AST block output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
+    /// Snippet definition alone (RenderTag not ported yet): just assert the
+    /// hoisted `function foo($$renderer) {...}` is emitted.
+    #[test]
+    fn snippet_block_hoisted() {
+        let out = run("{#snippet foo()}<p>hi</p>{/snippet}");
+        assert!(
+            out.contains("function foo($$renderer)"),
+            "missing hoisted snippet function:\n{out}"
+        );
+        assert!(out.contains("<p>hi</p>"), "missing snippet body:\n{out}");
     }
 
     fn oracle_dump(source: &str) -> String {

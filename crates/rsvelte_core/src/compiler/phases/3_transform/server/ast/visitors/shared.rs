@@ -24,6 +24,15 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use crate::compiler::phases::phase3_transform::shared::template::escape_html;
 use oxc_ast::ast::{Expression as OxcExpression, Statement};
 
+/// SSR hydration markers — the Rust mirror of the `b.literal(...)` constants in
+/// upstream `shared/utils.js` (which derive from `internal/server/hydration.js`):
+/// `BLOCK_OPEN = <!--[-->`, `BLOCK_OPEN_ELSE = <!--[!-->`,
+/// `BLOCK_CLOSE = <!--]-->`, `EMPTY_COMMENT = <!---->`.
+pub const BLOCK_OPEN: &str = "<!--[-->";
+pub const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
+pub const BLOCK_CLOSE: &str = "<!--]-->";
+pub const EMPTY_COMMENT: &str = "<!---->";
+
 /// A single accumulated SSR template entry (see module docs).
 pub enum TemplateEntry<'a> {
     /// A static HTML run (cooked string).
@@ -200,4 +209,22 @@ pub fn build_fragment_body<'a>(
     process_children(&fragment.nodes, state);
     let template = std::mem::replace(&mut state.template, saved);
     build_template(template, state)
+}
+
+/// Render a fragment as a `{ ... }` block statement — the Rust port of upstream's
+/// server `Fragment` visitor return value `b.block([...init, ...build_template])`.
+///
+/// Block visitors (IfBlock / EachBlock / KeyBlock / AwaitBlock) wrap their child
+/// fragments through this so the nested template content renders inside a real
+/// `BlockStatement` (which [`build_template`] then flushes as an opaque `Stmt`).
+///
+/// 写経 gap: the `clean_nodes` whitespace/hoist pass and the `is_text_first`
+/// leading `<!---->` insertion are not ported here — the simple-sample block
+/// bodies exercised so far don't require them.
+pub fn build_fragment_block<'a>(
+    fragment: &Fragment,
+    state: &mut ServerTransformState<'a>,
+) -> Statement<'a> {
+    let body = build_fragment_body(fragment, state);
+    state.b.block(body)
 }

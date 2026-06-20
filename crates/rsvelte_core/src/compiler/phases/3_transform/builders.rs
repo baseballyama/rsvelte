@@ -639,6 +639,65 @@ impl<'a> B<'a> {
         self.ab.statement_empty(SPAN)
     }
 
+    /// `target++` / `target--` / `++target` / `--target` (upstream `b.update`).
+    pub fn update(
+        self,
+        op: UpdateOperator,
+        prefix: bool,
+        target: Expression<'a>,
+    ) -> Expression<'a> {
+        use oxc_ast::ast::SimpleAssignmentTarget;
+        let st: SimpleAssignmentTarget<'a> = match target {
+            Expression::Identifier(id) => self
+                .ab
+                .simple_assignment_target_assignment_target_identifier(
+                    SPAN,
+                    self.str(id.name.as_str()),
+                ),
+            other => match MemberExpression::try_from(other) {
+                Ok(member) => SimpleAssignmentTarget::from(member),
+                Err(_) => panic!("update target must be an identifier or member expression"),
+            },
+        };
+        self.ab.expression_update(SPAN, op, prefix, st)
+    }
+
+    /// A multi-declarator variable declaration node (the boxed form, suitable as
+    /// a `for` statement init). Each `(name, init)` pair is one declarator.
+    pub fn var_decl_multi_node(
+        self,
+        kind: VariableDeclarationKind,
+        decls: Vec<(&str, Option<Expression<'a>>)>,
+    ) -> oxc_allocator::Box<'a, oxc_ast::ast::VariableDeclaration<'a>> {
+        let mut declarators = self.ab.vec_with_capacity(decls.len());
+        for (name, init) in decls {
+            let pat = self.id_pat(name);
+            declarators.push(self.ab.variable_declarator(
+                SPAN,
+                kind,
+                pat,
+                oxc_ast::NONE,
+                init,
+                false,
+            ));
+        }
+        self.ab
+            .alloc_variable_declaration(SPAN, kind, declarators, false)
+    }
+
+    /// `for (init; test; update) body` (upstream `b.for`).
+    pub fn for_stmt(
+        self,
+        init: Option<oxc_allocator::Box<'a, oxc_ast::ast::VariableDeclaration<'a>>>,
+        test: Option<Expression<'a>>,
+        update: Option<Expression<'a>>,
+        body: Statement<'a>,
+    ) -> Statement<'a> {
+        use oxc_ast::ast::ForStatementInit;
+        let init = init.map(ForStatementInit::VariableDeclaration);
+        self.ab.statement_for(SPAN, init, test, update, body)
+    }
+
     /// `throw new Error("…")` (upstream `b.throw_error`).
     pub fn throw_error(self, message: &str) -> Statement<'a> {
         let err = self.new_expr("Error", vec![self.string(message)]);
@@ -935,6 +994,28 @@ mod tests {
         // side-effect import (empty parts)
         let out2 = print(|b| vec![b.imports(vec![], "svelte/internal/flags/async")]);
         assert_eq!(out2.trim(), "import 'svelte/internal/flags/async';");
+    }
+
+    #[test]
+    fn for_loop_with_update() {
+        // for (let i = 0, $$length = arr.length; i < $$length; i++) {}
+        let out = print(|b| {
+            let init = b.var_decl_multi_node(
+                VariableDeclarationKind::Let,
+                vec![
+                    ("i", Some(b.number(0.0))),
+                    ("$$length", Some(b.member("arr", "length"))),
+                ],
+            );
+            let test = b.binary(BinaryOperator::LessThan, b.id("i"), b.id("$$length"));
+            let update = b.update(UpdateOperator::Increment, false, b.id("i"));
+            let for_stmt = b.for_stmt(Some(init), Some(test), Some(update), b.block(vec![]));
+            vec![for_stmt]
+        });
+        assert_eq!(
+            out.trim(),
+            "for (let i = 0, $$length = arr.length; i < $$length; i++) {}"
+        );
     }
 
     /// Architectural spike: prove an oxc 0.136 AST parsed from source can be
