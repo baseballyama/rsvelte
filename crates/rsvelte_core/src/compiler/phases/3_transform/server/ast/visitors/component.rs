@@ -616,7 +616,18 @@ fn build_bind_accessors<'a>(
     ) {
         return;
     }
-    let assign = state.b.assignment(Assign, lhs, state.b.id("$$value"));
+    // 写经 the upstream `set` accessor: the whole `<lvalue> = $$value`
+    // assignment is re-visited by the global visitor, so a store target
+    // (`$value.value = $$value`) lowers to `$.store_mutate(...)` and a bare
+    // store (`$value = $$value`) to `$.store_set(...)`. Build the assignment
+    // from the UN-wrapped lvalue and run the read-wrapping / store-write pass.
+    let mut assign = state.b.assignment(Assign, lhs, state.b.id("$$value"));
+    super::super::read_wrap::wrap_reads(
+        &mut assign,
+        state.b,
+        state.analysis,
+        state.analysis.root.instance_scope_index,
+    );
     delayed.push(state.b.set(name, vec![state.b.stmt(assign), settled()]));
 }
 

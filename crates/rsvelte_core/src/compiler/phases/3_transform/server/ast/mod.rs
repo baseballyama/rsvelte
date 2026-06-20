@@ -4822,4 +4822,71 @@ mod tests {
             mismatches.len()
         );
     }
+
+    /// Legacy STORE subscription / assignment / update SSR lowering parity with
+    /// the (correct) `transform_server` oracle for the runtime-legacy store
+    /// cluster. Each fixture's `main.svelte` is compiled with the new AST
+    /// pipeline (`run`) and the old text oracle (`oracle_dump`); the two must be
+    /// equal under [`canon_js`] (the runtime-harness canonicalizer), so a match
+    /// here means the runtime suite passes (the oracle passes these fixtures).
+    ///
+    /// Covers the store READ → `$.store_get`, store WRITE → `$.store_set` /
+    /// `$.store_mutate`, store `++/--` → `$.update_store[_pre]`, derived
+    /// `++/--` → `$.update_derived[_pre]`, destructure-assignment store-set
+    /// sequence, the `$.fallback(…, () => …, true)` immediate-prop shape, and
+    /// the derived-callback parameter-shadowing (`derived(y, ($y) => $y * $y)`)
+    /// paths — exercised across the instance script, `export function` bodies,
+    /// reactive `$:`, template expressions, `<svelte:element this={$store}>`,
+    /// and component `bind:` setters.
+    ///
+    /// `store-auto-resubscribe-immediate` and `module-context-bind` are NOT
+    /// asserted: their only remaining divergence is orthogonal to store
+    /// subscription — a nested destructuring-assignment-in-expression-position
+    /// needing the `extract_paths` `$$value`-cache IIFE, and a module-script /
+    /// instance-script import-ordering quirk, respectively.
+    #[test]
+    fn ast_matches_oracle_legacy_store_cluster() {
+        let base = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../submodules/svelte/packages/svelte/tests/runtime-legacy/samples"
+        );
+        let names = [
+            "store-auto-subscribe-in-script",
+            "store-auto-subscribe-immediate",
+            "store-auto-subscribe-immediate-multiple-vars",
+            "store-assignment-updates",
+            "store-assignment-updates-reactive",
+            "store-assignment-updates-property",
+            "store-assignment-updates-destructure",
+            "store-increment-updates-reactive",
+            "binding-store-each",
+            "component-binding-store",
+            "dynamic-element-store",
+            "store-unreferenced",
+            "instrumentation-auto-subscription-self-assignment",
+            "window-binding-scroll-store",
+        ];
+        let mut mismatches = Vec::new();
+        for n in names {
+            let p = format!("{base}/{n}/main.svelte");
+            let Ok(src) = std::fs::read_to_string(&p) else {
+                // Submodule not checked out — skip silently (CI guards this
+                // elsewhere; the unit test is a no-op without the corpus).
+                eprintln!("SKIP (no main.svelte): {n}");
+                continue;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!(
+                    "\n######### DIFFER: {n} #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(n);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "legacy store-cluster SSR differs from oracle for: {mismatches:?}"
+        );
+    }
 }

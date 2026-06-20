@@ -1521,10 +1521,23 @@ fn transform_script_legacy<'a>(
                     }
                     other => {
                         // `export function` / `export class` → keep the inner
-                        // declaration verbatim (re-parsed from its source span).
+                        // declaration verbatim (re-parsed from its source span),
+                        // but read-wrap the body so store/derived reads & writes
+                        // inside an `export function f() { … $store … }` are
+                        // lowered (写经 the global server visitor).
+                        let is_fn =
+                            matches!(other, oxc_ast::ast::Declaration::FunctionDeclaration(_));
                         let span = other.span();
                         let slice = &src[span.start as usize..span.end as usize];
-                        if let Some(rehomed) = state.reparse_statement(slice) {
+                        if let Some(mut rehomed) = state.reparse_statement(slice) {
+                            if is_instance && is_fn {
+                                super::read_wrap::wrap_reads_in_statement(
+                                    &mut rehomed,
+                                    state.b,
+                                    state.analysis,
+                                    state.analysis.root.instance_scope_index,
+                                );
+                            }
                             out.push(rehomed);
                         }
                     }
@@ -1571,7 +1584,36 @@ fn transform_script_legacy<'a>(
                     continue;
                 }
                 let slice = &src[es.span.start as usize..es.span.end as usize];
-                if let Some(rehomed) = state.reparse_statement(slice) {
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    // 写经 the global server visitor: every READ / store-or-derived
+                    // WRITE inside an ordinary instance statement is lowered (e.g.
+                    // top-level `$a.foo = 3` → `$.store_mutate(...)`,
+                    // `({$a} = obj)` → store-set sequence).
+                    if is_instance {
+                        super::read_wrap::wrap_reads_in_statement(
+                            &mut rehomed,
+                            state.b,
+                            state.analysis,
+                            state.analysis.root.instance_scope_index,
+                        );
+                    }
+                    out.push(rehomed);
+                }
+            }
+            Statement::FunctionDeclaration(_) => {
+                let span = stmt.span();
+                let slice = &src[span.start as usize..span.end as usize];
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    // A function BODY is visited too (`function f() { return
+                    // $count; }` → `$.store_get(...)`, `$foo++` → `$.update_store`).
+                    if is_instance {
+                        super::read_wrap::wrap_reads_in_statement(
+                            &mut rehomed,
+                            state.b,
+                            state.analysis,
+                            state.analysis.root.instance_scope_index,
+                        );
+                    }
                     out.push(rehomed);
                 }
             }
@@ -1838,7 +1880,11 @@ fn lower_legacy_var_decl<'a>(
                         state.analysis,
                         state.analysis.root.instance_scope_index,
                     );
-                    build_legacy_fallback(state, prop, default_expr, init)
+                    // 写经 `build_fallback`: the "is simple" test runs on the
+                    // ALREADY-VISITED (read-wrapped) value, so `= $store`
+                    // (wrapped to a `$.store_get(...)` CALL) is NOT simple and
+                    // gets the `() => …, true` thunk form.
+                    build_legacy_fallback(state, prop, default_expr)
                 }
             };
             decls.push((pat, Some(init)));
@@ -1910,10 +1956,9 @@ fn build_legacy_fallback<'a>(
     state: &ServerTransformState<'a>,
     prop: OxcExpression<'a>,
     default_expr: OxcExpression<'a>,
-    raw_init: &OxcExpression,
 ) -> OxcExpression<'a> {
     let b = state.b;
-    if is_simple_default(raw_init) {
+    if is_simple_default(&default_expr) {
         b.call("$.fallback", vec![prop, default_expr])
     } else {
         let thunk = b.thunk(default_expr, false);

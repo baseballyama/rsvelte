@@ -68,10 +68,12 @@ pub fn visit_svelte_element<'a>(node: &SvelteDynamicElement, state: &mut ServerT
             None => state.visit_expr(&node.tag),
         }
     } else {
-        match (node.tag.start(), node.tag.end()) {
-            (Some(s), Some(e)) if e > s => state.reparse_slice(s as usize, e as usize),
-            _ => state.visit_expr(&node.tag),
-        }
+        // 写经 `context.visit(node.tag)`: the tag expression is visited by the
+        // global `Identifier` visitor, so a store/derived read in `this={$tag}`
+        // is read-wrapped (`$.store_get(...)`). Route through `visit_expr` (which
+        // applies the read-wrapping pass) rather than the verbatim
+        // `reparse_slice` so the store/derived lowering fires.
+        state.visit_expr(&node.tag)
     };
 
     // -- attributes ---------------------------------------------------------
