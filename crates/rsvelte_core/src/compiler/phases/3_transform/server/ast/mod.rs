@@ -1036,6 +1036,37 @@ mod tests {
         );
     }
 
+    /// Official snapshot fixture `nullish-coallescence-omittance`: exercises the
+    /// SSR `scope.evaluate` constant-folding that omits `attr ?? ""` /
+    /// `1 ?? 'stuff'` known interpolations in BOTH text-position
+    /// (`process_children`) AND attribute-value position
+    /// (`build_attribute_value`). The folded `<div title="...">` collapses
+    /// every known part (`{name}`→`world`, `{null}`/`{undefined}`→nothing,
+    /// `{1}`→`1`) and keeps only the live `{count}` / `{typeof value}` /
+    /// `{value}` as `$.stringify(...)` interpolations. Asserts the AST pipeline
+    /// matches the (correct) `transform_server` oracle byte-for-byte (post-norm).
+    #[test]
+    fn ast_matches_oracle_nullish_coallescence_omittance() {
+        let src = r#"<script>
+    let name = 'world';
+    let count = $state(0);
+    let { value } = $props();
+</script>
+<h1>Hello, {null}{name}!</h1>
+<b>{1 ?? 'stuff'}{2 ?? 'more stuff'}{3 ?? 'even more stuff'}</b>
+<button onclick={()=>count++}>Count is {count}</button>
+<h1>Hello, {name ?? 'earth' ?? null}</h1>
+<div title="Hello, {name} {count} {null} {1} {undefined} {typeof value} {value}"></div>
+"#;
+        let ours = run(src);
+        let oracle = oracle_dump(src);
+        assert_eq!(
+            norm(&ours),
+            norm(&oracle),
+            "nullish-coallescence-omittance differs from oracle:\nOURS:\n{ours}\nORACLE:\n{oracle}"
+        );
+    }
+
     /// Compare the AST pipeline against the `transform_server` oracle for the
     /// block visitors (IfBlock / EachBlock / KeyBlock / SnippetBlock /
     /// AwaitBlock). Samples are chosen to exercise the sync, blocker-free paths

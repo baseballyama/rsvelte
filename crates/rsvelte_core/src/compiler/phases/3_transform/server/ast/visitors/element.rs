@@ -1441,13 +1441,16 @@ fn style_directive_is_important(dir: &crate::ast::template::StyleDirective) -> b
 /// Port of `build_attribute_value` for a NON-text-fast-path value (single
 /// expression or mixed sequence). Returns the runtime value expression:
 ///   - single expression → `transform(visit(expr))` (= `state.visit_expr`),
-///   - mixed sequence → a template literal `` `text${$.stringify(expr)}text` ``
-///     (each interpolated expr wrapped in `$.stringify` since we can't prove it
-///     is a defined string — matching upstream's non-`is_string`/`is_defined`
-///     branch).
+///   - mixed sequence → a template literal `` `text${$.stringify(expr)}text` ``.
 ///
-/// NOTE (写经 gap): upstream's `scope.evaluate` constant-folding is not ported,
-/// so a known-string interpolation is still wrapped in `$.stringify(...)`.
+/// 写经 of upstream's `scope.evaluate` constant-folding (utils.js lines 232-260):
+/// each interpolated `ExpressionTag` is evaluated; when the value is statically
+/// known it is folded into the surrounding quasi (a known-nullish value renders
+/// as nothing — this is where `attr ?? ""` / `1 ?? 'stuff'` omittance happens),
+/// otherwise the expression is emitted. A live expression is wrapped in
+/// `$.stringify(...)` unless it is provably a defined string (`is_string &&
+/// is_defined`). When every part folds away, the result collapses to a plain
+/// string literal (upstream's `expressions.length > 0 ? template : literal`).
 fn build_attribute_value<'a>(
     value: &AttributeValue,
     trim_ws: bool,
@@ -1473,7 +1476,10 @@ fn build_attribute_value<'a>(
                 };
             }
 
-            // Mixed run → template literal.
+            // Mixed run → template literal, with `scope.evaluate` folding.
+            use crate::compiler::phases::phase3_transform::server::evaluate::{
+                EvalValue, js_display_string,
+            };
             let mut quasis: Vec<String> = vec![String::new()];
             let mut exprs: Vec<OxcExpression<'a>> = Vec::new();
             for part in parts {
@@ -1487,12 +1493,35 @@ fn build_attribute_value<'a>(
                         quasis.last_mut().unwrap().push_str(&data);
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
+                        // Constant-fold known values into the quasi (a known-nullish
+                        // value contributes nothing — `attr ?? ""` omittance).
+                        let evaluation = state
+                            .eval_ctx()
+                            .evaluate_template_expression(&tag.expression);
+                        if let Some(value) = evaluation.known_value() {
+                            if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                                let content = js_display_string(value);
+                                quasis.last_mut().unwrap().push_str(&content);
+                            }
+                            continue;
+                        }
+                        // Live expression: wrap in `$.stringify` unless it is
+                        // provably a defined string (`is_string && is_defined`).
                         let visited = state.visit_expr(&tag.expression);
-                        let stringified = state.b.call("$.stringify", vec![visited]);
-                        exprs.push(stringified);
+                        let emitted = if evaluation.is_string() && evaluation.is_defined() {
+                            visited
+                        } else {
+                            state.b.call("$.stringify", vec![visited])
+                        };
+                        exprs.push(emitted);
                         quasis.push(String::new());
                     }
                 }
+            }
+            // Everything folded away → collapse to a plain string literal
+            // (upstream's `expressions.length > 0 ? template : literal`).
+            if exprs.is_empty() {
+                return state.b.string(&quasis[0]);
             }
             let quasi_refs: Vec<&str> = quasis.iter().map(|s| s.as_str()).collect();
             state.b.template(quasi_refs, exprs)
