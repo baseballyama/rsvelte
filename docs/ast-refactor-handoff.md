@@ -301,9 +301,21 @@ boundary/slot + const/debug-tag + select/option + content-bind + dynamic-compone
 結合ビルド1回) + オラクルharness(`corpus_new_vs_oracle`) + 診断read-onlyエージェント。
 **真のゲート(env `RSVELTE_SERVER_AST=1`)**: `--test ssr`(ランタイム実行) **96/97**(残1=attr定数畳み込み); `--test
 compiler_fixtures`(byte-exact vs公式) **19/29**(失敗10=**async 7**+nullish+class-field-ctor); oracle harness compared比84.9%。
-**→ サーバー最後の大物=async**(`$$renderer.async([blockers],fn)`/top-level await/async derived/compute_blocker_map)。
-async+残2+97番目 → byte-exactゲート緑 → フラグdefault化/除去 → 旧6モジュール削除 → クライアント側(js_ast Raw全廃→
-to_oxc→codegen.rs削除)。**注**: release fixtureは専用 target-dir(debug/release混在は E0308 stale-artifact誤検知)。
+**→ サーバー最後の大物=async**。**調査結論（重要）: blocker解析は既ポート・再利用可**。`shared/async_body.rs::
+compute_blocker_map(raw_script)→FxHashMap<name,idx>` / `compute_blocker_primary_names` / `helpers::
+find_expression_blockers(expr_text,map)→Vec<idx>` / `transform_async_body(script,"$$renderer.run")→{output,map}`
+は全て文字列ベースで as-is 再利用可。新pipelineは `state.eval_inputs.top_level_blocker_map` に既に保持。
+**残るは AST ラッピングのシェルのみ**。**段階計画**: Stage0(逐次土台)=`shared.rs::create_child_block(stmts,
+blocker_idxs,has_await)`(空→そのまま/blocker→`$$renderer.async_block([$$promises[i]…],arrow)`/else→`child_block`)
++ `$.save`/await包みヘルパー(`(await $.save(x))()` / `async()=>$.escape(await …)`、現状ゼロ、`in_block_body` 親walk述語の
+AST化要) + const blocker map を state に。Stage1(逐次)=`script.rs` top-level-await分割(`transform_async_body` の文字列
+output を reparse) + async-`$derived`(`$derived(await…)`→`await $.async_derived(()=>…)`、現 script.rs は plain $.derived=GAP)。
+Stage2(**並列可**)=if_block/each_block/await_block/expression_tag の async分岐(disjoint visitor, Stage0 を read-only 共有)。
+Stage3=const_tag run() + render/component/slot/key PromiseOptimiser。**gotcha**: AST `is_async()` は has_await のみ(blocker
+未反映, template.rs:1326 TODO)→blocker検出は文字列 `find_expression_blockers(expr_text)` 経由で(旧pipeline同様)。
+async+残2(nullish/class-field-ctor)+97番目(attr定数畳み込み) → byte-exactゲート緑 → フラグdefault化/除去 → 旧6モジュール
+削除 → クライアント側(js_ast Raw全廃→to_oxc→codegen.rs削除)。**注**: release fixtureは専用 target-dir(debug/release混在は
+E0308 stale-artifact誤検知)。
 
 ### ★ （旧）本丸: instance/module script transform（最delicate・最大のテキスト削除＝transform_script.rs 8.4k 行）★
 現状 `server_component_ast` は **instance body 空**＝`<script>` ロジックを持つコンポーネントは oracle 不一致。これを埋めるのが
