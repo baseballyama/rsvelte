@@ -1327,6 +1327,48 @@ mod tests {
         );
     }
 
+    /// `<select>` / `<option>` / `<optgroup>` SSR wrapper parity with the
+    /// `transform_server` oracle. Covers:
+    ///   - `<select><option value="a">A</option></select>` — option-only select
+    ///     (NOT special: no select `value`/spread), each option a wrapper,
+    ///   - `<select bind:value={v}>` — special select → `$$renderer.select(...)`,
+    ///   - `<select value={v}>` — special select via plain `value` attr,
+    ///   - `<optgroup label="g"><option>x</option></optgroup>` — optgroup (rich
+    ///     content via the inner option) + nested option wrappers,
+    ///   - rich-content `<select>` (a `<div>` child) → trailing `<!>` marker +
+    ///     `true` flag,
+    ///   - `<option>{v}</option>` — synthetic-value option (direct value arg).
+    /// Compared STRUCTURALLY (indentation-insensitive) like the block samples.
+    #[test]
+    fn ast_matches_oracle_select_option() {
+        let samples = [
+            "<select><option value=\"a\">A</option></select>",
+            "<script>let v = 'a';</script><select bind:value={v}><option value=\"a\">A</option></select>",
+            "<script>let v = 'a';</script><select value={v}><option value=\"a\">A</option></select>",
+            "<optgroup label=\"g\"><option>x</option></optgroup>",
+            "<script>let v = 'a';</script><select bind:value={v}><div>rich</div><option value=\"a\">A</option></select>",
+            "<script>let v = 'a';</script><option>{v}</option>",
+            "<option value=\"a\">A</option>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "select/option output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
     /// Special-element parity with the `transform_server` oracle for
     /// `<svelte:window>` / `<svelte:document>` / `<svelte:body>` /
     /// `<svelte:head>` (with a real `<meta>` child) / `<svelte:options>`.

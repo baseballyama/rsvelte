@@ -31,11 +31,27 @@
 //!     → the bound value renders as the element's content (innerHTML unescaped).
 //!   See [`build_element_content`] + [`emit_content_body`].
 //!
+//! Special `<select>` / `<option>` / `<optgroup>` (写经 of the `is_select_special`
+//! / `is_option_special` branches of `RegularElement.js`):
+//!   - `<select value=…>` / `<select bind:value=…>` / `<select {...spread}>` →
+//!     `$$renderer.select(<attrs obj>, ($$renderer) => { <children> }, ...rest)`
+//!     (rest = `[css_hash?, classes?, styles?, flags?]`, with a trailing `true`
+//!     when the body has rich content),
+//!   - `<option>` → `$$renderer.option(<attrs obj>, <body>, ...rest)` where
+//!     `body` is the synthetic-value expression (lone `{expr}` child) or a
+//!     `($$renderer) => { <children> }` callback,
+//!   - a non-special `<optgroup>` / `<select>` with rich content appends a `<!>`
+//!     hydration marker before its close tag.
+//!   The rich-content predicate mirrors the `transform_server` ORACLE
+//!   (`has_component_or_render_tag` for select, `is_rich_option_content` for
+//!   option), which is narrower than upstream's `is_customizable_select_element`.
+//!   See [`emit_select_special`] / [`emit_option_special`] /
+//!   [`prepare_element_spread_object`].
+//!
 //! 写经 gaps (TODO): `class:` / `style:` / `use:` directives on the non-spread
-//! path, `<select bind:value>` / `<option>` special branches (the select
-//! `$$renderer.select(...)` selected-option threading is NOT ported — but the
-//! visitor already omits the `value` attribute so no WRONG `value` is emitted),
-//! `<script>` / `<style>` raw-text branches, the get/set `{get, set}` bind form,
+//! path, the get/set `{get, set}` select bind form (the option's synthetic value
+//! sequence is not decomposed), the dev `push_element` markers on the option
+//! wrapper, `<script>` / `<style>` raw-text branches, the get/set `{get, set}` bind form,
 //! `$.clsx` clsx object form, event-handler capture, dev `push_element` markers,
 //! and the async `PromiseOptimiser` wrapping. Within the spread path, `bind:` /
 //! `use:` / `@attach` and the `style:` `|important` split remain gaps (see
@@ -43,6 +59,7 @@
 
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, RegularElement,
+    TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use crate::compiler::phases::phase3_transform::shared::template::{
@@ -50,6 +67,7 @@ use crate::compiler::phases::phase3_transform::shared::template::{
 };
 use oxc_ast::ast::BinaryOperator;
 use oxc_ast::ast::Expression as OxcExpression;
+use oxc_ast::ast::Statement;
 
 use super::shared::{TemplateEntry, process_children};
 
@@ -60,6 +78,22 @@ const WHITESPACE_INSENSITIVE_ATTRIBUTES: [&str; 2] = ["class", "style"];
 pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
     let name = node.name.as_str();
     let is_void = is_void_element(name);
+
+    // -- special `<select value>` / `<option>` branches ---------------------
+    //
+    // Port of upstream `RegularElement.js` `is_select_special` / `is_option_special`
+    // (lines 44-53): these emit `$$renderer.select(...)` / `$$renderer.option(...)`
+    // wrappers instead of inline markup, so the renderer can thread the selected
+    // value to its `<option>` children. We branch BEFORE the normal open-tag /
+    // attribute / children path.
+    if is_select_special(node) {
+        emit_select_special(node, state);
+        return;
+    }
+    if name == "option" {
+        emit_option_special(node, state);
+        return;
+    }
 
     // -- open tag `<name` ---------------------------------------------------
     state
@@ -111,6 +145,14 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
             emit_content_body(node, content, namespace, is_textarea, state);
         } else {
             process_children(&node.fragment.nodes, Some(node), namespace, state);
+            // For a non-special `<optgroup>` / `<select>` with rich content,
+            // upstream appends a `<!>` hydration marker after the children
+            // (RegularElement.js lines 200-204).
+            if matches!(name, "optgroup" | "select") && is_customizable_select_element(node) {
+                state
+                    .template
+                    .push(TemplateEntry::Literal("<!>".to_string()));
+            }
         }
         state
             .template
@@ -801,6 +843,405 @@ fn build_element_spread_attributes<'a>(
         ],
     );
     push_interp(state, call);
+}
+
+/// Whether `<select>` needs the special `$$renderer.select(...)` wrapper — it has
+/// a `value` plain-attribute, a `value` bind, OR any spread attribute. Mirrors
+/// upstream `RegularElement.js` `is_select_special` (lines 44-51).
+fn is_select_special(node: &RegularElement) -> bool {
+    node.name.as_str() == "select"
+        && node.attributes.iter().any(|attr| match attr {
+            Attribute::Attribute(a) => a.name.as_str() == "value",
+            Attribute::BindDirective(b) => b.name.as_str() == "value",
+            Attribute::SpreadAttribute(_) => true,
+            _ => false,
+        })
+}
+
+/// Whether a `<select>` body has "rich content" → the SPECIAL
+/// `$$renderer.select(...)` wrapper's trailing `true` flag. Faithful port of the
+/// oracle's `element.rs::has_component_or_render_tag`: a Component /
+/// SvelteComponent / RenderTag / HtmlTag, recursing into IfBlock (both branches),
+/// EachBlock body, KeyBlock, SvelteBoundary — but NOT AwaitBlock, NOT EachBlock
+/// fallback, and NOT counting a RegularElement.
+///
+/// NOTE: this is INTENTIONALLY narrower than upstream's
+/// `is_customizable_select_element` (which also counts a non-option/optgroup
+/// RegularElement / text child) — we mirror the `transform_server` oracle
+/// byte-for-byte, which the corpus harness compares against.
+fn select_special_is_rich(nodes: &[TemplateNode]) -> bool {
+    select_body_is_rich(nodes, false, false)
+}
+
+/// Whether an `<option>` body has "rich content" → the `$$renderer.option(...)`
+/// wrapper's trailing `true` flag. Faithful port of the oracle's
+/// `select_element.rs::is_rich_option_content`: ALSO counts a RegularElement, and
+/// recurses into AwaitBlock (pending/then/catch) in addition to IfBlock / EachBlock
+/// body / KeyBlock / SvelteBoundary.
+fn option_is_rich(nodes: &[TemplateNode]) -> bool {
+    select_body_is_rich(nodes, true, true)
+}
+
+/// Shared rich-content scan for the select / option wrappers (see the two
+/// callers for the oracle predicates each mirrors). `count_regular_element`
+/// makes a bare `RegularElement` rich (option only); `recurse_await` recurses
+/// into AwaitBlock branches (option only).
+fn select_body_is_rich(
+    nodes: &[TemplateNode],
+    count_regular_element: bool,
+    recurse_await: bool,
+) -> bool {
+    let recurse =
+        |ns: &[TemplateNode]| select_body_is_rich(ns, count_regular_element, recurse_await);
+    for node in nodes {
+        match node {
+            TemplateNode::Component(_)
+            | TemplateNode::SvelteComponent(_)
+            | TemplateNode::RenderTag(_)
+            | TemplateNode::HtmlTag(_) => return true,
+            TemplateNode::RegularElement(_) if count_regular_element => return true,
+            TemplateNode::IfBlock(block)
+                if recurse(&block.consequent.nodes)
+                    || block.alternate.as_ref().is_some_and(|a| recurse(&a.nodes)) =>
+            {
+                return true;
+            }
+            TemplateNode::EachBlock(block) if recurse(&block.body.nodes) => return true,
+            TemplateNode::KeyBlock(block) if recurse(&block.fragment.nodes) => return true,
+            TemplateNode::SvelteBoundary(boundary) if recurse(&boundary.fragment.nodes) => {
+                return true;
+            }
+            TemplateNode::AwaitBlock(block)
+                if recurse_await
+                    && [&block.pending, &block.then, &block.catch]
+                        .into_iter()
+                        .flatten()
+                        .any(|frag| recurse(&frag.nodes)) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Whether this `<select>`/`<optgroup>`/`<option>` has "rich content" so the
+/// renderer must emit a hydration anchor. Rust port of upstream
+/// `nodes.js::is_customizable_select_element` (recurses into control-flow blocks
+/// via [`select_find_descendants`]). Used ONLY for the non-special-path trailing
+/// `<!>` marker (matching the oracle's `element.rs` use site).
+fn is_customizable_select_element(node: &RegularElement) -> bool {
+    let element_name = node.name.as_str();
+    if !matches!(element_name, "select" | "optgroup" | "option") {
+        return false;
+    }
+    let mut found = false;
+    select_find_descendants(&node.fragment.nodes, &mut |d| {
+        match d {
+            SelectDescendant::RegularElement(child_name) => {
+                if element_name == "select" && child_name != "option" && child_name != "optgroup" {
+                    found = true;
+                }
+                if element_name == "optgroup" && child_name != "option" {
+                    found = true;
+                }
+                if element_name == "option" {
+                    found = true;
+                }
+            }
+            SelectDescendant::Text => {
+                if element_name == "select" || element_name == "optgroup" {
+                    found = true;
+                }
+            }
+            SelectDescendant::Other => found = true,
+        }
+        found
+    });
+    found
+}
+
+/// A descendant kind yielded by [`select_find_descendants`].
+enum SelectDescendant<'n> {
+    RegularElement(&'n str),
+    Text,
+    Other,
+}
+
+/// Walk `nodes` (recursing into if/each/key/boundary bodies, skipping
+/// snippet/const/comment/expression nodes), invoking `f` for each descendant.
+/// `f` returns `true` to short-circuit. Mirrors upstream `nodes.js::find_descendants`.
+fn select_find_descendants<'n>(
+    nodes: &'n [TemplateNode],
+    f: &mut impl FnMut(SelectDescendant<'n>) -> bool,
+) -> bool {
+    for node in nodes {
+        match node {
+            TemplateNode::SnippetBlock(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::DeclarationTag(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::ExpressionTag(_) => {}
+            TemplateNode::Text(t) => {
+                if !t.data.trim().is_empty() && f(SelectDescendant::Text) {
+                    return true;
+                }
+            }
+            TemplateNode::IfBlock(block) => {
+                if select_find_descendants(&block.consequent.nodes, f) {
+                    return true;
+                }
+                if let Some(alt) = &block.alternate
+                    && select_find_descendants(&alt.nodes, f)
+                {
+                    return true;
+                }
+            }
+            TemplateNode::EachBlock(block) => {
+                if select_find_descendants(&block.body.nodes, f) {
+                    return true;
+                }
+                if let Some(fallback) = &block.fallback
+                    && select_find_descendants(&fallback.nodes, f)
+                {
+                    return true;
+                }
+            }
+            TemplateNode::KeyBlock(block) => {
+                if select_find_descendants(&block.fragment.nodes, f) {
+                    return true;
+                }
+            }
+            TemplateNode::SvelteBoundary(boundary) => {
+                if select_find_descendants(&boundary.fragment.nodes, f) {
+                    return true;
+                }
+            }
+            TemplateNode::RegularElement(elem) => {
+                if f(SelectDescendant::RegularElement(elem.name.as_str())) {
+                    return true;
+                }
+            }
+            _ => {
+                if f(SelectDescendant::Other) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Render the element's children into a SEPARATE template buffer, returning the
+/// coalesced body statements. Used by the select/option wrappers to build the
+/// `($$renderer) => { <children> }` callback body. Mirrors upstream's
+/// `inner_state = { ...state, template: [], init: [] }; process_children(...);
+/// build_template(inner_state.template)`.
+fn render_children_body<'a>(
+    node: &RegularElement,
+    state: &mut ServerTransformState<'a>,
+) -> Vec<Statement<'a>> {
+    use super::shared::build_template;
+    let namespace = if node.metadata.svg {
+        "svg"
+    } else if node.metadata.mathml {
+        "mathml"
+    } else {
+        "html"
+    };
+    let saved = std::mem::take(&mut state.template);
+    process_children(&node.fragment.nodes, Some(node), namespace, state);
+    let inner = std::mem::replace(&mut state.template, saved);
+    build_template(inner, state)
+}
+
+/// Port of upstream `prepare_element_spread_object` — return the args for the
+/// `$$renderer.select(...)` / `$$renderer.option(...)` wrapper (and for
+/// `$.attributes(...)`): `[object, css_hash?, classes?, styles?, flags?]`. Every
+/// `Attribute` / `BindDirective` / `SpreadAttribute` folds into ONE object
+/// (`build_spread_object`); `class:` / `style:` directives + the namespaced /
+/// input flags become the trailing args. Trailing `None`s are pruned by the
+/// caller via `call_opt`.
+fn prepare_element_spread_object<'a>(
+    node: &RegularElement,
+    css_hash: Option<&str>,
+    state: &mut ServerTransformState<'a>,
+) -> Vec<Option<OxcExpression<'a>>> {
+    use crate::ast::template::{ClassDirective, StyleDirective};
+    use crate::compiler::constants::{
+        ELEMENT_IS_INPUT, ELEMENT_IS_NAMESPACED, ELEMENT_PRESERVE_ATTRIBUTE_CASE,
+    };
+    use crate::compiler::phases::phase3_transform::shared::template::is_custom_element_node;
+    use oxc_ast::ast::ObjectPropertyKind;
+
+    // -- the merged attribute object (`build_spread_object`) ----------------
+    let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
+    let mut class_directives: Vec<&ClassDirective> = Vec::new();
+    let mut style_directives: Vec<&StyleDirective> = Vec::new();
+
+    for attr in &node.attributes {
+        match attr {
+            Attribute::SpreadAttribute(spread) => {
+                let expr = state.visit_expr(&spread.expression);
+                props.push(state.b.spread(expr));
+            }
+            Attribute::Attribute(a) => {
+                let name = get_attribute_name(node, a);
+                let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
+                let value = build_attribute_value(&a.value, trim_ws, state);
+                props.push(state.b.init(&name, value));
+            }
+            Attribute::BindDirective(bind) => {
+                // `build_spread_object` BindDirective arm: a sequence `{get, set}`
+                // calls `get()`, otherwise the visited expression is used as-is.
+                let name = get_bind_attribute_name(node, bind.name.as_str());
+                // `build_spread_object` BindDirective arm: a `{get, set}` sequence
+                // would call `get()`, but we don't decompose it (KNOWN GAP) — the
+                // visited whole expression is used directly for both shapes.
+                let value = state.visit_expr(&bind.expression);
+                props.push(state.b.init(&name, value));
+            }
+            Attribute::ClassDirective(dir) => class_directives.push(dir),
+            Attribute::StyleDirective(dir) => style_directives.push(dir),
+            _ => {}
+        }
+    }
+
+    let object = state.b.object(props);
+
+    // -- css_hash -----------------------------------------------------------
+    let css_hash_arg = css_hash.map(|h| state.b.string(h));
+
+    // -- class: directives object -------------------------------------------
+    let classes_arg = if class_directives.is_empty() {
+        None
+    } else {
+        let members = class_directives
+            .iter()
+            .map(|dir| {
+                let val = state.visit_expr(&dir.expression);
+                state.b.init(dir.name.as_str(), val)
+            })
+            .collect();
+        Some(state.b.object(members))
+    };
+
+    // -- style: directives object -------------------------------------------
+    let styles_arg = if style_directives.is_empty() {
+        None
+    } else {
+        let members = style_directives
+            .iter()
+            .map(|dir| {
+                let mut sname = dir.name.to_string();
+                if !sname.starts_with("--") {
+                    sname = sname.to_lowercase();
+                }
+                let val = if matches!(dir.value, AttributeValue::True(_)) {
+                    state.b.id(dir.name.as_str())
+                } else {
+                    build_attribute_value(&dir.value, true, state)
+                };
+                state.b.init(&sname, val)
+            })
+            .collect();
+        Some(state.b.object(members))
+    };
+
+    // -- flags --------------------------------------------------------------
+    let mut flags = 0;
+    if node.metadata.svg || node.metadata.mathml {
+        flags |= ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE;
+    } else if is_custom_element_node(node.name.as_str()) {
+        flags |= ELEMENT_PRESERVE_ATTRIBUTE_CASE;
+    } else if node.name.as_str() == "input" {
+        flags |= ELEMENT_IS_INPUT;
+    }
+    let flags_arg = if flags != 0 {
+        Some(state.b.number(flags as f64))
+    } else {
+        None
+    };
+
+    vec![
+        Some(object),
+        css_hash_arg,
+        classes_arg,
+        styles_arg,
+        flags_arg,
+    ]
+}
+
+/// Emit `$$renderer.select(<attrs obj>, ($$renderer) => { <children> }, ...rest)`.
+/// Rust port of the `is_select_special` branch of upstream `RegularElement.js`
+/// (lines 109-128). The `...rest` is `[css_hash?, classes?, styles?, flags?]`
+/// (trailing `None`s pruned) with an extra `true` appended when the select has
+/// rich content (`is_customizable_select_element`).
+fn emit_select_special<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
+    let css_hash: Option<String> = if node.metadata.scoped && !state.analysis.css.hash.is_empty() {
+        Some(state.analysis.css.hash.to_string())
+    } else {
+        None
+    };
+
+    // The `($$renderer) => { <children> }` callback.
+    let body = render_children_body(node, state);
+    let params = state.b.params(vec![state.b.id_pat("$$renderer")], None);
+    let fn_body = state.b.body(body);
+    let arrow = state.b.arrow(params, fn_body, false, false);
+
+    let mut args = prepare_element_spread_object(node, css_hash.as_deref(), state);
+    // Object is the 1st arg; insert the callback as the 2nd (after the object).
+    let object = args.remove(0);
+    let mut call_args: Vec<Option<OxcExpression<'a>>> = vec![object, Some(arrow)];
+    call_args.extend(args);
+    // Rich-content selects append `true` (customizable flag). It comes AFTER the
+    // css_hash / classes / styles / flags slots, so any of those that are `None`
+    // print as interior `void 0` (call_opt only prunes TRAILING `None`s) —
+    // matching the oracle's `select_rest_args` output exactly.
+    if select_special_is_rich(&node.fragment.nodes) {
+        call_args.push(Some(state.b.bool(true)));
+    }
+
+    let call = state.b.call_opt("$$renderer.select", call_args);
+    state.template.push(TemplateEntry::Stmt(state.b.stmt(call)));
+}
+
+/// Emit `$$renderer.option(<attrs obj>, <body>, ...rest)`. Rust port of the
+/// `is_option_special` branch of upstream `RegularElement.js` (lines 131-175).
+/// `body` is the synthetic value expression directly (when the option has a
+/// `synthetic_value_node`), else a `($$renderer) => { <children> }` callback.
+fn emit_option_special<'a>(node: &RegularElement, state: &mut ServerTransformState<'a>) {
+    let css_hash: Option<String> = if node.metadata.scoped && !state.analysis.css.hash.is_empty() {
+        Some(state.analysis.css.hash.to_string())
+    } else {
+        None
+    };
+
+    let body = if let Some(synthetic) = &node.metadata.synthetic_value_node {
+        // Direct value (the option's lone expression child becomes its `value`).
+        state.visit_expr(&synthetic.expression)
+    } else {
+        let stmts = render_children_body(node, state);
+        let params = state.b.params(vec![state.b.id_pat("$$renderer")], None);
+        let fn_body = state.b.body(stmts);
+        state.b.arrow(params, fn_body, false, false)
+    };
+
+    let mut args = prepare_element_spread_object(node, css_hash.as_deref(), state);
+    let object = args.remove(0);
+    let mut call_args: Vec<Option<OxcExpression<'a>>> = vec![object, Some(body)];
+    call_args.extend(args);
+    // Rich-content options append `true` after the css_hash / classes / styles /
+    // flags slots (interior `None`s → `void 0`); see `emit_select_special`.
+    if option_is_rich(&node.fragment.nodes) {
+        call_args.push(Some(state.b.bool(true)));
+    }
+
+    let call = state.b.call_opt("$$renderer.option", call_args);
+    state.template.push(TemplateEntry::Stmt(state.b.stmt(call)));
 }
 
 /// Push a `${call}` interpolation: a single-expression [`TemplateEntry::Template`]
