@@ -383,11 +383,15 @@ fn build_element_content<'a>(
                 if !is_content_editable_binding(bind_name) && !is_textarea_value {
                     continue;
                 }
-                // The get/set `{get, set}` sequence form is a KNOWN GAP.
-                if bind_expr_is_sequence(bind) {
-                    continue;
-                }
-                let expr = state.visit_expr(&bind.expression);
+                // The get/set `{get, set}` sequence form collapses to
+                // `(getter)()` (upstream `b.call(expression.expressions[0])`).
+                let expr = if bind_expr_is_sequence(bind) {
+                    let seq = state.visit_expr(&bind.expression);
+                    let getter = sequence_first(seq, state);
+                    state.b.call(getter, vec![])
+                } else {
+                    state.visit_expr(&bind.expression)
+                };
                 content = Some(if bind_name == "innerHTML" {
                     // innerHTML is the only content bind we don't escape.
                     expr
@@ -500,9 +504,28 @@ fn is_content_editable_binding(name: &str) -> bool {
 /// Whether the parsed bind expression is a `SequenceExpression` (the
 /// `bind:value={get, set}` / `bind:group={get, set}` get/set form). Upstream
 /// calls the first expression (`b.call(expression.expressions[0])`) for the
-/// server-rendered value; here that get/set form is a KNOWN GAP (skipped).
+/// server-rendered value.
 fn bind_expr_is_sequence(bind: &BindDirective) -> bool {
     bind.expression.node_type() == Some("SequenceExpression")
+}
+
+/// Extract `expressions[0]` from a (read-wrapped) oxc `SequenceExpression` — the
+/// getter half of a `bind:x={get, set}` directive. Mirrors upstream's
+/// `expression.expressions[0]`. If `expr` is somehow not a sequence (shouldn't
+/// happen given `bind_expr_is_sequence` gated the caller), the expression is
+/// returned unchanged so the build stays correct-ish.
+fn sequence_first<'a>(
+    expr: OxcExpression<'a>,
+    state: &ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    if let OxcExpression::SequenceExpression(seq) = expr {
+        let mut seq = seq.unbox();
+        if !seq.expressions.is_empty() {
+            return seq.expressions.remove(0);
+        }
+        return state.b.id("undefined");
+    }
+    expr
 }
 
 /// Port of the `BindDirective` arm of `build_element_attributes`. Returns the
@@ -535,18 +558,30 @@ fn build_bind_directive<'a>(
     if bind_omit_in_ssr(name) {
         return None;
     }
-    // The get/set `{get, set}` sequence form: KNOWN GAP (skipped).
-    if bind_expr_is_sequence(bind) {
-        return None;
-    }
-
     // Content-producing binds emit NO attribute — they render as element CONTENT
     // instead, handled separately by [`build_element_content`] /
     // [`emit_content_body`] in `visit_regular_element`. So return `None` here.
     //   - `bind:innerHTML` / `bind:innerText` / `bind:textContent` → content
     //   - `bind:value` on `<textarea>` → escaped content
+    //
+    // Note: this is checked BEFORE the sequence-form handling because upstream's
+    // `build_element_attributes` first collapses the SequenceExpression to
+    // `b.call(expressions[0])` and only THEN dispatches on the bind name — so the
+    // get/set form of a content bind still routes to the content path.
     if is_content_editable_binding(name) || (name == "value" && node.name.as_str() == "textarea") {
         return None;
+    }
+
+    // The get/set `{get, set}` sequence form: collapse to `(getter)()` — upstream
+    // `if (expression.type === 'SequenceExpression') expression = b.call(expressions[0])`.
+    // This must happen before the general `bind:group` / attribute dispatch so that
+    // e.g. `bind:value={() => v, (x) => …}` renders as `$.attr('value', (() => v)())`.
+    if bind_expr_is_sequence(bind) {
+        let attr_name = get_bind_attribute_name(node, name);
+        let seq = state.visit_expr(&bind.expression);
+        let getter = sequence_first(seq, state);
+        let value = state.b.call(getter, vec![]);
+        return Some((attr_name, value));
     }
 
     // `bind:group` (non-sequence) → a synthetic `checked` attribute whose value

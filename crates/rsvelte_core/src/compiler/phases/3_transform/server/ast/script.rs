@@ -173,6 +173,7 @@ fn transform_script<'a>(
     script: &Script,
     state: &mut ServerTransformState<'a>,
     mut import_sink: Option<&mut Vec<Statement<'a>>>,
+    is_instance: bool,
 ) -> Vec<Statement<'a>> {
     let (Some(start), Some(end)) = (script.content.start(), script.content.end()) else {
         return Vec::new();
@@ -227,6 +228,41 @@ fn transform_script<'a>(
             }
             Statement::VariableDeclaration(vd) => {
                 out.extend(lower_variable_declaration(vd, src, state));
+            }
+            // INSTANCE-only `ExportNamedDeclaration` override (写经 the per-instance
+            // visitor added in `transform-server.js` line ~127): a declaration-less
+            // `export { a, b }` (accessor / re-export) is dropped (`b.empty`); an
+            // `export <decl>` unwraps to visiting the inner declaration (the
+            // `export` keyword is removed). The MODULE script uses the bare
+            // `global_visitors`, which has NO `ExportNamedDeclaration` visitor, so a
+            // module `export class` / `export const` is kept VERBATIM (export
+            // retained) — that falls through to the `other =>` catch-all below.
+            Statement::ExportNamedDeclaration(exp) if is_instance => {
+                match exp.declaration.as_ref() {
+                    None => {
+                        // `export { count }` → removed.
+                        continue;
+                    }
+                    Some(oxc_ast::ast::Declaration::VariableDeclaration(vd)) => {
+                        out.extend(lower_variable_declaration(vd, src, state));
+                    }
+                    Some(decl) => {
+                        // `export function` / `export class` → keep the inner
+                        // declaration verbatim (re-parsed from its source span)
+                        // with the same read-wrap every re-homed statement gets.
+                        let span = decl.span();
+                        let slice = &src[span.start as usize..span.end as usize];
+                        if let Some(mut rehomed) = state.reparse_statement(slice) {
+                            super::read_wrap::wrap_reads_in_statement(
+                                &mut rehomed,
+                                state.b,
+                                state.analysis,
+                                state.analysis.root.instance_scope_index,
+                            );
+                            out.push(rehomed);
+                        }
+                    }
+                }
             }
             Statement::ExpressionStatement(es) => {
                 if is_removed_effect_stmt(&es.expression) {
@@ -2392,7 +2428,7 @@ pub fn transform_instance<'a>(
     };
     let mut imports: Vec<Statement<'a>> = Vec::new();
     let body = if state.analysis.runes {
-        transform_script(script, state, Some(&mut imports))
+        transform_script(script, state, Some(&mut imports), true)
     } else {
         transform_script_legacy(script, state, Some(&mut imports), true)
     };
@@ -2463,7 +2499,7 @@ pub fn transform_module<'a>(
         return Vec::new();
     };
     if state.analysis.runes {
-        transform_script(script, state, None)
+        transform_script(script, state, None, false)
     } else {
         // Module (non-runes): no instance-scope props / reactive `$:` (a
         // top-level `$:` in a module body is NOT a reactive statement), so

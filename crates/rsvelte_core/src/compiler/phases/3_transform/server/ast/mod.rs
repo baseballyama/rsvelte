@@ -2624,6 +2624,97 @@ mod tests {
         oxc_codegen::Codegen::new().build(&parsed.program).code
     }
 
+    /// `bind:` directive + binding edge-case SSR parity with the (correct)
+    /// text-based `transform_server` oracle. Compared via [`canon_js`] (the same
+    /// canonicalizer the runtime harness uses), so a match means the runtime
+    /// suite passes.
+    ///
+    /// Root causes fixed:
+    /// - **get/set sequence bind** (`bind:value={() => v, (x) => …}`): the new
+    ///   pipeline dropped the GET-side attribute. Now collapses the
+    ///   `SequenceExpression` to `(getter)()` (写经 `b.call(expressions[0])`),
+    ///   emitting `$.attr('value', (() => v)())`. Covers `bind-getter-setter`,
+    ///   `binding-update-in-each`, `binding-update-while-focused-3`.
+    /// - **runes-mode `export { name }`**: the runes `transform_script` had no
+    ///   `ExportNamedDeclaration` arm, so a declaration-less re-export
+    ///   (accessor) was re-homed verbatim. Now dropped (写经 `b.empty`). Covers
+    ///   `accessors-props`.
+    ///
+    /// The `bind:this` fixtures (`bind-this-*`, `bind-getter-setter-2`) render
+    /// nothing server-side; they exercise the surrounding element / component /
+    /// `<svelte:component>` / each-block + `export const` codegen, which already
+    /// matched once the sequence + export arms were in place.
+    #[test]
+    fn ast_matches_oracle_bind_cluster() {
+        let samples: &[(&str, &str)] = &[
+            (
+                "bind-getter-setter",
+                "<script>\n\tlet a = $state(0);\n\tlet check = $state(true);\n</script>\n\n<button onclick={() => a++}>a: {a}</button>\n\n<input type=\"checkbox\"\nbind:checked={()=>check,\n(v)=>{\n\tcheck = v;\n}} />\n",
+            ),
+            (
+                "bindings-form-reset",
+                "<script>\n\tlet text = $state('text');\n\tlet checkbox = $state(true);\n\tlet radio_group = $state('a');\n\tlet checkbox_group = $state(['a']);\n\tlet select = $state('a');\n\tlet textarea = $state('textarea');\n</script>\n\n<form>\n\t<input bind:value={text} />\n\t<input type=\"checkbox\" bind:checked={checkbox} />\n\t<input type=\"radio\" name=\"radio\" value=\"a\" bind:group={radio_group} />\n\t<input type=\"checkbox\" name=\"checkbox\" value=\"a\" bind:group={checkbox_group} />\n\t<select bind:value={select}>\n\t\t<option value=\"a\">a</option>\n\t</select>\n\t<textarea bind:value={textarea}></textarea>\n</form>\n",
+            ),
+            (
+                "binding-update-in-each",
+                "<script>\n\tlet array = $state([{ value: 'a' }]);\n</script>\n\n{#each array as obj}\n\t<input bind:value={() => obj.value, (value) => array = [{ value }]} />\n\t<p>{obj.value}</p>\n{/each}\n",
+            ),
+            (
+                "binding-update-while-focused-3",
+                "<script>\n\tlet text = $state('A');\n</script>\n\n<input bind:value={() => text, (v) => text = v.toUpperCase()} />\n<p>{text}</p>\n",
+            ),
+            (
+                "props-assignment-tracking",
+                "<script>\n\tlet {display = true} = $props();\n</script>\n\n<button onclick={() => display = !display} >display</button>\n",
+            ),
+            (
+                "accessors-props",
+                "<script>\n\tlet { count=0 } = $props();\n\texport {\n\t\tcount\n\t}\n</script>\n\n<p>{count}</p>\n",
+            ),
+            (
+                "bind-getter-setter-2-child",
+                "<script>\n\tlet div = $state();\n\texport const someData = '123';\n</script>\n\n<div bind:this={() => div, v => div = v}>123</div>\n",
+            ),
+            (
+                "bind-getter-setter-2-main",
+                "<script>\n\timport Child from './Child.svelte';\n\tlet child = $state();\n</script>\n\n<Child bind:this={() => child, v => child = v} />\n",
+            ),
+            (
+                "bind-this-raw-compA",
+                "<script>\n\texport const a = {};\n</script>\n\n<div>a</div>\n",
+            ),
+            (
+                "bind-this-raw-main",
+                "<script>\n\timport ComponentA from './ComponentA.svelte';\n\tlet type = $state(ComponentA);\n\tlet elem = $state.raw();\n</script>\n\n<svelte:component this={type} bind:this={elem}>Content</svelte:component>\n",
+            ),
+            (
+                "bind-this-proxy-main",
+                "<script>\n\timport Component from './Component.svelte';\n\tlet type = $state(Component)\n\tlet elem = $state()\n</script>\n\n<svelte:component bind:this={elem} this={type}>\n\tContent\n</svelte:component>\n",
+            ),
+            (
+                "bind-this-proxy-deep-child",
+                "<script>\n\tconst props = $props();\n\texport const name = props.name;\n</script>\n",
+            ),
+            (
+                "bind-this-proxy-deep-main",
+                "<script>\n\timport Row from \"./Component.svelte\";\n\tconst nums = $state([]);\n\tconst rows = $derived(nums.map(n => ({id: n, name: `Row ${n}` })));\n\tconst refs = $state({});\n</script>\n\n{#each rows as row (row.id)}\n\t<Row name={row.name} bind:this={refs[row.id]} />\n{/each}\n",
+            ),
+            (
+                "binding-update-while-focused-2",
+                "<script>\n\tlet value = $state(0)\n\tconst min = 2\n\tconst max = 5\n\tfunction setValue() {\n\t\tif (value < min) {\n\t\t\tvalue = min\n\t\t}\n\t}\n</script>\n\n<p>{value}</p>\n<input type=\"number\" bind:value />\n",
+            ),
+        ];
+        for (name, src) in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            assert_eq!(
+                canon_js(&ours),
+                canon_js(&oracle),
+                "\n[{name}] AST server output diverged from oracle.\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+            );
+        }
+    }
+
     /// EACH-block + destructuring SSR parity with the (correct) `transform_server`
     /// oracle for the runtime fixtures in this cluster. Compared with
     /// [`canon_js`] — the same canonicalizer the runtime harness uses — so a
