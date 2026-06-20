@@ -15,6 +15,7 @@
 //! This module is NOT yet wired into [`super::transform_server`]; it exists so
 //! the crate keeps compiling while the AST pipeline is built out.
 
+pub mod script;
 pub mod visitors;
 
 use crate::ast::js::Expression;
@@ -188,6 +189,68 @@ impl<'a> ServerTransformState<'a> {
     pub fn reparse_slice_owned(&self, src: &str) -> Option<OxcExpression<'a>> {
         reparse_expression(src.trim(), self.allocator)
     }
+
+    /// Re-parse a complete statement `src` slice into the STATE allocator,
+    /// returning its first top-level statement. Used by the script transform to
+    /// rehome kept / hoisted statements (imports, functions, expression
+    /// statements) from the throwaway classification arena into the output AST.
+    pub fn reparse_statement(&self, src: &str) -> Option<Statement<'a>> {
+        let owned = self.allocator.alloc_str(src.trim());
+        let ret =
+            oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return None;
+        }
+        ret.program.body.into_iter().next()
+    }
+
+    /// Re-parse a single declarator slice (`x = init` / `{ a } = init`) by
+    /// wrapping it as `let <slice>;`, returning the `(pattern, init)` pair. Used
+    /// for the non-rune declarator passthrough.
+    pub fn reparse_declarator(
+        &self,
+        src: &str,
+        _kind: oxc_ast::ast::VariableDeclarationKind,
+    ) -> Option<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> {
+        let wrapped = format!("let {};", src.trim());
+        let owned = self.allocator.alloc_str(&wrapped);
+        let ret =
+            oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return None;
+        }
+        for stmt in ret.program.body {
+            if let Statement::VariableDeclaration(vd) = stmt {
+                let mut vd = vd.unbox();
+                if let Some(d) = vd.declarations.pop() {
+                    return Some((d.id, d.init));
+                }
+            }
+        }
+        None
+    }
+
+    /// Re-parse a binding pattern slice (`x` / `{ a, b }` / `[a, b]`) into the
+    /// state allocator by wrapping it as `let <slice> = 0;` and extracting the
+    /// pattern. Used to keep a rune declarator's LHS pattern verbatim.
+    pub fn reparse_pattern(&self, src: &str) -> Option<oxc_ast::ast::BindingPattern<'a>> {
+        let wrapped = format!("let {} = 0;", src.trim());
+        let owned = self.allocator.alloc_str(&wrapped);
+        let ret =
+            oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return None;
+        }
+        for stmt in ret.program.body {
+            if let Statement::VariableDeclaration(vd) = stmt {
+                let mut vd = vd.unbox();
+                if let Some(d) = vd.declarations.pop() {
+                    return Some(d.id);
+                }
+            }
+        }
+        None
+    }
 }
 
 /// Re-parse a JS expression source slice with oxc and return its first
@@ -293,11 +356,27 @@ pub fn server_component_ast<'a>(
         ));
     }
 
+    // -- module-script body (module scope) ----------------------------------
+    // Upstream emits `[...hoisted, ...module.body]` at module scope. We append
+    // the lowered module statements onto `hoisted` (after the namespace import).
+    // (NON-DELICATE slice — only the localized rune lowerings; KNOWN GAPS:
+    // derived-read wrapping / store-get / snapshot / $$sanitized_props.)
+    let module_body = script::transform_module(ast, &mut state);
+    state.hoisted.extend(module_body);
+
+    // -- instance-script body -----------------------------------------------
+    // Upstream's component block is `[...instance.body, ...template.body]` (with
+    // the props prologue prepended). The instance statements therefore go BEFORE
+    // the template pushes, right after the prologue we just built. Instance
+    // imports are hoisted onto `state.hoisted` inside `transform_instance`.
+    let instance_body = script::transform_instance(ast, &mut state);
+    state.body.extend(instance_body);
+
     // -- template body ------------------------------------------------------
     // Walk the root fragment through process_children + build_template, then
-    // append the coalesced `$$renderer.push(...)` statements. (Instance-body
-    // statements, bind_props, store-subs cleanup, props_id, $$renderer.component
-    // wrapper, etc. are still TODO.)
+    // append the coalesced `$$renderer.push(...)` statements. (bind_props,
+    // store-subs cleanup, props_id, $$renderer.component wrapper, etc. are still
+    // TODO.)
     state.is_standalone = ServerTransformState::is_standalone_fragment(&ast.fragment.nodes);
     let template_body = visitors::shared::build_fragment_body(&ast.fragment, &mut state);
     state.body.extend(template_body);
@@ -625,6 +704,120 @@ mod tests {
             out.contains("export default function App"),
             "missing exported component shell:\n{out}"
         );
+    }
+
+    /// Instance / module SCRIPT transform — the NON-DELICATE rune lowerings.
+    /// Compares the AST pipeline against the `transform_server` oracle for
+    /// components whose script/value expressions contain NO derived/store reads
+    /// (so the deferred delicate read-rewriting pass isn't needed). DIFFs that
+    /// are attributable to a documented GAP assert on the matching portion.
+    #[test]
+    fn ast_matches_oracle_script_samples() {
+        // (src, instance-body line that MUST appear identically in both)
+        let cases: &[(&str, &str)] = &[
+            // $state(0) -> let count = 0;
+            (
+                "<script>let count = $state(0);</script><p>{count}</p>",
+                "let count = 0;",
+            ),
+            // $effect removed; only `let n = 5;` remains in the instance body.
+            (
+                "<script>let n = $state(5); $effect(() => console.log(n));</script><p>{n}</p>",
+                "let n = 5;",
+            ),
+            // $props() -> let { a } = $$props;
+            (
+                "<script>let { a } = $props();</script><p>{a}</p>",
+                "let { a } = $$props;",
+            ),
+            // $derived(literal) -> let d = $.derived(() => 2 + 3);
+            (
+                "<script>let d = $derived(2 + 3);</script><p>{d}</p>",
+                "let d = $.derived(() => 2 + 3);",
+            ),
+            // import hoisted + $state(x) -> let c = x;
+            (
+                "<script>import { x } from './x.js'; let c = $state(x);</script><p>{c}</p>",
+                "let c = x;",
+            ),
+            // $state.raw -> bare arg
+            (
+                "<script>let r = $state.raw(7);</script><p>x</p>",
+                "let r = 7;",
+            ),
+            // $derived.by(fn) -> $.derived(fn)
+            (
+                "<script>let d = $derived.by(() => 1 + 1);</script><p>x</p>",
+                "let d = $.derived(() => 1 + 1);",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let on = norm(&ours);
+            let want = norm(must_have);
+            let ok = on.contains(&want);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if ok { "OK" } else { "MISSING" }
+            );
+            // The oracle must ALSO contain the same instance line (sanity: our
+            // lowering tracks upstream's).
+            if !ok || !norm(&oracle).contains(&want) {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "instance-script lowering differs from oracle for: {failures:?}"
+        );
+    }
+
+    /// `$props.id()` declarators are DROPPED from the instance body (mirrors the
+    /// VariableDeclaration visitor's `skip`). NOTE: the oracle re-emits it as
+    /// `const uid = $.props_id($$renderer);` via the separate `analysis.props_id`
+    /// assembly path — that re-emission is a KNOWN GAP in this slice, so the AST
+    /// output simply omits the declarator entirely.
+    #[test]
+    fn props_id_dropped() {
+        let out = run("<script>const uid = $props.id();</script><p>x</p>");
+        assert!(
+            !out.contains("$props.id"),
+            "$props.id declarator should be dropped:\n{out}"
+        );
+    }
+
+    /// Module-script declarations are emitted at MODULE scope (before the
+    /// component function), not inside the component body.
+    #[test]
+    fn module_script_at_module_scope() {
+        let out = run(
+            "<script module>const SHARED = 42;</script><script>let c = $state(0);</script><p>x</p>",
+        );
+        // `const SHARED = 42;` appears before `export default function App`.
+        let idx_shared = out.find("const SHARED = 42;");
+        let idx_fn = out.find("export default function App");
+        assert!(idx_shared.is_some(), "missing module decl:\n{out}");
+        assert!(idx_fn.is_some());
+        assert!(
+            idx_shared.unwrap() < idx_fn.unwrap(),
+            "module decl must be at module scope (before component fn):\n{out}"
+        );
+        assert!(out.contains("let c = 0;"), "missing instance decl:\n{out}");
+    }
+
+    /// TypeScript instance scripts are a KNOWN GAP: skipped (empty instance
+    /// body), the component still assembles.
+    #[test]
+    fn typescript_script_known_gap() {
+        let out = run("<script lang=\"ts\">let n: number = $state(0);</script><p>x</p>");
+        // No instance statement emitted (TS skipped) — but the shell is intact.
+        assert!(
+            out.contains("export default function App"),
+            "shell missing:\n{out}"
+        );
+        assert!(!out.contains("let n"), "TS body should be skipped:\n{out}");
     }
 
     #[test]

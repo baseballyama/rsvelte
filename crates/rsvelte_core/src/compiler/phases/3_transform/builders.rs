@@ -607,6 +607,31 @@ impl<'a> B<'a> {
         self.let_decl(pat, init)
     }
 
+    /// Build a (possibly multi-declarator) variable declaration STATEMENT from
+    /// `(pattern, init)` pairs sharing one `kind` — the general form used by the
+    /// script transform when re-assembling a lowered declaration.
+    pub fn var_decl_from_pairs(
+        self,
+        kind: VariableDeclarationKind,
+        pairs: Vec<(BindingPattern<'a>, Option<Expression<'a>>)>,
+    ) -> Statement<'a> {
+        let mut declarators = self.ab.vec_with_capacity(pairs.len());
+        for (pat, init) in pairs {
+            declarators.push(self.ab.variable_declarator(
+                SPAN,
+                kind,
+                pat,
+                oxc_ast::NONE,
+                init,
+                false,
+            ));
+        }
+        let decl = self
+            .ab
+            .alloc_variable_declaration(SPAN, kind, declarators, false);
+        Statement::VariableDeclaration(decl)
+    }
+
     fn declaration(
         self,
         kind: VariableDeclarationKind,
@@ -1042,6 +1067,22 @@ mod tests {
             out.trim(),
             "for (let i = 0, $$length = arr.length; i < $$length; i++) {}"
         );
+    }
+
+    #[test]
+    fn var_decl_from_pairs_multi() {
+        // let a = 1, b = $.derived(() => 2);
+        let out = print(|b| {
+            let pairs = vec![
+                (b.id_pat("a"), Some(b.number(1.0))),
+                (
+                    b.id_pat("b"),
+                    Some(b.call("$.derived", vec![b.thunk(b.number(2.0), false)])),
+                ),
+            ];
+            vec![b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs)]
+        });
+        assert_eq!(out.trim(), "let a = 1, b = $.derived(() => 2);");
     }
 
     /// Architectural spike: prove an oxc 0.136 AST parsed from source can be
