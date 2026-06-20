@@ -643,9 +643,29 @@ pub fn build_fragment_body<'a>(
     let saved_async_consts = state.async_consts.take();
     let saved_blocker_map = state.const_blocker_map.clone();
 
+    // 写经 upstream `SnippetBlock.js`: a NON-hoistable snippet pushes its function
+    // declaration onto the ENCLOSING render scope's `state.init`. Each fragment
+    // body (root component, block bodies, snippet bodies) is its own init scope,
+    // so save/restore `snippet_inits` around this fragment: snippets collected
+    // while walking THIS fragment's children (including those nested in inline
+    // RegularElements, which do not open a new init scope) belong here and are
+    // prepended to this fragment's body; a parent scope's pending inits are
+    // restored afterward.
+    let saved_snippet_inits = std::mem::take(&mut state.snippet_inits);
+
     process_children_inner(&fragment.nodes, None, "html", is_text_first_parent, state);
     let template = std::mem::replace(&mut state.template, saved);
     let mut body = build_template(template, state);
+
+    // Prepend this fragment's non-hoistable snippet function declarations to the
+    // front of the body (ahead of the rendered template), then restore the
+    // parent scope's pending inits.
+    let fragment_snippet_inits = std::mem::replace(&mut state.snippet_inits, saved_snippet_inits);
+    if !fragment_snippet_inits.is_empty() {
+        let mut prelude = fragment_snippet_inits;
+        prelude.append(&mut body);
+        body = prelude;
+    }
 
     // 写经 `Fragment.js`: when this fragment opened an async `{@const}` group,
     // prepend `let a; let b; var promises = $$renderer.run([thunks…]);` ahead of

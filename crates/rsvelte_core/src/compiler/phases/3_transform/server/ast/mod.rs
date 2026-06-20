@@ -586,19 +586,14 @@ pub fn server_component_ast<'a>(
     state.is_standalone = ServerTransformState::is_standalone_fragment(&ast.fragment.nodes);
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
+    // 写经 upstream `SnippetBlock.js`: NON-hoistable snippet function
+    // declarations are emitted into the enclosing render scope's `state.init`.
+    // `build_fragment_body` collects them per-fragment (see `state.snippet_inits`)
+    // and prepends them to the front of each fragment body — so for the ROOT
+    // fragment they already sit at the head of `template_body` (ahead of the
+    // rendered template, after the instance body), and for block-nested snippets
+    // they stay inside their block body. No extra splice is needed here.
     let template_body = visitors::shared::build_fragment_body(&ast.fragment, true, &mut state);
-
-    // -- non-hoistable snippet `init` declarations --------------------------
-    // 写经 upstream `SnippetBlock.js`: a snippet whose `metadata.can_hoist` is
-    // false is emitted into the SHARED component-level `state.init` (not module
-    // scope, and not the per-fragment template) — regardless of nesting depth.
-    // They are appended to `state.init` DURING the template walk, so in the final
-    // component block they sit AFTER the instance body but BEFORE the rendered
-    // template (and, when present, ahead of the `$$render_inner` settle loop).
-    // `build_fragment_body` collected them into `state.snippet_inits`; splice them
-    // in here.
-    let snippet_inits = std::mem::take(&mut state.snippet_inits);
-    state.body.extend(snippet_inits);
 
     // -- component-bindings settle-loop (upstream lines 178-211) ------------
     // If the component binds to a child (`<Child bind:value={v} />`), legacy
@@ -3994,6 +3989,8 @@ mod tests {
             "{#snippet test(param = \"default\")}\n    <p>{param}</p>\n{/snippet}\n\n{@render test()}\n",
             // non-hoistable snippet nested inside elements → component-body init.
             "<script>\n\tlet numbers = $state([1, 2, 3]);\n</script>\n\n<div>\n\t<div>\n\t\t{#snippet x(n)}\n\t\t\t<p>{n}</p>\n\t\t{/snippet}\n\t\t{#each numbers as n}\n\t\t\t{@render x(n)}\n\t\t{/each}\n\t</div>\n</div>\n",
+            // snippet-as-slot with destructured params (component.rs path).
+            "<script>\n\timport Child from './Child.svelte';\n</script>\n\n<Child>\n\t{#snippet children({ foo })}\n\t\tDefault {foo}\n\t{/snippet}\n\t{#snippet named({ bar })}\n\t\tNamed {bar}\n\t{/snippet}\n</Child>\n",
         ];
         let mut mismatches = Vec::new();
         for src in samples {

@@ -483,15 +483,19 @@ fn build_snippet_declaration<'a>(
     state: &mut ServerTransformState<'a>,
 ) -> Statement<'a> {
     let b = state.b;
-    let mut patterns = vec![b.id_pat("$$renderer")];
+    // Emit the declared parameters VERBATIM (destructuring patterns / defaults),
+    // mirroring `visit_snippet_block` — a slot snippet `{#snippet children({ foo })}`
+    // must produce `function children($$renderer, { foo })`, not `…, undefined`.
+    let mut param_srcs: Vec<String> = vec!["$$renderer".to_string()];
     for param in &snippet.parameters {
-        let pat_name = param
-            .identifier_name()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "undefined".to_string());
-        patterns.push(b.id_pat(&pat_name));
+        let s = super::snippet_block::extract_snippet_param(param, state.source);
+        if !s.is_empty() {
+            param_srcs.push(s);
+        }
     }
-    let params = b.params(patterns, None);
+    let params = state
+        .reparse_params(&param_srcs)
+        .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
     // SnippetBlock body IS an `is_text_first` parent.
     let body_block = super::shared::build_fragment_body(&snippet.body, true, state);
     let fn_body = state.b.body(body_block);

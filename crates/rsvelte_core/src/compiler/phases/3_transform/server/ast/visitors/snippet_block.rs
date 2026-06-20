@@ -86,7 +86,7 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock, state: &mut ServerTransformS
 /// `AssignmentPattern` (default value) keeps `<lhs> = <rhs>` (parenthesizing a
 /// `SequenceExpression` default), and `ObjectPattern`/`ArrayPattern`/identifier
 /// patterns are taken from the source span with the type annotation stripped.
-fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &str) -> String {
+pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &str) -> String {
     let json = expr.as_json();
     let node_type = json.get("type").and_then(Value::as_str).unwrap_or("");
 
