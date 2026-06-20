@@ -35,7 +35,18 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
 
     // -- children -----------------------------------------------------------
     if !is_void {
-        process_children(&node.fragment.nodes, state);
+        // Determine the child namespace from analysis metadata (svg / mathml /
+        // html), mirroring upstream's `determine_namespace_for_children`. The
+        // RegularElement parent drives the `<pre>` / `<select>` / table /
+        // svg whitespace special-cases inside `process_children`.
+        let namespace = if node.metadata.svg {
+            "svg"
+        } else if node.metadata.mathml {
+            "mathml"
+        } else {
+            "html"
+        };
+        process_children(&node.fragment.nodes, Some(node), namespace, state);
         state
             .template
             .push(TemplateEntry::Literal(format!("</{name}>")));

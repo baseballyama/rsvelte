@@ -37,7 +37,7 @@ pub fn visit_title_element<'a>(node: &TitleElement, state: &mut ServerTransformS
     state
         .template
         .push(TemplateEntry::Literal("<title>".to_string()));
-    process_children(&node.fragment.nodes, state);
+    process_children(&node.fragment.nodes, None, "html", state);
     state
         .template
         .push(TemplateEntry::Literal("</title>".to_string()));

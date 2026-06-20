@@ -19,10 +19,16 @@
 //! `build_template`.
 
 use crate::ast::js::Expression;
-use crate::ast::template::{Fragment, TemplateNode};
+use crate::ast::template::{Fragment, RegularElement, TemplateNode, Text};
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use crate::compiler::phases::phase3_transform::shared::template::escape_html;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, replace_leading_whitespace, replace_trailing_whitespace,
+    svelte_trim_end, svelte_trim_start,
+};
+use compact_str::CompactString;
 use oxc_ast::ast::{Expression as OxcExpression, Statement};
+use std::borrow::Cow;
 
 /// SSR hydration markers — the Rust mirror of the `b.literal(...)` constants in
 /// upstream `shared/utils.js` (which derive from `internal/server/hydration.js`):
@@ -59,22 +65,170 @@ pub enum TemplateEntry<'a> {
 /// expressions is not yet ported, so every `{expr}` becomes a runtime
 /// `$.escape(...)` interpolation. Async expression tags
 /// (`node.metadata.expression.is_async()`) are also not handled (TODO).
-pub fn process_children<'a>(nodes: &[TemplateNode], state: &mut ServerTransformState<'a>) {
+///
+/// `parent` / `namespace` are passed through to [`clean_whitespace`] so the
+/// leading/trailing fragment trim, internal whitespace collapse, and the
+/// `<pre>` / `<select>` / `<table>` / SVG special-cases match upstream's
+/// `clean_nodes` + `trim_whitespace` exactly.
+pub fn process_children<'a>(
+    nodes: &[TemplateNode],
+    parent: Option<&RegularElement>,
+    namespace: &str,
+    state: &mut ServerTransformState<'a>,
+) {
+    let preserve_whitespace = state.options.preserve_whitespace
+        || parent.is_some_and(|el| matches!(el.name.as_str(), "pre" | "textarea"));
+    let cleaned = clean_whitespace(nodes, parent, namespace, preserve_whitespace);
+
     let mut sequence: Vec<SeqNode<'_>> = Vec::new();
 
-    for node in nodes {
-        match node {
+    for node in &cleaned {
+        match node.as_ref() {
             TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_str())),
             TemplateNode::Comment(c) => sequence.push(SeqNode::Comment(c.data.as_str())),
-            TemplateNode::ExpressionTag(tag) => sequence.push(SeqNode::Expr(&tag.expression)),
+            TemplateNode::ExpressionTag(tag) => {
+                // SAFETY-of-borrow: `tag` lives in `cleaned`, but the expression
+                // it references is owned by the ORIGINAL `nodes` (every cleaned
+                // node is `Cow::Borrowed`, EXCEPT rewritten Text nodes — and Text
+                // nodes never carry an expression). So `&tag.expression`'s
+                // lifetime is tied to `nodes`, which outlives this call. We
+                // re-borrow from the original node to make that explicit.
+                sequence.push(SeqNode::Expr(&tag.expression));
+            }
             other => {
                 flush_sequence(&sequence, state);
                 sequence.clear();
+                // `other` is borrowed from `cleaned`; for non-text structural
+                // nodes the Cow is always `Borrowed`, so this points back into
+                // the original `nodes` arena and the recursion is valid.
                 super::visit_node(other, state);
             }
         }
     }
     flush_sequence(&sequence, state);
+}
+
+/// Normalize template-text whitespace to match upstream's `clean_nodes` +
+/// `trim_whitespace`
+/// (`submodules/svelte/.../3-transform/utils.js` lines 173-263).
+///
+/// Unlike the full `clean_nodes`, this keeps ALL nodes in place — it does NOT
+/// split out hoisted nodes (`{@const}` / `{#snippet}` / `<svelte:head>` / …) or
+/// strip comments, because the AST server pipeline handles those concerns in its
+/// own visitors. It only rewrites `Text` node `data` (and drops whitespace-only
+/// text at fragment boundaries / in `can_remove_entirely` parents), which is the
+/// whitespace lever this port targets.
+///
+/// Rules (verbatim from upstream):
+/// - With `preserve_whitespace`, every node passes through untouched.
+/// - Leading / trailing whitespace-only Text nodes are dropped; the first/last
+///   surviving Text node has its leading/trailing whitespace trimmed entirely.
+/// - Between nodes, a Text run's leading whitespace collapses to a single space
+///   (or to `''` when the previous Text already ended with whitespace), unless
+///   the previous sibling is an `ExpressionTag` (then it is preserved verbatim).
+///   Trailing whitespace collapses to a single space unless the next sibling is
+///   an `ExpressionTag`.
+/// - A Text node that reduces to a single `' '` is dropped entirely when the
+///   parent is a `select` / `tr` / `table` / `tbody` / `thead` / `tfoot` /
+///   `colgroup` / `datalist`, or any non-`text` SVG element (`can_remove_entirely`).
+/// - The first Text node inside `<pre>` is dropped if it is a lone `\n` / `\r\n`.
+fn clean_whitespace<'n>(
+    nodes: &'n [TemplateNode],
+    parent: Option<&RegularElement>,
+    namespace: &str,
+    preserve_whitespace: bool,
+) -> Vec<Cow<'n, TemplateNode>> {
+    if preserve_whitespace {
+        return nodes.iter().map(Cow::Borrowed).collect();
+    }
+
+    // Find the first / last non-whitespace-only nodes (the trimmable window).
+    let is_ws_text = |n: &TemplateNode| match n {
+        TemplateNode::Text(t) => is_svelte_whitespace_only(&t.data),
+        _ => false,
+    };
+    let start = nodes.iter().position(|n| !is_ws_text(n));
+    let Some(start) = start else {
+        // Entire run is whitespace-only text: nothing survives.
+        return Vec::new();
+    };
+    let end = nodes.iter().rposition(|n| !is_ws_text(n)).unwrap() + 1;
+    let window = &nodes[start..end];
+
+    let can_remove_entirely = match parent {
+        Some(el) => matches!(
+            el.name.as_str(),
+            "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
+        ),
+        None => false,
+    } || (namespace == "svg"
+        && !matches!(parent, Some(el) if el.name.as_str() == "text"));
+
+    let last_idx = window.len() - 1;
+    let mut out: Vec<Cow<'n, TemplateNode>> = Vec::with_capacity(window.len());
+    let mut prev_ends_with_ws = false;
+    let mut prev_is_expression_tag = false;
+
+    for (i, node) in window.iter().enumerate() {
+        let TemplateNode::Text(text) = node else {
+            prev_ends_with_ws = false;
+            prev_is_expression_tag = matches!(node, TemplateNode::ExpressionTag(_));
+            out.push(Cow::Borrowed(node));
+            continue;
+        };
+
+        let mut data: Cow<'_, str> = Cow::Borrowed(text.data.as_str());
+
+        // Trim the very first / last Text node's outer whitespace entirely.
+        if i == 0 {
+            data = Cow::Owned(svelte_trim_start(&data).to_string());
+        }
+        if i == last_idx {
+            data = Cow::Owned(svelte_trim_end(&data).to_string());
+        }
+
+        // Collapse leading whitespace (unless preceded by an ExpressionTag).
+        if !prev_is_expression_tag {
+            let replacement = if prev_ends_with_ws { "" } else { " " };
+            let replaced = replace_leading_whitespace(&data, replacement);
+            data = Cow::Owned(replaced);
+        }
+
+        // Collapse trailing whitespace (unless followed by an ExpressionTag).
+        let next_is_expression_tag = window
+            .get(i + 1)
+            .is_some_and(|n| matches!(n, TemplateNode::ExpressionTag(_)));
+        if !next_is_expression_tag {
+            let replaced = replace_trailing_whitespace(&data, " ");
+            data = Cow::Owned(replaced);
+        }
+
+        prev_ends_with_ws = data.as_bytes().last() == Some(&b' ');
+        prev_is_expression_tag = false;
+
+        // Drop empty / collapsible-only text where the parent forbids it.
+        if data.is_empty() || (data.as_ref() == " " && can_remove_entirely) {
+            continue;
+        }
+
+        if data.as_ref() == text.data.as_str() {
+            out.push(Cow::Borrowed(node));
+        } else {
+            let mut new_text: Text = text.clone();
+            new_text.data = CompactString::new(data.as_ref());
+            out.push(Cow::Owned(TemplateNode::Text(new_text)));
+        }
+    }
+
+    // `<pre>`: drop a leading lone-newline Text node (browser would re-add it).
+    if matches!(parent, Some(el) if el.name.as_str() == "pre")
+        && let Some(TemplateNode::Text(t)) = out.first().map(|c| c.as_ref())
+        && (t.data.as_str() == "\n" || t.data.as_str() == "\r\n")
+    {
+        out.remove(0);
+    }
+
+    out
 }
 
 /// A joinable sibling captured during [`process_children`].
@@ -206,8 +360,13 @@ pub fn build_fragment_body<'a>(
     fragment: &Fragment,
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
+    // Fragment-level bodies (root component, block bodies, `<svelte:head>` /
+    // `<svelte:element>` children, snippets) have NO RegularElement parent, so
+    // the `<pre>` / `<select>` / table special-cases don't apply and the
+    // namespace is the default `html`. Element children route through
+    // [`process_children`] directly with their real parent/namespace.
     let saved = std::mem::take(&mut state.template);
-    process_children(&fragment.nodes, state);
+    process_children(&fragment.nodes, None, "html", state);
     let template = std::mem::replace(&mut state.template, saved);
     build_template(template, state)
 }

@@ -727,6 +727,44 @@ mod tests {
         super::super::transform_server(&analysis, &ast, source, &options).expect("server")
     }
 
+    /// Whitespace normalization parity with the `transform_server` oracle.
+    /// Each sample exercises a distinct `clean_nodes` rule: inter-element
+    /// whitespace collapse, internal-run handling, nested-list trimming, and
+    /// the `<pre>` preserve path. All must match the oracle byte-for-byte
+    /// (after the shared `norm` trailing-trim/blank-strip normalization).
+    #[test]
+    fn ast_matches_oracle_whitespace_samples() {
+        let samples = [
+            // Inter-element newline collapses to a single space.
+            "<div></div>\n<div></div>",
+            // Internal whitespace run preserved (no leading/trailing here, the
+            // <p> is the fragment-boundary trim target).
+            "<p>  a   b  </p>",
+            // Nested list: newline+indent between <li> collapses to a space,
+            // leading/trailing fragment whitespace trimmed.
+            "<ul>\n  <li>x</li>\n  <li>y</li>\n</ul>",
+            // <pre>: internal newlines preserved verbatim (preserve_whitespace).
+            "<pre>a\n  b\n    c</pre>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src:?} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "AST whitespace output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn trivial_component_skeleton() {
         let out = run("<p>hello</p>");
