@@ -785,4 +785,42 @@ mod tests {
         let out = print(|b| vec![b.stmt(b.member_id("a.b.c"))]);
         assert_eq!(out.trim(), "a.b.c;");
     }
+
+    /// Architectural spike: prove an oxc 0.136 AST parsed from source can be
+    /// MUTATED IN PLACE through `&mut` (no `VisitMut`, no text splicing) and
+    /// re-printed with esrap. This is the core mechanism of the Phase-3 rewrite:
+    /// parse JS faithfully with oxc, transform the oxc AST by hand-written
+    /// mutable recursive descent, print once. Lowers `$state(0)` -> `$.state(0)`.
+    #[test]
+    fn spike_inplace_oxc_mutation() {
+        use oxc_ast::ast::{Expression, Statement};
+        let allocator = oxc_allocator::Allocator::default();
+        let src = "const x = $state(0);";
+        let mut ret = oxc_parser::Parser::new(&allocator, src, oxc_span::SourceType::mjs()).parse();
+        assert!(
+            ret.diagnostics.is_empty(),
+            "parse errors: {:?}",
+            ret.diagnostics
+        );
+        let b = B::new(&allocator);
+
+        // Walk mutably: find the `$state(...)` call and replace its callee.
+        for stmt in ret.program.body.iter_mut() {
+            if let Statement::VariableDeclaration(vd) = stmt {
+                for d in vd.declarations.iter_mut() {
+                    if let Some(Expression::CallExpression(call)) = &mut d.init {
+                        if let Expression::Identifier(id) = &call.callee {
+                            if id.name == "$state" {
+                                // In-place replacement of the callee node.
+                                call.callee = b.id("$.state");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let out = rsvelte_esrap::print(&ret.program, src);
+        assert_eq!(out.trim(), "const x = $.state(0);");
+    }
 }
