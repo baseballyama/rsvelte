@@ -3733,4 +3733,103 @@ mod tests {
         }
         eprintln!("\n==============================================================\n");
     }
+
+    /// Legacy reactive `$: …` SSR completeness — every shape must match the
+    /// `transform_server` oracle byte-for-byte (modulo blank lines). Covers:
+    /// store reads inside the body (`$x` → `$.store_get`), parenthesized
+    /// destructure assigns (`$: ({ a } = obj)` hoists `let a`), nested-block /
+    /// conditional bodies with reads, prop / `$$props` reads, and topological
+    /// reordering of interdependent statements (both statement order AND the
+    /// hoisted `let` declaration order follow the dependency sort).
+    #[test]
+    fn reactive_statement_ssr_shapes() {
+        let cases: &[(&str, &str)] = &[
+            (
+                "simple-assign-reader",
+                "<script>let count = 0;\n$: doubled = count * 2;</script>{doubled}",
+            ),
+            (
+                "block",
+                "<script>let count = 0;\nfunction sideEffect(x){}\n$: { sideEffect(count); }</script>",
+            ),
+            (
+                "conditional",
+                "<script>let x = 0;\nlet y = 0;\n$: if (x) y = 1;</script>{y}",
+            ),
+            (
+                "destructure-assign",
+                "<script>let obj = {a:1};\n$: ({ a } = obj);</script>{a}",
+            ),
+            (
+                "expr-stmt",
+                "<script>let count = 0;\n$: console.log(count);</script>",
+            ),
+            (
+                "interdep-source-order",
+                "<script>let a = 1;\n$: b = a * 2;\n$: c = b + 1;</script>{c}",
+            ),
+            (
+                "store-read",
+                "<script>import {writable} from 'svelte/store';\nlet x = writable(0);\n$: doubled = $x * 2;</script>{doubled}",
+            ),
+            (
+                "prop-read",
+                "<script>export let count;\n$: doubled = count * 2;</script>{doubled}",
+            ),
+            (
+                "store-in-block",
+                "<script>import {writable} from 'svelte/store';\nlet x = writable(0);\nfunction log(v){}\n$: { log($x); }</script>",
+            ),
+            (
+                "store-in-cond",
+                "<script>import {writable} from 'svelte/store';\nlet x = writable(0);\nlet y = 0;\n$: if ($x) y = 1;</script>{y}",
+            ),
+            (
+                "reorder-two",
+                "<script>let a = 1;\n$: c = b + 1;\n$: b = a * 2;</script>{c}",
+            ),
+            (
+                "reorder-chain3",
+                "<script>let a = 1;\n$: d = c + 1;\n$: c = b + 1;\n$: b = a + 1;</script>{d}",
+            ),
+            (
+                "reorder-block-read",
+                "<script>let a = 1;\nfunction log(v){}\n$: log(c);\n$: c = a * 2;</script>",
+            ),
+            (
+                "props-spread",
+                "<script>let foo = 0;\n$: bar = { ...$$props, foo };</script>{bar}",
+            ),
+            (
+                "member-write-no-hoist",
+                "<script>let obj = {};\nlet count = 0;\n$: obj.x = count;</script>",
+            ),
+            (
+                "multi-decl-destructure",
+                "<script>let a = 0;\n$: ({ x, y } = { x: a, y: a });</script>{x}{y}",
+            ),
+            (
+                "independent-keep-source-order",
+                "<script>let a = 1;\nlet b = 2;\n$: x = a;\n$: y = b;</script>{x}{y}",
+            ),
+        ];
+        for (name, src) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let n: Vec<&str> = ours
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect();
+            let o: Vec<&str> = oracle
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect();
+            assert_eq!(
+                n, o,
+                "reactive shape `{name}` diverged from oracle.\n--- NEW ---\n{ours}\n--- ORACLE ---\n{oracle}"
+            );
+        }
+    }
 }

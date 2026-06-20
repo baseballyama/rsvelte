@@ -39,7 +39,7 @@
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 use crate::compiler::phases::phase3_transform::builders::B;
-use oxc_ast::ast::Expression;
+use oxc_ast::ast::{Expression, Statement};
 use oxc_ast_visit::VisitMut;
 
 /// The in-place read-wrapping visitor. Holds the builder (for synthesizing the
@@ -162,4 +162,24 @@ pub fn wrap_reads<'a>(
         scope_idx,
     };
     visitor.visit_expression(expr);
+}
+
+/// Apply the read-wrapping pass to an entire `stmt` in place — every identifier
+/// READ inside the statement (RHS of assignments, `if`/loop tests, call args,
+/// nested block bodies, …) is wrapped per its Phase-2 binding kind. Used for
+/// legacy reactive `$: …` bodies, mirroring upstream's `context.visit(node.body)`
+/// in `server/visitors/LabeledStatement.js` (the statement body is visited by the
+/// global `Identifier` visitor exactly like any other instance statement).
+pub fn wrap_reads_in_statement<'a>(
+    stmt: &mut Statement<'a>,
+    b: B<'a>,
+    analysis: &ComponentAnalysis,
+    scope_idx: usize,
+) {
+    let mut visitor = ReadWrap {
+        b,
+        analysis,
+        scope_idx,
+    };
+    visitor.visit_statement(stmt);
 }

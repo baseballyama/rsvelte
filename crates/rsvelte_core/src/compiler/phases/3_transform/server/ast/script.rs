@@ -581,10 +581,10 @@ fn transform_script_legacy<'a>(
     let mut out: Vec<Statement<'a>> = Vec::new();
     // Reactive `$:` statements are appended AFTER all other statements (mirrors
     // upstream's `for (const [node] of analysis.reactive_statements) instance
-    // .body.push(statement[1])`). Collected here, flushed at the end.
-    let mut reactive: Vec<Statement<'a>> = Vec::new();
-    // legacy_reactive var names that need a hoisted `let <names>;` declaration.
-    let mut reactive_decl_names: Vec<String> = Vec::new();
+    // .body.push(statement[1])`). Collected (in source order) here together with
+    // their assignment/dependency binding names so they can be reordered
+    // topologically (写経 `order_reactive_statements`) before being flushed.
+    let mut reactive: Vec<ReactiveEntry<'a>> = Vec::new();
 
     for stmt in ret.program.body.iter() {
         match stmt {
@@ -647,12 +647,31 @@ fn transform_script_legacy<'a>(
                 // instance run after everything else.
                 let span = ls.span();
                 let slice = &src[span.start as usize..span.end as usize];
-                if let Some(rehomed) = state.reparse_statement(slice) {
-                    // Hoist `let <name>;` for any legacy_reactive binding
-                    // assigned to by this statement (写经 the `extract_identifiers`
-                    // + `legacy_reactive` check). We detect `$: <name> = …`.
-                    collect_legacy_reactive_decls(&ls.body, state, &mut reactive_decl_names);
-                    reactive.push(rehomed);
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    // Assignment targets (for the hoisted `let <name>;` decl) and
+                    // read dependencies (for the topological reorder) — both keyed
+                    // by instance-scope binding index (写经 the `assignments` /
+                    // `dependencies` sets in `ReactiveStatement`).
+                    let mut decl_names: Vec<String> = Vec::new();
+                    collect_legacy_reactive_decls(&ls.body, state, &mut decl_names);
+                    let assigns = reactive_assignment_indices(&ls.body, state);
+                    let deps = reactive_dependency_indices(&ls.body, state, &assigns);
+                    // 写经 `LabeledStatement.js`: `context.visit(node.body)` — the
+                    // reactive body is visited by the global `Identifier` visitor,
+                    // so every READ inside it (store `$x`, derived call, `$$props`)
+                    // is wrapped exactly like any other instance statement.
+                    super::read_wrap::wrap_reads_in_statement(
+                        &mut rehomed,
+                        state.b,
+                        state.analysis,
+                        state.analysis.root.instance_scope_index,
+                    );
+                    reactive.push(ReactiveEntry {
+                        stmt: rehomed,
+                        decl_names,
+                        assigns,
+                        deps,
+                    });
                 }
             }
             Statement::ExpressionStatement(es) => {
@@ -674,11 +693,22 @@ fn transform_script_legacy<'a>(
         }
     }
 
-    // Prepend the hoisted `let <reactive vars>;` declaration (if any) and append
-    // the reactive statements at the end. `reactive_statements` (Phase 2) already
-    // gives the topological order; we use Phase-2's iteration order via the
-    // collected names, deduped, matching upstream's `legacy_reactive_declarations`
-    // unshift.
+    // Topologically reorder the reactive `$:` statements so each runs after the
+    // statements assigning to the bindings it depends on (写经
+    // `order_reactive_statements`). The hoisted `let <vars>;` declaration is then
+    // built by iterating the SORTED list and pushing each entry's legacy_reactive
+    // declarator names — so the hoisted-decl order tracks the topological order,
+    // not source order (写经 the `for (const [node] of analysis.reactive_statements)`
+    // loop that drives `legacy_reactive_declarations`).
+    let reactive = topo_sort_reactive(reactive);
+    let mut reactive_decl_names: Vec<String> = Vec::new();
+    for entry in &reactive {
+        for name in &entry.decl_names {
+            if !reactive_decl_names.contains(name) {
+                reactive_decl_names.push(name.clone());
+            }
+        }
+    }
     if !reactive_decl_names.is_empty() {
         let b = state.b;
         let pairs: Vec<_> = reactive_decl_names
@@ -690,8 +720,161 @@ fn transform_script_legacy<'a>(
             b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs),
         );
     }
-    out.extend(reactive);
+    out.extend(reactive.into_iter().map(|e| e.stmt));
     out
+}
+
+/// A collected legacy reactive `$:` statement together with the binding indices
+/// it ASSIGNS to and the binding indices it READS (depends on). Used to
+/// topologically order the reactive run (写経 `order_reactive_statements`).
+struct ReactiveEntry<'a> {
+    stmt: Statement<'a>,
+    /// legacy_reactive var names assigned to by this statement (hoisted-decl).
+    decl_names: Vec<String>,
+    /// Instance-scope binding indices this statement assigns to.
+    assigns: Vec<usize>,
+    /// Instance-scope binding indices this statement depends on (reads), with
+    /// self-assigned bindings already excluded.
+    deps: Vec<usize>,
+}
+
+/// Topologically sort the reactive entries so each statement runs after the ones
+/// assigning to its dependencies (faithful port of `order_reactive_statements`'s
+/// dependency-first DFS). Insertion (source) order is preserved among
+/// independent statements / cycles.
+fn topo_sort_reactive(entries: Vec<ReactiveEntry>) -> Vec<ReactiveEntry> {
+    let n = entries.len();
+    if n <= 1 {
+        return entries;
+    }
+
+    // binding index → statement indices that assign to it.
+    let mut assign_to_stmts: std::collections::HashMap<usize, Vec<usize>> =
+        std::collections::HashMap::new();
+    for (i, e) in entries.iter().enumerate() {
+        for &idx in &e.assigns {
+            assign_to_stmts.entry(idx).or_default().push(i);
+        }
+    }
+
+    // Statement i depends on statement j when i reads a binding that j assigns.
+    let mut deps: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for (i, e) in entries.iter().enumerate() {
+        for dep_idx in &e.deps {
+            if let Some(producers) = assign_to_stmts.get(dep_idx) {
+                for &j in producers {
+                    if j != i && !deps[i].contains(&j) {
+                        deps[i].push(j);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut order: Vec<usize> = Vec::with_capacity(n);
+    let mut visited = vec![false; n];
+    let mut in_progress = vec![false; n];
+
+    fn visit(
+        i: usize,
+        deps: &[Vec<usize>],
+        visited: &mut [bool],
+        in_progress: &mut [bool],
+        order: &mut Vec<usize>,
+    ) {
+        if visited[i] || in_progress[i] {
+            return;
+        }
+        in_progress[i] = true;
+        for &j in &deps[i] {
+            visit(j, deps, visited, in_progress, order);
+        }
+        in_progress[i] = false;
+        visited[i] = true;
+        order.push(i);
+    }
+
+    for i in 0..n {
+        visit(i, &deps, &mut visited, &mut in_progress, &mut order);
+    }
+
+    // Re-materialize in sorted order (move each entry exactly once).
+    let mut slots: Vec<Option<ReactiveEntry>> = entries.into_iter().map(Some).collect();
+    order
+        .into_iter()
+        .map(|i| slots[i].take().expect("each entry visited once"))
+        .collect()
+}
+
+/// Instance-scope binding indices assigned to by a reactive `$:` body
+/// (`$: a = …`, `$: ({ a } = …)`, `$: [a] = …`). Member-expression targets
+/// (`obj.x = …`) declare no binding. 写経 `ReactiveStatement.assignments`.
+fn reactive_assignment_indices(body: &Statement, state: &ServerTransformState) -> Vec<usize> {
+    let mut names: Vec<String> = Vec::new();
+    if let Statement::ExpressionStatement(es) = body {
+        let mut inner = &es.expression;
+        while let OxcExpression::ParenthesizedExpression(p) = inner {
+            inner = &p.expression;
+        }
+        if let OxcExpression::AssignmentExpression(assign) = inner {
+            collect_assignment_target_idents(&assign.left, &mut names);
+        }
+    }
+    names_to_instance_binding_indices(&names, state)
+}
+
+/// Instance-scope binding indices READ anywhere inside a reactive `$:` body
+/// (its dependencies), excluding bindings the statement itself assigns to —
+/// mirroring `order_reactive_statements`'s `!assignments.contains(dependency)`
+/// guard. 写経 `ReactiveStatement.dependencies`.
+fn reactive_dependency_indices(
+    body: &Statement,
+    state: &ServerTransformState,
+    assigns: &[usize],
+) -> Vec<usize> {
+    let mut names: Vec<String> = Vec::new();
+    collect_read_identifiers_in_statement(body, &mut names);
+    let mut out = names_to_instance_binding_indices(&names, state);
+    out.retain(|idx| !assigns.contains(idx));
+    out
+}
+
+/// Resolve a list of identifier names to deduped instance-scope binding indices.
+fn names_to_instance_binding_indices(names: &[String], state: &ServerTransformState) -> Vec<usize> {
+    let mut out: Vec<usize> = Vec::new();
+    for name in names {
+        if let Some(idx) = state
+            .analysis
+            .root
+            .get_binding(name, state.analysis.root.instance_scope_index)
+        {
+            if !out.contains(&idx) {
+                out.push(idx);
+            }
+        }
+    }
+    out
+}
+
+/// Collect every identifier-reference name READ inside a statement (RHS of
+/// assignments, test/loop conditions, call args, nested block bodies, …). Used
+/// to compute reactive-statement dependencies. Static member `.property` names,
+/// object-literal keys, and binding declarations are NOT references.
+fn collect_read_identifiers_in_statement(stmt: &Statement, out: &mut Vec<String>) {
+    use oxc_ast_visit::Visit;
+    struct IdentCollector<'o> {
+        out: &'o mut Vec<String>,
+    }
+    impl<'a, 'o> oxc_ast_visit::Visit<'a> for IdentCollector<'o> {
+        fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
+            let name = it.name.to_string();
+            if !self.out.contains(&name) {
+                self.out.push(name);
+            }
+        }
+    }
+    let mut c = IdentCollector { out };
+    c.visit_statement(stmt);
 }
 
 /// Lower a legacy `VariableDeclaration`. `is_export` marks `export let …`
@@ -846,7 +1029,14 @@ fn collect_legacy_reactive_decls(
     let Statement::ExpressionStatement(es) = body else {
         return;
     };
-    let OxcExpression::AssignmentExpression(assign) = &es.expression else {
+    // `$: ({ a } = obj)` parses with a `ParenthesizedExpression` wrapper in oxc
+    // (ESTree has none); unwrap it so the inner `AssignmentExpression` is seen
+    // (写经 `node.body.expression.type === 'AssignmentExpression'`).
+    let mut inner = &es.expression;
+    while let OxcExpression::ParenthesizedExpression(p) = inner {
+        inner = &p.expression;
+    }
+    let OxcExpression::AssignmentExpression(assign) = inner else {
         return;
     };
     let mut names: Vec<String> = Vec::new();
