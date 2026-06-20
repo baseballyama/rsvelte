@@ -2184,6 +2184,41 @@ mod tests {
                 "<script>let d = $derived.by(() => 1 + 1);</script><p>x</p>",
                 "let d = $.derived(() => 1 + 1);",
             ),
+            // (a) class-field $state -> `count = 0`
+            (
+                "<script>class C { count = $state(0); }</script><p>x</p>",
+                "count = 0;",
+            ),
+            // (a) class-field $state.raw -> `r = 7`
+            (
+                "<script>class C { r = $state.raw(7); }</script><p>x</p>",
+                "r = 7;",
+            ),
+            // (a) class-field $derived -> `d = $.derived(() => 1 + 1)`
+            (
+                "<script>class C { d = $derived(1 + 1); }</script><p>x</p>",
+                "d = $.derived(() => 1 + 1);",
+            ),
+            // (a) class-field $derived.by -> `d = $.derived(fn)`
+            (
+                "<script>class C { d = $derived.by(() => 2); }</script><p>x</p>",
+                "d = $.derived(() => 2);",
+            ),
+            // (b) $props() rest -> inject $$slots / $$events before the rest.
+            (
+                "<script>let { x, ...rest } = $props();</script><p>{x}</p>",
+                "let { x, $$slots, $$events, ...rest } = $$props;",
+            ),
+            // (b) $props() identifier -> object-pattern-with-rest expansion.
+            (
+                "<script>let props = $props();</script><p>x</p>",
+                "let { $$slots, $$events, ...props } = $$props;",
+            ),
+            // (b) $props() plain object (no rest) -> unchanged.
+            (
+                "<script>let { a } = $props();</script><p>{a}</p>",
+                "let { a } = $$props;",
+            ),
         ];
         let mut failures = Vec::new();
         for (src, must_have) in cases {
@@ -2205,6 +2240,42 @@ mod tests {
         assert!(
             failures.is_empty(),
             "instance-script lowering differs from oracle for: {failures:?}"
+        );
+    }
+
+    /// `$props()` `$$slots` deconfliction: when the component also declares
+    /// `<slot>` (`analysis.uses_slots`), the injected slots key uses the
+    /// deconflicted `$$slots_` value (写经 `VariableDeclaration.js:56-58`). The
+    /// AST output must match the `transform_server` oracle line-for-line.
+    #[test]
+    fn ast_matches_oracle_props_slots_deconflict() {
+        // Referencing `$$slots` in the template sets `analysis.uses_slots`, which
+        // deconflicts the injected slots-key value to `$$slots_`.
+        let cases: &[(&str, &str)] = &[
+            // rest + uses_slots → `$$slots: $$slots_`
+            (
+                "<script>let { x, ...rest } = $props();</script>{x}{$$slots.default}",
+                "let { x, $$slots: $$slots_, $$events, ...rest } = $$props;",
+            ),
+            // identifier + uses_slots → `$$slots: $$slots_`
+            (
+                "<script>let props = $props();</script>{$$slots.default}",
+                "let { $$slots: $$slots_, $$events, ...props } = $$props;",
+            ),
+        ];
+        let mut failures = Vec::new();
+        for (src, must_have) in cases {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let want = norm(must_have);
+            eprintln!("=== SRC: {src} ===\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+            if !norm(&ours).contains(&want) || !norm(&oracle).contains(&want) {
+                failures.push(*src);
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "$props slots-deconflict differs from oracle for: {failures:?}"
         );
     }
 

@@ -14,8 +14,13 @@
 //! - `let x = $state(e)` / `$state.raw(e)` → `let x = <e>` (no-arg → `void 0`).
 //! - `let d = $derived(e)` → `let d = $.derived(() => <e>)`.
 //! - `let d = $derived.by(f)` → `let d = $.derived(<f>)`.
-//! - `let { … } = $props()` → `let { … } = $$props` (basic object/identifier
-//!   pattern; the `$$slots` / `$$events` deconfliction splice is a KNOWN GAP).
+//! - `let { … } = $props()` → `let { … } = $$props`, with the `$$slots` /
+//!   `$$events` deconfliction injection for the object-WITH-rest and identifier
+//!   forms (写经 `VariableDeclaration.js:33-82`; `$$slots` deconflicts to
+//!   `$$slots_` when `analysis.uses_slots`).
+//! - class-field runes: `count = $state(0)` → `count = 0`, `$state()` → bare
+//!   field, `d = $derived(e)` → `d = $.derived(() => e)`, `$derived.by(f)` →
+//!   `$.derived(f)` (写经 `PropertyDefinition.js`).
 //! - `$props.id` → dropped.
 //! - top-level `$effect(…)` / `$effect.pre(…)` / `$effect.root(…)` /
 //!   `$inspect(…)` / `$inspect.trace(…)` expression statements → dropped.
@@ -34,10 +39,14 @@
 //!   strips TS from its final output, which this slice does not (KNOWN GAP).
 //! - async `$derived` (`$derived(await …)`) — lowered as a plain `$.derived`
 //!   thunk (no `await $.async_derived(...)`).
-//! - complex `$props()` / destructured-`$derived` / destructured-`$state`
-//!   patterns (the `extract_paths` expansion) — the binding pattern is kept
-//!   verbatim and the init lowered, which is correct for object/identifier
-//!   patterns but NOT for the leaf-rename cases.
+//! - complex destructured-`$derived` / destructured-`$state` patterns (the
+//!   `extract_paths` expansion) — the binding pattern is kept verbatim and the
+//!   init lowered, which is correct for object/identifier patterns but NOT for
+//!   the leaf-rename cases.
+//! - `$bindable()` stripping inside a `$props()` destructure default
+//!   (`let { x = $bindable(1) } = $props()`) — the nested `$bindable(...)` call
+//!   is kept verbatim rather than unwrapped to its argument (upstream's
+//!   `AssignmentPattern` walk; KNOWN GAP).
 
 use super::ServerTransformState;
 use crate::ast::template::Script;
@@ -187,6 +196,16 @@ fn transform_script<'a>(
                     out.push(rehomed);
                 }
             }
+            Statement::ClassDeclaration(_) => {
+                // Re-parse the class verbatim, then lower any `$state` / `$derived`
+                // class-field initializers in place (写经 `PropertyDefinition.js`).
+                let span = stmt.span();
+                let slice = &src[span.start as usize..span.end as usize];
+                if let Some(mut rehomed) = state.reparse_statement(slice) {
+                    lower_class_field_runes(&mut rehomed, state);
+                    out.push(rehomed);
+                }
+            }
             other => {
                 let span = other.span();
                 let slice = &src[span.start as usize..span.end as usize];
@@ -197,6 +216,62 @@ fn transform_script<'a>(
         }
     }
     out
+}
+
+/// Lower `$state` / `$state.raw` / `$derived` / `$derived.by` class-field
+/// initializers in a re-homed class declaration STATEMENT, in place (写经
+/// `3-transform/server/visitors/PropertyDefinition.js`).
+///
+/// - `count = $state(0)` → `count = 0`; `x = $state()` → `x` (value dropped to
+///   `None`, i.e. a bare class field — NOT `void 0`).
+/// - `d = $derived(e)` → `d = $.derived(() => e)`; `d = $derived.by(f)` →
+///   `d = $.derived(f)`; `d = $derived()` → `d` (value dropped).
+///
+/// Only top-level (non-nested) class-field runes are handled; method bodies and
+/// nested classes pass through unchanged (the `value` of a method is a
+/// `Function`, not a `PropertyDefinition`, so it is untouched).
+fn lower_class_field_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState<'a>) {
+    let Statement::ClassDeclaration(class) = stmt else {
+        return;
+    };
+    let b = state.b;
+    for element in class.body.body.iter_mut() {
+        let oxc_ast::ast::ClassElement::PropertyDefinition(prop) = element else {
+            continue;
+        };
+        let Some(rune) = prop.value.as_ref().and_then(detect_decl_rune) else {
+            continue;
+        };
+        // Take the `$state(...)` / `$derived(...)` call out and move its first
+        // argument expression (the rehomed call already lives in the state
+        // allocator, so we can move sub-nodes out of it directly — no re-parse).
+        let Some(OxcExpression::CallExpression(call)) = prop.value.take() else {
+            continue;
+        };
+        let mut call = call.unbox();
+        let mut arg: Option<OxcExpression<'a>> = call
+            .arguments
+            .drain(..)
+            .next()
+            .and_then(|a| OxcExpression::try_from(a).ok());
+        if let Some(e) = arg.as_mut() {
+            super::read_wrap::wrap_reads(
+                e,
+                b,
+                state.analysis,
+                state.analysis.root.instance_scope_index,
+            );
+        }
+
+        prop.value = match rune {
+            // `$state(x)` → `x`; no-arg `$state()` → bare field (`None`).
+            DeclRune::State => arg,
+            DeclRune::Derived => arg.map(|e| b.call("$.derived", vec![b.thunk(e, false)])),
+            DeclRune::DerivedBy => arg.map(|e| b.call("$.derived", vec![e])),
+            // `$props` / `$props.id` are not valid class-field runes — drop value.
+            DeclRune::Props | DeclRune::PropsId => None,
+        };
+    }
 }
 
 /// Lower a single `VariableDeclaration` (runes branch). Returns the rebuilt
@@ -227,6 +302,19 @@ fn lower_variable_declaration<'a>(
                 }
             }
             Some(DeclRune::PropsId) => { /* drop */ }
+            Some(DeclRune::Props) => {
+                // `<pattern> = $props()` → `<expanded-pattern> = $$props`, where
+                // the expansion injects `$$slots` / `$$events` deconfliction
+                // properties for the object-with-rest and identifier cases
+                // (写经 `VariableDeclaration.js:33-82`).
+                let pat_span = d.id.span();
+                let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
+                let Some(pat) = state.reparse_pattern(pat_slice) else {
+                    continue;
+                };
+                let pat = expand_props_pattern(pat, state);
+                decls.push((pat, Some(b.id("$$props"))));
+            }
             Some(rune) => {
                 // Lower the init from the rune; keep the binding pattern verbatim.
                 let new_init = lower_decl_init(&rune, d.init.as_ref(), src, state);
@@ -299,6 +387,64 @@ fn lower_decl_init<'a>(
         DeclRune::Derived => Some(b.call("$.derived", vec![b.thunk(arg_expr(state), false)])),
         DeclRune::DerivedBy => Some(b.call("$.derived", vec![arg_expr(state)])),
         DeclRune::Props | DeclRune::PropsId => None,
+    }
+}
+
+/// Expand a `$props()` LHS pattern with the `$$slots` / `$$events` deconfliction
+/// injection (写经 `VariableDeclaration.js:33-82`).
+///
+/// - `{ x, ...rest }` (object pattern WITH a rest element): splice
+///   `$$slots: <slots_name>` and `$$events: $$events` BEFORE the rest (so a
+///   `...rest` doesn't pull in those internal props).
+/// - `props` (identifier): replace with `{ $$slots: <slots_name>, $$events:
+///   $$events, ...props }`.
+/// - `{ x }` (object pattern WITHOUT rest) / array pattern: left verbatim.
+///
+/// `<slots_name>` deconflicts to `$$slots_` when the component also declares
+/// `$$slots` separately (`analysis.uses_slots`).
+fn expand_props_pattern<'a>(
+    pat: oxc_ast::ast::BindingPattern<'a>,
+    state: &ServerTransformState<'a>,
+) -> oxc_ast::ast::BindingPattern<'a> {
+    use oxc_ast::ast::BindingPattern;
+    use oxc_span::SPAN;
+    let b = state.b;
+    let ab = b.ab;
+    let slots_name = if state.analysis.uses_slots {
+        "$$slots_"
+    } else {
+        "$$slots"
+    };
+
+    // A `{ key: value }` binding property over identifier names. `shorthand`
+    // mirrors esrap/estree printing: `{ $$slots }` when key == value, but
+    // `{ $$slots: $$slots_ }` when they differ (the `uses_slots` deconfliction).
+    let make_prop = |key: &str, value: &str| -> oxc_ast::ast::BindingProperty<'a> {
+        let k = ab.property_key_static_identifier(SPAN, b.str(key));
+        let v = ab.binding_pattern_binding_identifier(SPAN, b.str(value));
+        ab.binding_property(SPAN, k, v, key == value, false)
+    };
+
+    match pat {
+        BindingPattern::ObjectPattern(obj) if obj.rest.is_some() => {
+            let mut obj = obj.unbox();
+            // The rest is a separate field in oxc; splicing the two props at the
+            // END of `properties` keeps them before the (separately-printed) rest.
+            obj.properties.push(make_prop("$$slots", slots_name));
+            obj.properties.push(make_prop("$$events", "$$events"));
+            BindingPattern::ObjectPattern(ab.alloc(obj))
+        }
+        BindingPattern::BindingIdentifier(id) => {
+            let name = b.str(id.name.as_str());
+            let mut props = ab.vec_with_capacity(2);
+            props.push(make_prop("$$slots", slots_name));
+            props.push(make_prop("$$events", "$$events"));
+            let rest_inner = ab.binding_pattern_binding_identifier(SPAN, name);
+            let rest = ab.alloc_binding_rest_element(SPAN, rest_inner);
+            ab.binding_pattern_object_pattern(SPAN, props, Some(rest))
+        }
+        // Object pattern WITHOUT rest, or array pattern → verbatim.
+        other => other,
     }
 }
 
