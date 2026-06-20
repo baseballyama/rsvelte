@@ -20,7 +20,7 @@ oxc_syntax = "0.136"
 
 [dev-dependencies]
 oxc_parser = "0.136"
-oxc_ast_visit = "0.136"
+oxc_ast_visit = "0.137"
 
 [lints]
 workspace = true
