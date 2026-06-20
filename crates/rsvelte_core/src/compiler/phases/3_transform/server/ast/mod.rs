@@ -871,6 +871,48 @@ mod tests {
         );
     }
 
+    /// Keyed `{#each ... (key)}` parity with the `transform_server` oracle.
+    ///
+    /// Upstream's server `EachBlock.js` never references `node.key` — the key
+    /// only drives client-side keyed reconciliation — so a keyed each renders
+    /// byte-identically to the same each without a key. These samples assert the
+    /// AST pipeline matches the oracle for keyed each (with and without
+    /// `{:else}`, with an index, and over a `$state`-bound list), exactly like
+    /// the unkeyed samples in `ast_matches_oracle_block_samples`.
+    #[test]
+    fn ast_matches_oracle_keyed_each() {
+        let samples = [
+            // Keyed each, identifier key.
+            "<script>let items = [{ id: 1, name: 'a' }];</script>\
+             {#each items as item (item.id)}<li>{item.name}</li>{/each}",
+            // Keyed each + `{:else}` fallback.
+            "<script>let items = [];</script>\
+             {#each items as item (item.id)}<li>{item.name}</li>{:else}<p>empty</p>{/each}",
+            // Keyed each with an index binding.
+            "<script>let items = [{ id: 1 }];</script>\
+             {#each items as item, i (item.id)}<li>{i}</li>{/each}",
+            // Keyed each over a literal collection, simple expression key.
+            "{#each [1, 2, 3] as n (n)}<li>{n}</li>{/each}",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            eprintln!(
+                "\n===== SRC: {src} ===== {}\n--- NEW ---\n{ours}\n--- ORACLE ---\n{oracle}",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "keyed EachBlock output differs from oracle (structurally) for: {mismatches:?}"
+        );
+    }
+
     /// Snippet definition alone (RenderTag not ported yet): just assert the
     /// hoisted `function foo($$renderer) {...}` is emitted.
     #[test]

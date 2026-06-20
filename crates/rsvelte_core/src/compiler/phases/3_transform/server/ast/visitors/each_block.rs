@@ -1,5 +1,5 @@
 //! Server `EachBlock` visitor — the Rust port of
-//! `3-transform/server/visitors/EachBlock.js` (sync, unkeyed path).
+//! `3-transform/server/visitors/EachBlock.js` (sync path, keyed + unkeyed).
 //!
 //! Upstream (写経):
 //! ```js
@@ -32,10 +32,17 @@
 //! loop is wrapped in `if (each_array.length !== 0) { push('<!--[-->'); <loop> }
 //! else { push('<!--[!-->'); <fallback> }` followed by `push('<!--]-->')`.
 //!
+//! Keyed each (`{#each items as item (item.id)}`) renders IDENTICALLY to
+//! unkeyed on the server: upstream's `EachBlock.js` server visitor never reads
+//! `node.key` (the key only drives client-side keyed reconciliation), so we
+//! likewise ignore `node.key` here and the same for-loop / fallback shape is
+//! emitted. No special-casing is needed — the visitor already never references
+//! `node.key`.
+//!
 //! KNOWN GAPs:
-//! - keyed each (`node.key`) and the animation path — not handled (the unkeyed
-//!   SSR shape is identical, so this is only a correctness concern for keyed
-//!   hydration markers upstream doesn't actually special-case on the server).
+//! - the animation path (`animate:` directive) — not handled. The SSR shape is
+//!   identical to a plain keyed each (animations are client-only), so this is
+//!   not a server-output concern.
 //! - destructuring `node.context` patterns (only identifier `as item` handled);
 //!   a destructure falls back to a re-parsed source-slice pattern.
 //! - async each (`node.metadata.expression.is_async()` → `create_child_block`).
@@ -48,7 +55,9 @@ use oxc_ast::ast::{BindingPattern, Statement, VariableDeclarationKind};
 
 use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_body};
 
-/// Visit a `{#each expr as ctx, i}...{/each}` block (sync, unkeyed, no fallback).
+/// Visit a `{#each expr as ctx, i (key)}...{/each}` block (sync; keyed or
+/// unkeyed, with or without a `{:else}` fallback). The key is ignored on the
+/// server — see the module docs.
 pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'a>) {
     let counter = state.each_index;
     state.each_index += 1;
