@@ -962,4 +962,444 @@ mod tests {
             "missing 2-arg component signature:\n{out}"
         );
     }
+
+    // ============================================================
+    // Corpus measurement harness (ignored; run for burn-down direction)
+    //
+    //   CARGO_TARGET_DIR=/tmp/rsvelte-ast-target \
+    //   cargo test -p rsvelte_core --lib \
+    //     'phase3_transform::server::ast::tests::corpus_new_vs_oracle' \
+    //     -- --ignored --nocapture
+    //
+    // Enumerates the upstream Svelte test components
+    // (submodules/svelte/packages/svelte/tests/**/*.svelte), compiles each
+    // with BOTH the NEW AST server pipeline (`server_component_ast`) and the
+    // OLD text oracle (`transform_server`), and reports MATCH% + clustered
+    // mismatches. Headline metric for the server-rewrite burn-down.
+    // ============================================================
+
+    /// Outcome of compiling one component with both pipelines.
+    enum Outcome {
+        /// Both pipelines produced output; bool = normalized-equal.
+        Compared {
+            matched: bool,
+            new_out: String,
+            oracle: String,
+        },
+        /// New pipeline returned `None` (feature not yet handled by AST path).
+        NewNone,
+        /// A pipeline panicked.
+        Panic(&'static str),
+        /// Parse/analyze failed (skip — not a server-codegen signal).
+        Skipped,
+    }
+
+    /// Parse + analyze + run both server pipelines on `source`, never panicking
+    /// up to the caller (parse/analyze failures => `Skipped`). Panics inside the
+    /// two server codegen calls ARE caught here and surfaced as `Panic`.
+    fn compile_both(source: &str) -> Outcome {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let parse_options = ParseOptions {
+            modern: true,
+            loose: false,
+            skip_expression_loc: true,
+            defer_script_parse: true,
+            force_typescript: false,
+            lenient_script: false,
+        };
+
+        // Parse into a heap-stable Box so the arena address stays valid for the
+        // thread-local `SerializeArenaGuard` even though `ast` is moved out of
+        // the catch_unwind closure. (Boxing keeps `&boxed.arena` constant; a
+        // stack move would dangle and SIGBUS.)
+        let parsed = catch_unwind(AssertUnwindSafe(|| {
+            phase1_parse::parse(source, parse_options)
+                .ok()
+                .map(Box::new)
+        }));
+        let mut ast = match parsed {
+            Ok(Some(b)) => b,
+            Ok(None) => return Outcome::Skipped,
+            Err(_) => return Outcome::Skipped,
+        };
+
+        // Install the guard at this stable scope pointing at the boxed arena's
+        // heap address; it stays valid through analyze + both pipelines.
+        let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+
+        let prepared = catch_unwind(AssertUnwindSafe(|| {
+            phase1_parse::resolve_lazy::resolve_lazy_expressions(&mut ast, source);
+            let line_offsets = phase1_parse::compute_line_offsets(source, false);
+            if let Some(instance) = ast.instance.as_mut() {
+                phase1_parse::read::script::ensure_script_parsed(
+                    &ast.arena,
+                    instance,
+                    source,
+                    &line_offsets,
+                );
+            }
+            if let Some(module) = ast.module.as_mut() {
+                phase1_parse::read::script::ensure_script_parsed(
+                    &ast.arena,
+                    module,
+                    source,
+                    &line_offsets,
+                );
+            }
+            let options = CompileOptions {
+                filename: Some("App.svelte".to_string()),
+                ..CompileOptions::default()
+            };
+            phase2_analyze::analyze_component(&mut ast, source, &options)
+                .ok()
+                .map(|analysis| (analysis, options))
+        }));
+
+        let (analysis, options) = match prepared {
+            Ok(Some(v)) => v,
+            Ok(None) => return Outcome::Skipped,
+            Err(_) => return Outcome::Skipped,
+        };
+        let ast: &Root = &ast;
+
+        // OLD oracle.
+        let oracle = catch_unwind(AssertUnwindSafe(|| {
+            super::super::transform_server(&analysis, ast, source, &options)
+        }));
+        let oracle = match oracle {
+            Ok(Ok(s)) => s,
+            Ok(Err(_)) => return Outcome::Skipped, // oracle itself errored; not a fair comparison
+            Err(_) => return Outcome::Panic("oracle"),
+        };
+
+        // NEW AST pipeline (needs its own allocator).
+        let new_out = catch_unwind(AssertUnwindSafe(|| {
+            let allocator = Allocator::default();
+            server_component_ast(&analysis, ast, source, &options, &allocator)
+        }));
+        let new_out = match new_out {
+            Ok(Some(s)) => s,
+            Ok(None) => return Outcome::NewNone,
+            Err(_) => return Outcome::Panic("new"),
+        };
+
+        let matched = norm(&new_out) == norm(&oracle);
+        Outcome::Compared {
+            matched,
+            new_out,
+            oracle,
+        }
+    }
+
+    /// Feature keywords to detect in source for mismatch clustering.
+    /// (substring, label)
+    fn feature_signatures(source: &str) -> Vec<&'static str> {
+        let checks: &[(&str, &str)] = &[
+            ("{#each", "each-block"),
+            ("{#if", "if-block"),
+            ("{#await", "await-block"),
+            ("{#key", "key-block"),
+            ("{#snippet", "snippet-block"),
+            ("{@render", "render-tag"),
+            ("{@const", "const-tag"),
+            ("{@html", "html-tag"),
+            ("{@debug", "debug-tag"),
+            ("{@attach", "attach-tag"),
+            ("bind:", "bind-directive"),
+            ("transition:", "transition-directive"),
+            ("in:", "in-directive"),
+            ("out:", "out-directive"),
+            ("animate:", "animate-directive"),
+            ("use:", "use-directive"),
+            ("class:", "class-directive"),
+            ("style:", "style-directive"),
+            ("on:", "on-directive(legacy)"),
+            ("{...", "spread"),
+            ("<svelte:", "svelte:special"),
+            ("$derived", "rune:$derived"),
+            ("$state", "rune:$state"),
+            ("$props", "rune:$props"),
+            ("$effect", "rune:$effect"),
+            ("$bindable", "rune:$bindable"),
+            ("await ", "top-level-await"),
+            ("lang=\"ts\"", "lang=ts"),
+            ("lang='ts'", "lang=ts"),
+            ("<style", "has-style"),
+            ("<script", "has-script"),
+        ];
+        let mut hits: Vec<&'static str> = Vec::new();
+        for (needle, label) in checks {
+            if source.contains(needle) && !hits.contains(label) {
+                hits.push(label);
+            }
+        }
+        // Crude store-`$` heuristic: a `$` followed by an identifier letter that
+        // is not one of the known runes already counted above.
+        if source.contains("$:") {
+            hits.push("reactive-stmt($:)");
+        }
+        hits
+    }
+
+    /// First differing trimmed line between two normalized outputs (signature
+    /// for fine-grained clustering of the actual codegen divergence).
+    fn first_diff_line(new_out: &str, oracle: &str) -> String {
+        let a = norm(new_out);
+        let b = norm(oracle);
+        let mut al = a.lines();
+        let mut bl = b.lines();
+        loop {
+            match (al.next(), bl.next()) {
+                (Some(x), Some(y)) => {
+                    if x.trim() != y.trim() {
+                        return format!("new:`{}` | old:`{}`", trunc(x.trim()), trunc(y.trim()));
+                    }
+                }
+                (Some(x), None) => return format!("new-extra:`{}`", trunc(x.trim())),
+                (None, Some(y)) => return format!("old-extra:`{}`", trunc(y.trim())),
+                (None, None) => return "<lengths-differ-only>".to_string(),
+            }
+        }
+    }
+
+    fn trunc(s: &str) -> String {
+        if s.len() > 70 {
+            format!(
+                "{}…",
+                &s[..s.char_indices().nth(70).map(|(i, _)| i).unwrap_or(s.len())]
+            )
+        } else {
+            s.to_string()
+        }
+    }
+
+    fn corpus_files() -> Vec<std::path::PathBuf> {
+        // crate root = crates/rsvelte_core; repo root is two parents up.
+        let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = manifest.parent().and_then(|p| p.parent()).unwrap();
+        let root = repo_root.join("submodules/svelte/packages/svelte/tests");
+        let mut out = Vec::new();
+        fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            let Ok(rd) = std::fs::read_dir(dir) else {
+                return;
+            };
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, out);
+                } else if p.extension().and_then(|s| s.to_str()) == Some("svelte") {
+                    out.push(p);
+                }
+            }
+        }
+        walk(&root, &mut out);
+        out.sort();
+        out
+    }
+
+    #[test]
+    #[ignore = "corpus measurement harness; run with --ignored --nocapture"]
+    fn corpus_new_vs_oracle() {
+        // Some corpus components drive deep recursion in parse/analyze; run the
+        // whole sweep on a thread with a large stack so one pathological file
+        // doesn't overflow the small default test stack.
+        std::thread::Builder::new()
+            .stack_size(256 * 1024 * 1024)
+            .spawn(corpus_new_vs_oracle_inner)
+            .expect("spawn corpus thread")
+            .join()
+            .expect("corpus thread panicked");
+    }
+
+    fn corpus_new_vs_oracle_inner() {
+        use std::collections::BTreeMap;
+
+        let files = corpus_files();
+        if files.is_empty() {
+            eprintln!(
+                "NO CORPUS FILES FOUND (is the svelte submodule checked out?). \
+                 Looked under submodules/svelte/packages/svelte/tests"
+            );
+            return;
+        }
+
+        let mut total = 0usize;
+        let mut compared = 0usize;
+        let mut matched = 0usize;
+        let mut new_none = 0usize;
+        let mut panicked = 0usize;
+        let mut skipped = 0usize;
+
+        let mut new_none_examples: Vec<String> = Vec::new();
+        let mut panic_examples: Vec<String> = Vec::new();
+
+        // feature-signature -> (count, examples)
+        let mut feature_clusters: BTreeMap<&'static str, (usize, Vec<String>)> = BTreeMap::new();
+        // first-diff-line -> (count, examples)
+        let mut line_clusters: BTreeMap<String, (usize, Vec<String>)> = BTreeMap::new();
+        // representative full diffs per feature cluster
+        let mut feature_repr: BTreeMap<&'static str, (String, String, String)> = BTreeMap::new();
+
+        for path in &files {
+            let Ok(source) = std::fs::read_to_string(path) else {
+                continue;
+            };
+            // Skip empties.
+            if source.trim().is_empty() {
+                continue;
+            }
+            total += 1;
+            let name = path
+                .strip_prefix(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .parent()
+                        .and_then(|p| p.parent())
+                        .unwrap(),
+                )
+                .unwrap_or(path)
+                .display()
+                .to_string();
+
+            match compile_both(&source) {
+                Outcome::Compared {
+                    matched: m,
+                    new_out,
+                    oracle,
+                } => {
+                    compared += 1;
+                    if m {
+                        matched += 1;
+                    } else {
+                        // Cluster by features present.
+                        let feats = feature_signatures(&source);
+                        let key_feats: Vec<&'static str> = if feats.is_empty() {
+                            vec!["<plain-markup>"]
+                        } else {
+                            feats
+                        };
+                        for f in &key_feats {
+                            let e = feature_clusters.entry(f).or_insert((0, Vec::new()));
+                            e.0 += 1;
+                            if e.1.len() < 3 {
+                                e.1.push(name.clone());
+                            }
+                            feature_repr
+                                .entry(f)
+                                .or_insert_with(|| (name.clone(), new_out.clone(), oracle.clone()));
+                        }
+                        // Cluster by first differing line.
+                        let dl = first_diff_line(&new_out, &oracle);
+                        let e = line_clusters.entry(dl).or_insert((0, Vec::new()));
+                        e.0 += 1;
+                        if e.1.len() < 3 {
+                            e.1.push(name.clone());
+                        }
+                    }
+                }
+                Outcome::NewNone => {
+                    new_none += 1;
+                    if new_none_examples.len() < 10 {
+                        new_none_examples.push(name.clone());
+                    }
+                }
+                Outcome::Panic(which) => {
+                    panicked += 1;
+                    if panic_examples.len() < 10 {
+                        panic_examples.push(format!("[{which}] {name}"));
+                    }
+                }
+                Outcome::Skipped => skipped += 1,
+            }
+        }
+
+        let pct = |n: usize, d: usize| {
+            if d == 0 {
+                0.0
+            } else {
+                n as f64 * 100.0 / d as f64
+            }
+        };
+
+        eprintln!("\n================ CORPUS: NEW AST vs OLD ORACLE ================");
+        eprintln!("corpus dir: submodules/svelte/packages/svelte/tests/**/*.svelte");
+        eprintln!("total non-empty components ........ {total}");
+        eprintln!(
+            "  skipped (parse/analyze fail) .... {skipped} ({:.1}%)",
+            pct(skipped, total)
+        );
+        eprintln!(
+            "  ERROR new=None (unimplemented) .. {new_none} ({:.1}%)",
+            pct(new_none, total)
+        );
+        eprintln!(
+            "  ERROR panic ..................... {panicked} ({:.1}%)",
+            pct(panicked, total)
+        );
+        eprintln!(
+            "  COMPARED (both produced output).. {compared} ({:.1}%)",
+            pct(compared, total)
+        );
+        eprintln!(
+            "    MATCH ......................... {matched} / {compared}  = {:.1}% of compared",
+            pct(matched, compared)
+        );
+        eprintln!(
+            "    MATCH (of all components) ..... {matched} / {total}  = {:.1}% HEADLINE",
+            pct(matched, total)
+        );
+
+        if !new_none_examples.is_empty() {
+            eprintln!("\n-- new=None examples --");
+            for e in &new_none_examples {
+                eprintln!("    {e}");
+            }
+        }
+        if !panic_examples.is_empty() {
+            eprintln!("\n-- panic examples --");
+            for e in &panic_examples {
+                eprintln!("    {e}");
+            }
+        }
+
+        // Top feature clusters among MISMATCHES.
+        let mut feats: Vec<_> = feature_clusters.into_iter().collect();
+        feats.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        eprintln!("\n-- TOP MISMATCH CLUSTERS by feature (count, examples) --");
+        eprintln!("   (a component can appear in several feature buckets)");
+        for (label, (count, examples)) in feats.iter().take(20) {
+            eprintln!("  {count:>5}  {label:<22}  e.g. {}", examples.join(", "));
+        }
+
+        // Top first-diff-line clusters (finer-grained codegen divergence).
+        let mut lines: Vec<_> = line_clusters.into_iter().collect();
+        lines.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        eprintln!("\n-- TOP MISMATCH CLUSTERS by first differing line --");
+        for (sig, (count, examples)) in lines.iter().take(20) {
+            eprintln!("  {count:>5}  {sig}");
+            eprintln!(
+                "         e.g. {}",
+                examples.first().cloned().unwrap_or_default()
+            );
+        }
+
+        // Representative full diffs for the biggest feature clusters.
+        eprintln!("\n-- REPRESENTATIVE DIFFS (top 5 feature clusters) --");
+        for (label, _) in feats.iter().take(5) {
+            if let Some((fname, new_out, oracle)) = feature_repr.get(*label) {
+                eprintln!("\n##### cluster `{label}` — {fname}");
+                let nn = norm(new_out);
+                let on = norm(oracle);
+                eprintln!("----- NEW (first 30 lines) -----");
+                for l in nn.lines().take(30) {
+                    eprintln!("{l}");
+                }
+                eprintln!("----- ORACLE (first 30 lines) -----");
+                for l in on.lines().take(30) {
+                    eprintln!("{l}");
+                }
+            }
+        }
+        eprintln!("\n==============================================================\n");
+    }
 }
