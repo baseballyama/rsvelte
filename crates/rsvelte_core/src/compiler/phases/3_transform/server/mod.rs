@@ -12,6 +12,7 @@ pub(crate) mod esrap_layout;
 pub(crate) mod evaluate;
 pub mod helpers;
 pub(crate) mod rune_call_ast;
+pub(crate) mod strip_export_ast;
 mod template_rune_ast;
 pub mod transform_legacy;
 pub mod transform_script;

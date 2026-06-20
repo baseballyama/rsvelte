@@ -6668,6 +6668,14 @@ fn is_statement_start(preceding: &str) -> bool {
 
 /// Strip `export` keyword from function/const/class declarations.
 fn strip_export_from_declarations(script: &str) -> String {
+    // Prefer the AST-based pass: it matches the exported declaration kinds
+    // structurally (function / async function / class / `const`) instead of via
+    // line-prefix heuristics, removing the same 7-byte `export ` prefix. Falls
+    // back to the byte scanner below when the script doesn't parse as a
+    // standalone module (mirrors `wrap_derived_reads_in_script`).
+    if let Some(out) = super::strip_export_ast::strip_export_from_declarations_ast(script) {
+        return out;
+    }
     let mut result = String::new();
     for line in script.lines() {
         let trimmed = line.trim();
