@@ -1172,13 +1172,17 @@ fn collect_hug_mixed_non_ws_prefix(
                 if is_whitespace_preserving(e.name.as_str()) {
                     continue;
                 }
-                // Check if this element has a non-ws-prefix indent ending with `>`.
+                // Check if this element has a non-ws-prefix indent that is exactly
+                // `{spaces}>` — a parent's hugged closing `>` immediately before this
+                // element.  We intentionally reject longer non-ws indents (e.g. the
+                // element follows a sibling's close-tag `</span>`) because those
+                // produce incorrect `ws_indent` values in `try_hug_mixed`.
                 let s = e.start as usize;
                 let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..s).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                if non_ws
-                    && indent.ends_with('>')
+                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
+                if is_simple_gt_prefix
                     && let Some(edit) = try_hug_mixed(
                         out,
                         e.name.as_str(),
@@ -1198,8 +1202,8 @@ fn collect_hug_mixed_non_ws_prefix(
                 let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..s).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                if non_ws
-                    && indent.ends_with('>')
+                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
+                if is_simple_gt_prefix
                     && let Some(edit) = try_hug_mixed(
                         out,
                         c.name.as_str(),
@@ -1219,8 +1223,8 @@ fn collect_hug_mixed_non_ws_prefix(
                 let line_start = out[..ss].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..ss).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                if non_ws
-                    && indent.ends_with('>')
+                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
+                if is_simple_gt_prefix
                     && let Some(edit) = try_hug_mixed(
                         out,
                         s.name.as_str(),
@@ -3106,6 +3110,13 @@ fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32, u32, Stri
         // Move `>` to hug the last attribute line, preserving any element-direct
         // whitespace (tabs/newline) between `>` and the first child.
         let trailing_ws = &open[open_tag_only.len()..];
+        // If trailing_ws is empty, the content starts inline immediately after `>` —
+        // the element is already correctly hugged.  Applying the edit here would
+        // wrongly collapse the multi-line open tag (pulling `>` back to the last
+        // attribute line) and merge all child content onto one line.  Skip it.
+        if trailing_ws.is_empty() {
+            continue;
+        }
         let new_open = format!("{}>", &open_tag_only[..last_nl]);
         let result = format!("{new_open}{trailing_ws}{}", &out[open_end..ce]);
         if result != whole {
