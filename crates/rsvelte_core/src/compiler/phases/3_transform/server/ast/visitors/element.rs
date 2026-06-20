@@ -16,13 +16,20 @@
 //!   - mixed text+expr value (`href="/{slug}"`) → `${$.attr('name', `/${$.stringify(slug)}`)}`,
 //!   - `class={x}` → `${$.attr_class(x, <css_hash?>)}`,
 //!   - `style={x}` → `${$.attr_style(x)}`,
-//!   - the CSS scope-class injection.
+//!   - the CSS scope-class injection,
+//!   - spread (`{...obj}`) → the whole-element `$.attributes({ ...merged },
+//!     css_hash?, classes?, styles?, flags?)` form (see
+//!     [`build_element_spread_attributes`]), which merges every static / dynamic
+//!     attribute + spread into a single object and replaces per-attribute
+//!     emission for the element.
 //!
-//! 写经 gaps (TODO): spread (`{...obj}`), `class:` / `style:` / `bind:` / `use:`
-//! directives, `<select>` / `<option>` / `<textarea>` / `<script>` / `<style>`
-//! special branches, the `value` / `group` binding synthesis, `$.clsx` clsx
-//! object form, event-handler capture, dev `push_element` markers, and the async
-//! `PromiseOptimiser` wrapping. Any of those attribute kinds is currently skipped.
+//! 写经 gaps (TODO): `class:` / `style:` / `bind:` / `use:` directives on the
+//! non-spread path, `<select>` / `<option>` / `<textarea>` / `<script>` /
+//! `<style>` special branches, the `value` / `group` binding synthesis, `$.clsx`
+//! clsx object form, event-handler capture, dev `push_element` markers, and the
+//! async `PromiseOptimiser` wrapping. Within the spread path, `bind:` / `use:` /
+//! `@attach` and the `style:` `|important` split remain gaps (see
+//! [`build_element_spread_attributes`]).
 
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, BindDirective, RegularElement,
@@ -273,6 +280,19 @@ fn build_element_attributes<'a>(
     css_hash: Option<&str>,
     state: &mut ServerTransformState<'a>,
 ) {
+    // When the element carries ANY spread attribute (`{...obj}`), upstream's
+    // `build_element_attributes` abandons the per-attribute emission and instead
+    // builds ONE `$.attributes({ ...merged }, css_hash, classes, styles, flags?)`
+    // call covering the whole element. Mirror that here.
+    if node
+        .attributes
+        .iter()
+        .any(|a| matches!(a, Attribute::SpreadAttribute(_)))
+    {
+        build_element_spread_attributes(node, css_hash, state);
+        return;
+    }
+
     let has_class_dir_or_spread = has_class_directive_or_spread(node);
 
     // Track whether ANY `class` attribute (static or dynamic) was emitted; the
@@ -465,6 +485,155 @@ fn build_element_attributes<'a>(
             .template
             .push(TemplateEntry::Literal(format!(" class=\"{hash}\"")));
     }
+}
+
+/// Port of the spread branch of `build_element_attributes`
+/// (`shared/element.js`). When an element has any `SpreadAttribute`, ALL
+/// attributes are merged into one object and rendered with a single
+/// `$.attributes(object, css_hash, classes, styles, flags?)` call.
+///
+/// The object collects, in source order:
+///   - static / dynamic plain attributes as `name: value` properties
+///     (static text → string literal, dynamic `{x}` → the visited expression),
+///   - each spread as `...spread`.
+///
+/// Args after the object mirror upstream `prepare_element_spread`:
+///   - `css_hash` — the scope-class string when scoped (else dropped),
+///   - `classes`  — a `{ name: value }` object built from `class:` directives,
+///   - `styles`   — a `{ name: value }` object built from `style:` directives,
+///   - `flags`    — the namespaced / preserve-case / input bitmask (when ≠ 0).
+///
+/// Trailing `undefined`/`None` arguments are dropped (upstream `b.call`
+/// semantics via [`B::call_opt`]), so `$.attributes({ ...spread })` with no
+/// scope / directives / flags collapses to the single-arg form.
+///
+/// KNOWN GAPs (skipped here, matching the non-spread path): `class:` / `style:`
+/// directive VALUE expressions are emitted as bare identifiers (TODO: visit the
+/// directive expression), `bind:` directives in the spread object, `use:` /
+/// `@attach`, and the `onload`/`onerror` event capture for spread elements.
+fn build_element_spread_attributes<'a>(
+    node: &RegularElement,
+    css_hash: Option<&str>,
+    state: &mut ServerTransformState<'a>,
+) {
+    use crate::ast::template::{ClassDirective, StyleDirective};
+    use crate::compiler::constants::{
+        ELEMENT_IS_INPUT, ELEMENT_IS_NAMESPACED, ELEMENT_PRESERVE_ATTRIBUTE_CASE,
+    };
+    use crate::compiler::phases::phase3_transform::shared::template::is_custom_element_node;
+    use oxc_ast::ast::ObjectPropertyKind;
+
+    // -- the merged attribute object ----------------------------------------
+    let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
+    let mut class_directives: Vec<&ClassDirective> = Vec::new();
+    let mut style_directives: Vec<&StyleDirective> = Vec::new();
+
+    for attr in &node.attributes {
+        match attr {
+            Attribute::SpreadAttribute(spread) => {
+                let expr = state.visit_expr(&spread.expression);
+                props.push(state.b.spread(expr));
+            }
+            Attribute::Attribute(a) => {
+                let raw_name = a.name.as_str();
+                // `value` on `<select>`/`<textarea>` and event handlers /
+                // default* are omitted by upstream — skip them here too.
+                if raw_name == "value" && matches!(node.name.as_str(), "select" | "textarea") {
+                    continue;
+                }
+                if is_event_attribute_name(raw_name)
+                    || raw_name == "defaultValue"
+                    || raw_name == "defaultChecked"
+                {
+                    continue;
+                }
+                let name = get_attribute_name(node, a);
+                let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
+                let value = build_attribute_value(&a.value, trim_ws, state);
+                props.push(state.b.init(&name, value));
+            }
+            Attribute::ClassDirective(dir) => class_directives.push(dir),
+            Attribute::StyleDirective(dir) => style_directives.push(dir),
+            // `bind:` / `use:` / `@attach`: KNOWN GAP in the spread path.
+            _ => {}
+        }
+    }
+
+    let object = state.b.object(props);
+
+    // -- css_hash (2nd arg) -------------------------------------------------
+    let css_hash_arg = css_hash.map(|h| state.b.string(h));
+
+    // -- class: directives object (3rd arg) ---------------------------------
+    // `{ name: <visited value> }` — `class:foo={on}` → `{ foo: on }`.
+    let classes_arg = if class_directives.is_empty() {
+        None
+    } else {
+        let members = class_directives
+            .iter()
+            .map(|dir| {
+                let val = state.visit_expr(&dir.expression);
+                state.b.init(dir.name.as_str(), val)
+            })
+            .collect();
+        Some(state.b.object(members))
+    };
+
+    // -- style: directives object (4th arg) ---------------------------------
+    // `{ name: <value> }` — `style:color={c}` → `{ color: c }`. A bare `style:x`
+    // (no value) uses the shorthand identifier; otherwise the value expression /
+    // template is built like any attribute value. The name is lowercased unless
+    // it is a custom property (`--var`). KNOWN GAP: the `|important` modifier
+    // `[normal, important]` array split is not applied here.
+    let styles_arg = if style_directives.is_empty() {
+        None
+    } else {
+        let members = style_directives
+            .iter()
+            .map(|dir| {
+                let mut sname = dir.name.to_string();
+                if !sname.starts_with("--") {
+                    sname = sname.to_lowercase();
+                }
+                let val = if matches!(dir.value, AttributeValue::True(_)) {
+                    state.b.id(dir.name.as_str())
+                } else {
+                    build_attribute_value(&dir.value, true, state)
+                };
+                state.b.init(&sname, val)
+            })
+            .collect();
+        Some(state.b.object(members))
+    };
+
+    // -- flags (5th arg) ----------------------------------------------------
+    let mut flags = 0;
+    if node.metadata.svg || node.metadata.mathml {
+        flags |= ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE;
+    } else if is_custom_element_node(node.name.as_str()) {
+        flags |= ELEMENT_PRESERVE_ATTRIBUTE_CASE;
+    } else if node.name.as_str() == "input" {
+        flags |= ELEMENT_IS_INPUT;
+    }
+    let flags_arg = if flags != 0 {
+        Some(state.b.number(flags as f64))
+    } else {
+        None
+    };
+
+    // `$.attributes(object, css_hash?, classes?, styles?, flags?)`. `call_opt`
+    // drops trailing `None`s and replaces interior `None`s with `void 0`.
+    let call = state.b.call_opt(
+        "$.attributes",
+        vec![
+            Some(object),
+            css_hash_arg,
+            classes_arg,
+            styles_arg,
+            flags_arg,
+        ],
+    );
+    push_interp(state, call);
 }
 
 /// Push a `${call}` interpolation: a single-expression [`TemplateEntry::Template`]

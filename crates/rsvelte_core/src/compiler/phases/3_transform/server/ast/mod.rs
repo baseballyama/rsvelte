@@ -1438,6 +1438,54 @@ mod tests {
         );
     }
 
+    /// Element SPREAD-attribute codegen parity with the `transform_server`
+    /// oracle. Any `{...obj}` switches the whole element to a single
+    /// `$.attributes(object, css_hash?, classes?, styles?, flags?)` call that
+    /// merges static + dynamic + spread attributes. Covers:
+    ///   - bare spread `<div {...spread}>`            → `$.attributes({ ...spread })`
+    ///   - static + spread + dynamic (source order)   → `{ class: 'a', ...spread, id: x }`
+    ///   - scope-hash (style block)                   → `$.attributes({ ...spread }, 'svelte-…')`
+    ///   - `class:` directive (3rd arg)               → `…, void 0, { foo: on }`
+    ///   - `style:` directive (4th arg)               → `…, void 0, void 0, { color: c }`
+    ///   - `<input>` flags                            → `…, 4`
+    ///   - `<svg>` namespaced flags                   → `…, 3`
+    #[test]
+    fn ast_matches_oracle_spread_attributes() {
+        let samples = [
+            // bare spread
+            "<script>let spread = $state({});</script><div {...spread}></div>",
+            // static class + spread + dynamic id (source order preserved)
+            "<script>let spread = $state({}); let x = $state(1);</script><div class=\"a\" {...spread} id={x}></div>",
+            // scope hash from a <style> block
+            "<script>let spread = $state({});</script><div {...spread}>x</div><style>div{color:red}</style>",
+            // class: directive
+            "<script>let spread = $state({}); let on = $state(true);</script><div {...spread} class:foo={on}></div>",
+            // style: directive
+            "<script>let spread = $state({}); let c = $state('red');</script><div {...spread} style:color={c}></div>",
+            // <input> flags
+            "<script>let spread = $state({});</script><input {...spread}>",
+            // <svg> namespaced flags
+            "<script>let spread = $state({});</script><svg {...spread}></svg>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "spread-attribute codegen differs from oracle for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn trivial_component_skeleton() {
         let out = run("<p>hello</p>");
