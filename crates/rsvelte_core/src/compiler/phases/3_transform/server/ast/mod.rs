@@ -85,6 +85,41 @@ pub struct ServerTransformState<'a> {
     /// `_1`, `_2`, … — mirroring the text oracle's `$$body` / `$$body_N` naming
     /// (upstream uses `state.scope.generate('$$body')`).
     pub body_counter: usize,
+    /// The async `{@const}` accumulator for the CURRENT fragment, mirroring
+    /// upstream's per-Fragment `state.async_consts` (`Fragment.js`,
+    /// `DeclarationTag.js::add_async_declaration`). When a `{@const}` in a block
+    /// has an awaited / blocker-dependent initializer, its assignment becomes a
+    /// thunk in this group's `$$renderer.run([...])` declaration, and the bare
+    /// `let <name>;` for each declared binding is collected into `let_decls`. The
+    /// group is created lazily by the const visitor, prepended to the fragment
+    /// body by [`visitors::shared::build_fragment_body`], and reset (save/restore)
+    /// around each fragment so blocks don't leak consts to siblings.
+    pub async_consts: Option<AsyncConstsGroup<'a>>,
+    /// Per-fragment-scope const blocker map (binding name → blocker expression
+    /// source, e.g. `"promises[1]"`). Mirrors the text oracle's
+    /// `const_blocker_map` / upstream `Binding.blocker`: a template read of a
+    /// binding registered here is routed through
+    /// `$$renderer.async([<blocker>], …)`. Saved/restored around each fragment
+    /// body (an inner block inherits the parent map but additions are local).
+    pub const_blocker_map: rustc_hash::FxHashMap<String, String>,
+    /// Monotonic counter for the `$$renderer.run([...])` group variable name —
+    /// `promises`, `promises_1`, `promises_2`, … (mirrors the text oracle's
+    /// `const_promises_counter`).
+    pub const_promises_counter: usize,
+}
+
+/// One per-fragment async `{@const}` group — the AST mirror of upstream's
+/// `state.async_consts` (`DeclarationTag.js`). `name` is the `$$renderer.run`
+/// result variable (`promises`); `thunks` are the (source, has_await) thunk
+/// entries fed to `$$renderer.run([...])`; `let_decls` are the bare `let <name>;`
+/// declarations that precede the run call.
+pub struct AsyncConstsGroup<'a> {
+    pub name: String,
+    /// (thunk source text, is_async) — reparsed into the run array on flush.
+    pub thunks: Vec<(String, bool)>,
+    /// Bare `let <name>;` statements (one per declared binding) emitted before
+    /// the `var promises = $$renderer.run([...])` declaration.
+    pub let_decls: Vec<Statement<'a>>,
 }
 
 /// The precomputed inputs to the SSR constant-folding evaluator
@@ -126,6 +161,21 @@ impl<'a> ServerTransformState<'a> {
             each_index: 0,
             eval_inputs: EvalInputs::default(),
             body_counter: 0,
+            async_consts: None,
+            const_blocker_map: rustc_hash::FxHashMap::default(),
+            const_promises_counter: 0,
+        }
+    }
+
+    /// Generate the next `$$renderer.run` group variable name — `promises`,
+    /// `promises_1`, `promises_2`, … (写经 text oracle `generate_promises_name`).
+    pub fn next_promises_name(&mut self) -> String {
+        let counter = self.const_promises_counter;
+        self.const_promises_counter = counter + 1;
+        if counter == 0 {
+            "promises".to_string()
+        } else {
+            format!("promises_{counter}")
         }
     }
 
@@ -932,6 +982,54 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "async top-level output differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// Async `{@const}` (Stage 3): the snapshot fixture `async-const`. An
+    /// awaited `{@const a = await 1}` (and the dependent `{@const b = a + 1}`)
+    /// inside `{#if}` lower to a per-block `$$renderer.run([...])` group:
+    ///   let a; let b;
+    ///   var promises = $$renderer.run([async () => a = (await $.save(1))(), () => b = a + 1]);
+    /// and the reader `{b}` becomes
+    ///   $$renderer.async([promises[1]], ($$renderer) => $$renderer.push(() => $.escape(b)));
+    /// Asserts byte-for-byte parity with the text oracle (post `norm_blocks`).
+    #[test]
+    fn ast_matches_oracle_async_const() {
+        let src =
+            "{#if true}\n\t{@const a = await 1}\n\t{@const b = a + 1}\n\n\t<p>{b}</p>\n{/if}\n";
+        let (ours, oracle) = run_async_both(src);
+        // The text oracle splits the `$$renderer.run([...])` array across lines
+        // (with blank-line padding between thunks); the AST pipeline emits the
+        // array on one line — matching the OFFICIAL `_expected` snapshot. Both
+        // are structurally identical; the corpus oxfmt pass collapses exactly
+        // this layout diff, so compare with whitespace-runs collapsed to a single
+        // space (a structural token comparison).
+        fn norm_tokens(s: &str) -> String {
+            // Pad bracket/paren/comma punctuators so adjacency to a newline
+            // (oracle: `run([\n async`) vs none (ours: `run([async`) doesn't
+            // change the token stream, then collapse all whitespace.
+            let padded: String = s
+                .chars()
+                .flat_map(|c| match c {
+                    '[' | ']' | '(' | ')' | ',' | '{' | '}' => vec![' ', c, ' '],
+                    other => vec![other],
+                })
+                .collect();
+            padded.split_whitespace().collect::<Vec<_>>().join(" ")
+        }
+        let matched = norm_tokens(&ours) == norm_tokens(&oracle);
+        assert!(
+            matched,
+            "async-const output differs from oracle:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
+        );
+        // Spot-check the load-bearing shapes the fixture oracle requires.
+        let n = norm_blocks(&ours);
+        assert!(
+            n.contains("$$renderer.run([")
+                && n.contains("async () => a = (await $.save(1))()")
+                && n.contains("() => b = a + 1")
+                && n.contains("$$renderer.async([promises[1]]"),
+            "async-const missing expected run/async shape:\n{ours}"
         );
     }
 

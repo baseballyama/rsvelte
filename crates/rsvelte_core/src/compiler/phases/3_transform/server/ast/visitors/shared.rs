@@ -184,12 +184,28 @@ pub fn process_children_inner<'a>(
                 // `has_await=true, blockers=[]` shape. A top-level-await blocker
                 // reference emits `$$renderer.async([$$promises[N]…], …)` with
                 // `has_await=false` (the await lives in the instance thunk).
+                // 写经 the const-blocker wrap (`apply_const_async_wrapping`): a
+                // read of a binding registered in the per-fragment
+                // `const_blocker_map` (an async `{@const}`) is routed through
+                // `$$renderer.async([<blocker-expr>…], …)`, where the blocker is
+                // the group's `promises[N]` member. Checked BEFORE the top-level
+                // `$$promises[N]` blocker scan so a local async const dependency
+                // wins.
+                let const_blockers = expression_tag_const_blockers(&tag.expression, state);
                 let blockers = expression_tag_blockers(&tag.expression, state);
                 let inline_await = blockers.is_none()
+                    && const_blockers.is_empty()
                     && state
                         .expr_source(&tag.expression)
                         .is_some_and(text_has_await);
-                if let Some(blockers) = blockers {
+                if !const_blockers.is_empty() {
+                    flush_sequence(&sequence, state);
+                    sequence.clear();
+                    let visited = state.visit_expr(&tag.expression);
+                    let stmt =
+                        build_async_expression_push_exprs(state, visited, &const_blockers, false);
+                    state.template.push(TemplateEntry::Stmt(stmt));
+                } else if let Some(blockers) = blockers {
                     flush_sequence(&sequence, state);
                     sequence.clear();
                     let visited = state.visit_expr(&tag.expression);
@@ -424,6 +440,24 @@ fn expression_tag_blockers(expr: &Expression, state: &ServerTransformState) -> O
     }
 }
 
+/// Find the per-fragment const-tag blocker EXPRESSIONS (`promises[N]` source
+/// strings) referenced by an ExpressionTag's interpolation, via
+/// [`ServerTransformState::const_blocker_map`]. Empty when no async `{@const}`
+/// in scope blocks any read in the expression. Mirrors the text oracle's
+/// `find_const_expression_blockers`.
+fn expression_tag_const_blockers(expr: &Expression, state: &ServerTransformState) -> Vec<String> {
+    if state.const_blocker_map.is_empty() {
+        return Vec::new();
+    }
+    let Some(text) = state.expr_source(expr) else {
+        return Vec::new();
+    };
+    crate::compiler::phases::phase3_transform::server::helpers::find_const_expression_blockers(
+        text,
+        &state.const_blocker_map,
+    )
+}
+
 /// A joinable sibling captured during [`process_children`].
 enum SeqNode<'n> {
     Text(&'n str),
@@ -600,11 +634,60 @@ pub fn build_fragment_body<'a>(
     let saved_standalone = state.is_standalone;
     state.is_standalone = ServerTransformState::is_standalone_fragment(&fragment.nodes);
     let saved = std::mem::take(&mut state.template);
+
+    // 写经 upstream `Fragment.js`: each fragment gets a FRESH
+    // `async_consts: undefined` and inherits the parent `const_blocker_map`
+    // (additions are local to this scope). Save/restore both around the body so
+    // a block's async `{@const}` group does not leak to siblings, while a child
+    // fragment can still see a parent-scope blocked binding.
+    let saved_async_consts = state.async_consts.take();
+    let saved_blocker_map = state.const_blocker_map.clone();
+
     process_children_inner(&fragment.nodes, None, "html", is_text_first_parent, state);
     let template = std::mem::replace(&mut state.template, saved);
-    let body = build_template(template, state);
+    let mut body = build_template(template, state);
+
+    // 写经 `Fragment.js`: when this fragment opened an async `{@const}` group,
+    // prepend `let a; let b; var promises = $$renderer.run([thunks…]);` ahead of
+    // the template body (`state.init.push(...)` → `[...state.init, ...template]`).
+    if let Some(group) = state.async_consts.take()
+        && !group.thunks.is_empty()
+    {
+        let run_decl = build_async_consts_run(state, &group);
+        let mut prelude: Vec<Statement<'a>> = group.let_decls;
+        prelude.push(run_decl);
+        prelude.append(&mut body);
+        body = prelude;
+    }
+
+    state.async_consts = saved_async_consts;
+    state.const_blocker_map = saved_blocker_map;
     state.is_standalone = saved_standalone;
     body
+}
+
+/// Build the `var <name> = $$renderer.run([<thunks>]);` declaration for an async
+/// `{@const}` group (写经 `Fragment.js` lines 46-50 +
+/// `add_async_declaration`). Each thunk's source text is reparsed into an oxc
+/// expression so the printed output matches the text oracle byte-for-byte.
+fn build_async_consts_run<'a>(
+    state: &ServerTransformState<'a>,
+    group: &crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup<'a>,
+) -> Statement<'a> {
+    let b = state.b;
+    let elems: Vec<Option<OxcExpression<'a>>> = group
+        .thunks
+        .iter()
+        .map(|(code, _)| {
+            Some(
+                state
+                    .reparse_slice_owned(code)
+                    .unwrap_or_else(|| b.id("undefined")),
+            )
+        })
+        .collect();
+    let run_call = b.call("$$renderer.run", vec![b.array(elems)]);
+    b.var_decl(b.id_pat(&group.name), Some(run_call))
 }
 
 /// Render a fragment as a `{ ... }` block statement — the Rust port of upstream's
@@ -785,6 +868,40 @@ pub fn build_async_expression_push<'a>(
     let mut call = b.call("$$renderer.push", vec![thunk]);
     if !blocker_indices.is_empty() {
         let blockers = blockers_array(state, blocker_indices);
+        let params = b.params(vec![b.id_pat("$$renderer")], None);
+        let arrow = b.arrow_expr(params, call, false);
+        call = b.call("$$renderer.async", vec![blockers, arrow]);
+    }
+    b.stmt(call)
+}
+
+/// Like [`build_async_expression_push`], but the blockers are arbitrary
+/// EXPRESSION strings (`promises[N]`) rather than `$$promises[N]` indices — the
+/// async `{@const}` reader wrap (`$$renderer.async([promises[1]], …)`). Each
+/// blocker source is reparsed into an oxc expression. With an empty list the
+/// bare inner push is returned.
+pub fn build_async_expression_push_exprs<'a>(
+    state: &ServerTransformState<'a>,
+    expr: OxcExpression<'a>,
+    blocker_exprs: &[String],
+    has_await: bool,
+) -> Statement<'a> {
+    let b = state.b;
+    let escaped = b.call("$.escape", vec![expr]);
+    let thunk = b.thunk(escaped, has_await);
+    let mut call = b.call("$$renderer.push", vec![thunk]);
+    if !blocker_exprs.is_empty() {
+        let elems: Vec<Option<OxcExpression<'a>>> = blocker_exprs
+            .iter()
+            .map(|src| {
+                Some(
+                    state
+                        .reparse_slice_owned(src)
+                        .unwrap_or_else(|| b.id("undefined")),
+                )
+            })
+            .collect();
+        let blockers = b.array(elems);
         let params = b.params(vec![b.id_pat("$$renderer")], None);
         let arrow = b.arrow_expr(params, call, false);
         call = b.call("$$renderer.async", vec![blockers, arrow]);
