@@ -1385,17 +1385,51 @@ mod tests {
         assert!(out.contains("let c = 0;"), "missing instance decl:\n{out}");
     }
 
-    /// TypeScript instance scripts are a KNOWN GAP: skipped (empty instance
-    /// body), the component still assembles.
+    /// TypeScript instance scripts: the script slice is `strip_typescript`-ed
+    /// before parsing, then lowered as JS. Output must match the oracle
+    /// (which strips TS from its final output) structurally.
     #[test]
-    fn typescript_script_known_gap() {
-        let out = run("<script lang=\"ts\">let n: number = $state(0);</script><p>x</p>");
-        // No instance statement emitted (TS skipped) — but the shell is intact.
+    fn typescript_script_oracle_parity() {
+        // NOTE: template expressions are chosen so the oracle's `scope.evaluate`
+        // constant-folding (e.g. `{x}` over a `$state(0)` → `0`) does NOT fire —
+        // that folding is an ORTHOGONAL, pre-existing AST-template KNOWN GAP, not a
+        // TS-strip concern. References to props / derived reads / mutated state
+        // are non-foldable, so the diff isolates the script-body TS strip.
+        let samples = [
+            // runes $state with a type annotation (reactive, non-folded read)
+            "<script lang=\"ts\">let x: number = $state(0); function inc(){ x++; }</script><p>{x}</p><button onclick={inc}>+</button>",
+            // simple typed literal, prop-backed so not folded
+            "<script lang=\"ts\">let n: string = 'a';</script><p>{n.length}</p>",
+            // legacy export-let prop with type
+            "<script lang=\"ts\">export let p: number;</script><p>{p}</p>",
+            // interface + type decls (stripped) alongside a real decl, prop read
+            "<script lang=\"ts\">interface Foo { a: number } type Bar = string; export let v: number;</script><p>{v}</p>",
+            // function with typed params + return type, applied to a derived read
+            // (no `export let` here — the oracle's text-strip path mishandles a
+            // type-annotated `export let x: T;` with no initializer, an ORTHOGONAL
+            // oracle bug; the AST path emits the correct `$$props['x']`).
+            "<script lang=\"ts\">let base: number = $state(2); let twice: number = $derived(base * 2); function add(a: number, b: number): number { return a + b; }</script><p>{add(twice, 1)}</p>",
+            // $derived with annotation (derived read → `d()`)
+            "<script lang=\"ts\">let c: number = $state(0); let d: number = $derived(c * 2);</script><p>{d}</p>",
+            // $props with destructure type annotation
+            "<script lang=\"ts\">let { name }: { name: string } = $props();</script><p>{name}</p>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = norm(&ours) == norm(&oracle);
+            if !matched {
+                eprintln!(
+                    "=== SRC: {src} === DIFFER\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(src);
+            }
+        }
         assert!(
-            out.contains("export default function App"),
-            "shell missing:\n{out}"
+            mismatches.is_empty(),
+            "TS AST output differs from oracle for: {mismatches:?}"
         );
-        assert!(!out.contains("let n"), "TS body should be skipped:\n{out}");
     }
 
     /// READ-WRAPPING single pass — the crux gate. Asserts the wrapped reads
@@ -2073,6 +2107,14 @@ mod tests {
         let mut panicked = 0usize;
         let mut skipped = 0usize;
 
+        // TypeScript-component instrumentation (the lever for this slice).
+        let mut ts_total = 0usize; // non-empty components whose source looks TS
+        let mut ts_compared = 0usize; // TS components that produced output on both sides
+        let mut ts_matched = 0usize; // TS components that structurally matched
+        let mut ts_new_none = 0usize;
+        let mut ts_panicked = 0usize;
+        let mut ts_skipped = 0usize;
+
         let mut new_none_examples: Vec<String> = Vec::new();
         let mut panic_examples: Vec<String> = Vec::new();
 
@@ -2103,6 +2145,17 @@ mod tests {
                 .display()
                 .to_string();
 
+            // A component is "TypeScript" if either script tag carries
+            // lang="ts"/lang='ts'/lang=typescript. Cheap source-substring probe
+            // matching `script_is_typescript`'s intent for measurement only.
+            let is_ts = source.contains("lang=\"ts\"")
+                || source.contains("lang='ts'")
+                || source.contains("lang=\"typescript\"")
+                || source.contains("lang='typescript'");
+            if is_ts {
+                ts_total += 1;
+            }
+
             match compile_both(&source) {
                 Outcome::Compared {
                     matched_text,
@@ -2112,6 +2165,12 @@ mod tests {
                     oracle_canon,
                 } => {
                     compared += 1;
+                    if is_ts {
+                        ts_compared += 1;
+                        if matched_struct {
+                            ts_matched += 1;
+                        }
+                    }
                     if matched_text {
                         matched_text_only += 1;
                     }
@@ -2152,17 +2211,28 @@ mod tests {
                 }
                 Outcome::NewNone => {
                     new_none += 1;
+                    if is_ts {
+                        ts_new_none += 1;
+                    }
                     if new_none_examples.len() < 10 {
                         new_none_examples.push(name.clone());
                     }
                 }
                 Outcome::Panic(which) => {
                     panicked += 1;
+                    if is_ts {
+                        ts_panicked += 1;
+                    }
                     if panic_examples.len() < 10 {
                         panic_examples.push(format!("[{which}] {name}"));
                     }
                 }
-                Outcome::Skipped => skipped += 1,
+                Outcome::Skipped => {
+                    skipped += 1;
+                    if is_ts {
+                        ts_skipped += 1;
+                    }
+                }
             }
         }
 
@@ -2213,6 +2283,29 @@ mod tests {
         eprintln!(
             "    DELTA structural - text ....... {:+}  ({matched} struct vs {matched_text_only} text)",
             matched as i64 - matched_text_only as i64
+        );
+
+        eprintln!("\n-- TYPESCRIPT components (lever) --");
+        eprintln!(
+            "  TS components (non-empty) ....... {ts_total} ({:.1}% of total)",
+            pct(ts_total, total)
+        );
+        eprintln!(
+            "    TS skipped (parse/analyze) .... {ts_skipped}  TS new=None {ts_new_none}  TS panic {ts_panicked}"
+        );
+        eprintln!("    TS compared ................... {ts_compared}");
+        eprintln!(
+            "    TS MATCH (structural) ......... {ts_matched} / {ts_compared}  = {:.1}% of TS-compared",
+            pct(ts_matched, ts_compared)
+        );
+        eprintln!(
+            "    TS MISMATCH (compared) ........ {}  (+ {} new=None/panic/skip)",
+            ts_compared - ts_matched,
+            ts_new_none + ts_panicked + ts_skipped
+        );
+        eprintln!(
+            "    TS MATCH / TS total ........... {ts_matched} / {ts_total}  = {:.1}%",
+            pct(ts_matched, ts_total)
         );
 
         if !new_none_examples.is_empty() {

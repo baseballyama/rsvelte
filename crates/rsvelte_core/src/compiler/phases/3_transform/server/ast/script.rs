@@ -26,7 +26,12 @@
 //! - derived-read wrapping, store-get (`$x` → `$.store_get`),
 //!   `$state.snapshot`, `$$sanitized_props` identifier rewriting — all value
 //!   expressions pass through verbatim (re-parsed source, UNCHANGED).
-//! - TypeScript components (`<script lang="ts">`) — skipped (empty body).
+//! - TypeScript components (`<script lang="ts">`) — the script slice is run
+//!   through `strip_typescript` BEFORE parsing, then lowered as ordinary JS
+//!   (offsets stay internally consistent because `src` borrows the stripped
+//!   buffer and every re-slice cuts from `src`, never from `state.source`).
+//!   Template-side TS (e.g. `{x as T}`) is NOT stripped here — the OLD oracle
+//!   strips TS from its final output, which this slice does not (KNOWN GAP).
 //! - async `$derived` (`$derived(await …)`) — lowered as a plain `$.derived`
 //!   thunk (no `await $.async_derived(...)`).
 //! - complex `$props()` / destructured-`$derived` / destructured-`$state`
@@ -117,11 +122,6 @@ fn transform_script<'a>(
     state: &mut ServerTransformState<'a>,
     mut import_sink: Option<&mut Vec<Statement<'a>>>,
 ) -> Vec<Statement<'a>> {
-    // KNOWN GAP: TypeScript components skipped wholesale.
-    if super::super::helpers::script_is_typescript(script) {
-        return Vec::new();
-    }
-
     let (Some(start), Some(end)) = (script.content.start(), script.content.end()) else {
         return Vec::new();
     };
@@ -129,7 +129,26 @@ fn transform_script<'a>(
     if end <= start || end > state.source.len() {
         return Vec::new();
     }
-    let src = &state.source[start..end];
+
+    // TypeScript components: strip TS from the script SLICE before parsing, then
+    // run the same JS lowering on the stripped text. `strip_typescript` returns a
+    // NEW string whose byte offsets do NOT line up with `state.source`, so we must
+    // make `src` borrow the stripped buffer and have EVERY downstream sub-slice /
+    // reparse cut from `src` (never from `state.source`). This is already how the
+    // rest of this function works: the classification parse and every span re-slice
+    // index into the local `src`, and the reparse helpers copy the slice text into
+    // the state allocator — none of them index `state.source` directly. So binding
+    // `src` to the stripped buffer keeps offsets internally consistent. Mirrors the
+    // OLD oracle, which runs the same `strip_typescript` (over its final output).
+    let stripped;
+    let src: &str = if super::super::helpers::script_is_typescript(script) {
+        stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
+            &state.source[start..end],
+        );
+        &stripped
+    } else {
+        &state.source[start..end]
+    };
 
     // Parse with a FRESH allocator purely for CLASSIFICATION. We never move nodes
     // out of it; every emitted statement is re-parsed from `src` into the state
@@ -313,11 +332,6 @@ fn transform_script_legacy<'a>(
     mut import_sink: Option<&mut Vec<Statement<'a>>>,
     is_instance: bool,
 ) -> Vec<Statement<'a>> {
-    // KNOWN GAP: TypeScript components skipped wholesale.
-    if super::super::helpers::script_is_typescript(script) {
-        return Vec::new();
-    }
-
     let (Some(start), Some(end)) = (script.content.start(), script.content.end()) else {
         return Vec::new();
     };
@@ -325,7 +339,18 @@ fn transform_script_legacy<'a>(
     if end <= start || end > state.source.len() {
         return Vec::new();
     }
-    let src = &state.source[start..end];
+
+    // TypeScript components: strip TS from the slice before parsing (see the
+    // matching note in `transform_script` for the offset-consistency rationale).
+    let stripped;
+    let src: &str = if super::super::helpers::script_is_typescript(script) {
+        stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
+            &state.source[start..end],
+        );
+        &stripped
+    } else {
+        &state.source[start..end]
+    };
 
     let alloc = oxc_allocator::Allocator::default();
     let owned = alloc.alloc_str(src);
