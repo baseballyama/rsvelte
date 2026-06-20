@@ -765,6 +765,17 @@ impl<'a> B<'a> {
         self.ab.statement_if(SPAN, test, consequent, alternate)
     }
 
+    /// `do body while (test);` (upstream `b.do_while`).
+    pub fn do_while(self, test: Expression<'a>, body: Statement<'a>) -> Statement<'a> {
+        self.ab.statement_do_while(SPAN, body, test)
+    }
+
+    /// `!argument` — logical-NOT unary (upstream `b.unary('!', ...)`).
+    #[inline]
+    pub fn unary_not(self, argument: Expression<'a>) -> Expression<'a> {
+        self.unary(UnaryOperator::LogicalNot, argument)
+    }
+
     /// `;` empty statement.
     #[inline]
     pub fn empty(self) -> Statement<'a> {
@@ -1076,6 +1087,27 @@ mod tests {
         // $.push($$props, true);
         let out = print(|b| vec![b.stmt(b.call("$.push", vec![b.id("$$props"), b.bool(true)]))]);
         assert_eq!(out.trim(), "$.push($$props, true);");
+    }
+
+    #[test]
+    fn unary_not_expr() {
+        // !$$settled;
+        let out = print(|b| vec![b.stmt(b.unary_not(b.id("$$settled")))]);
+        assert_eq!(out.trim(), "!$$settled;");
+    }
+
+    #[test]
+    fn do_while_loop() {
+        // do { x = true; } while (!x);
+        let out = print(|b| {
+            let body = b.block(vec![b.stmt(b.assignment(
+                oxc_ast::ast::AssignmentOperator::Assign,
+                b.id("x"),
+                b.bool(true),
+            ))]);
+            vec![b.do_while(b.unary_not(b.id("x")), body)]
+        });
+        assert_eq!(out.trim(), "do {\n\tx = true;\n} while (!x);");
     }
 
     #[test]

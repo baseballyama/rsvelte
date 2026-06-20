@@ -457,6 +457,54 @@ pub fn server_component_ast<'a>(
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
     let template_body = visitors::shared::build_fragment_body(&ast.fragment, true, &mut state);
+
+    // -- component-bindings settle-loop (upstream lines 178-211) ------------
+    // If the component binds to a child (`<Child bind:value={v} />`), legacy
+    // bindings may not be stable on the first render, so upstream wraps the
+    // template body in a do-while settle loop that re-renders into a copied
+    // renderer until `$$settled` stays true, then `subsume`s the inner result.
+    //
+    // Upstream separates top-level snippet FunctionDeclarations (`___snippet`)
+    // from the `rest`, keeps the snippets ahead of the loop, and wraps only the
+    // `rest`. In the AST pipeline, top-level snippet function declarations are
+    // hoisted to `state.hoisted` (module scope) by `visit_snippet_block`, so
+    // they are NOT present in `template_body` — the whole `template_body` IS the
+    // `rest`, and the `snippets` prefix is empty here.
+    let template_body = if analysis.uses_component_bindings {
+        // function $$render_inner($$renderer) { <rest> }
+        let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
+        let inner_fn_body = b.body(template_body);
+        let render_inner_fn =
+            b.function_declaration("$$render_inner", inner_params, inner_fn_body, false);
+
+        // do { $$settled = true; $$inner_renderer = $$renderer.copy();
+        //      $$render_inner($$inner_renderer); } while (!$$settled);
+        let loop_body = b.block(vec![
+            b.stmt(b.assignment(
+                oxc_ast::ast::AssignmentOperator::Assign,
+                b.id("$$settled"),
+                b.bool(true),
+            )),
+            b.stmt(b.assignment(
+                oxc_ast::ast::AssignmentOperator::Assign,
+                b.id("$$inner_renderer"),
+                b.call("$$renderer.copy", vec![]),
+            )),
+            b.stmt(b.call("$$render_inner", vec![b.id("$$inner_renderer")])),
+        ]);
+        let do_while = b.do_while(b.unary_not(b.id("$$settled")), loop_body);
+
+        vec![
+            b.let_id("$$settled", Some(b.bool(true))),
+            b.let_id("$$inner_renderer", None),
+            render_inner_fn,
+            do_while,
+            b.stmt(b.call("$$renderer.subsume", vec![b.id("$$inner_renderer")])),
+        ]
+    } else {
+        template_body
+    };
+
     state.body.extend(template_body);
 
     // `template.body.push(b.if($$store_subs, $.unsubscribe_stores($$store_subs)))`.
@@ -1608,6 +1656,45 @@ mod tests {
             norm(&ours),
             norm(&oracle),
             "props_id output differs from oracle:\nOURS:\n{ours}\nORACLE:\n{oracle}"
+        );
+    }
+
+    /// Component-bindings settle-loop (upstream lines 178-211): a `bind:` on a
+    /// child `<Component>` sets `analysis.uses_component_bindings`, so the
+    /// template body is wrapped in a `do { … } while (!$$settled)` loop with the
+    /// `$$render_inner` function and `$$renderer.subsume(...)` trailer. Asserts
+    /// the AST pipeline emits that shape AND matches the oracle (block-norm).
+    #[test]
+    fn ast_matches_oracle_component_bindings_settle_loop() {
+        let (ours, oracle) = run_both_opts(
+            "<script>import Child from './Child.svelte'; let v = $state(0);</script><Child bind:value={v} />",
+            |_| {},
+        );
+        assert!(
+            ours.contains("let $$settled = true;"),
+            "$$settled declaration missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("let $$inner_renderer;"),
+            "$$inner_renderer declaration missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("function $$render_inner($$renderer)"),
+            "$$render_inner function missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("$$render_inner($$inner_renderer)")
+                && ours.contains("} while (!$$settled);"),
+            "do-while settle loop missing:\n{ours}"
+        );
+        assert!(
+            ours.contains("$$renderer.subsume($$inner_renderer)"),
+            "subsume trailer missing:\n{ours}"
+        );
+        assert_eq!(
+            norm_blocks(&ours),
+            norm_blocks(&oracle),
+            "settle-loop output differs from oracle:\nOURS:\n{ours}\nORACLE:\n{oracle}"
         );
     }
 
