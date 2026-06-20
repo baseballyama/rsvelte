@@ -1016,6 +1016,36 @@ mod tests {
         );
     }
 
+    /// Async SSR `EachBlock` (Stage 2b): the iterable `$.save` await-wrap + the
+    /// block-level `create_child_block` wrapping. Asserts the AST pipeline matches
+    /// the text-based oracle byte-for-byte (post `norm_blocks`).
+    ///
+    /// - `async-each-hoisting`: `{#each await Promise.resolve([…]) as item}` with
+    ///   an await-bearing body `{await item}`. The iterable becomes
+    ///   `$.ensure_array_like((await $.save(Promise.resolve([…])))())`, the const +
+    ///   for-loop wrap in `$$renderer.child_block(async ($$renderer) => …)`, and
+    ///   the body `{await item}` emits `$$renderer.push(async () => $.escape(await
+    ///   item))`. The `<!--[-->` / `<!--]-->` markers stay OUTSIDE the wrap.
+    /// - `async-each-fallback-hoisting`: same with a `{:else}` fallback — the
+    ///   const + `if (each_array.length !== 0) {…} else {…}` wrap together inside
+    ///   one `child_block`, the `<!--]-->` close outside.
+    #[test]
+    fn ast_matches_oracle_async_each_block() {
+        let hoisting = "{#each await Promise.resolve([first, second, third]) as item}\n  {await item}\n{/each}\n";
+        let fallback_hoisting = "{#each await Promise.resolve([]) as item}\n  {await Promise.reject('This should never be reached')}\n{:else}\n  {await Promise.resolve(4)}\n{/each}\n";
+        for (name, src) in &[
+            ("async-each-hoisting", hoisting),
+            ("async-each-fallback-hoisting", fallback_hoisting),
+        ] {
+            let (ours, oracle) = run_async_both(src);
+            let matched = norm_blocks(&ours) == norm_blocks(&oracle);
+            assert!(
+                matched,
+                "EachBlock async output differs from oracle for {name}:\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}"
+            );
+        }
+    }
+
     /// Strip ONLY the instance-script declaration lines that lower a
     /// `$derived(await …)` (the orthogonal axis not covered by Stage 2a):
     /// `let blocking = $.derived(…)`, `var blocking;`, and the

@@ -39,13 +39,29 @@
 //! emitted. No special-casing is needed — the visitor already never references
 //! `node.key`.
 //!
+//! ## Async path (写经 `metadata.expression.is_async()` → `create_child_block`)
+//!
+//! When the iterable expression carries top-level-await blockers or an inline
+//! `await` (`node.metadata.expression.is_async()`), the assembled each statements
+//! (`const each_array = …; <for-loop>` — or the fallback `if/else`) are wrapped
+//! via [`create_child_block`]: blockers → `$$renderer.async_block([…], …)`,
+//! `has_await` → a `child_block(async ($$renderer) => { … })` arrow. The
+//! surrounding `<!--[-->` / `<!--]-->` (and `<!--[!-->` for the fallback) markers
+//! stay OUTSIDE the wrap — exactly as in the sync path — because upstream's
+//! `EachBlock.js` only routes `statements` (the const + loop / fallback-if)
+//! through `create_child_block`, then pushes `block_close` after.
+//!
+//! An await-bearing iterable is `$.save`-wrapped via [`save_wrap_expr_text`]:
+//! `await Promise.resolve([…])` → `(await $.save(Promise.resolve([…])))()`, used
+//! as the argument to `$.ensure_array_like(...)`. Sync each-blocks (no blockers,
+//! no await) pass through `create_child_block` verbatim — output is UNCHANGED.
+//!
 //! KNOWN GAPs:
 //! - the animation path (`animate:` directive) — not handled. The SSR shape is
 //!   identical to a plain keyed each (animations are client-only), so this is
 //!   not a server-output concern.
 //! - destructuring `node.context` patterns (only identifier `as item` handled);
 //!   a destructure falls back to a re-parsed source-slice pattern.
-//! - async each (`node.metadata.expression.is_async()` → `create_child_block`).
 
 use crate::ast::template::EachBlock;
 use crate::compiler::phases::phase3_transform::builders::B;
@@ -53,7 +69,10 @@ use crate::compiler::phases::phase3_transform::builders::{BinaryOperator, Update
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::{BindingPattern, Statement, VariableDeclarationKind};
 
-use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_body};
+use super::shared::{
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_body,
+    create_child_block, expr_text_blockers, save_wrap_expr_text, text_has_await,
+};
 
 /// Visit a `{#each expr as ctx, i (key)}...{/each}` block (sync; keyed or
 /// unkeyed, with or without a `{:else}` fallback). The key is ignored on the
@@ -86,7 +105,24 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
             (user_index.unwrap(), None)
         };
 
-    let collection = state.visit_expr(&node.expression);
+    // Async detection on the iterable (写经 `node.metadata.expression`):
+    // blockers drive `$$renderer.async_block([…], …)`, an inline `await` drives a
+    // `child_block(async …)` arrow + a `$.save`-wrapped collection argument.
+    let iterable_src = state.expr_source(&node.expression).map(|s| s.to_string());
+    let blocker_indices: Vec<usize> = iterable_src
+        .as_deref()
+        .map(|s| expr_text_blockers(state, s))
+        .unwrap_or_default();
+    let has_await = iterable_src.as_deref().is_some_and(text_has_await);
+
+    // The collection argument to `$.ensure_array_like(...)`: an await-bearing
+    // iterable is `$.save`-wrapped (`(await $.save(expr))()`); otherwise the
+    // plain read-wrapped expression.
+    let collection = if has_await {
+        save_wrap_expr_text(state, iterable_src.as_deref().unwrap_or(""))
+    } else {
+        state.visit_expr(&node.expression)
+    };
     let b = state.b;
 
     // statements[0] = const each_array = $.ensure_array_like(collection);
@@ -145,21 +181,29 @@ pub fn visit_each_block<'a>(node: &EachBlock, state: &mut ServerTransformState<'
         let if_stmt = b.if_stmt(test, consequent, Some(alternate));
         statements.push(if_stmt);
 
-        for stmt in statements {
+        // `create_child_block` wraps the const + if/else when async; sync passes
+        // through verbatim. The `<!--]-->` close stays OUTSIDE the wrap. (No
+        // `<!--[-->` open in the fallback path — the markers live inside the
+        // if/else arms.)
+        let wrapped = create_child_block(state, statements, &blocker_indices, has_await);
+        for stmt in wrapped {
             state.template.push(TemplateEntry::Stmt(stmt));
         }
         state
             .template
             .push(TemplateEntry::Literal(BLOCK_CLOSE.to_string()));
     } else {
-        // Sync, no-fallback path (写经):
+        // No-fallback path (写经):
         //   template.push(block_open); statements.push(for_loop);
-        //   template.push(...statements, block_close)
+        //   template.push(...create_child_block(statements, …), block_close)
+        // The `<!--[-->` open + `<!--]-->` close markers stay OUTSIDE the async
+        // `create_child_block` wrap — only the const + for-loop go inside.
         state
             .template
             .push(TemplateEntry::Literal(BLOCK_OPEN.to_string()));
         statements.push(for_loop);
-        for stmt in statements {
+        let wrapped = create_child_block(state, statements, &blocker_indices, has_await);
+        for stmt in wrapped {
             state.template.push(TemplateEntry::Stmt(stmt));
         }
         state
