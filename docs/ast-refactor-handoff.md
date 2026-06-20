@@ -272,7 +272,27 @@ mutation-spike → server-skeleton → template-framework → block-visitors。
   Component・SvelteElement/Head/Fragment/Boundary・SlotElement・RenderTag・SpreadAttribute・動的/directive 属性・
   `<select>/<option>/<textarea>` 特殊・dev マーカー。**そして最大の本丸＝instance/module script の rune lowering(下記)**。
 
-### ★ 次の本丸: instance/module script transform（最delicate・最大のテキスト削除＝transform_script.rs 8.4k 行）★
+### 進捗追補（2026-06-20 後半）: script 宣言変換 着地
+✅ `server/ast/script.rs`（非delicate slice）: instance/module `<script>` を oxc 再パース→ in-place で宣言 reshape
+（`$state`→bare値, `$derived(e)`→`$.derived(()=>e)`, `$derived.by(f)`→`$.derived(f)`, `$props()`→`<pat>=$$props`,
+`$props.id` drop, top-level `$effect`/`$inspect` 除去, import hoist, それ以外は span 再パースで verbatim 保持）→
+`server_component_ast` の body/module に emit。**各 instance 行が oracle 一致**。値式は `visit_expr` 素通し（read 変換は未）。
+server suite 132/132・ast 11・builders 13 green。新 builder `var_decl_from_pairs`。**KNOWN GAP**: read-wrapping/store-get/
+snapshot/`$$sanitized_props`（delicate・下記）, TS script, async-derived, 複雑 pattern(extract_paths), `props_id` 再 emit,
+`needs_context` の `$$renderer.component` wrapper, legacy(非runes) 分岐。
+
+### ★ 次の crux: read-wrapping 単一パス（derived/store/snapshot/sanitized_props）★
+**重要な再認識**: 新 oxc-in-place アーキでは **single-pass by construction** ＝ 1 回の構造 walk で各 Identifier read を
+binding-kind に応じて**ちょうど一度だけ** wrap する。旧テキスト多段 wrap の二重化地雷（§4「reverted twice / 498-failure」）は
+**構造的に発生しない**（同じ式 AST を 2 度 wrap するコードを書かない限り）。よって delicate だが旧アプローチより安全。
+**必要なもの**: (1) walk を通した **scope index のスレッディング**（`analysis.root.get_binding(name, scope_idx)` で binding 解決）、
+(2) upstream `server/visitors/Identifier.js` + `shared/utils.js::build_getter` の写経（server の read 規則:
+derived → `$.get(name)`? 要確認、store_sub `$x` → `$.store_get($x, "$name", $$stores)`, props → `$$sanitized_props` 経由 等）、
+(3) binding-kind → wrapper のマップ。**`visit_expr` と script の値式変換を、この単一 read-pass に通す**。
+§5 地雷（snapshot 意味論・each_array 連番・should_proxy）は単独で触らない。検証は oracle（{count} 等の定数畳み込み含む全体一致）。
+**これが通れば** `transform_server` を新 pipeline に接続 → 旧テキスト全削除。
+
+### ★ （旧）本丸: instance/module script transform（最delicate・最大のテキスト削除＝transform_script.rs 8.4k 行）★
 現状 `server_component_ast` は **instance body 空**＝`<script>` ロジックを持つコンポーネントは oracle 不一致。これを埋めるのが
 最大の勝ち。**やり方（§核心メカニズム + §4 厳守）**: スクリプトを oxc 再パース → **in-place `&mut` mutate** で rune lowering
 （`$state(x)`→`$.state(x)`, `$derived(e)`→`$.derived(()=>e)`, `$props()` 分割, store `$x`→`$.store_get`, `$effect`/`$inspect` 除去,
