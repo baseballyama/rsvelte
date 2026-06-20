@@ -2448,6 +2448,73 @@ mod tests {
         super::super::transform_server(&analysis, &ast, source, &options).expect("server")
     }
 
+    /// Canonicalize `code` via oxc parse → codegen. This is the SAME comparison
+    /// the runtime harness uses (`tests/common::canonicalize_js`): it normalizes
+    /// formatting (whitespace, trailing commas, semicolons) but preserves
+    /// structure (statement count, expressions). Matching the oracle under this
+    /// canonicalizer is the real runtime gate (the oracle passes those fixtures).
+    fn canon_js(code: &str) -> String {
+        let allocator = Allocator::default();
+        let parsed = oxc_parser::Parser::new(&allocator, code, oxc_span::SourceType::mjs()).parse();
+        oxc_codegen::Codegen::new().build(&parsed.program).code
+    }
+
+    /// EACH-block + destructuring SSR parity with the (correct) `transform_server`
+    /// oracle for the runtime fixtures in this cluster. Compared with
+    /// [`canon_js`] — the same canonicalizer the runtime harness uses — so a
+    /// match here means the runtime suite passes (the oracle passes these).
+    ///
+    /// Covered (must MATCH):
+    /// - `each-block-destructured-default` (runtime-legacy): an each context
+    ///   object-pattern with DEFAULT values + a `...rest` and an `export const`
+    ///   (kept verbatim, NOT prop-lowered to `$.fallback`).
+    /// - `each-updates` (runtime-runes): unkeyed + keyed each over `$state`.
+    /// - `component-slot-let-destructured-2` / `…-fragment-…` (runtime-legacy):
+    ///   `let:value={[a,b]}` / `let:value={{a,b}}` slot-let destructuring +
+    ///   multi-declarator `let c = 0, d = 0, e = 0` (split into separate
+    ///   statements, matching the oracle / official output).
+    /// - `each-non-branch-effects` (runtime-runes): plain each over a Proxy.
+    ///
+    /// `each-updates-5` is intentionally NOT asserted here: its only divergence
+    /// is store-write wrapping inside a nested function body (`$store[0].value++`
+    /// → `$.store_get($$store_subs ??= {}, …)`), an orthogonal store-subscription
+    /// axis unrelated to each-block / destructuring.
+    #[test]
+    fn ast_matches_oracle_each_and_let_destructure() {
+        let each_default = "<script>\n\texport let animalEntries;\n\texport const defaultHeight = 30;\n</script>\n\n{#each animalEntries as { animal, species = 'unknown', kilogram: weight = 50, pound = (weight * 2.2).toFixed(0), height = defaultHeight, bmi = weight / (height * height), ...props } }\n\t<p {...props}>{animal} - {species} - {weight}kg ({pound} lb) - {height}cm - {bmi}</p>\n{/each}";
+        let slot_let = "<script>\n\timport Nested from \"./Nested.svelte\";\n\tlet c = 0, d = 0, e = 0;\n</script>\n\n<div>\n\t<Nested props={['hello', 'world']} let:value={pair} let:data={foo}>\n\t\t{pair[0]} {pair[1]} {c} {foo}\n\t</Nested>\n\t<button on:click={() => { c += 1; }}>Increment</button>\n</div>\n<div>\n\t<Nested props={['hello', 'world']} let:value={[a, b]} let:data={foo}>\n\t\t{a} {b} {d} {foo}\n\t</Nested>\n</div>\n<div>\n\t<Nested props={{ a: 'hello', b: 'world' }} let:value={{ a, b }} let:data={foo}>\n\t\t{a} {b} {e} {foo}\n\t</Nested>\n</div>";
+        let frag_let = "<script>\n\timport Nested from \"./Nested.svelte\";\n\tlet c = 0, d = 0, e = 0;\n</script>\n\n<div>\n\t<Nested props={['hello', 'world']}>\n\t\t<svelte:fragment slot=\"main\" let:value={pair} let:data={foo}>\n\t\t\t{pair[0]} {pair[1]} {c} {foo}\n\t\t</svelte:fragment>\n\t</Nested>\n</div>\n<div>\n\t<Nested props={['hello', 'world']}>\n\t\t<svelte:fragment slot=\"main\" let:value={[a, b]} let:data={foo}>\n\t\t\t{a} {b} {d} {foo}\n\t\t</svelte:fragment>\n\t</Nested>\n</div>";
+        let samples: &[(&str, &str)] = &[
+            ("each-block-destructured-default", each_default),
+            (
+                "each-updates",
+                "<script>\n\tlet items = $state();\n</script>\n{#each items as item}\n  <p>{item.name} costs ${item.price}</p>\n{/each}\n{#each items as item (item.id)}\n  <p>{item.name} costs ${item.price}</p>\n{/each}",
+            ),
+            ("component-slot-let-destructured-2", slot_let),
+            ("component-svelte-fragment-let-destructured-2", frag_let),
+            (
+                "each-non-branch-effects",
+                "<script>\n\tlet items = $state([]);\n\tconst proxy = new Proxy(items, {\n\t\tget: (target, prop) => {\n\t\t\ttry {\n\t\t\t\t$effect.pre(() => {\n\t\t\t\t\treturn () => {};\n\t\t\t\t});\n\t\t\t} catch {}\n\t\t\treturn Reflect.get(target, prop);\n\t\t}\n\t});\n\tfunction add() {\n\t\titems.push(items.length + 1);\n\t}\n</script>\n\n{#each proxy as item}\n\t<span>{item}</span>\n{/each}\n<button class=\"add\" onclick={add}>add</button>",
+            ),
+        ];
+        let mut mismatches = Vec::new();
+        for (name, src) in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            let matched = canon_js(&ours) == canon_js(&oracle);
+            if !matched {
+                eprintln!(
+                    "=== {name} === DIFFER\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(*name);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "each-block / let-destructure output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     /// Parse + analyze + lower the `source` through BOTH pipelines under a
     /// caller-customized [`CompileOptions`], returning `(ast_output, oracle_output)`.
     /// Used by the entry-assembly tests (`props_id` / `$$css` inject / componentApi

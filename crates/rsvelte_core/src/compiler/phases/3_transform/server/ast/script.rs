@@ -215,9 +215,7 @@ fn transform_script<'a>(
                 }
             }
             Statement::VariableDeclaration(vd) => {
-                if let Some(lowered) = lower_variable_declaration(vd, src, state) {
-                    out.push(lowered);
-                }
+                out.extend(lower_variable_declaration(vd, src, state));
             }
             Statement::ExpressionStatement(es) => {
                 if is_removed_effect_stmt(&es.expression) {
@@ -776,12 +774,14 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
 }
 
 /// Lower a single `VariableDeclaration` (runes branch). Returns the rebuilt
-/// statement, or `None` if every declarator was dropped.
+/// statements (ONE per top-level declarator, mirroring the server text-oracle's
+/// `split_comma_separated_declarations`), or an empty vec if every declarator
+/// was dropped.
 fn lower_variable_declaration<'a>(
     vd: &oxc_ast::ast::VariableDeclaration,
     src: &str,
     state: &mut ServerTransformState<'a>,
-) -> Option<Statement<'a>> {
+) -> Vec<Statement<'a>> {
     let b = state.b;
     let kind = match vd.kind {
         VariableDeclarationKind::Const => VariableDeclarationKind::Const,
@@ -789,9 +789,18 @@ fn lower_variable_declaration<'a>(
         _ => VariableDeclarationKind::Let,
     };
 
-    let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> = Vec::new();
+    // ONE output statement per SOURCE declarator (写经 the server text-oracle's
+    // `split_comma_separated_declarations`, which splits a USER-written
+    // multi-declarator `let a = …, b = …` into separate statements). A single
+    // source declarator that expands into multiple synthetic declarators (a
+    // destructured `$state` → `tmp, $$array, x, y`) stays COMBINED in one
+    // statement, because the source had no top-level comma between them.
+    let mut out: Vec<Statement<'a>> = Vec::new();
 
     for d in vd.declarations.iter() {
+        // Per-source-declarator pair accumulator.
+        let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
+            Vec::new();
         let rune = d.init.as_ref().and_then(detect_decl_rune);
         match rune {
             None => {
@@ -833,7 +842,8 @@ fn lower_variable_declaration<'a>(
                 // patterns) a `$$array = $.to_array(tmp, N)` insert + one leaf
                 // declarator per path (写经 `VariableDeclaration.js:229-247`).
                 // Identifier patterns (and every other rune) keep the verbatim
-                // single declarator.
+                // single declarator. These synthetic declarators stay COMBINED in
+                // one statement (the source had no top-level comma).
                 if matches!(rune, DeclRune::State)
                     && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
                 {
@@ -860,12 +870,13 @@ fn lower_variable_declaration<'a>(
                 }
             }
         }
+
+        if !decls.is_empty() {
+            out.push(b.var_decl_from_pairs(kind, decls));
+        }
     }
 
-    if decls.is_empty() {
-        return None;
-    }
-    Some(b.var_decl_from_pairs(kind, decls))
+    out
 }
 
 /// Port of upstream `create_state_declarators` (`VariableDeclaration.js:229-247`)
@@ -1506,9 +1517,7 @@ fn transform_script_legacy<'a>(
                 };
                 match decl {
                     oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
-                        if let Some(lowered) = lower_legacy_var_decl(vd, src, state, true) {
-                            out.push(lowered);
-                        }
+                        out.extend(lower_legacy_var_decl(vd, src, state, true));
                     }
                     other => {
                         // `export function` / `export class` → keep the inner
@@ -1522,9 +1531,7 @@ fn transform_script_legacy<'a>(
                 }
             }
             Statement::VariableDeclaration(vd) => {
-                if let Some(lowered) = lower_legacy_var_decl(vd, src, state, false) {
-                    out.push(lowered);
-                }
+                out.extend(lower_legacy_var_decl(vd, src, state, false));
             }
             Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$" => {
                 // Top-level legacy reactive `$:` statement. Upstream keeps the
@@ -1596,6 +1603,10 @@ fn transform_script_legacy<'a>(
     }
     if !reactive_decl_names.is_empty() {
         let b = state.b;
+        // The legacy-reactive hoist is emitted as ONE combined `let a, b, c;`
+        // declaration (matching the server oracle): unlike the comma-split that
+        // `split_comma_separated_declarations` applies to USER declarations, the
+        // synthetic reactive-vars hoist stays combined.
         let pairs: Vec<_> = reactive_decl_names
             .iter()
             .map(|n| (b.id_pat(n), None))
@@ -1769,7 +1780,7 @@ fn lower_legacy_var_decl<'a>(
     src: &str,
     state: &mut ServerTransformState<'a>,
     is_export: bool,
-) -> Option<Statement<'a>> {
+) -> Vec<Statement<'a>> {
     let b = state.b;
     let kind = match vd.kind {
         VariableDeclarationKind::Const => VariableDeclarationKind::Const,
@@ -1781,16 +1792,29 @@ fn lower_legacy_var_decl<'a>(
 
     for d in vd.declarations.iter() {
         // An `export let <id>` declarator with a simple identifier binding that
-        // resolves to a bindable/normal prop → lower to `$$props['<alias>']`.
-        let prop_name: Option<String> = if is_export {
-            if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &d.id {
-                Some(legacy_prop_alias(state, id.name.as_str()))
+        // resolves to a PROP → lower to `$$props['<alias>']`.
+        //
+        // 写经 upstream `VariableDeclaration.js:144-145`: the legacy branch only
+        // prop-lowers a declarator whose binding kind is `bindable_prop` (i.e.
+        // `export let`). `export const` / `export function` / `export class`
+        // bindings are NOT props (a `const` cannot be bound), so they are kept
+        // verbatim — the `export` keyword is stripped (by the surrounding
+        // ExportNamedDeclaration handling) but the value stays as written
+        // (`const defaultHeight = 30`, not `$.fallback($$props['…'], 30)`).
+        let prop_name: Option<String> =
+            if is_export && matches!(vd.kind, VariableDeclarationKind::Let) {
+                if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &d.id {
+                    if legacy_binding_is_prop(state, id.name.as_str()) {
+                        Some(legacy_prop_alias(state, id.name.as_str()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
         if let Some(alias) = prop_name {
             // `let x = $$props['alias']` or `… = $.fallback($$props['alias'], …)`.
@@ -1838,9 +1862,29 @@ fn lower_legacy_var_decl<'a>(
     }
 
     if decls.is_empty() {
-        return None;
+        return Vec::new();
     }
-    Some(b.var_decl_from_pairs(kind, decls))
+    b.var_decls_split(kind, decls)
+}
+
+/// Whether the legacy instance binding `name` is a component PROP
+/// (`Prop` / `BindableProp` kind). 写经 upstream's `has_props` test
+/// (`bindings.some(b => b.kind === 'bindable_prop')`): only such bindings are
+/// prop-lowered to `$$props['…']`; an `export const` (a `Normal`/`Static`
+/// binding) is kept verbatim.
+fn legacy_binding_is_prop(state: &ServerTransformState, name: &str) -> bool {
+    if let Some(idx) = state
+        .analysis
+        .root
+        .get_binding(name, state.analysis.root.instance_scope_index)
+    {
+        matches!(
+            state.analysis.root.bindings[idx].kind,
+            BindingKind::Prop | BindingKind::BindableProp
+        )
+    } else {
+        false
+    }
 }
 
 /// Resolve the prop alias for an `export let <name>` binding (`prop_alias ?? name`).

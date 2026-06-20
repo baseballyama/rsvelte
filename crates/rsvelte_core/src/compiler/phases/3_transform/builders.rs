@@ -721,6 +721,22 @@ impl<'a> B<'a> {
         Statement::VariableDeclaration(decl)
     }
 
+    /// Like [`var_decl_from_pairs`] but emits ONE `VariableDeclaration`
+    /// statement per declarator pair (写经 the server text-oracle's
+    /// `split_comma_separated_declarations`: the official compiler prints each
+    /// top-level declarator as its own statement). A single pair yields one
+    /// statement, identical to [`var_decl_from_pairs`] with one element.
+    pub fn var_decls_split(
+        self,
+        kind: VariableDeclarationKind,
+        pairs: Vec<(BindingPattern<'a>, Option<Expression<'a>>)>,
+    ) -> Vec<Statement<'a>> {
+        pairs
+            .into_iter()
+            .map(|(pat, init)| self.declaration(kind, pat, init))
+            .collect()
+    }
+
     fn declaration(
         self,
         kind: VariableDeclarationKind,
