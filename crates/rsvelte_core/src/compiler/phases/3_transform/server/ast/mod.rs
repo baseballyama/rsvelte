@@ -2803,6 +2803,136 @@ mod tests {
         );
     }
 
+    /// DEV-mode `$inspect` / `$inspect().with` SSR lowering. These fixtures all
+    /// compile with `dev: true`, where the server `CallExpression` visitor does
+    /// NOT remove a top-level `$inspect(...)`: it lowers it to a
+    /// `console.log('$inspect(', args, ')')` call, and `$inspect(args).with(fn)`
+    /// to `(fn)('init', args)` (`$inspect.trace` is still removed; a derived
+    /// argument is read-wrapped — `$inspect(double)` → `console.log('$inspect(',
+    /// double(), ')')`).
+    ///
+    /// We assert the inspect lowering EXACTLY (the line(s) the new pipeline must
+    /// emit, taken byte-for-byte from the correct text oracle) rather than whole-
+    /// output equality, because full dev-mode SSR instrumentation
+    /// (`App[$.FILENAME]`, `App.render`-throw, per-element
+    /// `$.push_element`/`$.pop_element`) is a SEPARATE, still-unimplemented
+    /// cluster in the new pipeline and would otherwise mask this gate. The
+    /// `expected` strings below are the literal substrings the oracle produces
+    /// for each fixture's `$inspect`.
+    #[test]
+    fn ast_matches_oracle_inspect_dev_cluster() {
+        // (name, source, &[expected substrings the dev `$inspect` lowering must emit])
+        let samples: &[(&str, &str, &[&str])] = &[
+            (
+                "inspect",
+                "<script>\n\tlet x = $state(0);\n\tlet y = $state(0);\n\n\t$inspect(x);\n</script>\n<button onclick={() => x++}>{x}</button>",
+                &["console.log('$inspect(', x, ')');"],
+            ),
+            (
+                "inspect-multiple",
+                "<script>\n\tlet x = $state(0);\n\tlet y = $state(0);\n\t$inspect(x, y);\n</script>\n<button onclick={() => { x++; y++; }}>{x}{y}</button>",
+                &["console.log('$inspect(', x, y, ')');"],
+            ),
+            (
+                "inspect-nested-state",
+                "<script>\n\tlet x = $state(0);\n\t$inspect({x}, [x]);\n</script>\n<button onclick={() => x++}>{x}</button>",
+                &["console.log('$inspect(', { x }, [x], ')');"],
+            ),
+            (
+                "inspect-deep",
+                "<script>\n\tlet data = $state({ a: 1 });\n\t$inspect(data);\n</script>\n<button onclick={() => data.a++}>{data.a}</button>",
+                &["console.log('$inspect(', data, ')');"],
+            ),
+            (
+                "inspect-map-set",
+                "<script>\n\tlet map = $state(new Map());\n\tlet set = $state(new Set());\n\t$inspect(map);\n\t$inspect(set);\n</script>\n<p>x</p>",
+                &[
+                    "console.log('$inspect(', map, ')');",
+                    "console.log('$inspect(', set, ')');",
+                ],
+            ),
+            (
+                "inspect-derived-2",
+                "<script>\n\tlet state = $derived(1);\n\t$inspect(state);\n</script>\n<p>{state}</p>",
+                // derived read-wrap: `state` → `state()`
+                &["console.log('$inspect(', state(), ')');"],
+            ),
+            (
+                "inspect-derived-4",
+                "<script>\n\tlet unseenIds = $derived([1, 2, 3])\n\t$inspect(unseenIds)\n</script>\n<p>{unseenIds.length}</p>",
+                &["console.log('$inspect(', unseenIds(), ')');"],
+            ),
+            (
+                "inspect-derived",
+                "<script>\n\tlet { push } = $props();\n\tlet x = $state('x');\n\tlet y = $derived(x.toUpperCase());\n\t$inspect(y).with(push);\n</script>\n<button onclick={() => x += 'x'}>{x}</button>",
+                // `.with(push)` → `push('init', y())` (the `(fn)` parens collapse
+                // for a bare identifier; y read-wrapped as derived → `y()`).
+                &["push('init', y());"],
+            ),
+            (
+                "inspect-with-untracked",
+                "<script>\n\tlet a = $state(0);\n\tlet b = $state(0);\n\t$inspect(a).with((...args)=>{\n\t\tconsole.log(...args);\n\t\tb;\n\t});\n</script>\n<p>{a}</p>",
+                &["('init', a);"],
+            ),
+            (
+                "inspect-console-trace",
+                "<script>\n\tlet x = $state(0);\n\tlet y = $state(0);\n\t$inspect(x).with((type, x) => {\n\t\tif (type === 'update') console.log(new Error(), x);\n\t});\n</script>\n<p>{x}</p>",
+                &["('init', x);"],
+            ),
+            (
+                "inspect-state-unsafe-mutation",
+                "<script>\n\tlet a = $state(0);\n\t$inspect(a).with((...args)=>{\n\t\tconsole.log(...args);\n\t});\n</script>\n<p>{a}</p>",
+                &["('init', a);"],
+            ),
+            (
+                "inspect-nested-effect",
+                "<script>\n\tlet a = $state(0);\n\tlet b = $state(0);\n\t$effect(() => {\n\t\ta;\n\t});\n\t$inspect(b);\n</script>\n<p>{a}{b}</p>",
+                &["console.log('$inspect(', b, ')');"],
+            ),
+            (
+                // `$inspect.trace` (inside a removed `$effect`) leaves NO
+                // console.log behind — assert the effect is gone AND no inspect
+                // lowering leaked out.
+                "inspect-trace",
+                "<script>\n\tlet count = $state(0);\n\tlet double = $derived(count * 2);\n\tlet checked = $state(false);\n\t$effect(() => {\n\t\t$inspect.trace('effect');\n\t\tdouble;\n\t\tdouble >= 4 || checked;\n\t});\n</script>\n<p>{count}</p>",
+                &[],
+            ),
+        ];
+        // Whitespace-collapsed containment: the AST printer and the text oracle
+        // differ in incidental spacing, so compare on a single-spaced projection.
+        fn squash(s: &str) -> String {
+            s.split_whitespace().collect::<Vec<_>>().join(" ")
+        }
+        let mut mismatches = Vec::new();
+        for (name, src, expected) in samples {
+            let (ours, oracle) = run_both_opts(src, |o| o.dev = true);
+            let so = squash(&ours);
+            let sr = squash(&oracle);
+            let mut ok = true;
+            for exp in *expected {
+                let needle = squash(exp);
+                // Must appear in OURS, and — as a drift guard — in the ORACLE too.
+                if !so.contains(&needle) || !sr.contains(&needle) {
+                    ok = false;
+                }
+            }
+            // For `$inspect.trace`, assert nothing leaked into OUR output.
+            if expected.is_empty() && (so.contains("$inspect") || so.contains(".trace")) {
+                ok = false;
+            }
+            if !ok {
+                eprintln!(
+                    "=== {name} === inspect lowering mismatch\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n"
+                );
+                mismatches.push(*name);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "dev-mode inspect SSR lowering differs for: {mismatches:?}"
+        );
+    }
+
     #[test]
     fn ast_matches_oracle_each_and_let_destructure() {
         let each_default = "<script>\n\texport let animalEntries;\n\texport const defaultHeight = 30;\n</script>\n\n{#each animalEntries as { animal, species = 'unknown', kilogram: weight = 50, pound = (weight * 2.2).toFixed(0), height = defaultHeight, bmi = weight / (height * height), ...props } }\n\t<p {...props}>{animal} - {species} - {weight}kg ({pound} lb) - {height}cm - {bmi}</p>\n{/each}";

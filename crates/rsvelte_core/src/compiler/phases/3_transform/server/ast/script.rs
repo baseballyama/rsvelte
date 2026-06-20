@@ -166,6 +166,96 @@ fn is_removed_effect_stmt(expr: &OxcExpression) -> bool {
     }
 }
 
+/// Classification of a top-level `$inspect` expression statement, used to decide
+/// dev-mode lowering. Mirrors upstream's server `CallExpression` visitor
+/// (`$inspect` / `$inspect().with`): in dev these become a `console.log(...)` /
+/// `(fn)('init', ...)` call; otherwise they are removed (`b.empty`). `$inspect.trace`
+/// is removed in BOTH modes by the `ExpressionStatement` visitor, so it is NOT an
+/// inspect kind here.
+enum InspectKind {
+    /// `$inspect(<args>)` — dev → `console.log('$inspect(', <args>, ')')`.
+    Plain,
+    /// `$inspect(<args>).with(<fn>)` — dev → `(<fn>)('init', <args>)`.
+    With,
+}
+
+/// Classify a top-level expression-statement expression as a dev-lowerable
+/// `$inspect(...)` / `$inspect(...).with(...)` call. Returns `None` for
+/// `$inspect.trace` / `$effect.*` (those are removed in every mode) and for
+/// non-inspect expressions.
+fn inspect_kind(expr: &OxcExpression) -> Option<InspectKind> {
+    let OxcExpression::CallExpression(call) = expr else {
+        return None;
+    };
+    match &call.callee {
+        // `$inspect(<args>)`
+        OxcExpression::Identifier(id) if id.name.as_str() == "$inspect" => Some(InspectKind::Plain),
+        // `$inspect(<args>).with(<fn>)` — callee is `<$inspect-call>.with`.
+        OxcExpression::StaticMemberExpression(m)
+            if m.property.name.as_str() == "with"
+                && matches!(
+                    &m.object,
+                    OxcExpression::CallExpression(inner)
+                        if matches!(&inner.callee, OxcExpression::Identifier(id) if id.name.as_str() == "$inspect")
+                ) =>
+        {
+            Some(InspectKind::With)
+        }
+        _ => None,
+    }
+}
+
+/// Verbatim source text of a call's argument list (each argument joined with
+/// `, `), sliced straight from `src` so operators / whitespace survive exactly.
+fn call_args_src(call: &oxc_ast::ast::CallExpression, src: &str) -> String {
+    call.arguments
+        .iter()
+        .filter_map(|a| a.as_expression())
+        .map(|e| &src[e.span().start as usize..e.span().end as usize])
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Build the dev-mode lowering of a `$inspect(...)` / `$inspect(...).with(...)`
+/// expression statement as re-parsed statements, mirroring upstream's server
+/// `CallExpression` visitor (and the text oracle's `transform_inspect_to_console_log`):
+///
+/// - `$inspect(args)` → `console.log('$inspect(', args, ')');`
+/// - `$inspect(args).with(fn)` → `(fn)('init', args);`
+///
+/// `arg_slices` is the verbatim source text of each `$inspect(...)` argument
+/// (joined with `, `); `with_fn` is the verbatim source of the `.with(<fn>)`
+/// callback (for the `With` kind). The emitted statement gets the same whole-
+/// statement read-wrap every re-homed instance statement receives, so a derived
+/// argument (`$inspect(double)`) becomes `console.log('$inspect(', double(), ')')`.
+fn build_dev_inspect<'a>(
+    kind: &InspectKind,
+    args_src: &str,
+    with_fn_src: Option<&str>,
+    state: &ServerTransformState<'a>,
+) -> Option<Statement<'a>> {
+    let text = match kind {
+        InspectKind::Plain => {
+            format!("console.log('$inspect(', {}, ')');", args_src.trim())
+        }
+        InspectKind::With => {
+            format!(
+                "({})('init', {});",
+                with_fn_src.unwrap_or("").trim(),
+                args_src.trim()
+            )
+        }
+    };
+    let mut rehomed = state.reparse_statement(&text)?;
+    super::read_wrap::wrap_reads_in_statement(
+        &mut rehomed,
+        state.b,
+        state.analysis,
+        state.analysis.root.instance_scope_index,
+    );
+    Some(rehomed)
+}
+
 /// Parse + lower a single RUNES-mode script into transformed top-level
 /// statements. `import_sink` receives instance-script imports to hoist (`None`
 /// for module).
@@ -265,6 +355,55 @@ fn transform_script<'a>(
                 }
             }
             Statement::ExpressionStatement(es) => {
+                // DEV mode: a top-level `$inspect(args)` / `$inspect(args).with(fn)`
+                // is NOT removed — upstream's server `CallExpression` visitor lowers
+                // it to a `console.log('$inspect(', args, ')')` / `(fn)('init', args)`
+                // call (`$inspect.trace` is still removed in dev). Detect it before
+                // the generic effect/inspect removal so we keep the call.
+                if state.options.dev
+                    && let Some(kind) = inspect_kind(&es.expression)
+                {
+                    // Pull the verbatim argument / `.with` callback source straight
+                    // from the call spans — preserving operators/whitespace exactly
+                    // like the text oracle's slice-based extraction.
+                    let OxcExpression::CallExpression(call) = &es.expression else {
+                        unreachable!("inspect_kind matched a CallExpression");
+                    };
+                    let (args_src, with_fn_src) = match kind {
+                        InspectKind::Plain => {
+                            let s = call_args_src(call, src);
+                            (s, None)
+                        }
+                        InspectKind::With => {
+                            // For `<inner>.with(fn)`, the args belong to the INNER
+                            // `$inspect(...)` call, and `fn` is this outer call's
+                            // first argument.
+                            let inner_args = match &call.callee {
+                                OxcExpression::StaticMemberExpression(m) => match &m.object {
+                                    OxcExpression::CallExpression(inner) => {
+                                        call_args_src(inner, src)
+                                    }
+                                    _ => String::new(),
+                                },
+                                _ => String::new(),
+                            };
+                            let fn_src = call
+                                .arguments
+                                .first()
+                                .and_then(|a| a.as_expression())
+                                .map(|e| {
+                                    src[e.span().start as usize..e.span().end as usize].to_string()
+                                });
+                            (inner_args, fn_src)
+                        }
+                    };
+                    if let Some(stmt) =
+                        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
+                    {
+                        out.push(stmt);
+                    }
+                    continue;
+                }
                 if is_removed_effect_stmt(&es.expression) {
                     // Under `experimental.async`, a removed `$inspect(...)` /
                     // `$effect(...)` statement must leave a PLACEHOLDER behind so
