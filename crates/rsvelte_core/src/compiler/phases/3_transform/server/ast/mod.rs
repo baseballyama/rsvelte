@@ -910,6 +910,52 @@ mod tests {
         );
     }
 
+    /// Author HTML comments (`<!-- ... -->`) are stripped from the SSR template
+    /// when `preserveComments` is false (the default), matching upstream
+    /// `clean_nodes` (`utils.js:148-151`: `node.type === 'Comment' &&
+    /// !preserve_comments → continue`). The comment must vanish from the
+    /// `$$renderer.push(...)` markup, and — because it is dropped BEFORE the
+    /// whitespace-trim pass — the surrounding text must collapse exactly as if
+    /// the comment had never been present. The framework hydration markers
+    /// (`<!--[-->` / `<!---->` / `<!--]-->`) are emitted by block visitors as
+    /// literals, not `TemplateNode::Comment`, so they are unaffected.
+    #[test]
+    fn ast_matches_oracle_strips_comments() {
+        let samples = [
+            "<!-- hello --><p>x</p>",
+            "<p>a</p><!-- mid --><p>b</p>",
+            "<!-- single update --> <div>x</div>",
+            "<p>before<!-- inline -->after</p>",
+            "<div><!-- only comment --></div>",
+        ];
+        let mut mismatches = Vec::new();
+        for src in samples {
+            let ours = run(src);
+            let oracle = oracle_dump(src);
+            // The oracle strips author comments; assert ours does too.
+            assert!(
+                !ours.contains("hello")
+                    && !ours.contains("mid")
+                    && !ours.contains("single update")
+                    && !ours.contains("inline")
+                    && !ours.contains("only comment"),
+                "AST pipeline leaked an author comment for {src}:\n{ours}"
+            );
+            let matched = norm(&ours) == norm(&oracle);
+            eprintln!(
+                "=== SRC: {src} === {}\n--- AST ---\n{ours}\n--- ORACLE ---\n{oracle}\n",
+                if matched { "MATCH" } else { "DIFFER" }
+            );
+            if !matched {
+                mismatches.push(src);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "comment-stripping output differs from oracle for: {mismatches:?}"
+        );
+    }
+
     /// SSR constant-folding (`scope.evaluate`) parity with the
     /// `transform_server` oracle. Each `{expr}` template chunk whose value is
     /// statically "known" must inline as escaped text in BOTH pipelines (and a

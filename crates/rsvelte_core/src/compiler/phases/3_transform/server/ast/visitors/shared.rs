@@ -97,7 +97,22 @@ pub fn process_children_inner<'a>(
 ) {
     let preserve_whitespace = state.options.preserve_whitespace
         || parent.is_some_and(|el| matches!(el.name.as_str(), "pre" | "textarea"));
-    let cleaned = clean_whitespace(nodes, parent, namespace, preserve_whitespace);
+
+    // 写经 `clean_nodes` (utils.js:148-151): author HTML comments are dropped
+    // from the children list BEFORE whitespace trimming unless `preserveComments`
+    // is set. Doing it here (before `clean_whitespace`) means a removed comment
+    // does not interpose between surrounding Text nodes, so their whitespace
+    // collapses exactly as if the comment had never been there — matching the
+    // `transform_server` oracle. The framework hydration markers (`<!--[-->`,
+    // `<!---->`, `<!--]-->`) are NOT affected: those are emitted by block
+    // visitors as `TemplateEntry::Literal`, never as `TemplateNode::Comment`.
+    let preserve_comments = state.options.preserve_comments;
+    let filtered: Vec<&TemplateNode> = nodes
+        .iter()
+        .filter(|n| preserve_comments || !matches!(n, TemplateNode::Comment(_)))
+        .collect();
+
+    let cleaned = clean_whitespace(&filtered, parent, namespace, preserve_whitespace);
 
     // 写经 `clean_nodes` → `Fragment` visitor: when the parent is a fragment /
     // block body and the first surviving child is Text / ExpressionTag, prepend
@@ -178,13 +193,13 @@ pub fn process_children_inner<'a>(
 ///   `colgroup` / `datalist`, or any non-`text` SVG element (`can_remove_entirely`).
 /// - The first Text node inside `<pre>` is dropped if it is a lone `\n` / `\r\n`.
 fn clean_whitespace<'n>(
-    nodes: &'n [TemplateNode],
+    nodes: &[&'n TemplateNode],
     parent: Option<&RegularElement>,
     namespace: &str,
     preserve_whitespace: bool,
 ) -> Vec<Cow<'n, TemplateNode>> {
     if preserve_whitespace {
-        return nodes.iter().map(Cow::Borrowed).collect();
+        return nodes.iter().map(|n| Cow::Borrowed(*n)).collect();
     }
 
     // Find the first / last non-whitespace-only nodes (the trimmable window).
@@ -192,13 +207,14 @@ fn clean_whitespace<'n>(
         TemplateNode::Text(t) => is_svelte_whitespace_only(&t.data),
         _ => false,
     };
+    let is_ws_text = |n: &&TemplateNode| is_ws_text(n);
     let start = nodes.iter().position(|n| !is_ws_text(n));
     let Some(start) = start else {
         // Entire run is whitespace-only text: nothing survives.
         return Vec::new();
     };
     let end = nodes.iter().rposition(|n| !is_ws_text(n)).unwrap() + 1;
-    let window = &nodes[start..end];
+    let window: &[&'n TemplateNode] = &nodes[start..end];
 
     let can_remove_entirely = match parent {
         Some(el) => matches!(
@@ -215,6 +231,7 @@ fn clean_whitespace<'n>(
     let mut prev_is_expression_tag = false;
 
     for (i, node) in window.iter().enumerate() {
+        let node: &'n TemplateNode = node;
         let TemplateNode::Text(text) = node else {
             prev_ends_with_ws = false;
             prev_is_expression_tag = matches!(node, TemplateNode::ExpressionTag(_));
@@ -242,7 +259,7 @@ fn clean_whitespace<'n>(
         // Collapse trailing whitespace (unless followed by an ExpressionTag).
         let next_is_expression_tag = window
             .get(i + 1)
-            .is_some_and(|n| matches!(n, TemplateNode::ExpressionTag(_)));
+            .is_some_and(|n| matches!(**n, TemplateNode::ExpressionTag(_)));
         if !next_is_expression_tag {
             let replaced = replace_trailing_whitespace(&data, " ");
             data = Cow::Owned(replaced);
