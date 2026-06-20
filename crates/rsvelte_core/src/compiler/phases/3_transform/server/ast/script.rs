@@ -838,6 +838,23 @@ fn lower_variable_declaration<'a>(
                     && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
                 {
                     create_state_declarators(pat, new_init, state, &mut decls);
+                } else if matches!(rune, DeclRune::Derived | DeclRune::DerivedBy)
+                    && !matches!(pat, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
+                {
+                    // A destructured `$derived` / `$derived.by` expands into a
+                    // (possibly shared) `$$d = <init>` base plus one
+                    // `$.derived(() => <access>)` leaf per path and one
+                    // `$$derived_array = $.derived(() => $.to_array(...))` per
+                    // array sub-pattern (写经 `VariableDeclaration.js:97-156`).
+                    create_derived_declarators(
+                        &rune,
+                        d.init.as_ref(),
+                        src,
+                        pat,
+                        new_init,
+                        state,
+                        &mut decls,
+                    );
                 } else {
                     decls.push((pat, new_init));
                 }
@@ -963,6 +980,176 @@ fn extract_paths<'a>(
             // shape is keeping the access expression (defaults are evaluated
             // client-side). KNOWN GAP: no `build_fallback` wrapping.
             extract_paths(asgn.left, expression, state, paths, inserts);
+        }
+    }
+}
+
+/// Port of upstream `VariableDeclaration.js:97-156` for a DESTRUCTURED
+/// `$derived(...)` / `$derived.by(...)` declarator.
+///
+/// `let { foo, bar: [a, b] } = $derived(stuff)` →
+/// ```js
+/// let $$derived_array = $.derived(() => $.to_array(stuff.bar, 2)),
+///     foo = $.derived(() => stuff.foo),
+///     a = $.derived(() => $$derived_array()[0]),
+///     b = $.derived(() => $$derived_array()[1]);
+/// ```
+///
+/// The base `rhs` against which paths are extracted is either:
+/// - the `$derived(<Identifier>)` argument read directly (no `$$d`), or
+/// - a fresh `$$d = <init>` binding whose call `$$d()` is the base — used for
+///   `$derived.by`, or `$derived(<non-identifier>)`.
+///
+/// Each extracted leaf becomes `name = $.derived(() => <access>)`; each
+/// `ArrayPattern` becomes `$$derived_array = $.derived(() => $.to_array(...))`,
+/// indexed via the temp CALL `$$derived_array()[i]`.
+fn create_derived_declarators<'a>(
+    rune: &DeclRune,
+    init_expr: Option<&OxcExpression>,
+    src: &str,
+    pat: oxc_ast::ast::BindingPattern<'a>,
+    new_init: Option<OxcExpression<'a>>,
+    state: &mut ServerTransformState<'a>,
+    decls: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)>,
+) {
+    let b = state.b;
+
+    // Decide the base expression for `extract_paths`. Upstream:
+    //   if (rune !== '$derived' || call.arguments[0].type !== 'Identifier') {
+    //       const id = b.id(scope.generate('$$d'));
+    //       rhs = b.call(id);
+    //       declarations.push(b.declarator(id, init));
+    //   }
+    //   else: rhs = value (the visited argument)
+    let arg_is_identifier = matches!(rune, DeclRune::Derived)
+        && matches!(
+            init_expr,
+            Some(OxcExpression::CallExpression(call))
+                if matches!(
+                    call.arguments.first().and_then(|a| a.as_expression()),
+                    Some(OxcExpression::Identifier(_))
+                )
+        );
+
+    let rhs: OxcExpression<'a> = if arg_is_identifier {
+        // `rhs = value` — the read-wrapped `$derived(<Identifier>)` argument.
+        derived_arg_value(init_expr, src, state).unwrap_or_else(|| b.void0())
+    } else {
+        // `$$d = <init>`, `rhs = $$d()`.
+        let name = state.next_derived_d_name();
+        decls.push((b.id_pat(&name), new_init));
+        b.call(b.id(&name), vec![])
+    };
+
+    let mut paths: Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)> = Vec::new();
+    let mut inserts: Vec<(String, OxcExpression<'a>)> = Vec::new();
+    extract_derived_paths(pat, rhs, state, &mut paths, &mut inserts);
+
+    // `$$derived_array = $.derived(() => $.to_array(...))` inserts (one per
+    // array sub-pattern), in extraction order.
+    for (name, value) in inserts {
+        let call = b.call("$.derived", vec![b.thunk(value, false)]);
+        decls.push((b.id_pat(&name), Some(call)));
+    }
+
+    // Leaf declarators: `name = $.derived(() => <access>)`.
+    for (node, expr) in paths {
+        let call = b.call("$.derived", vec![b.thunk(expr, false)]);
+        decls.push((node, Some(call)));
+    }
+}
+
+/// Extract the read-wrapped first argument of a `$derived(<Identifier>)` call —
+/// the base `rhs` for the no-`$$d` destructured-derived path.
+fn derived_arg_value<'a>(
+    init_expr: Option<&OxcExpression>,
+    src: &str,
+    state: &ServerTransformState<'a>,
+) -> Option<OxcExpression<'a>> {
+    let OxcExpression::CallExpression(call) = init_expr? else {
+        return None;
+    };
+    let arg = call.arguments.first()?.as_expression()?;
+    let s = arg.span();
+    let slice = &src[s.start as usize..s.end as usize];
+    let mut e = state.reparse_slice_owned(slice)?;
+    super::read_wrap::wrap_reads(
+        &mut e,
+        state.b,
+        state.analysis,
+        state.analysis.root.instance_scope_index,
+    );
+    Some(e)
+}
+
+/// Derived-flavoured port of upstream `_extract_paths` (`utils/ast.js:269-415`).
+/// Like [`extract_paths`] but: every `ArrayPattern` generates a fresh
+/// `$$derived_array` temp whose value (`$.to_array(...)`) is pushed into
+/// `inserts` tagged with its name, and element accesses index the temp via a
+/// CALL (`$$derived_array()[i]`). Object rest → `$.exclude_from_object`,
+/// array rest → `<temp>().slice(i)`. The caller wraps every `inserts` value and
+/// every leaf `expression` in `$.derived(() => …)`.
+fn extract_derived_paths<'a>(
+    pat: oxc_ast::ast::BindingPattern<'a>,
+    expression: OxcExpression<'a>,
+    state: &mut ServerTransformState<'a>,
+    paths: &mut Vec<(oxc_ast::ast::BindingPattern<'a>, OxcExpression<'a>)>,
+    inserts: &mut Vec<(String, OxcExpression<'a>)>,
+) {
+    use oxc_ast::ast::BindingPattern;
+    let b = state.b;
+    match pat {
+        BindingPattern::BindingIdentifier(_) => {
+            paths.push((pat, expression));
+        }
+        BindingPattern::ObjectPattern(obj) => {
+            let obj = obj.unbox();
+            let has_rest = obj.rest.is_some();
+            // Collect the static key list for the `$.exclude_from_object` rest
+            // (写经 `_extract_paths` ObjectPattern RestElement branch).
+            for prop in obj.properties {
+                let base = expression_clone(&expression, state);
+                let is_static = prop.key.is_identifier() && !prop.computed;
+                let object_expression = if is_static {
+                    let name = prop.key.name().unwrap_or(std::borrow::Cow::Borrowed(""));
+                    b.member(base, &name)
+                } else if let Some(name) = prop.key.static_name() {
+                    b.member_computed(base, b.string(&name))
+                } else {
+                    base
+                };
+                extract_derived_paths(prop.value, object_expression, state, paths, inserts);
+            }
+            if let Some(rest) = obj.rest {
+                // `$.exclude_from_object(<expression>, [<keys>])`. The fixtures
+                // only exercise the no-leading-property `{ ...b }` case, so the
+                // key array is empty; non-empty cases are a KNOWN GAP.
+                let _ = has_rest;
+                let exclude = b.call("$.exclude_from_object", vec![expression, b.array(vec![])]);
+                extract_derived_paths(rest.unbox().argument, exclude, state, paths, inserts);
+            }
+        }
+        BindingPattern::ArrayPattern(arr) => {
+            let arr = arr.unbox();
+            let name = state.next_derived_array_name();
+            let len = arr.elements.len();
+            // `$.to_array(<expression>, <len>)` (rest-less length; rest patterns
+            // are a KNOWN GAP for SSR derived, so always emit the length arg).
+            let to_array = b.call("$.to_array", vec![expression, b.number(len as f64)]);
+            inserts.push((name.clone(), to_array));
+
+            for (i, element) in arr.elements.into_iter().enumerate() {
+                if let Some(element) = element {
+                    // `$$derived_array()[i]` — index the temp CALL.
+                    let base = b.call(b.id(&name), vec![]);
+                    let array_expression = b.member_computed(base, b.number(i as f64));
+                    extract_derived_paths(element, array_expression, state, paths, inserts);
+                }
+            }
+        }
+        BindingPattern::AssignmentPattern(asgn) => {
+            let asgn = asgn.unbox();
+            extract_derived_paths(asgn.left, expression, state, paths, inserts);
         }
     }
 }

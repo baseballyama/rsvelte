@@ -114,6 +114,16 @@ pub struct ServerTransformState<'a> {
     /// template — and prepended to the component-function body (ahead of the
     /// rendered template), matching upstream's shared component-level `state.init`.
     pub snippet_inits: Vec<Statement<'a>>,
+    /// Monotonic counter for the `$$d` temp generated when expanding a
+    /// destructured `$derived` / `$derived.by` whose base needs a single shared
+    /// `$$d = <init>` binding (mirrors upstream `scope.generate('$$d')`). The
+    /// first one is bare `$$d`, subsequent ones append `_1`, `_2`, …
+    pub derived_d_counter: usize,
+    /// Monotonic counter for the `$$derived_array` temp generated per
+    /// `ArrayPattern` in a destructured `$derived` (mirrors upstream
+    /// `scope.generate('$$derived_array')`). The first is bare `$$derived_array`,
+    /// subsequent ones append `_1`, `_2`, …
+    pub derived_array_counter: usize,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -173,6 +183,32 @@ impl<'a> ServerTransformState<'a> {
             const_blocker_map: rustc_hash::FxHashMap::default(),
             const_promises_counter: 0,
             snippet_inits: Vec::new(),
+            derived_d_counter: 0,
+            derived_array_counter: 0,
+        }
+    }
+
+    /// Generate the next `$$d` temp name — `$$d`, `$$d_1`, `$$d_2`, …
+    /// (mirrors upstream `scope.generate('$$d')`).
+    pub fn next_derived_d_name(&mut self) -> String {
+        let counter = self.derived_d_counter;
+        self.derived_d_counter = counter + 1;
+        if counter == 0 {
+            "$$d".to_string()
+        } else {
+            format!("$$d_{counter}")
+        }
+    }
+
+    /// Generate the next `$$derived_array` temp name — `$$derived_array`,
+    /// `$$derived_array_1`, … (mirrors upstream `scope.generate('$$derived_array')`).
+    pub fn next_derived_array_name(&mut self) -> String {
+        let counter = self.derived_array_counter;
+        self.derived_array_counter = counter + 1;
+        if counter == 0 {
+            "$$derived_array".to_string()
+        } else {
+            format!("$$derived_array_{counter}")
         }
     }
 
@@ -1089,6 +1125,52 @@ mod tests {
             .filter(|l| !l.is_empty())
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// Destructured `$derived` / `$derived.by` SSR expansion (写经
+    /// `VariableDeclaration.js:97-156` + `_extract_paths`). Each runtime-runes
+    /// fixture below destructures a derived; the AST pipeline must expand it into
+    /// the `$$d` / `$$derived_array` base + one `$.derived(() => <access>)` leaf
+    /// per path, matching the (correct) `transform_server` oracle (post
+    /// `norm_blocks`, which collapses the oracle's block-body indent + blank-line
+    /// quirks). Covers: object pattern + nested array/object pattern (two array
+    /// temps), object rest `{ ...b }` → `$.exclude_from_object`, `$derived.by`
+    /// (`$$d = $.derived(fn)`), `$derived(<non-identifier>)` (`$$d = $.derived(…)`),
+    /// `$derived(<Identifier>)` (no `$$d`, base read directly), iterator destructure
+    /// (`$$d` + `$$derived_array`), and a single-property object destructure.
+    #[test]
+    fn ast_matches_oracle_destructured_derived() {
+        let fixtures = [
+            "derived-destructured",
+            "derived-destructured-iterator",
+            "derived-fn-destructure",
+            "destructure-derived-by",
+            "derived-rest-includes-symbol",
+            "derived-destructure",
+            "derived-dependencies",
+        ];
+        let mut mismatches: Vec<String> = Vec::new();
+        for dir in fixtures {
+            let path = format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples/{}/main.svelte",
+                env!("CARGO_MANIFEST_DIR"),
+                dir
+            );
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                eprintln!("SKIP {dir} (submodule not checked out)");
+                return;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            if norm_blocks(&ours) != norm_blocks(&oracle) {
+                eprintln!("=== {dir} DIFFER ===\n--- OURS ---\n{ours}\n--- ORACLE ---\n{oracle}\n");
+                mismatches.push(dir.to_string());
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "destructured-derived output differs from oracle for: {mismatches:?}"
+        );
     }
 
     /// Indentation-insensitive normalizer for the block-visitor comparison.
