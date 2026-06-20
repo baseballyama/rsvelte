@@ -12,20 +12,29 @@
 //! Port of `eslint-plugin-svelte/src/rules/block-lang.ts`.
 //! Upstream: `meta.type = 'suggestion'`, `hasSuggestions: true`.
 
+// `Path` is only used by the native-only source-scan fallback below.
+#[cfg(feature = "native")]
 use std::path::Path;
 
 use rsvelte_core::ast::css::StyleSheet;
 use rsvelte_core::ast::template::{
     AttributeNode, AttributeValue, AttributeValuePart, Root, Script,
 };
+// `svelte_check` is native-only; only the source-scan fallback below produces
+// `Diagnostic`s, so these imports are gated with it.
+#[cfg(feature = "native")]
 use rsvelte_core::svelte_check::diagnostic::{Diagnostic, Position, Range};
 use serde_json::Value;
 
+// `LintConfig` is only referenced by the native-only source-scan fallback below.
+#[cfg(feature = "native")]
 use crate::config::LintConfig;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
+#[cfg(feature = "native")]
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+#[cfg(feature = "native")]
 use crate::validator::to_dsev;
 
 static META: RuleMeta = RuleMeta {
@@ -471,6 +480,10 @@ fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> 
 /// parser cannot fully parse (e.g. files with invalid CSS or TypeScript errors).
 /// When the parser succeeds, [`BlockLang::check_root`] handles the rule via the
 /// normal AST path and this function is a no-op (to avoid double-reporting).
+///
+/// Native-only: it produces `rsvelte_core::svelte_check::Diagnostic`s and is
+/// only invoked from the native `runner`, so it is excluded from the wasm build.
+#[cfg(feature = "native")]
 pub fn block_lang_source_scan_diagnostics(
     source: &str,
     file: &Path,
@@ -569,6 +582,9 @@ pub fn block_lang_source_scan_diagnostics(
 /// Yield `(tag_start_byte, lang)` for every `<style …>` element. `lang` is the
 /// value of a `lang` attribute, or `""` (plain CSS) when absent. Mirrors the
 /// scanner in `valid_style_parse.rs`.
+///
+/// Only used by the native-only source-scan fallback, so gated alongside it.
+#[cfg(feature = "native")]
 fn style_scan(source: &str) -> Vec<(u32, String)> {
     let bytes = source.as_bytes();
     let mut out = Vec::new();
