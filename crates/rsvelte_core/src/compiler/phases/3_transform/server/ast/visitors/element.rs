@@ -98,6 +98,30 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         return;
     }
 
+    // -- async-attribute wrapping (写经 RegularElement `PromiseOptimiser`) ---
+    //
+    // When ANY attribute / spread value carries an inline `await` (or a top-level
+    // blocker), the whole element is built into a SEPARATE template buffer with an
+    // active `attr_optimiser` (so each async value is hoisted into a `$$N` const),
+    // then wrapped in `$$renderer.child(async …)` / `$$renderer.async([…], …)`.
+    // Sync elements take the fast path below (no buffering, no wrap), keeping
+    // non-async output byte-identical.
+    if element_has_async_attribute(node, state) {
+        emit_async_element(node, name, is_void, state);
+        return;
+    }
+
+    emit_element_body(node, name, is_void, state);
+}
+
+/// Emit an element's open tag, attributes, `>`/`/>`, children, and close tag into
+/// `state.template`. Shared by the sync fast path and the async-buffered path.
+fn emit_element_body<'a>(
+    node: &RegularElement,
+    name: &str,
+    is_void: bool,
+    state: &mut ServerTransformState<'a>,
+) {
     // -- open tag `<name` ---------------------------------------------------
     state
         .template
@@ -169,6 +193,73 @@ pub fn visit_regular_element<'a>(node: &RegularElement, state: &mut ServerTransf
         state
             .template
             .push(TemplateEntry::Literal(format!("</{name}>")));
+    }
+}
+
+/// Whether the element has any attribute / spread value with an inline `await`
+/// or a top-level-await blocker — the predicate that switches on the async
+/// `PromiseOptimiser` wrapping. Only ever true under `experimental.async` (the
+/// blocker map is empty otherwise, and `text_has_await` requires a literal
+/// `await`).
+fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformState<'_>) -> bool {
+    use super::shared::{expr_text_blockers, text_has_await};
+    let is_async_text = |t: &str| text_has_await(t) || !expr_text_blockers(state, t).is_empty();
+    for attr in &node.attributes {
+        match attr {
+            Attribute::SpreadAttribute(spread) => {
+                if let Some(t) = state.expr_source(&spread.expression)
+                    && is_async_text(t)
+                {
+                    return true;
+                }
+            }
+            Attribute::Attribute(a) => {
+                if let Some(t) = attribute_value_source(&a.value, state)
+                    && is_async_text(&t)
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Build an async element into a fresh template buffer with an active
+/// `attr_optimiser`, then wrap the buffered output in `optimiser.render(...)`
+/// (`$$renderer.child(async …)` / `$$renderer.async([$$promises[N]…], …)`). 写经
+/// `RegularElement.js`: `optimiser.render([b.block([...build_template(state.template)])])`.
+fn emit_async_element<'a>(
+    node: &RegularElement,
+    name: &str,
+    is_void: bool,
+    state: &mut ServerTransformState<'a>,
+) {
+    use super::shared::{PromiseOptimiser, build_template};
+
+    // Swap in a fresh template buffer + a fresh optimiser for this element.
+    let saved_template = std::mem::take(&mut state.template);
+    let saved_optimiser = state.attr_optimiser.take();
+    state.attr_optimiser = Some(PromiseOptimiser::new());
+
+    emit_element_body(node, name, is_void, state);
+
+    // Reclaim the element's buffered entries + the populated optimiser.
+    let element_entries = std::mem::replace(&mut state.template, saved_template);
+    let mut optimiser = state.attr_optimiser.take().unwrap_or_default();
+    state.attr_optimiser = saved_optimiser;
+
+    // 写经 `RegularElement.js` lines 221-228: an element WITHOUT child
+    // declarations (the common case — text / sibling content, not nested
+    // declaration-introducing blocks) renders as
+    // `optimiser.render([...build_template(state.template)])` — the statements
+    // flat, NO `{ ... }` block wrapper. (The block-wrapped `has_child_declarations`
+    // path is a future refinement; the current async fixtures are all flat.)
+    let body = build_template(element_entries, state);
+    let wrapped = optimiser.render(state, body);
+    for stmt in wrapped {
+        state.template.push(TemplateEntry::Stmt(stmt));
     }
 }
 
@@ -709,6 +800,8 @@ pub(super) fn build_element_attributes<'a>(
 
         // -- dynamic value build --------------------------------------------
         let mut value = build_attribute_value(&a.value, trim_ws, state);
+        // Source text of the attribute value (for the async optimiser predicate).
+        let value_text = attribute_value_source(&a.value, state);
 
         if is_class {
             // `class={complex}` is wrapped in `$.clsx(...)` so array/object class
@@ -719,16 +812,27 @@ pub(super) fn build_element_attributes<'a>(
             if a.metadata.needs_clsx {
                 value = state.b.call("$.clsx", vec![value]);
             }
+            // 写经 `optimiser.transform`: hoist an awaited class value into `$$N`
+            // (the whole `$.clsx(save(arg))` becomes the const initializer).
+            if let Some(t) = &value_text {
+                value = state.optimise_attr_value(t, value);
+            }
             // `$.attr_class(expr, css_hash?, directives?)`. directives = the
             // `class:` directive object (`{ 'name': value }`), 3rd arg.
             let call = build_attr_class(value, css_hash, &class_directives, state);
             push_interp(state, call);
         } else if is_style {
+            if let Some(t) = &value_text {
+                value = state.optimise_attr_value(t, value);
+            }
             // `$.attr_style(expr, directives?)`. directives = the `style:`
             // directive object/array, 2nd arg.
             let call = build_attr_style(value, &style_directives, state);
             push_interp(state, call);
         } else {
+            if let Some(t) = &value_text {
+                value = state.optimise_attr_value(t, value);
+            }
             // `$.attr('name', value, is_boolean && true)`.
             let is_bool = is_boolean_attribute(&name);
             let call = state.b.call_opt(
@@ -810,7 +914,21 @@ fn build_element_spread_attributes<'a>(
     for attr in &node.attributes {
         match attr {
             Attribute::SpreadAttribute(spread) => {
-                let expr = state.visit_expr(&spread.expression);
+                // 写经 `optimiser.transform`: an awaited spread (`{...await x}`) is
+                // `$.save`-wrapped then hoisted into a `$$N` const, so the merged
+                // object reads `{ ...$$N }`.
+                let spread_text = state.expr_source(&spread.expression).map(|s| s.to_string());
+                let mut expr = if let Some(t) = &spread_text
+                    && super::shared::text_has_await(t)
+                    && state.attr_optimiser.is_some()
+                {
+                    super::shared::save_wrap_expr_text(state, t)
+                } else {
+                    state.visit_expr(&spread.expression)
+                };
+                if let Some(t) = &spread_text {
+                    expr = state.optimise_attr_value(t, expr);
+                }
                 props.push(state.b.spread(expr));
                 if is_load_error_element(node.name.as_str()) {
                     capture_onload = true;
@@ -837,11 +955,16 @@ fn build_element_spread_attributes<'a>(
                 let name = get_attribute_name(node, a);
                 let trim_ws = WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str());
                 let mut value = build_attribute_value(&a.value, trim_ws, state);
+                let value_text = attribute_value_source(&a.value, state);
                 // 写经 upstream `build_element_attributes` `class` arm: a
                 // `class={...}` marked `needs_clsx` is wrapped in `$.clsx(...)` so
                 // the runtime flattens array / object class forms before the merge.
                 if name == "class" && a.metadata.needs_clsx {
                     value = state.b.call("$.clsx", vec![value]);
+                }
+                // 写经 `optimiser.transform`: hoist an awaited prop value into `$$N`.
+                if let Some(t) = &value_text {
+                    value = state.optimise_attr_value(t, value);
                 }
                 props.push(state.b.init(&name, value));
             }
@@ -1505,7 +1628,7 @@ fn build_attribute_value<'a>(
 ) -> OxcExpression<'a> {
     match value {
         AttributeValue::True(_) => state.b.bool(true),
-        AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
+        AttributeValue::Expression(tag) => attr_expr_value(&tag.expression, state),
         AttributeValue::Sequence(parts) => {
             // Single-element sequence collapses to its lone part (upstream's
             // `value.length === 1` branch).
@@ -1519,7 +1642,9 @@ fn build_attribute_value<'a>(
                         };
                         state.b.string(&escape_attr(&data))
                     }
-                    AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
+                    AttributeValuePart::ExpressionTag(tag) => {
+                        attr_expr_value(&tag.expression, state)
+                    }
                 };
             }
 
@@ -1574,6 +1699,47 @@ fn build_attribute_value<'a>(
             state.b.template(quasi_refs, exprs)
         }
     }
+}
+
+/// Source text of an attribute value — `Some` only for a single-expression
+/// value (`name={expr}` / single-element sequence), used as the async optimiser
+/// await/blocker predicate. Multi-part / static values return `None` (no await
+/// to hoist in the single-value attribute forms these fixtures exercise).
+fn attribute_value_source(
+    value: &AttributeValue,
+    state: &ServerTransformState<'_>,
+) -> Option<String> {
+    match value {
+        AttributeValue::Expression(tag) => {
+            state.expr_source(&tag.expression).map(|s| s.to_string())
+        }
+        AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
+            AttributeValuePart::ExpressionTag(tag) => {
+                state.expr_source(&tag.expression).map(|s| s.to_string())
+            }
+            AttributeValuePart::Text(_) => None,
+        },
+        _ => None,
+    }
+}
+
+/// Visit a single attribute-value expression, `$.save`-wrapping an inline
+/// `await` when the current element is async (an `attr_optimiser` is active and
+/// the value has a top-level await). 写经 `context.visit(node.expression)` →
+/// `AwaitExpression` visitor `(await $.save(arg))()`. Sync elements (no active
+/// optimiser) keep the plain read-wrapped expression, so non-async output is
+/// unchanged.
+fn attr_expr_value<'a>(
+    expr: &crate::ast::js::Expression,
+    state: &mut ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    if state.attr_optimiser.is_some()
+        && let Some(text) = state.expr_source(expr).map(|s| s.to_string())
+        && super::shared::text_has_await(&text)
+    {
+        return super::shared::save_wrap_expr_text(state, &text);
+    }
+    state.visit_expr(expr)
 }
 
 /// Whether `name` is an event-handler attribute (`on` + lowercase letter), the

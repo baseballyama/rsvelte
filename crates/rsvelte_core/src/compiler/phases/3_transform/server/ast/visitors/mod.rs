@@ -40,6 +40,7 @@ pub mod const_tag;
 pub mod debug_tag;
 pub mod each_block;
 pub mod element;
+pub mod html_tag;
 pub mod if_block;
 pub mod key_block;
 pub mod render_tag;
@@ -65,17 +66,7 @@ use shared::TemplateEntry;
 pub fn visit_node<'a>(node: &TemplateNode, state: &mut ServerTransformState<'a>) {
     match node {
         TemplateNode::RegularElement(el) => element::visit_regular_element(el, state),
-        TemplateNode::HtmlTag(tag) => {
-            // `{@html expr}` (non-async): `$.html(expr)` interpolated into the
-            // surrounding push template. Port of HtmlTag.js (non-async branch).
-            // TODO: async branch (create_child_block).
-            let visited = state.visit_expr(&tag.expression);
-            let html = state.b.call("$.html", vec![visited]);
-            state.template.push(TemplateEntry::Template {
-                quasis: vec![String::new(), String::new()],
-                exprs: vec![html],
-            });
-        }
+        TemplateNode::HtmlTag(tag) => html_tag::visit_html_tag(tag, state),
         TemplateNode::IfBlock(node) => if_block::visit_if_block(node, state),
         TemplateNode::EachBlock(node) => each_block::visit_each_block(node, state),
         TemplateNode::KeyBlock(node) => key_block::visit_key_block(node, state),

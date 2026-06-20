@@ -162,6 +162,15 @@ pub fn process_children_inner<'a>(
 
     let mut sequence: Vec<SeqNode<'_>> = Vec::new();
 
+    // 写经 the `AwaitExpression` server-visitor parent-walk: the direct children
+    // of a RegularElement / TitleElement get `$.save`-wrapped awaits (their first
+    // metadata-bearing ancestor is the element, not a Fragment). Block/fragment
+    // bodies leave the flag at the parent's value. Saved/restored so nested
+    // fragments (an `{#if}` body inside an element) re-derive it from their own
+    // `parent` arg.
+    let saved_in_element = state.in_element_children;
+    state.in_element_children = parent.is_some();
+
     for node in &cleaned {
         match node.as_ref() {
             TemplateNode::Text(t) => sequence.push(SeqNode::Text(t.data.as_str())),
@@ -260,6 +269,7 @@ pub fn process_children_inner<'a>(
         }
     }
     flush_sequence(&sequence, state);
+    state.in_element_children = saved_in_element;
 }
 
 /// Normalize template-text whitespace to match upstream's `clean_nodes` +
@@ -971,4 +981,147 @@ pub fn build_async_expression_push_exprs<'a>(
         call = b.call("$$renderer.async", vec![blockers, arrow]);
     }
     b.stmt(call)
+}
+
+/// Rust port of upstream `shared/utils.js::PromiseOptimiser` — the per-element /
+/// per-component async-attribute/prop optimiser. Each attribute / prop / spread
+/// value expression is routed through [`PromiseOptimiser::transform`]; when it
+/// carries an inline `await` it is hoisted into a `const $$N = …;` binding and
+/// replaced inline by the bare `$$N` identifier, so multiple async values share
+/// ONE `Promise.all` wait and ONE child wrapper.
+///
+/// Blockers (top-level `$$promises[N]` references — only populated under
+/// `experimental.async`) are accumulated via [`PromiseOptimiser::check_blockers`]
+/// so an element/component that reads a blocked binding wraps in
+/// `$$renderer.async([$$promises[N]…], …)` even without an inline await.
+///
+/// At emit time, [`PromiseOptimiser::render`] (elements →
+/// `$$renderer.child`/`async`) or [`PromiseOptimiser::render_block`] (components →
+/// `$$renderer.child_block`/`async_block`) prepends the `#apply()` declaration and
+/// wraps the statements. A non-async optimiser (`is_async() == false`) returns the
+/// input statements unchanged, so sync output is untouched.
+#[derive(Default)]
+pub struct PromiseOptimiser<'a> {
+    /// The hoisted async expressions (already `$.save`-wrapped), in order. Their
+    /// index is the `$$N` placeholder suffix.
+    expressions: Vec<OxcExpression<'a>>,
+    /// Whether ANY transformed value carried an inline await.
+    has_await: bool,
+    /// Insertion-ordered, de-duplicated top-level blocker indices.
+    blockers: Vec<usize>,
+}
+
+impl<'a> PromiseOptimiser<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 写经 `transform(expression, metadata)`: record the expression's blockers,
+    /// and — if `has_await` — hoist `expression` into a `$$N` slot, returning the
+    /// bare `$$N` placeholder identifier. Otherwise the expression is returned
+    /// verbatim. `expr_text` is the SOURCE of the value (used for the await /
+    /// blocker predicates); `expression` is the already-visited (`$.save`-wrapped)
+    /// oxc expression to hoist.
+    pub fn transform(
+        &mut self,
+        state: &ServerTransformState<'a>,
+        expr_text: &str,
+        expression: OxcExpression<'a>,
+    ) -> OxcExpression<'a> {
+        self.check_blockers(state, expr_text);
+        if text_has_await(expr_text) {
+            self.has_await = true;
+            let idx = self.expressions.len();
+            self.expressions.push(expression);
+            return state.b.id(&format!("$${idx}"));
+        }
+        expression
+    }
+
+    /// 写经 `check_blockers(metadata)`: union the top-level-await blocker indices
+    /// referenced by `expr_text` into the blocker set (insertion-ordered).
+    pub fn check_blockers(&mut self, state: &ServerTransformState<'a>, expr_text: &str) {
+        for idx in expr_text_blockers(state, expr_text) {
+            if !self.blockers.contains(&idx) {
+                self.blockers.push(idx);
+            }
+        }
+    }
+
+    /// 写经 `is_async()`: any hoisted expression OR any blocker.
+    pub fn is_async(&self) -> bool {
+        !self.expressions.is_empty() || !self.blockers.is_empty()
+    }
+
+    /// 写经 `#apply()`: build the `const` declaration that resolves the hoisted
+    /// promises. `None` when there are no hoisted expressions (a blocker-only
+    /// optimiser emits no declaration). Single → `const $$0 = <expr>;`. Multiple →
+    /// `const [$$0, …] = (await $.save(Promise.all([thunk0, …])))();`.
+    fn apply(&mut self, state: &ServerTransformState<'a>) -> Option<Statement<'a>> {
+        let b = state.b;
+        if self.expressions.is_empty() {
+            return None;
+        }
+        let exprs = std::mem::take(&mut self.expressions);
+        if exprs.len() == 1 {
+            let only = exprs.into_iter().next().unwrap();
+            return Some(b.const_id("$$0", only));
+        }
+        // Multiple: `const [$$0, …] = (await $.save(Promise.all([...])))();`.
+        let n = exprs.len();
+        let elems: Vec<Option<OxcExpression<'a>>> = exprs.into_iter().map(Some).collect();
+        let array = b.array(elems);
+        let promise_all = b.call("Promise.all", vec![array]);
+        // save(Promise.all(...)) = `(await $.save(Promise.all(...)))()`.
+        let saved = b.call("$.save", vec![promise_all]);
+        let awaited = b.await_expr(saved);
+        let resolved = b.call(awaited, vec![]);
+        // Build the `[$$0, …]` destructuring pattern via an array expression.
+        let pat_elems: Vec<Option<OxcExpression<'a>>> =
+            (0..n).map(|i| Some(b.id(&format!("$${i}")))).collect();
+        let pat = b.expr_to_pattern(b.array(pat_elems), "undefined");
+        Some(b.const_decl(pat, Some(resolved)))
+    }
+
+    /// 写经 `render(statements)` — the ELEMENT wrapper: `$$renderer.child(async …)`
+    /// (inline await) / `$$renderer.async([$$promises[N]…], …)` (blockers). Sync
+    /// (no await, no blockers) returns the statements unchanged.
+    pub fn render(
+        &mut self,
+        state: &ServerTransformState<'a>,
+        mut statements: Vec<Statement<'a>>,
+    ) -> Vec<Statement<'a>> {
+        if !self.is_async() {
+            return statements;
+        }
+        if let Some(decl) = self.apply(state) {
+            statements.insert(0, decl);
+        }
+        let b = state.b;
+        let params = b.params(vec![b.id_pat("$$renderer")], None);
+        let arrow = b.arrow(params, b.body(statements), false, self.has_await);
+        if !self.blockers.is_empty() {
+            let blockers = blockers_array(state, &self.blockers);
+            vec![b.stmt(b.call("$$renderer.async", vec![blockers, arrow]))]
+        } else {
+            vec![b.stmt(b.call("$$renderer.child", vec![arrow]))]
+        }
+    }
+
+    /// 写经 `render_block(statements)` — the COMPONENT/BLOCK wrapper:
+    /// `$$renderer.child_block(async …)` / `$$renderer.async_block([…], …)` via
+    /// [`create_child_block`]. Sync returns the statements unchanged.
+    pub fn render_block(
+        &mut self,
+        state: &ServerTransformState<'a>,
+        mut statements: Vec<Statement<'a>>,
+    ) -> Vec<Statement<'a>> {
+        if !self.is_async() {
+            return statements;
+        }
+        if let Some(decl) = self.apply(state) {
+            statements.insert(0, decl);
+        }
+        create_child_block(state, statements, &self.blockers, self.has_await)
+    }
 }

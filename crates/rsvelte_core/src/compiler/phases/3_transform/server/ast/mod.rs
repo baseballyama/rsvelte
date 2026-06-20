@@ -130,6 +130,23 @@ pub struct ServerTransformState<'a> {
     /// `scope.generate('$$derived_array')`). The first is bare `$$derived_array`,
     /// subsequent ones append `_1`, `_2`, …
     pub derived_array_counter: usize,
+    /// Whether the CURRENT children run is the direct children of a
+    /// RegularElement / TitleElement (`process_children` `parent.is_some()`).
+    /// Mirrors upstream's `AwaitExpression` server visitor parent-walk: an inline
+    /// `{await …}` / `{@html await …}` whose first metadata-bearing ancestor is a
+    /// RegularElement (NOT a Fragment) gets `$.save`-wrapped. `process_children`
+    /// saves/restores it around the element-children loop; block bodies leave it
+    /// `false`. Drives the HtmlTag-async `$.save` decision (the inline
+    /// ExpressionTag path already keys off the `parent` arg directly).
+    pub in_element_children: bool,
+    /// The CURRENT element's async-attribute optimiser (写经 RegularElement's
+    /// per-element `PromiseOptimiser`). `Some` only while building an element
+    /// whose attributes include an awaited / blocker value; the dynamic-value
+    /// builders route their result through it (hoisting the await into a `$$N`
+    /// const) and the element visitor wraps the whole element in
+    /// `$$renderer.child`/`async`. `None` for sync elements (the fast path),
+    /// keeping non-async output byte-identical.
+    pub attr_optimiser: Option<visitors::shared::PromiseOptimiser<'a>>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -192,6 +209,29 @@ impl<'a> ServerTransformState<'a> {
             snippet_inits: Vec::new(),
             derived_d_counter: 0,
             derived_array_counter: 0,
+            in_element_children: false,
+            attr_optimiser: None,
+        }
+    }
+
+    /// Route a built attribute / prop value through the CURRENT element's
+    /// async-attribute optimiser (写经 `optimiser.transform`). When an optimiser
+    /// is active AND `value_text` carries an inline await / blocker, the built
+    /// `value` is hoisted into a `$$N` const and replaced by the bare `$$N`
+    /// identifier; otherwise the value is returned unchanged. The borrow is taken
+    /// out of `self.attr_optimiser` and restored so the rest of `self` stays
+    /// mutably usable inside `transform`.
+    pub fn optimise_attr_value(
+        &mut self,
+        value_text: &str,
+        value: oxc_ast::ast::Expression<'a>,
+    ) -> oxc_ast::ast::Expression<'a> {
+        if let Some(mut opt) = self.attr_optimiser.take() {
+            let out = opt.transform(self, value_text, value);
+            self.attr_optimiser = Some(opt);
+            out
+        } else {
+            value
         }
     }
 
@@ -5099,6 +5139,76 @@ mod tests {
         assert!(
             mismatches.is_empty(),
             "derived read-wrap SSR differs from oracle for: {mismatches:?}"
+        );
+    }
+
+    /// SSR async template-shape parity with the (correct) `transform_server`
+    /// oracle for the `{#await}` / `{@html await …}` / async-attribute /
+    /// async-prop cluster. Compared with [`canon_js`] (the runtime harness
+    /// canonicalizer), so a match means the runtime suite passes (the oracle
+    /// passes these). The instance-level `main.svelte` is read straight from the
+    /// upstream fixtures and compiled with `experimental.async` on.
+    ///
+    /// Covered axes (must MATCH):
+    /// - `async-await-block` — `{#await foo then x}` where `foo` is a top-level
+    ///   blocker → `$$renderer.async_block([$$promises[0]], …)`.
+    /// - `async-hydrate-html-tag` — `{@html await …}` in an element →
+    ///   `$$renderer.child_block(async …)` + `$$renderer.push($.html((await
+    ///   $.save(…))()))`.
+    /// - `async-sole-if-child` — a component with an awaited prop inside `{#if}`
+    ///   → `$$renderer.child_block(async …)` with a hoisted `$$0` const.
+    /// - `async-no-pending-attributes` — element async attribute (`child`/`async`)
+    ///   + component async prop (`child_block`/`async_block`), each with a `$$N`
+    ///   hoist.
+    /// - `async-static-prop-after-await` — element / component referencing a
+    ///   top-level-await blocker → `$$renderer.async([$$promises[1]], …)` /
+    ///   `$$renderer.async_block([$$promises[1]], …)`.
+    ///
+    /// The orthogonal `async-await-block-2` (server `$derived(await …)` →
+    /// `$.async_derived` script lowering), `async-if-block-unskip` (instance
+    /// script-comment preservation) and `async-nested-top-level` (instance/module
+    /// import hoisting order) are NOT asserted — they fail on non-template axes.
+    #[test]
+    fn ast_matches_oracle_async_template_shapes() {
+        let names = [
+            "async-await-block",
+            "async-hydrate-html-tag",
+            "async-sole-if-child",
+            "async-no-pending-attributes",
+            "async-static-prop-after-await",
+            // Already-passing async fixtures — guard against regression.
+            "async-await",
+            "async-expression",
+            "async-html-tag",
+            "async-attribute",
+            "async-attribute-without-state",
+            "async-prop",
+            "async-if",
+            "async-if-else",
+            "async-no-pending",
+        ];
+        let base = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../submodules/svelte/packages/svelte/tests/runtime-runes/samples"
+        );
+        let mut mismatches = Vec::new();
+        for n in names {
+            let path = format!("{base}/{n}/main.svelte");
+            let Ok(src) = std::fs::read_to_string(&path) else {
+                // Fixtures absent (no submodule) → skip silently.
+                continue;
+            };
+            let (ours, oracle) = run_async_both(&src);
+            if canon_js(&ours) != canon_js(&oracle) {
+                eprintln!(
+                    "\n######### DIFFER: {n} #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(n);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "async template-shape SSR differs from oracle for: {mismatches:?}"
         );
     }
 }

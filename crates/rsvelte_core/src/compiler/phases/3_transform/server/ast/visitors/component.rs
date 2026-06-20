@@ -65,7 +65,10 @@ use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::{Expression as OxcExpression, ObjectPropertyKind, Statement};
 
-use super::shared::{BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, EMPTY_COMMENT, TemplateEntry};
+use super::shared::{
+    BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, EMPTY_COMMENT, PromiseOptimiser, TemplateEntry,
+    save_wrap_expr_text, text_has_await,
+};
 
 /// One entry of upstream's `props_and_spreads` list: either a contiguous group
 /// of plain object properties, or a single spread expression.
@@ -147,6 +150,10 @@ fn build_inline_component<'a, 'b>(
     // `props_and_spreads`: a list of plain-prop groups + spread expressions,
     // mirroring upstream's `Array<Property[] | Expression>`.
     let mut groups: Vec<PropGroup<'a>> = Vec::new();
+    // Async prop optimiser (写经 `PromiseOptimiser`): hoists awaited prop / spread
+    // values into `$$N` bindings and wraps the whole component call in
+    // `$$renderer.child_block`/`async_block`. Inert for sync components.
+    let mut optimiser = PromiseOptimiser::new();
     // Bindings are pushed at the END (upstream `delayed_props`) so a later
     // spread can't overwrite them.
     let mut delayed: Vec<ObjectPropertyKind<'a>> = Vec::new();
@@ -181,11 +188,11 @@ fn build_inline_component<'a, 'b>(
                 if a.name.as_str() == "children" {
                     has_children_prop = true;
                 }
-                let value = component_attribute_value(&a.value, state);
+                let value = component_attribute_value(&a.value, &mut optimiser, state);
                 push_prop(&mut groups, state.b.init(a.name.as_str(), value));
             }
             Attribute::SpreadAttribute(spread) => {
-                let expr = visit_spread(spread, state);
+                let expr = visit_spread(spread, &mut optimiser, state);
                 groups.push(PropGroup::Spread(expr));
             }
             Attribute::BindDirective(bind) => {
@@ -256,13 +263,26 @@ fn build_inline_component<'a, 'b>(
         block_body.push(statement);
         statement = state.b.block(block_body);
     }
-    state.template.push(TemplateEntry::Stmt(statement));
+
+    // 写经: the component name itself could read a blocked binding. The AST
+    // callee is a freshly-built expression with no source span (the name is a
+    // static import in every current fixture), so this name-blocker check is a
+    // KNOWN GAP — a future port can thread the original `node.name` text through.
+
+    // 写经 `optimiser.render_block([statement])`: a sync component returns the
+    // bare statement; an async one wraps it in `$$renderer.child_block(async …)` /
+    // `$$renderer.async_block([$$promises[N]…], …)` with the hoisted `$$N` consts.
+    let is_async = optimiser.is_async();
+    let wrapped = optimiser.render_block(state, vec![statement]);
+    for stmt in wrapped {
+        state.template.push(TemplateEntry::Stmt(stmt));
+    }
 
     // Non-dynamic, non-async, non-standalone, no custom-CSS props → `<!---->`.
     // A dynamic component already pushed its own `<!--]-->` close marker inside
     // the guard, so the trailing empty comment is suppressed (upstream's
-    // `!dynamic` condition on the `empty_comment` push).
-    if !dynamic && !state.is_standalone {
+    // `!dynamic && !is_async()` condition on the `empty_comment` push).
+    if !dynamic && !is_async && !state.is_standalone {
         state
             .template
             .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
@@ -677,9 +697,23 @@ fn build_props_expression<'a>(
 /// transform is identity in the sync path).
 fn visit_spread<'a>(
     spread: &SpreadAttribute,
+    optimiser: &mut PromiseOptimiser<'a>,
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
-    state.visit_expr(&spread.expression)
+    let text = state.expr_source(&spread.expression).map(|s| s.to_string());
+    if let Some(t) = text.as_deref()
+        && text_has_await(t)
+    {
+        // `context.visit(attribute)` → `$.save`-wrap the inline await, then
+        // `optimiser.transform` hoists it into a `$$N` const.
+        let saved = save_wrap_expr_text(state, t);
+        return optimiser.transform(state, t, saved);
+    }
+    let visited = state.visit_expr(&spread.expression);
+    if let Some(t) = text.as_deref() {
+        return optimiser.transform(state, t, visited);
+    }
+    visited
 }
 
 /// Build the oxc expression for a component prop attribute value — upstream
@@ -694,17 +728,20 @@ fn visit_spread<'a>(
 ///   non-`is_string`/`is_defined` branch; `scope.evaluate` folding is a 写经 gap).
 fn component_attribute_value<'a>(
     value: &AttributeValue,
+    optimiser: &mut PromiseOptimiser<'a>,
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
     match value {
         AttributeValue::True(_) => state.b.bool(true),
-        AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
+        AttributeValue::Expression(tag) => component_value_expr(&tag.expression, optimiser, state),
         AttributeValue::Sequence(parts) => {
             // Single-element sequence collapses to its lone part.
             if parts.len() == 1 {
                 return match &parts[0] {
                     AttributeValuePart::Text(t) => state.b.string(t.data.as_str()),
-                    AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
+                    AttributeValuePart::ExpressionTag(tag) => {
+                        component_value_expr(&tag.expression, optimiser, state)
+                    }
                 };
             }
 
@@ -728,4 +765,28 @@ fn component_attribute_value<'a>(
             state.b.template(quasi_refs, exprs)
         }
     }
+}
+
+/// Build a single component prop value expression, routing an async value (inline
+/// `await`) through `$.save` + the [`PromiseOptimiser`] so it is hoisted into a
+/// `$$N` const and replaced inline. A sync value is the plain read-wrapped
+/// expression (the optimiser still records any top-level blocker so a blocked but
+/// non-await read drives the `async_block` wrap).
+fn component_value_expr<'a>(
+    expr: &crate::ast::js::Expression,
+    optimiser: &mut PromiseOptimiser<'a>,
+    state: &mut ServerTransformState<'a>,
+) -> OxcExpression<'a> {
+    let text = state.expr_source(expr).map(|s| s.to_string());
+    if let Some(t) = text.as_deref()
+        && text_has_await(t)
+    {
+        let saved = save_wrap_expr_text(state, t);
+        return optimiser.transform(state, t, saved);
+    }
+    let visited = state.visit_expr(expr);
+    if let Some(t) = text.as_deref() {
+        return optimiser.transform(state, t, visited);
+    }
+    visited
 }
