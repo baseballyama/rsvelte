@@ -216,19 +216,39 @@ fn clean_whitespace<'n>(
         return nodes.iter().map(|n| Cow::Borrowed(*n)).collect();
     }
 
+    // 写经 `clean_nodes` (utils.js:148-169): split the hoisted / SSR-invisible
+    // nodes (`{#snippet}` / `{@const}` / `<svelte:head>` / `<title>` / window /
+    // document / body / options) out of `regular` BEFORE the whitespace trim, so
+    // text adjacent to a hoisted node (e.g. the trailing whitespace after the
+    // last `<option>` in `<select>...</select>\n{#snippet}` or the leading
+    // whitespace before `<svelte:boundary>` after a top-level `{#snippet}`) is
+    // trimmed as a fragment-boundary edge. The hoisted nodes still need to be
+    // visited (their function declaration is emitted into `state.hoisted`), so we
+    // keep them in the returned list — but at the FRONT, where they emit nothing
+    // into the template and do not perturb whitespace collapse between regulars.
+    let mut hoisted: Vec<Cow<'n, TemplateNode>> = Vec::new();
+    let mut regular: Vec<&'n TemplateNode> = Vec::with_capacity(nodes.len());
+    for n in nodes {
+        if is_hoisted_node(n) {
+            hoisted.push(Cow::Borrowed(*n));
+        } else {
+            regular.push(*n);
+        }
+    }
+
     // Find the first / last non-whitespace-only nodes (the trimmable window).
     let is_ws_text = |n: &TemplateNode| match n {
         TemplateNode::Text(t) => is_svelte_whitespace_only(&t.data),
         _ => false,
     };
     let is_ws_text = |n: &&TemplateNode| is_ws_text(n);
-    let start = nodes.iter().position(|n| !is_ws_text(n));
+    let start = regular.iter().position(|n| !is_ws_text(n));
     let Some(start) = start else {
-        // Entire run is whitespace-only text: nothing survives.
-        return Vec::new();
+        // No regular content survives: emit only the hoisted nodes.
+        return hoisted;
     };
-    let end = nodes.iter().rposition(|n| !is_ws_text(n)).unwrap() + 1;
-    let window: &[&'n TemplateNode] = &nodes[start..end];
+    let end = regular.iter().rposition(|n| !is_ws_text(n)).unwrap() + 1;
+    let window: &[&'n TemplateNode] = &regular[start..end];
 
     let can_remove_entirely = match parent {
         Some(el) => matches!(
@@ -240,7 +260,10 @@ fn clean_whitespace<'n>(
         && !matches!(parent, Some(el) if el.name.as_str() == "text"));
 
     let last_idx = window.len() - 1;
-    let mut out: Vec<Cow<'n, TemplateNode>> = Vec::with_capacity(window.len());
+    // Emit the hoisted nodes first (they render nothing into the template; their
+    // function declarations are hoisted when visited), then the trimmed regulars.
+    let mut out: Vec<Cow<'n, TemplateNode>> = hoisted;
+    out.reserve(window.len());
     let mut prev_ends_with_ws = false;
     let mut prev_is_expression_tag = false;
 

@@ -778,12 +778,26 @@ fn build_element_spread_attributes<'a>(
     let mut props: Vec<ObjectPropertyKind<'a>> = Vec::new();
     let mut class_directives: Vec<&ClassDirective> = Vec::new();
     let mut style_directives: Vec<&StyleDirective> = Vec::new();
+    // `events_to_capture` (upstream `shared/element.js`): a spread or `use:`
+    // directive on a load/error element re-captures `onload`/`onerror` so the
+    // client can replay events fired before hydration. Tracked as two flags in
+    // insertion order (`onload` then `onerror`, matching the `Set`).
+    let mut capture_onload = false;
+    let mut capture_onerror = false;
 
     for attr in &node.attributes {
         match attr {
             Attribute::SpreadAttribute(spread) => {
                 let expr = state.visit_expr(&spread.expression);
                 props.push(state.b.spread(expr));
+                if is_load_error_element(node.name.as_str()) {
+                    capture_onload = true;
+                    capture_onerror = true;
+                }
+            }
+            Attribute::UseDirective(_) if is_load_error_element(node.name.as_str()) => {
+                capture_onload = true;
+                capture_onerror = true;
             }
             Attribute::Attribute(a) => {
                 let raw_name = a.name.as_str();
@@ -885,6 +899,19 @@ fn build_element_spread_attributes<'a>(
         ],
     );
     push_interp(state, call);
+
+    // `events_to_capture`: emit ` onload="this.__e=event"` / ` onerror="..."`
+    // literals (in Set insertion order) after the `$.attributes(...)` call.
+    if capture_onload {
+        state.template.push(TemplateEntry::Literal(
+            " onload=\"this.__e=event\"".to_string(),
+        ));
+    }
+    if capture_onerror {
+        state.template.push(TemplateEntry::Literal(
+            " onerror=\"this.__e=event\"".to_string(),
+        ));
+    }
 }
 
 /// Whether `<select>` needs the special `$$renderer.select(...)` wrapper — it has
@@ -1477,6 +1504,17 @@ fn build_attribute_value<'a>(
 /// `is_event_attribute` predicate from upstream `utils/ast.js`.
 fn is_event_attribute_name(name: &str) -> bool {
     name.len() > 2 && name.starts_with("on") && name.as_bytes()[2].is_ascii_lowercase()
+}
+
+/// Whether the element emits `load` / `error` events (upstream
+/// `utils.js::is_load_error_element` / `LOAD_ERROR_ELEMENTS`). Such elements
+/// re-capture `onload` / `onerror` during SSR via the
+/// `onload="this.__e=event"` markers so the client can replay them.
+fn is_load_error_element(name: &str) -> bool {
+    matches!(
+        name,
+        "body" | "embed" | "iframe" | "img" | "link" | "object" | "script" | "style" | "track"
+    )
 }
 
 /// Lowercase the attribute name for non-svg/mathml elements (upstream

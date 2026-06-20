@@ -3915,4 +3915,48 @@ mod tests {
             );
         }
     }
+
+    /// The three SSR fixtures fixed by the boundary failed-prop whitespace,
+    /// `<select>`/`{#snippet}` implicit-value trailing-whitespace, and spread
+    /// `onload`/`onerror` event-capture ports. Asserts the NEW AST pipeline
+    /// matches the (correct) OLD oracle after oxc → esrap structural
+    /// canonicalization (`canon`), exactly the comparison the corpus
+    /// output-equality harness applies via oxfmt.
+    #[test]
+    fn ast_matches_oracle_three_ssr_fixtures() {
+        let names = [
+            "boundary-error-failed-prop",
+            "select-value-implicit-value-complex",
+            "spread-attributes-event-handler-xss",
+        ];
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("submodules/svelte/packages/svelte/tests/server-side-rendering/samples");
+        let mut mismatches = Vec::new();
+        for name in names {
+            let Ok(src) = std::fs::read_to_string(base.join(name).join("main.svelte")) else {
+                eprintln!("SKIP {name}: fixture not found (svelte submodule absent)");
+                continue;
+            };
+            let ours = run(&src);
+            let oracle = oracle_dump(&src);
+            let matched = match (canon(&ours), canon(&oracle)) {
+                (Some(a), Some(b)) => a == b,
+                _ => norm(&ours) == norm(&oracle),
+            };
+            if !matched {
+                eprintln!(
+                    "########## {name} (DIFFER) ##########\n=== NEW ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+                );
+                mismatches.push(name);
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "SSR output differs from oracle for: {mismatches:?}"
+        );
+    }
 }
